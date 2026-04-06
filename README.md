@@ -1,4 +1,4 @@
-# Procomeka
+# Procomun NG
 
 Sustituto moderno de Procomún: plataforma de recursos educativos abiertos orientada a catalogación, descubrimiento, reutilización, curación, interoperabilidad y publicación.
 
