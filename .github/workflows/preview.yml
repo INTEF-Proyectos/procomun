@@ -35,7 +35,7 @@ jobs:
         working-directory: apps/frontend
         env:
           PREVIEW_STATIC: "true"
-          PREVIEW_BASE: "/procomeka/pr-preview/pr-${{ github.event.pull_request.number }}/"
+          PREVIEW_BASE: "/procomun/pr-preview/pr-${{ github.event.pull_request.number }}/"
         run: bun run build:preview
 
       - name: Deploy preview
