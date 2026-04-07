@@ -1,4 +1,4 @@
-import * as repo from "@procomeka/db/repository";
+import * as repo from "@procomun/db/repository";
 import { getDb } from "../db.ts";
 import { buildElpxMap, buildElpxPreview } from "../elpx/preview.ts";
 import { buildResourceCard } from "../social/resource-card.ts";

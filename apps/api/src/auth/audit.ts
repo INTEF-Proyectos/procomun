@@ -1,6 +1,6 @@
 import type { Context, Next } from "hono";
 import { getDb } from "../db.ts";
-import { apiAccessLogs } from "@procomeka/db/schema";
+import { apiAccessLogs } from "@procomun/db/schema";
 import type { AuthEnv } from "./middleware.ts";
 
 /**

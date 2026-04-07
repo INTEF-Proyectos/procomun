@@ -38,7 +38,7 @@ describe("GET /api/v1/exelearning-editor/index.html", () => {
 		expect(html).toContain("/test.elpx");
 		expect(html).toContain("r1");
 		expect(html).toContain("<base");
-		expect(html).toContain("__PROCOMEKA_CONFIG__");
+		expect(html).toContain("__PROCOMUN_CONFIG__");
 		expect(res.headers.get("content-type")).toContain("text/html");
 		expect(res.headers.get("cache-control")).toBe("no-cache");
 	});

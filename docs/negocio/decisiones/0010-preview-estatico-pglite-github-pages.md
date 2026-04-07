@@ -50,7 +50,7 @@ Se usa GitHub Pages con `rossjrw/pr-preview-action` para publicar previews autom
 ## Notas de Implementación
 
 * **ApiClient**: Interfaz `ApiClient` con dos implementaciones: `HttpApiClient` (servidor) y `PreviewApiClient` (PGlite en navegador).
-* **Base path**: Astro config usa `PREVIEW_BASE` para subpath de GitHub Pages (`/procomeka/pr-preview/pr-{N}/`).
+* **Base path**: Astro config usa `PREVIEW_BASE` para subpath de GitHub Pages (`/procomun/pr-preview/pr-{N}/`).
 * **Auth en preview**: Usuarios demo con selector de rol. Sin Better Auth.
 * **Seed data**: JSON estático en `apps/frontend/public/preview/seed.json`.
 * **GitHub Actions**: `.github/workflows/preview.yml` con `rossjrw/pr-preview-action`.

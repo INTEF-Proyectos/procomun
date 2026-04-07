@@ -97,7 +97,7 @@ Justificación principal:
    ```env
    OIDC_ENABLED=true
    OIDC_ISSUER=https://idp.educacion.gob.es
-   OIDC_CLIENT_ID=procomeka
+   OIDC_CLIENT_ID=procomun
    OIDC_CLIENT_SECRET=secret
    ```
    Cuando `OIDC_ENABLED` no está definido, el plugin SSO no se carga.

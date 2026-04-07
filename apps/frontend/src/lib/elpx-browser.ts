@@ -4,8 +4,8 @@
  * Uses the ZIP central directory for robust parsing (handles data descriptors, etc.).
  */
 
-import { parseContentXml } from "@procomeka/db/elpx-metadata";
-import type { ElpxMetadata } from "@procomeka/db/elpx-metadata";
+import { parseContentXml } from "@procomun/db/elpx-metadata";
+import type { ElpxMetadata } from "@procomun/db/elpx-metadata";
 
 export type { ElpxMetadata };
 

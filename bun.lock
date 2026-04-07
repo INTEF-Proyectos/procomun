@@ -16,11 +16,11 @@
       },
     },
     "apps/api": {
-      "name": "@procomeka/api",
+      "name": "@procomun/api",
       "version": "0.1.0",
       "dependencies": {
         "@electric-sql/pglite": "0.4.2",
-        "@procomeka/db": "workspace:*",
+        "@procomun/db": "workspace:*",
         "@tus/file-store": "2.0.0",
         "@tus/server": "2.3.0",
         "better-auth": "1.5.6",
@@ -29,23 +29,23 @@
       },
     },
     "apps/cli": {
-      "name": "@procomeka/cli",
+      "name": "@procomun/cli",
       "version": "0.1.0",
       "dependencies": {
         "@electric-sql/pglite": "0.4.2",
-        "@procomeka/db": "workspace:*",
+        "@procomun/db": "workspace:*",
         "better-auth": "1.5.6",
         "postgres": "3.4.8",
       },
     },
     "apps/frontend": {
-      "name": "@procomeka/frontend",
+      "name": "@procomun/frontend",
       "version": "0.1.0",
       "dependencies": {
         "@astrojs/react": "^5.0.2",
         "@electric-sql/pglite": "0.4.2",
         "@inlang/paraglide-js": "^2.15.1",
-        "@procomeka/db": "workspace:*",
+        "@procomun/db": "workspace:*",
         "@testing-library/dom": "^10.4.1",
         "@testing-library/react": "^16.3.2",
         "@types/react": "^19.2.14",
@@ -64,7 +64,7 @@
       },
     },
     "packages/db": {
-      "name": "@procomeka/db",
+      "name": "@procomun/db",
       "version": "0.1.0",
       "dependencies": {
         "@electric-sql/pglite": "0.4.2",
@@ -318,13 +318,13 @@
 
     "@playwright/test": ["@playwright/test@1.58.2", "", { "dependencies": { "playwright": "1.58.2" }, "bin": { "playwright": "cli.js" } }, "sha512-akea+6bHYBBfA9uQqSYmlJXn61cTa+jbO87xVLCWbTqbWadRVmhxlXATaOjOgcBaWU4ePo0wB41KMFv3o35IXA=="],
 
-    "@procomeka/api": ["@procomeka/api@workspace:apps/api"],
+    "@procomun/api": ["@procomun/api@workspace:apps/api"],
 
-    "@procomeka/cli": ["@procomeka/cli@workspace:apps/cli"],
+    "@procomun/cli": ["@procomun/cli@workspace:apps/cli"],
 
-    "@procomeka/db": ["@procomeka/db@workspace:packages/db"],
+    "@procomun/db": ["@procomun/db@workspace:packages/db"],
 
-    "@procomeka/frontend": ["@procomeka/frontend@workspace:apps/frontend"],
+    "@procomun/frontend": ["@procomun/frontend@workspace:apps/frontend"],
 
     "@redis/client": ["@redis/client@1.6.1", "", { "dependencies": { "cluster-key-slot": "1.1.2", "generic-pool": "3.9.0", "yallist": "4.0.0" } }, "sha512-/KCsg3xSlR+nCK8/8ZYSknYxvXHwubJrU82F3Lm1Fp6789VQ0/3RJKfsmRXjqfaTA++23CvC3hqmqe/2GEt6Kw=="],
 

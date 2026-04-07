@@ -5,7 +5,7 @@ import os from "node:os";
 import { generateElpxFromFiles } from "./elpx-generator.ts";
 import { parseElpxMetadata, processElpxUpload } from "./elpx-processor.ts";
 
-const TEMP_DIR = path.join(os.tmpdir(), `procomeka-gen-tests-${Date.now()}`);
+const TEMP_DIR = path.join(os.tmpdir(), `procomun-gen-tests-${Date.now()}`);
 
 afterAll(async () => {
 	await rm(TEMP_DIR, { recursive: true, force: true });

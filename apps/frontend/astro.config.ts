@@ -6,7 +6,7 @@ const isPreview = process.env.PREVIEW_STATIC === "true";
 const previewBase = process.env.PREVIEW_BASE ?? "/";
 
 export default defineConfig({
-	site: isPreview ? "https://intef-proyectos.github.io" : "https://procomeka.es",
+	site: isPreview ? "https://intef-proyectos.github.io" : "https://procomun.es",
 	base: isPreview ? previewBase : "/",
 	output: "static",
 	integrations: [react()],

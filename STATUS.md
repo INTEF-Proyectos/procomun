@@ -397,12 +397,12 @@ Antes de escribir código de negocio, se deben resolver las siguientes decisione
 ## Actualización 2026-03-27 (Caso de análisis: contexto de Procomún legacy)
 
 - **Agente en turno:** `@.agents/skills/documentacion-y-roadmap/SKILL.md` + `@.agents/skills/ingestas-y-migraciones/SKILL.md`
-- **Acción realizada:** Se documenta el estado del arte de la plataforma Procomún actual como base para planificar la migración de datos y funcionalidades a procomeka.
+- **Acción realizada:** Se documenta el estado del arte de la plataforma Procomún actual como base para planificar la migración de datos y funcionalidades a procomun.
 - **Cambios aplicados:**
   - Nuevo caso de análisis en `docs/casos/contexto-procomun-legacy/` con estado del arte, requisitos funcionales observados e información contractual pública.
   - Stack legacy confirmado: Drupal, Matomo, Docker, apps nativas iOS/Android.
   - Cifras documentadas: ~78.800 ODEs, ~100.000 multimedia, ~109.700 usuarios, ~23.500 artículos, 371 itinerarios, 55 comunidades.
-  - 13 grupos de requisitos funcionales observados con mapeo a procomeka y gaps identificados.
+  - 13 grupos de requisitos funcionales observados con mapeo a procomun y gaps identificados.
   - 6 gaps funcionales críticos: Banco Multimedia como entidad propia, eXeLearning online, comunidades, artículos, app móvil, i18n de interfaz.
   - Información contractual del expediente CE01698/2023 (adjudicación a ICA, 318.599,63 €).
   - Carpeta `pliegos/` preparada para almacenar PPT y PCAP cuando se obtengan.
@@ -415,7 +415,7 @@ Antes de escribir código de negocio, se deben resolver las siguientes decisione
   - El Pliego de Prescripciones Técnicas (PPT) del expediente CE01698/2023 no se ha podido obtener todavía; contiene los requisitos funcionales formales.
   - No se tiene acceso al esquema de base de datos de Drupal/Procomún.
   - No se conoce si existe API pública del Procomún actual.
-- **Traspaso recomendado:** `@.agents/skills/ingestas-y-migraciones/SKILL.md` para diseñar el plan ETL detallado una vez se obtengan los pliegos, y `@.agents/skills/metadatos-y-curacion/SKILL.md` para diseñar el mapeo de metadatos LOM → esquema procomeka.
+- **Traspaso recomendado:** `@.agents/skills/ingestas-y-migraciones/SKILL.md` para diseñar el plan ETL detallado una vez se obtengan los pliegos, y `@.agents/skills/metadatos-y-curacion/SKILL.md` para diseñar el mapeo de metadatos LOM → esquema procomun.
 
 | Fecha | Agente | Acción / Entregable | Estado |
 |-------|--------|---------------------|--------|
@@ -452,7 +452,7 @@ Antes de escribir código de negocio, se deben resolver las siguientes decisione
 - **Acción realizada:** Se documenta la ruta efectiva de almacenamiento de uploads para evitar confusión entre `local-data/uploads` en raíz y `apps/api/local-data/uploads`.
 - **Cambios aplicados:**
   - Aclaración en `README.md` de que `UPLOAD_STORAGE_DIR` relativo se resuelve contra el directorio de trabajo del proceso.
-  - Nota operativa en ADR-0011 sobre la caída efectiva del valor por defecto al arrancar la API con `bun run --filter '@procomeka/api' dev`.
+  - Nota operativa en ADR-0011 sobre la caída efectiva del valor por defecto al arrancar la API con `bun run --filter '@procomun/api' dev`.
 - **Validación:**
   - Revisión manual de alineación entre `apps/api/src/uploads/config.ts`, `README.md` y ADR-0011.
 - **Resultado:**
@@ -474,7 +474,7 @@ Antes de escribir código de negocio, se deben resolver las siguientes decisione
   - La ficha pública `recurso.astro` muestra la sección `Archivos` con enlaces de descarga.
 - **Validación:**
   - `bun test apps/api/src/resources/repository.unit.test.ts apps/api/src/index.unit.test.ts apps/api/src/routes/uploads.unit.test.ts`
-  - `bun run --filter '@procomeka/frontend' build`
+  - `bun run --filter '@procomun/frontend' build`
 - **Resultado:**
   - `37 pass, 0 fail`
   - Build de frontend correcto
@@ -496,7 +496,7 @@ Antes de escribir código de negocio, se deben resolver las siguientes decisione
   - Ampliación de tests unitarios de configuración de uploads para cubrir esos rechazos.
 - **Validación:**
   - `bun test apps/frontend/src/lib/resource-uploader.unit.test.ts apps/api/src/uploads/config.unit.test.ts`
-  - `bun run --filter '@procomeka/frontend' build`
+  - `bun run --filter '@procomun/frontend' build`
 - **Resultado:**
   - `9 pass, 0 fail`
   - Build de frontend correcto
@@ -514,7 +514,7 @@ Antes de escribir código de negocio, se deben resolver las siguientes decisione
 
 ### Arquitectura de codigo
 - `admin.ts` (585 lineas) partido en 5 modulos por dominio bajo `routes/admin/`
-- `ROLE_LEVELS` consolidado de 3 copias a 1 fuente canonica en `@procomeka/db/validation`
+- `ROLE_LEVELS` consolidado de 3 copias a 1 fuente canonica en `@procomun/db/validation`
 - CRUD route builder generico (`buildCrudRoutes`) elimina ~50% del boilerplate de rutas admin
 - Helpers compartidos extraidos: `parsePagination`, `ensureCurrentUser`, `requireOwnedResource`
 - Eliminados wrappers innecesarios: `resources/validation.ts`, `resources/repository.ts`
@@ -888,3 +888,29 @@ Antes de escribir código de negocio, se deben resolver las siguientes decisione
 | Fecha | Agente | Acción / Entregable | Estado |
 |-------|--------|---------------------|--------|
 | 2026-03-31 | `@.agents/skills/backend-api-servicios` + `@.agents/skills/documentacion-y-roadmap` | Refactor de servicios sociales, guardas admin, contratos internos y documentación de `make test`/paridad archivo-test | Completado |
+
+## Actualización 2026-04-07 (Renombrado global de identidad del proyecto a procomun)
+
+- **Agente en turno:** `@.agents/skills/documentacion-y-roadmap/SKILL.md` + `@.agents/skills/backend-api-servicios/SKILL.md`
+- **Acción realizada:** Se renombra la referencia transversal del proyecto de `procomeka` a `procomun` en código, workspaces de Bun, imports internos, rutas de preview, cadenas visibles, documentación operativa y ADRs editables del repositorio.
+- **Cambios aplicados:**
+  - Paquetes workspace renombrados a `@procomun/*` en raíz, `apps/` y `packages/`.
+  - Imports y cargas dinámicas actualizados de `@procomeka/db/*` a `@procomun/db/*`.
+  - Identificadores de preview, claves de almacenamiento local, cabeceras, nombres temporales, rutas de despliegue y textos UI/documentación alineados con `procomun`.
+  - `bun.lock`, `Makefile`, workflow de deploy y ejemplos de configuración actualizados al nuevo nombre.
+- **Validación ejecutada:**
+  - Búsqueda exhaustiva de restos con `rg -n --hidden --glob '!.git' 'procomeka|Procomeka|PROCOMEKA' .`
+  - `bun test`
+  - `bun install`
+- **Resultado:**
+  - No quedan referencias a `procomeka` en archivos editables del repositorio.
+  - Persisten referencias en `.agents/skills/*.md`, pero esos archivos están montados como no escribibles en este entorno.
+  - `bun test` queda bloqueado por dependencias externas no resolubles localmente en este entorno (`drizzle-orm/pg-core` y otras).
+  - `bun install` no pudo completar por falta de acceso de red para descargar paquetes.
+- **Riesgos abiertos:**
+  - Queda pendiente reejecutar instalación y suite completa en un entorno con acceso a dependencias o con caché/local mirror disponible.
+  - Si se requiere consistencia total del nombre también en instrucciones internas, habrá que actualizar fuera de este sandbox los `SKILL.md` no escribibles.
+
+| Fecha | Agente | Acción / Entregable | Estado |
+|-------|--------|---------------------|--------|
+| 2026-04-07 | `@.agents/skills/documentacion-y-roadmap` + `@.agents/skills/backend-api-servicios` | Renombrado transversal `procomeka` → `procomun` en código y documentación editable; validación bloqueada por dependencias/red | Completado con bloqueo externo |

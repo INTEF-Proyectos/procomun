@@ -1,5 +1,5 @@
 import { and, eq, sql } from "drizzle-orm";
-import { ratings } from "@procomeka/db/schema";
+import { ratings } from "@procomun/db/schema";
 import { getDb } from "../db.ts";
 import { roundRatingAverage } from "./resource-card.ts";
 

@@ -1,7 +1,7 @@
 import { Hono } from "hono";
 import { type AuthEnv, requireRole } from "../../auth/middleware.ts";
 import { getDb } from "../../db.ts";
-import * as repo from "@procomeka/db/repository";
+import * as repo from "@procomun/db/repository";
 
 const settingsRoutes = new Hono<AuthEnv>();
 

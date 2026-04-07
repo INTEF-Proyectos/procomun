@@ -183,7 +183,7 @@ export async function generateElpxFromFiles(opts: {
 
 	const workDir = path.join(
 		os.tmpdir(),
-		`procomeka-gen-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+		`procomun-gen-${Date.now()}-${Math.random().toString(36).slice(2)}`,
 	);
 	await mkdir(workDir, { recursive: true });
 

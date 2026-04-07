@@ -1,5 +1,5 @@
 import { and, eq, sql } from "drizzle-orm";
-import { favorites } from "@procomeka/db/schema";
+import { favorites } from "@procomun/db/schema";
 import { getDb } from "../db.ts";
 
 export async function toggleResourceFavorite(input: {

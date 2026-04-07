@@ -100,7 +100,7 @@ Escala: 1 (peor) a 5 (mejor). En "Lock-in" y "Coste de integración", 5 = menor 
 
 **Contras**
 - No tiene sistema de componentes — solo directivas declarativas.
-- Para las necesidades de Procomeka (formularios complejos, tablas CRUD, componentización) se seguiría con los mismos problemas fundamentales de vanilla JS pero con sintaxis más limpia.
+- Para las necesidades de Procomun (formularios complejos, tablas CRUD, componentización) se seguiría con los mismos problemas fundamentales de vanilla JS pero con sintaxis más limpia.
 - Sin ecosistema de componentes accesibles.
 - Testing unitario prácticamente inviable.
 - **Descartado**: no resuelve los problemas de fondo (componentización, testing, estado).
@@ -189,7 +189,7 @@ Se **adopta React como framework UI para islands interactivas en Astro**, con la
 | Bundle size (~40-45 KB) | react + react-dom se cargan una sola vez y se comparten entre todas las islands. Astro deduplica automáticamente. El coste marginal por island adicional es mínimo. |
 | SPA creep | Solo los patrones interactivos son islands. Layouts, navegación, headers, footers siguen en Astro puro. Presupuesto de JS: máximo 100 KB total hidratado en cualquier página. |
 | Lock-in React | Las islands son componentes aislados con props bien definidas. Si se necesita migrar, se reemplazan individualmente sin tocar el shell Astro. |
-| Over-engineering | Se usa React Aria como primitivas headless, no un design system completo. Los componentes se construyen ligeros y específicos para Procomeka. |
+| Over-engineering | Se usa React Aria como primitivas headless, no un design system completo. Los componentes se construyen ligeros y específicos para Procomun. |
 
 ### Librería de componentes accesibles
 

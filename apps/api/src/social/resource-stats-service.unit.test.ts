@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import * as repo from "@procomeka/db/repository";
+import * as repo from "@procomun/db/repository";
 import { getDb } from "../db.ts";
 import { toggleResourceFavorite } from "./favorites-service.ts";
 import { upsertResourceRating } from "./ratings-service.ts";

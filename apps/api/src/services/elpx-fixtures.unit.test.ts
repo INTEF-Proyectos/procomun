@@ -13,7 +13,7 @@ import { elpxContentRoutes } from "../routes/elpx-content.ts";
 const FIXTURES_DIR = path.join(import.meta.dir, "../test-fixtures/elpx");
 const TEMP_DIR = path.join(
 	os.tmpdir(),
-	"procomeka-elpx-fixture-tests-" + Date.now(),
+	"procomun-elpx-fixture-tests-" + Date.now(),
 );
 
 const FIXTURES = [

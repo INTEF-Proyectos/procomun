@@ -35,14 +35,14 @@ up-frontend:
 
 # Preview estático: construye y sirve localmente como lo haría GitHub Pages
 build-preview:
-	cd apps/frontend && PREVIEW_STATIC=true PREVIEW_BASE=/procomeka/ $(BUN) run build:preview
+	cd apps/frontend && PREVIEW_STATIC=true PREVIEW_BASE=/procomun/ $(BUN) run build:preview
 	@# Crear estructura de subpath para servir localmente
 	@rm -rf apps/frontend/.preview-serve
-	@mkdir -p apps/frontend/.preview-serve/procomeka
-	@cp -r apps/frontend/dist/* apps/frontend/.preview-serve/procomeka/
+	@mkdir -p apps/frontend/.preview-serve/procomun
+	@cp -r apps/frontend/dist/* apps/frontend/.preview-serve/procomun/
 
 up-static: deps ensure-exelearning-editor build-preview
-	@echo "Sirviendo preview estático en http://localhost:8080/procomeka/"
+	@echo "Sirviendo preview estático en http://localhost:8080/procomun/"
 	@cd apps/frontend/.preview-serve && python3 -m http.server 8080
 
 clean:
@@ -105,19 +105,19 @@ check-coverage:
 	$(BUN) run check-coverage
 
 cli:
-	$(BUN) run --filter '@procomeka/cli' cli -- $(ARGS)
+	$(BUN) run --filter '@procomun/cli' cli -- $(ARGS)
 
 seed:
-	$(BUN) run --filter '@procomeka/cli' cli -- seed
+	$(BUN) run --filter '@procomun/cli' cli -- seed
 
 up-postgres: deps
 	@echo "Levantando PostgreSQL en Docker para desarrollo local..."
 	@docker compose up -d --wait db
 	@echo "Ejecutando seed sobre PostgreSQL real..."
-	@DATABASE_URL="postgres://procomeka:procomeka@localhost:5432/procomeka" \
-		$(BUN) run --filter '@procomeka/cli' cli -- seed
+	@DATABASE_URL="postgres://procomun:procomun@localhost:5432/procomun" \
+		$(BUN) run --filter '@procomun/cli' cli -- seed
 	@echo "Arrancando API + frontend local con PostgreSQL real..."
-	@DATABASE_URL="postgres://procomeka:procomeka@localhost:5432/procomeka" \
+	@DATABASE_URL="postgres://procomun:procomun@localhost:5432/procomun" \
 		FRONTEND_URL="http://localhost:4321" \
 		BETTER_AUTH_URL="http://localhost:4321" \
 		$(BUN) run dev

@@ -6,7 +6,7 @@
  * All heavy imports are dynamic to keep the main bundle small.
  */
 
-import type { ElpxMetadata } from "@procomeka/db/elpx-metadata";
+import type { ElpxMetadata } from "@procomun/db/elpx-metadata";
 
 /** Resolve a preview URL — checks IndexedDB for user blobs, falls back to static URL */
 export async function resolveElpxPreviewUrl(hash: string, filename: string): Promise<string | null> {
@@ -30,7 +30,7 @@ export async function saveElpxInPreview(opts: {
 }): Promise<{ hash: string; previewUrl: string | null; metadata: ElpxMetadata }> {
 	const { storeFile } = await import("./preview-file-store.ts");
 	const { parseAndPreview, generateElpxId } = await import("./elpx-browser.ts");
-	const { deleteElpxProject, createElpxProject, getElpxProjectByResourceId } = await import("@procomeka/db/repository");
+	const { deleteElpxProject, createElpxProject, getElpxProjectByResourceId } = await import("@procomun/db/repository");
 	const { PreviewApiClient } = await import("./preview-api-client.ts");
 
 	const hash = opts.existingHash || generateElpxId();

@@ -1,5 +1,5 @@
 import { and, eq, isNull } from "drizzle-orm";
-import { resources } from "@procomeka/db/schema";
+import { resources } from "@procomun/db/schema";
 import { getDb } from "../db.ts";
 
 export async function resolveResourceBySlug(slug: string) {

@@ -1,6 +1,6 @@
 import { expect, test, describe } from "bun:test";
 import { getDb } from "../db.ts";
-import * as repo from "@procomeka/db/repository";
+import * as repo from "@procomun/db/repository";
 
 const db = () => getDb().db;
 const listResources = (opts: Parameters<typeof repo.listResources>[1]) => repo.listResources(db(), opts);

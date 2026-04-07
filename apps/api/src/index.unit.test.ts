@@ -4,7 +4,7 @@ import path from "node:path";
 import { tmpdir } from "node:os";
 import { app } from "./index.ts";
 import { getDb } from "./db.ts";
-import * as repo from "@procomeka/db/repository";
+import * as repo from "@procomun/db/repository";
 
 let publishedSlug: string;
 let draftSlug: string;
@@ -14,7 +14,7 @@ let publishedUploadId: string;
 let publishedCollectionSlug: string;
 
 beforeAll(async () => {
-	process.env.UPLOAD_STORAGE_DIR = await mkdtemp(path.join(tmpdir(), "procomeka-public-uploads-"));
+	process.env.UPLOAD_STORAGE_DIR = await mkdtemp(path.join(tmpdir(), "procomun-public-uploads-"));
 
 	const draft = await repo.createResource(getDb().db, {
 		title: "Recurso borrador test",
@@ -110,7 +110,7 @@ describe("Endpoints básicos", () => {
 		const res = await app.request("/");
 		expect(res.status).toBe(200);
 		const body = await res.json();
-		expect(body.name).toBe("Procomeka API");
+		expect(body.name).toBe("Procomun API");
 	});
 });
 

@@ -23,10 +23,10 @@ describe("auth config helpers", () => {
 
 	test("keep explicit FRONTEND_URL for trusted origins and auth fallback", () => {
 		const env = {
-			FRONTEND_URL: "https://staging.procomeka.test",
+			FRONTEND_URL: "https://staging.procomun.test",
 		} as NodeJS.ProcessEnv;
 
-		expect(getFrontendUrl(env)).toBe("https://staging.procomeka.test");
-		expect(getAuthBaseUrl(env)).toBe("https://staging.procomeka.test");
+		expect(getFrontendUrl(env)).toBe("https://staging.procomun.test");
+		expect(getAuthBaseUrl(env)).toBe("https://staging.procomun.test");
 	});
 });

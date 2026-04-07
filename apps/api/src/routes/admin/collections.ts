@@ -1,10 +1,10 @@
 import { buildCrudRoutes } from "../crud-builder.ts";
-import { validateCollection } from "@procomeka/db/validation";
+import { validateCollection } from "@procomun/db/validation";
 import { canManageCollection, getCurrentUser, hasMinRole } from "../../auth/roles.ts";
 import { logActivity } from "../../activity/log.ts";
 import { ensureCurrentUser } from "../../auth/user-sync.ts";
 import { getDb } from "../../db.ts";
-import * as repo from "@procomeka/db/repository";
+import * as repo from "@procomun/db/repository";
 import { parseJsonBodyOrNull, requireManageableCollection } from "./guards.ts";
 
 const collectionRoutes = buildCrudRoutes({

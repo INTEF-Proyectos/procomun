@@ -5,7 +5,7 @@ export function PreviewBannerIsland() {
 	const [resetting, setResetting] = useState(false);
 
 	useEffect(() => {
-		const savedRole = localStorage.getItem("procomeka-preview-role") ?? "admin";
+		const savedRole = localStorage.getItem("procomun-preview-role") ?? "admin";
 		setRole(savedRole);
 	}, []);
 

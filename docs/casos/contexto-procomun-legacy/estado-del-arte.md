@@ -1,7 +1,7 @@
 # Estado del arte: Espacio Procomún Educativo (Procomún – Agrega3)
 
 > Caso de análisis — Fecha: 2026-03-27
-> Objetivo: documentar el estado actual de la plataforma Procomún como base para planificar la migración de datos y funcionalidades a procomeka.
+> Objetivo: documentar el estado actual de la plataforma Procomún como base para planificar la migración de datos y funcionalidades a procomun.
 
 ---
 
@@ -278,7 +278,7 @@ Las colecciones de ODEs actualmente dependen de los metadatos del propio ODE par
 - Xamarin 5 Forms (Microsoft anunció el fin de soporte de Xamarin en mayo 2024)
 - Dos procesos Java separados (AgregaBatch y AgregaWeb) que el propio pliego reconoce que deberían unificarse (Evo4)
 
-## 10. Implicaciones para la migración a procomeka
+## 10. Implicaciones para la migración a procomun
 
 ### Datos a migrar (estimación)
 
@@ -300,7 +300,7 @@ Las colecciones de ODEs actualmente dependen de los metadatos del propio ODE par
 5. **Banco Multimedia**: volumen alto de archivos binarios que requerirán almacenamiento y servicio.
 6. **eXeLearning online**: funcionalidad compleja de edición en navegador que requiere análisis separado (integración vía web services).
 7. **Agrega3/LOM**: interoperabilidad con metadatos LOM y nodos federados.
-8. **Usuarios y permisos**: mapeo de roles legacy → RBAC de procomeka.
+8. **Usuarios y permisos**: mapeo de roles legacy → RBAC de procomun.
 9. **App móvil**: tecnología Xamarin en EOL; decisión sobre mantener, reescribir (API-first) o eliminar.
 10. **Colecciones**: modelo actual acoplado a metadatos; requiere rediseño del modelo de datos.
 11. **Índice de búsqueda**: no se puede confiar en el índice ES actual como fuente de verdad por las inconsistencias conocidas.

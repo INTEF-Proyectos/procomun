@@ -7,14 +7,14 @@
 
 ## Objetivo
 
-Documentar el estado actual del Espacio Procomún Educativo (Procomún – Agrega3) del INTEF, como base para planificar la migración de datos y funcionalidades a procomeka.
+Documentar el estado actual del Espacio Procomún Educativo (Procomún – Agrega3) del INTEF, como base para planificar la migración de datos y funcionalidades a procomun.
 
 ## Contenido
 
 | Documento | Descripción |
 |-----------|-------------|
 | [estado-del-arte.md](estado-del-arte.md) | Arquitectura técnica confirmada (Drupal 9.4.8, Agrega3/Java, ElasticSearch 7.17.2, MariaDB, Xamarin), componentes, cifras y problemas conocidos |
-| [requisitos-funcionales.md](requisitos-funcionales.md) | Requisitos funcionales observados (RF-01 a RF-13) + requisitos formales del contrato (F1, Evo1-Evo10) + mapeo a procomeka + gaps de migración |
+| [requisitos-funcionales.md](requisitos-funcionales.md) | Requisitos funcionales observados (RF-01 a RF-13) + requisitos formales del contrato (F1, Evo1-Evo10) + mapeo a procomun + gaps de migración |
 | [pliegos/](pliegos/) | 5 documentos contractuales PDF + índice con datos del expediente CE01698/2023 |
 
 ## Fuentes utilizadas
@@ -35,4 +35,4 @@ Documentar el estado actual del Espacio Procomún Educativo (Procomún – Agreg
 
 ## Siguiente paso
 
-Diseñar el plan ETL detallado con mapeo de esquemas MariaDB/Drupal → PostgreSQL/procomeka.
+Diseñar el plan ETL detallado con mapeo de esquemas MariaDB/Drupal → PostgreSQL/procomun.

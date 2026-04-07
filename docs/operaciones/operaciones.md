@@ -1,12 +1,12 @@
 # Guía de Operaciones
 
-Esta guía describe las tareas operativas rutinarias y la resolución de problemas para el administrador del sistema Procomeka.
+Esta guía describe las tareas operativas rutinarias y la resolución de problemas para el administrador del sistema Procomun.
 
 ## Procedimientos de Backup y Restauración
 
 ### Copia de seguridad de la base de datos
 ```bash
-docker exec -t procomeka-db-1 pg_dumpall -c -U procomeka > dump_`date +%d-%m-%Y"_"%H_%M`.sql
+docker exec -t procomun-db-1 pg_dumpall -c -U procomun > dump_`date +%d-%m-%Y"_"%H_%M`.sql
 ```
 
 ### Copia de seguridad de archivos (Uploads)
@@ -17,7 +17,7 @@ tar -cvf uploads_backup.tar ./local-data/uploads
 
 ### Restauración
 ```bash
-cat dump_XX.sql | docker exec -i procomeka-db-1 psql -U procomeka
+cat dump_XX.sql | docker exec -i procomun-db-1 psql -U procomun
 ```
 
 ## Monitorización y Health Checks
@@ -67,8 +67,8 @@ Docker gestiona la rotación de logs de forma nativa mediante el driver `json-fi
 Utilice la herramienta CLI de administración:
 ```bash
 # Listar usuarios
-bun run --filter '@procomeka/cli' cli -- user-list
+bun run --filter '@procomun/cli' cli -- user-list
 
 # Crear administrador
-bun run --filter '@procomeka/cli' cli -- user-create --email admin@midominio.com --name "Admin Local" --role admin --password "mi-pass-seguro"
+bun run --filter '@procomun/cli' cli -- user-create --email admin@midominio.com --name "Admin Local" --role admin --password "mi-pass-seguro"
 ```

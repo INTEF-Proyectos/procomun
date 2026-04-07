@@ -1,6 +1,6 @@
 import type { Context, Next } from "hono";
 import { auth } from "./config.ts";
-import { ROLE_LEVELS } from "@procomeka/db/validation";
+import { ROLE_LEVELS } from "@procomun/db/validation";
 
 type AuthUser = typeof auth.$Infer.Session.user;
 type AuthSession = typeof auth.$Infer.Session.session;

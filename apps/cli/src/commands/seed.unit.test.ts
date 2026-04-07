@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { DEMO_USERS, DEMO_RESOURCES, DEMO_COLLECTIONS, DEMO_RATINGS, DEMO_FAVORITES } from "@procomeka/db/seed-data";
+import { DEMO_USERS, DEMO_RESOURCES, DEMO_COLLECTIONS, DEMO_RATINGS, DEMO_FAVORITES } from "@procomun/db/seed-data";
 import { formatPostgresSeedTarget, resolveSeedMode, seedWithClient } from "./seed.ts";
 
 describe("resolveSeedMode", () => {
@@ -14,8 +14,8 @@ describe("resolveSeedMode", () => {
 
 describe("formatPostgresSeedTarget", () => {
 	test("redacta credenciales y conserva host, puerto y base de datos", () => {
-		expect(formatPostgresSeedTarget("postgres://user:secret@db.example.com:6543/procomeka")).toBe(
-			"Base PostgreSQL: db.example.com:6543/procomeka",
+		expect(formatPostgresSeedTarget("postgres://user:secret@db.example.com:6543/procomun")).toBe(
+			"Base PostgreSQL: db.example.com:6543/procomun",
 		);
 	});
 });
@@ -39,7 +39,7 @@ describe("seedWithClient", { timeout: 60_000 }, () => {
 			{
 				now: "2026-03-27T10:00:00.000Z",
 				log: { log: (message: string) => logs.push(message) },
-				successTarget: "Directorio PGlite: /tmp/procomeka",
+				successTarget: "Directorio PGlite: /tmp/procomun",
 			},
 		);
 
@@ -67,7 +67,7 @@ describe("seedWithClient", { timeout: 60_000 }, () => {
 		expect(calls.some((c) => c.statement.includes('INSERT INTO "activity_events"'))).toBe(true);
 
 		// Verifica mensaje final
-		expect(logs.at(-1)).toBe("\nSeed completado. Directorio PGlite: /tmp/procomeka");
+		expect(logs.at(-1)).toBe("\nSeed completado. Directorio PGlite: /tmp/procomun");
 	});
 
 	test("cierra el cliente aunque falle una consulta", async () => {
@@ -86,7 +86,7 @@ describe("seedWithClient", { timeout: 60_000 }, () => {
 						closed = true;
 					},
 				},
-				{ successTarget: "Directorio PGlite: /tmp/procomeka" },
+				{ successTarget: "Directorio PGlite: /tmp/procomun" },
 			),
 		).rejects.toThrow("account insert failed");
 

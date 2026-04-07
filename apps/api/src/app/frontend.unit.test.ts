@@ -14,13 +14,13 @@ describe("registerFrontendServing", () => {
 		const response = await app.request("/");
 		expect(response.status).toBe(200);
 		expect(await response.json()).toEqual({
-			name: "Procomeka API",
+			name: "Procomun API",
 			version: "0.1.0",
 		});
 	});
 
 	test("serves the frontend index when a static directory is provided", async () => {
-		const frontendDir = await mkdtemp(path.join(tmpdir(), "procomeka-frontend-"));
+		const frontendDir = await mkdtemp(path.join(tmpdir(), "procomun-frontend-"));
 		await writeFile(path.join(frontendDir, "index.html"), "<html><body>frontend ok</body></html>");
 
 		const app = new Hono<AuthEnv>();

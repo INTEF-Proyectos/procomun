@@ -1,6 +1,6 @@
 import type { Context } from "hono";
 import type { AuthEnv } from "./middleware.ts";
-import { ROLE_LEVELS } from "@procomeka/db/validation";
+import { ROLE_LEVELS } from "@procomun/db/validation";
 
 export function getCurrentUser(c: Context<AuthEnv>) {
 	return c.get("user") as { id: string; role?: string; name?: string; email?: string };

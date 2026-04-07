@@ -6,8 +6,8 @@ import {
 	favorites,
 	ratings,
 	resources,
-} from "@procomeka/db/schema";
-import * as repo from "@procomeka/db/repository";
+} from "@procomun/db/schema";
+import * as repo from "@procomun/db/repository";
 import { logActivity } from "../activity/log.ts";
 import { parsePagination } from "../http/pagination.ts";
 import { listUserActivity } from "../social/activity-service.ts";

@@ -3,9 +3,9 @@ import type { AuthEnv } from "../../auth/middleware.ts";
 import { getCurrentUser, hasMinRole } from "../../auth/roles.ts";
 import { logActivity } from "../../activity/log.ts";
 import { parsePagination } from "../../http/pagination.ts";
-import { ROLE_LEVELS } from "@procomeka/db/validation";
+import { ROLE_LEVELS } from "@procomun/db/validation";
 import { getDb } from "../../db.ts";
-import * as repo from "@procomeka/db/repository";
+import * as repo from "@procomun/db/repository";
 
 const userRoutes = new Hono<AuthEnv>();
 

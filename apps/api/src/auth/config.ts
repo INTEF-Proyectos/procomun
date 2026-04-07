@@ -10,7 +10,7 @@ import {
 	editor,
 	reader,
 } from "./permissions.ts";
-import * as pgSchema from "@procomeka/db/schema";
+import * as pgSchema from "@procomun/db/schema";
 import { getDb } from "../db.ts";
 import { getAuthBaseUrl, getFrontendUrl } from "./urls.ts";
 import { logActivity } from "../activity/log.ts";

@@ -1,8 +1,8 @@
 import { mkdir, rm, access, readFile } from "node:fs/promises";
 import path from "node:path";
 
-import { parseContentXml } from "@procomeka/db/elpx-metadata";
-import type { ElpxMetadata } from "@procomeka/db/elpx-metadata";
+import { parseContentXml } from "@procomun/db/elpx-metadata";
+import type { ElpxMetadata } from "@procomun/db/elpx-metadata";
 
 export type { ElpxMetadata };
 

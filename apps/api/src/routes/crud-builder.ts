@@ -4,7 +4,7 @@ import { type AuthEnv, requireRole } from "../auth/middleware.ts";
 import { getCurrentUser } from "../auth/roles.ts";
 import { parsePagination } from "../http/pagination.ts";
 import { getDb } from "../db.ts";
-import type { ValidationResult } from "@procomeka/db/validation";
+import type { ValidationResult } from "@procomun/db/validation";
 
 type DbFn = ReturnType<typeof getDb>["db"];
 type User = { id: string; role?: string; name?: string; email?: string };

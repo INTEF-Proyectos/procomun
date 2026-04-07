@@ -105,8 +105,8 @@ Cada Pull Request publica automáticamente un preview en GitHub Pages. El previe
 - Usa PGlite compilado a WASM para ejecutar PostgreSQL en el navegador
 - Carga datos de demostración desde `apps/frontend/public/preview/seed.json`
 - Incluye un banner con selector de rol y botón de reset de datos
-- Se publica en `https://intef-proyectos.github.io/procomeka/pr-preview/pr-{N}/`
-- La rama `main` se publica en `https://intef-proyectos.github.io/procomeka/`
+- Se publica en `https://intef-proyectos.github.io/procomun/pr-preview/pr-{N}/`
+- La rama `main` se publica en `https://intef-proyectos.github.io/procomun/`
 
 El frontend usa una abstracción `ApiClient` con dos implementaciones:
 - `HttpApiClient`: llama al servidor API real (modo normal)
@@ -117,7 +117,7 @@ Ambos comparten el mismo esquema Drizzle (`pgTable`) y el mismo repositorio de q
 ## Estructura del monorepo
 
 ```
-procomeka/
+procomun/
 ├── apps/
 │   ├── api/          # Servidor API — Hono + Better Auth
 │   ├── cli/          # CLI de gestión (usuarios, seed, migraciones)

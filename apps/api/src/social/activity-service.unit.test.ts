@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import * as repo from "@procomeka/db/repository";
+import * as repo from "@procomun/db/repository";
 import { logActivity } from "../activity/log.ts";
 import { listUserActivity } from "./activity-service.ts";
 

@@ -4,7 +4,7 @@ import { EVENTS, Server } from "@tus/server";
 import { Hono, type Context } from "hono";
 import type { AuthEnv } from "../auth/middleware.ts";
 import { getDb } from "../db.ts";
-import * as repo from "@procomeka/db/repository";
+import * as repo from "@procomun/db/repository";
 import {
 	buildUploadPublicUrl,
 	buildUploadStorageKey,
@@ -19,7 +19,7 @@ import {
 } from "../uploads/config.ts";
 import { processElpxUpload } from "../services/elpx-processor.ts";
 
-const USER_HEADER = "x-procomeka-upload-user";
+const USER_HEADER = "x-procomun-upload-user";
 
 let tusServerPromise: Promise<Server> | null = null;
 

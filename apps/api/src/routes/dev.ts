@@ -2,7 +2,7 @@ import { Hono } from "hono";
 import path from "node:path";
 import { type AuthEnv, requireAuth, requireRole } from "../auth/middleware.ts";
 import { getDb } from "../db.ts";
-import { seedRandomResources } from "@procomeka/db/seed-random";
+import { seedRandomResources } from "@procomun/db/seed-random";
 import { isDevelopmentMode } from "../env.ts";
 import { getUploadConfig } from "../uploads/config.ts";
 import { processElpxUpload } from "../services/elpx-processor.ts";

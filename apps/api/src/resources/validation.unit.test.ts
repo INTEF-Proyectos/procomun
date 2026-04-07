@@ -6,7 +6,7 @@ import {
 	validateCollection,
 	validateTaxonomy,
 	validateTransition,
-} from "@procomeka/db/validation";
+} from "@procomun/db/validation";
 
 const validPayload = {
 	title: "Recurso de ejemplo",

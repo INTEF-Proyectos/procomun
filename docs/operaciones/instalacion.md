@@ -1,6 +1,6 @@
 # Guía de Instalación y Despliegue
 
-Esta guía detalla los pasos necesarios para desplegar Procomeka utilizando Docker.
+Esta guía detalla los pasos necesarios para desplegar Procomun utilizando Docker.
 
 ## Requisitos del sistema
 
@@ -22,8 +22,8 @@ Esta guía detalla los pasos necesarios para desplegar Procomeka utilizando Dock
 
 1. **Clonar el repositorio**
    ```bash
-   git clone https://github.com/intef-proyectos/procomeka.git
-   cd procomeka
+   git clone https://github.com/intef-proyectos/procomun.git
+   cd procomun
    ```
 
 2. **Configurar variables de entorno**
@@ -47,7 +47,7 @@ Esta guía detalla los pasos necesarios para desplegar Procomeka utilizando Dock
 
 | Variable | Descripción | Valor por defecto |
 |----------|-------------|-------------------|
-| `DATABASE_URL` | URL de conexión a PostgreSQL | `postgres://user:pass@db:5432/procomeka` |
+| `DATABASE_URL` | URL de conexión a PostgreSQL | `postgres://user:pass@db:5432/procomun` |
 | `BETTER_AUTH_SECRET` | Secreto para firma de sesiones (32+ chars) | Obligatorio |
 | `FRONTEND_URL` | URL del frontend para CORS | `http://localhost:4321` |
 | `BETTER_AUTH_URL` | URL pública de la API para redirecciones de Auth | `http://localhost:3000` |
@@ -64,4 +64,4 @@ Los archivos subidos se guardan localmente en el directorio configurado mediante
 
 ## Configuración de Proveedores OIDC
 
-Procomeka soporta OpenID Connect para login institucional. Requiere configurar `OIDC_ISSUER`, `OIDC_CLIENT_ID` y `OIDC_CLIENT_SECRET` en el archivo `.env`.
+Procomun soporta OpenID Connect para login institucional. Requiere configurar `OIDC_ISSUER`, `OIDC_CLIENT_ID` y `OIDC_CLIENT_SECRET` en el archivo `.env`.

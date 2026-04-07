@@ -30,7 +30,7 @@ export async function userCreate(args: string[]) {
 	}
 
 	const { PGlite } = await import("@electric-sql/pglite");
-	const { createTables } = await import("@procomeka/db/setup");
+	const { createTables } = await import("@procomun/db/setup");
 
 	const dataDir = process.env.PGLITE_DIR ?? `${import.meta.dir}/../../../../local-data`;
 	const pglite = new PGlite(dataDir);

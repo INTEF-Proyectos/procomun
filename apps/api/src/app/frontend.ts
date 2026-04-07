@@ -6,7 +6,7 @@ export function registerFrontendServing(app: Hono<AuthEnv>, frontendDir?: string
 	if (!frontendDir) {
 		app.get("/", (c) =>
 			c.json({
-				name: "Procomeka API",
+				name: "Procomun API",
 				version: "0.1.0",
 			}),
 		);

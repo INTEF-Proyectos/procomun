@@ -14,7 +14,7 @@ const commands: Record<string, (args: string[]) => Promise<void>> = {
 
 async function main() {
 	if (!command || command === "--help" || command === "-h") {
-		console.log("Procomeka CLI\n");
+		console.log("Procomun CLI\n");
 		console.log("Comandos disponibles:");
 		console.log("  user:create  --email <email> --name <nombre> --role <rol> --password <pass>");
 		console.log("  user:list");

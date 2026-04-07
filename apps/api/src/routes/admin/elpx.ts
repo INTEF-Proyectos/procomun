@@ -5,7 +5,7 @@ import { parseElpxMetadata, processElpxUpload, removeElpxExtraction } from "../.
 import { generateElpxFromFiles } from "../../services/elpx-generator.ts";
 import { getUploadConfig, computeFileSha256, buildUploadPublicUrl, resolveStoredFilePath } from "../../uploads/config.ts";
 import { getDb } from "../../db.ts";
-import * as repo from "@procomeka/db/repository";
+import * as repo from "@procomun/db/repository";
 import { writeFile, unlink, mkdir } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
@@ -29,7 +29,7 @@ elpxAdminRoutes.post("/analyze", requireRole("author"), async (c) => {
 		return c.json({ error: "El archivo debe ser .elpx" }, 400);
 	}
 
-	const tempPath = path.join(tmpdir(), `procomeka-elpx-${Date.now()}-${file.name}`);
+	const tempPath = path.join(tmpdir(), `procomun-elpx-${Date.now()}-${file.name}`);
 	try {
 		const buffer = await file.arrayBuffer();
 		await writeFile(tempPath, Buffer.from(buffer));
@@ -276,7 +276,7 @@ elpxAdminRoutes.post("/generate/:resourceId", requireRole("author"), async (c) =
 		}));
 
 	// Generate the .elpx ZIP to a temp file
-	const tempOutput = path.join(tmpdir(), `procomeka-generated-${crypto.randomUUID()}.elpx`);
+	const tempOutput = path.join(tmpdir(), `procomun-generated-${crypto.randomUUID()}.elpx`);
 	try {
 		await generateElpxFromFiles({
 			title: resource.title,

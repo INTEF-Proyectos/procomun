@@ -27,7 +27,7 @@ En modo preview (build estatico en GitHub Pages), no hay servidor backend. El pr
 Usar **IndexedDB** para almacenar blobs de archivos en modo preview, con un plugin custom de Uppy que reemplaza Tus.
 
 - **Metadatos** (upload sessions, media items) se almacenan en PGlite (ya existente en browser).
-- **Blobs de archivos** se almacenan en una base de datos IndexedDB separada (`procomeka-files`), NO en PGlite (para evitar cargar blobs en memoria al iniciar PGlite).
+- **Blobs de archivos** se almacenan en una base de datos IndexedDB separada (`procomun-files`), NO en PGlite (para evitar cargar blobs en memoria al iniciar PGlite).
 - **Plugin Uppy custom** (`PreviewUploader`) reemplaza `Tus` en modo preview. Usa `BasePlugin` + `addUploader()`.
 - **Servicio de archivos** usa `URL.createObjectURL()` para crear URLs efimeras desde los blobs almacenados.
 

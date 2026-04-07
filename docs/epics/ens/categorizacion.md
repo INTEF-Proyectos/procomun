@@ -1,7 +1,7 @@
 # Categorización del Sistema (ENS)
 
 ## 1. Introducción
-Este documento define la categoría de seguridad del sistema Procomeka de acuerdo con el Anexo I del Real Decreto 311/2022 (ENS).
+Este documento define la categoría de seguridad del sistema Procomun de acuerdo con el Anexo I del Real Decreto 311/2022 (ENS).
 
 ## 2. Dimensiones de Seguridad
 

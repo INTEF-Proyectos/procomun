@@ -1,5 +1,5 @@
 import { desc, eq, sql } from "drizzle-orm";
-import { activityEvents } from "@procomeka/db/schema";
+import { activityEvents } from "@procomun/db/schema";
 import { getDb } from "../db.ts";
 
 export async function listUserActivity(input: {

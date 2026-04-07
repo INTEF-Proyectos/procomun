@@ -196,7 +196,7 @@
 
   async function handleMessage(event) {
     var msg = event?.data;
-    if (!msg?.type || msg.source === 'procomeka-bridge') return;
+    if (!msg?.type || msg.source === 'procomun-bridge') return;
     try {
       switch (msg.type) {
         case 'WP_REQUEST_SAVE':

@@ -14,7 +14,7 @@
 ## 3. Principios de Protección de Datos
 - **Minimización**: Solo se recogen los datos estrictamente necesarios para la creación y gestión del perfil.
 - **Integridad y Confidencialidad**: Los datos personales están protegidos por medidas técnicas (RBAC, TLS).
-- **Limitación de la Finalidad**: Los datos no se usan para fines ajenos a la plataforma Procomeka.
+- **Limitación de la Finalidad**: Los datos no se usan para fines ajenos a la plataforma Procomun.
 - **Limitación del Plazo de Conservación**: Los datos se conservan mientras la cuenta esté activa o sea necesario para la atribución de autoría de recursos públicos.
 
 ## 4. Derechos de los Interesados (ARPOL)

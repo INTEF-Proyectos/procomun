@@ -89,7 +89,7 @@ export async function initResourceUploader(args: {
 
 	if (isPreview) {
 		const { storeFile, deleteFile } = await import("./preview-file-store.ts");
-		const { createUploadSession, completeUploadSession, createMediaItem } = await import("@procomeka/db/repository");
+		const { createUploadSession, completeUploadSession, createMediaItem } = await import("@procomun/db/repository");
 		const { PreviewApiClient } = await import("./preview-api-client.ts");
 		const session = await args.api.getSession().catch(() => null);
 		const ownerId = session?.user?.id ?? "demo-admin";

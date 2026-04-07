@@ -1,7 +1,7 @@
 # Requisitos funcionales de Procomún (plataforma a migrar)
 
 > Caso de análisis — Fecha: 2026-03-27
-> Objetivo: catalogar los requisitos funcionales observados y documentados de la plataforma Procomún actual, como base para planificar la migración a procomeka.
+> Objetivo: catalogar los requisitos funcionales observados y documentados de la plataforma Procomún actual, como base para planificar la migración a procomun.
 
 ## Método de recopilación
 
@@ -223,7 +223,7 @@ Crear una nueva aplicación Agrega3webadmin y conectarla con Agrega3web y Agrega
 - Construcción de una aplicación de reemplazo con código fuente bajo control de versiones
 - Integración con Agrega3web y Agrega3batch
 
-> **Implicación para procomeka:** confirma que la gestión de Agrega3 era frágil y dependía de una aplicación sin código fuente. procomeka elimina este componente por completo.
+> **Implicación para procomun:** confirma que la gestión de Agrega3 era frágil y dependía de una aplicación sin código fuente. procomun elimina este componente por completo.
 
 ### II.1. Mantenimiento evolutivo (Evo1–Evo10)
 
@@ -257,7 +257,7 @@ Limpieza y optimización del código del proceso de publicación de ODEs.
 
 Mejorar la gestión de colecciones en Procomún. Actualmente las colecciones se asignan a través de los metadatos del ODE, lo que hace las modificaciones difíciles. Objetivo: permitir crear colecciones y asignar ODEs directamente sin necesidad de modificar metadatos.
 
-> **Implicación para procomeka:** confirma que la gestión de colecciones era un punto de dolor reconocido. procomeka ya modela colecciones como entidad independiente con asignación directa de recursos.
+> **Implicación para procomun:** confirma que la gestión de colecciones era un punto de dolor reconocido. procomun ya modela colecciones como entidad independiente con asignación directa de recursos.
 
 #### Evo7. Integración de Banco Multimedia en la app móvil
 
@@ -267,7 +267,7 @@ Integrar el Banco Multimedia en la aplicación móvil (iOS + Android, desarrolla
 
 Atomizar el sistema de etiquetado existente para mejorar la búsqueda y el descubrimiento de recursos.
 
-> **Implicación para procomeka:** confirma la necesidad de un sistema de etiquetado granular. Estado de implementación en Procomún desconocido (pudo haberse completado o no durante el contrato).
+> **Implicación para procomun:** confirma la necesidad de un sistema de etiquetado granular. Estado de implementación en Procomún desconocido (pudo haberse completado o no durante el contrato).
 
 #### Evo9. Estudio de actualización de Drupal y Bootstrap
 
@@ -279,7 +279,7 @@ Mejorar el tiempo de publicación de ODEs, actualmente lento debido a:
 - Subida de ficheros a almacenamiento NFS
 - Tiempo de respuesta de los formularios durante la publicación
 
-> **Implicación para procomeka:** confirma un cuello de botella conocido en el almacenamiento NFS. procomeka usa almacenamiento local/S3 directo sin NFS intermedio.
+> **Implicación para procomun:** confirma un cuello de botella conocido en el almacenamiento NFS. procomun usa almacenamiento local/S3 directo sin NFS intermedio.
 
 ### II.2. Requisitos no funcionales
 
@@ -310,9 +310,9 @@ Mejorar el tiempo de publicación de ODEs, actualmente lento debido a:
 
 ---
 
-## Mapeo de requisitos funcionales → procomeka
+## Mapeo de requisitos funcionales → procomun
 
-| RF Procomún | Req. contrato | Equivalente en procomeka | Estado en procomeka |
+| RF Procomún | Req. contrato | Equivalente en procomun | Estado en procomun |
 |-------------|---------------|------------------------|---------------------|
 | RF-01 Gestión ODEs | Evo5, Evo10 | Resource CRUD + editorial workflow | ✅ MVP implementado (Epic-001) |
 | RF-02 Banco Multimedia | Evo7 | MediaItem (asociado a Resource) | ⚠️ Esquema existe, subida no implementada |
@@ -337,7 +337,7 @@ Mejorar el tiempo de publicación de ODEs, actualmente lento debido a:
 
 ### Cambios de tecnología confirmados
 
-| Componente Procomún | Tecnología legacy | Equivalente procomeka | Riesgo/Notas |
+| Componente Procomún | Tecnología legacy | Equivalente procomun | Riesgo/Notas |
 |---------------------|-------------------|----------------------|--------------|
 | Base de datos | MariaDB (Drupal) | PostgreSQL (Drizzle ORM) | Migración de esquema y datos requerida |
 | Motor de búsqueda | ElasticSearch 7.17.2 | PostgreSQL full-text search | Sin ES; menor complejidad operativa, posible pérdida de funcionalidad avanzada |
@@ -346,22 +346,22 @@ Mejorar el tiempo de publicación de ODEs, actualmente lento debido a:
 | CMS | Drupal 9+ | Astro + API Hono | Reemplazo completo |
 | Almacenamiento | NFS (cuello de botella conocido, Evo10) | Local / S3 directo | Mejora de rendimiento esperada |
 
-### Funcionalidades de Procomún sin equivalente actual en procomeka
+### Funcionalidades de Procomún sin equivalente actual en procomun
 
-1. **Banco Multimedia como entidad independiente**: en procomeka los media son secundarios a los recursos; en Procomún el Banco Multimedia es un subsistema con entidad propia (+100.000 items)
+1. **Banco Multimedia como entidad independiente**: en procomun los media son secundarios a los recursos; en Procomún el Banco Multimedia es un subsistema con entidad propia (+100.000 items)
 2. **eXeLearning Online**: funcionalidad de edición interactiva en navegador; requiere análisis profundo
-3. **Comunidades**: funcionalidad social/colaborativa no contemplada en procomeka
+3. **Comunidades**: funcionalidad social/colaborativa no contemplada en procomun
 4. **Artículos editoriales**: contenido editorial no contemplado en el modelo actual
 5. **Agrega3 / SCORM**: interoperabilidad con repositorios federados y paquetes SCORM
-6. **App móvil**: decisión pendiente sobre si procomeka necesita app nativa o basta con diseño responsive (Evo7 del contrato integraba Banco Multimedia en la app Xamarin)
-7. **Multiidioma de interfaz**: procomeka no tiene i18n de interfaz (solo idioma como metadato); el contrato exigía es, ca, eu, gl, en
-8. **Gestión de colecciones**: era un punto de dolor reconocido en el contrato (Evo6). procomeka ya modela colecciones como entidad independiente, resolviendo el problema de diseño original
+6. **App móvil**: decisión pendiente sobre si procomun necesita app nativa o basta con diseño responsive (Evo7 del contrato integraba Banco Multimedia en la app Xamarin)
+7. **Multiidioma de interfaz**: procomun no tiene i18n de interfaz (solo idioma como metadato); el contrato exigía es, ca, eu, gl, en
+8. **Gestión de colecciones**: era un punto de dolor reconocido en el contrato (Evo6). procomun ya modela colecciones como entidad independiente, resolviendo el problema de diseño original
 9. **Atomización de etiquetado (Evo8)**: contratado pero estado de implementación desconocido. Si se completó, los datos migrados podrían tener un sistema de tags más granular del esperado
-10. **Cuello de botella NFS (Evo10)**: problema de rendimiento confirmado en publicación de ODEs. procomeka elimina NFS del flujo
+10. **Cuello de botella NFS (Evo10)**: problema de rendimiento confirmado en publicación de ODEs. procomun elimina NFS del flujo
 
 ### Datos sin modelo de destino definido
 
-| Dato en Procomún | Volumen | Modelo en procomeka |
+| Dato en Procomún | Volumen | Modelo en procomun |
 |------------------|---------|---------------------|
 | Recursos multimedia independientes | ~100.000 | No hay entidad separada; solo MediaItem vinculado a Resource |
 | Artículos | ~23.500 | No existe modelo |

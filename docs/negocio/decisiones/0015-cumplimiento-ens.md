@@ -6,7 +6,7 @@
 
 ## Contexto y Problema
 
-El sistema Procomeka gestiona recursos educativos públicos y datos de usuarios (profesorado). Según el Real Decreto 311/2022, es obligatorio el cumplimiento del Esquema Nacional de Seguridad (ENS) para sistemas de la Administración Pública o que presten servicios a esta.
+El sistema Procomun gestiona recursos educativos públicos y datos de usuarios (profesorado). Según el Real Decreto 311/2022, es obligatorio el cumplimiento del Esquema Nacional de Seguridad (ENS) para sistemas de la Administración Pública o que presten servicios a esta.
 
 Se requiere categorizar el sistema, realizar un análisis de riesgos y aplicar medidas de seguridad proporcionales a la categoría resultante para garantizar la seguridad de la información y los servicios.
 
@@ -18,7 +18,7 @@ Se requiere categorizar el sistema, realizar un análisis de riesgos y aplicar m
 
 ## Decisión
 
-Se adopta la **Categoría MEDIA** para el sistema Procomeka.
+Se adopta la **Categoría MEDIA** para el sistema Procomun.
 
 Justificación:
 - **Disponibilidad**: El servicio es importante para el funcionamiento diario del profesorado (Nivel Medio).

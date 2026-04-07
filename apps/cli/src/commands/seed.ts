@@ -10,7 +10,7 @@ import {
 	ALL_SEED_USER_IDS,
 	ALL_SEED_RESOURCE_IDS,
 	ALL_SEED_COLLECTION_IDS,
-} from "@procomeka/db/seed-data";
+} from "@procomun/db/seed-data";
 
 type SeedLog = Pick<typeof console, "log">;
 type SeedQueryResult = { rows?: unknown[] } | unknown[];
@@ -321,7 +321,7 @@ export async function seed() {
 	}
 
 	const { PGlite } = await import("@electric-sql/pglite");
-	const { createTables } = await import("@procomeka/db/setup");
+	const { createTables } = await import("@procomun/db/setup");
 
 	const dataDir = process.env.PGLITE_DIR ?? `${import.meta.dir}/../../../../local-data`;
 	const pglite = new PGlite(dataDir);
@@ -338,7 +338,7 @@ export async function seed() {
 
 async function seedPostgres(databaseUrl: string) {
 	const postgres = (await import("postgres")).default;
-	const { SCHEMA_STATEMENTS } = await import("@procomeka/db/setup");
+	const { SCHEMA_STATEMENTS } = await import("@procomun/db/setup");
 	const sql = postgres(databaseUrl);
 	const now = new Date().toISOString();
 

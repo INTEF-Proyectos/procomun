@@ -9,9 +9,9 @@ import {
 	validateUpdateResource,
 	validateStatus,
 	validateTransition,
-} from "@procomeka/db/validation";
+} from "@procomun/db/validation";
 import { getDb } from "../../db.ts";
-import * as repo from "@procomeka/db/repository";
+import * as repo from "@procomun/db/repository";
 import { getUploadConfig, contentDisposition, resolveStoredFilePath } from "../../uploads/config.ts";
 import { readUploadContent, terminateUpload } from "../uploads.ts";
 import { unlink } from "node:fs/promises";

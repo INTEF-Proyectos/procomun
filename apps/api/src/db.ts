@@ -25,7 +25,7 @@ if (envFile === rootEnv || (await envFile.exists())) {
 	}
 }
 
-import * as pgSchema from "@procomeka/db/schema";
+import * as pgSchema from "@procomun/db/schema";
 
 let _db: ReturnType<typeof createDb> | null = null;
 let _initPromise: Promise<void> | null = null;
@@ -42,7 +42,7 @@ function createDb() {
 	const pglite = new PGlite(dataDir);
 
 	_initPromise = (async () => {
-		const { createTables } = await import("@procomeka/db/setup");
+		const { createTables } = await import("@procomun/db/setup");
 		await createTables(pglite);
 	})();
 

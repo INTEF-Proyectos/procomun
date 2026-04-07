@@ -1,4 +1,4 @@
-const DB_NAME = "procomeka-files";
+const DB_NAME = "procomun-files";
 const STORE_NAME = "blobs";
 const DB_VERSION = 1;
 

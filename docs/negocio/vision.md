@@ -17,7 +17,7 @@ Recientemente, la plataforma se había actualizado para mejorar su usabilidad, i
 
 ## Características principales a mantener
 
-Para asegurar una transición exitosa hacia la nueva versión (Procomeka), es fundamental mantener y potenciar las siguientes capacidades esenciales del sistema actual:
+Para asegurar una transición exitosa hacia la nueva versión (Procomun), es fundamental mantener y potenciar las siguientes capacidades esenciales del sistema actual:
 
 - **Usuarios y Roles:** Soportar tanto acceso público para la búsqueda y visualización, como acceso privado (registro) para la creación, interacción y gestión de perfiles. El perfil del usuario debe permitirle visualizar todo el contenido que ha subido, sus aportaciones y su historial.
 - **Subida y Creación de Recursos:** Posibilidad de subir recursos en diferentes formatos, incluyendo paquetes SCORM y enlaces a recursos externos, así como elementos para el Banco Multimedia (imágenes, audios, vídeos).

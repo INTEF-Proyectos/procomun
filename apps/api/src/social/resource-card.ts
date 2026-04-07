@@ -1,6 +1,6 @@
 import { inArray, sql } from "drizzle-orm";
-import * as repo from "@procomeka/db/repository";
-import { favorites, ratings } from "@procomeka/db/schema";
+import * as repo from "@procomun/db/repository";
+import { favorites, ratings } from "@procomun/db/schema";
 import { getDb } from "../db.ts";
 import { buildElpxMap, buildElpxPreview } from "../elpx/preview.ts";
 

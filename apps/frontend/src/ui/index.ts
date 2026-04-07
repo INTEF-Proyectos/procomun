@@ -1,4 +1,4 @@
-// Design System — Procomeka UI Components
+// Design System — Procomun UI Components
 // Reusable primitives for the public and editorial interfaces
 
 // Core

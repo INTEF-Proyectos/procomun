@@ -33,7 +33,7 @@ jobs:
         working-directory: apps/frontend
         env:
           PREVIEW_STATIC: "true"
-          PREVIEW_BASE: "/procomeka/"
+          PREVIEW_BASE: "/procomun/"
         run: bun run build:preview
 
       - name: Deploy to gh-pages root

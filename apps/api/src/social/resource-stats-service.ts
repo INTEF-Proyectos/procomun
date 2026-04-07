@@ -1,5 +1,5 @@
 import { eq, sql } from "drizzle-orm";
-import { downloads, favorites, ratings } from "@procomeka/db/schema";
+import { downloads, favorites, ratings } from "@procomun/db/schema";
 import { getDb } from "../db.ts";
 import { getUserFavoriteState } from "./favorites-service.ts";
 import { roundRatingAverage } from "./resource-card.ts";

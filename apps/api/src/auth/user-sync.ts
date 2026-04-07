@@ -1,4 +1,4 @@
-import * as repo from "@procomeka/db/repository";
+import * as repo from "@procomun/db/repository";
 import { getDb } from "../db.ts";
 
 export async function ensureCurrentUser(user: {

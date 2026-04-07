@@ -410,7 +410,7 @@ export function PublicDashboardIsland() {
   }
 
   const { user } = dashboard;
-  const avatarSrc = gravatarUrl(user.name ? `${user.id}@procomeka.es` : "default@procomeka.es");
+  const avatarSrc = gravatarUrl(user.name ? `${user.id}@procomun.es` : "default@procomun.es");
 
   // Read ?tab= param from URL
   const tabParam = typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("tab") : null;

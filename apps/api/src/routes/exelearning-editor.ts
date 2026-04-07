@@ -1,5 +1,5 @@
 /**
- * Serves the eXeLearning static editor with Procomeka bootstrap config injected.
+ * Serves the eXeLearning static editor with Procomun bootstrap config injected.
  * Equivalent to editor-bootstrap.php in wp-exelearning.
  */
 import { Hono } from "hono";
@@ -11,7 +11,7 @@ const EDITOR_STATIC_DIR = path.resolve(import.meta.dir, "../../static/exelearnin
 export const exelearningEditorRoutes = new Hono();
 
 /**
- * Bootstrap page: loads editor index.html with Procomeka embedding config injected.
+ * Bootstrap page: loads editor index.html with Procomun embedding config injected.
  * Query params: elpxUrl (URL to load), resourceId
  */
 exelearningEditorRoutes.get("/index.html", async (c) => {
@@ -32,7 +32,7 @@ exelearningEditorRoutes.get("/index.html", async (c) => {
 	// Inject <base> tag for relative asset resolution
 	html = html.replace("<head>", `<head>\n<base href="${editorBaseUrl}/">`);
 
-	// Inject Procomeka embedding config before </head> (like editor-bootstrap.php)
+	// Inject Procomun embedding config before </head> (like editor-bootstrap.php)
 	const configScript = `
 <script>
 window.__EXE_EMBEDDING_CONFIG__ = {
@@ -46,7 +46,7 @@ window.__EXE_EMBEDDING_CONFIG__ = {
 		userMenu: true,
 	},
 };
-window.__PROCOMEKA_CONFIG__ = {
+window.__PROCOMUN_CONFIG__ = {
 	resourceId: ${JSON.stringify(resourceId)},
 	editorBaseUrl: "${editorBaseUrl}",
 };
@@ -146,7 +146,7 @@ const BRIDGE_SCRIPT = `<script>
 
 	async function handleMessage(event) {
 		var msg = event?.data;
-		if (!msg?.type || msg.source === 'procomeka-bridge') return;
+		if (!msg?.type || msg.source === 'procomun-bridge') return;
 		try {
 			switch (msg.type) {
 				case 'WP_REQUEST_SAVE':

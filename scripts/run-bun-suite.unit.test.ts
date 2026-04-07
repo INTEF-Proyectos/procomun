@@ -22,7 +22,7 @@ describe("run-bun-suite helpers", () => {
 	});
 
 	test("findSuiteFiles returns sorted matches from configured roots", async () => {
-		const rootDir = await mkdtemp(join(tmpdir(), "procomeka-suite-"));
+		const rootDir = await mkdtemp(join(tmpdir(), "procomun-suite-"));
 
 		await mkdir(join(rootDir, "apps", "api", "src"), { recursive: true });
 		await mkdir(join(rootDir, "packages", "db", "src"), { recursive: true });
@@ -43,7 +43,7 @@ describe("run-bun-suite helpers", () => {
 	});
 
 	test("findStandardTestFiles combines unit and integration suites without duplicates", async () => {
-		const rootDir = await mkdtemp(join(tmpdir(), "procomeka-standard-"));
+		const rootDir = await mkdtemp(join(tmpdir(), "procomun-standard-"));
 
 		await mkdir(join(rootDir, "apps", "api", "src"), { recursive: true });
 		await mkdir(join(rootDir, "scripts"), { recursive: true });

@@ -1,4 +1,4 @@
-import * as repo from "@procomeka/db/repository";
+import * as repo from "@procomun/db/repository";
 import type { Context } from "hono";
 import type { AuthEnv } from "../../auth/middleware.ts";
 import { canManageCollection, canManageResource, getCurrentUser } from "../../auth/roles.ts";

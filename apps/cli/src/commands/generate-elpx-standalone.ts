@@ -3,7 +3,7 @@
  * Usado por extract-elpx-for-static.ts cuando los .elpx no existen (CI).
  */
 import path from "node:path";
-import { DEMO_RESOURCES } from "@procomeka/db/seed-data";
+import { DEMO_RESOURCES } from "@procomun/db/seed-data";
 import { generateDemoElpx } from "./generate-elpx.ts";
 
 const repoRoot = path.resolve(import.meta.dir, "../../../..");

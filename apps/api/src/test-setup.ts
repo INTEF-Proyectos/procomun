@@ -10,7 +10,7 @@ await waitForDb();
 
 // Crear usuarios de test que los tests referencian como mock users
 const { db } = getDb();
-const { user } = await import("@procomeka/db/schema");
+const { user } = await import("@procomun/db/schema");
 
 const testUsers = [
 	{ id: "1", email: "test-admin@test.com", name: "Test Admin", role: "admin" },

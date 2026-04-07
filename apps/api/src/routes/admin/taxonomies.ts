@@ -1,7 +1,7 @@
 import { buildCrudRoutes } from "../crud-builder.ts";
-import { validateTaxonomy } from "@procomeka/db/validation";
+import { validateTaxonomy } from "@procomun/db/validation";
 import { logActivity } from "../../activity/log.ts";
-import * as repo from "@procomeka/db/repository";
+import * as repo from "@procomun/db/repository";
 
 const taxonomyRoutes = buildCrudRoutes({
 	baseRole: "curator",

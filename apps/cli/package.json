@@ -1,5 +1,5 @@
 {
-	"name": "@procomeka/cli",
+	"name": "@procomun/cli",
 	"version": "0.1.0",
 	"private": true,
 	"type": "module",
@@ -9,7 +9,7 @@
 	},
 	"dependencies": {
 		"@electric-sql/pglite": "0.4.2",
-		"@procomeka/db": "workspace:*",
+		"@procomun/db": "workspace:*",
 		"better-auth": "1.5.6",
 		"postgres": "3.4.8"
 	}

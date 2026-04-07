@@ -8,7 +8,7 @@
 import { readdir, readFile, mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { ELPX_CONTENT } from "./seed-elpx-content.ts";
-import type { SeedResource } from "@procomeka/db/seed-data";
+import type { SeedResource } from "@procomun/db/seed-data";
 
 // ---------------------------------------------------------------------------
 // Templates — 3 estilos visuales distintos

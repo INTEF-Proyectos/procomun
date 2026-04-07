@@ -41,8 +41,8 @@ interface SeedData {
 	activityEvents?: { userId: string; type: string; resourceId: string; resourceTitle: string; resourceSlug: string; description: string; daysAgo: number }[];
 }
 
-const ROLE_KEY = "procomeka-preview-role";
-const LOGGED_IN_KEY = "procomeka-preview-logged-in";
+const ROLE_KEY = "procomun-preview-role";
+const LOGGED_IN_KEY = "procomun-preview-logged-in";
 
 /**
  * Cliente de preview: PGlite en el navegador + usuarios demo en memoria.
@@ -113,13 +113,13 @@ export class PreviewApiClient implements ApiClient {
 
 	private async init() {
 		const { PGlite } = await import("@electric-sql/pglite");
-		this.pglite = new PGlite("idb://procomeka-preview");
+		this.pglite = new PGlite("idb://procomun-preview");
 
 		const { drizzle } = await import("drizzle-orm/pglite");
-		const schema = await import("@procomeka/db/schema");
+		const schema = await import("@procomun/db/schema");
 		this.db = drizzle(this.pglite, { schema });
 
-		const { createTables } = await import("@procomeka/db/setup");
+		const { createTables } = await import("@procomun/db/setup");
 		await createTables(this.pglite);
 
 		// Cargar seed.json (fuente única de verdad, generada desde seed-data.ts)
@@ -277,7 +277,7 @@ export class PreviewApiClient implements ApiClient {
 	private async enrichWithElpx(data: any[]) {
 		if (!data.length) return data;
 		const ids = data.map((r: any) => r.id);
-		const { listElpxProjectsByResourceIds } = await import("@procomeka/db/repository");
+		const { listElpxProjectsByResourceIds } = await import("@procomun/db/repository");
 		const { resolveElpxPreviewUrl } = await import("./elpx-preview-service.ts");
 		const elpxList = await listElpxProjectsByResourceIds(this.db, ids);
 		const elpxMap = new Map(elpxList.map((e: any) => [e.resourceId, e]));
@@ -301,7 +301,7 @@ export class PreviewApiClient implements ApiClient {
 		language?: string;
 		license?: string;
 	}): Promise<ResourceListResult> {
-		const { listResources: list } = await import("@procomeka/db/repository");
+		const { listResources: list } = await import("@procomun/db/repository");
 		const result = await list(this.db, {
 			limit: opts?.limit,
 			offset: opts?.offset,
@@ -315,7 +315,7 @@ export class PreviewApiClient implements ApiClient {
 	}
 
 	async getResourceBySlug(slug: string): Promise<Resource | null> {
-		const { getResourceBySlug: get } = await import("@procomeka/db/repository");
+		const { getResourceBySlug: get } = await import("@procomun/db/repository");
 		const r = await get(this.db, slug);
 		if (!r) return null;
 		const [enriched] = await this.enrichWithElpx([r]);
@@ -323,7 +323,7 @@ export class PreviewApiClient implements ApiClient {
 	}
 
 	async listPublicCollections(opts?: { q?: string; limit?: number; offset?: number }) {
-		const { listCollections } = await import("@procomeka/db/repository");
+		const { listCollections } = await import("@procomun/db/repository");
 		return listCollections(this.db, {
 			limit: opts?.limit,
 			offset: opts?.offset,
@@ -334,7 +334,7 @@ export class PreviewApiClient implements ApiClient {
 	}
 
 	async getPublicCollectionBySlug(slug: string) {
-		const { getCollectionBySlug, listCollectionResources } = await import("@procomeka/db/repository");
+		const { getCollectionBySlug, listCollectionResources } = await import("@procomun/db/repository");
 		const collection = await getCollectionBySlug(this.db, slug, {
 			status: "published",
 			resourceStatus: "published",
@@ -391,7 +391,7 @@ export class PreviewApiClient implements ApiClient {
 	// --- Admin ---
 
 	async listAdminResources(opts?: { q?: string; limit?: number; offset?: number; status?: string }): Promise<ResourceListResult> {
-		const { listResources: list } = await import("@procomeka/db/repository");
+		const { listResources: list } = await import("@procomun/db/repository");
 		if (!this.hasMinRole("author")) {
 			return { data: [], total: 0, limit: opts?.limit ?? 20, offset: opts?.offset ?? 0 };
 		}
@@ -406,7 +406,7 @@ export class PreviewApiClient implements ApiClient {
 	}
 
 	async getResourceById(id: string): Promise<Resource | null> {
-		const { getResourceById: get } = await import("@procomeka/db/repository");
+		const { getResourceById: get } = await import("@procomun/db/repository");
 		const resource = await get(this.db, id);
 		if (!resource) return null;
 		if (this.currentUser.role === "admin") return resource;
@@ -420,19 +420,19 @@ export class PreviewApiClient implements ApiClient {
 	}
 
 	async listResourceMediaItems(resourceId: string): Promise<MediaItemRecord[]> {
-		const { listMediaItemsForResource } = await import("@procomeka/db/repository");
+		const { listMediaItemsForResource } = await import("@procomun/db/repository");
 		return listMediaItemsForResource(this.db, resourceId);
 	}
 
 	async listResourceUploads(resourceId: string): Promise<UploadSessionRecord[]> {
-		const { listUploadSessionsForResource } = await import("@procomeka/db/repository");
+		const { listUploadSessionsForResource } = await import("@procomun/db/repository");
 		return listUploadSessionsForResource(this.db, resourceId);
 	}
 
 	getDb() { return this.db; }
 
 	async createDraftResource(): Promise<{ id: string; slug: string }> {
-		const { createResource: create } = await import("@procomeka/db/repository");
+		const { createResource: create } = await import("@procomun/db/repository");
 		return create(this.db, {
 			title: "Nuevo recurso",
 			description: " ",
@@ -445,28 +445,28 @@ export class PreviewApiClient implements ApiClient {
 	}
 
 	async createResource(data: CreateResourceInput): Promise<{ id: string; slug: string }> {
-		const { validateCreateResource } = await import("@procomeka/db/validation");
+		const { validateCreateResource } = await import("@procomun/db/validation");
 		const validation = validateCreateResource(data);
 		if (!validation.valid) {
 			throw { error: "Validación fallida", details: validation.errors };
 		}
-		const { createResource: create } = await import("@procomeka/db/repository");
+		const { createResource: create } = await import("@procomun/db/repository");
 		return create(this.db, { ...data, createdBy: this.currentUser.id });
 	}
 
 	async updateResource(id: string, data: UpdateResourceInput) {
-		const { validateUpdateResource } = await import("@procomeka/db/validation");
+		const { validateUpdateResource } = await import("@procomun/db/validation");
 		const validation = validateUpdateResource(data);
 		if (!validation.valid) {
 			return { ok: false, error: "Validación fallida", details: validation.errors };
 		}
-		const { updateResource: update } = await import("@procomeka/db/repository");
+		const { updateResource: update } = await import("@procomun/db/repository");
 		await update(this.db, id, data);
 		return { ok: true };
 	}
 
 	async updateResourceStatus(id: string, status: string): Promise<{ id: string; status: string }> {
-		const { getResourceById: get, updateEditorialStatus } = await import("@procomeka/db/repository");
+		const { getResourceById: get, updateEditorialStatus } = await import("@procomun/db/repository");
 		const existing = await get(this.db, id);
 		if (!existing) throw { error: "Recurso no encontrado" };
 		if (this.currentUser.role === "author" && existing.createdBy !== this.currentUser.id) {
@@ -476,7 +476,7 @@ export class PreviewApiClient implements ApiClient {
 			throw { error: "Permisos insuficientes" };
 		}
 
-		const { validateTransition } = await import("@procomeka/db/validation");
+		const { validateTransition } = await import("@procomun/db/validation");
 		const check = validateTransition(existing.editorialStatus, status, this.currentUser.role);
 		if (!check.valid) throw { error: "Transición no permitida", details: check.errors };
 
@@ -487,7 +487,7 @@ export class PreviewApiClient implements ApiClient {
 	async deleteResource(id: string): Promise<void> {
 		const resource = await this.getResourceById(id);
 		if (!resource) throw new Error("Recurso no encontrado");
-		const { deleteResource: del } = await import("@procomeka/db/repository");
+		const { deleteResource: del } = await import("@procomun/db/repository");
 		await del(this.db, id);
 	}
 
@@ -529,7 +529,7 @@ export class PreviewApiClient implements ApiClient {
 	}
 
 	async getElpxProject(resourceId: string): Promise<import("./api-client.ts").ElpxProjectInfo | null> {
-		const { getElpxProjectByResourceId } = await import("@procomeka/db/repository");
+		const { getElpxProjectByResourceId } = await import("@procomun/db/repository");
 		const elpx = await getElpxProjectByResourceId(this.db, resourceId);
 		if (!elpx) return null;
 
@@ -559,13 +559,13 @@ export class PreviewApiClient implements ApiClient {
 	}
 
 	async listUsers(opts?: { q?: string; role?: string; limit?: number; offset?: number }) {
-		const { listUsers } = await import("@procomeka/db/repository");
+		const { listUsers } = await import("@procomun/db/repository");
 		const scope = this.currentUser.role === "admin" ? {} : { id: this.currentUser.id };
 		return listUsers(this.db, { ...opts, ...scope, search: opts?.q });
 	}
 
 	async getUserById(id: string): Promise<UserRecord | null> {
-		const { getUserById } = await import("@procomeka/db/repository");
+		const { getUserById } = await import("@procomun/db/repository");
 		if (this.currentUser.role !== "admin" && this.currentUser.id !== id) return null;
 		return getUserById(this.db, id);
 	}
@@ -574,7 +574,7 @@ export class PreviewApiClient implements ApiClient {
 		if (this.currentUser.role !== "admin" && this.currentUser.id !== id) {
 			return { ok: false, error: "Permisos insuficientes" };
 		}
-		const { updateUser } = await import("@procomeka/db/repository");
+		const { updateUser } = await import("@procomun/db/repository");
 		const payload = this.currentUser.role === "admin" ? data : { name: data.name };
 		await updateUser(this.db, id, payload);
 		if (id === this.currentUser.id && typeof data.name === "string") {
@@ -587,7 +587,7 @@ export class PreviewApiClient implements ApiClient {
 		if (!this.hasMinRole("curator")) {
 			return { data: [], total: 0, limit: opts?.limit ?? 20, offset: opts?.offset ?? 0 };
 		}
-		const { listCollections } = await import("@procomeka/db/repository");
+		const { listCollections } = await import("@procomun/db/repository");
 		return listCollections(this.db, {
 			limit: opts?.limit,
 			offset: opts?.offset,
@@ -598,7 +598,7 @@ export class PreviewApiClient implements ApiClient {
 
 	async getCollectionById(id: string) {
 		if (!this.hasMinRole("curator")) return null;
-		const { getCollectionById } = await import("@procomeka/db/repository");
+		const { getCollectionById } = await import("@procomun/db/repository");
 		const found = await getCollectionById(this.db, id);
 		if (!found) return null;
 		if (this.currentUser.role !== "admin" && found.curatorId !== this.currentUser.id) return null;
@@ -608,13 +608,13 @@ export class PreviewApiClient implements ApiClient {
 	async listCollectionResources(collectionId: string) {
 		const collection = await this.getCollectionById(collectionId);
 		if (!collection) return [];
-		const { listCollectionResources } = await import("@procomeka/db/repository");
+		const { listCollectionResources } = await import("@procomun/db/repository");
 		return listCollectionResources(this.db, collectionId, { limit: 100 });
 	}
 
 	async createCollection(data: { title: string; description: string; coverImageUrl?: string | null; editorialStatus?: string; isOrdered?: boolean }) {
 		if (!this.hasMinRole("curator")) throw new Error("Permisos insuficientes");
-		const { createCollection } = await import("@procomeka/db/repository");
+		const { createCollection } = await import("@procomun/db/repository");
 		return createCollection(this.db, {
 			title: data.title,
 			description: data.description,
@@ -628,7 +628,7 @@ export class PreviewApiClient implements ApiClient {
 	async updateCollection(id: string, data: Partial<{ title: string; description: string; coverImageUrl: string | null; editorialStatus: string; isOrdered: boolean }>) {
 		const existing = await this.getCollectionById(id);
 		if (!existing) return { ok: false, error: "Colección no encontrada" };
-		const { updateCollection } = await import("@procomeka/db/repository");
+		const { updateCollection } = await import("@procomun/db/repository");
 		await updateCollection(this.db, id, {
 			title: data.title,
 			description: data.description,
@@ -642,7 +642,7 @@ export class PreviewApiClient implements ApiClient {
 	async deleteCollection(id: string): Promise<void> {
 		const existing = await this.getCollectionById(id);
 		if (!existing) throw new Error("Colección no encontrada");
-		const { deleteCollection } = await import("@procomeka/db/repository");
+		const { deleteCollection } = await import("@procomun/db/repository");
 		await deleteCollection(this.db, id);
 	}
 
@@ -651,7 +651,7 @@ export class PreviewApiClient implements ApiClient {
 		if (!collection) throw new Error("Colección no encontrada");
 		const resource = await this.getResourceById(resourceId);
 		if (!resource) throw new Error("Recurso no encontrado");
-		const { addResourceToCollection } = await import("@procomeka/db/repository");
+		const { addResourceToCollection } = await import("@procomun/db/repository");
 		await addResourceToCollection(this.db, collectionId, resourceId);
 		return { ok: true };
 	}
@@ -659,7 +659,7 @@ export class PreviewApiClient implements ApiClient {
 	async removeResourceFromCollection(collectionId: string, resourceId: string): Promise<{ ok: boolean }> {
 		const collection = await this.getCollectionById(collectionId);
 		if (!collection) throw new Error("Colección no encontrada");
-		const { removeResourceFromCollection } = await import("@procomeka/db/repository");
+		const { removeResourceFromCollection } = await import("@procomun/db/repository");
 		await removeResourceFromCollection(this.db, collectionId, resourceId);
 		return { ok: true };
 	}
@@ -667,7 +667,7 @@ export class PreviewApiClient implements ApiClient {
 	async reorderCollectionResource(collectionId: string, resourceId: string, direction: "up" | "down"): Promise<{ ok: boolean; error?: string }> {
 		const collection = await this.getCollectionById(collectionId);
 		if (!collection) return { ok: false, error: "Colección no encontrada" };
-		const { reorderCollectionResource } = await import("@procomeka/db/repository");
+		const { reorderCollectionResource } = await import("@procomun/db/repository");
 		const reordered = await reorderCollectionResource(this.db, collectionId, resourceId, direction);
 		return reordered ? { ok: true } : { ok: false, error: "No se pudo reordenar el recurso" };
 	}
@@ -676,7 +676,7 @@ export class PreviewApiClient implements ApiClient {
 		if (!this.hasMinRole("curator")) {
 			return { data: [], total: 0, limit: opts?.limit ?? 20, offset: opts?.offset ?? 0 };
 		}
-		const { listTaxonomies } = await import("@procomeka/db/repository");
+		const { listTaxonomies } = await import("@procomun/db/repository");
 		return listTaxonomies(this.db, {
 			limit: opts?.limit,
 			offset: opts?.offset,
@@ -686,26 +686,26 @@ export class PreviewApiClient implements ApiClient {
 	}
 
 	async getTaxonomyById(id: string) {
-		const { getTaxonomyById } = await import("@procomeka/db/repository");
+		const { getTaxonomyById } = await import("@procomun/db/repository");
 		return getTaxonomyById(this.db, id);
 	}
 
 	async createTaxonomy(data: { name: string; slug?: string; type?: string; parentId?: string | null }) {
 		if (!this.hasMinRole("admin")) throw new Error("Permisos insuficientes");
-		const { createTaxonomy } = await import("@procomeka/db/repository");
+		const { createTaxonomy } = await import("@procomun/db/repository");
 		return createTaxonomy(this.db, data);
 	}
 
 	async updateTaxonomy(id: string, data: Partial<{ name: string; slug: string; type: string; parentId: string | null }>) {
 		if (!this.hasMinRole("admin")) return { ok: false, error: "Permisos insuficientes" };
-		const { updateTaxonomy } = await import("@procomeka/db/repository");
+		const { updateTaxonomy } = await import("@procomun/db/repository");
 		await updateTaxonomy(this.db, id, data);
 		return { ok: true };
 	}
 
 	async deleteTaxonomy(id: string): Promise<void> {
 		if (!this.hasMinRole("admin")) throw new Error("Permisos insuficientes");
-		const { deleteTaxonomy } = await import("@procomeka/db/repository");
+		const { deleteTaxonomy } = await import("@procomun/db/repository");
 		await deleteTaxonomy(this.db, id);
 	}
 
@@ -993,7 +993,7 @@ export class PreviewApiClient implements ApiClient {
 	}
 
 	async seedResources(count: number, clean?: boolean): Promise<{ count: number; durationMs: number }> {
-		const { seedRandomResources } = await import("@procomeka/db/seed-random");
+		const { seedRandomResources } = await import("@procomun/db/seed-random");
 		return seedRandomResources(this.db, count, { clean });
 	}
 

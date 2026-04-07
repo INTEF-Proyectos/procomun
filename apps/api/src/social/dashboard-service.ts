@@ -1,5 +1,5 @@
 import { and, desc, eq, isNull, sql } from "drizzle-orm";
-import { favorites, ratings, resources } from "@procomeka/db/schema";
+import { favorites, ratings, resources } from "@procomun/db/schema";
 import { getDb } from "../db.ts";
 import { enrichResourceCards } from "./resource-card.ts";
 

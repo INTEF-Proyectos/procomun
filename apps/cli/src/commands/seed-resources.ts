@@ -1,4 +1,4 @@
-import { seedRandomResources } from "@procomeka/db/seed-random";
+import { seedRandomResources } from "@procomun/db/seed-random";
 import { getDb } from "../../../api/src/db.ts";
 
 export async function seedResources(args: string[]) {

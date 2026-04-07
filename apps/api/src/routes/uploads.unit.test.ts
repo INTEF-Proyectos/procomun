@@ -7,7 +7,7 @@ import { adminRoutes } from "./admin/index.ts";
 import { uploadRoutes } from "./uploads.ts";
 import type { AuthEnv } from "../auth/middleware.ts";
 import { getDb } from "../db.ts";
-import * as repo from "@procomeka/db/repository";
+import * as repo from "@procomun/db/repository";
 
 function createUploadApp(mockUser: Record<string, unknown> | null = null) {
 	const app = new Hono<AuthEnv>();
@@ -29,7 +29,7 @@ function encodeMetadata(entries: Record<string, string>) {
 
 describe("Rutas uploads — tus resumable", () => {
 	beforeAll(async () => {
-		process.env.UPLOAD_STORAGE_DIR = await mkdtemp(path.join(tmpdir(), "procomeka-uploads-"));
+		process.env.UPLOAD_STORAGE_DIR = await mkdtemp(path.join(tmpdir(), "procomun-uploads-"));
 	});
 
 	test("POST + PATCH crean sesión de upload y media item final", async () => {

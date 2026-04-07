@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { eq } from "drizzle-orm";
-import * as repo from "@procomeka/db/repository";
-import { activityEvents } from "@procomeka/db/schema";
+import * as repo from "@procomun/db/repository";
+import { activityEvents } from "@procomun/db/schema";
 import { getDb } from "../db.ts";
 import { logActivity } from "./log.ts";
 

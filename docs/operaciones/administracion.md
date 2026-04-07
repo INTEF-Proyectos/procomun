@@ -1,6 +1,6 @@
 # Guía de Administración
 
-Esta guía describe el funcionamiento del panel de administración y el flujo editorial para los curadores de Procomeka.
+Esta guía describe el funcionamiento del panel de administración y el flujo editorial para los curadores de Procomun.
 
 ## Panel de administración: funcionalidades y acceso
 
@@ -23,7 +23,7 @@ El panel está disponible en `/admin` tras autenticarse con el rol `admin` o `cu
 ### Importación masiva desde CSV
 Utilice la herramienta CLI para importar múltiples recursos:
 ```bash
-bun run --filter '@procomeka/cli' cli -- import-csv --file /app/import/recursos.csv
+bun run --filter '@procomun/cli' cli -- import-csv --file /app/import/recursos.csv
 ```
 
 ### Cosecha OAI-PMH
@@ -31,7 +31,7 @@ Configuración del servidor para ser cosechado por terceros o actuar como client
 
 ## Gestión de taxonomías y vocabularios controlados
 
-Procomeka utiliza vocabularios controlados para:
+Procomun utiliza vocabularios controlados para:
 - Niveles educativos (LOM-ES).
 - Áreas de conocimiento.
 - Tipos de recursos.

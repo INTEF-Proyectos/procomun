@@ -5,7 +5,7 @@ export default defineConfig({
 	schema: "./src/schema/index.ts",
 	out: "./migrations",
 	dbCredentials: {
-		url: process.env.DATABASE_URL ?? "postgres://localhost:5432/procomeka",
+		url: process.env.DATABASE_URL ?? "postgres://localhost:5432/procomun",
 	},
 	verbose: true,
 	strict: true,

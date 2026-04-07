@@ -1,13 +1,13 @@
 {
-  "name": "procomeka",
+  "name": "procomun",
   "version": "1.0.0",
   "module": "apps/api/src/index.ts",
   "type": "module",
   "private": true,
   "scripts": {
-    "dev": "bun run --filter '@procomeka/*' dev",
-    "dev:api": "bun run --filter '@procomeka/api' dev",
-    "dev:frontend": "bun run --filter '@procomeka/frontend' dev",
+    "dev": "bun run --filter '@procomun/*' dev",
+    "dev:api": "bun run --filter '@procomun/api' dev",
+    "dev:frontend": "bun run --filter '@procomun/frontend' dev",
     "lint": "biome lint .",
     "format": "biome format --write .",
     "test": "bun run check-test-files && bun run test:standard && bun run check-coverage",

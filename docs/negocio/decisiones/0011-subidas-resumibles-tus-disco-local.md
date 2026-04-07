@@ -39,4 +39,4 @@ La API mantiene el control de autenticación, autorización, límites, persisten
 * Asociar automáticamente el binario completado a `media_items`.
 * Exponer configuración de límites vía entorno y endpoint admin.
 * Mantener hook opcional de escaneo de malware con `noop` por defecto.
-* El directorio `UPLOAD_STORAGE_DIR` sigue la resolución estándar del proceso. Si se deja como ruta relativa, cae bajo el `cwd` efectivo de la API; en desarrollo local con `bun run --filter '@procomeka/api' dev`, eso implica `apps/api/local-data/uploads`.
+* El directorio `UPLOAD_STORAGE_DIR` sigue la resolución estándar del proceso. Si se deja como ruta relativa, cae bajo el `cwd` efectivo de la API; en desarrollo local con `bun run --filter '@procomun/api' dev`, eso implica `apps/api/local-data/uploads`.
