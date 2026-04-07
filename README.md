@@ -2,7 +2,7 @@
 
 Sustituto moderno de Procomún: plataforma de recursos educativos abiertos orientada a catalogación, descubrimiento, reutilización, curación, interoperabilidad y publicación.
 
-**[Ver preview en vivo](https://intef-proyectos.github.io/procomeka/)**
+**[Ver preview en vivo](https://intef-proyectos.github.io/procomun/)**
 
 ## Stack tecnológico base
 
@@ -80,7 +80,7 @@ Servicios resultantes:
 
 - Frontend: `http://localhost:4321`
 - API: `http://localhost:3000`
-- PostgreSQL: `postgres://procomeka:procomeka@localhost:5432/procomeka`
+- PostgreSQL: `postgres://procomun:procomun@localhost:5432/procomun`
 
 #### Opción B: PostgreSQL real en Docker + frontend local
 
@@ -110,7 +110,7 @@ docker compose up -d --wait db
 2. Arranca la API local apuntando a PostgreSQL:
 
 ```bash
-DATABASE_URL=postgres://procomeka:procomeka@localhost:5432/procomeka \
+DATABASE_URL=postgres://procomun:procomun@localhost:5432/procomun \
 FRONTEND_URL=http://localhost:4321 \
 BETTER_AUTH_URL=http://localhost:4321 \
 bun run dev:api
@@ -125,15 +125,15 @@ bun run dev:frontend
 4. Carga datos de desarrollo:
 
 ```bash
-DATABASE_URL=postgres://procomeka:procomeka@localhost:5432/procomeka \
-bun run --filter '@procomeka/cli' cli -- seed
+DATABASE_URL=postgres://procomun:procomun@localhost:5432/procomun \
+bun run --filter '@procomun/cli' cli -- seed
 ```
 
 Servicios resultantes:
 
 - Frontend: `http://localhost:4321`
 - API: `http://localhost:3000`
-- PostgreSQL: `postgres://procomeka:procomeka@localhost:5432/procomeka`
+- PostgreSQL: `postgres://procomun:procomun@localhost:5432/procomun`
 
 #### Notas importantes
 
@@ -160,7 +160,7 @@ Notas:
 - El modo preview estático no soporta uploads reales.
 - Los uploads requieren sesión y permisos de edición sobre el recurso.
 - El storage inicial es disco local/volumen montado; la abstracción queda lista para evolucionar a otro backend.
-- Si `UPLOAD_STORAGE_DIR` es una ruta relativa, se resuelve respecto al directorio de trabajo del proceso de la API. Con el arranque habitual `bun run --filter '@procomeka/api' dev`, el valor por defecto `./local-data/uploads` termina en `apps/api/local-data/uploads`.
+- Si `UPLOAD_STORAGE_DIR` es una ruta relativa, se resuelve respecto al directorio de trabajo del proceso de la API. Con el arranque habitual `bun run --filter '@procomun/api' dev`, el valor por defecto `./local-data/uploads` termina en `apps/api/local-data/uploads`.
 - Si quieres que los binarios queden en otra ubicación estable del host o en la raíz del monorepo, define `UPLOAD_STORAGE_DIR` con una ruta absoluta.
 
 ### Preview estático para PRs
@@ -170,12 +170,12 @@ Cada Pull Request publica automáticamente un preview en GitHub Pages usando PGl
 - Corre 100% en el navegador, sin servidor
 - Usa PGlite (PostgreSQL WASM) con datos de demostración
 - Incluye selector de rol (Admin/Curator/Author/Reader) y botón de reset
-- Se publica en `https://intef-proyectos.github.io/procomeka/pr-preview/pr-{N}/`
+- Se publica en `https://intef-proyectos.github.io/procomun/pr-preview/pr-{N}/`
 
 Para probar el preview localmente:
 
 ```bash
-make up-static   # Construye y sirve en http://localhost:8080/procomeka/
+make up-static   # Construye y sirve en http://localhost:8080/procomun/
 ```
 
 **Importante:** El preview es solo para feedback rápido en las PRs. No sustituye a los tests E2E ni a los despliegues reales.
