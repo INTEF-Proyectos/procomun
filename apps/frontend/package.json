@@ -6,7 +6,6 @@
 	"scripts": {
 		"dev": "astro dev",
 		"build": "astro build",
-		"build:preview": "bun run ../../packages/db/src/generate-seed-json.ts && bun run ../../packages/db/src/extract-elpx-for-static.ts && PREVIEW_STATIC=true astro build",
 		"preview": "astro preview",
 		"test": "bun test"
 	},

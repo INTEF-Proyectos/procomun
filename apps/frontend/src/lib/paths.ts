@@ -9,13 +9,6 @@ export function getBaseUrl(): string {
 		"/";
 }
 
-/**
- * Returns true when running in static preview mode (PGlite + IndexedDB).
- */
-export function isPreviewMode(): boolean {
-	return typeof window !== "undefined" && (window as Record<string, unknown>).__PREVIEW_MODE__ === true;
-}
-
 /** Returns the current locale from <html lang> (client) or "es" as fallback. */
 export function getCurrentLocale(): string {
 	if (typeof document !== "undefined") {

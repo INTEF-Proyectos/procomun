@@ -113,8 +113,7 @@ import PublicLayout from "../layouts/PublicLayout.astro";
 
 <script>
   import { getApiClient } from "../lib/get-api-client.ts";
-  import { url, isPreviewMode } from "../lib/paths.ts";
-  import { parseElpxMetadata as parseElpxClientSide } from "../lib/elpx-browser.ts";
+  import { url } from "../lib/paths.ts";
 
   const form = document.getElementById("resource-form") as HTMLFormElement;
   const authCheck = document.getElementById("auth-check") as HTMLDivElement;
@@ -181,22 +180,15 @@ import PublicLayout from "../layouts/PublicLayout.astro";
   elpxDropzone.addEventListener("dragleave", () => { elpxDropzone.classList.remove("is-dragover"); });
   elpxDropzone.addEventListener("drop", (e) => { e.preventDefault(); elpxDropzone.classList.remove("is-dragover"); const f = e.dataTransfer?.files[0]; if (f) handleElpxFile(f); });
 
-  const isPreview = isPreviewMode();
-
   async function handleElpxFile(file: File) {
     elpxLoading.style.display = "block";
     elpxError.style.display = "none";
     try {
       let metadata: Record<string, string>; let filename: string;
-      if (isPreview) {
-        metadata = await parseElpxClientSide(file) as Record<string, string>;
-        filename = file.name;
-      } else {
-        const formData = new FormData(); formData.append("file", file);
-        const res = await fetch(url("api/admin/elpx/analyze"), { method: "POST", credentials: "include", body: formData });
-        if (!res.ok) { const err = await res.json().catch(() => ({ error: "Error" })); elpxError.textContent = err.error; elpxError.style.display = "block"; elpxLoading.style.display = "none"; return; }
-        const result = await res.json(); metadata = result.metadata; filename = result.filename;
-      }
+      const formData = new FormData(); formData.append("file", file);
+      const res = await fetch(url("api/admin/elpx/analyze"), { method: "POST", credentials: "include", body: formData });
+      if (!res.ok) { const err = await res.json().catch(() => ({ error: "Error" })); elpxError.textContent = err.error; elpxError.style.display = "block"; elpxLoading.style.display = "none"; return; }
+      const result = await res.json(); metadata = result.metadata; filename = result.filename;
       storedElpxFile = file;
       elpxDrawer.style.display = "none"; form.style.display = "block";
       if (metadata.title) titleInput.value = metadata.title;
@@ -221,12 +213,8 @@ import PublicLayout from "../layouts/PublicLayout.astro";
       const data = await api.createResource(body);
       if (storedElpxFile) {
         submitBtn.textContent = "Subiendo archivo .elpx…";
-        if (isPreview) {
-          try { const { saveElpxInPreview } = await import("../lib/elpx-preview-service.ts"); await saveElpxInPreview({ resourceId: data.id, blob: storedElpxFile, filename: storedElpxFile.name }); } catch (err) { console.error("Error guardando .elpx en preview:", err); }
-        } else {
-          const uploadForm = new FormData(); uploadForm.append("file", storedElpxFile);
-          await fetch(url(`api/admin/elpx/upload/${data.id}`), { method: "POST", credentials: "include", body: uploadForm });
-        }
+        const uploadForm = new FormData(); uploadForm.append("file", storedElpxFile);
+        await fetch(url(`api/admin/elpx/upload/${data.id}`), { method: "POST", credentials: "include", body: uploadForm });
       }
       successDiv.innerHTML = "Recurso creado. Redirigiendo…";
       successDiv.style.display = "block";

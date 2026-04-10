@@ -525,23 +525,16 @@ export function getStaticPaths() {
     statusEl.style.display = "block";
 
     try {
-      const isPreview = (window as Record<string, unknown>).__PREVIEW_MODE__;
-
-      if (isPreview) {
-        const { saveElpxInPreview } = await import("../../lib/elpx-preview-service.ts");
-        await saveElpxInPreview({ resourceId, blob: file, filename: file.name });
-      } else {
-        const formData = new FormData();
-        formData.append("file", file);
-        const res = await fetch(url(`api/admin/elpx/upload/${resourceId}`), {
-          method: "POST",
-          credentials: "include",
-          body: formData,
-        });
-        if (!res.ok) {
-          const err = await res.json().catch(() => ({}));
-          throw new Error((err as Record<string, string>).error || "Error al subir");
-        }
+      const formData = new FormData();
+      formData.append("file", file);
+      const res = await fetch(url(`api/admin/elpx/upload/${resourceId}`), {
+        method: "POST",
+        credentials: "include",
+        body: formData,
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error((err as Record<string, string>).error || "Error al subir");
       }
 
       statusEl.textContent = `Archivo "${file.name}" subido correctamente. Recargando...`;
@@ -569,7 +562,6 @@ export function getStaticPaths() {
   const exeSaveBtn = document.getElementById("exe-save-btn") as HTMLButtonElement;
   const exeCloseBtn = document.getElementById("exe-close-btn")!;
   const exeSavingOverlay = document.getElementById("exe-saving-overlay")!;
-  const isPreviewMode = !!(window as Record<string, unknown>).__PREVIEW_MODE__;
 
   function nextReqId(p: string) { return `${p}-${Date.now()}-${++reqCounter}`; }
   function postToExe(msg: Record<string, unknown>, transferables?: Transferable[]) {
@@ -587,13 +579,9 @@ export function getStaticPaths() {
     exeModal.style.display = "flex";
     document.body.style.overflow = "hidden";
 
-    if (isPreviewMode) {
-      exeIframe.src = url("exelearning-editor-loader.html") + `?resourceId=${resourceId}`;
-    } else {
-      const editorPage = url("api/v1/exelearning-editor/index.html");
-      const elpxParam = elpxFileUrl ? encodeURIComponent(elpxFileUrl) : "";
-      exeIframe.src = `${editorPage}?elpxUrl=${elpxParam}&resourceId=${resourceId}`;
-    }
+    const editorPage = url("api/v1/exelearning-editor/index.html");
+    const elpxParam = elpxFileUrl ? encodeURIComponent(elpxFileUrl) : "";
+    exeIframe.src = `${editorPage}?elpxUrl=${elpxParam}&resourceId=${resourceId}`;
   }
 
   function closeExeEditor(force = false) {
@@ -615,18 +603,11 @@ export function getStaticPaths() {
     exeSavingOverlay.style.display = "flex";
     try {
       const blob = new Blob([payload.bytes], { type: payload.mimeType || "application/zip" });
-      if (isPreviewMode) {
-        const { saveElpxInPreview } = await import("../../lib/elpx-preview-service.ts");
-        const result = await saveElpxInPreview({ resourceId: exeResourceId!, blob, filename: payload.filename || "project.elpx", existingHash: exeElpxHash || undefined });
-        exeElpxHash = result.hash;
-        postToExe({ type: "WP_SAVE_CONFIRMED", requestId: nextReqId("confirmed") });
-      } else {
-        const fd = new FormData();
-        fd.append("file", blob, payload.filename || "project.elpx");
-        const res = await fetch(url(`api/admin/elpx/save/${exeResourceId}`), { method: "POST", credentials: "include", body: fd });
-        if (!res.ok) throw new Error("Error al guardar");
-        postToExe({ type: "WP_SAVE_CONFIRMED", requestId: nextReqId("confirmed") });
-      }
+      const fd = new FormData();
+      fd.append("file", blob, payload.filename || "project.elpx");
+      const res = await fetch(url(`api/admin/elpx/save/${exeResourceId}`), { method: "POST", credentials: "include", body: fd });
+      if (!res.ok) throw new Error("Error al guardar");
+      postToExe({ type: "WP_SAVE_CONFIRMED", requestId: nextReqId("confirmed") });
       exeHasChanges = false;
       exeStatus.textContent = "Guardado";
       exeSavingOverlay.style.display = "none";
@@ -638,23 +619,12 @@ export function getStaticPaths() {
     } finally { exeSaving = false; }
   }
 
-  async function sendElpxToExeEditor() {
-    if (!isPreviewMode) return;
-    const { loadElpxBlob } = await import("../../lib/elpx-preview-service.ts");
-    const blob = exeElpxHash ? await loadElpxBlob(exeElpxHash, exeElpxFileUrl) : null;
-    if (blob) {
-      const bytes = await blob.arrayBuffer();
-      postToExe({ type: "OPEN_FILE", data: { bytes, filename: exeElpxFilename || "project.elpx" } }, [bytes]);
-    }
-  }
-
   window.addEventListener("message", (event) => {
     if (!event.data?.type || event.source !== exeIframe.contentWindow) return;
     switch (event.data.type) {
       case "EXELEARNING_READY":
         exeReady = true; exeStatus.textContent = "Editor listo";
         postToExe({ type: "CONFIGURE", requestId: nextReqId("cfg"), data: { hideUI: { fileMenu: true, saveButton: true, userMenu: true } } });
-        if (isPreviewMode) sendElpxToExeEditor();
         break;
       case "DOCUMENT_LOADED": exeStatus.textContent = "Documento cargado"; exeSaveBtn.disabled = false; break;
       case "DOCUMENT_CHANGED": exeHasChanges = true; exeStatus.textContent = "Cambios sin guardar"; exeSaveBtn.disabled = false; break;

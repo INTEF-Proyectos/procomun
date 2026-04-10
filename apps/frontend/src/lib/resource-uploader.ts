@@ -76,8 +76,6 @@ export async function initResourceUploader(args: {
 		return null;
 	}
 
-	const isPreview = (window as Record<string, unknown>).__PREVIEW_MODE__ === true;
-
 	const uppy = new Uppy({
 		autoProceed: true,
 		restrictions: {
@@ -87,66 +85,13 @@ export async function initResourceUploader(args: {
 		},
 	});
 
-	if (isPreview) {
-		const { storeFile, deleteFile } = await import("./preview-file-store.ts");
-		const { createUploadSession, completeUploadSession, createMediaItem } = await import("@procomun/db/repository");
-		const { PreviewApiClient } = await import("./preview-api-client.ts");
-		const session = await args.api.getSession().catch(() => null);
-		const ownerId = session?.user?.id ?? "demo-admin";
-
-		uppy.addUploader(async (fileIDs) => {
-			const db = PreviewApiClient.getPreviewDb();
-			if (!db) return;
-
-			for (const fileID of fileIDs) {
-				const file = uppy.getFile(fileID);
-				if (!file?.data) continue;
-
-				const uploadId = crypto.randomUUID();
-				const blob = file.data instanceof Blob ? file.data : new Blob([file.data]);
-
-				try {
-					await storeFile(uploadId, blob);
-					await createUploadSession(db, {
-						id: uploadId,
-						resourceId,
-						ownerId,
-						originalFilename: file.name ?? "file",
-						mimeType: file.type ?? "application/octet-stream",
-						storageKey: `preview/${uploadId}`,
-						declaredSize: file.size ?? 0,
-					});
-					const mediaResult = await createMediaItem(db, {
-						resourceId,
-						type: "file",
-						mimeType: file.type ?? "application/octet-stream",
-						url: `/preview-files/${uploadId}`,
-						fileSize: file.size ?? 0,
-						filename: file.name ?? "file",
-					});
-					await completeUploadSession(db, uploadId, {
-						receivedBytes: file.size ?? 0,
-						publicUrl: `/preview-files/${uploadId}`,
-						mediaItemId: mediaResult.id,
-					});
-
-					uppy.emit("upload-progress", uppy.getFile(fileID), { bytesUploaded: file.size ?? 0, bytesTotal: file.size ?? 0 });
-					uppy.emit("upload-success", uppy.getFile(fileID), { uploadURL: `/preview-files/${uploadId}` });
-				} catch (err) {
-					await deleteFile(uploadId).catch(() => {});
-					uppy.emit("upload-error", uppy.getFile(fileID), err instanceof Error ? err : new Error(String(err)));
-				}
-			}
-		});
-	} else {
-		uppy.use(Tus, {
-			endpoint: "/api/uploads",
-			withCredentials: true,
-			chunkSize: config.chunkSizeBytes,
-			retryDelays: [0, 1000, 3000, 5000],
-			allowedMetaFields: ["resourceId", "filename", "mimeType"],
-		});
-	}
+	uppy.use(Tus, {
+		endpoint: "/api/uploads",
+		withCredentials: true,
+		chunkSize: config.chunkSizeBytes,
+		retryDelays: [0, 1000, 3000, 5000],
+		allowedMetaFields: ["resourceId", "filename", "mimeType"],
+	});
 
 	async function refreshPersisted() {
 		const [uploads, mediaItems] = await Promise.all([
