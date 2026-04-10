@@ -24,7 +24,7 @@ ensure-exelearning-editor:
 
 down:
 	-@lsof -ti:3000 | xargs kill 2>/dev/null
-	-@lsof -ti:4321 | xargs kill 2>/dev/null
+	-@lsof -ti:5173 | xargs kill 2>/dev/null
 	@echo "Servicios detenidos"
 
 up-api:
@@ -105,8 +105,8 @@ up-postgres: deps
 		$(BUN) run --filter '@procomun/cli' cli -- seed
 	@echo "Arrancando API + frontend local con PostgreSQL real..."
 	@DATABASE_URL="postgres://procomun:procomun@localhost:5432/procomun" \
-		FRONTEND_URL="http://localhost:4321" \
-		BETTER_AUTH_URL="http://localhost:4321" \
+		FRONTEND_URL="http://localhost:5173" \
+		BETTER_AUTH_URL="http://localhost:5173" \
 		$(BUN) run dev
 
 # eXeLearning: descarga el editor estático desde la última release de GitHub
