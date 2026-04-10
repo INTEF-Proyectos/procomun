@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { Outlet, Link, useParams, useLocation } from "react-router-dom";
 import { PublicNavIsland } from "../islands/layout/PublicNavIsland.tsx";
 import { HELP_FOOTER_LINKS, buildHelpHref } from "../lib/help-content.ts";
@@ -17,14 +18,25 @@ export function PublicLayout() {
 		return `/${effectiveLocale}/${clean}`;
 	}
 
+	const normalizedPath = location.pathname.replace(/^\/(?:en|ca|gl|eu)\//, "/");
+
 	const activePage = (() => {
-		const path = location.pathname.replace(/^\/(?:en|ca|gl|eu)\//, "/");
-		if (path === "/") return "inicio";
-		if (path.startsWith("/explorar")) return "explorar";
-		if (path.startsWith("/colecciones")) return "colecciones";
-		if (path.startsWith("/ayuda")) return "ayuda";
+		if (normalizedPath === "/") return "inicio";
+		if (normalizedPath.startsWith("/explorar")) return "explorar";
+		if (normalizedPath.startsWith("/colecciones")) return "colecciones";
+		if (normalizedPath.startsWith("/ayuda")) return "ayuda";
 		return "";
 	})();
+
+	const fullWidth = normalizedPath === "/";
+	const showNavSearch = ["/explorar", "/colecciones", "/ayuda", "/recurso", "/perfil", "/registro", "/admin"].some(
+		(p) => normalizedPath.startsWith(p),
+	);
+
+	useEffect(() => {
+		document.body.classList.toggle("nav-search-visible", showNavSearch);
+		return () => document.body.classList.remove("nav-search-visible");
+	}, [showNavSearch]);
 
 	return (
 		<>
@@ -33,7 +45,7 @@ export function PublicLayout() {
 			<nav className="public-nav-bar" aria-label={m.main_navigation()}>
 				<div className="public-nav-inner">
 					<div className="public-nav-left">
-						<Link to={localUrl("")} className="public-brand">Procomun</Link>
+						<Link to={localUrl("")} className="public-brand">Procomún</Link>
 						<div className="public-nav-links">
 							<Link to={localUrl("")} className={`public-nav-link${activePage === "inicio" ? " public-nav-link-active" : ""}`}>{m.nav_home()}</Link>
 							<Link to={localUrl("explorar")} className={`public-nav-link${activePage === "explorar" ? " public-nav-link-active" : ""}`}>{m.nav_explore()}</Link>
@@ -58,14 +70,14 @@ export function PublicLayout() {
 				<div className="public-nav-separator" />
 			</nav>
 
-			<main id="main-content" className="public-main">
+			<main id="main-content" className={fullWidth ? "public-main-full" : "public-main"}>
 				<Outlet />
 			</main>
 
 			<footer className="public-footer" role="contentinfo">
 				<div className="public-footer-grid">
 					<div className="public-footer-brand">
-						<span className="public-footer-logo">Procomun</span>
+						<span className="public-footer-logo">Procomún</span>
 						<p className="public-footer-desc">{m.footer_desc()}</p>
 						<div className="public-footer-social">
 							<a href="#" className="public-footer-social-icon" aria-label={m.footer_share()}><span className="material-symbols-outlined">share</span></a>
