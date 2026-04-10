@@ -5,11 +5,8 @@ import { App } from "./App.tsx";
 import "./styles/design-tokens.css";
 import "./styles/reset.css";
 import "./styles/utilities.css";
-// Initialize Paraglide locale detection
+// Initialize Paraglide locale detection (reads <html lang> set by index.html)
 import "./lib/i18n.ts";
-
-// Set globals expected by existing islands/utilities
-(window as Record<string, unknown>).__BASE_URL__ = "/";
 
 createRoot(document.getElementById("root")!).render(
 	<StrictMode>
