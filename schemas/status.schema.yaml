@@ -6,13 +6,13 @@ title: "Procomún Project Status"
 description: >
   Schema for the global project state board (status.yaml).
   Uses map-keyed task entries (T-YYYY-MM-DD-NNN format) to allow parallel agent
-  work without merge conflicts.
+  work without merge conflicts. A single `tasks` map replaces the old
+  active_tasks/completed_tasks split; each task carries its own status field.
 type: object
 required:
   - metadata
   - blocking_adrs
-  - active_tasks
-  - completed_tasks
+  - tasks
 
 properties:
   metadata:
@@ -42,15 +42,9 @@ properties:
     additionalProperties:
       $ref: "#/definitions/adr_entry"
 
-  active_tasks:
+  tasks:
     type: object
-    description: "Map of task keys to in-progress task entries (T-YYYY-MM-DD-NNN)"
-    additionalProperties:
-      $ref: "#/definitions/task_entry"
-
-  completed_tasks:
-    type: object
-    description: "Map of task keys to completed task entries (T-YYYY-MM-DD-NNN)"
+    description: "Map of task keys (T-YYYY-MM-DD-NNN) to task entries. Status field distinguishes active from completed."
     additionalProperties:
       $ref: "#/definitions/task_entry"
 
@@ -80,7 +74,6 @@ definitions:
     type: object
     required:
       - date
-      - agent
       - task
       - status
     properties:
@@ -92,6 +85,9 @@ definitions:
       agent:
         type: string
         description: "Agent(s) responsible for this task (skill name or shorthand)"
+      role:
+        type: string
+        description: "Role of the agent (alternative to agent field)"
       task:
         type: string
         description: "Description of the task, deliverable or action taken"

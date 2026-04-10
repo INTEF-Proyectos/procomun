@@ -465,8 +465,9 @@
         return Object.entries(obj).map(([id, v]) => ({ _id: id, ...v }));
       }
       if (statusData) {
-        statusData.active_tasks = mapToArray(statusData.active_tasks);
-        statusData.completed_tasks = mapToArray(statusData.completed_tasks);
+        const allTasks = mapToArray(statusData.tasks || statusData.completed_tasks || {});
+        statusData.active_tasks = allTasks.filter(t => t.status !== 'Done');
+        statusData.completed_tasks = allTasks.filter(t => t.status === 'Done');
       }
       updateNavCounts();
     } catch (e) {
