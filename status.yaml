@@ -1,0 +1,649 @@
+# Estado global del proyecto Procomún
+# Formato YAML map-keyed (ADR-0019) para trabajo paralelo sin conflictos.
+
+metadata:
+  phase: "Fase 1 — MVP de catálogo"
+  epic: "Catalogo MVP operativo; flujo editorial completo; busqueda facetada implementada; backoffice con CRUD unificado; entidades (tipos, idiomas, licencias) gestionables desde admin; uploads con IndexedDB en preview mode"
+  current_agent: "@.agents/skills/frontend-ux-accesibilidad + @.agents/skills/documentacion-y-roadmap"
+  instructions: >
+    Todos los agentes deben leer este archivo antes de comenzar cualquier tarea para entender
+    el contexto global y el progreso del proyecto. Al finalizar una tarea, deben actualizar
+    su progreso aquí. Nunca borrar historial antiguo, solo añadir nuevas entradas.
+
+blocking_adrs:
+  ADR-0003:
+    title: "Framework HTTP para API"
+    file: "docs/negocio/decisiones/0003-framework-http-api.md"
+    status: Done
+  ADR-0004:
+    title: "Framework Frontend"
+    file: "docs/negocio/decisiones/0004-framework-frontend.md"
+    status: Done
+  ADR-0005:
+    title: "Base de datos principal"
+    file: "docs/negocio/decisiones/0005-base-de-datos-principal.md"
+    status: Done
+  ADR-0006:
+    title: "ORM y capa de acceso a datos"
+    file: "docs/negocio/decisiones/0006-orm-y-capa-acceso-datos.md"
+    status: Done
+  ADR-0007:
+    title: "Autenticación y gestión de sesiones"
+    file: "docs/negocio/decisiones/0007-autenticacion-y-sesiones.md"
+    status: Done
+  ADR-0008:
+    title: "Modelo de autorización"
+    file: "docs/negocio/decisiones/0008-modelo-de-autorizacion.md"
+    status: Done
+  ADR-0011:
+    title: "Uploads resumables con TUS"
+    file: "docs/negocio/decisiones/0011-uploads-resumables.md"
+    status: Done
+  ADR-0012:
+    title: "Uploads en preview mode con IndexedDB"
+    file: "docs/negocio/decisiones/0012-uploads-preview-indexeddb.md"
+    status: Done
+  ADR-0013:
+    title: "Framework UI para islands interactivas"
+    file: "docs/negocio/decisiones/0013-framework-ui-islands.md"
+    status: Done
+  ADR-BUSQUEDA:
+    title: "Motor de búsqueda para catálogo y relevancia"
+    file: ""
+    status: Pending
+    notes: "Todavía no documentada. ADR pendiente de formalización."
+
+active_tasks: {}
+
+completed_tasks:
+  T-2026-03-25-001:
+    date: 2026-03-25
+    agent: "Director de Producto"
+    task: "Definición de visión y mapa de capacidades"
+    status: Done
+    related: []
+    notes: ""
+
+  T-2026-03-25-002:
+    date: 2026-03-25
+    agent: "Project Manager"
+    task: "Revisión de estructura y setup de entorno de agentes"
+    status: Done
+    related: []
+    notes: ""
+
+  T-2026-03-25-003:
+    date: 2026-03-25
+    agent: "evaluacion-tecnologica + direccion-de-plataforma + backend-api-servicios"
+    task: "ADR-0005 de base de datos principal completada: PostgreSQL (principal) + SQLite (preview PR)"
+    status: Done
+    related: [ADR-0005]
+    notes: "Resuelta en docs/negocio/decisiones/0005-base-de-datos-principal.md"
+
+  T-2026-03-25-004:
+    date: 2026-03-25
+    agent: "evaluacion-tecnologica + direccion-de-plataforma"
+    task: "ADR-0004 Framework Frontend creada y aceptada. Astro aceptado como framework frontend base (Fase 0) con enfoque de islas y guardrails de mantenibilidad/lock-in."
+    status: Done
+    related: [ADR-0004]
+    notes: "Traspaso sugerido a documentacion-y-roadmap para alinear numeración y estado de ADRs bloqueantes."
+
+  T-2026-03-25-005:
+    date: 2026-03-25
+    agent: "evaluacion-tecnologica"
+    task: "ADR-0003 framework HTTP API propuesta en docs/negocio/decisiones/0003-framework-http-api.md"
+    status: Done
+    related: [ADR-0003]
+    notes: >
+      Riesgos abiertos: validar benchmark en caso real de dominio antes de congelar plantilla de servicio.
+      Traspaso sugerido a direccion-de-plataforma para aceptación/rechazo.
+
+  T-2026-03-25-006:
+    date: 2026-03-25
+    agent: "documentacion-y-roadmap"
+    task: "Roadmap y tablero global alineados con el estado real de código, ADRs y validación"
+    status: Done
+    related: []
+    notes: >
+      ADR-0001 a ADR-0008 aceptadas. Base técnica presente: apps/api, apps/frontend, apps/cli, packages/db.
+      Autenticación/autorización con tests unitarios pasando. bun test en raíz fallaba por e2e/example.spec.ts
+      (Playwright) siendo recogido por Bun en lugar de Playwright. Bloqueo práctico es implementación funcional
+      y disciplina de testing, no ADRs.
+
+  T-2026-03-25-007:
+    date: 2026-03-25
+    agent: "project-manager + documentacion-y-roadmap"
+    task: "Creación de Épica 001, alineación de trazabilidad y corrección de separación bun test vs Playwright E2E"
+    status: Done
+    related: []
+    notes: >
+      Se crea epic-001-mvp-recursos-metadatos-minimos con requirements.md, design.md, tasks.md, validation.md.
+      Test E2E renombrado a e2e/example.e2e.ts. playwright.config.ts añadido con testMatch **/*.e2e.ts.
+      Scripts de test en raíz acotados a tests/ para evitar ejecución accidental de E2E en bun test.
+      Test automatizado agregado para verificar la separación.
+      Riesgos: dependencias de negocio sin validar end-to-end, ADR de motor de búsqueda y ADR de perfil
+      mínimo de metadatos pendientes, cobertura de servicios de recursos y persistencia real pendiente.
+
+  T-2026-03-26-001:
+    date: 2026-03-26
+    agent: "qa-validacion"
+    task: "Endurecimiento de Makefile y scripts de test; make test separado de E2E y validado con tests automatizados"
+    status: Done
+    related: []
+    notes: >
+      Makefile alineado con package.json: test ejecuta suite estándar + coverage; test-all agrega E2E.
+      Nuevo descubrimiento explícito de suites unitarias e integración mediante scripts/run-bun-suite.ts.
+      Preflight de Playwright añadido con scripts/check-e2e-env.ts.
+      Tests automatizados añadidos para validar descubrimiento de suites y mensajes de preflight E2E.
+      Riesgos: no hay tests de integración reales todavía; targets E2E requieren entorno con permisos de navegador.
+
+  T-2026-03-26-002:
+    date: 2026-03-26
+    agent: "qa-validacion + documentacion-y-roadmap"
+    task: "Alineación de BETTER_AUTH_URL con la URL pública local (5173) y documentación asociada"
+    status: Done
+    related: [ADR-0007]
+    notes: >
+      Fallback de BETTER_AUTH_URL pasa a usar http://localhost:5173 como URL pública canónica en local.
+      Helpers testeables añadidos en apps/api/src/auth/config.ts para FRONTEND_URL y BETTER_AUTH_URL.
+      Test automatizado añadido para evitar regresiones en defaults de auth.
+      .env.example y README.md actualizados. Riesgo: conviene validar manualmente flujo OIDC con proveedor demo.
+
+  T-2026-03-26-003:
+    date: 2026-03-26
+    agent: "frontend-ux-accesibilidad"
+    task: "Paginación del listado usa pushState y mantiene replaceState para búsqueda; helper y tests unitarios añadidos"
+    status: Done
+    related: []
+    notes: >
+      Helper de historial/URL para listados (buildListingUrl, writeListingStateToHistory) introducido.
+      Búsqueda sigue usando replaceState para evitar ruido por tecleo.
+      Botones de paginación (Anterior/Siguiente) pasan a usar pushState.
+      Tests unitarios del helper de historial añadidos. bun test en verde.
+
+  T-2026-03-26-004:
+    date: 2026-03-26
+    agent: "frontend-ux-accesibilidad + documentacion-y-roadmap"
+    task: "Filtros básicos del catálogo público (tipo, idioma, licencia) y alineación de roadmap/estado con la implementación actual"
+    status: Done
+    related: []
+    notes: >
+      Búsqueda pública ampliada con filtros por resourceType, language y license.
+      Estado del listado sincronizado en URL junto con búsqueda y paginación.
+      API pública y repositorio compartido alineados con el nuevo contrato de filtros.
+      Roadmap actualizado. make test y bun run lint en verde.
+      Riesgos: colecciones públicas en placeholder, flujo editorial incompleto, búsqueda básica sin facetas.
+
+  T-2026-03-26-005:
+    date: 2026-03-26
+    agent: "backend-api-servicios + frontend-ux-accesibilidad"
+    task: "Flujo editorial completo: transiciones por rol, stepper visual, campo createdBy, botón editar en ficha pública"
+    status: Done
+    related: []
+    notes: >
+      Reglas de transición editorial con validación por rol en packages/db/src/validation.ts.
+      Endpoint PATCH /api/admin/resources/:id/status abierto a author con validación de transiciones.
+      Campo createdBy en schema con resolución de nombre vía LEFT JOIN.
+      Stepper visual en editar.astro con 3 pasos y colores semafóricos.
+      Botones de acción dinámicos según estado y rol. Badges de estado en todas las vistas.
+      make test: 132 tests, 94.57% cobertura. bun run lint limpio.
+      Riesgos: colecciones públicas en placeholder, búsqueda básica sin facetas ni ranking avanzado.
+
+  T-2026-03-27-001:
+    date: 2026-03-27
+    agent: "frontend-ux-accesibilidad + backend-api-servicios"
+    task: "Hotfix del endpoint dev de seed: detección robusta de entorno con Bun + tests unitarios específicos"
+    status: Done
+    related: []
+    notes: >
+      Corregido error del botón "Generar recursos aleatorios" que devolvía "Solo disponible en modo desarrollo"
+      aun ejecutando la app en desarrollo.
+      Helper de entorno añadido en API para resolver NODE_ENV desde process.env y Bun.env.
+      La ruta POST /api/dev/seed-resources usa la utilidad en lugar de depender solo de process.env.NODE_ENV.
+      Script apps/api dev fija NODE_ENV=development al arrancar con Bun hot reload.
+      Tests unitarios del helper y cobertura del fallback Bun.env.NODE_ENV añadidos.
+      bun test src/env.unit.test.ts src/routes/dev.unit.test.ts en apps/api verde.
+      Riesgo: bun test completo de apps/api seguía fallando por incidencia previa ajena en src/index.unit.test.ts
+      relacionada con foreign key (resources.assigned_curator_id -> user.id) durante publicación de recursos.
+
+  T-2026-03-27-002:
+    date: 2026-03-27
+    agent: "backend-api-servicios + qa-validacion"
+    task: "Refuerzo de cobertura con tests del seed CLI y del repositorio compartido; cobertura total recuperada a 91.07%"
+    status: Done
+    related: []
+    notes: >
+      Subida de cobertura de líneas por encima del umbral mínimo del 90% tras regresión por seed sobre
+      PostgreSQL real. Refactor del flujo común de seed en apps/cli/src/commands/seed.ts.
+      Tests unitarios ampliados en apps/cli/src/commands/seed.unit.test.ts.
+      Nueva suite packages/db/src/repository.unit.test.ts para usuarios, colecciones y taxonomías.
+      Resultado: 158 pass, 0 fail, cobertura 91.07%.
+      Riesgo: apps/api/src/routes/admin.ts es el principal punto ciego de cobertura por ramas.
+
+  T-2026-03-27-003:
+    date: 2026-03-27
+    agent: "documentacion-y-roadmap"
+    task: "Alineación de README, roadmap y tasks con la implementación real de PostgreSQL dev, backoffice y cobertura"
+    status: Done
+    related: []
+    notes: >
+      README.md actualizado: flujo manual con PostgreSQL real debe esperar salud del contenedor.
+      docs/producto/roadmap.md actualizado: panel editorial interno ya en desarrollo.
+      docs/epics/epic-001-mvp-recursos-metadatos-minimos/tasks.md actualizado: 159 tests, 91.13% cobertura.
+      Riesgos: faltan artefactos vivos de docs/producto/deuda-tecnica.md y docs/producto/riesgos.md.
+
+  T-2026-03-27-004:
+    date: 2026-03-27
+    agent: "documentacion-y-roadmap + ingestas-y-migraciones"
+    task: "Caso de análisis de Procomún legacy: estado del arte, requisitos funcionales, info contractual, gaps de migración"
+    status: Done
+    related: []
+    notes: >
+      Nuevo caso de análisis en docs/casos/contexto-procomun-legacy/.
+      Stack legacy confirmado: Drupal, Matomo, Docker, apps nativas iOS/Android.
+      Cifras documentadas: ~78.800 ODEs, ~100.000 multimedia, ~109.700 usuarios, ~23.500 artículos,
+      371 itinerarios, 55 comunidades.
+      13 grupos de requisitos funcionales con mapeo a procomun y gaps identificados.
+      6 gaps funcionales críticos: Banco Multimedia como entidad propia, eXeLearning online, comunidades,
+      artículos, app móvil, i18n de interfaz.
+      Expediente CE01698/2023 (ICA, 318.599,63 €) documentado. Roadmap: migración pasa a "En progreso".
+      Riesgos: PPT del expediente no obtenido; sin acceso al esquema de BD Drupal ni API pública de Procomún.
+
+  T-2026-03-27-005:
+    date: 2026-03-27
+    agent: "frontend-ux-accesibilidad + backend-api-servicios + qa-validacion"
+    task: "Backoffice con sidebar responsive y CRUD mínimos para recursos, usuarios, categorías y colecciones; API y clientes alineados"
+    status: Done
+    related: []
+    notes: >
+      Nuevo AdminLayout con navegación responsive y accesible por rol.
+      Nuevas vistas de backoffice: panel, listado de recursos, usuarios, categorías y colecciones.
+      API admin ampliada con endpoints reales para usuarios, colecciones y taxonomías, más RBAC por rol.
+      ApiClient, HttpApiClient y PreviewApiClient ampliados.
+      packages/db ampliado con esquema de taxonomías y repositorios para usuarios, colecciones y taxonomías.
+      Tests añadidos/actualizados para navegación del backoffice y rutas admin.
+      Riesgos: vistas de usuarios/categorías/colecciones usan edición inline mínima; búsqueda básica;
+      no hay tests E2E del sidebar y flujos CRUD en navegador.
+
+  T-2026-03-27-006:
+    date: 2026-03-27
+    agent: "backend-api-servicios + frontend-ux-accesibilidad + documentacion-y-roadmap"
+    task: "Primera entrega de uploads resumables multiarchivo para recursos con API, editor, ADR y épica documental (Issue #30)"
+    status: Done
+    related: [ADR-0011]
+    notes: >
+      Integración de uploads resumables en /api/uploads con @tus/server y persistencia en upload_sessions.
+      Nuevos endpoints admin para listar uploads, listar media_items, obtener configuración y descargar/cancelar.
+      Panel de uploads en editar.astro con drag & drop, cola local, progreso global, cancelación y adjuntos persistidos.
+      Redirección desde creación de recurso al editor para completar adjuntos.
+      ADR-0011 y nueva épica documental docs/epics/epic-002-subidas-resumibles/.
+      Resultado: 166 pass, 0 fail, cobertura 91.11%.
+      Riesgos: validación estricta de checksum por chunk no cerrada extremo a extremo; storage en disco local;
+      preview estático no soporta uploads reales por diseño.
+
+  T-2026-03-27-007:
+    date: 2026-03-27
+    agent: "documentacion-y-roadmap"
+    task: "Documentación del directorio efectivo de uploads en desarrollo local"
+    status: Done
+    related: [ADR-0011]
+    notes: >
+      Aclaración en README.md de que UPLOAD_STORAGE_DIR relativo se resuelve contra el directorio de trabajo
+      del proceso. Nota operativa en ADR-0011 sobre la caída efectiva del valor por defecto al arrancar
+      la API con bun run --filter '@procomun/api' dev.
+      Riesgo: si se desea ubicación fija en raíz del monorepo, habrá que cambiar implementación o fijar
+      UPLOAD_STORAGE_DIR absoluto.
+
+  T-2026-03-27-008:
+    date: 2026-03-27
+    agent: "backend-api-servicios + frontend-ux-accesibilidad"
+    task: "Corrección de adjuntos descargables en ficha pública de recurso"
+    status: Done
+    related: []
+    notes: >
+      getResourceBySlug ahora incluye mediaItems y normaliza URLs antiguas de adjuntos desde
+      /api/admin/uploads/:id/content a /api/v1/uploads/:id/content.
+      Nueva ruta pública GET /api/v1/uploads/:id/content para descargar binarios de recursos publicados.
+      Ficha pública recurso.astro muestra sección Archivos con enlaces de descarga.
+      Resultado: 37 pass, 0 fail. Build de frontend correcto.
+      Riesgo: adjuntos dependen de storage local y de que el fichero físico siga presente en disco.
+
+  T-2026-03-28-001:
+    date: 2026-03-28
+    agent: "backend-api-servicios + frontend-ux-accesibilidad"
+    task: "Resolución de comentarios de revisión en PR #49 (fixes de seguridad y validación en uploads resumables)"
+    status: Done
+    related: []
+    notes: >
+      Escape explícito de nombres de archivo, mensajes de error y atributos renderizados vía innerHTML
+      en resource-uploader.ts. Nuevos tests unitarios para render seguro del uploader.
+      Endurecimiento de validateUploadCandidate para rechazar uploads sin extensión o sin tipo MIME permitido.
+      Ampliación de tests unitarios de configuración de uploads para cubrir esos rechazos.
+      Resultado: 9 pass, 0 fail. Build de frontend correcto.
+      Riesgo: validación basada en metadatos declarados por cliente; para inspección real haría falta
+      sniffing/escaneo en backend.
+
+  T-2026-03-28-002:
+    date: 2026-03-28
+    agent: "Equipo multiagente"
+    task: "Refactorización integral: arquitectura, entidades, API, frontend, skills, testing, documentación (PR #52)"
+    status: Done
+    related: [ADR-0012]
+    notes: >
+      Arquitectura: admin.ts (585 líneas) partido en 5 módulos por dominio bajo routes/admin/.
+      ROLE_LEVELS consolidado de 3 copias a 1 fuente canónica en @procomun/db/validation.
+      CRUD route builder genérico (buildCrudRoutes) elimina ~50% boilerplate.
+      Helpers compartidos extraídos: parsePagination, ensureCurrentUser, requireOwnedResource.
+      Eliminados wrappers innecesarios: resources/validation.ts, resources/repository.ts.
+      Entidades: default de colecciones corregido borrador->draft. FK self-referencing en taxonomies.parentId.
+      Tipos de recurso, idiomas y licencias ahora son taxonomías gestionables desde admin.
+      CRUD faltantes: deleteMediaItem, addResourceToCollection, removeResourceFromCollection, listCollectionResources.
+      API: requireRole middleware reemplaza 33 checks inline de hasMinRole. Validación de role en PATCH users.
+      Fallback MIME application/octet-stream. Extensiones .elp/.elpx permitidas. tsc --noEmit en CI.
+      Endpoint público GET /api/v1/taxonomies/:type para filtros dinámicos.
+      Frontend: catálogo público con sidebar facetada, grid/list toggle, paginación numerada.
+      Vista de detalle con layout 2 columnas. Admin: CSS unificado, diálogos nativos, badges de estado.
+      Lógica extraída a catalog-controller.ts y resource-display.ts. Filtros cargados dinámicamente desde API.
+      Uploads en preview mode via IndexedDB (ADR-0012).
+      Skills: 20 -> 16 skills (4 duplicados fusionados). 9 skills mejorados con documentación oficial via Context7.
+      Testing: tests de permisos mejorados (5 toBeDefined -> 19 assertions). PGlite memory:// para aislamiento.
+      Dependencias fijadas (sin ^ ni latest). ADR-0012 documentada.
+      Resultado: make test 204 tests, 0 fail, 92.59% cobertura. make up y make up-static funcionales.
+
+  T-2026-03-28-003:
+    date: 2026-03-28
+    agent: "evaluacion-tecnologica"
+    task: "ADR-0013 Framework UI para islands interactivas — Aceptado (Issue #50)"
+    status: Done
+    related: [ADR-0013]
+    notes: >
+      React como framework UI para islands, con React Aria (Adobe), React Hook Form y Tanstack Table.
+      Justificación: mejor ecosistema WCAG AA, formularios y tablas resueltos, testing maduro, TypeScript completo.
+      ADR-0004 ya contemplaba React para islands.
+      Plan de migración: 7 fases incrementales, empezando por CRUD de categorías.
+      Impacto de bundle: ~80-90 KB base (gzip) compartido. Páginas sin islands siguen siendo 0 KB JS.
+      Riesgos: bundle mayor que Svelte/Solid; requiere disciplina para evitar deriva SPA.
+
+  T-2026-03-28-004:
+    date: 2026-03-28
+    agent: "frontend-ux-accesibilidad + documentacion-y-roadmap"
+    task: "Bootstrap de React islands (ADR-0013), piloto en admin/categorias, documentación y validación estándar completadas"
+    status: Done
+    related: [ADR-0013]
+    notes: >
+      apps/frontend integra @astrojs/react, react y react-dom. Frontera src/islands/ creada con primitives
+      compartidas para feedback, confirmación y tabla CRUD.
+      admin/categorias pasa a shell Astro + island React como piloto de migración.
+      Artefactos de feature añadidos para trazabilidad en Épica 001.
+      Validación: cd apps/frontend && bun test, bun run build, PREVIEW_STATIC=true bun run build:preview,
+      bun run test. Resultado: 204 tests passing, 91.94% cobertura de líneas.
+      Nota operativa: bun test en raíz sigue sin ser el comando correcto; usar bun run test.
+
+  T-2026-03-28-005:
+    date: 2026-03-28
+    agent: "frontend-ux-accesibilidad + documentacion-y-roadmap"
+    task: "Migración de admin/colecciones a React island, test TypeScript y validación estándar completada"
+    status: Done
+    related: [ADR-0013]
+    notes: >
+      Creado apps/frontend/src/islands/crud/CollectionsCrudIsland.tsx.
+      admin/colecciones pasa a shell Astro + island React client:load.
+      Flujo de alta, edición, borrado, búsqueda y paginación gestionado con estado React.
+      Test TypeScript del shell inicial añadido. Resultado: 204 tests passing, 91.94% cobertura.
+      Bundle: CollectionsCrudIsland 7.21 kB (2.37 kB gzip).
+
+  T-2026-03-28-006:
+    date: 2026-03-28
+    agent: "frontend-ux-accesibilidad + documentacion-y-roadmap"
+    task: "Migración de admin/usuarios a React island, test TypeScript y validación estándar completada"
+    status: Done
+    related: [ADR-0013]
+    notes: >
+      Creado apps/frontend/src/islands/crud/UsersCrudIsland.tsx.
+      admin/usuarios pasa a shell Astro + island React client:load.
+      Flujo de filtros, paginación, cambio de rol y activación/desactivación con estado React y feedback accesible.
+      Resultado: 204 tests passing, 91.94% cobertura. Bundle: UsersCrudIsland 4.23 kB (1.70 kB gzip).
+
+  T-2026-03-28-007:
+    date: 2026-03-28
+    agent: "frontend-ux-accesibilidad + documentacion-y-roadmap"
+    task: "Migración de admin/recursos/index a React island, test TypeScript y validación estándar completada"
+    status: Done
+    related: [ADR-0013]
+    notes: >
+      Creado apps/frontend/src/islands/crud/ResourcesTableIsland.tsx.
+      admin/recursos/index pasa a shell Astro + island React client:load.
+      Flujo de filtros, paginación, navegación a edición y borrado con confirmación gestionado con estado React.
+      Resultado: 204 tests passing, 91.94% cobertura. Bundle: ResourcesTableIsland 3.88 kB (1.67 kB gzip).
+
+  T-2026-03-28-008:
+    date: 2026-03-28
+    agent: "frontend-ux-accesibilidad + documentacion-y-roadmap"
+    task: "Migración de admin/recursos/nuevo y admin/recursos/editar a React islands, tests TypeScript y validación estándar completada"
+    status: Done
+    related: [ADR-0013]
+    notes: >
+      Creados ResourceFormIsland.tsx, ResourceEditorIsland.tsx y resource-form-options.ts.
+      Editor mantiene workflow editorial e integración con initResourceUploader() dentro de la island React.
+      Tests TypeScript del shell inicial de alta y edición añadidos.
+      Resultado: 204 tests passing, 91.94% cobertura.
+      Bundle: ResourceFormIsland 6.26 kB (2.01 kB gzip); ResourceEditorIsland 124.90 kB (37.22 kB gzip).
+      Riesgo relevante: editor concentra mayor peso hidratado de la migración por incorporar workflow y uploader.
+
+  T-2026-03-28-009:
+    date: 2026-03-28
+    agent: "frontend-ux-accesibilidad"
+    task: "Ajuste del editor de recursos: carga diferida del uploader, estilos restaurados y warning de claves corregido"
+    status: Done
+    related: [ADR-0013]
+    notes: >
+      initResourceUploader() pasa a cargarse de forma diferida desde la island React.
+      Estilos de admin/recursos/nuevo y editar convertidos a globales acotados a .form-container.
+      Warning de React por claves en el stepper editorial corregido.
+      Resultado: validación del frontend en verde.
+      Bundle: ResourceEditorIsland 11.54 kB (3.72 kB gzip); resource-uploader 114.08 kB (34.10 kB gzip).
+      Nota operativa: en desarrollo, si Vite mantiene dependencias optimizadas obsoletas de @uppy/*,
+      puede ser necesario reiniciar bun run dev para regenerar .vite/deps.
+
+  T-2026-03-28-010:
+    date: 2026-03-28
+    agent: "frontend-ux-accesibilidad + documentacion-y-roadmap"
+    task: "Migración del catálogo público y de la ficha pública de recurso a React islands; tests y build de frontend en verde"
+    status: Done
+    related: [ADR-0013]
+    notes: >
+      Creados CatalogSearchIsland.tsx, CatalogIsland.tsx y ResourceDetailIsland.tsx.
+      index.astro pasa a shell Astro con buscador en cabecera y contenido del catálogo como islands React.
+      La búsqueda, filtros, paginación y modo de vista mantienen la URL como fuente de verdad.
+      recurso.astro pasa a shell Astro + island React para la ficha pública.
+      Tests TypeScript del shell inicial de catálogo y ficha pública añadidos.
+      Bundle: CatalogSearchIsland 0.88 kB (0.49 kB gzip); CatalogIsland 8.82 kB (3.22 kB gzip);
+      ResourceDetailIsland 4.64 kB (1.59 kB gzip).
+
+  T-2026-03-28-011:
+    date: 2026-03-28
+    agent: "frontend-ux-accesibilidad + documentacion-y-roadmap"
+    task: "Migración de login y dashboard a React islands; tests y build de frontend en verde"
+    status: Done
+    related: [ADR-0013]
+    notes: >
+      Creados LoginIsland.tsx y DashboardIsland.tsx.
+      login.astro pasa a shell Astro + island React para login por correo, arranque OIDC y redirección.
+      dashboard.astro pasa a shell Astro + island React para resumen de entidades, visibilidad por rol
+      y herramientas de seed en desarrollo.
+      Tests TypeScript del shell inicial de ambas islands añadidos.
+      Bundle: LoginIsland 2.88 kB (1.12 kB gzip); DashboardIsland 4.09 kB (1.46 kB gzip).
+
+  T-2026-03-28-012:
+    date: 2026-03-28
+    agent: "frontend-ux-accesibilidad + documentacion-y-roadmap"
+    task: "Migración de Base, AdminLayout y PreviewBanner a React islands; tests y build de frontend en verde"
+    status: Done
+    related: [ADR-0013]
+    notes: >
+      Creados BaseNavIsland.tsx, AdminNavIsland.tsx y PreviewBannerIsland.tsx.
+      Base.astro usa island React para reflejar estado de sesión en navegación pública.
+      AdminLayout.astro usa island React para navegación del backoffice y menú responsive.
+      PreviewBanner.astro usa island React para cambio de rol y reinicio de datos en preview.
+      Tests TypeScript del shell inicial añadidos.
+      Bundle: BaseNavIsland 0.63 kB (0.40 kB gzip); AdminNavIsland 1.38 kB (0.71 kB gzip);
+      PreviewBannerIsland 1.61 kB (0.71 kB gzip).
+      Nota: migración principal a React funcionalmente completada.
+
+  T-2026-03-29-001:
+    date: 2026-03-29
+    agent: "frontend-ux-accesibilidad + backend-api-servicios + documentacion-y-roadmap"
+    task: "Issue #66 — Colecciones públicas reales, gestión editorial de recursos asociados, RBAC elevado a curator, tests y trazabilidad documental"
+    status: Done
+    related: []
+    notes: >
+      packages/db amplía listado y detalle de colecciones con portada, curador, conteo de recursos y reordenación.
+      API pública deja de responder con stubs en GET /api/v1/collections y GET /api/v1/collections/:slug.
+      CRUD editorial de colecciones añade portada, descripción y gestión de recursos asociados.
+      Backoffice deja de mostrar colecciones a author; gestión reservada a curator y admin.
+      Navegación pública sustituye placeholders por Colecciones y la home enlaza a nueva experiencia pública.
+      Feature documentada en docs/epics/epic-003/features/feature-colecciones-publicas-y-gestion/.
+      bun test packages/db/src/repository.unit.test.ts verde.
+      bun test apps/api/src/index.unit.test.ts apps/api/src/routes/admin.unit.test.ts verde.
+      cd apps/frontend && bun test verde. cd apps/frontend && bun run build verde.
+      bun run test: 337 pass, 0 fail, cobertura 91.77%.
+      Riesgo: detalle público se resuelve en /colecciones?slug=... y no en ruta dinámica literal.
+      Portada de colección usa URL directa; sin flujo de upload o media picker dedicado aún.
+
+  T-2026-03-29-002:
+    date: 2026-03-29
+    agent: "documentacion-y-roadmap"
+    task: "Actualización de Roadmap y ADR-0007 para reflejar cumplimiento del requisito de SSO educativo (OIDC) basado en Better Auth"
+    status: Done
+    related: [ADR-0007]
+    notes: ""
+
+  T-2026-03-29-003:
+    date: 2026-03-29
+    agent: "frontend-ux-accesibilidad + documentacion-y-roadmap"
+    task: "Página /ayuda, enlaces reales en header/footer/backoffice, tests y trazabilidad documental de la feature"
+    status: Done
+    related: []
+    notes: >
+      Contenido y enlaces de ayuda centralizados en apps/frontend/src/lib/help-content.ts.
+      Ruta apps/frontend/src/pages/ayuda.astro añadida con secciones ancladas (primeros pasos, exploración,
+      publicación, colecciones, FAQ, roles, contacto, mapa web).
+      Navegación pública añade acceso visible a ayuda durante carga de estado de sesión.
+      Footer enlaza Contacto, Mapa Web y Preguntas Frecuentes a secciones reales.
+      Backoffice añade acceso contextual a ayuda para perfiles editoriales.
+      Feature documentada en docs/epics/epic-003/features/feature-ayuda-manual-usuario/.
+      cd apps/frontend && bun test verde. cd apps/frontend && bun run build verde.
+      Riesgo: canal operativo de soporte sigue siendo descriptivo; sin integración de ticketing/contacto.
+
+  T-2026-03-30-001:
+    date: 2026-03-30
+    agent: "backend-api + frontend-ux"
+    task: "Issue #70 — Generar .elpx automático desde adjuntos (RF-001..RF-008): servicio elpx-generator.ts, endpoint POST /api/admin/elpx/generate/:resourceId, botón en editor"
+    status: Done
+    related: []
+    notes: "7 tests nuevos, 286 tests pasan"
+
+  T-2026-03-31-001:
+    date: 2026-03-31
+    agent: "backend-api-servicios"
+    task: "Refactor incremental de packages/db/src/repository.ts a módulos internos y separación de apps/api/src/app.ts para bootstrap HTTP"
+    status: Done
+    related: []
+    notes: >
+      packages/db/src/repository.ts pasa a ser fachada estable que reexporta módulos internos por dominio.
+      Nuevo árbol packages/db/src/repository/ con módulos separados para resources, uploads, users,
+      collections, taxonomies, elpx-projects, settings y utilidades compartidas.
+      Generación de slugs, normalización de búsqueda, paginación y SQL reutilizable centralizados
+      en packages/db/src/repository/shared.ts.
+      apps/api/src/app.ts concentra construcción de app Hono, middleware, montaje de rutas y serving
+      opcional del frontend. apps/api/src/index.ts reducido a entrypoint de runtime.
+      50 tests en verde, 0 fallos. bun run test:unit: 350 tests en verde.
+      Observación: en este entorno bun test y bun run test:unit devuelven exit code 99 incluso cuando
+      la salida reporta 0 fail; se considera incidencia del runner/entorno hasta nueva verificación.
+
+  T-2026-03-31-002:
+    date: 2026-03-31
+    agent: "backend-api-servicios"
+    task: "Fix del exit code 99 de bun test cerrando instancias de PGlite en tests de packages/db"
+    status: Done
+    related: []
+    notes: >
+      Causa raíz: suites de packages/db creaban instancias de PGlite sin cerrarlas.
+      packages/db/src/search.test.ts ahora cierra su instancia de PGlite en afterAll.
+      packages/db/src/repository.unit.test.ts ahora cierra la instancia en cada bloque mediante afterEach.
+      Resultado: bun test packages/db/src/search.test.ts verde, exit code 0.
+      bun test packages/db/src/repository.unit.test.ts verde, exit code 0.
+      make test-unit verde: 350 pass, 0 fail, exit code 0.
+      Riesgo: nuevas suites con PGlite deben cerrar explícitamente la instancia.
+
+  T-2026-03-31-003:
+    date: 2026-03-31
+    agent: "backend-api-servicios"
+    task: "Segunda pasada de refactorización del backend y packages/db; validación unitaria completa en verde"
+    status: Done
+    related: []
+    notes: >
+      Separación de composición de app en apps/api/src/app/middleware.ts, routes.ts y frontend.ts.
+      apps/api/src/helpers.ts dividido en: paginación HTTP, logging de actividad, sincronización de
+      usuario auth y helpers de preview ELPX.
+      Lógica no HTTP de routes/public.ts extraída a apps/api/src/public/access.ts y public/service.ts.
+      Helpers de enrichment y resolución de recursos de routes/social.ts extraídos a social/service.ts.
+      packages/db: operaciones de colección separadas de relación colección-recurso en
+      packages/db/src/repository/collection-resources.ts.
+      packages/db/src/repository/shared.ts dividido en helpers internos de filtros, slugs, media,
+      colecciones y tipado de DB, manteniendo fachada estable.
+      Test unitario específico añadido para visibilidad pública de recursos no publicados.
+      Validación unitaria en verde. Sin cambios en E2E ni contratos públicos.
+
+  T-2026-03-31-004:
+    date: 2026-03-31
+    agent: "backend-api-servicios"
+    task: "Cobertura adicional + regla de fallo en make test para archivos TS sin test aceptado; make test en verde con 93.13% de coverage"
+    status: Done
+    related: []
+    notes: >
+      Tests unitarios nuevos para: helpers de preview ELPX, paginación HTTP, wiring de app/, logging de
+      actividad, sincronización de usuario auth, helpers de roles, middleware de auditoría, crud-builder,
+      helpers compartidos de repositorio (filters, media, slugs), scripts de check-coverage y check-test-files.
+      Añadido scripts/check-test-files.ts y su suite scripts/check-test-files.unit.test.ts.
+      package.json pasa a ejecutar check-test-files dentro de bun run test; make test ya incluye la verificación.
+      scripts/run-bun-suite.ts endurecido para normalizar códigos 99/100 de Bun únicamente cuando la propia
+      salida confirma 0 fail.
+      apps/api/src/routes/admin.unit.test.ts ampliado para cubrir settings.
+      Resultado: verificación paridad archivo/test en verde. 389 pass, 0 fail. Coverage: 93.13%.
+
+  T-2026-03-31-005:
+    date: 2026-03-31
+    agent: "backend-api-servicios + documentacion-y-roadmap"
+    task: "Refactor de servicios sociales, guardas admin, contratos internos y documentación de make test/paridad archivo-test"
+    status: Done
+    related: []
+    notes: >
+      apps/api/src/routes/social.ts delega en módulos específicos bajo apps/api/src/social/ para resolución,
+      enrichment, ratings, favorites, dashboard, activity y stats.
+      apps/api/src/routes/admin/guards.ts concentra guardas repetidas de recursos, colecciones y uploads.
+      packages/db/src/repository/resources.ts y collections.ts usan selecciones internas más explícitas.
+      AGENTS.md exige paridad obligatoria entre cada nuevo archivo .ts productivo y su test aceptado.
+      README.md documenta que make test incluye comprobación de paridad.
+      Resultado: 397 pass, 0 fail. Coverage: 93.35%.
+      Riesgo: historial previo de STATUS.md mantiene referencias antiguas al refactor anterior de
+      apps/api/src/social/service.ts; se conserva por inmutabilidad del tablero.
+
+  T-2026-04-07-001:
+    date: 2026-04-07
+    agent: "documentacion-y-roadmap + backend-api-servicios"
+    task: "Renombrado transversal procomeka -> procomun en código y documentación editable; validación bloqueada por dependencias/red"
+    status: Done
+    related: []
+    notes: >
+      Paquetes workspace renombrados a @procomun/* en raíz, apps/ y packages/.
+      Imports y cargas dinámicas actualizados de @procomeka/db/* a @procomun/db/*.
+      Identificadores de preview, claves de almacenamiento local, cabeceras, nombres temporales, rutas de
+      despliegue y textos UI/documentación alineados con procomun.
+      bun.lock, Makefile, workflow de deploy y ejemplos de configuración actualizados.
+      Búsqueda exhaustiva de restos con rg -n --hidden --glob '!.git' 'procomeka|Procomeka|PROCOMEKA' .:
+      no quedan referencias en archivos editables.
+      Persisten referencias en .agents/skills/*.md (montados como no escribibles en este entorno).
+      bun test queda bloqueado por dependencias externas no resolubles localmente (drizzle-orm/pg-core).
+      bun install no pudo completar por falta de acceso de red.
+      Riesgo: pendiente reejecutar instalación y suite completa en entorno con acceso a dependencias.

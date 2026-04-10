@@ -100,6 +100,7 @@ export function PublicLayout() {
 					</div>
 					<div className="public-footer-col">
 						<h4>{m.footer_help()}</h4>
+						<a href="/dev/">Panel de desarrollo</a>
 						{HELP_FOOTER_LINKS.map((link) => (
 							<Link key={link.sectionId} to={`/${buildHelpHref(link.sectionId)}`}>{link.label}</Link>
 						))}

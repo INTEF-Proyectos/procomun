@@ -1,0 +1,111 @@
+# JSON Schema (YAML notation) for status.yaml
+# Validates the map-keyed project state file (ADR-0019).
+$schema: "http://json-schema.org/draft-07/schema#"
+$id: "https://procomun.intef.es/schemas/status.schema.yaml"
+title: "Procomún Project Status"
+description: >
+  Schema for the global project state board (status.yaml).
+  Uses map-keyed task entries (T-YYYY-MM-DD-NNN format) to allow parallel agent
+  work without merge conflicts.
+type: object
+required:
+  - metadata
+  - blocking_adrs
+  - active_tasks
+  - completed_tasks
+
+properties:
+  metadata:
+    type: object
+    required:
+      - phase
+      - epic
+      - current_agent
+    properties:
+      phase:
+        type: string
+        description: "Current project phase name (e.g. 'Fase 1 — MVP de catálogo')"
+      epic:
+        type: string
+        description: "Description of the currently active epic(s)"
+      current_agent:
+        type: string
+        description: "Agent(s) currently holding the turn (e.g. '@.agents/skills/...')"
+      instructions:
+        type: string
+        description: "Operational instructions for agents reading this file"
+    additionalProperties: false
+
+  blocking_adrs:
+    type: object
+    description: "Map of ADR identifiers to their blocking status"
+    additionalProperties:
+      $ref: "#/definitions/adr_entry"
+
+  active_tasks:
+    type: object
+    description: "Map of task keys to in-progress task entries (T-YYYY-MM-DD-NNN)"
+    additionalProperties:
+      $ref: "#/definitions/task_entry"
+
+  completed_tasks:
+    type: object
+    description: "Map of task keys to completed task entries (T-YYYY-MM-DD-NNN)"
+    additionalProperties:
+      $ref: "#/definitions/task_entry"
+
+definitions:
+  adr_entry:
+    type: object
+    required:
+      - title
+      - status
+    properties:
+      title:
+        type: string
+        description: "Short title of the ADR"
+      file:
+        type: string
+        description: "Path to the ADR markdown file (relative to repo root)"
+      status:
+        type: string
+        enum: [Pending, In Progress, Done]
+        description: "Resolution status of the ADR"
+      notes:
+        type: string
+        description: "Optional notes about the ADR"
+    additionalProperties: false
+
+  task_entry:
+    type: object
+    required:
+      - date
+      - agent
+      - task
+      - status
+    properties:
+      date:
+        type: string
+        format: date
+        description: "ISO 8601 date when the task was completed or started (YYYY-MM-DD)"
+        pattern: "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+      agent:
+        type: string
+        description: "Agent(s) responsible for this task (skill name or shorthand)"
+      task:
+        type: string
+        description: "Description of the task, deliverable or action taken"
+      status:
+        type: string
+        enum: [Pending, In Progress, Done]
+        description: "Current status of the task"
+      related:
+        type: array
+        description: "List of related ADR identifiers"
+        items:
+          type: string
+        default: []
+      notes:
+        type: string
+        description: "Extended notes, validation results, risks, handoff recommendations"
+    additionalProperties: false

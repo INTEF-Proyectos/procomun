@@ -1,0 +1,903 @@
+<!DOCTYPE html>
+<html lang="es" data-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Procomún — Panel de Desarrollo</title>
+  <style>
+    :root {
+      --sidebar-w: 240px;
+      --primary: #0f4ccf;
+      --primary-dark: #0a3a9e;
+      --primary-light: #dbeafe;
+      --success: #16a34a;
+      --success-light: #dcfce7;
+      --warning: #d97706;
+      --warning-light: #fef3c7;
+      --danger: #dc2626;
+      --danger-light: #fee2e2;
+      --gray: #6b7280;
+      --gray-light: #f3f4f6;
+      --border: #e5e7eb;
+      --bg: #ffffff;
+      --bg-secondary: #f9fafb;
+      --text: #111827;
+      --text-muted: #6b7280;
+      --sidebar-bg: #1e293b;
+      --sidebar-text: #e2e8f0;
+      --sidebar-muted: #94a3b8;
+      --sidebar-active-bg: #0f4ccf;
+      --sidebar-hover-bg: #334155;
+      --card-shadow: 0 1px 3px rgba(0,0,0,.08), 0 1px 2px rgba(0,0,0,.05);
+    }
+    [data-theme="dark"] {
+      --primary: #3b82f6;
+      --primary-dark: #2563eb;
+      --primary-light: #1e3a5f;
+      --success: #22c55e;
+      --success-light: #14532d;
+      --warning: #f59e0b;
+      --warning-light: #451a03;
+      --danger: #ef4444;
+      --danger-light: #450a0a;
+      --gray: #9ca3af;
+      --gray-light: #374151;
+      --border: #374151;
+      --bg: #0f172a;
+      --bg-secondary: #1e293b;
+      --text: #f1f5f9;
+      --text-muted: #94a3b8;
+      --sidebar-bg: #0f172a;
+      --sidebar-text: #e2e8f0;
+      --sidebar-muted: #64748b;
+      --sidebar-active-bg: #1d4ed8;
+      --sidebar-hover-bg: #1e293b;
+      --card-shadow: 0 1px 3px rgba(0,0,0,.3);
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: system-ui, -apple-system, 'Segoe UI', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      font-size: 14px;
+      line-height: 1.5;
+    }
+
+    /* Sidebar */
+    .sidebar {
+      position: fixed; top: 0; left: 0; bottom: 0;
+      width: var(--sidebar-w);
+      background: var(--sidebar-bg);
+      color: var(--sidebar-text);
+      display: flex; flex-direction: column;
+      overflow-y: auto; z-index: 100;
+      border-right: 1px solid rgba(255,255,255,.06);
+    }
+    .sidebar-header {
+      padding: 1.25rem 1rem 1rem;
+      border-bottom: 1px solid rgba(255,255,255,.08);
+      flex-shrink: 0;
+    }
+    .sidebar-header .logo {
+      font-size: 1rem; font-weight: 700; color: #fff;
+      display: flex; align-items: center; gap: .5rem;
+    }
+    .sidebar-header .logo-icon {
+      width: 28px; height: 28px; background: var(--primary);
+      border-radius: 6px; display: flex; align-items: center;
+      justify-content: center; font-size: .9rem; flex-shrink: 0;
+    }
+    .sidebar-header small {
+      display: block; font-size: .7rem;
+      color: var(--sidebar-muted); margin-top: .2rem;
+    }
+
+    .search-wrap {
+      padding: .75rem 1rem;
+      border-bottom: 1px solid rgba(255,255,255,.06);
+      flex-shrink: 0;
+    }
+    .search-wrap input {
+      width: 100%; padding: .4rem .65rem;
+      background: rgba(255,255,255,.08);
+      border: 1px solid rgba(255,255,255,.12);
+      border-radius: 6px; color: var(--sidebar-text);
+      font-size: .8rem; outline: none;
+    }
+    .search-wrap input::placeholder { color: var(--sidebar-muted); }
+    .search-wrap input:focus { border-color: var(--primary); background: rgba(255,255,255,.12); }
+
+    .nav-section {
+      font-size: .65rem; text-transform: uppercase;
+      letter-spacing: .08em; color: var(--sidebar-muted);
+      padding: .9rem 1rem .3rem; font-weight: 600;
+    }
+    .nav-item {
+      display: flex; align-items: center; gap: .5rem;
+      padding: .4rem 1rem; font-size: .82rem;
+      color: var(--sidebar-text); cursor: pointer;
+      text-decoration: none; border: none; background: none;
+      width: 100%; text-align: left; transition: background .15s;
+    }
+    .nav-item:hover { background: var(--sidebar-hover-bg); }
+    .nav-item.active { background: var(--sidebar-active-bg); color: #fff; }
+    .nav-item svg { width: 15px; height: 15px; flex-shrink: 0; opacity: .8; }
+    .nav-item.active svg { opacity: 1; }
+    .nav-counter {
+      margin-left: auto; font-size: .65rem;
+      background: rgba(255,255,255,.15); color: var(--sidebar-muted);
+      padding: .1rem .4rem; border-radius: 10px;
+    }
+    .nav-item.active .nav-counter { background: rgba(255,255,255,.25); color: #fff; }
+
+    .sidebar-footer {
+      margin-top: auto; padding: .75rem 1rem;
+      border-top: 1px solid rgba(255,255,255,.06);
+      flex-shrink: 0; display: flex; flex-direction: column; gap: .5rem;
+    }
+    .btn-outline-sm {
+      padding: .35rem .65rem; border-radius: 6px; font-size: .75rem;
+      border: 1px solid rgba(255,255,255,.2); color: var(--sidebar-text);
+      background: none; cursor: pointer; display: flex; align-items: center;
+      gap: .4rem; justify-content: center; transition: background .15s;
+      text-decoration: none; width: 100%;
+    }
+    .btn-outline-sm:hover { background: var(--sidebar-hover-bg); }
+    .btn-outline-sm svg { width: 13px; height: 13px; }
+
+    /* Main content */
+    .main {
+      margin-left: var(--sidebar-w);
+      padding: 2rem;
+      min-height: 100vh;
+    }
+
+    /* Loading */
+    .loading {
+      display: flex; align-items: center; justify-content: center;
+      min-height: 200px; color: var(--text-muted);
+    }
+    .spinner {
+      width: 28px; height: 28px;
+      border: 3px solid var(--border);
+      border-top-color: var(--primary);
+      border-radius: 50%;
+      animation: spin .7s linear infinite;
+      margin-right: .75rem;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* Alert */
+    .alert {
+      padding: 1rem 1.25rem; border-radius: 8px;
+      margin-bottom: 1rem; font-size: .875rem;
+    }
+    .alert-warning { background: var(--warning-light); color: var(--warning); border: 1px solid var(--warning); }
+    .alert code { background: rgba(0,0,0,.08); padding: .1rem .3rem; border-radius: 3px; font-size: .85em; }
+
+    /* Page title */
+    .page-title {
+      font-size: 1.35rem; font-weight: 700; margin-bottom: 1.5rem;
+      display: flex; align-items: center; gap: .6rem;
+      color: var(--text);
+    }
+    .page-title svg { width: 22px; height: 22px; color: var(--primary); }
+
+    /* Cards row */
+    .cards-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+      gap: 1rem; margin-bottom: 1.5rem;
+    }
+    .stat-card {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 1.1rem 1rem;
+      box-shadow: var(--card-shadow);
+      text-align: center;
+    }
+    .stat-card .value {
+      font-size: 2rem; font-weight: 800; line-height: 1;
+      margin-bottom: .25rem;
+    }
+    .stat-card .label { font-size: .75rem; color: var(--text-muted); }
+    .stat-card.primary .value { color: var(--primary); }
+    .stat-card.success .value { color: var(--success); }
+    .stat-card.warning .value { color: var(--warning); }
+    .stat-card.gray .value { color: var(--gray); }
+
+    /* Two-col grid */
+    .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem; }
+
+    /* Card */
+    .card {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      box-shadow: var(--card-shadow);
+      overflow: hidden;
+    }
+    .card-header {
+      padding: .75rem 1rem;
+      border-bottom: 1px solid var(--border);
+      font-weight: 600; font-size: .85rem;
+      display: flex; align-items: center; gap: .5rem;
+      background: var(--bg-secondary);
+      color: var(--text);
+    }
+    .card-header svg { width: 15px; height: 15px; color: var(--primary); }
+    .card-header .count {
+      margin-left: auto; font-size: .7rem; font-weight: 500;
+      color: var(--text-muted); background: var(--gray-light);
+      padding: .1rem .5rem; border-radius: 10px;
+    }
+    .card-body { padding: 1rem; }
+    .stat-row {
+      display: flex; justify-content: space-between;
+      align-items: center; padding: .35rem 0;
+      border-bottom: 1px solid var(--border); font-size: .82rem;
+    }
+    .stat-row:last-child { border-bottom: none; }
+    .stat-row .num { font-weight: 700; }
+    .stat-row .num.blue { color: var(--primary); }
+    .stat-row .num.green { color: var(--success); }
+    .stat-row .num.amber { color: var(--warning); }
+    .stat-row .num.red { color: var(--danger); }
+
+    .progress-bar-wrap {
+      height: 6px; background: var(--border);
+      border-radius: 3px; overflow: hidden; margin-top: .75rem;
+    }
+    .progress-bar-fill {
+      height: 100%; background: var(--success);
+      border-radius: 3px; transition: width .3s;
+    }
+
+    /* Phase card */
+    .phase-card {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-left: 4px solid var(--primary);
+      border-radius: 10px;
+      padding: 1rem 1.25rem;
+      margin-bottom: 1rem;
+      box-shadow: var(--card-shadow);
+    }
+    .phase-card .phase-label {
+      font-size: .7rem; font-weight: 600; text-transform: uppercase;
+      letter-spacing: .06em; color: var(--primary); margin-bottom: .25rem;
+    }
+    .phase-card .phase-name { font-size: 1rem; font-weight: 600; }
+    .phase-card .phase-agent {
+      font-size: .78rem; color: var(--text-muted); margin-top: .35rem;
+    }
+
+    /* Tables */
+    .table-wrap { overflow-x: auto; }
+    table { width: 100%; border-collapse: collapse; font-size: .82rem; }
+    th {
+      text-align: left; padding: .55rem .75rem;
+      background: var(--bg-secondary);
+      border-bottom: 2px solid var(--border);
+      font-weight: 600; font-size: .75rem;
+      text-transform: uppercase; letter-spacing: .04em;
+      color: var(--text-muted); white-space: nowrap;
+    }
+    td {
+      padding: .55rem .75rem;
+      border-bottom: 1px solid var(--border);
+      vertical-align: top;
+    }
+    tr:last-child td { border-bottom: none; }
+    tr:hover td { background: var(--bg-secondary); }
+    .section-title {
+      font-size: .9rem; font-weight: 600; margin: 1.5rem 0 .5rem;
+      display: flex; align-items: center; gap: .5rem;
+    }
+    .section-title:first-child { margin-top: 0; }
+    .section-title .chip {
+      font-size: .7rem; font-weight: 500;
+      background: var(--gray-light); color: var(--text-muted);
+      padding: .1rem .5rem; border-radius: 10px;
+    }
+
+    /* Badges */
+    .badge {
+      display: inline-flex; align-items: center;
+      padding: .15rem .55rem; border-radius: 20px;
+      font-size: .7rem; font-weight: 600;
+      white-space: nowrap; line-height: 1.4;
+    }
+    .badge-aceptado, .badge-done, .badge-completado   { background: var(--success-light); color: var(--success); }
+    .badge-supersedido                                { background: var(--gray-light); color: var(--gray); }
+    .badge-en-progreso, .badge-in-progress            { background: var(--primary-light); color: var(--primary); }
+    .badge-pendiente, .badge-pending                  { background: var(--warning-light); color: var(--warning); }
+    .badge-propuesto                                  { background: var(--primary-light); color: var(--primary); }
+    .badge-rechazado                                  { background: var(--danger-light); color: var(--danger); }
+    .badge-default                                    { background: var(--gray-light); color: var(--text-muted); }
+
+    /* Search highlight */
+    mark { background: #fef08a; color: #713f12; border-radius: 2px; }
+    [data-theme="dark"] mark { background: #713f12; color: #fef08a; }
+
+    /* Empty state */
+    .empty {
+      text-align: center; padding: 3rem 1rem;
+      color: var(--text-muted); font-size: .85rem;
+    }
+    .empty svg { width: 40px; height: 40px; margin: 0 auto .75rem; display: block; opacity: .4; }
+
+    /* Links */
+    a { color: var(--primary); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+
+    code {
+      background: var(--gray-light); padding: .1rem .35rem;
+      border-radius: 4px; font-size: .82em;
+    }
+
+    /* Filter bar */
+    .filter-bar {
+      display: flex; gap: .5rem; margin-bottom: 1rem; flex-wrap: wrap;
+    }
+    .filter-btn {
+      padding: .3rem .75rem; border-radius: 6px; font-size: .78rem;
+      border: 1px solid var(--border); background: var(--bg);
+      color: var(--text-muted); cursor: pointer; transition: all .15s;
+    }
+    .filter-btn:hover { border-color: var(--primary); color: var(--primary); }
+    .filter-btn.active { background: var(--primary); color: #fff; border-color: var(--primary); }
+
+    /* Responsive */
+    @media (max-width: 768px) {
+      .sidebar {
+        position: static; width: 100%;
+        flex-direction: row; flex-wrap: wrap;
+        border-right: none; border-bottom: 1px solid var(--border);
+        height: auto;
+      }
+      .sidebar-header { flex: 1 0 100%; }
+      .search-wrap { flex: 1 0 100%; }
+      .nav-group { display: flex; flex-wrap: wrap; }
+      .nav-item { width: auto; padding: .4rem .75rem; }
+      .sidebar-footer { flex-direction: row; border-top: none; }
+      .main { margin-left: 0; padding: 1rem; }
+      .two-col { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+
+<nav class="sidebar" id="sidebar">
+  <div class="sidebar-header">
+    <div class="logo">
+      <div class="logo-icon">P</div>
+      <div>
+        Procomún
+        <small>Panel de Desarrollo</small>
+      </div>
+    </div>
+  </div>
+
+  <div class="search-wrap">
+    <input type="search" id="globalSearch" placeholder="Buscar..." autocomplete="off">
+  </div>
+
+  <div class="nav-group">
+    <div class="nav-section">General</div>
+    <button class="nav-item active" data-view="dashboard">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+      Dashboard
+    </button>
+    <button class="nav-item" data-view="status">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>
+      Status Board
+      <span class="nav-counter" id="nav-status-count">—</span>
+    </button>
+    <div class="nav-section">Arquitectura</div>
+    <button class="nav-item" data-view="decisions">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3h18v4H3zM3 10h11v4H3zM3 17h7v4H3z"/></svg>
+      Decisiones (ADRs)
+      <span class="nav-counter" id="nav-adr-count">—</span>
+    </button>
+    <div class="nav-section">Recursos</div>
+    <button class="nav-item" data-view="docs">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><path d="M14 2v6h6M16 13H8M16 17H8M10 9H8"/></svg>
+      Documentación
+    </button>
+  </div>
+
+  <div class="sidebar-footer">
+    <a class="btn-outline-sm" href="https://github.com/erseco/procomun" target="_blank" rel="noopener">
+      <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/></svg>
+      GitHub
+    </a>
+    <button class="btn-outline-sm" id="themeToggle">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" id="themeIcon"><path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/></svg>
+      Cambiar tema
+    </button>
+  </div>
+</nav>
+
+<main class="main" id="mainContent">
+  <div class="loading">
+    <div class="spinner"></div>
+    Cargando datos...
+  </div>
+</main>
+
+<script src="https://cdn.jsdelivr.net/npm/js-yaml@4.1.0/dist/js-yaml.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/marked@15.0.7/marked.min.js"></script>
+<script>
+(function () {
+  'use strict';
+
+  // --- State ---
+  let statusData = null;
+  let decisionsData = null;
+  let currentView = 'dashboard';
+  let searchQuery = '';
+
+  // --- Fetch helpers ---
+  const cache = {};
+  async function fetchYaml(path) {
+    if (cache[path]) return cache[path];
+    const res = await fetch(path);
+    if (!res.ok) throw new Error(`HTTP ${res.status} al cargar ${path}`);
+    const text = await res.text();
+    cache[path] = jsyaml.load(text);
+    return cache[path];
+  }
+
+  async function loadData() {
+    try {
+      [statusData, decisionsData] = await Promise.all([
+        fetchYaml('/dev/data/status.yaml'),
+        fetchYaml('/dev/data/decision-log.yaml'),
+      ]);
+      // Convert map-keyed objects to arrays (YAML uses maps for merge-safety)
+      function mapToArray(obj) {
+        if (!obj || typeof obj !== 'object') return [];
+        if (Array.isArray(obj)) return obj;
+        return Object.entries(obj).map(([id, v]) => ({ _id: id, ...v }));
+      }
+      if (statusData) {
+        statusData.active_tasks = mapToArray(statusData.active_tasks);
+        statusData.completed_tasks = mapToArray(statusData.completed_tasks);
+      }
+      updateNavCounts();
+    } catch (e) {
+      document.getElementById('mainContent').innerHTML = `
+        <div class="alert alert-warning">
+          <strong>No se pudieron cargar los datos.</strong><br>
+          Este panel debe servirse via HTTP, no abrirse como archivo local.<br>
+          <small>Error: ${e.message}</small><br><br>
+          Ejecuta: <code>cd apps/frontend && bun run dev</code> o <code>python3 -m http.server 8080</code> en la raíz del repo.
+        </div>`;
+    }
+  }
+
+  // --- Helpers ---
+  function fmtDate(d) {
+    if (!d) return '—';
+    const s = d instanceof Date ? d.toISOString() : String(d);
+    return s.slice(0, 10);
+  }
+
+  function badge(status) {
+    if (!status) return '';
+    const key = status.toLowerCase().replace(/\s+/g, '-')
+      .normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    const classMap = {
+      'aceptado': 'aceptado', 'accepted': 'aceptado',
+      'supersedido': 'supersedido', 'superseded': 'supersedido',
+      'en-progreso': 'en-progreso', 'in-progress': 'en-progreso', 'en progreso': 'en-progreso',
+      'completado': 'done', 'done': 'done',
+      'pendiente': 'pendiente', 'pending': 'pendiente',
+      'propuesto': 'propuesto', 'proposed': 'propuesto',
+      'rechazado': 'rechazado', 'rejected': 'rechazado',
+    };
+    const cls = classMap[key] || 'default';
+    return `<span class="badge badge-${cls}">${escHtml(status)}</span>`;
+  }
+
+  function escHtml(s) {
+    if (s == null) return '';
+    return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+
+  function highlight(text, q) {
+    if (!q || q.length < 2) return escHtml(text);
+    const safe = q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    return escHtml(text).replace(new RegExp(`(${safe})`, 'gi'), '<mark>$1</mark>');
+  }
+
+  function updateNavCounts() {
+    const activeTasks = (statusData?.active_tasks || []).length;
+    const completedTasks = (statusData?.completed_tasks || []).length;
+    const totalTasks = activeTasks + completedTasks;
+    const totalADRs = Object.keys(decisionsData || {}).length;
+    const el1 = document.getElementById('nav-status-count');
+    const el2 = document.getElementById('nav-adr-count');
+    if (el1) el1.textContent = totalTasks;
+    if (el2) el2.textContent = totalADRs;
+  }
+
+  // --- Views ---
+  function renderDashboard() {
+    if (!statusData || !decisionsData) return '<div class="alert alert-warning">Datos no cargados.</div>';
+
+    const activeTasks = statusData.active_tasks || [];
+    const completedTasks = statusData.completed_tasks || [];
+    const dEntries = Object.entries(decisionsData);
+
+    const byStatus = {};
+    dEntries.forEach(([, v]) => {
+      const s = v.status || 'Sin estado';
+      byStatus[s] = (byStatus[s] || 0) + 1;
+    });
+
+    const aceptados = byStatus['Aceptado'] || 0;
+    const total = dEntries.length;
+    const pct = total > 0 ? (aceptados / total * 100).toFixed(0) : 0;
+
+    const statusRows = Object.entries(byStatus)
+      .sort((a, b) => b[1] - a[1])
+      .map(([s, n]) => `
+        <div class="stat-row">
+          <span>${escHtml(s)}</span>
+          <span class="num ${s === 'Aceptado' ? 'green' : s === 'Supersedido' ? '' : 'blue'}">${n}</span>
+        </div>`).join('');
+
+    return `
+      <div class="page-title">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+        Dashboard
+      </div>
+
+      <div class="phase-card">
+        <div class="phase-label">Fase actual</div>
+        <div class="phase-name">${escHtml(statusData.current_phase || '—')}</div>
+        ${statusData.current_agent ? `<div class="phase-agent">Agente en turno: ${escHtml(statusData.current_agent)}</div>` : ''}
+        ${statusData.last_updated ? `<div class="phase-agent">Actualizado: ${escHtml(statusData.last_updated)}</div>` : ''}
+      </div>
+
+      <div class="cards-grid">
+        <div class="stat-card primary">
+          <div class="value">${activeTasks.length}</div>
+          <div class="label">Tareas activas</div>
+        </div>
+        <div class="stat-card success">
+          <div class="value">${completedTasks.length}</div>
+          <div class="label">Completadas</div>
+        </div>
+        <div class="stat-card warning">
+          <div class="value">${total}</div>
+          <div class="label">ADRs totales</div>
+        </div>
+        <div class="stat-card gray">
+          <div class="value">${aceptados}</div>
+          <div class="label">ADRs aceptadas</div>
+        </div>
+      </div>
+
+      <div class="two-col">
+        <div class="card">
+          <div class="card-header">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>
+            Tareas
+            <span class="count">${activeTasks.length + completedTasks.length} total</span>
+          </div>
+          <div class="card-body">
+            <div class="stat-row"><span>Activas</span><span class="num blue">${activeTasks.length}</span></div>
+            <div class="stat-row"><span>Completadas</span><span class="num green">${completedTasks.length}</span></div>
+            <div class="progress-bar-wrap">
+              <div class="progress-bar-fill" style="width:${completedTasks.length + activeTasks.length > 0 ? (completedTasks.length / (completedTasks.length + activeTasks.length) * 100).toFixed(0) : 0}%"></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-header">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3h18v4H3zM3 10h11v4H3zM3 17h7v4H3z"/></svg>
+            ADRs por estado
+            <span class="count">${total} total</span>
+          </div>
+          <div class="card-body">
+            ${statusRows}
+            <div class="progress-bar-wrap">
+              <div class="progress-bar-fill" style="width:${pct}%"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
+  }
+
+  function renderStatus() {
+    if (!statusData) return '<div class="alert alert-warning">Datos no cargados.</div>';
+
+    const q = searchQuery;
+    const filterTask = t =>
+      !q || [t.agent, t.task, t.status, t.notes, ...(t.related || [])].some(
+        f => f && String(f).toLowerCase().includes(q)
+      );
+
+    const activeTasks = (statusData.active_tasks || []).filter(filterTask);
+    const completedTasks = (statusData.completed_tasks || []).filter(filterTask);
+
+    const renderRow = t => `
+      <tr>
+        <td style="white-space:nowrap;color:var(--text-muted)">${fmtDate(t.date)}</td>
+        <td style="max-width:140px;word-break:break-word"><small>${highlight(t.agent, q)}</small></td>
+        <td>${highlight(t.task, q)}</td>
+        <td>${badge(t.status)}</td>
+        <td style="color:var(--text-muted)"><small>${(t.related || []).map(r => {
+          const dr = decisionsData && decisionsData[r];
+          return dr?.file ? `<a href="#" onclick="loadAndRenderDoc('docs/negocio/decisiones/${escHtml(dr.file)}');return false">${escHtml(r)}</a>` : escHtml(r);
+        }).join(', ') || '—'}</small></td>
+        <td style="color:var(--text-muted);max-width:200px"><small>${highlight(t.notes || '—', q)}</small></td>
+      </tr>`;
+
+    const emptyRow = msg => `<tr><td colspan="6" style="text-align:center;color:var(--text-muted);padding:2rem">${msg}</td></tr>`;
+
+    return `
+      <div class="page-title">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>
+        Status Board
+      </div>
+
+      <div class="section-title">
+        Tareas activas <span class="chip">${activeTasks.length}</span>
+      </div>
+      <div class="card" style="margin-bottom:1.5rem">
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Fecha</th><th>Agente</th><th>Tarea</th><th>Estado</th><th>Related</th><th>Notas</th></tr></thead>
+            <tbody>${activeTasks.length ? activeTasks.map(renderRow).join('') : emptyRow('Sin tareas activas')}</tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="section-title">
+        Tareas completadas <span class="chip">${completedTasks.length}</span>
+      </div>
+      <div class="card">
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Fecha</th><th>Agente</th><th>Tarea</th><th>Estado</th><th>Related</th><th>Notas</th></tr></thead>
+            <tbody>${completedTasks.length ? completedTasks.map(renderRow).join('') : emptyRow('Sin tareas completadas')}</tbody>
+          </table>
+        </div>
+      </div>
+    `;
+  }
+
+  function renderDecisions() {
+    if (!decisionsData) return '<div class="alert alert-warning">Datos no cargados.</div>';
+
+    const q = searchQuery;
+    let entries = Object.entries(decisionsData);
+
+    if (q) {
+      entries = entries.filter(([id, v]) =>
+        id.toLowerCase().includes(q) ||
+        (v.title && v.title.toLowerCase().includes(q)) ||
+        (v.status && v.status.toLowerCase().includes(q))
+      );
+    }
+
+    // Active filter state
+    const filterState = window._adrFilter || null;
+    const filteredByStatus = filterState
+      ? entries.filter(([, v]) => (v.status || '').toLowerCase() === filterState)
+      : entries;
+
+    const statuses = [...new Set(Object.values(decisionsData).map(v => v.status).filter(Boolean))];
+
+    const rows = filteredByStatus.map(([id, v]) => {
+      const idLink = v.file
+        ? `<a href="#" onclick="loadAndRenderDoc('docs/negocio/decisiones/${escHtml(v.file)}');return false" style="font-weight:700">${highlight(id, q)}</a>`
+        : `<strong>${highlight(id, q)}</strong>`;
+      const supersededLink = v.superseded_by
+        ? (() => {
+            const target = decisionsData[v.superseded_by];
+            const targetFile = target?.file;
+            return targetFile
+              ? `<a href="#" onclick="loadAndRenderDoc('docs/negocio/decisiones/${escHtml(targetFile)}');return false" style="color:var(--text-muted)"> → ${escHtml(v.superseded_by)}</a>`
+              : `<small style="color:var(--text-muted)"> → ${escHtml(v.superseded_by)}</small>`;
+          })()
+        : '';
+      return `<tr>
+        <td>${idLink}</td>
+        <td>${highlight(v.title || '—', q)}${supersededLink}</td>
+        <td>${badge(v.status)}</td>
+        <td style="white-space:nowrap;color:var(--text-muted)">${fmtDate(v.date)}</td>
+      </tr>`;
+    }).join('');
+
+    return `
+      <div class="page-title">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3h18v4H3zM3 10h11v4H3zM3 17h7v4H3z"/></svg>
+        Decisiones Arquitectónicas (ADRs)
+      </div>
+
+      <div class="filter-bar">
+        <button class="filter-btn ${!filterState ? 'active' : ''}" onclick="setAdrFilter(null, this)">Todas (${entries.length})</button>
+        ${statuses.map(s => {
+          const count = entries.filter(([, v]) => v.status === s).length;
+          return `<button class="filter-btn ${filterState === s.toLowerCase() ? 'active' : ''}" onclick="setAdrFilter('${s.toLowerCase()}', this)">${escHtml(s)} (${count})</button>`;
+        }).join('')}
+      </div>
+
+      <div class="card">
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>ID</th><th>Título</th><th>Estado</th><th>Fecha</th></tr></thead>
+            <tbody>
+              ${rows || `<tr><td colspan="5" style="text-align:center;color:var(--text-muted);padding:2rem">Sin resultados</td></tr>`}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    `;
+  }
+
+  let currentDocPath = null;
+
+  async function loadAndRenderDoc(path) {
+    currentDocPath = path;
+    const main = document.getElementById('mainContent');
+    main.innerHTML = '<div class="alert alert-warning">Cargando documento...</div>';
+    try {
+      const res = await fetch('/dev/docs/' + path);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const md = await res.text();
+      const html = marked.parse(md);
+      main.innerHTML = `
+        <div class="page-title">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><path d="M14 2v6h6"/></svg>
+          <span style="cursor:pointer;text-decoration:underline" onclick="navigate('docs')">Documentacion</span> / ${escHtml(path.split('/').pop())}
+        </div>
+        <div class="card">
+          <div class="card-body markdown-body" style="line-height:1.8;font-size:.9rem">${html}</div>
+        </div>`;
+    } catch (e) {
+      main.innerHTML = '<div class="alert alert-warning">No se pudo cargar: ' + escHtml(e.message) + '</div>';
+    }
+  }
+  window.loadAndRenderDoc = loadAndRenderDoc;
+
+  function renderDocs() {
+    // Build ADR doc list from loaded decision data
+    const adrDocs = Object.entries(decisionsData || {}).map(([id, v]) => ({
+      path: 'docs/negocio/decisiones/' + v.file,
+      label: id + ': ' + (v.title || ''),
+      desc: v.status || '',
+      badge: true,
+    }));
+
+    const rootDocs = [
+      { path: 'README.md', label: 'README.md', desc: 'Introduccion general al proyecto' },
+      { path: 'AGENTS.md', label: 'AGENTS.md', desc: 'Guia de trabajo y roles de agentes de IA' },
+      { path: 'STATUS.md', label: 'STATUS.md', desc: 'Tablero de estado legacy (Markdown)' },
+    ];
+
+    const renderDocRow = d => `
+      <tr>
+        <td><a href="#" onclick="loadAndRenderDoc('${escHtml(d.path)}');return false" style="font-weight:600">${escHtml(d.label)}</a></td>
+        <td style="color:var(--text-muted)">${d.badge ? badge(d.desc) : escHtml(d.desc)}</td>
+      </tr>`;
+
+    return `
+      <div class="page-title">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><path d="M14 2v6h6M16 13H8M16 17H8M10 9H8"/></svg>
+        Documentacion
+      </div>
+
+      <div class="card" style="margin-bottom:1.5rem">
+        <div class="card-header">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2"/><path d="M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
+          Decisiones arquitectonicas (ADRs)
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Documento</th><th>Estado</th></tr></thead>
+            <tbody>${adrDocs.length ? adrDocs.map(renderDocRow).join('') : '<tr><td colspan="2">Sin ADRs</td></tr>'}</tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><path d="M9 22V12h6v10"/></svg>
+          Documentos del repositorio
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Documento</th><th>Descripcion</th></tr></thead>
+            <tbody>${rootDocs.map(renderDocRow).join('')}</tbody>
+          </table>
+        </div>
+      </div>
+    `;
+  }
+
+  // --- Navigation ---
+  function navigate(view) {
+    currentView = view;
+    window._adrFilter = null;
+
+    document.querySelectorAll('.nav-item[data-view]').forEach(el => {
+      el.classList.toggle('active', el.dataset.view === view);
+    });
+
+    const main = document.getElementById('mainContent');
+
+    let html;
+    switch (view) {
+      case 'dashboard':  html = renderDashboard(); break;
+      case 'status':     html = renderStatus(); break;
+      case 'decisions':  html = renderDecisions(); break;
+      case 'docs':       html = renderDocs(); break;
+      default:           html = renderDashboard();
+    }
+    main.innerHTML = html;
+  }
+
+  // --- ADR filter (called from inline onclick) ---
+  window.setAdrFilter = function(status, btn) {
+    window._adrFilter = status;
+    document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+    if (btn) btn.classList.add('active');
+    navigate('decisions');
+  };
+
+  // --- Init ---
+  async function init() {
+    // Nav
+    document.querySelectorAll('.nav-item[data-view]').forEach(el => {
+      el.addEventListener('click', () => navigate(el.dataset.view));
+    });
+
+    // Search (debounced)
+    let searchTimer;
+    document.getElementById('globalSearch').addEventListener('input', e => {
+      clearTimeout(searchTimer);
+      searchTimer = setTimeout(() => {
+        const q = e.target.value.toLowerCase().trim();
+        searchQuery = q.length >= 2 ? q : '';
+        navigate(currentView);
+      }, 280);
+    });
+
+    // Theme toggle
+    const themeToggle = document.getElementById('themeToggle');
+    const themeIcon = document.getElementById('themeIcon');
+    function applyTheme(t) {
+      document.documentElement.dataset.theme = t;
+      localStorage.setItem('procomun-theme', t);
+      themeIcon.innerHTML = t === 'dark'
+        ? '<circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/>'
+        : '<path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/>';
+    }
+    themeToggle.addEventListener('click', () => {
+      const next = document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark';
+      applyTheme(next);
+    });
+    const saved = localStorage.getItem('procomun-theme');
+    if (saved) applyTheme(saved);
+
+    // Load data
+    await loadData();
+    navigate('dashboard');
+  }
+
+  init();
+})();
+</script>
+</body>
+</html>
