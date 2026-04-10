@@ -4,13 +4,12 @@
 	"private": true,
 	"type": "module",
 	"scripts": {
-		"dev": "astro dev",
-		"build": "astro build",
-		"preview": "astro preview",
+		"dev": "vite",
+		"build": "vite build",
+		"preview": "vite preview",
 		"test": "bun test"
 	},
 	"dependencies": {
-		"@astrojs/react": "^5.0.2",
 		"@electric-sql/pglite": "0.4.3",
 		"@inlang/paraglide-js": "^2.15.1",
 		"@procomun/db": "workspace:*",
@@ -21,13 +20,13 @@
 		"@uppy/core": "5.2.0",
 		"@uppy/dashboard": "5.1.1",
 		"@uppy/tus": "5.1.1",
-		"astro": "5.18.1",
 		"drizzle-orm": "0.45.2",
 		"react": "^19.2.4",
 		"react-dom": "^19.2.4",
+		"react-router-dom": "^7.5.0",
 		"typescript": "6.0.2"
 	},
 	"devDependencies": {
-		"@astrojs/check": "0.9.8"
+		"@vitejs/plugin-react": "^4.4.1"
 	}
 }
