@@ -14,8 +14,9 @@ const ColeccionesPage = lazy(() => import("./pages/ColeccionesPage.tsx"));
 const EditarPage = lazy(() => import("./pages/EditarPage.tsx"));
 const NuevoPage = lazy(() => import("./pages/NuevoPage.tsx"));
 
-const VALID_LOCALES = new Set(["es", "en", "ca", "gl", "eu"]);
+const VALID_LOCALES = new Set(["en", "ca", "gl", "eu"]);
 
+/** Syncs <html lang> when the :locale param changes. */
 function LocaleSync() {
 	const { locale } = useParams<{ locale?: string }>();
 	const effectiveLocale = locale && VALID_LOCALES.has(locale) ? locale : "es";
@@ -27,37 +28,40 @@ function LocaleSync() {
 	return null;
 }
 
-function PageRoutes() {
+/** Shared route definitions used for both default and locale-prefixed paths. */
+function AppRoutes() {
 	return (
 		<>
-			<LocaleSync />
-			<Suspense fallback={null}>
-				<Routes>
-					<Route element={<PublicLayout />}>
-						<Route index element={<HomePage />} />
-						<Route path="explorar" element={<ExplorarPage />} />
-						<Route path="buscar" element={<Navigate to="../explorar" replace />} />
-						<Route path="login" element={<LoginPage />} />
-						<Route path="registro" element={<RegistroPage />} />
-						<Route path="perfil" element={<PerfilPage />} />
-						<Route path="admin/*" element={<AdminPage />} />
-						<Route path="recurso" element={<RecursoPage />} />
-						<Route path="ayuda" element={<AyudaPage />} />
-						<Route path="colecciones" element={<ColeccionesPage />} />
-						<Route path="editar" element={<EditarPage />} />
-						<Route path="nuevo" element={<NuevoPage />} />
-					</Route>
-				</Routes>
-			</Suspense>
+			<Route index element={<HomePage />} />
+			<Route path="explorar" element={<ExplorarPage />} />
+			<Route path="buscar" element={<Navigate to="explorar" replace />} />
+			<Route path="login" element={<LoginPage />} />
+			<Route path="registro" element={<RegistroPage />} />
+			<Route path="perfil" element={<PerfilPage />} />
+			<Route path="admin/*" element={<AdminPage />} />
+			<Route path="recurso" element={<RecursoPage />} />
+			<Route path="ayuda" element={<AyudaPage />} />
+			<Route path="colecciones" element={<ColeccionesPage />} />
+			<Route path="editar" element={<EditarPage />} />
+			<Route path="nuevo" element={<NuevoPage />} />
 		</>
 	);
 }
 
 export function App() {
 	return (
-		<Routes>
-			<Route path="/*" element={<PageRoutes />} />
-			<Route path=":locale/*" element={<PageRoutes />} />
-		</Routes>
+		<Suspense fallback={null}>
+			<Routes>
+				{/* Default locale (es) — no prefix */}
+				<Route element={<><LocaleSync /><PublicLayout /></>}>
+					{AppRoutes()}
+				</Route>
+
+				{/* Non-default locales — /en/*, /ca/*, /gl/*, /eu/* */}
+				<Route path=":locale" element={<><LocaleSync /><PublicLayout /></>}>
+					{AppRoutes()}
+				</Route>
+			</Routes>
+		</Suspense>
 	);
 }
