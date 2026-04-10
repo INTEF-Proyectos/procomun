@@ -18,7 +18,7 @@ En desarrollo
 ## Documentación
 - [x] Registrar ADR de subidas resumibles.
 - [x] Documentar variables de entorno y operación básica en README.
-- [x] Actualizar `STATUS.md` con el estado de la entrega.
+- [x] Actualizar `status.yaml` con el estado de la entrega.
 
 ## Validación
 - [x] Tests unitarios de configuración de uploads.

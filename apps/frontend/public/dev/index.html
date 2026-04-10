@@ -465,8 +465,9 @@
         return Object.entries(obj).map(([id, v]) => ({ _id: id, ...v }));
       }
       if (statusData) {
-        statusData.active_tasks = mapToArray(statusData.active_tasks);
-        statusData.completed_tasks = mapToArray(statusData.completed_tasks);
+        const allTasks = mapToArray(statusData.tasks || statusData.completed_tasks || {});
+        statusData.active_tasks = allTasks.filter(t => t.status !== 'Done');
+        statusData.completed_tasks = allTasks.filter(t => t.status === 'Done');
       }
       updateNavCounts();
     } catch (e) {
@@ -783,7 +784,7 @@
     const rootDocs = [
       { path: 'README.md', label: 'README.md', desc: 'Introduccion general al proyecto' },
       { path: 'AGENTS.md', label: 'AGENTS.md', desc: 'Guia de trabajo y roles de agentes de IA' },
-      { path: 'STATUS.md', label: 'STATUS.md', desc: 'Tablero de estado legacy (Markdown)' },
+      { path: 'status.yaml', label: 'status.yaml', desc: 'Tablero de estado global (YAML, ADR-0019)' },
     ];
 
     const renderDocRow = d => `

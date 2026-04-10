@@ -1,5 +1,12 @@
-# Estado global del proyecto Procomún
-# Formato YAML map-keyed (ADR-0019) para trabajo paralelo sin conflictos.
+# STATUS — Tablero de estado global
+# Fuente de verdad del proyecto. Ver ADR-0019 para la justificación del formato.
+#
+# Las tareas usan claves map únicas (T-YYYY-MM-DD-NNN) para evitar
+# conflictos de merge cuando varias ramas modifican tareas distintas en paralelo.
+# El campo status reemplaza la antigua separación active_tasks/completed_tasks.
+#
+# Valores de status: Pending | In Progress | Done
+# Lee este archivo antes de comenzar cualquier tarea.
 
 metadata:
   phase: "Fase 1 — MVP de catálogo"
@@ -53,9 +60,7 @@ blocking_adrs:
     status: Pending
     notes: "Todavía no documentada. ADR pendiente de formalización."
 
-active_tasks: {}
-
-completed_tasks:
+tasks:
   T-2026-03-25-001:
     date: 2026-03-25
     agent: "Director de Producto"
