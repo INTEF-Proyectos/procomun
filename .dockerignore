@@ -14,5 +14,10 @@ test-results
 apps/frontend/.preview-serve
 apps/frontend/dist
 .astro
-.agents
 .templates
+
+# TODO: Quitar estas excepciones al salir a producción.
+# Se incluyen docs y .agents para el dashboard de desarrollo (/dev/).
+!docs
+!.agents
+!status.yaml
