@@ -110,7 +110,7 @@ El proyecto ya superó la fase de mera fundación técnica. La base de plataform
 
 - La regla de validación estricta todavía no se cumple a nivel raíz: `bun test` falla porque Bun intenta ejecutar `e2e/example.spec.ts` como si fuera un test unitario de Playwright.
 - La API pública y admin siguen devolviendo respuestas placeholder; hay contratos iniciales pero no lógica de negocio de catálogo.
-- `STATUS.md` estaba desalineado respecto al roadmap y a las ADRs; se corrige en paralelo para evitar decisiones sobre un estado obsoleto.
+- El tablero de estado (ahora `status.yaml`, antes `STATUS.md`) estaba desalineado respecto al roadmap y a las ADRs; se corrigió en paralelo para evitar decisiones sobre un estado obsoleto.
 
 ### Siguiente tramo recomendado
 

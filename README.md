@@ -183,7 +183,7 @@ make up-static   # Construye y sirve en http://localhost:8080/procomun/
 ## Estructura del repositorio
 
 ```
-STATUS.md                          # Tablero de Estado Global de los agentes (Orquestador)
+status.yaml                        # Tablero de Estado Global en YAML (ADR-0019)
 CLAUDE.md                          # Punto de entrada para agentes IA
 AGENTS.md                          # Constitución del proyecto: reglas, roles y flujo de trabajo
 
