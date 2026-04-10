@@ -64,7 +64,7 @@ async function getTusServer() {
 			maxSize: config.maxFileSizeBytes,
 			relativeLocation: true,
 			allowedCredentials: true,
-			allowedOrigins: [process.env.FRONTEND_URL ?? "http://localhost:4321"],
+			allowedOrigins: [process.env.FRONTEND_URL ?? "http://localhost:5173"],
 			disableTerminationForFinishedUploads: true,
 			async onIncomingRequest(req, uploadId) {
 				if (req.method === "OPTIONS") return;

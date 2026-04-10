@@ -24,7 +24,7 @@ export function registerGlobalMiddleware(app: Hono<AuthEnv>) {
 	app.use(
 		"/api/*",
 		cors({
-			origin: process.env.FRONTEND_URL ?? "http://localhost:4321",
+			origin: process.env.FRONTEND_URL ?? "http://localhost:5173",
 			credentials: true,
 		}),
 	);
