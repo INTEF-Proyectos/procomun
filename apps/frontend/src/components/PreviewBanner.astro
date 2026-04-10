@@ -1,8 +1,0 @@
----
-import { PreviewBannerIsland } from "../islands/layout/PreviewBannerIsland.tsx";
-const isPreview = import.meta.env.PUBLIC_PREVIEW_MODE === "true";
----
-
-{isPreview && (
-	<PreviewBannerIsland client:load />
-)}

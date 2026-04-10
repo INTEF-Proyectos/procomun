@@ -361,8 +361,7 @@ function DevToolsSection() {
 	const [seedBusy, setSeedBusy] = useState(false);
 
 	useEffect(() => {
-		const isDev = window.location.hostname === "localhost" ||
-			(window as Record<string, unknown>).__PREVIEW_MODE__ === true;
+		const isDev = window.location.hostname === "localhost";
 		setVisible(isDev);
 	}, []);
 

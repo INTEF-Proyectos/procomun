@@ -2,7 +2,6 @@ import { describe, expect, test } from "bun:test";
 import { renderToStaticMarkup } from "react-dom/server";
 import { PublicNavIsland } from "./PublicNavIsland.tsx";
 import { BaseNavIsland } from "./BaseNavIsland.tsx";
-import { PreviewBannerIsland } from "./PreviewBannerIsland.tsx";
 
 describe("Layout islands", () => {
 	test("BaseNavIsland renderiza el shell de navegación pública", () => {
@@ -17,12 +16,5 @@ describe("Layout islands", () => {
 
 		expect(html).toContain("Ayuda");
 		expect(html).toContain("help");
-	});
-
-	test("PreviewBannerIsland renderiza el shell de preview", () => {
-		const html = renderToStaticMarkup(<PreviewBannerIsland />);
-
-		expect(html).toContain("Vista previa");
-		expect(html).toContain("Reiniciar datos");
 	});
 });

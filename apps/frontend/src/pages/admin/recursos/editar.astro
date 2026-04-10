@@ -200,7 +200,7 @@ import PublicLayout from "../../../layouts/PublicLayout.astro";
 
 <script>
 	import { getApiClient } from "../../../lib/get-api-client.ts";
-	import { url, isPreviewMode } from "../../../lib/paths.ts";
+	import { url } from "../../../lib/paths.ts";
 	import { initResourceUploader } from "../../../lib/resource-uploader.ts";
 
 	const form = document.getElementById("resource-form") as HTMLFormElement;
@@ -381,28 +381,18 @@ import PublicLayout from "../../../layouts/PublicLayout.astro";
 
 	let currentElpxFileUrl: string | null = null;
 
-	const isPreview = isPreviewMode();
-
-	// Holds the .elpx blob for preview mode (loaded from IndexedDB or fetched from static URL)
-	let currentElpxBlob: Blob | null = null;
-
 	function openEditor() {
-		if (!currentElpxFileUrl && !currentElpxBlob) return;
+		if (!currentElpxFileUrl) return;
 		editorReady = false; editorSaving = false; editorHasChanges = false;
 		editorSaveBtn.disabled = true;
 		editorStatus.textContent = "Cargando editor...";
 		editorModal.style.display = "flex";
 		document.body.style.overflow = "hidden";
 
-		if (isPreview) {
-			// In preview mode: load editor without elpxUrl, send file via postMessage after ready
-			editorIframe.src = url(`exelearning-editor-loader.html`) + `?resourceId=${resourceId}`;
-		} else {
-			// Server mode: pass elpxUrl for server-side fetch
-			const editorPage = url(`api/v1/exelearning-editor/index.html`);
-			const elpxParam = encodeURIComponent(currentElpxFileUrl!);
-			editorIframe.src = `${editorPage}?elpxUrl=${elpxParam}&resourceId=${resourceId}`;
-		}
+		// Server mode: pass elpxUrl for server-side fetch
+		const editorPage = url(`api/v1/exelearning-editor/index.html`);
+		const elpxParam = encodeURIComponent(currentElpxFileUrl!);
+		editorIframe.src = `${editorPage}?elpxUrl=${elpxParam}&resourceId=${resourceId}`;
 	}
 
 	function closeEditor(force = false) {
@@ -425,57 +415,22 @@ import PublicLayout from "../../../layouts/PublicLayout.astro";
 		try {
 			const blob = new Blob([payload.bytes], { type: payload.mimeType || "application/zip" });
 
-			if (isPreview) {
-				const { saveElpxInPreview } = await import("../../../lib/elpx-preview-service.ts");
-				const result = await saveElpxInPreview({
-					resourceId: resourceId!,
-					blob,
-					filename: payload.filename || "project.elpx",
-					existingHash: currentElpxHash || undefined,
-				});
-				currentElpxHash = result.hash;
-				currentElpxBlob = blob;
-				currentElpxFileUrl = null;
-				currentElpxFilename = payload.filename || "project.elpx";
-				if (result.previewUrl) elpxIframe.src = result.previewUrl;
-				postToEditor({ type: "WP_SAVE_CONFIRMED", requestId: nextReqId("confirmed") });
-				editorHasChanges = false;
-				editorStatus.textContent = "Guardado";
-				elpxInfo.textContent = `Archivo: ${currentElpxFilename}`;
-				elpxPanel.style.display = "block";
-				savingOverlay.style.display = "none";
-				setTimeout(() => closeEditor(true), 800);
-			} else {
-				// Server mode: save via API
-				const fd = new FormData();
-				fd.append("file", blob, payload.filename || "project.elpx");
-				const res = await fetch(url(`api/admin/elpx/save/${resourceId}`), { method: "POST", credentials: "include", body: fd });
-				if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error || "Error al guardar");
-				const result = await res.json();
-				postToEditor({ type: "WP_SAVE_CONFIRMED", requestId: nextReqId("confirmed") });
-				editorHasChanges = false; editorStatus.textContent = "Guardado";
-				if (result.previewUrl) { currentElpxHash = result.hash; elpxIframe.src = result.previewUrl; }
-				if (result.elpxFileUrl) { currentElpxFileUrl = result.elpxFileUrl; }
-				setTimeout(() => closeEditor(true), 800);
-			}
+			// Server mode: save via API
+			const fd = new FormData();
+			fd.append("file", blob, payload.filename || "project.elpx");
+			const res = await fetch(url(`api/admin/elpx/save/${resourceId}`), { method: "POST", credentials: "include", body: fd });
+			if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error || "Error al guardar");
+			const result = await res.json();
+			postToEditor({ type: "WP_SAVE_CONFIRMED", requestId: nextReqId("confirmed") });
+			editorHasChanges = false; editorStatus.textContent = "Guardado";
+			if (result.previewUrl) { currentElpxHash = result.hash; elpxIframe.src = result.previewUrl; }
+			if (result.elpxFileUrl) { currentElpxFileUrl = result.elpxFileUrl; }
+			setTimeout(() => closeEditor(true), 800);
 		} catch (err: unknown) {
 			editorStatus.textContent = `Error: ${err instanceof Error ? err.message : "Error"}`;
 			editorSaveBtn.disabled = false;
 			savingOverlay.style.display = "none";
 		} finally { editorSaving = false; }
-	}
-
-	/** In preview mode, send the .elpx bytes to the editor via postMessage after it's ready */
-	async function sendElpxToEditor() {
-		if (!isPreview) return;
-		const { loadElpxBlob } = await import("../../../lib/elpx-preview-service.ts");
-		const blob = currentElpxBlob || (currentElpxHash ? await loadElpxBlob(currentElpxHash, currentElpxFileUrl) : null);
-		if (blob) {
-			const bytes = await blob.arrayBuffer();
-			postToEditor({ type: "OPEN_FILE", data: { bytes, filename: currentElpxFilename || "project.elpx" } }, [bytes]);
-		} else {
-			editorStatus.textContent = "No se pudo cargar el archivo .elpx";
-		}
 	}
 
 	window.addEventListener("message", (event) => {
@@ -484,7 +439,6 @@ import PublicLayout from "../../../layouts/PublicLayout.astro";
 			case "EXELEARNING_READY":
 				editorReady = true; editorStatus.textContent = "Editor listo";
 				postToEditor({ type: "CONFIGURE", requestId: nextReqId("cfg"), data: { hideUI: { fileMenu: true, saveButton: true, userMenu: true } } });
-				if (isPreview) sendElpxToEditor();
 				break;
 			case "DOCUMENT_LOADED": editorStatus.textContent = "Documento cargado"; editorSaveBtn.disabled = false; break;
 			case "DOCUMENT_CHANGED": editorHasChanges = true; editorStatus.textContent = "Cambios sin guardar"; editorSaveBtn.disabled = false; break;

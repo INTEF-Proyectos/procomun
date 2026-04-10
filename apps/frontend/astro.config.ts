@@ -2,12 +2,9 @@ import { defineConfig } from "astro/config";
 import react from "@astrojs/react";
 import { paraglideVitePlugin } from "@inlang/paraglide-js";
 
-const isPreview = process.env.PREVIEW_STATIC === "true";
-const previewBase = process.env.PREVIEW_BASE ?? "/";
-
 export default defineConfig({
-	site: isPreview ? "https://intef-proyectos.github.io" : "https://procomun.es",
-	base: isPreview ? previewBase : "/",
+	site: "https://procomun.es",
+	base: "/",
 	output: "static",
 	integrations: [react()],
 	i18n: {
@@ -37,19 +34,14 @@ export default defineConfig({
 				],
 			}),
 		],
-		define: {
-			"import.meta.env.PUBLIC_PREVIEW_MODE": JSON.stringify(isPreview ? "true" : "false"),
-		},
-		server: isPreview
-			? {}
-			: {
-					proxy: {
-						"/api": {
-							target: "http://localhost:3000",
-							changeOrigin: true,
-						},
-					},
+		server: {
+			proxy: {
+				"/api": {
+					target: "http://localhost:3000",
+					changeOrigin: true,
 				},
+			},
+		},
 		optimizeDeps: {
 			exclude: ["@electric-sql/pglite"],
 		},
