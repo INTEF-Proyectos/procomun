@@ -403,10 +403,16 @@
       Decisiones (ADRs)
       <span class="nav-counter" id="nav-adr-count">—</span>
     </button>
+    <button class="nav-item" data-view="skills">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg>
+      Skills
+      <span class="nav-counter" id="nav-skills-count">—</span>
+    </button>
     <div class="nav-section">Recursos</div>
     <button class="nav-item" data-view="docs">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><path d="M14 2v6h6M16 13H8M16 17H8M10 9H8"/></svg>
       Documentación
+      <span class="nav-counter" id="nav-docs-count">—</span>
     </button>
   </div>
 
@@ -516,6 +522,39 @@
     return escHtml(text).replace(new RegExp(`(${safe})`, 'gi'), '<mark>$1</mark>');
   }
 
+  const SKILLS_LIST = [
+    'analitica-y-observabilidad',
+    'arquitectura-solucion',
+    'backend-api-servicios',
+    'busqueda-y-descubrimiento',
+    'devops-sre',
+    'direccion-de-plataforma',
+    'documentacion-y-roadmap',
+    'empresa-y-producto',
+    'evaluacion-tecnologica',
+    'frontend-ux-accesibilidad',
+    'ingestas-y-migraciones',
+    'interoperabilidad-educativa',
+    'metadatos-y-curacion',
+    'project-manager',
+    'qa-validacion',
+    'seguridad-privacidad-legal',
+  ];
+
+  const DOCS_LIST = [
+    { path: 'docs/negocio/glosario.md', label: 'Glosario', category: 'Negocio' },
+    { path: 'docs/negocio/mapa-de-capacidades.md', label: 'Mapa de capacidades', category: 'Negocio' },
+    { path: 'docs/negocio/vision.md', label: 'Visión del proyecto', category: 'Negocio' },
+    { path: 'docs/operaciones/administracion.md', label: 'Administración', category: 'Operaciones' },
+    { path: 'docs/operaciones/instalacion.md', label: 'Instalación', category: 'Operaciones' },
+    { path: 'docs/operaciones/operaciones.md', label: 'Operaciones', category: 'Operaciones' },
+    { path: 'docs/producto/arquitectura.md', label: 'Arquitectura', category: 'Producto' },
+    { path: 'docs/producto/modelo-de-dominio.md', label: 'Modelo de dominio', category: 'Producto' },
+    { path: 'docs/producto/roadmap.md', label: 'Roadmap', category: 'Producto' },
+    { path: 'README.md', label: 'Introducción general', category: 'General' },
+    { path: 'AGENTS.md', label: 'Guía de trabajo para agentes', category: 'General' },
+  ];
+
   function updateNavCounts() {
     const activeTasks = (statusData?.active_tasks || []).length;
     const completedTasks = (statusData?.completed_tasks || []).length;
@@ -523,8 +562,12 @@
     const totalADRs = Object.keys(decisionsData || {}).length;
     const el1 = document.getElementById('nav-status-count');
     const el2 = document.getElementById('nav-adr-count');
+    const el3 = document.getElementById('nav-skills-count');
+    const el4 = document.getElementById('nav-docs-count');
     if (el1) el1.textContent = totalTasks;
     if (el2) el2.textContent = totalADRs;
+    if (el3) el3.textContent = SKILLS_LIST.length;
+    if (el4) el4.textContent = DOCS_LIST.length;
   }
 
   // --- Views ---
@@ -697,9 +740,21 @@
       ? entries.filter(([, v]) => (v.status || '').toLowerCase() === filterState)
       : entries;
 
+    // Date sort
+    const sortDir = window._adrSort || null; // 'asc' | 'desc' | null
+    const sorted = sortDir
+      ? [...filteredByStatus].sort((a, b) => {
+          const da = String(a[1].date || '');
+          const db = String(b[1].date || '');
+          return sortDir === 'asc' ? da.localeCompare(db) : db.localeCompare(da);
+        })
+      : filteredByStatus;
+
     const statuses = [...new Set(Object.values(decisionsData).map(v => v.status).filter(Boolean))];
 
-    const rows = filteredByStatus.map(([id, v]) => {
+    const sortIcon = sortDir === 'asc' ? ' ↑' : sortDir === 'desc' ? ' ↓' : ' ⇅';
+
+    const rows = sorted.map(([id, v]) => {
       const idLink = v.file
         ? `<a href="#" onclick="loadAndRenderDoc('docs/negocio/decisiones/${escHtml(v.file)}');return false" style="font-weight:700">${highlight(id, q)}</a>`
         : `<strong>${highlight(id, q)}</strong>`;
@@ -737,9 +792,9 @@
       <div class="card">
         <div class="table-wrap">
           <table>
-            <thead><tr><th>ID</th><th>Título</th><th>Estado</th><th>Fecha</th></tr></thead>
+            <thead><tr><th>ID</th><th>Título</th><th>Estado</th><th style="cursor:pointer;user-select:none" onclick="toggleAdrSort()">Fecha${sortIcon}</th></tr></thead>
             <tbody>
-              ${rows || `<tr><td colspan="5" style="text-align:center;color:var(--text-muted);padding:2rem">Sin resultados</td></tr>`}
+              ${rows || `<tr><td colspan="4" style="text-align:center;color:var(--text-muted);padding:2rem">Sin resultados</td></tr>`}
             </tbody>
           </table>
         </div>
@@ -773,54 +828,68 @@
   window.loadAndRenderDoc = loadAndRenderDoc;
 
   function renderDocs() {
-    // Build ADR doc list from loaded decision data
-    const adrDocs = Object.entries(decisionsData || {}).map(([id, v]) => ({
-      path: 'docs/negocio/decisiones/' + v.file,
-      label: id + ': ' + (v.title || ''),
-      desc: v.status || '',
-      badge: true,
-    }));
-
-    const rootDocs = [
-      { path: 'README.md', label: 'README.md', desc: 'Introduccion general al proyecto' },
-      { path: 'AGENTS.md', label: 'AGENTS.md', desc: 'Guia de trabajo y roles de agentes de IA' },
-      { path: 'status.yaml', label: 'status.yaml', desc: 'Tablero de estado global (YAML, ADR-0019)' },
-    ];
+    const categories = ['Negocio', 'Operaciones', 'Producto', 'General'];
+    const catIcons = {
+      'Negocio':     '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z"/></svg>',
+      'Operaciones': '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93a10 10 0 010 14.14M4.93 4.93a10 10 0 000 14.14"/></svg>',
+      'Producto':    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>',
+      'General':     '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><path d="M9 22V12h6v10"/></svg>',
+    };
 
     const renderDocRow = d => `
       <tr>
         <td><a href="#" onclick="loadAndRenderDoc('${escHtml(d.path)}');return false" style="font-weight:600">${escHtml(d.label)}</a></td>
-        <td style="color:var(--text-muted)">${d.badge ? badge(d.desc) : escHtml(d.desc)}</td>
+        <td style="color:var(--text-muted);font-size:.8rem"><code>${escHtml(d.path)}</code></td>
       </tr>`;
+
+    const sections = categories.map(cat => {
+      const docs = DOCS_LIST.filter(d => d.category === cat);
+      if (!docs.length) return '';
+      return `
+      <div class="card" style="margin-bottom:1rem">
+        <div class="card-header">
+          ${catIcons[cat]}
+          ${escHtml(cat)}
+          <span class="count">${docs.length}</span>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Documento</th><th>Ruta</th></tr></thead>
+            <tbody>${docs.map(renderDocRow).join('')}</tbody>
+          </table>
+        </div>
+      </div>`;
+    }).join('');
 
     return `
       <div class="page-title">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><path d="M14 2v6h6M16 13H8M16 17H8M10 9H8"/></svg>
-        Documentacion
+        Documentación
       </div>
+      ${sections}
+    `;
+  }
 
-      <div class="card" style="margin-bottom:1.5rem">
-        <div class="card-header">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2"/><path d="M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
-          Decisiones arquitectonicas (ADRs)
-        </div>
-        <div class="table-wrap">
-          <table>
-            <thead><tr><th>Documento</th><th>Estado</th></tr></thead>
-            <tbody>${adrDocs.length ? adrDocs.map(renderDocRow).join('') : '<tr><td colspan="2">Sin ADRs</td></tr>'}</tbody>
-          </table>
-        </div>
+  function renderSkills() {
+    const rows = SKILLS_LIST.map(name => {
+      const label = name.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+      return `
+      <tr>
+        <td><a href="#" onclick="loadAndRenderDoc('.agents/skills/${escHtml(name)}/SKILL.md');return false" style="font-weight:600">${escHtml(label)}</a></td>
+        <td style="color:var(--text-muted);font-size:.8rem"><code>.agents/skills/${escHtml(name)}/SKILL.md</code></td>
+      </tr>`;
+    }).join('');
+
+    return `
+      <div class="page-title">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg>
+        Skills de Agentes
       </div>
-
       <div class="card">
-        <div class="card-header">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><path d="M9 22V12h6v10"/></svg>
-          Documentos del repositorio
-        </div>
         <div class="table-wrap">
           <table>
-            <thead><tr><th>Documento</th><th>Descripcion</th></tr></thead>
-            <tbody>${rootDocs.map(renderDocRow).join('')}</tbody>
+            <thead><tr><th>Skill</th><th>Ruta</th></tr></thead>
+            <tbody>${rows}</tbody>
           </table>
         </div>
       </div>
@@ -830,7 +899,10 @@
   // --- Navigation ---
   function navigate(view) {
     currentView = view;
-    window._adrFilter = null;
+    if (view !== 'decisions') {
+      window._adrFilter = null;
+      window._adrSort = null;
+    }
 
     document.querySelectorAll('.nav-item[data-view]').forEach(el => {
       el.classList.toggle('active', el.dataset.view === view);
@@ -843,6 +915,7 @@
       case 'dashboard':  html = renderDashboard(); break;
       case 'status':     html = renderStatus(); break;
       case 'decisions':  html = renderDecisions(); break;
+      case 'skills':     html = renderSkills(); break;
       case 'docs':       html = renderDocs(); break;
       default:           html = renderDashboard();
     }
@@ -854,6 +927,13 @@
     window._adrFilter = status;
     document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
     if (btn) btn.classList.add('active');
+    navigate('decisions');
+  };
+
+  // --- ADR date sort (called from inline onclick) ---
+  window.toggleAdrSort = function() {
+    const cur = window._adrSort || null;
+    window._adrSort = cur === null ? 'asc' : cur === 'asc' ? 'desc' : null;
     navigate('decisions');
   };
 
