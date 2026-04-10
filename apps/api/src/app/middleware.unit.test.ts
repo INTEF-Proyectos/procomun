@@ -10,11 +10,11 @@ describe("registerGlobalMiddleware", () => {
 		app.get("/api/ping", (c) => c.json({ ok: true }));
 
 		const response = await app.request("/api/ping", {
-			headers: { Origin: "http://localhost:4321" },
+			headers: { Origin: "http://localhost:5173" },
 		});
 
 		expect(response.status).toBe(200);
-		expect(response.headers.get("access-control-allow-origin")).toBe("http://localhost:4321");
+		expect(response.headers.get("access-control-allow-origin")).toBe("http://localhost:5173");
 		expect(response.headers.get("access-control-allow-credentials")).toBe("true");
 	});
 });

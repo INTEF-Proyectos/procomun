@@ -25,14 +25,14 @@ No se necesita PostgreSQL instalado. PGlite actúa como PostgreSQL embebido:
 ```bash
 make up        # Instala deps, ejecuta seed, arranca API + frontend
 make up-api    # Solo API (puerto 3000)
-make up-frontend  # Solo frontend (puerto 4321)
+make up-frontend  # Solo frontend (puerto 5173)
 ```
 
 Arquitectura local de red:
 
-- El navegador entra por `http://localhost:4321`.
-- Astro hace proxy de `'/api/*'` al backend interno en `http://localhost:3000`.
-- Por eso la URL pública canónica para auth en local es `http://localhost:4321`, aunque la API escuche en `3000`.
+- El navegador entra por `http://localhost:5173`.
+- Vite hace proxy de `'/api/*'` al backend interno en `http://localhost:3000`.
+- Por eso la URL pública canónica para auth en local es `http://localhost:5173`, aunque la API escuche en `3000`.
 
 Uso de `.env.example`:
 
@@ -44,7 +44,7 @@ cp .env.example .env
 - `DATABASE_URL` solo hace falta si quieres usar PostgreSQL real.
 - `FRONTEND_URL` define el origen confiable del frontend para CORS y sesiones.
 - `BETTER_AUTH_URL` define la URL pública/base que Better Auth usa para redirects y callbacks.
-- En desarrollo local normal, `FRONTEND_URL` y `BETTER_AUTH_URL` deben apuntar a `http://localhost:4321`.
+- En desarrollo local normal, `FRONTEND_URL` y `BETTER_AUTH_URL` deben apuntar a `http://localhost:5173`.
 - Si `OIDC_ENABLED` no está en `true`, el login institucional no se activa.
 
 ### Desarrollo con Docker + PostgreSQL real
@@ -56,7 +56,7 @@ Estado actual del stack Docker:
 - `db`: PostgreSQL 17 en `localhost:5432`
 - `api`: backend en `http://localhost:3000`
 - `seed`: servicio puntual para cargar datos de desarrollo
-- El frontend no se levanta con Docker en la configuración actual; se ejecuta localmente con Bun/Astro
+- El frontend no se levanta con Docker en la configuración actual; se ejecuta localmente con Bun/Vite
 
 Comandos disponibles:
 
@@ -78,7 +78,7 @@ bun run dev:frontend
 
 Servicios resultantes:
 
-- Frontend: `http://localhost:4321`
+- Frontend: `http://localhost:5173`
 - API: `http://localhost:3000`
 - PostgreSQL: `postgres://procomun:procomun@localhost:5432/procomun`
 
@@ -111,8 +111,8 @@ docker compose up -d --wait db
 
 ```bash
 DATABASE_URL=postgres://procomun:procomun@localhost:5432/procomun \
-FRONTEND_URL=http://localhost:4321 \
-BETTER_AUTH_URL=http://localhost:4321 \
+FRONTEND_URL=http://localhost:5173 \
+BETTER_AUTH_URL=http://localhost:5173 \
 bun run dev:api
 ```
 
@@ -131,14 +131,14 @@ bun run --filter '@procomun/cli' cli -- seed
 
 Servicios resultantes:
 
-- Frontend: `http://localhost:4321`
+- Frontend: `http://localhost:5173`
 - API: `http://localhost:3000`
 - PostgreSQL: `postgres://procomun:procomun@localhost:5432/procomun`
 
 #### Notas importantes
 
 - Si defines `DATABASE_URL`, la API deja de usar PGlite y pasa a usar PostgreSQL real.
-- Para desarrollo con frontend local, `FRONTEND_URL` y `BETTER_AUTH_URL` deben seguir apuntando a `http://localhost:4321`.
+- Para desarrollo con frontend local, `FRONTEND_URL` y `BETTER_AUTH_URL` deben seguir apuntando a `http://localhost:5173`.
 - El `docker-compose.yml` actual está orientado a backend/API; no sustituye a un entorno dockerizado completo de frontend + backend.
 
 ### Uploads resumables en backoffice
@@ -334,7 +334,7 @@ Para agilizar el desarrollo, hemos implementado un \`Makefile\`. Puedes usar:
 
 - \`make deps\`: Instala las dependencias usando \`bun install\`.
 - \`make up\`: Ejecuta el entorno de desarrollo (\`bun run dev\`).
-- \`make up\` instala dependencias, ejecuta seed y arranca frontend + API; la entrada pública es \`http://localhost:4321\` y \`/api\` se proxya al backend en \`3000\`.
+- \`make up\` instala dependencias, ejecuta seed y arranca frontend + API; la entrada pública es \`http://localhost:5173\` y \`/api\` se proxya al backend en \`3000\`.
 - \`make clean\`: Limpia los directorios temporales, \`.coverage\` y \`node_modules\`.
 - \`make lint\`: Comprueba reglas de código usando **Biome**.
 - \`make format\`: Aplica el formateado de código automáticamente con **Biome**.

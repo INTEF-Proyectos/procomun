@@ -1,20 +1,3 @@
----
-import { locales, baseLocale } from "../../paraglide/runtime.js";
-import PublicLayout from "../../layouts/PublicLayout.astro";
-import { ResourceDetailIsland } from "../../islands/catalog/ResourceDetailIsland.tsx";
-
-export function getStaticPaths() {
-  return locales
-    .filter((l) => l !== baseLocale)
-    .map((locale) => ({ params: { locale } }));
-}
----
-
-<PublicLayout title="Recurso" showNavSearch={true}>
-  <ResourceDetailIsland client:load />
-</PublicLayout>
-
-<style is:global>
   /* ===================================================================
      Resource Detail Page — Stitch design alignment
      =================================================================== */
@@ -949,4 +932,3 @@ export function getStaticPaths() {
       position: static;
     }
   }
-</style>

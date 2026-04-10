@@ -1,4 +1,4 @@
-export const DEFAULT_FRONTEND_URL = "http://localhost:4321";
+export const DEFAULT_FRONTEND_URL = "http://localhost:5173";
 
 export function getFrontendUrl(
 	env: NodeJS.ProcessEnv = process.env,

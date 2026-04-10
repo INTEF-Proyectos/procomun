@@ -1,0 +1,9 @@
+/* Admin layout overrides */
+.admin-layout .public-main {
+	max-width: none;
+	padding: 0;
+}
+
+.admin-layout .public-footer {
+	display: none;
+}

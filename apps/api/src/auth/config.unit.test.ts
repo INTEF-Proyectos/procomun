@@ -16,7 +16,7 @@ describe("auth config helpers", () => {
 		expect(
 			getAuthBaseUrl({
 				BETTER_AUTH_URL: "https://catalogo.ejemplo.test",
-				FRONTEND_URL: "http://localhost:4321",
+				FRONTEND_URL: "http://localhost:5173",
 			} as NodeJS.ProcessEnv),
 		).toBe("https://catalogo.ejemplo.test");
 	});

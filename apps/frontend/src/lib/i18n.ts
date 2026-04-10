@@ -1,8 +1,6 @@
 /**
- * Locale bridge for Paraglide JS.
- *
- * - During SSG build: each .astro page calls setSsrLocale() before rendering.
- * - During client hydration: reads <html lang="...">.
+ * Locale utilities for Paraglide JS.
+ * Reads locale from <html lang="..."> at runtime.
  */
 import {
 	overwriteGetLocale,
@@ -11,25 +9,15 @@ import {
 	isLocale,
 } from "../paraglide/runtime.js";
 
-let _ssrLocale: string = baseLocale;
-
 function resolveLocale(): string {
 	if (typeof document !== "undefined") {
 		const htmlLang = document.documentElement.lang;
 		if (htmlLang && isLocale(htmlLang)) return htmlLang;
 	}
-	return isLocale(_ssrLocale) ? _ssrLocale : baseLocale;
+	return baseLocale;
 }
 
-// Install the override immediately at import time.
 overwriteGetLocale(resolveLocale);
-
-/** Call from .astro frontmatter to set the locale for the current page render. */
-export function setSsrLocale(locale: string): void {
-	_ssrLocale = locale;
-	// Re-install the override in case Paraglide re-initialized getLocale.
-	overwriteGetLocale(resolveLocale);
-}
 
 export { locales, baseLocale, isLocale };
 

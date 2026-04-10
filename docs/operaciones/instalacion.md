@@ -49,7 +49,7 @@ Esta guía detalla los pasos necesarios para desplegar Procomun utilizando Docke
 |----------|-------------|-------------------|
 | `DATABASE_URL` | URL de conexión a PostgreSQL | `postgres://user:pass@db:5432/procomun` |
 | `BETTER_AUTH_SECRET` | Secreto para firma de sesiones (32+ chars) | Obligatorio |
-| `FRONTEND_URL` | URL del frontend para CORS | `http://localhost:4321` |
+| `FRONTEND_URL` | URL del frontend para CORS | `http://localhost:5173` |
 | `BETTER_AUTH_URL` | URL pública de la API para redirecciones de Auth | `http://localhost:3000` |
 | `UPLOAD_STORAGE_DIR` | Directorio local para almacenamiento de archivos | `./local-data/uploads` |
 | `OIDC_ENABLED` | Activar autenticación OIDC | `false` |
