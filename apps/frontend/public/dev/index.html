@@ -457,6 +457,16 @@
         fetchYaml('/dev/data/status.yaml'),
         fetchYaml('/dev/data/decision-log.yaml'),
       ]);
+      // Convert map-keyed objects to arrays (YAML uses maps for merge-safety)
+      function mapToArray(obj) {
+        if (!obj || typeof obj !== 'object') return [];
+        if (Array.isArray(obj)) return obj;
+        return Object.entries(obj).map(([id, v]) => ({ _id: id, ...v }));
+      }
+      if (statusData) {
+        statusData.active_tasks = mapToArray(statusData.active_tasks);
+        statusData.completed_tasks = mapToArray(statusData.completed_tasks);
+      }
       updateNavCounts();
     } catch (e) {
       document.getElementById('mainContent').innerHTML = `
