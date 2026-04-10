@@ -56,7 +56,7 @@ Estado actual del stack Docker:
 - `db`: PostgreSQL 17 en `localhost:5432`
 - `api`: backend en `http://localhost:3000`
 - `seed`: servicio puntual para cargar datos de desarrollo
-- El frontend no se levanta con Docker en la configuración actual; se ejecuta localmente con Bun/Astro
+- El frontend no se levanta con Docker en la configuración actual; se ejecuta localmente con Bun/Vite
 
 Comandos disponibles:
 
