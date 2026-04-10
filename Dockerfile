@@ -32,7 +32,7 @@ RUN RELEASE_URL=$(curl -s "https://api.github.com/repos/exelearning/exelearning/
     unzip -o -q /tmp/exelearning-static.zip -d /exelearning-editor && \
     rm /tmp/exelearning-static.zip
 
-# --- Build frontend (Astro static) ---
+# --- Build frontend (Vite SPA) ---
 FROM base AS frontend-build
 
 COPY --from=install /app/node_modules ./node_modules
@@ -42,6 +42,23 @@ COPY packages/db/ packages/db/
 
 ENV NODE_ENV=production
 RUN cd apps/frontend && bun run build
+
+# TODO: Quitar al salir a producción — copia docs y datos del repo para
+# que el dashboard de desarrollo (/dev/) pueda cargar los .md y YAML.
+# El dashboard carga docs desde /dev/docs/* y datos desde /dev/data/*.
+COPY docs/ /tmp/repo-docs/docs/
+COPY .agents/ /tmp/repo-docs/.agents/
+COPY status.yaml README.md AGENTS.md /tmp/repo-docs/
+RUN mkdir -p /app/apps/frontend/dist/dev/data \
+             /app/apps/frontend/dist/dev/docs && \
+    cp /tmp/repo-docs/status.yaml /app/apps/frontend/dist/dev/data/status.yaml && \
+    cp /tmp/repo-docs/docs/negocio/decisiones/decision-log.yaml /app/apps/frontend/dist/dev/data/decision-log.yaml && \
+    cp -r /tmp/repo-docs/docs /app/apps/frontend/dist/dev/docs/docs && \
+    cp -r /tmp/repo-docs/.agents /app/apps/frontend/dist/dev/docs/.agents && \
+    cp /tmp/repo-docs/README.md /app/apps/frontend/dist/dev/docs/README.md && \
+    cp /tmp/repo-docs/AGENTS.md /app/apps/frontend/dist/dev/docs/AGENTS.md && \
+    cp /tmp/repo-docs/status.yaml /app/apps/frontend/dist/dev/docs/status.yaml && \
+    rm -rf /tmp/repo-docs
 
 # --- API (produccion) ---
 FROM base AS api
