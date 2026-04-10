@@ -703,7 +703,7 @@
         <td>${badge(v.status)}</td>
         <td style="white-space:nowrap;color:var(--text-muted)">${fmtDate(v.date)}</td>
         <td>
-          ${v.file ? `<a href="/docs/negocio/decisiones/${escHtml(v.file)}" target="_blank" title="Ver ADR">
+          ${v.file ? `<a href="#" onclick="loadAndRenderDoc('docs/negocio/decisiones/${escHtml(v.file)}');return false" title="Ver ADR">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><path d="M14 2v6h6"/></svg>
           </a>` : '—'}
           ${v.superseded_by ? `<small style="color:var(--text-muted)"> → ${escHtml(v.superseded_by)}</small>` : ''}
@@ -737,56 +737,81 @@
     `;
   }
 
+  let currentDocPath = null;
+
+  async function loadAndRenderDoc(path) {
+    currentDocPath = path;
+    const main = document.getElementById('mainContent');
+    main.innerHTML = '<div class="alert alert-warning">Cargando documento...</div>';
+    try {
+      const res = await fetch('/dev/docs/' + path);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const md = await res.text();
+      const html = marked.parse(md);
+      main.innerHTML = `
+        <div class="page-title">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><path d="M14 2v6h6"/></svg>
+          <span style="cursor:pointer;text-decoration:underline" onclick="navigate('docs')">Documentacion</span> / ${escHtml(path.split('/').pop())}
+        </div>
+        <div class="card">
+          <div class="card-body markdown-body" style="line-height:1.8;font-size:.9rem">${html}</div>
+        </div>`;
+    } catch (e) {
+      main.innerHTML = '<div class="alert alert-warning">No se pudo cargar: ' + escHtml(e.message) + '</div>';
+    }
+  }
+  window.loadAndRenderDoc = loadAndRenderDoc;
+
   function renderDocs() {
-    const docs = [
-      { path: 'docs/negocio/decisiones/', label: 'Carpeta de ADRs', desc: 'Archivo de decisiones arquitectónicas del proyecto' },
-      { path: 'docs/epics/', label: 'Épicas', desc: 'Iniciativas estratégicas y sus features' },
-      { path: 'docs/hotfixes/', label: 'Hotfixes', desc: 'Correcciones urgentes documentadas' },
-      { path: 'docs/casos/', label: 'Casos', desc: 'Análisis e investigaciones sin implementación' },
-      { path: 'AGENTS.md', label: 'AGENTS.md', desc: 'Guía de trabajo para agentes de IA' },
-      { path: 'README.md', label: 'README.md', desc: 'Introducción general al proyecto' },
+    // Build ADR doc list from loaded decision data
+    const adrDocs = Object.entries(decisionsData || {}).map(([id, v]) => ({
+      path: 'docs/negocio/decisiones/' + v.file,
+      label: id + ': ' + (v.title || ''),
+      desc: v.status || '',
+      badge: true,
+    }));
+
+    const rootDocs = [
+      { path: 'README.md', label: 'README.md', desc: 'Introduccion general al proyecto' },
+      { path: 'AGENTS.md', label: 'AGENTS.md', desc: 'Guia de trabajo y roles de agentes de IA' },
+      { path: 'STATUS.md', label: 'STATUS.md', desc: 'Tablero de estado legacy (Markdown)' },
     ];
+
+    const renderDocRow = d => `
+      <tr>
+        <td><a href="#" onclick="loadAndRenderDoc('${escHtml(d.path)}');return false" style="font-weight:600">${escHtml(d.label)}</a></td>
+        <td style="color:var(--text-muted)">${d.badge ? badge(d.desc) : escHtml(d.desc)}</td>
+      </tr>`;
 
     return `
       <div class="page-title">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><path d="M14 2v6h6M16 13H8M16 17H8M10 9H8"/></svg>
-        Documentación
+        Documentacion
+      </div>
+
+      <div class="card" style="margin-bottom:1.5rem">
+        <div class="card-header">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2"/><path d="M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
+          Decisiones arquitectonicas (ADRs)
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Documento</th><th>Estado</th></tr></thead>
+            <tbody>${adrDocs.length ? adrDocs.map(renderDocRow).join('') : '<tr><td colspan="2">Sin ADRs</td></tr>'}</tbody>
+          </table>
+        </div>
       </div>
 
       <div class="card">
         <div class="card-header">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><path d="M9 22V12h6v10"/></svg>
-          Recursos del repositorio
+          Documentos del repositorio
         </div>
         <div class="table-wrap">
           <table>
-            <thead><tr><th>Recurso</th><th>Descripción</th><th>Enlace</th></tr></thead>
-            <tbody>
-              ${docs.map(d => `
-                <tr>
-                  <td><strong>${escHtml(d.label)}</strong></td>
-                  <td style="color:var(--text-muted)">${escHtml(d.desc)}</td>
-                  <td><a href="/${escHtml(d.path)}" target="_blank"><code>${escHtml(d.path)}</code></a></td>
-                </tr>`).join('')}
-            </tbody>
+            <thead><tr><th>Documento</th><th>Descripcion</th></tr></thead>
+            <tbody>${rootDocs.map(renderDocRow).join('')}</tbody>
           </table>
-        </div>
-      </div>
-
-      <div style="margin-top:1.5rem">
-        <div class="card">
-          <div class="card-header">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg>
-            Acerca del panel
-          </div>
-          <div class="card-body" style="font-size:.85rem;color:var(--text-muted);line-height:1.7">
-            <p>Este panel es un archivo HTML estático que carga datos YAML sin ninguna dependencia de build.</p>
-            <p style="margin-top:.5rem">Los archivos YAML se leen desde <code>/dev/data/status.yaml</code> y <code>/dev/data/decision-log.yaml</code>.</p>
-            <p style="margin-top:.5rem">Para mantener los datos sincronizados con la fuente canónica, copia o enlaza simbólicamente:</p>
-            <ul style="margin:.5rem 0 0 1.5rem">
-              <li><code>docs/negocio/decisiones/decision-log.yaml</code> → <code>apps/frontend/public/dev/data/decision-log.yaml</code></li>
-            </ul>
-          </div>
         </div>
       </div>
     `;
