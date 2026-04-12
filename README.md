@@ -26,7 +26,7 @@ La fuente de verdad del estado del proyecto es [`status.yaml`](status.yaml) y el
   - PostgreSQL en producción
   - PGlite en desarrollo local por defecto
 - Tests:
-  - `bun test` para unit e integration
+  - `bun run test` o `make test` como flujo soportado en raíz
   - Playwright para E2E
 
 ## Monorepo real
@@ -125,6 +125,25 @@ make up-docker
 make seed-docker
 bun run dev:frontend
 ```
+
+## Dashboard de desarrollo
+
+El repositorio incluye un panel de desarrollo estático para consultar el estado del proyecto, ADRs, skills y documentación del repo.
+
+- Implementación: [`apps/frontend/public/dev/index.html`](apps/frontend/public/dev/index.html)
+- Decisión técnica: [ADR-0019](docs/negocio/decisiones/0019-yaml-tracking-dashboard.md)
+- Datos principales:
+  - [`status.yaml`](status.yaml)
+  - [`docs/negocio/decisiones/decision-log.yaml`](docs/negocio/decisiones/decision-log.yaml)
+
+Cómo abrirlo:
+
+- Con el entorno local habitual: `make up`
+- Solo con frontend: `bun run dev:frontend`
+- URL en desarrollo: `http://localhost:5173/dev/`
+- URL en Docker/app integrada: `http://localhost:3000/dev/`
+
+En desarrollo con Vite, el soporte para `/dev/` y `/dev/docs/*` está cableado en `apps/frontend/vite.config.ts`. En la imagen de Docker, el build copia `docs/`, `.agents/`, `README.md`, `AGENTS.md` y los YAML necesarios para que el panel siga funcionando.
 
 ## Testing y calidad
 
