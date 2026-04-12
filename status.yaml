@@ -692,3 +692,17 @@ tasks:
       para media homogénea en el flujo manual.
       Se sincronizan las copias YAML consumidas por /dev/ para que el dashboard muestre la nueva ADR y la
       trazabilidad asociada en desarrollo local.
+
+  T-2026-04-12-005:
+    date: 2026-04-12
+    agent: "arquitectura-solucion + devops-sre + backend-api-servicios + documentacion-y-roadmap"
+    task: "Resolución de la issue #121 mediante ADR-0021 sobre servicio canónico unificado para API y frontend"
+    status: Done
+    related: [ADR-0015b, ADR-0018, ADR-0019]
+    notes: >
+      Se crea la ADR-0021 para fijar la arquitectura canónica: despliegue integrado en un único servicio
+      API + frontend mediante el target app y docker-compose, manteniendo desarrollo local dual con API en
+      Bun/Hono y frontend en Vite por ergonomía e HMR.
+      La decisión no introduce cambios de runtime en esta rama; formaliza la topología vigente y descarta,
+      por ahora, integrar Vite middleware dentro de Hono.
+      Se actualiza también el índice de ADRs y la copia de decision-log usada por el dashboard /dev/.

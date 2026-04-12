@@ -133,3 +133,9 @@ ADR-0020:
   status: Aceptado
   date: 2026-04-12
   file: 0020-generacion-elpx-especializada-media-homogenea.md
+
+ADR-0021:
+  title: "Servicio canónico unificado para API y frontend"
+  status: Aceptado
+  date: 2026-04-12
+  file: 0021-servicio-canonico-unificado-api-frontend.md
