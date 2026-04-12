@@ -127,3 +127,9 @@ ADR-0019:
   status: Aceptado
   date: 2026-04-10
   file: 0019-yaml-tracking-dashboard.md
+
+ADR-0021:
+  title: "Servicio canónico unificado para API y frontend"
+  status: Aceptado
+  date: 2026-04-12
+  file: 0021-servicio-canonico-unificado-api-frontend.md

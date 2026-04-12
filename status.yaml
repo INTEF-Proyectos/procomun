@@ -667,3 +667,17 @@ tasks:
       ni GitHub Pages como modo vigente.
       docs/producto/roadmap.md alineado en su cabecera y estado actual, manteniendo el historial pero
       marcando como supersedidas las referencias antiguas a Astro y a la generación estática.
+
+  T-2026-04-12-002:
+    date: 2026-04-12
+    agent: "arquitectura-solucion + devops-sre + backend-api-servicios + documentacion-y-roadmap"
+    task: "Resolución de la issue #121 mediante ADR-0021 sobre servicio canónico unificado para API y frontend"
+    status: Done
+    related: [ADR-0015b, ADR-0018, ADR-0019]
+    notes: >
+      Se crea la ADR-0021 para fijar la arquitectura canónica: despliegue integrado en un único servicio
+      API + frontend mediante el target app y docker-compose, manteniendo desarrollo local dual con API en
+      Bun/Hono y frontend en Vite por ergonomía e HMR.
+      La decisión no introduce cambios de runtime en esta rama; formaliza la topología vigente y descarta,
+      por ahora, integrar Vite middleware dentro de Hono.
+      Se actualiza también el índice de ADRs y la copia de decision-log usada por el dashboard /dev/.
