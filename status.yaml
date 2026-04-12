@@ -652,3 +652,18 @@ tasks:
       bun test queda bloqueado por dependencias externas no resolubles localmente (drizzle-orm/pg-core).
       bun install no pudo completar por falta de acceso de red.
       Riesgo: pendiente reejecutar instalación y suite completa en entorno con acceso a dependencias.
+
+  T-2026-04-12-001:
+    date: 2026-04-12
+    agent: "documentacion-y-roadmap"
+    task: "Sincronización documental de README y documentación de producto con la implementación actual del monorepo"
+    status: Done
+    related: [ADR-0017, ADR-0018]
+    notes: >
+      README.md reescrito para reflejar el stack y estructura reales: React 19 + Vite + React Router en
+      frontend, Hono + Better Auth en API, packages/db como única librería compartida y comandos vigentes
+      del Makefile/package.json.
+      docs/producto/arquitectura.md actualizado para describir la arquitectura actual sin preview estático
+      ni GitHub Pages como modo vigente.
+      docs/producto/roadmap.md alineado en su cabecera y estado actual, manteniendo el historial pero
+      marcando como supersedidas las referencias antiguas a Astro y a la generación estática.
