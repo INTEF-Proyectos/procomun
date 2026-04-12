@@ -2,192 +2,193 @@
 
 ## Estado
 
-Definida en Fase 0. Tecnologías decididas para todas las capas principales.
+Documento sincronizado con la implementación actual del repositorio.
+
+La arquitectura vigente combina:
+
+- frontend SPA en React 19 + Vite + React Router
+- API HTTP en Hono sobre Bun
+- autenticación con Better Auth
+- acceso a datos compartido en `packages/db` con Drizzle ORM
+- PostgreSQL como base principal y PGlite como opción por defecto en desarrollo local
+
+Las decisiones históricas sobre Astro y el preview estático quedaron supersedidas en la implementación por [ADR-0017](../negocio/decisiones/0017-eliminacion-generacion-web-estatica.md) y [ADR-0018](../negocio/decisiones/0018-migracion-astro-a-react-router.md).
 
 ---
 
 ## Arquitectura del antiguo Procomún y proceso de migración
 
-### Arquitectura actual (Legacy)
+### Arquitectura actual (legacy)
 
 > Análisis detallado disponible en `docs/casos/contexto-procomun-legacy/estado-del-arte.md`.
 
-El sistema anterior (el antiguo Procomún) está construido sobre una arquitectura más monolítica (evolucionada desde la red Agrega) e incluye múltiples componentes que han ido creciendo con el tiempo:
+El sistema anterior evoluciona desde la red Agrega y agrupa varios subsistemas:
 
-**Stack tecnológico confirmado:** Drupal (CMS), Matomo (analítica), Docker (contenedorización), apps nativas iOS/Android. CSS en migración de Bootstrap 3 a LESS.
-
-**Tres subsistemas principales:**
-
-- **Sistema PROCOMÚN central (Drupal):** Portal web con catalogación de ODEs, búsqueda con filtros (área, nivel, tipo, idioma), flujo editorial, gestión de usuarios (109.707 registrados), comunidades temáticas (55), artículos (23.509), itinerarios de aprendizaje (371) y newsletters (69). Autenticación con proveedores externos. Rol de "Publicador certificado".
-- **Repositorio Agrega3:** Gestión de paquetes SCORM, objetos .elpx (eXeLearning), metadatos LOM y federación con nodos externos.
-- **Banco Multimedia:** Anteriormente "Banco de imágenes y sonidos del INTEF". Integrado desde abril de 2023. Más de 100.000 recursos (fotografías, vídeos, ilustraciones, audios) con licencias seleccionables y búsqueda integrada.
-- **eXeLearning Online:** Edición de recursos interactivos directamente en el navegador, permitiendo modificar recursos propios tras publicación.
-- **Buscador unificado:** Motor de búsqueda interno que indexa ODEs y multimedia simultáneamente, con filtros por área temática, contexto educativo, tipo de contenido e idioma (es, en, ca, gl, eu).
-
-**Cifras de la plataforma (marzo 2026):** 78.798 ODEs, +100.000 multimedia, 109.707 usuarios, 23.509 artículos, 371 itinerarios, 55 comunidades.
+- portal Drupal para catálogo, búsqueda, comunidades y publicación
+- repositorio Agrega3 para paquetes SCORM, objetos `.elpx` y metadatos LOM
+- banco multimedia integrado
+- edición online con eXeLearning
+- buscador unificado sobre ODEs y multimedia
 
 ### Proceso de migración
 
-El paso a la nueva arquitectura implicará un proceso de **Migración de Contenidos y Usuarios** (ETL - Extracción, Transformación y Carga) para asegurar que no se pierda el valor generado en la plataforma anterior. Este proceso requerirá:
+La migración al nuevo sistema requiere un proceso ETL:
 
-1. **Extracción (Extract):**
-   - Volcar los recursos existentes (paquetes SCORM, archivos .elpx, enlaces).
-   - Extraer el catálogo del Banco Multimedia con todas sus imágenes, vídeos y audios.
-   - Extraer la base de datos de usuarios (perfiles, historial y aportaciones).
-2. **Transformación (Transform):**
-   - Mapear y adaptar los metadatos antiguos (que pueden ser inconsistentes) al nuevo esquema unificado y estricto.
-   - Limpieza y deduplicación de registros.
-   - Transformar los permisos y asociaciones de los recursos para que encajen en el nuevo modelo de moderación, licencias y validación.
-3. **Carga (Load):**
-   - Ingestar de forma masiva (vía scripts de ingestión) el contenido transformado a la nueva base de datos.
+1. Extraer recursos, usuarios y metadatos del sistema legacy.
+2. Transformar y normalizar metadatos, permisos y relaciones.
+3. Cargar los datos en el nuevo modelo de dominio y en la nueva base de datos.
 
+---
 
 ## Visión general
 
-El sistema se organiza en capas desacopladas con contratos explícitos entre ellas. El lenguaje de toda la pila es TypeScript (strict). El runtime de servidor es Bun. La arquitectura sigue principios estrictos de simplicidad (KISS) para minimizar la carga operativa, basándose en un diseño monolítico que resuelve el almacenamiento en disco y la búsqueda en base de datos.
+El sistema se organiza como un monorepo TypeScript con contratos explícitos entre frontend, API, CLI y capa de datos compartida.
 
-```
-┌─────────────────────────────────────────────┐
-│              Clientes externos               │
-│   (navegador, LMS, otros repositorios)       │
-└─────────────────┬───────────────────────────┘
-                  │ HTTP / OAI-PMH / RSS
-┌─────────────────▼───────────────────────────┐
-│                 API Layer                    │
-│     REST público + Admin API                 │
-│     Hono + Bun  (ADR-0003)                   │
-│     Auth: Better Auth (ADR-0007)             │
-│     RBAC: admin/curator/author/reader (0008) │
-│     apps/api/                                │
-└────────┬────────────────────────────────────┘
-         │
-┌────────▼────────┐
-│  Frontend       │
-│  público        │
-│  Astro          │
-│  (ADR-0004)     │
-│  apps/frontend/ │
-└─────────────────┘
-         │
-┌────────▼────────────────────────────────────┐
+```text
+┌──────────────────────────────────────────────┐
+│                 Navegador                    │
+│  catálogo público, backoffice, edición       │
+└──────────────────────┬───────────────────────┘
+                       │ HTTP + cookies
+┌──────────────────────▼───────────────────────┐
+│              Frontend SPA                    │
+│  React + Vite + React Router                │
+│  apps/frontend/                              │
+└──────────────────────┬───────────────────────┘
+                       │ /api/*
+┌──────────────────────▼───────────────────────┐
+│                 API HTTP                     │
+│  Hono + Bun + Better Auth                    │
+│  apps/api/                                   │
+└──────────────────────┬───────────────────────┘
+                       │ repositorios compartidos
+┌──────────────────────▼───────────────────────┐
 │              Capa de datos                   │
-│   Drizzle ORM (ADR-0006)                     │
-│   packages/db/                               │
-│   Esquema pgTable unificado                  │
-│   Repositorio compartido (API + preview)     │
-└────────┬──────────────────┬─────────────────┘
-         │                  │
-┌────────▼────────┐ ┌───────▼─────────────────┐
-│  PostgreSQL     │ │  Sistema de Archivos     │
-│  (ADR-0005)     │ │  Local / Volumen montado │
-│  producción     │ └─────────────────────────┘
-├─────────────────┤
-│  PGlite         │
-│  (ADR-0010)     │
-│  dev local +    │
-│  preview PRs    │
-└─────────────────┘
+│  Drizzle ORM + schema + repositorios         │
+│  packages/db/                                │
+└───────────────┬──────────────────────┬───────┘
+                │                      │
+      ┌─────────▼─────────┐   ┌────────▼─────────┐
+      │   PostgreSQL       │   │   Sistema local  │
+      │   producción       │   │   de ficheros    │
+      └────────────────────┘   └──────────────────┘
+
+      ┌────────────────────┐
+      │ PGlite en local    │
+      │ desarrollo por     │
+      │ defecto            │
+      └────────────────────┘
+```
+
+## Monorepo real
+
+```text
+procomun/
+├── apps/
+│   ├── api/          # API pública, admin, auth, uploads, eXeLearning
+│   ├── cli/          # seed y utilidades operativas
+│   └── frontend/     # aplicación React para catálogo y backoffice
+├── packages/
+│   └── db/           # schema, repositorios, validación, setup y seed
+├── docs/             # roadmap, arquitectura, ADRs, épicas y casos
+├── e2e/              # tests Playwright
+└── status.yaml       # tablero de estado global
 ```
 
 ## Modos de ejecución
 
-| Modo | Base de datos | Auth | Despliegue |
-|------|---------------|------|------------|
-| **Producción** | PostgreSQL (`DATABASE_URL`) | Better Auth | Servidor |
-| **Desarrollo local** | PGlite (file-backed en `local-data/`) | Better Auth | `make up` |
-| **Preview estático** | PGlite WASM (IndexedDB en navegador) | Usuarios demo | GitHub Pages |
+| Modo | Base de datos | Frontend | Auth | Uso |
+|------|---------------|----------|------|-----|
+| Producción | PostgreSQL | SPA React servida por despliegue real | Better Auth | Entorno real |
+| Desarrollo local | PGlite por defecto o PostgreSQL vía `DATABASE_URL` | Vite dev server | Better Auth | `make up`, `make up-postgres` |
+| Docker de apoyo | PostgreSQL y API en contenedores | frontend local | Better Auth | `make up-docker`, `make seed-docker` |
 
-### Preview estático de PRs
-
-Cada Pull Request publica automáticamente un preview en GitHub Pages. El preview:
-
-- Se construye como sitio estático con Astro (`PREVIEW_STATIC=true`)
-- Usa PGlite compilado a WASM para ejecutar PostgreSQL en el navegador
-- Carga datos de demostración desde `apps/frontend/public/preview/seed.json`
-- Incluye un banner con selector de rol y botón de reset de datos
-- Se publica en `https://intef-proyectos.github.io/procomun/pr-preview/pr-{N}/`
-- La rama `main` se publica en `https://intef-proyectos.github.io/procomun/`
-
-El frontend usa una abstracción `ApiClient` con dos implementaciones:
-- `HttpApiClient`: llama al servidor API real (modo normal)
-- `PreviewApiClient`: ejecuta queries directamente en PGlite del navegador (modo preview)
-
-Ambos comparten el mismo esquema Drizzle (`pgTable`) y el mismo repositorio de queries (`packages/db/src/repository.ts`).
-
-## Estructura del monorepo
-
-```
-procomun/
-├── apps/
-│   ├── api/          # Servidor API — Hono + Better Auth
-│   ├── cli/          # CLI de gestión (usuarios, seed, migraciones)
-│   └── frontend/     # Frontend público — Astro + preview estático
-├── packages/
-│   └── db/           # Esquema, repositorio, validación, setup, seed — Drizzle ORM
-├── docs/             # Documentación del proyecto
-├── e2e/              # Tests end-to-end — Playwright
-└── package.json      # Bun workspaces raíz
-```
+No existe ya un modo de preview estático publicado por PR en GitHub Pages.
 
 ## Capas y responsabilidades
 
-### API Layer — `apps/api/`
-- Framework: **Hono** (ADR-0003)
-- Autenticación: **Better Auth** (ADR-0007) — password + OpenID Connect configurable
-- Autorización: **RBAC** (ADR-0008) — roles admin/curator/author/reader
-- Rutas separadas: `/api/v1/*` (pública), `/api/admin/*` (auth+RBAC), `/api/auth/*` (Better Auth)
-- Valida entrada, aplica autenticación y autorización
-- No contiene lógica de negocio; delega en servicios
+### Frontend — `apps/frontend/`
+
+- SPA React con `react-router-dom`
+- Vite como bundler y dev server
+- páginas públicas y editoriales bajo un mismo shell
+- i18n integrada en cliente
+- llamadas a la API vía cliente HTTP
+- componentes React y utilidades para catálogo, perfil, admin, ayuda y edición
+
+Rutas principales implementadas:
+
+- `/`
+- `/explorar`
+- `/login`
+- `/registro`
+- `/perfil`
+- `/admin/*`
+- `/recurso`
+- `/colecciones`
+- `/editar`
+- `/nuevo`
+- `/ayuda`
+
+### API — `apps/api/`
+
+- Hono como framework HTTP
+- Better Auth para autenticación y sesiones
+- rutas públicas bajo `/api/v1/*`
+- rutas administrativas bajo `/api/admin/*`
+- rutas de auth bajo `/api/auth/*`
+- uploads resumables y endpoints ligados al editor eXeLearning
+
+La API compone middleware, rutas y servicios, y delega la persistencia en `packages/db`.
 
 ### CLI — `apps/cli/`
-- Herramienta de gestión desde terminal
-- Comandos: `seed`, `user:create`, `user:list`
-- Usa PGlite directamente para desarrollo local
 
-### Frontend público — `apps/frontend/`
-- Framework: **Astro** (ADR-0004)
-- Interfaz pública para profesorado y ciudadanía
-- Búsqueda, fichas de recurso, colecciones, descarga
-- Arquitectura de islas: mínimo JS en cliente, componentes interactivos solo donde aporten valor
-- Modo preview: PGlite WASM en navegador con datos de demostración
+- herramienta operativa para seed y gestión de usuarios
+- comandos actuales:
+  - `seed`
+  - `seed:resources`
+  - `user:create`
+  - `user:list`
 
 ### Capa de datos — `packages/db/`
-- ORM: **Drizzle** (ADR-0006)
-- Esquema TypeScript unificado (`pgTable`) que funciona con PostgreSQL y PGlite
-- Repositorio de queries compartido entre API y preview del frontend
-- Validación de datos compartida
-- Migraciones versionadas en SQL plano (`drizzle-kit`)
-- Setup de tablas reutilizable para todos los entornos
 
-### Base de datos — PostgreSQL / PGlite (ADR-0005, ADR-0010)
-- **Producción**: PostgreSQL real
-- **Desarrollo local**: PGlite (PostgreSQL embebido, sin instalar nada)
-- **Preview en navegador**: PGlite WASM (PostgreSQL compilado a WebAssembly)
-- Un solo esquema `pgTable` en todos los entornos — sin duplicación
+- schema TypeScript con Drizzle
+- repositorios compartidos por API y CLI
+- validación de reglas de negocio y transiciones editoriales
+- setup de tablas y datos de seed
 
-### Sistema de Archivos
-- Almacenamiento directo en disco físico de los archivos subidos, metadatos voluminosos en crudo o multimedia.
-- Decisiones de hardware / replicación delegadas al administrador del sistema (ej: disco local, NAS, SAN, etc.).
+## Persistencia y almacenamiento
+
+### Base de datos
+
+- Producción: PostgreSQL
+- Desarrollo local por defecto: PGlite con almacenamiento local
+- Desarrollo alternativo: PostgreSQL real configurando `DATABASE_URL`
+
+### Ficheros
+
+- almacenamiento local/volumen para binarios subidos
+- configuración vía `UPLOAD_STORAGE_DIR`
+- pensado para evolución futura a otro backend de almacenamiento si fuera necesario
 
 ## Principios de diseño
 
-1. **Contratos explícitos**: cada capa define tipos TypeScript de entrada y salida
-2. **Sin lógica de negocio en la API**: la API valida y delega, los servicios deciden
-3. **Simplicidad ante todo (KISS)**: se prescinde de motores de búsqueda dedicados, sistemas de colas o buckets de objetos para mantener la operativa sencilla (monolito + DB + disco).
-4. **Tareas de ingestión idempotentes**: toda importación puede reejecutarse sin efectos no deseados
-5. **Observabilidad desde el inicio**: logs estructurados, métricas, trazas en todas las capas
-6. **Accesibilidad como requisito**: no como añadido posterior
-7. **Un solo esquema, múltiples entornos**: el mismo esquema PostgreSQL (`pgTable` de Drizzle) funciona en producción, desarrollo local y preview en navegador gracias a PGlite
-8. **Preview funcional por PR**: versión estática con PGlite WASM para probar el sistema desde el navegador en cada Pull Request, sin despliegues de backend (ADR-0010)
+1. Contratos explícitos entre capas.
+2. Monorepo con código compartido solo donde aporta valor claro.
+3. Simplicidad operativa para entorno local: Bun + PGlite por defecto.
+4. Separación entre API HTTP, lógica de negocio y persistencia.
+5. Accesibilidad, mantenibilidad e interoperabilidad como requisitos base.
+6. Trazabilidad documental mediante ADRs, épicas y `status.yaml`.
 
 ## ADRs relacionadas
 
-- [ADR-0001](../negocio/decisiones/0001-typescript-bun-como-stack-base.md): TypeScript + Bun como stack base
-- [ADR-0002](../negocio/decisiones/0002-preview-estatico-prs-con-sqlite.md): Preview estático de PRs con SQLite (**supersedido por ADR-0010**)
-- [ADR-0003](../negocio/decisiones/0003-framework-http-api.md): Framework HTTP para API — Hono
-- [ADR-0004](../negocio/decisiones/0004-framework-frontend.md): Framework frontend — Astro
-- [ADR-0005](../negocio/decisiones/0005-base-de-datos-principal.md): Base de datos principal — PostgreSQL
-- [ADR-0006](../negocio/decisiones/0006-orm-y-capa-acceso-datos.md): ORM y capa de acceso a datos — Drizzle
-- [ADR-0007](../negocio/decisiones/0007-autenticacion-y-sesiones.md): Autenticación y sesiones — Better Auth
-- [ADR-0008](../negocio/decisiones/0008-modelo-de-autorizacion.md): Modelo de autorización — RBAC
-- [ADR-0010](../negocio/decisiones/0010-preview-estatico-pglite-github-pages.md): Preview estático con PGlite + GitHub Pages
+- [ADR-0001](../negocio/decisiones/0001-typescript-bun-como-stack-base.md): TypeScript + Bun como base
+- [ADR-0003](../negocio/decisiones/0003-framework-http-api.md): Hono para la API
+- [ADR-0004](../negocio/decisiones/0004-framework-frontend.md): decisión inicial de frontend en Fase 0
+- [ADR-0005](../negocio/decisiones/0005-base-de-datos-principal.md): PostgreSQL como base principal
+- [ADR-0006](../negocio/decisiones/0006-orm-y-capa-acceso-datos.md): Drizzle ORM
+- [ADR-0007](../negocio/decisiones/0007-autenticacion-y-sesiones.md): Better Auth
+- [ADR-0008](../negocio/decisiones/0008-modelo-de-autorizacion.md): RBAC
+- [ADR-0011](../negocio/decisiones/0011-subidas-resumibles-tus-disco-local.md): uploads resumables
+- [ADR-0017](../negocio/decisiones/0017-eliminacion-generacion-web-estatica.md): retirada del preview estático y GitHub Pages
+- [ADR-0018](../negocio/decisiones/0018-migracion-astro-a-react-router.md): migración a React Router + Vite SPA

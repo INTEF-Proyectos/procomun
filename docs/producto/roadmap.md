@@ -2,7 +2,7 @@
 
 ## Estado: Fase 1 — MVP de catálogo
 
-Catalogo MVP operativo con busqueda facetada, CRUD unificado, flujo editorial completo y uploads resumables. Refactorizacion de arquitectura completada (PR #52).
+Catalogo MVP operativo con busqueda facetada, CRUD unificado, flujo editorial completo, editor eXeLearning y front unificado en React Router + Vite. La implementación actual ya no usa preview estático en GitHub Pages.
 
 ---
 
@@ -16,7 +16,7 @@ Catalogo MVP operativo con busqueda facetada, CRUD unificado, flujo editorial co
 | Visión y mapa de capacidades | Completado |
 | ADR stack base (TypeScript + Bun) | Completado — ADR-0001 |
 | ADR capa API | Completado — ADR-0003 (Hono) |
-| ADR capa frontend | Completado — ADR-0004 (Astro) |
+| ADR capa frontend | Completado — ADR-0004 (decisión inicial) + ADR-0018 (implementación actual en React Router + Vite) |
 | ADR base de datos principal | Completado — ADR-0005 (PostgreSQL) |
 | ADR ORM y capa de acceso a datos | Completado — ADR-0006 (Drizzle ORM) |
 | ADR infraestructura Docker y operaciones | Completado — ADR-0015 (Evo1) |
@@ -31,14 +31,14 @@ Catalogo MVP operativo con busqueda facetada, CRUD unificado, flujo editorial co
 | Épica | Estado |
 |-------|--------|
 | Modelo de metadatos mínimo | Completado — ADR-0009 aceptada, validación mínima y CRUD real de recursos entregados |
-| Arquitectura base del sistema | Completado — monorepo, Hono, Astro, Drizzle, PGlite dev |
+| Arquitectura base del sistema | Completado — monorepo, Hono, React Router + Vite, Drizzle, PGlite dev |
 | Autenticación y autorización | Completado — Better Auth (password + OIDC), RBAC con 5 roles (author/editor/curator/admin + reader público), CLI usuarios |
 | Flujo editorial de recursos | Completado — stepper visual, transiciones por rol (author→review, editor→publish directo, curator→approve/reject), campo createdBy, colores semafóricos |
 | Busqueda y facetas iniciales | Completado — sidebar facetada (tipo, idioma, licencia), paginacion numerada, grid/list toggle, filtros dinamicos desde taxonomias |
-| API REST publica v1 | Completado — listado y detalle de recursos publicados, paginacion, filtros, endpoint publico de taxonomias; colecciones en placeholder |
+| API REST publica v1 | Completado — listado y detalle de recursos publicados, paginacion, filtros, taxonomias y colecciones publicas |
 | Importacion piloto desde CSV | No iniciada |
 | Frontend publico minimo | Completado — catalogo con sidebar, ficha de recurso con layout 2 columnas, pills, archivos adjuntos, vista responsive |
-| Subidas resumables | Completado — ADR-0011 (Tus), ADR-0012 (IndexedDB preview), panel de uploads multiarchivo |
+| Subidas resumables | Completado — ADR-0011 (Tus), panel de uploads multiarchivo y asociacion a media_items |
 | CRUD builder generico | Completado — `buildCrudRoutes` elimina boilerplate, entidades unificadas |
 | Entidades como taxonomias | Completado — tipos de recurso, idiomas y licencias gestionables desde admin |
 | Migracion a React islands | Completado — todas las páginas interactivas migradas (ADR-0013) |
@@ -98,7 +98,7 @@ Catalogo MVP operativo con busqueda facetada, CRUD unificado, flujo editorial co
 - API Hono con separación de rutas públicas (`/api/v1`) y admin (`/api/admin`).
 - Better Auth integrado con login por email/password, soporte OIDC configurable y sesiones por cookie.
 - RBAC implementado con roles `reader`, `author`, `editor`, `curator`, `admin` (ADR-0016).
-- Frontend Astro con páginas `index`, `login` y `dashboard`.
+- Frontend entonces basado en Astro con páginas `index`, `login` y `dashboard` (después supersedido por ADR-0018).
 - CLI para seed y gestión básica de usuarios.
 - Cobertura unitaria existente en API/auth/rutas admin.
 
@@ -167,10 +167,10 @@ El flujo editorial de recursos queda completo como experiencia de producto y ya 
 ### Confirmado en repositorio
 
 - ADR-0013 deja de ser solo una decisión documental y entra en ejecución real.
-- `apps/frontend` integra React como framework de islands en Astro.
+- `apps/frontend` integra React como framework de islands en Astro en esa iteración inicial.
 - `admin/categorias` se convierte en el primer piloto migrado desde script imperativo a island React.
 - Se introduce una base reutilizable para CRUDs hidratados en `src/islands/shared/` y `src/islands/crud/`.
-- La estrategia de validación se mantiene consistente con el repositorio: `bun test` + build Astro, sin runner alternativo.
+- La estrategia de validación de esa iteración se mantuvo con `bun test` + build del frontend vigente en ese momento.
 
 ## Actualización de estado — 2026-03-29 (Rediseño completo + React islands migración completa)
 
@@ -187,7 +187,7 @@ El flujo editorial de recursos queda completo como experiencia de producto y ya 
 - Formulario de recursos en React con validación inline, errores ARIA, estados de carga.
 - Epic 003 en progreso: schema social (ratings, favorites, comments, comment_votes) creado en BD, componentes de UI listos (CommentSectionIsland, RatingIsland, FavoriteIsland), endpoints parcialmente implementados.
 - Nuevas páginas: landing (`/`), búsqueda (`/buscar`), registro (`/registro`), perfil (`/perfil`).
-- React 19.2.4 + @astrojs/react 5.0.2 + @testing-library/react 16.3.2.
+- React 19.2.4 + `@astrojs/react` 5.0.2 + `@testing-library/react` 16.3.2 en esa fase previa a la migración completa del shell frontend.
 
 ### Lectura ejecutiva
 
@@ -219,6 +219,25 @@ La Fase 1 del MVP está prácticamente completa. La migración a React islands a
 2. Importación piloto desde CSV.
 3. Medir rendimiento: Core Web Vitals, bundle sizes, load testing básico.
 
+## Actualización de estado — 2026-04-10 (Arquitectura frontend y previews)
+
+### Confirmado en repositorio
+
+- El frontend ya no se ejecuta sobre Astro; la implementación actual usa React 19, Vite y React Router.
+- La generación de web estática y los previews por PR en GitHub Pages fueron retirados.
+- El repositorio ya no contiene `.github/workflows/preview.yml` ni `deploy.yml`; solo permanece `ci.yml`.
+- `apps/frontend/package.json` expone `dev`, `build` y `preview` estándar de Vite.
+- `apps/frontend/src/App.tsx` y `src/main.tsx` son ahora el entrypoint y el routing principales del frontend.
+
+### Lectura ejecutiva
+
+La documentación histórica de marzo describe correctamente una fase anterior del proyecto, pero ya no representa la arquitectura vigente. La referencia actual para frontend es la combinación React Router + Vite SPA y el desarrollo local con API real, no un preview estático en navegador.
+
+### ADRs relacionadas
+
+- ADR-0017: eliminación de la generación de web estática y preview en GitHub Pages.
+- ADR-0018: migración de Astro a React Router + Vite SPA.
+
 ## Actualización 2026-03-29 — Ayuda y manual de usuario
 
 - Se añade una ruta pública `/ayuda` con manual de uso estructurado para descubrimiento, publicación, colecciones, FAQ, roles y soporte.
@@ -232,7 +251,7 @@ La Fase 1 del MVP está prácticamente completa. La migración a React islands a
 - El backoffice de colecciones amplía el CRUD con portada, descripción, asociación de recursos existentes y reordenación manual.
 - El RBAC de colecciones se endurece: la gestión pasa a `curator` y `admin`; `author` queda fuera del backoffice de colecciones.
 - La validación completa del repositorio queda verde con `bun run test` (`337 pass`, `0 fail`, cobertura 91.77%).
-- Queda una limitación arquitectónica documentada: el detalle público se sirve en `/colecciones?slug=...` mientras el frontend siga en salida estática Astro.
+- Quedaba entonces una limitación arquitectónica: el detalle público se servía en `/colecciones?slug=...` mientras el frontend seguía en salida estática Astro; esa restricción quedó desfasada tras ADR-0017 y ADR-0018.
 
 ## Actualización 2026-03-29 — Datos de demo, badges y landing dinámica
 
