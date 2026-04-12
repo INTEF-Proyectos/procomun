@@ -667,3 +667,28 @@ tasks:
       ni GitHub Pages como modo vigente.
       docs/producto/roadmap.md alineado en su cabecera y estado actual, manteniendo el historial pero
       marcando como supersedidas las referencias antiguas a Astro y a la generación estática.
+
+  T-2026-04-12-002:
+    date: 2026-04-12
+    agent: "documentacion-y-roadmap + arquitectura-solucion"
+    task: "Formalización de la issue #120 como decisión arquitectónica propuesta (ADR-0020) para generación especializada de .elpx en subidas manuales"
+    status: Done
+    related: [ADR-0020]
+    notes: >
+      Se crea la ADR-0020 en estado Propuesto para decidir si el generador automático de .elpx debe
+      especializarse cuando los adjuntos manuales sean homogéneos por imagen, audio o vídeo.
+      La propuesta preserva como invariante las URLs directas y reutilizables de cada media_item.
+      Se añaden anexos fechados a la épica 002 con requisitos, diseño, tareas y validación previstas.
+
+  T-2026-04-12-003:
+    date: 2026-04-12
+    agent: "documentacion-y-roadmap + arquitectura-solucion"
+    task: "Aprobación de ADR-0020 y sincronización del dashboard de desarrollo con la decisión aceptada"
+    status: Done
+    related: [ADR-0020]
+    notes: >
+      ADR-0020 pasa de Propuesto a Aceptado.
+      La épica 002 queda desbloqueada para planificar la implementación de generación especializada de .elpx
+      para media homogénea en el flujo manual.
+      Se sincronizan las copias YAML consumidas por /dev/ para que el dashboard muestre la nueva ADR y la
+      trazabilidad asociada en desarrollo local.

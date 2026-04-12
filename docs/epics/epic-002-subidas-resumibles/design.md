@@ -36,3 +36,21 @@
 - el almacenamiento local necesita limpieza/rotación
 - el checksum por chunk queda como refuerzo posterior sobre el flujo base
 - el preview estático no soporta binarios reales
+
+## Actualización 2026-04-12 — propuesta ADR-0020
+
+### Enfoque de diseño a validar
+
+- mantener el flujo actual de subida manual y generación posterior de `.elpx`
+- introducir una fase de clasificación de adjuntos ya persistidos en `media_items`
+- seleccionar plantilla de generación según:
+  - familia MIME homogénea: `image/*`, `audio/*`, `video/*`
+  - cardinalidad: `1` o `N`
+- usar el generador genérico actual como fallback cuando no haya homogeneidad o el tipo no esté soportado
+
+### Invariantes que deben mantenerse
+
+- la subida nativa de `.elpx` no cambia
+- el `.elpx` derivado sigue registrándose como `elpx_project`
+- los archivos originales siguen existiendo como `media_items`
+- cada archivo sigue disponiendo de URL directa reutilizable
