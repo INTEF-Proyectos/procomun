@@ -24,3 +24,18 @@ En desarrollo
 - [x] Tests unitarios de configuración de uploads.
 - [x] Tests de integración del flujo `tus` básico (crear, completar, cancelar).
 - [x] `env -u DATABASE_URL bun run check-coverage`
+
+## Actualización 2026-04-12 — propuesta ADR-0020
+
+### Descubrimiento y decisión
+- [x] Formalizar issue #120 como decisión arquitectónica pendiente.
+- [x] Redactar ADR-0020 y dejarla aceptada.
+- [x] Alinear la épica 002 con la aceptación de ADR-0020.
+
+### Implementación futura si ADR-0020 se acepta
+- [ ] Clasificar adjuntos homogéneos por familia MIME renderizable.
+- [ ] Introducir plantillas especializadas para imagen única y galería.
+- [ ] Introducir plantillas especializadas para audio único y colección reproducible.
+- [ ] Introducir plantillas especializadas para vídeo único y colección reproducible.
+- [ ] Mantener fallback genérico para adjuntos mixtos o no soportados.
+- [ ] Verificar que las URLs directas de `media_items` siguen funcionando como contrato estable.

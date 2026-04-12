@@ -128,6 +128,12 @@ ADR-0019:
   date: 2026-04-10
   file: 0019-yaml-tracking-dashboard.md
 
+ADR-0020:
+  title: "Generación especializada de .elpx para media homogénea en subidas manuales"
+  status: Aceptado
+  date: 2026-04-12
+  file: 0020-generacion-elpx-especializada-media-homogenea.md
+
 ADR-0021:
   title: "Servicio canónico unificado para API y frontend"
   status: Aceptado
