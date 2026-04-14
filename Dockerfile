@@ -15,7 +15,7 @@ COPY apps/cli/package.json apps/cli/package.json
 COPY apps/frontend/package.json apps/frontend/package.json
 COPY packages/db/package.json packages/db/package.json
 
-RUN bun install
+RUN bun install --frozen-lockfile
 
 # --- Descargar editor eXeLearning ---
 FROM base AS exelearning-editor
