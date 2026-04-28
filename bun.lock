@@ -5,7 +5,7 @@
     "": {
       "name": "/app",
       "dependencies": {
-        "@electric-sql/pglite": "0.4.4",
+        "@electric-sql/pglite": "0.4.5",
         "drizzle-orm": "^0.45.2",
       },
       "devDependencies": {
@@ -19,7 +19,7 @@
       "name": "@procomun/api",
       "version": "0.1.0",
       "dependencies": {
-        "@electric-sql/pglite": "0.4.4",
+        "@electric-sql/pglite": "0.4.5",
         "@procomun/db": "workspace:*",
         "@tus/file-store": "2.0.0",
         "@tus/server": "2.3.0",
@@ -32,7 +32,7 @@
       "name": "@procomun/cli",
       "version": "0.1.0",
       "dependencies": {
-        "@electric-sql/pglite": "0.4.4",
+        "@electric-sql/pglite": "0.4.5",
         "@procomun/db": "workspace:*",
         "better-auth": "1.6.5",
         "postgres": "3.4.9",
@@ -42,7 +42,7 @@
       "name": "@procomun/frontend",
       "version": "0.1.0",
       "dependencies": {
-        "@electric-sql/pglite": "0.4.4",
+        "@electric-sql/pglite": "0.4.5",
         "@inlang/paraglide-js": "^2.15.1",
         "@procomun/db": "workspace:*",
         "@testing-library/dom": "^10.4.1",
@@ -67,7 +67,7 @@
       "name": "@procomun/db",
       "version": "0.1.0",
       "dependencies": {
-        "@electric-sql/pglite": "0.4.4",
+        "@electric-sql/pglite": "0.4.5",
         "@faker-js/faker": "10.4.0",
         "drizzle-orm": "0.45.2",
       },
@@ -104,7 +104,7 @@
 
     "@drizzle-team/brocli": ["@drizzle-team/brocli@0.10.2", "", {}, "sha512-z33Il7l5dKjUgGULTqBsQBQwckHh5AbIuxhdsIxDDiZAzBOrZO6q9ogcWC65kU382AfynTfgNumVcNIjuIua6w=="],
 
-    "@electric-sql/pglite": ["@electric-sql/pglite@0.4.4", "", {}, "sha512-g/6CWAJ4XOkObWCWAQ2IReZD8VvsDy3poRHSKvpRR2F96F8WJ3HVbjpso3gN7l0q6QPPgvxSSpl/qo5k8a7mkQ=="],
+    "@electric-sql/pglite": ["@electric-sql/pglite@0.4.5", "", {}, "sha512-aGG2zGEyZzGWKy8P+9ZoNUV0jxt1+hgbeTf+bVAYyxVZZLXg3/9aFlfLxb08AYZVAfAkQlQIysmWjhc5hwDG8g=="],
 
     "@esbuild-kit/core-utils": ["@esbuild-kit/core-utils@3.3.2", "", { "dependencies": { "esbuild": "~0.18.20", "source-map-support": "^0.5.21" } }, "sha512-sPRAnw9CdSsRmEtnsl2WXWdyquogVpB3yZ3dgwJfe8zrOzTsV7cJvmwrKVa+0ma5BoiGJ+BoqkMvawbayKUsqQ=="],
 

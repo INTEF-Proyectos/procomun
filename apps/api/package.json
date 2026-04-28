@@ -9,7 +9,7 @@
 		"test": "bun test"
 	},
 	"dependencies": {
-		"@electric-sql/pglite": "0.4.4",
+		"@electric-sql/pglite": "0.4.5",
 		"@procomun/db": "workspace:*",
 		"@tus/file-store": "2.0.0",
 		"@tus/server": "2.3.0",
