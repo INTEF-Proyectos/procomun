@@ -139,3 +139,9 @@ ADR-0021:
   status: Aceptado
   date: 2026-04-12
   file: 0021-servicio-canonico-unificado-api-frontend.md
+
+ADR-0022:
+  title: "DESIGN.md como contrato de diseño para agentes IA"
+  status: Aceptado
+  date: 2026-04-24
+  file: 0022-design-md-contrato-diseno.md

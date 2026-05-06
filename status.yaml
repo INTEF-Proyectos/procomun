@@ -706,3 +706,22 @@ tasks:
       La decisión no introduce cambios de runtime en esta rama; formaliza la topología vigente y descarta,
       por ahora, integrar Vite middleware dentro de Hono.
       Se actualiza también el índice de ADRs y la copia de decision-log usada por el dashboard /dev/.
+
+  T-2026-04-24-001:
+    date: 2026-04-24
+    agent: "evaluacion-tecnologica + frontend-ux-accesibilidad + documentacion-y-roadmap"
+    task: "Issue #137: integración de DESIGN.md como contrato derivado del sistema de diseño"
+    status: Done
+    related: [ADR-0022]
+    notes: >
+      Se crea ADR-0022 para adoptar DESIGN.md como contrato derivado y validado, no como fuente primaria
+      de estilos mientras la especificación de Google Labs/Stitch siga en alpha.
+      Se añade DESIGN.md en la raíz con tokens, componentes base, reglas de accesibilidad y guía de uso
+      para agentes IA.
+      Se añade bun run design:lint mediante scripts/check-design-md.ts y su test unitario asociado para
+      validar estructura mínima y sincronización de tokens críticos con design-tokens.css.
+      Se revisa VoltAgent/awesome-design-md para incorporar ideas estructurales: secciones extendidas,
+      profundidad/elevación, responsive, guía rápida para agentes y posible preview visual futuro.
+      Se revisa getdesign.md como referencia para catalogar contratos visuales con categorías, tarjetas,
+      metadatos de actualización y previews si se crea una página interna futura.
+      La feature queda documentada en docs/epics/epic-003/features/feature-design-md-contrato-diseno/.

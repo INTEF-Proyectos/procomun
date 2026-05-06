@@ -27,7 +27,7 @@ describe("React islands CRUD pilot", () => {
 			/>,
 		);
 
-		expect(html).toContain("<table>");
+		expect(html).toContain('<table class="admin-table">');
 		expect(html).toContain("Sin resultados");
 	});
 

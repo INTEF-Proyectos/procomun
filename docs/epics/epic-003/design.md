@@ -116,6 +116,17 @@ GET    /api/v1/users/me/favorites          → user's saved resources
 GET    /api/v1/users/me/dashboard          → dashboard summary
 ```
 
+## Actualizacion 2026-04-24: contrato DESIGN.md
+
+Se anade la feature `feature-design-md-contrato-diseno` para formalizar el sistema de diseno como contrato raiz consumible por agentes IA y herramientas compatibles con la especificacion `DESIGN.md` de Google Labs/Stitch.
+
+La decision queda registrada en ADR-0022. En esta iteracion `DESIGN.md` es un artefacto derivado y validado desde el sistema existente, no la fuente primaria de estilos. La fuente operativa sigue siendo `apps/frontend/src/styles/design-tokens.css` y los componentes de `apps/frontend/src/ui/`.
+
+Validacion asociada:
+
+* `bun run design:lint`
+* `bun test`
+
 ## File Tree of New/Modified Files
 
 ```

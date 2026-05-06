@@ -157,6 +157,10 @@ export function PublicNavIsland() {
   if (loading) {
     return (
       <div className="pnav-actions">
+        <a href={helpHref} className="pnav-nav-link">
+          <span className="material-symbols-outlined pnav-btn-icon" aria-hidden="true">help</span>
+          {m.footer_help()}
+        </a>
         <LanguageSwitcher />
         <div className="pnav-placeholder" aria-hidden="true" />
       </div>
@@ -167,6 +171,10 @@ export function PublicNavIsland() {
   if (!user) {
     return (
       <div className="pnav-actions">
+        <a href={helpHref} className="pnav-nav-link">
+          <span className="material-symbols-outlined pnav-btn-icon" aria-hidden="true">help</span>
+          {m.footer_help()}
+        </a>
         <LanguageSwitcher />
         <a href={url("login")} className="pnav-btn-acceder">{m.nav_login()}</a>
         <a href={url("login")} className="pnav-btn-publicar">{m.nav_publish()}</a>
@@ -183,6 +191,10 @@ export function PublicNavIsland() {
   return (
     <div className="pnav-actions">
       {/* Extra nav links visible only when authenticated */}
+      <a href={helpHref} className="pnav-nav-link">
+        <span className="material-symbols-outlined pnav-btn-icon" aria-hidden="true">help</span>
+        {m.footer_help()}
+      </a>
       <a href={url("perfil?tab=resources")} className="pnav-nav-link">{m.nav_my_resources()}</a>
       {isHighRole && (
         <a href={url("admin")} className="pnav-nav-link">{m.nav_admin()}</a>

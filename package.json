@@ -10,6 +10,7 @@
     "dev:frontend": "bun run --filter '@procomun/frontend' dev",
     "lint": "biome lint .",
     "format": "biome format --write .",
+    "design:lint": "bun run scripts/check-design-md.ts",
     "test": "bun run check-test-files && bun run test:standard && bun run check-coverage",
     "check-test-files": "bun run scripts/check-test-files.ts",
     "test:standard": "bun run test:unit && bun run test:integration",
