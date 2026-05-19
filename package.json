@@ -26,7 +26,7 @@
     "packages/*"
   ],
   "devDependencies": {
-    "@types/bun": "1.3.13",
+    "@types/bun": "1.3.14",
     "@playwright/test": "1.60.0",
     "biome": "0.3.3",
     "typescript": "6.0.3"
