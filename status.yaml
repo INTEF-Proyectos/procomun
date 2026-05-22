@@ -794,3 +794,30 @@ tasks:
       dispositivo, log detallado, registro de defectos, evidencias, datos creados, accesibilidad,
       rendimiento percibido, defectos esperables, retest y cierre. Se enlaza la plantilla desde
       el plan maestro. No hay cambios de codigo; se valida el parseo de status.yaml.
+
+  T-2026-05-22-006:
+    date: 2026-05-22
+    agent: "qa-validacion + documentacion-y-roadmap + project-manager"
+    task: "Simplificacion de la plantilla de ejecucion manual y adaptacion del resultado de pruebas en curso"
+    status: Done
+    related: []
+    notes: >
+      Se simplifica docs/casos/plan-pruebas-manuales-procomun-ng/plantilla-ejecucion.md para dejar
+      solo datos de la prueba, matriz de ejecucion por caso y defectos encontrados. Se adapta
+      docs/casos/plan-pruebas-manuales-procomun-ng/resultado-pruebas-ejecucion_2026-05-22.md al
+      nuevo formato, preservando los casos ya marcados como OK/Fallo/Pendiente y los defectos DEF-001
+      a DEF-004 identificados durante la ejecucion manual. No hay cambios de codigo; se valida el
+      parseo de status.yaml.
+
+  T-2026-05-22-007:
+    date: 2026-05-22
+    agent: "github:github + qa-validacion + project-manager"
+    task: "Creacion de issues GitHub desde defectos de la ejecucion manual MANUAL-2026-05-22-01"
+    status: Done
+    related: []
+    notes: >
+      Se crean cinco issues en GitHub a partir de los defectos registrados en
+      docs/casos/plan-pruebas-manuales-procomun-ng/resultado-pruebas-ejecucion_2026-05-22.md:
+      DEF-001 -> #152, DEF-002 -> #153, DEF-003 -> #154, DEF-004 -> #155 y DEF-005 -> #156.
+      Se actualiza el resultado de pruebas local para enlazar cada defecto con su issue GitHub.
+      No hay cambios de codigo; se valida el parseo de status.yaml.
