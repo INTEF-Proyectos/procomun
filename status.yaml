@@ -725,3 +725,58 @@ tasks:
       Se revisa getdesign.md como referencia para catalogar contratos visuales con categorías, tarjetas,
       metadatos de actualización y previews si se crea una página interna futura.
       La feature queda documentada en docs/epics/epic-003/features/feature-design-md-contrato-diseno/.
+
+  T-2026-05-22-001:
+    date: 2026-05-22
+    agent: "empresa-y-producto + documentacion-y-roadmap + project-manager"
+    task: "Caso documental: inventario funcional de la versión actual de Procomún como punto de partida de producto"
+    status: Done
+    related: []
+    notes: >
+      Se crea docs/casos/inventario-funcional-procomun-actual/README.md con inventario de funcionalidades
+      observadas o documentadas de la versión pública actual de Procomún. El documento incluye volumetría
+      visible en portada, capacidades por área funcional, limitaciones de verificación, funcionalidades
+      pendientes de contrastar con cuenta real y una primera separación entre funcionalidades a conservar,
+      mejorar o decidir para procomun-ng. No hay cambios de código ni ADR técnica asociada.
+
+  T-2026-05-22-002:
+    date: 2026-05-22
+    agent: "empresa-y-producto + documentacion-y-roadmap + project-manager"
+    task: "Caso documental: inventario funcional de la versión actual de procomun-ng desarrollada en el repositorio"
+    status: Done
+    related: []
+    notes: >
+      Se crea docs/casos/inventario-funcional-procomun-ng-actual/README.md con inventario funcional
+      derivado de código y documentación local. El documento enumera capacidades implementadas, capacidades
+      parciales, APIs públicas y administrativas, módulos de frontend/backoffice, modelo de datos, integración
+      eXeLearning, subidas resumables, social ligero y gaps frente a Procomún actual. No se ejecutan tests
+      porque no hay cambios de código; se valida el parseo de status.yaml.
+
+  T-2026-05-22-003:
+    date: 2026-05-22
+    agent: "empresa-y-producto + documentacion-y-roadmap + project-manager"
+    task: "Matriz de decisión funcional Procomún actual vs procomun-ng y priorización de Fase 2"
+    status: Done
+    related: []
+    notes: >
+      Se crea docs/casos/matriz-decision-funcional-procomun/README.md cruzando el inventario funcional
+      de Procomún actual con el inventario funcional de procomun-ng. La matriz clasifica cada capacidad
+      como mantener como esta, mejorar antes de migrar, implementar porque falta, descartar o sustituir,
+      o validar con usuario/INTEF. Se priorizan para Fase 2 busqueda/facetas, metadatos completos,
+      migracion legacy, Banco Multimedia, itinerarios y decision sobre comunidades/articulos. Se actualiza
+      docs/producto/roadmap.md con una seccion fechada que convierte la matriz en orden recomendado de
+      epicas. No hay cambios de codigo ni ADR tecnica asociada.
+
+  T-2026-05-22-004:
+    date: 2026-05-22
+    agent: "qa-validacion + documentacion-y-roadmap + project-manager"
+    task: "Plan de pruebas manuales integral para validar procomun-ng mas alla de tests automatizados"
+    status: Done
+    related: []
+    notes: >
+      Se crea docs/casos/plan-pruebas-manuales-procomun-ng/README.md con plan de validacion manual
+      de toda la aplicacion: preparacion de entorno, cuentas demo, criterios de aceptacion, plantilla
+      de ejecucion, navegacion publica, catalogo, ficha de recurso, autenticacion, registro, perfil,
+      creacion/edicion de recursos, flujo editorial por roles, uploads, eXeLearning, colecciones,
+      backoffice, taxonomias, usuarios, permisos, API smoke, accesibilidad, responsive, rendimiento
+      percibido y regresion final. No hay cambios de codigo; se valida el parseo de status.yaml.

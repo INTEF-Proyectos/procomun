@@ -343,3 +343,54 @@ La documentación histórica de marzo describe correctamente una fase anterior d
 
 - 350 tests pasando, 0 fallos.
 - Seed idempotente verificado con IDs actualizados.
+
+## Actualizacion 2026-05-22 — Priorizacion de Fase 2 desde matriz funcional
+
+### Fuente de priorizacion
+
+Se crea `docs/casos/matriz-decision-funcional-procomun/README.md` cruzando:
+
+- inventario funcional de Procomun actual,
+- inventario funcional de `procomun-ng`,
+- contexto legacy y requisitos funcionales ya documentados,
+- estado previo del roadmap.
+
+La matriz usa cinco decisiones por funcionalidad: `mantener como esta`, `mejorar antes de migrar`, `implementar porque falta`, `descartar o sustituir` y `validar con usuario/INTEF`.
+
+### Lectura ejecutiva para Fase 2
+
+Fase 2 debe tratar la migracion como una iniciativa de calidad de producto, no solo como carga de datos. Antes de migrar en volumen, el roadmap debe cerrar busqueda/facetas, metadatos completos, estrategia ETL, decision de Banco Multimedia, experiencia de itinerarios y decision sobre comunidades/articulos.
+
+### Orden recomendado de epicas Fase 2
+
+| Orden | Epica recomendada | Prioridad | Motivo |
+|-------|-------------------|-----------|--------|
+| 1 | Busqueda, facetas y relevancia Fase 2 | P0 | Sin materia, nivel/contexto, etiquetas, conteos, ordenacion real y relevancia documentada, el catalogo migrado sera dificil de descubrir. |
+| 2 | Perfil de metadatos y calidad editorial | P0 | La migracion necesita mapeo legacy -> `procomun-ng`, obligatoriedad por tipo, validacion editorial y taxonomias gobernables. |
+| 3 | Migracion legacy Procomun | P0 | Falta ETL real, importacion piloto, deduplicacion, trazabilidad, rollback y decision sobre usuarios/autoria historica. |
+| 4 | Banco Multimedia | P0/P1 | Falta decidir modelo de producto y crear MVP para media reutilizable, busqueda, licencia, descarga, contribucion y moderacion. |
+| 5 | Itinerarios y colecciones didacticas | P1 | Las colecciones actuales son buena base, pero no cubren itinerarios legacy con narrativa, pasos, clonacion y posible inclusion de articulos. |
+| 6 | Comunidades, articulos y comunicacion editorial | P1/P2 | Requieren decision INTEF: implementar, sustituir por CMS/canales externos/curacion editorial o excluir del alcance. |
+| 7 | Moderacion y backoffice editorial avanzado | P1 | El backoffice MVP debe evolucionar a colas, motivos de rechazo, informes, revision de calidad y acciones masivas. |
+| 8 | Interoperabilidad y apertura | P2 | OAI-PMH, exportacion bulk y documentacion API deben llegar tras cerrar metadatos y migracion base. |
+
+### Decisiones pendientes con usuario/INTEF
+
+- Migracion completa frente a migracion selectiva por calidad, licencia, uso o valor curricular.
+- Tratamiento de usuarios historicos: cuentas activas, autores preservados, atribucion anonima o remapeo institucional.
+- Banco Multimedia como producto independiente o como vista especializada de `media_items`.
+- Articulos dentro de `procomun-ng`, en CMS externo o fuera del alcance.
+- Comunidades como red social docente o sustitucion por colecciones, taxonomias y curacion editorial.
+- Formatos legacy obligatorios: SCORM 1.2, SCORM 2004, IMS, ePUB, HTML y/o `.elpx`.
+- App movil nativa frente a web responsive/PWA.
+
+### Ajuste recomendado del estado de Fase 2
+
+La tabla historica de Fase 2 sigue siendo valida como fotografia previa, pero la nueva matriz aconseja tratar como bloqueantes inmediatos:
+
+1. `Busqueda y facetas completas`.
+2. `Metadatos completos y calidad editorial`.
+3. `Migracion legacy con ETL trazable`.
+4. `Decision y MVP de Banco Multimedia`.
+5. `Itinerarios sobre colecciones ordenadas`.
+6. `Decision sobre comunidades y articulos`.
