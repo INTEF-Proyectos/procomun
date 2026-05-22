@@ -780,3 +780,17 @@ tasks:
       creacion/edicion de recursos, flujo editorial por roles, uploads, eXeLearning, colecciones,
       backoffice, taxonomias, usuarios, permisos, API smoke, accesibilidad, responsive, rendimiento
       percibido y regresion final. No hay cambios de codigo; se valida el parseo de status.yaml.
+
+  T-2026-05-22-005:
+    date: 2026-05-22
+    agent: "qa-validacion + documentacion-y-roadmap + project-manager"
+    task: "Plantilla de ejecucion para las pruebas manuales de procomun-ng"
+    status: Done
+    related: []
+    notes: >
+      Se crea docs/casos/plan-pruebas-manuales-procomun-ng/plantilla-ejecucion.md como plantilla
+      reutilizable para cada ronda de QA manual. Incluye ficha de ejecucion, cuentas usadas,
+      checklist previa, resumen ejecutivo, matriz MP-01 a MP-20, cobertura por navegador y
+      dispositivo, log detallado, registro de defectos, evidencias, datos creados, accesibilidad,
+      rendimiento percibido, defectos esperables, retest y cierre. Se enlaza la plantilla desde
+      el plan maestro. No hay cambios de codigo; se valida el parseo de status.yaml.

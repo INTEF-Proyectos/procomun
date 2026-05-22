@@ -96,6 +96,8 @@ Una prueba manual se considera correcta si:
 
 ## Plantilla de ejecucion
 
+Plantilla reutilizable: `docs/casos/plan-pruebas-manuales-procomun-ng/plantilla-ejecucion.md`.
+
 Usar una fila por caso ejecutado:
 
 | Caso | Rol | Navegador | Resultado | Evidencia | Defecto |
