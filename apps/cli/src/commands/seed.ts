@@ -97,7 +97,7 @@ export async function seedWithClient(
 		await client.query(`DELETE FROM "upload_sessions" WHERE resource_id IN ${resIn.sql}`, resIn.params);
 		await client.query(`DELETE FROM "media_items" WHERE resource_id IN ${resIn.sql}`, resIn.params);
 		await client.query(`DELETE FROM "resources" WHERE id IN ${resIn.sql}`, resIn.params);
-		// Nullify created_by for non-seed resources that still reference demo users
+		// Nullify user references for non-seed resources that still point to demo users
 		// (e.g. resources created manually during testing) to avoid FK violations on user delete.
 		// Build IN clauses with correct parameter offsets so they don't overlap.
 		const usrIn2 = inClause(ALL_SEED_USER_IDS);
@@ -105,6 +105,12 @@ export async function seedWithClient(
 		await client.query(
 			`UPDATE "resources" SET created_by = NULL WHERE created_by IN ${usrIn2.sql} AND id NOT IN ${resIn2.sql}`,
 			[...usrIn2.params, ...resIn2.params],
+		);
+		const usrIn3 = inClause(ALL_SEED_USER_IDS);
+		const resIn3 = inClause(ALL_SEED_RESOURCE_IDS, ALL_SEED_USER_IDS.length + 1);
+		await client.query(
+			`UPDATE "resources" SET assigned_curator_id = NULL WHERE assigned_curator_id IN ${usrIn3.sql} AND id NOT IN ${resIn3.sql}`,
+			[...usrIn3.params, ...resIn3.params],
 		);
 		await client.query(`DELETE FROM "session" WHERE user_id IN ${usrIn.sql}`, usrIn.params);
 		await client.query(`DELETE FROM "account" WHERE user_id IN ${usrIn.sql}`, usrIn.params);

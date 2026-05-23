@@ -52,6 +52,9 @@ describe("seedWithClient", { timeout: 60_000 }, () => {
 		expect(calls.some((c) => c.statement.includes('DELETE FROM "ratings"'))).toBe(true);
 		expect(calls.some((c) => c.statement.includes('DELETE FROM "favorites"'))).toBe(true);
 		expect(calls.some((c) => c.statement.includes('DELETE FROM "downloads"'))).toBe(true);
+		expect(
+			calls.some((c) => c.statement.includes('UPDATE "resources" SET assigned_curator_id = NULL')),
+		).toBe(true);
 
 		// Verifica inserciones
 		expect(calls.filter((c) => c.statement.includes('INSERT INTO "user"')).length).toBe(DEMO_USERS.length);
