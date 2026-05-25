@@ -35,6 +35,12 @@ describe("auth roles helpers", () => {
 				{ id: "curator-1", role: "curator" },
 				{ createdBy: "author-1", assignedCuratorId: "curator-1", editorialStatus: "published" },
 			),
+		).toBe(false);
+		expect(
+			canManageResource(
+				{ id: "curator-1", role: "curator" },
+				{ createdBy: "author-1", assignedCuratorId: "curator-1", editorialStatus: "review" },
+			),
 		).toBe(true);
 		expect(
 			canManageResource(

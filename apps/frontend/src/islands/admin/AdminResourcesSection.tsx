@@ -1,5 +1,5 @@
 import { startTransition, useEffect, useState } from "react";
-import type { Resource } from "../../lib/api-client.ts";
+import type { Resource, SessionData } from "../../lib/api-client.ts";
 import { getApiClient } from "../../lib/get-api-client.ts";
 import { url } from "../../lib/paths.ts";
 import { ConfirmDialog } from "../shared/ConfirmDialog.tsx";
@@ -82,6 +82,7 @@ function getInitials(name: string): string {
 
 export function AdminResourcesSection() {
 	const [rows, setRows] = useState<Resource[]>([]);
+	const [session, setSession] = useState<SessionData | null>(null);
 	const [search, setSearch] = useState("");
 	const [statusFilter, setStatusFilter] = useState("");
 	const [page, setPage] = useState(1);
@@ -142,9 +143,21 @@ export function AdminResourcesSection() {
 	}
 
 	useEffect(() => {
-		void loadStats();
-		void loadResources(1, "", "");
+		void (async () => {
+			try {
+				const api = await getApiClient();
+				setSession(await api.getSession());
+			} catch {
+				setSession(null);
+			}
+			await loadStats();
+			await loadResources(1, "", "");
+		})();
 	}, []);
+
+	const currentRole = session?.user.role ?? "reader";
+	const canEditResource = (resource: Resource) =>
+		currentRole === "admin" || (currentRole === "curator" && resource.editorialStatus === "review");
 
 	function applySearch() {
 		void loadResources(1, search.trim(), statusFilter);
@@ -271,26 +284,32 @@ export function AdminResourcesSection() {
 			className: "",
 			render: (r) => (
 				<div className="admin-actions-cell">
-					<a
-						href={url(`editar?id=${r.id}`)}
-						className="admin-action-btn admin-action-btn--edit"
-						aria-label={`Editar ${r.title}`}
-					>
-						<span className="material-symbols-outlined">
-							edit
-						</span>
-					</a>
-					<button
-						type="button"
-						className="admin-action-btn admin-action-btn--delete"
-						disabled={busyDelete}
-						onClick={() => setDeleteTarget(r)}
-						aria-label={`Eliminar ${r.title}`}
-					>
-						<span className="material-symbols-outlined">
-							delete
-						</span>
-					</button>
+					{canEditResource(r) ? (
+						<>
+							<a
+								href={url(`editar?id=${r.id}`)}
+								className="admin-action-btn admin-action-btn--edit"
+								aria-label={`Editar ${r.title}`}
+							>
+								<span className="material-symbols-outlined">
+									edit
+								</span>
+							</a>
+							<button
+								type="button"
+								className="admin-action-btn admin-action-btn--delete"
+								disabled={busyDelete}
+								onClick={() => setDeleteTarget(r)}
+								aria-label={`Eliminar ${r.title}`}
+							>
+								<span className="material-symbols-outlined">
+									delete
+								</span>
+							</button>
+						</>
+					) : (
+						<span className="admin-date-cell">Solo lectura</span>
+					)}
 				</div>
 			),
 		},

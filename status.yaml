@@ -835,3 +835,16 @@ tasks:
       apertura y aprobacion del recurso en review por curator. Ademas se elimina la dependencia al binario
       externo zip en la generacion/tests .elpx usando python3 -m zipfile, dejando bun test completo en verde
       con 427 tests OK.
+
+  T-2026-05-25-002:
+    date: 2026-05-25
+    agent: "backend-api-servicios + frontend-ux-accesibilidad + qa-validacion + github:github"
+    task: "Ajuste de alcance del issue #158: el curator lista todos los recursos como admin, pero solo edita los que estan en review"
+    status: Done
+    related: []
+    notes: >
+      Se elimina el filtro de listado para curator en /api/admin/resources para que vea todos los recursos y
+      contadores igual que admin. A la vez, los permisos de gestion del curator se restringen a recursos con
+      editorialStatus review, de modo que draft/published/archived quedan en solo lectura. La tabla de recursos
+      del backoffice oculta las acciones de editar/eliminar cuando el recurso no esta en review para curator.
+      Validacion ejecutada con bun test focalizado y bun test completo en verde (427 pass, 0 fail).

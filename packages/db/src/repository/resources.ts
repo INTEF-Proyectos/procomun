@@ -28,7 +28,6 @@ type ResourceListOptions = {
 	license?: string;
 	createdBy?: string;
 	visibleToUserId?: string;
-	includeReviewQueueForCurator?: boolean;
 };
 
 type ResourceMutationInput = {
@@ -133,14 +132,12 @@ export async function listResources(db: DrizzleDB, opts: ResourceListOptions) {
 	if (opts.license) conditions.push(eq(resources.license, opts.license));
 	if (opts.createdBy) conditions.push(eq(resources.createdBy, opts.createdBy));
 	if (opts.visibleToUserId) {
-		const visibilityConditions = [
-			eq(resources.createdBy, opts.visibleToUserId),
-			eq(resources.assignedCuratorId, opts.visibleToUserId),
-		];
-		if (opts.includeReviewQueueForCurator) {
-			visibilityConditions.push(eq(resources.editorialStatus, "review"));
-		}
-		conditions.push(or(...visibilityConditions));
+		conditions.push(
+			or(
+				eq(resources.createdBy, opts.visibleToUserId),
+				eq(resources.assignedCuratorId, opts.visibleToUserId),
+			),
+		);
 	}
 
 	const where = andWhere(conditions);

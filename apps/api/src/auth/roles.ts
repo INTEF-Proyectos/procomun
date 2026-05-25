@@ -20,11 +20,7 @@ export function canManageResource(
 ) {
 	if (hasMinRole(user.role, "admin")) return true;
 	if (hasMinRole(user.role, "curator")) {
-		return (
-			resource.editorialStatus === "review" ||
-			resource.createdBy === user.id ||
-			resource.assignedCuratorId === user.id
-		);
+		return resource.editorialStatus === "review";
 	}
 	if (hasMinRole(user.role, "author")) {
 		return resource.createdBy === user.id;

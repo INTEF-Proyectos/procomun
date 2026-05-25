@@ -155,7 +155,7 @@ describe("Repository — CRUD completo", () => {
 		expect(result.data.every((resource) => resource.language === "en")).toBe(true);
 	});
 
-	test("listResources incluye cola de review para curator aunque no este asignada", async () => {
+	test("listResources filtra por visibleToUserId para propietarios o curadores asignados", async () => {
 		const authorId = `author-${crypto.randomUUID()}`;
 		const curatorId = `curator-${crypto.randomUUID()}`;
 
@@ -174,16 +174,15 @@ describe("Repository — CRUD completo", () => {
 
 		const resource = await createResource({
 			...baseResource,
-			title: `Review queue ${crypto.randomUUID()}`,
+			title: `Assigned curator ${crypto.randomUUID()}`,
 			createdBy: authorId,
 		});
 
-		await updateEditorialStatus(resource.id, "review", authorId);
+		await updateEditorialStatus(resource.id, "review", curatorId);
 
 		const result = await listResources({
 			status: "review",
 			visibleToUserId: curatorId,
-			includeReviewQueueForCurator: true,
 		});
 
 		expect(result.data.some((item) => item.id === resource.id)).toBe(true);
