@@ -509,7 +509,7 @@ export default function EditarPage() {
                   <iframe
                     src={previewUrl}
                     className="edit-preview-iframe"
-                    sandbox="allow-scripts allow-same-origin allow-popups allow-popups-to-escape-sandbox"
+                    sandbox="allow-scripts allow-popups allow-popups-to-escape-sandbox"
                     loading="lazy"
                     title="Vista previa"
                   />

@@ -23,7 +23,7 @@ function CollectionIframePreview({ src }: { src: string }) {
 	const ref = useIframeScale<HTMLDivElement>({ iframeWidth: 1024, fillWidth: true });
 	return (
 		<div className="col-res-preview" ref={ref}>
-			<iframe src={src} loading="lazy" tabIndex={-1} sandbox="allow-scripts allow-same-origin" title="Vista previa" />
+			<iframe src={src} loading="lazy" tabIndex={-1} sandbox="allow-scripts" title="Vista previa" />
 		</div>
 	);
 }

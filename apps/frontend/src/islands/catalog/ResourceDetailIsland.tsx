@@ -367,7 +367,7 @@ function ResourceDetailContent({ resource, session, stats, isFavorited, onDownlo
                 <iframe
                   src={resource.elpxPreview!.previewUrl}
                   className="elpx-preview-iframe"
-                  sandbox="allow-scripts allow-same-origin allow-popups allow-popups-to-escape-sandbox"
+                  sandbox="allow-scripts allow-popups allow-popups-to-escape-sandbox"
                   referrerPolicy="no-referrer"
                   loading="lazy"
                   title={m.detail_preview_iframe()}
