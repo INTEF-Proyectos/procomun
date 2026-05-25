@@ -40,7 +40,7 @@ const DEFAULT_LISTING_STATE: ListingState = {
 };
 
 function getResourceIcon(type: string) {
-	return TYPE_ICONS[type] ?? "&#128196;";
+	return TYPE_ICONS[type] ?? "📄";
 }
 
 function renderPaginationPages(currentPage: number, totalPages: number): Array<number | "..."> {
@@ -134,8 +134,9 @@ function ResourceCard({ resource, initialFavorited = false, isLoggedIn = false, 
 					<div
 						style={{ fontSize: "3rem", opacity: 0.4 }}
 						aria-hidden="true"
-						dangerouslySetInnerHTML={{ __html: getResourceIcon(resource.resourceType) }}
-					/>
+					>
+						{getResourceIcon(resource.resourceType)}
+					</div>
 					{badgeOverlay}
 				</div>
 			)}
