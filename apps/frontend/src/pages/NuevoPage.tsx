@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { getApiClient } from "../lib/get-api-client.ts";
 import { url } from "../lib/paths.ts";
+import { LANGUAGE_OPTIONS, LICENSE_OPTIONS } from "../islands/resources/resource-form-options.ts";
 import "../styles/nuevo.css";
 
 interface ResourceFormState {
@@ -32,6 +33,9 @@ const EMPTY_FORM: ResourceFormState = {
   keywords: "",
 };
 
+const ALLOWED_LANGUAGES = new Set(LANGUAGE_OPTIONS.map((option) => option.value));
+const ALLOWED_LICENSES = new Set(LICENSE_OPTIONS.map((option) => option.value));
+
 export function applyElpxMetadataToForm(
   current: ResourceFormState,
   metadata: ElpxMetadata,
@@ -41,8 +45,8 @@ export function applyElpxMetadataToForm(
     title: metadata.title || current.title,
     description: metadata.description || current.description,
     author: metadata.author || current.author,
-    language: metadata.language || current.language,
-    license: metadata.license || current.license,
+    language: metadata.language && ALLOWED_LANGUAGES.has(metadata.language) ? metadata.language : current.language,
+    license: metadata.license && ALLOWED_LICENSES.has(metadata.license) ? metadata.license : current.license,
     resourceType: "actividad-interactiva",
   };
 }

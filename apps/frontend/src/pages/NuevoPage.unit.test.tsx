@@ -57,4 +57,32 @@ describe("NuevoPage helpers", () => {
 			keywords: "manual",
 		});
 	});
+
+	test("applyElpxMetadataToForm conserva defaults si el .elpx trae language o license no validos", () => {
+		const result = applyElpxMetadataToForm(
+			{
+				title: "",
+				description: "",
+				author: "",
+				language: "es",
+				license: "cc-by",
+				resourceType: "documento",
+				keywords: "",
+			},
+			{
+				language: "es-ES",
+				license: "creative commons: attribution - share alike 4.0",
+			},
+		);
+
+		expect(result).toEqual({
+			title: "",
+			description: "",
+			author: "",
+			language: "es",
+			license: "cc-by",
+			resourceType: "actividad-interactiva",
+			keywords: "",
+		});
+	});
 });
