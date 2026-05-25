@@ -7,8 +7,29 @@ const taxonomyRoutes = buildCrudRoutes({
 	baseRole: "curator",
 	list: (db, opts) => repo.listTaxonomies(db, opts as Parameters<typeof repo.listTaxonomies>[1]),
 	getById: repo.getTaxonomyById,
-	create: (db, data) => repo.createTaxonomy(db, data as Parameters<typeof repo.createTaxonomy>[1]),
-	update: (db, id, data) => repo.updateTaxonomy(db, id, data as Parameters<typeof repo.updateTaxonomy>[2]),
+	create: async (db, data) => {
+		const d = data as Parameters<typeof repo.createTaxonomy>[1];
+		if (d.parentId) {
+			const parent = await repo.getTaxonomyById(db, d.parentId);
+			if (!parent) {
+				throw new Error("PARENT_NOT_FOUND");
+			}
+		}
+		return repo.createTaxonomy(db, d);
+	},
+	update: async (db, id, data) => {
+		const d = data as Parameters<typeof repo.updateTaxonomy>[2];
+		if (d.parentId) {
+			const parent = await repo.getTaxonomyById(db, d.parentId);
+			if (!parent) {
+				throw new Error("PARENT_NOT_FOUND");
+			}
+			if (d.parentId === id) {
+				throw new Error("PARENT_SELF_REFERENCE");
+			}
+		}
+		return repo.updateTaxonomy(db, id, d);
+	},
 	remove: repo.deleteTaxonomy,
 	validateCreate: validateTaxonomy,
 	validateUpdate: validateTaxonomy,
