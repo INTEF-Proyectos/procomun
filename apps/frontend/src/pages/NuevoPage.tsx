@@ -2,7 +2,54 @@ import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { getApiClient } from "../lib/get-api-client.ts";
 import { url } from "../lib/paths.ts";
+import { LANGUAGE_OPTIONS, LICENSE_OPTIONS } from "../islands/resources/resource-form-options.ts";
 import "../styles/nuevo.css";
+
+interface ResourceFormState {
+  title: string;
+  description: string;
+  author: string;
+  language: string;
+  license: string;
+  resourceType: string;
+  keywords: string;
+}
+
+interface ElpxMetadata {
+  title?: string;
+  description?: string;
+  author?: string;
+  language?: string;
+  license?: string;
+}
+
+const EMPTY_FORM: ResourceFormState = {
+  title: "",
+  description: "",
+  author: "",
+  language: "es",
+  license: "cc-by",
+  resourceType: "documento",
+  keywords: "",
+};
+
+const ALLOWED_LANGUAGES = new Set(LANGUAGE_OPTIONS.map((option) => option.value));
+const ALLOWED_LICENSES = new Set(LICENSE_OPTIONS.map((option) => option.value));
+
+export function applyElpxMetadataToForm(
+  current: ResourceFormState,
+  metadata: ElpxMetadata,
+): ResourceFormState {
+  return {
+    ...current,
+    title: metadata.title || current.title,
+    description: metadata.description || current.description,
+    author: metadata.author || current.author,
+    language: metadata.language && ALLOWED_LANGUAGES.has(metadata.language) ? metadata.language : current.language,
+    license: metadata.license && ALLOWED_LICENSES.has(metadata.license) ? metadata.license : current.license,
+    resourceType: "actividad-interactiva",
+  };
+}
 
 export default function NuevoPage() {
   const navigate = useNavigate();
@@ -22,14 +69,8 @@ export default function NuevoPage() {
   const [submitBtnText, setSubmitBtnText] = useState("Crear recurso");
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [invalidFields, setInvalidFields] = useState<Set<string>>(new Set());
+  const [form, setForm] = useState<ResourceFormState>(EMPTY_FORM);
 
-  const titleRef = useRef<HTMLInputElement>(null);
-  const descriptionRef = useRef<HTMLTextAreaElement>(null);
-  const authorRef = useRef<HTMLInputElement>(null);
-  const languageRef = useRef<HTMLSelectElement>(null);
-  const licenseRef = useRef<HTMLSelectElement>(null);
-  const resourceTypeRef = useRef<HTMLSelectElement>(null);
-  const keywordsRef = useRef<HTMLInputElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const storedElpxFileRef = useRef<File | null>(null);
 
@@ -65,6 +106,16 @@ export default function NuevoPage() {
     setInvalidFields(invalid);
   }
 
+  function setFieldValue(field: keyof ResourceFormState, value: string) {
+    setForm((current) => ({ ...current, [field]: value }));
+    setFieldErrors((current) => ({ ...current, [field]: "" }));
+    setInvalidFields((current) => {
+      const next = new Set(current);
+      next.delete(field);
+      return next;
+    });
+  }
+
   async function handleSkipElpx() {
     setSkipBtnDisabled(true);
     setSkipBtnText("Creando…");
@@ -95,23 +146,12 @@ export default function NuevoPage() {
         return;
       }
       const result = await res.json();
-      const metadata: Record<string, string> = result.metadata;
+      const metadata: ElpxMetadata = result.metadata;
       const filename: string = result.filename;
       storedElpxFileRef.current = file;
+      setForm((current) => applyElpxMetadataToForm(current, metadata));
       setShowElpxDrawer(false);
       setShowForm(true);
-      if (metadata.title && titleRef.current) titleRef.current.value = metadata.title;
-      if (metadata.description && descriptionRef.current) descriptionRef.current.value = metadata.description;
-      if (metadata.author && authorRef.current) authorRef.current.value = metadata.author;
-      if (metadata.language && languageRef.current) {
-        const opt = languageRef.current.querySelector(`option[value="${metadata.language}"]`);
-        if (opt) languageRef.current.value = metadata.language;
-      }
-      if (metadata.license && licenseRef.current) {
-        const opt = licenseRef.current.querySelector(`option[value="${metadata.license}"]`);
-        if (opt) licenseRef.current.value = metadata.license;
-      }
-      if (resourceTypeRef.current) resourceTypeRef.current.value = "actividad-interactiva";
       setElpxSuccessBanner(`Metadatos extraídos de ${filename || file.name}. Revisa y crea el recurso.`);
     } catch {
       setElpxError("Error al analizar el archivo");
@@ -148,13 +188,13 @@ export default function NuevoPage() {
     clearFieldErrors();
 
     const body = {
-      title: titleRef.current?.value ?? "",
-      description: descriptionRef.current?.value ?? "",
-      language: languageRef.current?.value ?? "es",
-      license: licenseRef.current?.value ?? "cc-by",
-      resourceType: resourceTypeRef.current?.value ?? "documento",
-      author: authorRef.current?.value || undefined,
-      keywords: keywordsRef.current?.value || undefined,
+      title: form.title,
+      description: form.description,
+      language: form.language,
+      license: form.license,
+      resourceType: form.resourceType,
+      author: form.author || undefined,
+      keywords: form.keywords || undefined,
     };
 
     setSubmitBtnDisabled(true);
@@ -256,30 +296,32 @@ export default function NuevoPage() {
       {showForm && (
         <form className="new-resource-form" onSubmit={handleSubmit} noValidate>
           <div className="form-field">
-            <label htmlFor="title">Título *</label>
-            <input
-              type="text"
-              id="title"
-              ref={titleRef}
-              required
-              aria-describedby="title-error"
-              aria-invalid={invalidFields.has("title") ? "true" : undefined}
-              placeholder="Nombre del recurso educativo"
-            />
+              <label htmlFor="title">Título *</label>
+              <input
+                type="text"
+                id="title"
+                required
+                aria-describedby="title-error"
+                aria-invalid={invalidFields.has("title") ? "true" : undefined}
+                placeholder="Nombre del recurso educativo"
+                value={form.title}
+                onChange={(event) => setFieldValue("title", event.currentTarget.value)}
+              />
             <span id="title-error" className="field-error" role="alert">{fieldErrors.title ?? ""}</span>
           </div>
 
           <div className="form-field">
             <label htmlFor="description">Descripción *</label>
-            <textarea
-              id="description"
-              ref={descriptionRef}
-              rows={4}
-              required
-              aria-describedby="description-error"
-              aria-invalid={invalidFields.has("description") ? "true" : undefined}
-              placeholder="Describe el contenido, objetivos y destinatarios del recurso..."
-            />
+              <textarea
+                id="description"
+                rows={4}
+                required
+                aria-describedby="description-error"
+                aria-invalid={invalidFields.has("description") ? "true" : undefined}
+                placeholder="Describe el contenido, objetivos y destinatarios del recurso..."
+                value={form.description}
+                onChange={(event) => setFieldValue("description", event.currentTarget.value)}
+              />
             <span id="description-error" className="field-error" role="alert">{fieldErrors.description ?? ""}</span>
           </div>
 
@@ -288,10 +330,11 @@ export default function NuevoPage() {
               <label htmlFor="language">Idioma *</label>
               <select
                 id="language"
-                ref={languageRef}
                 required
                 aria-describedby="language-error"
                 aria-invalid={invalidFields.has("language") ? "true" : undefined}
+                value={form.language}
+                onChange={(event) => setFieldValue("language", event.currentTarget.value)}
               >
                 <option value="es">Español</option>
                 <option value="en">Inglés</option>
@@ -306,10 +349,11 @@ export default function NuevoPage() {
               <label htmlFor="license">Licencia *</label>
               <select
                 id="license"
-                ref={licenseRef}
                 required
                 aria-describedby="license-error"
                 aria-invalid={invalidFields.has("license") ? "true" : undefined}
+                value={form.license}
+                onChange={(event) => setFieldValue("license", event.currentTarget.value)}
               >
                 <option value="cc-by">CC BY</option>
                 <option value="cc-by-sa">CC BY-SA</option>
@@ -325,10 +369,11 @@ export default function NuevoPage() {
             <label htmlFor="resourceType">Tipo de recurso *</label>
             <select
               id="resourceType"
-              ref={resourceTypeRef}
               required
               aria-describedby="resourceType-error"
               aria-invalid={invalidFields.has("resourceType") ? "true" : undefined}
+              value={form.resourceType}
+              onChange={(event) => setFieldValue("resourceType", event.currentTarget.value)}
             >
               <option value="documento">Documento</option>
               <option value="presentacion">Presentación</option>
@@ -349,9 +394,10 @@ export default function NuevoPage() {
             <input
               type="text"
               id="author"
-              ref={authorRef}
               aria-describedby="author-error"
               placeholder="Nombre del autor"
+              value={form.author}
+              onChange={(event) => setFieldValue("author", event.currentTarget.value)}
             />
             <span id="author-error" className="field-error" role="alert">{fieldErrors.author ?? ""}</span>
           </div>
@@ -361,9 +407,10 @@ export default function NuevoPage() {
             <input
               type="text"
               id="keywords"
-              ref={keywordsRef}
               placeholder="matemáticas, fracciones, visual"
               aria-describedby="keywords-error"
+              value={form.keywords}
+              onChange={(event) => setFieldValue("keywords", event.currentTarget.value)}
             />
             <span id="keywords-error" className="field-error" role="alert">{fieldErrors.keywords ?? ""}</span>
           </div>

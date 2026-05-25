@@ -861,3 +861,16 @@ tasks:
       backoffice. Se añaden regresiones en roles y rutas admin para cubrir visibilidad de colecciones creadas por
       admin y la edicion de esas colecciones desde un usuario curator. Validacion ejecutada con bun test focalizado
       y bun test completo en verde (427 pass, 0 fail).
+
+  T-2026-05-25-004:
+    date: 2026-05-25
+    agent: "backend-api-servicios + frontend-ux-accesibilidad + qa-validacion + github:github"
+    task: "Correccion issue #160 / DEF-009: la subida inicial de .elpx vuelve a precargar campos en la creacion de recursos"
+    status: Done
+    related: []
+    notes: >
+      Se corrige NuevoPage para que la precarga de metadatos extraidos del .elpx no dependa de refs sobre nodos
+      aun no montados. El formulario de alta pasa a usar estado React controlado y aplica los metadatos al estado
+      antes de mostrar el formulario, manteniendo la asignacion por defecto a resourceType actividad-interactiva.
+      Se añade test TypeScript para la funcion de aplicacion de metadatos y se valida con bun test focalizado y
+      bun test completo en verde (429 pass, 0 fail).
