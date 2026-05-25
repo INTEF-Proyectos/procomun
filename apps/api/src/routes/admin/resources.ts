@@ -72,6 +72,7 @@ const resourceRoutes = buildCrudRoutes({
 			status: params.status,
 			createdBy: isCurator ? undefined : user.id,
 			visibleToUserId: isCurator && !isAdmin ? user.id : undefined,
+			includeReviewQueueForCurator: isCurator && !isAdmin,
 		};
 	},
 	prepareCreate: async (body, user) => {

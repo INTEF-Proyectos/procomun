@@ -155,6 +155,40 @@ describe("Repository — CRUD completo", () => {
 		expect(result.data.every((resource) => resource.language === "en")).toBe(true);
 	});
 
+	test("listResources incluye cola de review para curator aunque no este asignada", async () => {
+		const authorId = `author-${crypto.randomUUID()}`;
+		const curatorId = `curator-${crypto.randomUUID()}`;
+
+		await repo.ensureUser(db(), {
+			id: authorId,
+			email: `${authorId}@local.invalid`,
+			name: "Author Review Queue",
+			role: "author",
+		});
+		await repo.ensureUser(db(), {
+			id: curatorId,
+			email: `${curatorId}@local.invalid`,
+			name: "Curator Review Queue",
+			role: "curator",
+		});
+
+		const resource = await createResource({
+			...baseResource,
+			title: `Review queue ${crypto.randomUUID()}`,
+			createdBy: authorId,
+		});
+
+		await updateEditorialStatus(resource.id, "review", authorId);
+
+		const result = await listResources({
+			status: "review",
+			visibleToUserId: curatorId,
+			includeReviewQueueForCurator: true,
+		});
+
+		expect(result.data.some((item) => item.id === resource.id)).toBe(true);
+	});
+
 	test("updateResource → actualiza campos", async () => {
 		await updateResource(createdId, { title: "Título actualizado repo" });
 		const resource = await getResourceById(createdId);

@@ -27,19 +27,25 @@ describe("auth roles helpers", () => {
 		expect(
 			canManageResource(
 				{ id: "author-1", role: "author" },
-				{ createdBy: "author-1", assignedCuratorId: null },
+				{ createdBy: "author-1", assignedCuratorId: null, editorialStatus: "draft" },
 			),
 		).toBe(true);
 		expect(
 			canManageResource(
 				{ id: "curator-1", role: "curator" },
-				{ createdBy: "author-1", assignedCuratorId: "curator-1" },
+				{ createdBy: "author-1", assignedCuratorId: "curator-1", editorialStatus: "published" },
+			),
+		).toBe(true);
+		expect(
+			canManageResource(
+				{ id: "curator-2", role: "curator" },
+				{ createdBy: "author-1", assignedCuratorId: "author-1", editorialStatus: "review" },
 			),
 		).toBe(true);
 		expect(
 			canManageResource(
 				{ id: "reader-1", role: "reader" },
-				{ createdBy: "author-1", assignedCuratorId: "curator-1" },
+				{ createdBy: "author-1", assignedCuratorId: "curator-1", editorialStatus: "review" },
 			),
 		).toBe(false);
 	});
