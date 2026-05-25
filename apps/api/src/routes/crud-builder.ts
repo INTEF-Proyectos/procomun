@@ -76,11 +76,19 @@ export function buildCrudRoutes<TEntity>(config: CrudRouteConfig<TEntity>): Hono
 				if (!v.valid) return c.json({ error: "Validación fallida", details: v.errors }, 400);
 			}
 			const data = config.prepareCreate ? await config.prepareCreate(body, user) : body;
-			const result = await config.create!(db(), data);
-			if (config.afterCreate) {
-				try { await config.afterCreate(user, result, data); } catch { /* fire-and-forget */ }
+			try {
+				const result = await config.create!(db(), data);
+				if (config.afterCreate) {
+					try { await config.afterCreate(user, result, data); } catch { /* fire-and-forget */ }
+				}
+				return c.json(result, 201);
+			} catch (err) {
+				const status = (err as { status?: number }).status;
+				if (status && status >= 400 && status < 600) {
+					return c.json({ error: (err as Error).message }, status as 409);
+				}
+				throw err;
 			}
-			return c.json(result, 201);
 		};
 		if (config.roles?.create) {
 			routes.post("/", requireRole(config.roles.create), handler);

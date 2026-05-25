@@ -169,6 +169,20 @@ describe("repository admin helpers", () => {
 		await deleteTaxonomy(db, child.id);
 		expect(await getTaxonomyById(db, child.id)).toBeNull();
 	});
+
+	test("no permite crear taxonomías duplicadas con mismo nombre y tipo", async () => {
+		await createTaxonomy(db, { name: "Ciencias", type: "subject" });
+
+		await expect(
+			createTaxonomy(db, { name: "Ciencias", type: "subject" }),
+		).rejects.toThrow("Ya existe una taxonomía con el nombre «Ciencias» y tipo «subject»");
+	});
+
+	test("permite crear taxonomías con mismo nombre pero distinto tipo", async () => {
+		await createTaxonomy(db, { name: "General", type: "subject" });
+		const second = await createTaxonomy(db, { name: "General", type: "level" });
+		expect(second.id).toBeTruthy();
+	});
 });
 
 describe("repository elpx projects", () => {

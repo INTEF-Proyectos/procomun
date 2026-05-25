@@ -2,12 +2,23 @@ import { buildCrudRoutes } from "../crud-builder.ts";
 import { validateTaxonomy } from "@procomun/db/validation";
 import { logActivity } from "../../activity/log.ts";
 import * as repo from "@procomun/db/repository";
+import { DuplicateTaxonomyError } from "@procomun/db/repository";
 
 const taxonomyRoutes = buildCrudRoutes({
 	baseRole: "curator",
 	list: (db, opts) => repo.listTaxonomies(db, opts as Parameters<typeof repo.listTaxonomies>[1]),
 	getById: repo.getTaxonomyById,
-	create: (db, data) => repo.createTaxonomy(db, data as Parameters<typeof repo.createTaxonomy>[1]),
+	create: async (db, data) => {
+		try {
+			return await repo.createTaxonomy(db, data as Parameters<typeof repo.createTaxonomy>[1]);
+		} catch (err) {
+			if (err instanceof DuplicateTaxonomyError) {
+				const error = Object.assign(new Error(err.message), { status: 409 });
+				throw error;
+			}
+			throw err;
+		}
+	},
 	update: (db, id, data) => repo.updateTaxonomy(db, id, data as Parameters<typeof repo.updateTaxonomy>[2]),
 	remove: repo.deleteTaxonomy,
 	validateCreate: validateTaxonomy,
