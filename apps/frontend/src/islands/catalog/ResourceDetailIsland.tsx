@@ -97,7 +97,7 @@ function getStatusBadgeClass(editorialStatus: string): string {
   }
 }
 
-function ResourceDetailContent({ resource, session, stats, isFavorited }: { resource: Resource; session: SessionData | null; stats: ResourceStats | null; isFavorited: boolean }) {
+function ResourceDetailContent({ resource, session, stats, isFavorited, onDownloadTracked }: { resource: Resource; session: SessionData | null; stats: ResourceStats | null; isFavorited: boolean; onDownloadTracked?: (count: number) => void }) {
   const status = STATUS_MAP[resource.editorialStatus] ?? STATUS_MAP.draft;
   const keywords = resource.keywords
     ? resource.keywords.split(",").map((keyword) => keyword.trim()).filter(Boolean)
@@ -192,8 +192,24 @@ function ResourceDetailContent({ resource, session, stats, isFavorited }: { reso
                 href={resource.mediaItems[0].url}
                 download
                 className="detail-action-outline"
-                onClick={() => {
-                  getApiClient().then((api) => api.trackDownload(resource.slug)).catch(() => {});
+                onClick={(e) => {
+                  e.preventDefault();
+                  const href = resource.mediaItems![0].url;
+                  getApiClient()
+                    .then((api) => api.trackDownload(resource.slug))
+                    .then((result) => {
+                      if (onDownloadTracked) onDownloadTracked(result.count);
+                    })
+                    .catch(() => {})
+                    .finally(() => {
+                      const a = document.createElement("a");
+                      a.href = href;
+                      a.download = "";
+                      a.style.display = "none";
+                      document.body.appendChild(a);
+                      a.click();
+                      document.body.removeChild(a);
+                    });
                 }}
               >
                 <span className="material-symbols-outlined">download</span>
@@ -452,7 +468,7 @@ export function ResourceDetailIsland() {
 
   return (
     <div className="detail-page">
-      <ResourceDetailContent resource={resource as Resource} session={session} stats={stats} isFavorited={isFavorited} />
+      <ResourceDetailContent resource={resource as Resource} session={session} stats={stats} isFavorited={isFavorited} onDownloadTracked={(count) => setStats((prev) => prev ? { ...prev, downloadCount: count } : prev)} />
     </div>
   );
 }
