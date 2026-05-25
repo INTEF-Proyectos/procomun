@@ -135,11 +135,12 @@ export class HttpApiClient implements ApiClient {
 	async listAdminResources(opts?: { q?: string; limit?: number; offset?: number; status?: string }): Promise<ResourceListResult> {
 		const params = new URLSearchParams();
 		if (opts?.q) params.set("q", opts.q);
-		if (opts?.limit) params.set("limit", String(opts.limit));
-		if (opts?.offset) params.set("offset", String(opts.offset));
+		if (opts?.limit != null) params.set("limit", String(opts.limit));
+		if (opts?.offset != null) params.set("offset", String(opts.offset));
 		if (opts?.status) params.set("status", opts.status);
 		const qs = params.toString();
 		const res = await fetch(`/api/admin/resources${qs ? `?${qs}` : ""}`, { credentials: "include" });
+		if (!res.ok) throw new Error(`listAdminResources failed: ${res.status}`);
 		return res.json();
 	}
 
