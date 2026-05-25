@@ -94,14 +94,14 @@ async function createZipFile(
 		filePaths.push(name);
 	}
 
-	const proc = Bun.spawn(["zip", "-r", zipPath, ...filePaths], {
+	const proc = Bun.spawn(["python3", "-m", "zipfile", "-c", zipPath, ...filePaths], {
 		cwd: staging,
 		stdout: "ignore",
 		stderr: "ignore",
 	});
 	const exitCode = await proc.exited;
 	if (exitCode !== 0) {
-		throw new Error(`zip failed with exit code ${exitCode}`);
+		throw new Error(`zipfile failed with exit code ${exitCode}`);
 	}
 
 	await rm(staging, { recursive: true, force: true });

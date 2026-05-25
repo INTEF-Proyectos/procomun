@@ -12,11 +12,15 @@ export function hasMinRole(role: string | undefined, minRole: keyof typeof ROLE_
 
 export function canManageResource(
 	user: { id: string; role?: string },
-	resource: { createdBy?: string | null; assignedCuratorId?: string | null },
+	resource: {
+		createdBy?: string | null;
+		assignedCuratorId?: string | null;
+		editorialStatus?: string | null;
+	},
 ) {
 	if (hasMinRole(user.role, "admin")) return true;
 	if (hasMinRole(user.role, "curator")) {
-		return resource.createdBy === user.id || resource.assignedCuratorId === user.id;
+		return resource.editorialStatus === "review";
 	}
 	if (hasMinRole(user.role, "author")) {
 		return resource.createdBy === user.id;

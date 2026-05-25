@@ -197,11 +197,11 @@ export async function generateElpxFromFiles(opts: {
 			await copyFile(f.filePath, path.join(workDir, f.filename));
 		}
 
-		// Build ZIP: use -j to junk directory paths (all files in root)
+		// Build ZIP from the staging directory to avoid depending on the external `zip` binary.
 		const allFiles = ["content.xml", "index.html", ...files.map((f) => f.filename)];
 		const proc = Bun.spawn(
-			["zip", "-j", outputPath, ...allFiles.map((name) => path.join(workDir, name))],
-			{ stdout: "ignore", stderr: "pipe" },
+			["python3", "-m", "zipfile", "-c", outputPath, ...allFiles],
+			{ cwd: workDir, stdout: "ignore", stderr: "pipe" },
 		);
 		const exitCode = await proc.exited;
 		if (exitCode !== 0) {

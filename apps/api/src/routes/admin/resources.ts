@@ -66,12 +66,10 @@ const resourceRoutes = buildCrudRoutes({
 	validateUpdate: validateUpdateResource,
 	canManage: canManageResource,
 	listFilters: (user, params) => {
-		const isCurator = hasMinRole(user.role, "curator");
 		const isAdmin = hasMinRole(user.role, "admin");
 		return {
 			status: params.status,
-			createdBy: isCurator ? undefined : user.id,
-			visibleToUserId: isCurator && !isAdmin ? user.id : undefined,
+			createdBy: isAdmin || hasMinRole(user.role, "curator") ? undefined : user.id,
 		};
 	},
 	prepareCreate: async (body, user) => {

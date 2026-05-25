@@ -2,6 +2,8 @@ import { expect, test, describe } from "bun:test";
 import { Hono } from "hono";
 import type { AuthEnv } from "../auth/middleware.ts";
 import { adminRoutes } from "./admin/index.ts";
+import * as repo from "@procomun/db/repository";
+import { getDb } from "../db.ts";
 
 function createAdminApp(mockUser: Record<string, unknown> | null = null) {
 	const app = new Hono<AuthEnv>();
@@ -267,6 +269,96 @@ describe("Rutas admin — con sesión de admin", () => {
 	});
 });
 
+describe("Rutas admin — flujo editorial visible para curator", () => {
+	const authorApp = createAdminApp({ id: "author-review", role: "author" });
+	const curatorApp = createAdminApp({ id: "curator-review", role: "curator" });
+
+	test("curator lista todos los recursos pero solo puede gestionar los que estan en review", async () => {
+		await repo.ensureUser(getDb().db, {
+			id: "author-review",
+			email: "author-review@local.invalid",
+			name: "Author Review",
+			role: "author",
+		});
+		await repo.ensureUser(getDb().db, {
+			id: "curator-review",
+			email: "curator-review@local.invalid",
+			name: "Curator Review",
+			role: "curator",
+		});
+
+		const reviewCreateRes = await authorApp.request("/api/admin/resources", {
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({
+				...validResource,
+				title: `Pendiente revision ${crypto.randomUUID()}`,
+			}),
+		});
+		expect(reviewCreateRes.status).toBe(201);
+		const reviewCreated = await reviewCreateRes.json() as { id: string };
+
+		const draftCreateRes = await authorApp.request("/api/admin/resources", {
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({
+				...validResource,
+				title: `Borrador visible ${crypto.randomUUID()}`,
+			}),
+		});
+		expect(draftCreateRes.status).toBe(201);
+		const draftCreated = await draftCreateRes.json() as { id: string };
+
+		const reviewRes = await authorApp.request(`/api/admin/resources/${reviewCreated.id}/status`, {
+			method: "PATCH",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({ status: "review" }),
+		});
+		expect(reviewRes.status).toBe(200);
+
+		const listAllRes = await curatorApp.request("/api/admin/resources");
+		expect(listAllRes.status).toBe(200);
+		const listAllBody = await listAllRes.json() as {
+			total: number;
+			data: Array<{ id: string }>;
+		};
+		expect(listAllBody.total).toBeGreaterThanOrEqual(2);
+		expect(listAllBody.data.some((resource) => resource.id === reviewCreated.id)).toBe(true);
+		expect(listAllBody.data.some((resource) => resource.id === draftCreated.id)).toBe(true);
+
+		const listRes = await curatorApp.request("/api/admin/resources?status=review");
+		expect(listRes.status).toBe(200);
+		const listBody = await listRes.json() as {
+			total: number;
+			data: Array<{ id: string }>;
+		};
+		expect(listBody.total).toBeGreaterThan(0);
+		expect(listBody.data.some((resource) => resource.id === reviewCreated.id)).toBe(true);
+
+		const getRes = await curatorApp.request(`/api/admin/resources/${reviewCreated.id}`);
+		expect(getRes.status).toBe(200);
+
+		const draftGetRes = await curatorApp.request(`/api/admin/resources/${draftCreated.id}`);
+		expect(draftGetRes.status).toBe(403);
+
+		const draftPatchRes = await curatorApp.request(`/api/admin/resources/${draftCreated.id}`, {
+			method: "PATCH",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({ title: "No deberia editar" }),
+		});
+		expect(draftPatchRes.status).toBe(403);
+
+		const publishRes = await curatorApp.request(`/api/admin/resources/${reviewCreated.id}/status`, {
+			method: "PATCH",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({ status: "published" }),
+		});
+		expect(publishRes.status).toBe(200);
+		const publishBody = await publishRes.json() as { status: string };
+		expect(publishBody.status).toBe("published");
+	});
+});
+
 describe("Rutas admin — RBAC por rol", () => {
 	test("author puede crear recursos", async () => {
 		const app = createAdminApp({ id: "1", role: "author" });
@@ -301,16 +393,29 @@ describe("Rutas admin — RBAC por rol", () => {
 	});
 
 	test("curator puede aprobar recurso (review→published)", async () => {
-		const app = createAdminApp({ id: "1", role: "curator" });
-		const createRes = await app.request("/api/admin/resources", {
+		const authorApp = createAdminApp({ id: "author-rbac", role: "author" });
+		const app = createAdminApp({ id: "curator-rbac", role: "curator" });
+		await repo.ensureUser(getDb().db, {
+			id: "author-rbac",
+			email: "author-rbac@local.invalid",
+			name: "Author Rbac",
+			role: "author",
+		});
+		await repo.ensureUser(getDb().db, {
+			id: "curator-rbac",
+			email: "curator-rbac@local.invalid",
+			name: "Curator Rbac",
+			role: "curator",
+		});
+
+		const createRes = await authorApp.request("/api/admin/resources", {
 			method: "POST",
 			headers: { "Content-Type": "application/json" },
 			body: JSON.stringify(validResource),
 		});
 		const created = await createRes.json();
 
-		// Primero pasar a review
-		await app.request(`/api/admin/resources/${created.id}/status`, {
+		await authorApp.request(`/api/admin/resources/${created.id}/status`, {
 			method: "PATCH",
 			headers: { "Content-Type": "application/json" },
 			body: JSON.stringify({ status: "review" }),

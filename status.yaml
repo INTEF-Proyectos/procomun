@@ -821,3 +821,30 @@ tasks:
       DEF-001 -> #152, DEF-002 -> #153, DEF-003 -> #154, DEF-004 -> #155 y DEF-005 -> #156.
       Se actualiza el resultado de pruebas local para enlazar cada defecto con su issue GitHub.
       No hay cambios de codigo; se valida el parseo de status.yaml.
+
+  T-2026-05-25-001:
+    date: 2026-05-25
+    agent: "backend-api-servicios + qa-validacion + github:github"
+    task: "Correccion DEF-007 / issue #158: el curator vuelve a ver y gestionar recursos en revision desde Administrar"
+    status: Done
+    related: []
+    notes: >
+      Se ajusta la visibilidad y permisos del backoffice para que curator vea la cola de recursos en review
+      aunque todavia no esten asignados a su usuario, manteniendo el acceso por autoria/asignacion para el
+      resto de estados. Se añaden regresiones en roles, repositorio y rutas admin para cubrir listado,
+      apertura y aprobacion del recurso en review por curator. Ademas se elimina la dependencia al binario
+      externo zip en la generacion/tests .elpx usando python3 -m zipfile, dejando bun test completo en verde
+      con 427 tests OK.
+
+  T-2026-05-25-002:
+    date: 2026-05-25
+    agent: "backend-api-servicios + frontend-ux-accesibilidad + qa-validacion + github:github"
+    task: "Ajuste de alcance del issue #158: el curator lista todos los recursos como admin, pero solo edita los que estan en review"
+    status: Done
+    related: []
+    notes: >
+      Se elimina el filtro de listado para curator en /api/admin/resources para que vea todos los recursos y
+      contadores igual que admin. A la vez, los permisos de gestion del curator se restringen a recursos con
+      editorialStatus review, de modo que draft/published/archived quedan en solo lectura. La tabla de recursos
+      del backoffice oculta las acciones de editar/eliminar cuando el recurso no esta en review para curator.
+      Validacion ejecutada con bun test focalizado y bun test completo en verde (427 pass, 0 fail).
