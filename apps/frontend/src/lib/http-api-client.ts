@@ -87,6 +87,18 @@ export class HttpApiClient implements ApiClient {
 		}
 	}
 
+	async signUp(name: string, email: string, password: string): Promise<SignInResult> {
+		const res = await fetch("/api/auth/sign-up/email", {
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			credentials: "include",
+			body: JSON.stringify({ name, email, password }),
+		});
+		if (res.ok) return { ok: true };
+		const data = await res.json().catch(() => null);
+		return { ok: false, error: data?.message ?? "Error al crear la cuenta" };
+	}
+
 	async signIn(email: string, password: string): Promise<SignInResult> {
 		const res = await fetch("/api/auth/sign-in/email", {
 			method: "POST",

@@ -21,7 +21,7 @@ export function RegisterIsland() {
 
     try {
       const api = await getApiClient();
-      const result = await api.signIn(email, password);
+      const result = await api.signUp(name, email, password);
       if (result.ok) {
         window.location.href = result.redirectUrl || url("perfil");
       } else {
