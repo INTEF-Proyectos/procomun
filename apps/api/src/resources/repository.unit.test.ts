@@ -205,4 +205,17 @@ describe("Repository — CRUD completo", () => {
 		const resource = await getResourceById(createdId);
 		expect(resource).toBeNull();
 	});
+
+	test("listResources.total es siempre un número", async () => {
+		const result = await listResources({});
+		expect(typeof result.total).toBe("number");
+		expect(Number.isFinite(result.total)).toBe(true);
+		expect(result.total).toBeGreaterThan(0);
+	});
+
+	test("listResources.total con filtro de status es un número", async () => {
+		const result = await listResources({ status: "published" });
+		expect(typeof result.total).toBe("number");
+		expect(Number.isFinite(result.total)).toBe(true);
+	});
 });

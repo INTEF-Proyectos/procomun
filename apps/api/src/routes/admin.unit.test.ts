@@ -60,6 +60,15 @@ describe("Rutas admin — con sesión de admin", () => {
 		const body = await res.json();
 		expect(Array.isArray(body.data)).toBe(true);
 		expect(typeof body.total).toBe("number");
+		expect(body.total).toBeGreaterThan(0);
+	});
+
+	test("GET /api/admin/resources?status=published → total numérico", async () => {
+		const res = await app.request("/api/admin/resources?limit=1&status=published");
+		expect(res.status).toBe(200);
+		const body = await res.json();
+		expect(typeof body.total).toBe("number");
+		expect(Number.isFinite(body.total)).toBe(true);
 	});
 
 	test("GET /api/admin/resources/:id → 200 con recurso existente", async () => {

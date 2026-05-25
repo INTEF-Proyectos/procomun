@@ -44,7 +44,7 @@ export async function listTaxonomies(
 	const countQuery = db.select({ count: sql<number>`count(*)` }).from(taxonomies);
 	const countRows = where ? await countQuery.where(where) : await countQuery;
 
-	return { data: rows, total: countRows[0]?.count ?? 0, limit, offset };
+	return { data: rows, total: Number(countRows[0]?.count ?? 0), limit, offset };
 }
 
 export async function getTaxonomyById(db: DrizzleDB, id: string) {

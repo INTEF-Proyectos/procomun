@@ -155,7 +155,7 @@ export async function listResources(db: DrizzleDB, opts: ResourceListOptions) {
 		.from(resources)
 		.where(where);
 
-	return { data: rows, total: countResult[0]?.count ?? 0, limit, offset };
+	return { data: rows, total: Number(countResult[0]?.count ?? 0), limit, offset };
 }
 
 export async function getResourceById(db: DrizzleDB, id: string) {
