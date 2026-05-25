@@ -32,7 +32,7 @@ const collectionRoutes = buildCrudRoutes({
 	mergeOnUpdate: true,
 	canManage: canManageCollection,
 	listFilters: (user) => ({
-		curatorId: hasMinRole(user.role, "admin") ? undefined : user.id,
+		curatorId: undefined,
 	}),
 	prepareCreate: async (body, user) => {
 		await ensureCurrentUser(user);

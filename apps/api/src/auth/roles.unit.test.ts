@@ -56,7 +56,13 @@ describe("auth roles helpers", () => {
 		).toBe(false);
 	});
 
-	test("canManageCollection validates curator and admin access", () => {
+	test("canManageCollection allows curator and admin access", () => {
+		expect(
+			canManageCollection(
+				{ id: "curator-1", role: "curator" },
+				{ curatorId: "curator-2" },
+			),
+		).toBe(true);
 		expect(
 			canManageCollection(
 				{ id: "curator-1", role: "curator" },

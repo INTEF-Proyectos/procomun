@@ -25,3 +25,11 @@ Completado con desviación controlada en routing público
 
 ## Desviación documentada
 - [x] El detalle público se expone dentro de `/colecciones?slug=...` en lugar de un path literal `/colecciones/:slug` por limitación del modo estático actual de Astro.
+
+## Seguimiento 2026-05-25
+- [x] Corregir el alcance de visibilidad RBAC para que `curator` vea y gestione también colecciones existentes creadas por otros perfiles editoriales.
+- [x] Añadir regresión TypeScript en `apps/api/src/auth/roles.unit.test.ts` y `apps/api/src/routes/admin.unit.test.ts`.
+- [x] Ejecutar `bun test` en raíz y verificar salida satisfactoria tras el ajuste.
+
+## Riesgos abiertos 2026-05-25
+- El backoffice de colecciones sigue sin diferenciar permisos finos entre "ver" y "gestionar"; el modelo actual concede gestión completa a `curator`, alineado con el defecto reportado, pero conviene formalizarlo en negocio si se necesita solo lectura parcial para algunos casos.
