@@ -39,3 +39,10 @@ En desarrollo
 - [ ] Introducir plantillas especializadas para vídeo único y colección reproducible.
 - [ ] Mantener fallback genérico para adjuntos mixtos o no soportados.
 - [ ] Verificar que las URLs directas de `media_items` siguen funcionando como contrato estable.
+
+## Actualización 2026-05-25 — issue #160 / DEF-009
+
+### Corrección del flujo de alta con `.elpx`
+- [x] Sustituir la precarga basada en `refs` de `NuevoPage` por estado React controlado para evitar la carrera de montaje tras `setShowForm(true)`.
+- [x] Aplicar los metadatos analizados del `.elpx` sobre el estado del formulario antes del render visible.
+- [x] Añadir test TypeScript para la función de aplicación de metadatos del `.elpx`.

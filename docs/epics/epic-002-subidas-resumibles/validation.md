@@ -28,3 +28,11 @@ La validación mínima de implementación deberá incluir:
   - mezcla de tipos con fallback genérico
 - verificación automatizada de que el `.elpx` resultante sigue siendo compatible con `processElpxUpload`
 - verificación automatizada de que los `media_items` conservan URLs directas funcionales tras regenerar el `.elpx`
+
+## Actualización 2026-05-25 — resultado issue #160 / DEF-009
+
+- `bun test apps/frontend/src/pages/NuevoPage.unit.test.tsx apps/frontend/src/islands/resources/ResourceForms.unit.test.tsx` ✅
+- `bun test` ✅ (`429 pass`, `0 fail`)
+
+### Observaciones
+- La corrección cubre el flujo de alta manual con `.elpx` en `NuevoPage`, donde el análisis sí devolvía metadatos pero estos se perdían al intentar escribirlos sobre nodos todavía no montados.
