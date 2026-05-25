@@ -34,6 +34,7 @@ describe("Rutas uploads — tus resumable", () => {
 
 	test("POST + PATCH crean sesión de upload y media item final", async () => {
 		const app = createUploadApp({ id: "upload-author", role: "author", email: "author@example.com", name: "Author" });
+		const adminApp = createUploadApp({ id: "upload-admin", role: "admin", email: "admin-upload@example.com", name: "Admin" });
 		const db = getDb().db;
 
 		await repo.ensureUser(db, {
@@ -41,6 +42,12 @@ describe("Rutas uploads — tus resumable", () => {
 			email: "author@example.com",
 			name: "Author",
 			role: "author",
+		});
+		await repo.ensureUser(db, {
+			id: "upload-admin",
+			email: "admin-upload@example.com",
+			name: "Admin",
+			role: "admin",
 		});
 		const resource = await repo.createResource(db, {
 			title: `Recurso upload ${crypto.randomUUID()}`,
@@ -78,13 +85,13 @@ describe("Rutas uploads — tus resumable", () => {
 		});
 		expect(patchRes.status).toBe(204);
 
-		const uploadsRes = await app.request(`/api/admin/resources/${resource.id}/uploads`);
+		const uploadsRes = await adminApp.request(`/api/admin/resources/${resource.id}/uploads`);
 		expect(uploadsRes.status).toBe(200);
 		const uploads = await uploadsRes.json();
 		expect(uploads.length).toBe(1);
 		expect(uploads[0].status).toBe("completed");
 
-		const mediaRes = await app.request(`/api/admin/resources/${resource.id}/media`);
+		const mediaRes = await adminApp.request(`/api/admin/resources/${resource.id}/media`);
 		expect(mediaRes.status).toBe(200);
 		const media = await mediaRes.json();
 		expect(media.length).toBe(1);
