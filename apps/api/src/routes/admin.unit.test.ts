@@ -677,7 +677,18 @@ describe("Rutas admin — colecciones", () => {
 		expect(res.status).toBe(403);
 	});
 
-	test("curator puede gestionar sus colecciones", async () => {
+	test("curator puede listar y gestionar colecciones existentes", async () => {
+		const adminCreateRes = await app.request("/api/admin/collections", {
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({
+				title: "Colección del admin visible al curator",
+				description: "Colección creada por admin",
+			}),
+		});
+		expect(adminCreateRes.status).toBe(201);
+		const adminCollection = await adminCreateRes.json();
+
 		const curatorApp = createAdminApp({ id: "curator-1", role: "curator", email: "curator@test.com", name: "Curator" });
 		const createRes = await curatorApp.request("/api/admin/collections", {
 			method: "POST",
@@ -689,7 +700,15 @@ describe("Rutas admin — colecciones", () => {
 		const listRes = await curatorApp.request("/api/admin/collections");
 		expect(listRes.status).toBe(200);
 		const listBody = await listRes.json();
-		expect(listBody.data.every((item: { curatorId: string }) => item.curatorId === "curator-1")).toBe(true);
+		expect(listBody.data.some((item: { id: string }) => item.id === adminCollection.id)).toBe(true);
+		expect(listBody.data.some((item: { curatorId: string }) => item.curatorId === "curator-1")).toBe(true);
+
+		const patchRes = await curatorApp.request(`/api/admin/collections/${adminCollection.id}`, {
+			method: "PATCH",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({ description: "Actualizada por curator" }),
+		});
+		expect(patchRes.status).toBe(200);
 	});
 });
 

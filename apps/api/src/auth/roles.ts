@@ -34,7 +34,7 @@ export function canManageCollection(
 ) {
 	if (hasMinRole(user.role, "admin")) return true;
 	if (hasMinRole(user.role, "curator")) {
-		return collection.curatorId === user.id;
+		return true;
 	}
 	return false;
 }

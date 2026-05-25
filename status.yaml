@@ -848,3 +848,16 @@ tasks:
       editorialStatus review, de modo que draft/published/archived quedan en solo lectura. La tabla de recursos
       del backoffice oculta las acciones de editar/eliminar cuando el recurso no esta en review para curator.
       Validacion ejecutada con bun test focalizado y bun test completo en verde (427 pass, 0 fail).
+
+  T-2026-05-25-003:
+    date: 2026-05-25
+    agent: "backend-api-servicios + qa-validacion + github:github"
+    task: "Correccion issue #162 / DEF-011 para colecciones: curator vuelve a ver y gestionar colecciones existentes en Administrar"
+    status: Done
+    related: []
+    notes: >
+      Se elimina el filtro de listado por curatorId en /api/admin/collections y se alinea canManageCollection
+      para que el rol curator tenga gestion completa de colecciones, igual que esperaba la validacion manual del
+      backoffice. Se añaden regresiones en roles y rutas admin para cubrir visibilidad de colecciones creadas por
+      admin y la edicion de esas colecciones desde un usuario curator. Validacion ejecutada con bun test focalizado
+      y bun test completo en verde (427 pass, 0 fail).

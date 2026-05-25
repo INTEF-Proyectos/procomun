@@ -29,3 +29,10 @@
 ## Observaciones
 - La build frontend sigue generando la nueva ruta estática `/colecciones/index.html` correctamente.
 - El detalle público queda servido por la misma experiencia de `/colecciones` con `slug` en query; la limitación responde al modo `static` actual de Astro y no a un fallo funcional de datos, permisos o UI.
+
+## Resultado de validación — 2026-05-25
+- `bun test apps/api/src/auth/roles.unit.test.ts apps/api/src/routes/admin.unit.test.ts` ✅
+- `bun test` ✅ (`427 pass`, `0 fail`)
+
+## Observaciones 2026-05-25
+- Se valida la regresión del defecto `DEF-011` en el backoffice: `curator` vuelve a listar colecciones ajenas y puede operarlas desde `/api/admin/collections`.
