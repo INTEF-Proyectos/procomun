@@ -76,11 +76,22 @@ export function buildCrudRoutes<TEntity>(config: CrudRouteConfig<TEntity>): Hono
 				if (!v.valid) return c.json({ error: "Validación fallida", details: v.errors }, 400);
 			}
 			const data = config.prepareCreate ? await config.prepareCreate(body, user) : body;
-			const result = await config.create!(db(), data);
-			if (config.afterCreate) {
-				try { await config.afterCreate(user, result, data); } catch { /* fire-and-forget */ }
+			try {
+				const result = await config.create!(db(), data);
+				if (config.afterCreate) {
+					try { await config.afterCreate(user, result, data); } catch { /* fire-and-forget */ }
+				}
+				return c.json(result, 201);
+			} catch (err: unknown) {
+				const msg = err instanceof Error ? err.message : "";
+				if (msg === "PARENT_NOT_FOUND") {
+					return c.json({ error: "La categoría padre indicada no existe" }, 400);
+				}
+				if (msg === "PARENT_SELF_REFERENCE") {
+					return c.json({ error: "Una categoría no puede ser padre de sí misma" }, 400);
+				}
+				throw err;
 			}
-			return c.json(result, 201);
 		};
 		if (config.roles?.create) {
 			routes.post("/", requireRole(config.roles.create), handler);
@@ -105,11 +116,22 @@ export function buildCrudRoutes<TEntity>(config: CrudRouteConfig<TEntity>): Hono
 				const v = config.validateUpdate(toValidate);
 				if (!v.valid) return c.json({ error: "Validación fallida", details: v.errors }, 400);
 			}
-			await config.update!(db(), id, body);
-			if (config.afterUpdate) {
-				try { await config.afterUpdate(user, id, entity, body); } catch { /* fire-and-forget */ }
+			try {
+				await config.update!(db(), id, body);
+				if (config.afterUpdate) {
+					try { await config.afterUpdate(user, id, entity, body); } catch { /* fire-and-forget */ }
+				}
+				return c.json({ id, updated: true });
+			} catch (err: unknown) {
+				const msg = err instanceof Error ? err.message : "";
+				if (msg === "PARENT_NOT_FOUND") {
+					return c.json({ error: "La categoría padre indicada no existe" }, 400);
+				}
+				if (msg === "PARENT_SELF_REFERENCE") {
+					return c.json({ error: "Una categoría no puede ser padre de sí misma" }, 400);
+				}
+				throw err;
 			}
-			return c.json({ id, updated: true });
 		};
 		if (config.roles?.update) {
 			routes.patch("/:id", requireRole(config.roles.update), handler);

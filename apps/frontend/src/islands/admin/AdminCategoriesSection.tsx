@@ -48,6 +48,7 @@ const EMPTY_FORM: FormState = { name: "", type: "subject", parentId: "" };
 
 export function AdminCategoriesSection() {
 	const [rows, setRows] = useState<TaxonomyRecord[]>([]);
+	const [allTaxonomies, setAllTaxonomies] = useState<TaxonomyRecord[]>([]);
 	const [search, setSearch] = useState("");
 	const [typeFilter, setTypeFilter] = useState("");
 	const [page, setPage] = useState(1);
@@ -97,8 +98,19 @@ export function AdminCategoriesSection() {
 		}
 	}
 
+	async function loadAllTaxonomies() {
+		try {
+			const api = await getApiClient();
+			const result = await api.listTaxonomies({ limit: 100, offset: 0 });
+			setAllTaxonomies(result.data);
+		} catch {
+			setAllTaxonomies([]);
+		}
+	}
+
 	useEffect(() => {
 		void loadTaxonomies(1, "", "");
+		void loadAllTaxonomies();
 	}, []);
 
 	function applySearch() {
@@ -125,6 +137,7 @@ export function AdminCategoriesSection() {
 			setCreateForm({ ...EMPTY_FORM });
 			setShowCreate(false);
 			void loadTaxonomies(1, search.trim(), typeFilter);
+			void loadAllTaxonomies();
 		} catch {
 			setCreateError("No se pudo crear la taxonomia.");
 		} finally {
@@ -237,7 +250,7 @@ export function AdminCategoriesSection() {
 					}}
 				>
 					{t.parentId
-						? t.parentId.slice(0, 12) + "..."
+						? allTaxonomies.find((p) => p.id === t.parentId)?.name ?? t.parentId.slice(0, 12) + "..."
 						: "-"}
 				</span>
 			),
@@ -423,11 +436,10 @@ export function AdminCategoriesSection() {
 						<div className="admin-form-row admin-form-row--full">
 							<div className="admin-form-field">
 								<label htmlFor="tax-create-parent">
-									ID del padre (opcional)
+									Categoria padre (opcional)
 								</label>
-								<input
+								<select
 									id="tax-create-parent"
-									type="text"
 									value={createForm.parentId}
 									onChange={(e) =>
 										setCreateForm((f) => ({
@@ -435,8 +447,14 @@ export function AdminCategoriesSection() {
 											parentId: e.target.value,
 										}))
 									}
-									placeholder="Dejar vacio si es raiz"
-								/>
+								>
+									<option value="">Sin padre (raiz)</option>
+									{allTaxonomies.map((t) => (
+										<option key={t.id} value={t.id}>
+											{t.name} ({typeLabel(t.type)})
+										</option>
+									))}
+								</select>
 							</div>
 						</div>
 						{createError && (
@@ -518,11 +536,10 @@ export function AdminCategoriesSection() {
 						<div className="admin-form-row admin-form-row--full">
 							<div className="admin-form-field">
 								<label htmlFor="tax-edit-parent">
-									ID del padre (opcional)
+									Categoria padre (opcional)
 								</label>
-								<input
+								<select
 									id="tax-edit-parent"
-									type="text"
 									value={editForm.parentId}
 									onChange={(e) =>
 										setEditForm((f) => ({
@@ -530,8 +547,16 @@ export function AdminCategoriesSection() {
 											parentId: e.target.value,
 										}))
 									}
-									placeholder="Dejar vacio si es raiz"
-								/>
+								>
+									<option value="">Sin padre (raiz)</option>
+									{allTaxonomies
+										.filter((t) => t.id !== editTarget?.id)
+										.map((t) => (
+											<option key={t.id} value={t.id}>
+												{t.name} ({typeLabel(t.type)})
+											</option>
+										))}
+								</select>
 							</div>
 						</div>
 						{editError && (

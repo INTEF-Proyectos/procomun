@@ -309,6 +309,33 @@ describe("validateTaxonomy", () => {
 		const r = validateTaxonomy({ name: "Mat" });
 		expect(r.valid).toBe(true);
 	});
+
+	test("parentId UUID válido pasa", () => {
+		const r = validateTaxonomy({ name: "Mat", type: "subject", parentId: "a1b2c3d4-e5f6-7890-abcd-ef1234567890" });
+		expect(r.valid).toBe(true);
+	});
+
+	test("parentId null pasa (sin padre)", () => {
+		const r = validateTaxonomy({ name: "Mat", type: "subject", parentId: null });
+		expect(r.valid).toBe(true);
+	});
+
+	test("parentId cadena vacía pasa (sin padre)", () => {
+		const r = validateTaxonomy({ name: "Mat", type: "subject", parentId: "" });
+		expect(r.valid).toBe(true);
+	});
+
+	test("parentId no UUID falla", () => {
+		const r = validateTaxonomy({ name: "Mat", type: "subject", parentId: "no-es-un-uuid" });
+		expect(r.valid).toBe(false);
+		expect(r.errors.find((e) => e.field === "parentId")).toBeTruthy();
+	});
+
+	test("parentId con slug falla", () => {
+		const r = validateTaxonomy({ name: "Mat", type: "subject", parentId: "matematicas-basicas" });
+		expect(r.valid).toBe(false);
+		expect(r.errors.find((e) => e.field === "parentId")).toBeTruthy();
+	});
 });
 
 describe("validateStatusTransition", () => {
