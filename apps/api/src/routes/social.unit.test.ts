@@ -156,6 +156,40 @@ describe("Social — Downloads", () => {
 		const body = await res.json() as { count: number };
 		expect(body.count).toBe(1);
 	});
+
+	test("POST /resources/:slug/download → anonymous download increments counter", async () => {
+		const { slug } = await createPublishedResource(adminApp, "dl-anon");
+		const res = await anonApp.request(`/api/v1/resources/${slug}/download`, { method: "POST" });
+		expect(res.status).toBe(200);
+		const body = await res.json() as { count: number };
+		expect(body.count).toBe(1);
+	});
+
+	test("POST /resources/:slug/download → counter increments on repeated downloads", async () => {
+		const { slug } = await createPublishedResource(adminApp, "dl-multi");
+		await anonApp.request(`/api/v1/resources/${slug}/download`, { method: "POST" });
+		await anonApp.request(`/api/v1/resources/${slug}/download`, { method: "POST" });
+		const res = await anonApp.request(`/api/v1/resources/${slug}/download`, { method: "POST" });
+		expect(res.status).toBe(200);
+		const body = await res.json() as { count: number };
+		expect(body.count).toBe(3);
+	});
+
+	test("POST /resources/:slug/download → stats reflect download count after tracking", async () => {
+		const { slug } = await createPublishedResource(adminApp, "dl-stats");
+		await anonApp.request(`/api/v1/resources/${slug}/download`, { method: "POST" });
+		await anonApp.request(`/api/v1/resources/${slug}/download`, { method: "POST" });
+
+		const statsRes = await anonApp.request(`/api/v1/resources/${slug}/stats`);
+		expect(statsRes.status).toBe(200);
+		const stats = await statsRes.json() as { downloadCount: number };
+		expect(stats.downloadCount).toBe(2);
+	});
+
+	test("POST /resources/:slug/download → 404 for non-existent resource", async () => {
+		const res = await anonApp.request("/api/v1/resources/no-existe-xyz/download", { method: "POST" });
+		expect(res.status).toBe(404);
+	});
 });
 
 describe("Social — Stats", () => {
