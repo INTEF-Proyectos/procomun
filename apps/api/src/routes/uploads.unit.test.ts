@@ -136,4 +136,40 @@ describe("Rutas uploads — tus resumable", () => {
 		const uploads = await repo.listUploadSessionsForResource(db, resource.id);
 		expect(uploads[0]?.status).toBe("cancelled");
 	});
+
+	test("editor puede crear un upload para recursos creados manualmente por el mismo", async () => {
+		const app = createUploadApp({ id: "upload-editor", role: "editor", email: "editor@example.com", name: "Editor" });
+		const db = getDb().db;
+
+		await repo.ensureUser(db, {
+			id: "upload-editor",
+			email: "editor@example.com",
+			name: "Editor",
+			role: "editor",
+		});
+		const resource = await repo.createResource(db, {
+			title: `Recurso editor ${crypto.randomUUID()}`,
+			description: "desc",
+			language: "es",
+			license: "cc-by",
+			resourceType: "documento",
+			createdBy: "upload-editor",
+		});
+
+		const createRes = await app.request("/api/uploads", {
+			method: "POST",
+			headers: {
+				"Tus-Resumable": "1.0.0",
+				"Upload-Length": "8",
+				"Upload-Metadata": encodeMetadata({
+					resourceId: resource.id,
+					filename: "manual.pdf",
+					mimeType: "application/pdf",
+				}),
+			},
+		});
+
+		expect(createRes.status).toBe(201);
+		expect(createRes.headers.get("location")).toBeTruthy();
+	});
 });

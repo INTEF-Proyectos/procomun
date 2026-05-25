@@ -36,3 +36,11 @@ La validación mínima de implementación deberá incluir:
 
 ### Observaciones
 - La corrección cubre el flujo de alta manual con `.elpx` en `NuevoPage`, donde el análisis sí devolvía metadatos pero estos se perdían al intentar escribirlos sobre nodos todavía no montados.
+
+## Actualización 2026-05-25 — resultado issue #157 / DEF-006
+
+- `bun test apps/api/src/uploads/config.unit.test.ts apps/api/src/routes/uploads.unit.test.ts` ✅
+- `bun test` ✅ (`431 pass`, `0 fail`)
+
+### Observaciones
+- El 403 de `/api/uploads` provenía del helper de permisos de upload: `editor` podía crear el recurso manual, pero no estaba autorizado a adjuntar ficheros al recurso recién creado.

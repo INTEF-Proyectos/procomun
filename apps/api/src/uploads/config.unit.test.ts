@@ -38,6 +38,8 @@ describe("upload config helpers", () => {
 		expect(canManageResourceUpload({ id: "admin-1", role: "admin" }, resource)).toBe(true);
 		expect(canManageResourceUpload({ id: "curator-1", role: "curator" }, resource)).toBe(true);
 		expect(canManageResourceUpload({ id: "author-1", role: "author" }, resource)).toBe(true);
+		expect(canManageResourceUpload({ id: "author-1", role: "editor" }, resource)).toBe(true);
+		expect(canManageResourceUpload({ id: "editor-1", role: "editor" }, resource)).toBe(false);
 		expect(canManageResourceUpload({ id: "reader-1", role: "reader" }, resource)).toBe(false);
 	});
 

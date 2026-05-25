@@ -100,7 +100,7 @@ export function canManageResourceUpload(user: UploadUser, resource: UploadTarget
 	if (role === "curator") {
 		return resource.createdBy === user.id || resource.assignedCuratorId === user.id;
 	}
-	if (role === "author") {
+	if (role === "author" || role === "editor") {
 		return resource.createdBy === user.id;
 	}
 	return false;

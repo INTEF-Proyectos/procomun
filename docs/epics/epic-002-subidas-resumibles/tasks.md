@@ -46,3 +46,10 @@ En desarrollo
 - [x] Sustituir la precarga basada en `refs` de `NuevoPage` por estado React controlado para evitar la carrera de montaje tras `setShowForm(true)`.
 - [x] Aplicar los metadatos analizados del `.elpx` sobre el estado del formulario antes del render visible.
 - [x] Añadir test TypeScript para la función de aplicación de metadatos del `.elpx`.
+
+## Actualización 2026-05-25 — issue #157 / DEF-006
+
+### Corrección del flujo manual para `editor`
+- [x] Alinear permisos de uploads resumables para que `editor` pueda adjuntar ficheros a recursos creados por el propio editor.
+- [x] Añadir regresión TypeScript en el helper `canManageResourceUpload()`.
+- [x] Añadir test de integración TUS para alta manual + subida PDF con rol `editor`.

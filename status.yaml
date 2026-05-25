@@ -874,3 +874,16 @@ tasks:
       antes de mostrar el formulario, manteniendo la asignacion por defecto a resourceType actividad-interactiva.
       Se añade test TypeScript para la funcion de aplicacion de metadatos y se valida con bun test focalizado y
       bun test completo en verde (429 pass, 0 fail).
+
+  T-2026-05-25-005:
+    date: 2026-05-25
+    agent: "backend-api-servicios + qa-validacion + github:github"
+    task: "Correccion issue #157 / DEF-006: editor vuelve a poder adjuntar archivos en la creacion manual de recursos"
+    status: Done
+    related: []
+    notes: >
+      Se alinea canManageResourceUpload para tratar a editor como author respecto a recursos propios, evitando el
+      403 de /api/uploads cuando el editor crea un borrador manual y adjunta un PDF u otro fichero permitido.
+      Se añaden regresiones en el helper de permisos de upload y en la ruta TUS para cubrir la subida con rol
+      editor sobre un recurso creado por el propio usuario. Validacion ejecutada con bun test focalizado y bun test
+      completo en verde (431 pass, 0 fail).
