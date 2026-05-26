@@ -264,15 +264,16 @@ function ResourceDetailContent({ resource, session, stats, isFavorited, onDownlo
               <h2>{m.detail_files()}</h2>
               <div className="files-grid">
                 {resource.mediaItems!.map((mediaItem) => {
-                  const fileIcon = FILE_ICONS[mediaItem.mimeType || ""] ?? "&#128193;";
+                  const fileIcon = FILE_ICONS[mediaItem.mimeType || ""] ?? "📁";
                   const size = mediaItem.fileSize ? formatBytes(mediaItem.fileSize) : "";
                   return (
                     <a key={mediaItem.id} href={mediaItem.url} className="file-card" download>
                       <span
                         className="file-icon"
                         aria-hidden="true"
-                        dangerouslySetInnerHTML={{ __html: fileIcon }}
-                      />
+                      >
+                        {fileIcon}
+                      </span>
                       <div className="file-info">
                         <span className="file-name">{mediaItem.filename || m.detail_file_default()}</span>
                         {size ? <span className="file-size">{size}</span> : null}
