@@ -184,12 +184,23 @@ export default function EditarPage() {
                 statusEl.className = "edit-upload-status edit-upload-loading";
                 statusEl.style.display = "block";
                 try {
-                  await api.generateElpx(resourceId!);
+                  const result = await api.generateElpx(resourceId!);
                   statusEl.textContent = count > 0
                     ? `${count} archivo${count !== 1 ? "s" : ""} subido${count !== 1 ? "s" : ""}. Paquete .elpx actualizado.`
                     : "Paquete .elpx actualizado.";
                   statusEl.className = "edit-upload-status edit-upload-success";
                   setTimeout(() => { statusEl.style.display = "none"; }, 5000);
+
+                  // Refresh the preview iframe with the new URL so deleted
+                  // files disappear without a full page reload (DEF-008).
+                  const iframe = document.querySelector<HTMLIFrameElement>(".edit-preview-iframe");
+                  if (iframe && result.previewUrl) {
+                    iframe.src = result.previewUrl;
+                  } else if (iframe && !result.previewUrl) {
+                    // No preview available anymore – hide the section
+                    const section = iframe.closest(".edit-preview-section");
+                    if (section) (section as HTMLElement).style.display = "none";
+                  }
                 } catch (err) {
                   statusEl.textContent = `Error al generar .elpx: ${(err as Error).message || "Error desconocido"}`;
                   statusEl.className = "edit-upload-status edit-upload-error";

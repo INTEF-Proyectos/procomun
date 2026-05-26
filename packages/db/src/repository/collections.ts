@@ -61,7 +61,7 @@ export async function listCollections(db: DrizzleDB, opts: CollectionFilters = {
 	const countQuery = db.select({ count: sql<number>`count(*)` }).from(collections);
 	const countRows = where ? await countQuery.where(where) : await countQuery;
 
-	return { data: rows, total: countRows[0]?.count ?? 0, limit, offset };
+	return { data: rows, total: Number(countRows[0]?.count ?? 0), limit, offset };
 }
 
 export async function getCollectionById(db: DrizzleDB, id: string) {

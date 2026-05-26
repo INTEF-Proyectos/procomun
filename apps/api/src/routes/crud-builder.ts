@@ -9,6 +9,21 @@ import type { ValidationResult } from "@procomun/db/validation";
 type DbFn = ReturnType<typeof getDb>["db"];
 type User = { id: string; role?: string; name?: string; email?: string };
 
+function jsonErrorFromCrudException(err: unknown) {
+	const msg = err instanceof Error ? err.message : "";
+	if (msg === "PARENT_NOT_FOUND") {
+		return { error: "La categoría padre indicada no existe", status: 400 as const };
+	}
+	if (msg === "PARENT_SELF_REFERENCE") {
+		return { error: "Una categoría no puede ser padre de sí misma", status: 400 as const };
+	}
+	const status = typeof err === "object" && err !== null ? (err as { status?: number }).status : undefined;
+	if (status && status >= 400 && status < 600) {
+		return { error: err instanceof Error ? err.message : "Error", status };
+	}
+	return null;
+}
+
 export interface CrudRouteConfig<TEntity> {
 	baseRole: string;
 
@@ -82,10 +97,10 @@ export function buildCrudRoutes<TEntity>(config: CrudRouteConfig<TEntity>): Hono
 					try { await config.afterCreate(user, result, data); } catch { /* fire-and-forget */ }
 				}
 				return c.json(result, 201);
-			} catch (err) {
-				const status = (err as { status?: number }).status;
-				if (status && status >= 400 && status < 600) {
-					return c.json({ error: (err as Error).message }, status as 409);
+			} catch (err: unknown) {
+				const handled = jsonErrorFromCrudException(err);
+				if (handled) {
+					return c.json({ error: handled.error }, handled.status);
 				}
 				throw err;
 			}
@@ -113,11 +128,19 @@ export function buildCrudRoutes<TEntity>(config: CrudRouteConfig<TEntity>): Hono
 				const v = config.validateUpdate(toValidate);
 				if (!v.valid) return c.json({ error: "Validación fallida", details: v.errors }, 400);
 			}
-			await config.update!(db(), id, body);
-			if (config.afterUpdate) {
-				try { await config.afterUpdate(user, id, entity, body); } catch { /* fire-and-forget */ }
+			try {
+				await config.update!(db(), id, body);
+				if (config.afterUpdate) {
+					try { await config.afterUpdate(user, id, entity, body); } catch { /* fire-and-forget */ }
+				}
+				return c.json({ id, updated: true });
+			} catch (err: unknown) {
+				const handled = jsonErrorFromCrudException(err);
+				if (handled) {
+					return c.json({ error: handled.error }, handled.status);
+				}
+				throw err;
 			}
-			return c.json({ id, updated: true });
 		};
 		if (config.roles?.update) {
 			routes.patch("/:id", requireRole(config.roles.update), handler);

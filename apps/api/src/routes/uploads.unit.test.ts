@@ -34,6 +34,7 @@ describe("Rutas uploads — tus resumable", () => {
 
 	test("POST + PATCH crean sesión de upload y media item final", async () => {
 		const app = createUploadApp({ id: "upload-author", role: "author", email: "author@example.com", name: "Author" });
+		const adminApp = createUploadApp({ id: "upload-admin", role: "admin", email: "admin-upload@example.com", name: "Admin" });
 		const db = getDb().db;
 
 		await repo.ensureUser(db, {
@@ -41,6 +42,12 @@ describe("Rutas uploads — tus resumable", () => {
 			email: "author@example.com",
 			name: "Author",
 			role: "author",
+		});
+		await repo.ensureUser(db, {
+			id: "upload-admin",
+			email: "admin-upload@example.com",
+			name: "Admin",
+			role: "admin",
 		});
 		const resource = await repo.createResource(db, {
 			title: `Recurso upload ${crypto.randomUUID()}`,
@@ -78,13 +85,13 @@ describe("Rutas uploads — tus resumable", () => {
 		});
 		expect(patchRes.status).toBe(204);
 
-		const uploadsRes = await app.request(`/api/admin/resources/${resource.id}/uploads`);
+		const uploadsRes = await adminApp.request(`/api/admin/resources/${resource.id}/uploads`);
 		expect(uploadsRes.status).toBe(200);
 		const uploads = await uploadsRes.json();
 		expect(uploads.length).toBe(1);
 		expect(uploads[0].status).toBe("completed");
 
-		const mediaRes = await app.request(`/api/admin/resources/${resource.id}/media`);
+		const mediaRes = await adminApp.request(`/api/admin/resources/${resource.id}/media`);
 		expect(mediaRes.status).toBe(200);
 		const media = await mediaRes.json();
 		expect(media.length).toBe(1);
@@ -135,5 +142,41 @@ describe("Rutas uploads — tus resumable", () => {
 
 		const uploads = await repo.listUploadSessionsForResource(db, resource.id);
 		expect(uploads[0]?.status).toBe("cancelled");
+	});
+
+	test("editor puede crear un upload para recursos creados manualmente por el mismo", async () => {
+		const app = createUploadApp({ id: "upload-editor", role: "editor", email: "editor@example.com", name: "Editor" });
+		const db = getDb().db;
+
+		await repo.ensureUser(db, {
+			id: "upload-editor",
+			email: "editor@example.com",
+			name: "Editor",
+			role: "editor",
+		});
+		const resource = await repo.createResource(db, {
+			title: `Recurso editor ${crypto.randomUUID()}`,
+			description: "desc",
+			language: "es",
+			license: "cc-by",
+			resourceType: "documento",
+			createdBy: "upload-editor",
+		});
+
+		const createRes = await app.request("/api/uploads", {
+			method: "POST",
+			headers: {
+				"Tus-Resumable": "1.0.0",
+				"Upload-Length": "8",
+				"Upload-Metadata": encodeMetadata({
+					resourceId: resource.id,
+					filename: "manual.pdf",
+					mimeType: "application/pdf",
+				}),
+			},
+		});
+
+		expect(createRes.status).toBe(201);
+		expect(createRes.headers.get("location")).toBeTruthy();
 	});
 });

@@ -225,6 +225,7 @@ export interface ApiClient {
 
 	// Auth
 	getSession(): Promise<SessionData | null>;
+	signUp(name: string, email: string, password: string): Promise<SignInResult>;
 	signIn(email: string, password: string): Promise<SignInResult>;
 	signInOidc(): Promise<SignInResult>;
 	signOut(): Promise<void>;

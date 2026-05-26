@@ -45,7 +45,7 @@ export async function listUsers(
 	const countQuery = db.select({ count: sql<number>`count(*)` }).from(user);
 	const countRows = where ? await countQuery.where(where) : await countQuery;
 
-	return { data: rows, total: countRows[0]?.count ?? 0, limit, offset };
+	return { data: rows, total: Number(countRows[0]?.count ?? 0), limit, offset };
 }
 
 export async function getUserById(db: DrizzleDB, id: string) {

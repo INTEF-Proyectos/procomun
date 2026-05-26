@@ -9,8 +9,15 @@ const taxonomyRoutes = buildCrudRoutes({
 	list: (db, opts) => repo.listTaxonomies(db, opts as Parameters<typeof repo.listTaxonomies>[1]),
 	getById: repo.getTaxonomyById,
 	create: async (db, data) => {
+		const d = data as Parameters<typeof repo.createTaxonomy>[1];
+		if (d.parentId) {
+			const parent = await repo.getTaxonomyById(db, d.parentId);
+			if (!parent) {
+				throw new Error("PARENT_NOT_FOUND");
+			}
+		}
 		try {
-			return await repo.createTaxonomy(db, data as Parameters<typeof repo.createTaxonomy>[1]);
+			return await repo.createTaxonomy(db, d);
 		} catch (err) {
 			if (err instanceof DuplicateTaxonomyError) {
 				const error = Object.assign(new Error(err.message), { status: 409 });
@@ -19,7 +26,19 @@ const taxonomyRoutes = buildCrudRoutes({
 			throw err;
 		}
 	},
-	update: (db, id, data) => repo.updateTaxonomy(db, id, data as Parameters<typeof repo.updateTaxonomy>[2]),
+	update: async (db, id, data) => {
+		const d = data as Parameters<typeof repo.updateTaxonomy>[2];
+		if (d.parentId) {
+			const parent = await repo.getTaxonomyById(db, d.parentId);
+			if (!parent) {
+				throw new Error("PARENT_NOT_FOUND");
+			}
+			if (d.parentId === id) {
+				throw new Error("PARENT_SELF_REFERENCE");
+			}
+		}
+		return repo.updateTaxonomy(db, id, d);
+	},
 	remove: repo.deleteTaxonomy,
 	validateCreate: validateTaxonomy,
 	validateUpdate: validateTaxonomy,

@@ -251,6 +251,8 @@ export function validateCollection(body: unknown): ValidationResult {
 	return { valid: errors.length === 0, errors };
 }
 
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 export function validateTaxonomy(body: unknown): ValidationResult {
 	const errors: ValidationError[] = [];
 	if (!body || typeof body !== "object") {
@@ -262,6 +264,11 @@ export function validateTaxonomy(body: unknown): ValidationResult {
 	}
 	if (b.type !== undefined && isNonEmptyString(b.type) && !VALID_TAXONOMY_TYPES.includes(b.type as TaxonomyType)) {
 		errors.push({ field: "type", message: `Tipo no válido. Valores permitidos: ${VALID_TAXONOMY_TYPES.join(", ")}` });
+	}
+	if (b.parentId !== undefined && b.parentId !== null && b.parentId !== "") {
+		if (typeof b.parentId !== "string" || !UUID_RE.test(b.parentId)) {
+			errors.push({ field: "parentId", message: "El ID del padre debe ser un UUID válido" });
+		}
 	}
 	return { valid: errors.length === 0, errors };
 }

@@ -87,6 +87,18 @@ export class HttpApiClient implements ApiClient {
 		}
 	}
 
+	async signUp(name: string, email: string, password: string): Promise<SignInResult> {
+		const res = await fetch("/api/auth/sign-up/email", {
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			credentials: "include",
+			body: JSON.stringify({ name, email, password }),
+		});
+		if (res.ok) return { ok: true };
+		const data = await res.json().catch(() => null);
+		return { ok: false, error: data?.message ?? "Error al crear la cuenta" };
+	}
+
 	async signIn(email: string, password: string): Promise<SignInResult> {
 		const res = await fetch("/api/auth/sign-in/email", {
 			method: "POST",
@@ -123,11 +135,12 @@ export class HttpApiClient implements ApiClient {
 	async listAdminResources(opts?: { q?: string; limit?: number; offset?: number; status?: string }): Promise<ResourceListResult> {
 		const params = new URLSearchParams();
 		if (opts?.q) params.set("q", opts.q);
-		if (opts?.limit) params.set("limit", String(opts.limit));
-		if (opts?.offset) params.set("offset", String(opts.offset));
+		if (opts?.limit != null) params.set("limit", String(opts.limit));
+		if (opts?.offset != null) params.set("offset", String(opts.offset));
 		if (opts?.status) params.set("status", opts.status);
 		const qs = params.toString();
 		const res = await fetch(`/api/admin/resources${qs ? `?${qs}` : ""}`, { credentials: "include" });
+		if (!res.ok) throw new Error(`listAdminResources failed: ${res.status}`);
 		return res.json();
 	}
 
