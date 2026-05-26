@@ -913,3 +913,15 @@ tasks:
       la validacion de parentId y los mensajes de error visibles en el formulario. Se alineo ademas App.tsx con
       el nuevo contrato de tests exportando canAccessAdminPanel. Validacion obligatoria ejecutada con bun test
       completo en verde: 449 pass, 0 fail.
+  T-2026-05-26-002:
+    date: 2026-05-26
+    agent: "backend-api-servicios + frontend-ux-accesibilidad + qa-validacion + github:github"
+    task: "Implementacion de Issue #185 (Export Improvements: counters per format and filenames with suffixes)"
+    status: Done
+    related: []
+    notes: >
+      Implementado el contador de descargas por formato ('direct', 'scorm', 'ims', 'web', 'epub') en la base de datos
+      y en el servicio y las rutas de estadisticas sociales. Modificado el cliente del frontend y la isla de detalle
+      de recurso para consumir y mostrar los contadores individuales. Exportada la funcion buildExportFilename
+      con las reglas de sufijos de formatos especificadas. Validado todo con pruebas unitarias e integracion,
+      pasando 460 tests (100% OK).

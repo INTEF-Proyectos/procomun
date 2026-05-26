@@ -1,0 +1,1 @@
+ALTER TABLE "downloads" ADD COLUMN "format" varchar(20) DEFAULT 'direct' NOT NULL;

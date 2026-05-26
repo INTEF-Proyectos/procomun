@@ -186,6 +186,31 @@ describe("Social — Downloads", () => {
 		expect(stats.downloadCount).toBe(2);
 	});
 
+	test("POST /resources/:slug/download with format → groups stats by export format", async () => {
+		const { slug } = await createPublishedResource(adminApp, "dl-format");
+		await anonApp.request(`/api/v1/resources/${slug}/download`, {
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({ format: "scorm" }),
+		});
+		await anonApp.request(`/api/v1/resources/${slug}/download`, {
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({ format: "epub" }),
+		});
+
+		const statsRes = await anonApp.request(`/api/v1/resources/${slug}/stats`);
+		expect(statsRes.status).toBe(200);
+		const stats = await statsRes.json() as {
+			downloadCount: number;
+			exportCounts: { scorm: number; ims: number; web: number; epub: number };
+		};
+		expect(stats.downloadCount).toBe(2);
+		expect(stats.exportCounts.scorm).toBe(1);
+		expect(stats.exportCounts.epub).toBe(1);
+		expect(stats.exportCounts.ims).toBe(0);
+	});
+
 	test("POST /resources/:slug/download → 404 for non-existent resource", async () => {
 		const res = await anonApp.request("/api/v1/resources/no-existe-xyz/download", { method: "POST" });
 		expect(res.status).toBe(404);

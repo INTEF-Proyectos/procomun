@@ -32,3 +32,17 @@ export function getResourceElpxFileUrl(
 	if (resource.elpxFileUrl) return resource.elpxFileUrl;
 	return getElpxMediaItem(resource.mediaItems)?.url ?? null;
 }
+
+export function buildExportFilename(title: string, format: ResourceExportKind): string {
+  const slug = title
+    .toLowerCase()
+    .normalize('NFD')
+    .replaceAll(new RegExp(String.fromCharCode(92) + 'u0300-' + String.fromCharCode(92) + 'u036f', 'g'), '')
+    .replaceAll(/[^a-z0-9]+/g, '-')
+    .replaceAll(/(^-|-$)/g, '') || 'recurso';
+
+  if (format === 'epub') {
+    return slug + '.epub';
+  }
+  return slug + '_' + format + '.zip';
+}

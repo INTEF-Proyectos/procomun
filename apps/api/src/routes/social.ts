@@ -234,8 +234,18 @@ socialRoutes.post("/resources/:slug/download", async (c) => {
 		return c.json({ error: "Recurso no encontrado" }, 404);
 	}
 
+	let format = "direct";
+	try {
+		const body = await c.req.json<{ format?: string }>();
+		if (body && typeof body.format === "string") {
+			format = body.format;
+		}
+	} catch (e) {
+		// Ignore parsing error or body not present
+	}
+
 	const currentUser = c.get("user") as { id: string } | undefined;
-	const count = await incrementDownload(resource.id, currentUser?.id);
+	const count = await incrementDownload(resource.id, currentUser?.id, format);
 
 	if (currentUser?.id) {
 		await logActivity({

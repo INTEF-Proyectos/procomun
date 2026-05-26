@@ -15,6 +15,13 @@
       "when": 1774963484191,
       "tag": "0001_needy_stellaris",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1779787801376,
+      "tag": "0002_massive_randall",
+      "breakpoints": true
     }
   ]
 }

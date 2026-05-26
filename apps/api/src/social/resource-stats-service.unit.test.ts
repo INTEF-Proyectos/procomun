@@ -34,5 +34,16 @@ describe("resource-stats-service", () => {
 		expect(stats.ratingAvg).toBe(5);
 		expect(stats.ratingCount).toBe(1);
 		expect(stats.userFavorited).toBe(true);
+		expect(stats.exportCounts).toEqual({
+			scorm: 0,
+			ims: 0,
+			web: 0,
+			epub: 0,
+		});
+
+		await incrementDownload(resource.id, userId, "scorm");
+		const stats2 = await getResourceSocialStats(resource.id, userId);
+		expect(stats2.downloadCount).toBe(2);
+		expect(stats2.exportCounts.scorm).toBe(1);
 	});
 });

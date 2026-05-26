@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { getElpxMediaItem, getResourceElpxFileUrl, isElpxFilename, RESOURCE_EXPORT_OPTIONS } from "./resource-export.ts";
+import { getElpxMediaItem, getResourceElpxFileUrl, isElpxFilename, RESOURCE_EXPORT_OPTIONS, buildExportFilename } from "./resource-export.ts";
 
 describe("resource-export", () => {
 	test("detecta extensiones .elpx y .elp", () => {
@@ -38,4 +38,14 @@ describe("resource-export", () => {
 		expect(RESOURCE_EXPORT_OPTIONS.map((option) => option.id)).toEqual(["scorm", "ims", "web", "epub"]);
 		expect(RESOURCE_EXPORT_OPTIONS.map((option) => option.editorFormat)).toEqual(["scorm12", "ims", "html5", "epub3"]);
 	});
+
+	test(
+		"genera nombres de archivo correctos segun el formato",
+		() => {
+			expect(buildExportFilename("Mi Recurso Pedagogico", "scorm")).toBe("mi-recurso-pedagogico_scorm.zip");
+			expect(buildExportFilename("Mi Recurso Pedagogico", "ims")).toBe("mi-recurso-pedagogico_ims.zip");
+			expect(buildExportFilename("Mi Recurso Pedagogico", "web")).toBe("mi-recurso-pedagogico_web.zip");
+			expect(buildExportFilename("Mi Recurso Pedagogico", "epub")).toBe("mi-recurso-pedagogico.epub");
+		},
+	);
 });
