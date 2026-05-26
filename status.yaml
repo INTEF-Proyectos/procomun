@@ -887,3 +887,18 @@ tasks:
       Se añaden regresiones en el helper de permisos de upload y en la ruta TUS para cubrir la subida con rol
       editor sobre un recurso creado por el propio usuario. Validacion ejecutada con bun test focalizado y bun test
       completo en verde (431 pass, 0 fail).
+
+  T-2026-05-26-001:
+    date: 2026-05-26
+    agent: "API Keys UI Developer"
+    task: "Implementation of API Keys User Interface and Admin Panel"
+    status: Done
+    related: []
+    notes: >
+      Implementado el panel de claves de API en el perfil de usuario (para autores y roles superiores) y el panel
+      de control global de claves de API en el backoffice de administración. Se extendió el repositorio de base de
+      datos con funciones listAllApiTokens, revokeApiTokenAdmin y getGlobalApiTokenStats con cobertura completa de tests.
+      Se implementaron las rutas de Hono /api/admin/api-tokens con middleware de autorización para admin y tests unitarios
+      aislados. Se agregaron componentes React ApiKeysTab, ApiKeyCreateDialog, ApiKeyRevokeDialog, AdminApiTokensSection
+      con diseño premium y localizaciones actualizadas para es, en, ca, gl y eu. Se validó con éxito el suite completo
+      (456 tests pasados con 91.29% de cobertura).
