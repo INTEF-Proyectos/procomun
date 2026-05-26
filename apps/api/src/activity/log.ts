@@ -20,7 +20,7 @@ export async function logActivity(opts: {
 			resourceTitle: opts.resourceTitle ?? null,
 			resourceSlug: opts.resourceSlug ?? null,
 			description: opts.description,
-			metadata: opts.metadata ? JSON.stringify(opts.metadata) : null,
+			metadata: opts.metadata ?? null,
 			createdAt: new Date(),
 		});
 	} catch {

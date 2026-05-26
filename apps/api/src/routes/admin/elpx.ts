@@ -138,7 +138,7 @@ elpxAdminRoutes.post("/upload/:resourceId", requireRole("author"), async (c) => 
 		uploadSessionId: uploadId,
 		version: 3,
 		hasPreview: result.hasPreview,
-		elpxMetadata: JSON.stringify(result.metadata),
+		elpxMetadata: result.metadata,
 	});
 
 	return c.json({
@@ -228,7 +228,7 @@ elpxAdminRoutes.post("/save/:resourceId", requireRole("author"), async (c) => {
 		uploadSessionId: uploadId,
 		version: 3,
 		hasPreview: result.hasPreview,
-		elpxMetadata: JSON.stringify(result.metadata),
+		elpxMetadata: result.metadata,
 	});
 
 	return c.json({
@@ -362,7 +362,7 @@ elpxAdminRoutes.post("/generate/:resourceId", requireRole("author"), async (c) =
 		uploadSessionId: uploadId,
 		version: 3,
 		hasPreview: result.hasPreview,
-		elpxMetadata: JSON.stringify(result.metadata),
+		elpxMetadata: result.metadata,
 	});
 
 	return c.json({

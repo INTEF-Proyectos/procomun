@@ -34,7 +34,7 @@ export async function listUserActivity(input: {
 	return {
 		data: rows.map((row) => ({
 			...row,
-			metadata: row.metadata ? JSON.parse(row.metadata) : null,
+			metadata: row.metadata ?? null,
 			createdAt: row.createdAt instanceof Date ? row.createdAt.toISOString() : row.createdAt,
 		})),
 		total: Number(countResult[0]?.count ?? 0),

@@ -197,7 +197,7 @@ async function getTusServer() {
 							uploadSessionId: upload.id,
 							version: 3,
 							hasPreview: result.hasPreview,
-							elpxMetadata: JSON.stringify(result.metadata),
+							elpxMetadata: result.metadata,
 						});
 					} catch (err) {
 						// Log but don't fail the upload — the file is saved regardless
