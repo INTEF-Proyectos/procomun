@@ -145,3 +145,9 @@ ADR-0022:
   status: Aceptado
   date: 2026-04-24
   file: 0022-design-md-contrato-diseno.md
+
+ADR-0023:
+  title: "Evaluación de migración de Vite a Bun como bundler del frontend"
+  status: Rechazado
+  date: 2026-05-26
+  file: 0023-evaluacion-migracion-vite-a-bun-bundler.md
