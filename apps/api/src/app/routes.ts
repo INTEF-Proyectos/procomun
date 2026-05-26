@@ -4,6 +4,7 @@ import { adminRoutes } from "../routes/admin/index.ts";
 import { devRoutes } from "../routes/dev.ts";
 import { elpxContentRoutes } from "../routes/elpx-content.ts";
 import { exelearningEditorRoutes } from "../routes/exelearning-editor.ts";
+import { feedRoutes } from "../routes/feeds.ts";
 import { publicRoutes } from "../routes/public.ts";
 import { socialRoutes } from "../routes/social.ts";
 import { uploadRoutes } from "../routes/uploads.ts";
@@ -26,4 +27,5 @@ export function registerRoutes(app: Hono<AuthEnv>) {
 	app.route("/api/admin", adminRoutes);
 	app.route("/api/dev", devRoutes);
 	app.route("/api/uploads", uploadRoutes);
+	app.route("/feeds", feedRoutes);
 }
