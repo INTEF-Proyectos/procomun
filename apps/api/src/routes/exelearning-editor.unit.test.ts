@@ -43,12 +43,29 @@ describe("GET /api/v1/exelearning-editor/index.html", () => {
 		expect(res.headers.get("cache-control")).toBe("no-cache");
 	});
 
-	test("inyecta bridge script", async () => {
+	test("inyecta bridge script con soporte de exportación", async () => {
 		const res = await app.request("/api/v1/exelearning-editor/index.html");
 		expect(res.status).toBe(200);
 		const html = await res.text();
 		expect(html).toContain("WP_REQUEST_SAVE");
+		expect(html).toContain("WP_REQUEST_EXPORT");
 		expect(html).toContain("EXELEARNING_READY");
+	});
+
+	test("bridge script declara WP_REQUEST_EXPORT en capabilities", async () => {
+		const res = await app.request("/api/v1/exelearning-editor/index.html");
+		const html = await res.text();
+		expect(html).toContain("'WP_REQUEST_SAVE', 'WP_REQUEST_EXPORT', 'CONFIGURE'");
+	});
+
+	test("bridge script valida formatos de exportación", async () => {
+		const res = await app.request("/api/v1/exelearning-editor/index.html");
+		const html = await res.text();
+		expect(html).toContain("scorm12");
+		expect(html).toContain("scorm2004");
+		expect(html).toContain("epub3");
+		expect(html).toContain("html5-sp");
+		expect(html).toContain("WP_EXPORT_FILE");
 	});
 
 	test("sin elpxUrl pasa null como initialProjectUrl", async () => {

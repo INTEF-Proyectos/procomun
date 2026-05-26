@@ -151,3 +151,9 @@ ADR-0023:
   status: Rechazado
   date: 2026-05-26
   file: 0023-evaluacion-migracion-vite-a-bun-bundler.md
+
+ADR-0024:
+  title: "Exportación de .elpx a formatos estándar mediante bundle de eXeLearning en navegador"
+  status: Aceptado
+  date: 2026-05-26
+  file: 0024-exportacion-elpx-formatos-estandar.md
