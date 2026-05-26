@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import type { Resource, SessionData } from "../../lib/api-client.ts";
 import { getApiClient } from "../../lib/get-api-client.ts";
 import { url } from "../../lib/paths.ts";
-import { getResourceElpxFileUrl, RESOURCE_EXPORT_OPTIONS, type ResourceExportKind } from "../../lib/resource-export.ts";
+import { buildExportFilename, getResourceElpxFileUrl, RESOURCE_EXPORT_OPTIONS, type ResourceExportKind } from "../../lib/resource-export.ts";
 import { FILE_ICONS, formatBytes, STATUS_MAP, TYPE_ICONS } from "../../lib/resource-display.ts";
 import { RatingIsland } from "../social/RatingIsland.tsx";
 import { FavoriteIsland } from "../social/FavoriteIsland.tsx";
@@ -98,21 +98,6 @@ function getStatusBadgeClass(editorialStatus: string): string {
   }
 }
 
-function buildExportFilename(title: string, format: ResourceExportKind): string {
-  const slug = title
-    .toLowerCase()
-    .normalize("NFD")
-    .replaceAll(/[\u0300-\u036f]/g, "")
-    .replaceAll(/[^a-z0-9]+/g, "-")
-    .replaceAll(/(^-|-$)/g, "") || "recurso";
-  const extensions: Record<ResourceExportKind, string> = {
-    scorm: "zip",
-    ims: "zip",
-    web: "zip",
-    epub: "epub",
-  };
-  return `${slug}.${extensions[format]}`;
-}
 
 function ResourceDetailContent({ resource, session, stats, isFavorited, onDownloadTracked }: { resource: Resource; session: SessionData | null; stats: ResourceStats | null; isFavorited: boolean; onDownloadTracked?: (count: number) => void }) {
   const status = STATUS_MAP[resource.editorialStatus] ?? STATUS_MAP.draft;
@@ -177,9 +162,10 @@ function ResourceDetailContent({ resource, session, stats, isFavorited, onDownlo
         link.click();
         document.body.removeChild(link);
         URL.revokeObjectURL(downloadUrl);
+        const formatTrack = exportingFormat || undefined;
         setExportingFormat(null);
         void getApiClient()
-          .then((api) => api.trackDownload(resource.slug))
+          .then((api) => api.trackDownload(resource.slug, formatTrack))
           .then((result) => {
             if (onDownloadTracked) onDownloadTracked(result.count);
           })
@@ -195,7 +181,7 @@ function ResourceDetailContent({ resource, session, stats, isFavorited, onDownlo
 
     window.addEventListener("message", handleMessage);
     return () => window.removeEventListener("message", handleMessage);
-  }, [exportSourceUrl, onDownloadTracked, resource.slug]);
+  }, [exportSourceUrl, onDownloadTracked, resource.slug, exportingFormat]);
 
   const handleExport = useCallback((format: ResourceExportKind) => {
     const iframeWindow = iframeRef.current?.contentWindow;
@@ -302,7 +288,7 @@ function ResourceDetailContent({ resource, session, stats, isFavorited, onDownlo
                   e.preventDefault();
                   const href = resource.mediaItems![0].url;
                   getApiClient()
-                    .then((api) => api.trackDownload(resource.slug))
+                    .then((api) => api.trackDownload(resource.slug, "direct"))
                     .then((result) => {
                       if (onDownloadTracked) onDownloadTracked(result.count);
                     })
@@ -341,6 +327,9 @@ function ResourceDetailContent({ resource, session, stats, isFavorited, onDownlo
                       disabled={!exportReady || exportingFormat !== null}
                     >
                       {exportingFormat === option.id ? `Preparando ${option.label}...` : option.label}
+                      {stats?.exportCounts?.[option.id] ? (
+                        <span className="detail-action-count">{stats.exportCounts[option.id]}</span>
+                      ) : null}
                     </button>
                   ))}
                 </div>
@@ -528,6 +517,12 @@ function ResourceDetailContent({ resource, session, stats, isFavorited, onDownlo
 
 interface ResourceStats {
   downloadCount: number;
+  exportCounts?: {
+    scorm: number;
+    ims: number;
+    web: number;
+    epub: number;
+  };
   favoriteCount: number;
   ratingAvg: number;
   ratingCount: number;
