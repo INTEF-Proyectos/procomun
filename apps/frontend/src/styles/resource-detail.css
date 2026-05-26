@@ -256,6 +256,63 @@
     color: var(--color-primary);
   }
 
+  .detail-export-group {
+    display: flex;
+    flex: 1 1 100%;
+    flex-direction: column;
+    gap: var(--space-3);
+  }
+
+  .detail-export-label {
+    font-size: var(--text-body-sm);
+    font-weight: var(--weight-semibold);
+    color: var(--color-on-surface-variant);
+  }
+
+  .detail-export-buttons {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-2);
+  }
+
+  .detail-export-pill {
+    padding: 0.7rem 1rem;
+    border: 1px solid var(--color-outline-variant);
+    border-radius: var(--radius-full);
+    background: var(--color-surface-container-lowest);
+    color: var(--color-on-surface);
+    font-family: var(--font-display);
+    font-weight: var(--weight-semibold);
+    cursor: pointer;
+    transition: transform var(--transition-fast), border-color var(--transition-fast), background-color var(--transition-fast);
+  }
+
+  .detail-export-pill:hover:not(:disabled) {
+    transform: translateY(-1px);
+    border-color: var(--color-primary);
+    background: var(--color-surface-bright);
+  }
+
+  .detail-export-pill:disabled {
+    cursor: wait;
+    opacity: 0.7;
+  }
+
+  .detail-export-status {
+    margin: 0;
+    font-size: var(--text-body-sm);
+    color: #b3261e;
+  }
+
+  .detail-export-iframe {
+    width: 0;
+    height: 0;
+    border: 0;
+    position: absolute;
+    opacity: 0;
+    pointer-events: none;
+  }
+
   /* -- Preview area -------------------------------------------------- */
   .detail-preview-section h2,
   .description-section h2,

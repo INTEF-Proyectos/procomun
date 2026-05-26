@@ -144,6 +144,26 @@ const BRIDGE_SCRIPT = `<script>
 		}
 	}
 
+	async function exportToFormat(format) {
+		var app = await getApp();
+		var project = app.project;
+		if (!window.SharedExporters?.quickExport) throw new Error('SharedExporters not available');
+		if (!project?._yjsBridge?.documentManager) throw new Error('Document manager not available');
+		var yb = project._yjsBridge;
+		var result = await window.SharedExporters.quickExport(
+			format,
+			yb.documentManager,
+			yb.assetCache || null,
+			yb.resourceFetcher || null,
+			{},
+			yb.assetManager || null
+		);
+		if (!result?.success || !result?.data) throw new Error(result?.error || 'Export failed');
+		var blob = new Blob([result.data], { type: 'application/zip' });
+		var bytes = await blob.arrayBuffer();
+		return { bytes: bytes, filename: result.filename || ('export.' + format + '.zip'), mimeType: blob.type || 'application/zip' };
+	}
+
 	async function handleMessage(event) {
 		var msg = event?.data;
 		if (!msg?.type || msg.source === 'procomun-bridge') return;
@@ -152,6 +172,13 @@ const BRIDGE_SCRIPT = `<script>
 				case 'WP_REQUEST_SAVE':
 					var exported = await exportToBytes();
 					post({ type: 'WP_SAVE_FILE', requestId: msg.requestId, bytes: exported.bytes, filename: exported.filename, mimeType: exported.mimeType, size: exported.bytes.byteLength });
+					break;
+				case 'WP_REQUEST_EXPORT':
+					var format = msg.format || 'html5';
+					var validFormats = ['scorm12', 'scorm2004', 'ims', 'html5', 'html5-sp', 'epub3'];
+					if (validFormats.indexOf(format) === -1) throw new Error('Formato no soportado: ' + format);
+					var expResult = await exportToFormat(format);
+					post({ type: 'WP_EXPORT_FILE', requestId: msg.requestId, bytes: expResult.bytes, filename: expResult.filename, mimeType: expResult.mimeType, size: expResult.bytes.byteLength });
 					break;
 				case 'CONFIGURE':
 					applyHideUI(msg.data?.hideUI);
@@ -172,7 +199,7 @@ const BRIDGE_SCRIPT = `<script>
 	async function init() {
 		if (window.eXeLearning?.ready) await window.eXeLearning.ready;
 		window.addEventListener('message', handleMessage);
-		post({ type: 'EXELEARNING_READY', version: window.eXeLearning?.version || 'unknown', capabilities: ['WP_REQUEST_SAVE', 'CONFIGURE'] });
+		post({ type: 'EXELEARNING_READY', version: window.eXeLearning?.version || 'unknown', capabilities: ['WP_REQUEST_SAVE', 'WP_REQUEST_EXPORT', 'CONFIGURE'] });
 		notifyDocumentLoaded();
 		document.addEventListener('keydown', function(e) {
 			if ((e.ctrlKey || e.metaKey) && e.key === 's') { e.preventDefault(); post({ type: 'DOCUMENT_CHANGED' }); }
