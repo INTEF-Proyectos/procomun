@@ -1,6 +1,4 @@
 import { describe, expect, test } from "bun:test";
-import { renderToStaticMarkup } from "react-dom/server";
-import { createElement } from "react";
 
 /**
  * DEF-002: Validates that preview iframes never combine allow-scripts + allow-same-origin
@@ -36,8 +34,6 @@ describe("iframe sandbox security (DEF-002)", () => {
 	});
 
 	test("HomeDataIsland preview iframe no combina allow-scripts con allow-same-origin", async () => {
-		const { IframePreview } = await import("../islands/home/HomeDataIsland.tsx");
-		// IframePreview is not exported, so we check the source
 		const src = await Bun.file(
 			new URL("../islands/home/HomeDataIsland.tsx", import.meta.url).pathname,
 		).text();
