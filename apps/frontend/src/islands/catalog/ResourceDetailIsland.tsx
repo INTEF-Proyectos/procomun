@@ -1,7 +1,8 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { Resource, SessionData } from "../../lib/api-client.ts";
 import { getApiClient } from "../../lib/get-api-client.ts";
 import { url } from "../../lib/paths.ts";
+import { getResourceElpxFileUrl, RESOURCE_EXPORT_OPTIONS, type ResourceExportKind } from "../../lib/resource-export.ts";
 import { FILE_ICONS, formatBytes, STATUS_MAP, TYPE_ICONS } from "../../lib/resource-display.ts";
 import { RatingIsland } from "../social/RatingIsland.tsx";
 import { FavoriteIsland } from "../social/FavoriteIsland.tsx";
@@ -97,6 +98,22 @@ function getStatusBadgeClass(editorialStatus: string): string {
   }
 }
 
+function buildExportFilename(title: string, format: ResourceExportKind): string {
+  const slug = title
+    .toLowerCase()
+    .normalize("NFD")
+    .replaceAll(/[\u0300-\u036f]/g, "")
+    .replaceAll(/[^a-z0-9]+/g, "-")
+    .replaceAll(/(^-|-$)/g, "") || "recurso";
+  const extensions: Record<ResourceExportKind, string> = {
+    scorm: "zip",
+    ims: "zip",
+    web: "zip",
+    epub: "epub",
+  };
+  return `${slug}.${extensions[format]}`;
+}
+
 function ResourceDetailContent({ resource, session, stats, isFavorited, onDownloadTracked }: { resource: Resource; session: SessionData | null; stats: ResourceStats | null; isFavorited: boolean; onDownloadTracked?: (count: number) => void }) {
   const status = STATUS_MAP[resource.editorialStatus] ?? STATUS_MAP.draft;
   const keywords = resource.keywords
@@ -113,6 +130,95 @@ function ResourceDetailContent({ resource, session, stats, isFavorited, onDownlo
   const hasPreview = !!resource.elpxPreview?.previewUrl;
   const hasFiles = !!resource.mediaItems?.length;
   const totalFileSize = resource.mediaItems?.reduce((sum, item) => sum + (item.fileSize ?? 0), 0) ?? 0;
+  const exportSourceUrl = getResourceElpxFileUrl(resource);
+  const iframeRef = useRef<HTMLIFrameElement | null>(null);
+  const [exportReady, setExportReady] = useState(false);
+  const [exportingFormat, setExportingFormat] = useState<ResourceExportKind | null>(null);
+  const [exportError, setExportError] = useState("");
+
+  useEffect(() => {
+    if (!exportSourceUrl) return;
+
+    function handleMessage(event: MessageEvent) {
+      if (event.source !== iframeRef.current?.contentWindow) return;
+      const message = event.data as {
+        type?: string;
+        requestId?: string;
+        bytes?: ArrayBuffer;
+        filename?: string;
+        mimeType?: string;
+        error?: string;
+      };
+      if (!message?.type) return;
+
+      if (message.type === "EXELEARNING_READY") {
+        iframeRef.current?.contentWindow?.postMessage({
+          type: "CONFIGURE",
+          requestId: `cfg-${crypto.randomUUID()}`,
+          data: { hideUI: { fileMenu: true, saveButton: true, userMenu: true } },
+        }, window.location.origin);
+        return;
+      }
+
+      if (message.type === "DOCUMENT_LOADED") {
+        setExportReady(true);
+        setExportError("");
+        return;
+      }
+
+      if (message.type === "EXPORT_FILE" && message.bytes) {
+        const blob = new Blob([message.bytes], { type: message.mimeType || "application/octet-stream" });
+        const downloadUrl = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.href = downloadUrl;
+        link.download = message.filename || "export.zip";
+        link.style.display = "none";
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(downloadUrl);
+        setExportingFormat(null);
+        void getApiClient()
+          .then((api) => api.trackDownload(resource.slug))
+          .then((result) => {
+            if (onDownloadTracked) onDownloadTracked(result.count);
+          })
+          .catch(() => {});
+        return;
+      }
+
+      if (message.type === "REQUEST_EXPORT_ERROR") {
+        setExportError(message.error || "No se pudo exportar el recurso.");
+        setExportingFormat(null);
+      }
+    }
+
+    window.addEventListener("message", handleMessage);
+    return () => window.removeEventListener("message", handleMessage);
+  }, [exportSourceUrl, onDownloadTracked, resource.slug]);
+
+  const handleExport = useCallback((format: ResourceExportKind) => {
+    const iframeWindow = iframeRef.current?.contentWindow;
+    if (!iframeWindow || !exportReady) return;
+
+    const option = RESOURCE_EXPORT_OPTIONS.find((item) => item.id === format);
+    if (!option) return;
+
+    setExportError("");
+    setExportingFormat(format);
+    iframeWindow.postMessage({
+      type: "REQUEST_EXPORT",
+      requestId: `export-${format}-${crypto.randomUUID()}`,
+      data: {
+        format: option.editorFormat,
+        filename: buildExportFilename(resource.title, format),
+      },
+    }, window.location.origin);
+  }, [exportReady, resource.title]);
+
+  const editorUrl = exportSourceUrl
+    ? `${url("api/v1/exelearning-editor/index.html")}?elpxUrl=${encodeURIComponent(exportSourceUrl)}`
+    : null;
 
   return (
     <>
@@ -222,7 +328,36 @@ function ResourceDetailContent({ resource, session, stats, isFavorited, onDownlo
                 {m.detail_no_files()}
               </span>
             ) : null}
+            {editorUrl ? (
+              <div className="detail-export-group">
+                <span className="detail-export-label">Exportar como</span>
+                <div className="detail-export-buttons">
+                  {RESOURCE_EXPORT_OPTIONS.map((option) => (
+                    <button
+                      key={option.id}
+                      type="button"
+                      className="detail-export-pill"
+                      onClick={() => handleExport(option.id)}
+                      disabled={!exportReady || exportingFormat !== null}
+                    >
+                      {exportingFormat === option.id ? `Preparando ${option.label}...` : option.label}
+                    </button>
+                  ))}
+                </div>
+                {exportError ? <p className="detail-export-status" role="alert">{exportError}</p> : null}
+              </div>
+            ) : null}
           </div>
+          {editorUrl ? (
+            <iframe
+              ref={iframeRef}
+              src={editorUrl}
+              title="Exportador eXeLearning"
+              aria-hidden="true"
+              tabIndex={-1}
+              className="detail-export-iframe"
+            />
+          ) : null}
 
           {/* Preview */}
           {hasPreview ? (

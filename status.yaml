@@ -218,6 +218,19 @@ tasks:
     status: Done
     related: []
     notes: >
+  T-2026-05-26-002:
+    date: 2026-05-26
+    agent: "frontend-ux-accesibilidad + backend-api-servicios + qa-validacion"
+    task: "Ficha pública del recurso: exportación a SCORM, IMS, Web y EPUB desde proyectos eXe publicados"
+    status: Done
+    related: []
+    notes: >
+      La API pública ahora expone elpxFileUrl cuando el recurso publicado tiene proyecto eXe asociado.
+      La ficha pública carga un iframe oculto del editor eXe y reutiliza REQUEST_EXPORT para lanzar
+      exportaciones cliente a SCORM 1.2, IMS CP, Website y ePub3.
+      Se mantiene el botón de descarga original para adjuntos/mediaItems.
+      Tests automatizados añadidos para helper frontend de exportación y para la API/bridge del editor.
+      Validación ejecutada con bun test en suites afectadas y salida con todos los tests en verde.
       Subida de cobertura de líneas por encima del umbral mínimo del 90% tras regresión por seed sobre
       PostgreSQL real. Refactor del flujo común de seed en apps/cli/src/commands/seed.ts.
       Tests unitarios ampliados en apps/cli/src/commands/seed.unit.test.ts.

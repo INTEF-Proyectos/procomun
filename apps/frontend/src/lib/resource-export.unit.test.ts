@@ -1,0 +1,41 @@
+import { describe, expect, test } from "bun:test";
+import { getElpxMediaItem, getResourceElpxFileUrl, isElpxFilename, RESOURCE_EXPORT_OPTIONS } from "./resource-export.ts";
+
+describe("resource-export", () => {
+	test("detecta extensiones .elpx y .elp", () => {
+		expect(isElpxFilename("paquete.elpx")).toBe(true);
+		expect(isElpxFilename("PAQUETE.ELP")).toBe(true);
+		expect(isElpxFilename("guia.pdf")).toBe(false);
+		expect(isElpxFilename(null)).toBe(false);
+	});
+
+	test("localiza el media item .elpx dentro del recurso", () => {
+		const mediaItem = getElpxMediaItem([
+			{ id: "1", resourceId: "r1", type: "file", url: "/a.pdf", filename: "a.pdf", isPrimary: 0 },
+			{ id: "2", resourceId: "r1", type: "file", url: "/project.elpx", filename: "project.elpx", isPrimary: 1 },
+		]);
+
+		expect(mediaItem?.id).toBe("2");
+	});
+
+	test("prioriza elpxFileUrl explícita y usa mediaItems como fallback", () => {
+		expect(
+			getResourceElpxFileUrl({
+				elpxFileUrl: "/api/v1/uploads/elpx/content",
+				mediaItems: [{ id: "1", resourceId: "r1", type: "file", url: "/project.elpx", filename: "project.elpx", isPrimary: 1 }],
+			}),
+		).toBe("/api/v1/uploads/elpx/content");
+
+		expect(
+			getResourceElpxFileUrl({
+				elpxFileUrl: null,
+				mediaItems: [{ id: "1", resourceId: "r1", type: "file", url: "/project.elpx", filename: "project.elpx", isPrimary: 1 }],
+			}),
+		).toBe("/project.elpx");
+	});
+
+	test("expone los cuatro formatos esperados", () => {
+		expect(RESOURCE_EXPORT_OPTIONS.map((option) => option.id)).toEqual(["scorm", "ims", "web", "epub"]);
+		expect(RESOURCE_EXPORT_OPTIONS.map((option) => option.editorFormat)).toEqual(["scorm12", "ims", "html5", "epub3"]);
+	});
+});
