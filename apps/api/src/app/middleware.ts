@@ -8,6 +8,7 @@ const sessionProtectedApiPatterns = [
 	"/api/admin/*",
 	"/api/dev/*",
 	"/api/uploads/*",
+	"/api/v1/tokens/*",
 ];
 
 const sessionProtectedSocialPatterns = [
