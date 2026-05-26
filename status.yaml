@@ -887,3 +887,16 @@ tasks:
       Se añaden regresiones en el helper de permisos de upload y en la ruta TUS para cubrir la subida con rol
       editor sobre un recurso creado por el propio usuario. Validacion ejecutada con bun test focalizado y bun test
       completo en verde (431 pass, 0 fail).
+
+  T-2026-05-26-001:
+    date: 2026-05-26
+    agent: "backend-api-servicios + frontend-ux-accesibilidad + qa-validacion + github:github"
+    task: "Resolucion de conflictos de la PR #169 contra main"
+    status: Done
+    related: []
+    notes: >
+      Merge de origin/main completado sobre la rama de la PR 169. Los conflictos se resolvieron en validacion y
+      CRUD de taxonomias, mas la UI de categorias en admin, manteniendo la comprobacion de taxonomia duplicada,
+      la validacion de parentId y los mensajes de error visibles en el formulario. Se alineo ademas App.tsx con
+      el nuevo contrato de tests exportando canAccessAdminPanel. Validacion obligatoria ejecutada con bun test
+      completo en verde: 449 pass, 0 fail.

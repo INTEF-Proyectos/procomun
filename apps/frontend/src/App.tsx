@@ -16,6 +16,10 @@ const NuevoPage = lazy(() => import("./pages/NuevoPage.tsx"));
 
 const VALID_LOCALES = new Set(["en", "ca", "gl", "eu"]);
 
+export function canAccessAdminPanel(role?: string): boolean {
+	return role === "curator" || role === "admin";
+}
+
 /** Syncs <html lang> when the :locale param changes. */
 function LocaleSync() {
 	const { locale } = useParams<{ locale?: string }>();

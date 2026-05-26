@@ -138,8 +138,9 @@ export function AdminCategoriesSection() {
 			setShowCreate(false);
 			void loadTaxonomies(1, search.trim(), typeFilter);
 			void loadAllTaxonomies();
-		} catch {
-			setCreateError("No se pudo crear la taxonomia.");
+		} catch (err) {
+			const msg = (err as { error?: string })?.error;
+			setCreateError(msg || "No se pudo crear la taxonomia.");
 		} finally {
 			setCreateBusy(false);
 		}

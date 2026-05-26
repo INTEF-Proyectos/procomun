@@ -168,8 +168,9 @@ export function TaxonomyCrudIsland() {
 			setCreateForm(EMPTY_FORM);
 			setCreateFeedback({ message: "Categoria creada.", variant: "success" });
 			await loadTaxonomies(0, appliedSearch, typeFilter);
-		} catch {
-			setCreateFeedback({ message: "Error al crear la categoria.", variant: "error" });
+		} catch (err) {
+			const msg = (err as { error?: string })?.error;
+			setCreateFeedback({ message: msg || "Error al crear la categoria.", variant: "error" });
 		} finally {
 			setBusyAction(null);
 		}
