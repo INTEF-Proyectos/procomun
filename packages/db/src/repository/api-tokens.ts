@@ -1,5 +1,6 @@
-import { and, eq, isNull, desc, sql } from "drizzle-orm";
+import { and, eq, isNull, isNotNull, gt, lte, or, desc, sql } from "drizzle-orm";
 import { apiTokens } from "../schema/api-tokens.ts";
+import { user } from "../schema/auth.ts";
 import type { DrizzleDB } from "./shared.ts";
 
 /**
@@ -144,4 +145,115 @@ export async function deleteApiToken(
 	await db
 		.delete(apiTokens)
 		.where(and(eq(apiTokens.id, tokenId), eq(apiTokens.userId, userId)));
+}
+
+export async function listAllApiTokens(
+	db: DrizzleDB,
+	filters?: { userId?: string; status?: "active" | "revoked" | "expired" },
+): Promise<
+	{
+		id: string;
+		name: string;
+		tokenPrefix: string;
+		lastUsedAt: Date | null;
+		expiresAt: Date | null;
+		revokedAt: Date | null;
+		requestCount: number;
+		createdAt: Date;
+		user: {
+			id: string;
+			name: string | null;
+			email: string;
+		};
+	}[]
+> {
+	const conditions = [];
+
+	if (filters?.userId) {
+		conditions.push(eq(apiTokens.userId, filters.userId));
+	}
+
+	if (filters?.status) {
+		const now = new Date();
+		if (filters.status === "active") {
+			conditions.push(
+				and(
+					isNull(apiTokens.revokedAt),
+					or(isNull(apiTokens.expiresAt), gt(apiTokens.expiresAt, now)),
+				),
+			);
+		} else if (filters.status === "revoked") {
+			conditions.push(isNotNull(apiTokens.revokedAt));
+		} else if (filters.status === "expired") {
+			conditions.push(
+				and(isNotNull(apiTokens.expiresAt), lte(apiTokens.expiresAt, now)),
+			);
+		}
+	}
+
+	const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
+
+	const query = db
+		.select({
+			id: apiTokens.id,
+			name: apiTokens.name,
+			tokenPrefix: apiTokens.tokenPrefix,
+			lastUsedAt: apiTokens.lastUsedAt,
+			expiresAt: apiTokens.expiresAt,
+			revokedAt: apiTokens.revokedAt,
+			requestCount: apiTokens.requestCount,
+			createdAt: apiTokens.createdAt,
+			user: {
+				id: user.id,
+				name: user.name,
+				email: user.email,
+			},
+		})
+		.from(apiTokens)
+		.innerJoin(user, eq(apiTokens.userId, user.id))
+		.orderBy(desc(apiTokens.createdAt));
+
+	return whereClause ? await query.where(whereClause) : await query;
+}
+
+export async function revokeApiTokenAdmin(
+	db: DrizzleDB,
+	tokenId: string,
+): Promise<boolean> {
+	await db
+		.update(apiTokens)
+		.set({ revokedAt: new Date() })
+		.where(and(eq(apiTokens.id, tokenId), isNull(apiTokens.revokedAt)));
+	return true;
+}
+
+export async function getGlobalApiTokenStats(
+	db: DrizzleDB,
+): Promise<{ activeCount: number; revokedCount: number; totalRequests: number }> {
+	const now = new Date();
+
+	const activeRows = await db
+		.select({ count: sql<number>`count(*)` })
+		.from(apiTokens)
+		.where(
+			and(
+				isNull(apiTokens.revokedAt),
+				or(isNull(apiTokens.expiresAt), gt(apiTokens.expiresAt, now)),
+			),
+		);
+
+	const revokedRows = await db
+		.select({ count: sql<number>`count(*)` })
+		.from(apiTokens)
+		.where(isNotNull(apiTokens.revokedAt));
+
+	const requestRows = await db
+		.select({ sum: sql<number>`sum(${apiTokens.requestCount})` })
+		.from(apiTokens);
+
+	return {
+		activeCount: Number(activeRows[0]?.count ?? 0),
+		revokedCount: Number(revokedRows[0]?.count ?? 0),
+		totalRequests: Number(requestRows[0]?.sum ?? 0),
+	};
 }

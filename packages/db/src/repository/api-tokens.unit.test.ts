@@ -11,6 +11,9 @@ import {
 	deleteApiToken,
 	hashToken,
 	generateToken,
+	listAllApiTokens,
+	revokeApiTokenAdmin,
+	getGlobalApiTokenStats,
 } from "./api-tokens.ts";
 import { ensureUser } from "./users.ts";
 
@@ -103,5 +106,72 @@ describe("api-tokens repository", () => {
 		const tokens = await listApiTokens(db, "user-1");
 		expect(tokens.length).toBe(1);
 		expect(tokens[0].name).toBe("Mine");
+	});
+
+	test("listAllApiTokens supports admin filtering", async () => {
+		await ensureUser(db, { id: "user-2", email: "other@example.com", name: "Other" });
+		const token1 = await createApiToken(db, { userId: "user-1", name: "Token A" });
+		const token2 = await createApiToken(db, { userId: "user-2", name: "Token B" });
+
+		// Revoke one
+		await revokeApiToken(db, token1.id, "user-1");
+
+		// List all (unfiltered)
+		let all = await listAllApiTokens(db);
+		expect(all.length).toBe(2);
+		expect(all.find(t => t.id === token1.id)?.user.name).toBe("Test User");
+		expect(all.find(t => t.id === token2.id)?.user.name).toBe("Other");
+
+		// Filter by user
+		const byUser = await listAllApiTokens(db, { userId: "user-2" });
+		expect(byUser.length).toBe(1);
+		expect(byUser[0].id).toBe(token2.id);
+
+		// Filter by active
+		const active = await listAllApiTokens(db, { status: "active" });
+		expect(active.length).toBe(1);
+		expect(active[0].id).toBe(token2.id);
+
+		// Filter by revoked
+		const revoked = await listAllApiTokens(db, { status: "revoked" });
+		expect(revoked.length).toBe(1);
+		expect(revoked[0].id).toBe(token1.id);
+	});
+
+	test("revokeApiTokenAdmin revokes any user's token", async () => {
+		await ensureUser(db, { id: "user-2", email: "other@example.com", name: "Other" });
+		const token = await createApiToken(db, { userId: "user-2", name: "Token" });
+
+		const success = await revokeApiTokenAdmin(db, token.id);
+		expect(success).toBe(true);
+
+		const result = await validateApiToken(db, token.rawToken);
+		expect(result).toBeNull();
+	});
+
+	test("getGlobalApiTokenStats aggregates active, revoked, and requestCount correctly", async () => {
+		await ensureUser(db, { id: "user-2", email: "other@example.com", name: "Other" });
+		const t1 = await createApiToken(db, { userId: "user-1", name: "Token 1" });
+		const t2 = await createApiToken(db, { userId: "user-2", name: "Token 2" });
+
+		// Initially all active, requestCount 0
+		let stats = await getGlobalApiTokenStats(db);
+		expect(stats.activeCount).toBe(2);
+		expect(stats.revokedCount).toBe(0);
+		expect(stats.totalRequests).toBe(0);
+
+		// Validate t1 once to increment request count
+		await validateApiToken(db, t1.rawToken);
+		
+		stats = await getGlobalApiTokenStats(db);
+		expect(stats.totalRequests).toBe(1);
+
+		// Revoke t2
+		await revokeApiTokenAdmin(db, t2.id);
+		
+		stats = await getGlobalApiTokenStats(db);
+		expect(stats.activeCount).toBe(1);
+		expect(stats.revokedCount).toBe(1);
+		expect(stats.totalRequests).toBe(1);
 	});
 });

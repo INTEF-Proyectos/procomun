@@ -6,6 +6,7 @@ import { collectionRoutes } from "./collections.ts";
 import { taxonomyRoutes } from "./taxonomies.ts";
 import { elpxAdminRoutes } from "./elpx.ts";
 import { settingsRoutes } from "./settings.ts";
+import { adminApiTokensRoutes } from "./api-tokens.ts";
 
 const adminRoutes = new Hono<AuthEnv>();
 
@@ -19,5 +20,9 @@ adminRoutes.route("/taxonomies", taxonomyRoutes);
 adminRoutes.route("/uploads", adminUploadRoutes);
 adminRoutes.route("/elpx", elpxAdminRoutes);
 adminRoutes.route("/settings", settingsRoutes);
+
+adminRoutes.use("/api-tokens", requireRole("admin"));
+adminRoutes.use("/api-tokens/*", requireRole("admin"));
+adminRoutes.route("/api-tokens", adminApiTokensRoutes);
 
 export { adminRoutes };

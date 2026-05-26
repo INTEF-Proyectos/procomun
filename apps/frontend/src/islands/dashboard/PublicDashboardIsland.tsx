@@ -9,7 +9,8 @@ import { EmptyState } from "../../ui/EmptyState.tsx";
 import { Skeleton } from "../../ui/Skeleton.tsx";
 import { getApiClient } from "../../lib/get-api-client.ts";
 import { url } from "../../lib/paths.ts";
-import { computeResourceBadges, DEFAULT_BADGE_CONFIG, gravatarUrl } from "../../lib/shared-utils.ts";
+import { computeResourceBadges, DEFAULT_BADGE_CONFIG, gravatarUrl, hasMinRole } from "../../lib/shared-utils.ts";
+import { ApiKeysTab } from "./ApiKeysTab.tsx";
 import "./PublicDashboardIsland.css";
 import "../../lib/paraglide-client.ts";
 import * as m from "../../paraglide/messages.js";
@@ -414,8 +415,8 @@ export function PublicDashboardIsland() {
 
   // Read ?tab= param from URL
   const tabParam = typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("tab") : null;
-  const validTabs = ["resources", "favorites", "ratings", "activity"];
-  const defaultTab = tabParam && validTabs.includes(tabParam) ? tabParam : "resources";
+  const validTabs = ["resources", "favorites", "ratings", "activity", "api-keys"];
+  const defaultTab = tabParam && validTabs.includes(tabParam) ? (tabParam === "api-keys" && !hasMinRole(user.role, "author") ? "resources" : tabParam) : "resources";
 
   const tabs = [
     {
@@ -494,6 +495,15 @@ export function PublicDashboardIsland() {
       content: <ActivityTab />,
     },
   ];
+
+  if (hasMinRole(user.role, "author")) {
+    tabs.push({
+      id: "api-keys",
+      label: m.api_keys_title(),
+      icon: "vpn_key",
+      content: <ApiKeysTab />,
+    });
+  }
 
   return (
     <div className="dashboard-public">
