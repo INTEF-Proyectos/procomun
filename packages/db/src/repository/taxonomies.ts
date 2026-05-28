@@ -1,4 +1,4 @@
-import { asc, eq, sql } from "drizzle-orm";
+import { and, asc, eq, sql } from "drizzle-orm";
 import { taxonomies } from "../schema/taxonomies.ts";
 import {
 	andWhere,
@@ -8,6 +8,13 @@ import {
 	normalizePagination,
 	normalizeSearch,
 } from "./shared.ts";
+
+export class DuplicateTaxonomyError extends Error {
+	constructor(name: string, type: string) {
+		super(`Ya existe una taxonomía con el nombre «${name}» y tipo «${type}»`);
+		this.name = "DuplicateTaxonomyError";
+	}
+}
 
 export async function listTaxonomies(
 	db: DrizzleDB,
@@ -69,6 +76,18 @@ export async function createTaxonomy(
 	db: DrizzleDB,
 	data: { name: string; slug?: string; type?: string; parentId?: string | null },
 ) {
+	const type = data.type ?? "category";
+
+	const existing = await db
+		.select({ id: taxonomies.id })
+		.from(taxonomies)
+		.where(and(eq(taxonomies.name, data.name), eq(taxonomies.type, type)))
+		.limit(1);
+
+	if (existing.length > 0) {
+		throw new DuplicateTaxonomyError(data.name, type);
+	}
+
 	const id = crypto.randomUUID();
 	const slug = `${buildSlug(data.slug ?? data.name)}-${id.slice(0, 8)}`;
 	const now = new Date();
@@ -77,7 +96,7 @@ export async function createTaxonomy(
 		id,
 		slug,
 		name: data.name,
-		type: data.type ?? "category",
+		type,
 		parentId: data.parentId ?? null,
 		createdAt: now,
 		updatedAt: now,

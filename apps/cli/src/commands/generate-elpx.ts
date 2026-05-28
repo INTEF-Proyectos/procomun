@@ -137,9 +137,17 @@ function licenseText(slug: string): string {
 // ---------------------------------------------------------------------------
 
 async function extractZipFiles(zipPath: string): Promise<Map<string, Uint8Array>> {
-	const { execSync } = require("node:child_process");
 	const tmpDir = path.join(require("node:os").tmpdir(), `elpx-tpl-${Date.now()}-${Math.random().toString(36).slice(2)}`);
-	execSync(`mkdir -p "${tmpDir}" && unzip -qo "${zipPath}" -d "${tmpDir}"`);
+	await mkdir(tmpDir, { recursive: true });
+
+	const proc = Bun.spawn(["unzip", "-qo", zipPath, "-d", tmpDir], {
+		stdout: "ignore",
+		stderr: "ignore",
+	});
+	const exitCode = await proc.exited;
+	if (exitCode !== 0) {
+		throw new Error(`Error al extraer ${zipPath}`);
+	}
 
 	const files = new Map<string, Uint8Array>();
 	async function walk(dir: string, prefix: string) {
@@ -155,7 +163,8 @@ async function extractZipFiles(zipPath: string): Promise<Map<string, Uint8Array>
 		}
 	}
 	await walk(tmpDir, "");
-	execSync(`rm -rf "${tmpDir}"`);
+	const { rm } = require("node:fs/promises");
+	await rm(tmpDir, { recursive: true, force: true });
 	return files;
 }
 

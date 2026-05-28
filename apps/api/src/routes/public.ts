@@ -45,7 +45,16 @@ publicRoutes.get("/resources/:slug", async (c) => {
 	}
 
 	const elpx = await repo.getElpxProjectByResourceId(getDb().db, resource.id);
-	return c.json({ ...resource, elpxPreview: buildElpxPreview(elpx) });
+	let elpxFileUrl: string | null = null;
+	if (elpx?.uploadSessionId) {
+		elpxFileUrl = `/api/v1/uploads/${elpx.uploadSessionId}/content`;
+	} else {
+		const elpxMedia = resource.mediaItems?.find((mediaItem) =>
+			mediaItem.filename?.endsWith(".elpx") || mediaItem.filename?.endsWith(".elp"));
+		if (elpxMedia) elpxFileUrl = elpxMedia.url;
+	}
+
+	return c.json({ ...resource, elpxPreview: buildElpxPreview(elpx), elpxFileUrl });
 });
 
 publicRoutes.get("/uploads/:id/content", async (c) => {

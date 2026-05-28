@@ -218,6 +218,19 @@ tasks:
     status: Done
     related: []
     notes: >
+  T-2026-05-26-002:
+    date: 2026-05-26
+    agent: "frontend-ux-accesibilidad + backend-api-servicios + qa-validacion"
+    task: "Ficha pública del recurso: exportación a SCORM, IMS, Web y EPUB desde proyectos eXe publicados"
+    status: Done
+    related: []
+    notes: >
+      La API pública ahora expone elpxFileUrl cuando el recurso publicado tiene proyecto eXe asociado.
+      La ficha pública carga un iframe oculto del editor eXe y reutiliza REQUEST_EXPORT para lanzar
+      exportaciones cliente a SCORM 1.2, IMS CP, Website y ePub3.
+      Se mantiene el botón de descarga original para adjuntos/mediaItems.
+      Tests automatizados añadidos para helper frontend de exportación y para la API/bridge del editor.
+      Validación ejecutada con bun test en suites afectadas y salida con todos los tests en verde.
       Subida de cobertura de líneas por encima del umbral mínimo del 90% tras regresión por seed sobre
       PostgreSQL real. Refactor del flujo común de seed en apps/cli/src/commands/seed.ts.
       Tests unitarios ampliados en apps/cli/src/commands/seed.unit.test.ts.
@@ -902,3 +915,16 @@ tasks:
       aislados. Se agregaron componentes React ApiKeysTab, ApiKeyCreateDialog, ApiKeyRevokeDialog, AdminApiTokensSection
       con diseño premium y localizaciones actualizadas para es, en, ca, gl y eu. Se validó con éxito el suite completo
       (456 tests pasados con 91.29% de cobertura).
+
+  T-2026-05-26-002:
+    date: 2026-05-26
+    agent: "backend-api-servicios + frontend-ux-accesibilidad + qa-validacion + github:github"
+    task: "Resolucion de conflictos de la PR #169 contra main"
+    status: Done
+    related: []
+    notes: >
+      Merge de origin/main completado sobre la rama de la PR 169. Los conflictos se resolvieron en validacion y
+      CRUD de taxonomias, mas la UI de categorias en admin, manteniendo la comprobacion de taxonomia duplicada,
+      la validacion de parentId y los mensajes de error visibles en el formulario. Se alineo ademas App.tsx con
+      el nuevo contrato de tests exportando canAccessAdminPanel. Validacion obligatoria ejecutada con bun test
+      completo en verde: 449 pass, 0 fail.

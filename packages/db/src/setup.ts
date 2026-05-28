@@ -121,7 +121,7 @@ export const SCHEMA_STATEMENTS = [
 		upload_session_id TEXT,
 		version INTEGER NOT NULL DEFAULT 3,
 		has_preview BOOLEAN NOT NULL DEFAULT false,
-		elpx_metadata TEXT,
+		elpx_metadata JSONB,
 		created_at TIMESTAMP NOT NULL DEFAULT NOW(),
 		updated_at TIMESTAMP NOT NULL DEFAULT NOW()
 	)`,
@@ -191,7 +191,7 @@ export const SCHEMA_STATEMENTS = [
 		resource_title TEXT,
 		resource_slug VARCHAR(512),
 		description TEXT NOT NULL,
-		metadata TEXT,
+		metadata JSONB,
 		created_at TIMESTAMP NOT NULL DEFAULT NOW()
 	)`,
 	`CREATE INDEX IF NOT EXISTS idx_ratings_resource_id ON ratings(resource_id)`,

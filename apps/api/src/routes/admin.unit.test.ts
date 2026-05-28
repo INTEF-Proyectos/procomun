@@ -668,11 +668,22 @@ describe("Rutas admin — taxonomías", () => {
 		const res = await app.request("/api/admin/taxonomies", {
 			method: "POST",
 			headers: { "Content-Type": "application/json" },
-			body: JSON.stringify({ name: "Matemáticas", type: "subject" }),
+			body: JSON.stringify({ name: "Lengua Castellana", type: "subject" }),
 		});
 		expect(res.status).toBe(201);
 		const body = await res.json();
 		expect(body.id).toBeDefined();
+	});
+
+	test("POST /api/admin/taxonomies → 409 si nombre+tipo duplicado", async () => {
+		const res = await app.request("/api/admin/taxonomies", {
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({ name: "Lengua Castellana", type: "subject" }),
+		});
+		expect(res.status).toBe(409);
+		const body = await res.json();
+		expect(body.error).toContain("Ya existe");
 	});
 
 	test("POST /api/admin/taxonomies → 400 sin nombre", async () => {

@@ -9,6 +9,21 @@ import type { ValidationResult } from "@procomun/db/validation";
 type DbFn = ReturnType<typeof getDb>["db"];
 type User = { id: string; role?: string; name?: string; email?: string };
 
+function jsonErrorFromCrudException(err: unknown) {
+	const msg = err instanceof Error ? err.message : "";
+	if (msg === "PARENT_NOT_FOUND") {
+		return { error: "La categoría padre indicada no existe", status: 400 as const };
+	}
+	if (msg === "PARENT_SELF_REFERENCE") {
+		return { error: "Una categoría no puede ser padre de sí misma", status: 400 as const };
+	}
+	const status = typeof err === "object" && err !== null ? (err as { status?: number }).status : undefined;
+	if (status && status >= 400 && status < 600) {
+		return { error: err instanceof Error ? err.message : "Error", status };
+	}
+	return null;
+}
+
 export interface CrudRouteConfig<TEntity> {
 	baseRole: string;
 
@@ -83,12 +98,9 @@ export function buildCrudRoutes<TEntity>(config: CrudRouteConfig<TEntity>): Hono
 				}
 				return c.json(result, 201);
 			} catch (err: unknown) {
-				const msg = err instanceof Error ? err.message : "";
-				if (msg === "PARENT_NOT_FOUND") {
-					return c.json({ error: "La categoría padre indicada no existe" }, 400);
-				}
-				if (msg === "PARENT_SELF_REFERENCE") {
-					return c.json({ error: "Una categoría no puede ser padre de sí misma" }, 400);
+				const handled = jsonErrorFromCrudException(err);
+				if (handled) {
+					return c.json({ error: handled.error }, handled.status);
 				}
 				throw err;
 			}
@@ -123,12 +135,9 @@ export function buildCrudRoutes<TEntity>(config: CrudRouteConfig<TEntity>): Hono
 				}
 				return c.json({ id, updated: true });
 			} catch (err: unknown) {
-				const msg = err instanceof Error ? err.message : "";
-				if (msg === "PARENT_NOT_FOUND") {
-					return c.json({ error: "La categoría padre indicada no existe" }, 400);
-				}
-				if (msg === "PARENT_SELF_REFERENCE") {
-					return c.json({ error: "Una categoría no puede ser padre de sí misma" }, 400);
+				const handled = jsonErrorFromCrudException(err);
+				if (handled) {
+					return c.json({ error: handled.error }, handled.status);
 				}
 				throw err;
 			}

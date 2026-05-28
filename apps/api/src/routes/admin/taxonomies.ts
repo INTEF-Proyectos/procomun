@@ -2,6 +2,7 @@ import { buildCrudRoutes } from "../crud-builder.ts";
 import { validateTaxonomy } from "@procomun/db/validation";
 import { logActivity } from "../../activity/log.ts";
 import * as repo from "@procomun/db/repository";
+import { DuplicateTaxonomyError } from "@procomun/db/repository";
 
 const taxonomyRoutes = buildCrudRoutes({
 	baseRole: "curator",
@@ -15,7 +16,15 @@ const taxonomyRoutes = buildCrudRoutes({
 				throw new Error("PARENT_NOT_FOUND");
 			}
 		}
-		return repo.createTaxonomy(db, d);
+		try {
+			return await repo.createTaxonomy(db, d);
+		} catch (err) {
+			if (err instanceof DuplicateTaxonomyError) {
+				const error = Object.assign(new Error(err.message), { status: 409 });
+				throw error;
+			}
+			throw err;
+		}
 	},
 	update: async (db, id, data) => {
 		const d = data as Parameters<typeof repo.updateTaxonomy>[2];

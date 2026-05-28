@@ -196,7 +196,7 @@ export async function seedRandomResources(
 						uploadSessionId: null,
 						version: 3,
 						hasPreview: result.hasPreview,
-						elpxMetadata: JSON.stringify(result.metadata),
+						elpxMetadata: result.metadata,
 						createdAt: new Date(),
 						updatedAt: new Date(),
 					});

@@ -11,6 +11,8 @@ let draftSlug: string;
 let videoSlug: string;
 let englishSlug: string;
 let publishedUploadId: string;
+let publishedElpxSlug: string;
+let publishedElpxUploadId: string;
 let publishedCollectionSlug: string;
 
 beforeAll(async () => {
@@ -86,6 +88,51 @@ beforeAll(async () => {
 	englishSlug = english.slug;
 	await repo.updateEditorialStatus(getDb().db, english.id, "published", "system");
 
+	const publishedElpx = await repo.createResource(getDb().db, {
+		title: "Recurso eXe publicado test",
+		description: "Recurso publicado con proyecto eXe",
+		language: "es",
+		license: "cc-by",
+		resourceType: "actividad-interactiva",
+	});
+	publishedElpxSlug = publishedElpx.slug;
+	await repo.updateEditorialStatus(getDb().db, publishedElpx.id, "published", "system");
+	publishedElpxUploadId = `public-elpx-${crypto.randomUUID()}`;
+	await writeFile(path.join(process.env.UPLOAD_STORAGE_DIR!, publishedElpxUploadId), "elpx de prueba");
+	await repo.createUploadSession(getDb().db, {
+		id: publishedElpxUploadId,
+		resourceId: publishedElpx.id,
+		ownerId: "system",
+		originalFilename: "recurso-publicado.elpx",
+		mimeType: "application/zip",
+		storageKey: `resource/${publishedElpx.id}/${publishedElpxUploadId}/recurso-publicado.elpx`,
+		declaredSize: 13,
+	});
+	const elpxMedia = await repo.createMediaItem(getDb().db, {
+		resourceId: publishedElpx.id,
+		type: "file",
+		mimeType: "application/zip",
+		url: `/api/v1/uploads/${publishedElpxUploadId}/content`,
+		fileSize: 13,
+		filename: "recurso-publicado.elpx",
+		isPrimary: true,
+	});
+	await repo.completeUploadSession(getDb().db, publishedElpxUploadId, {
+		receivedBytes: 13,
+		publicUrl: `/api/v1/uploads/${publishedElpxUploadId}/content`,
+		mediaItemId: elpxMedia.id,
+		finalChecksum: "checksum-elpx",
+	});
+	await repo.createElpxProject(getDb().db, {
+		resourceId: publishedElpx.id,
+		hash: "hash-public-elpx",
+		extractPath: "/tmp/hash-public-elpx",
+		originalFilename: "recurso-publicado.elpx",
+		uploadSessionId: publishedElpxUploadId,
+		version: 3,
+		hasPreview: true,
+	});
+
 	const collection = await repo.createCollection(getDb().db, {
 		title: "Colección pública test",
 		description: "Colección publicada para la API pública",
@@ -160,6 +207,15 @@ describe("Rutas públicas /api/v1", () => {
 		expect(body.levels).toBeDefined();
 		expect(Array.isArray(body.mediaItems)).toBe(true);
 		expect(body.mediaItems[0]?.url).toBe(`/api/v1/uploads/${publishedUploadId}/content`);
+	});
+
+	test("GET /api/v1/resources/:slug expone elpxFileUrl cuando existe proyecto eXe", async () => {
+		const res = await app.request(`/api/v1/resources/${publishedElpxSlug}`);
+		expect(res.status).toBe(200);
+		const body = await res.json();
+		expect(body.slug).toBe(publishedElpxSlug);
+		expect(body.elpxFileUrl).toBe(`/api/v1/uploads/${publishedElpxUploadId}/content`);
+		expect(body.elpxPreview?.previewUrl).toBe("/api/v1/elpx/hash-public-elpx/");
 	});
 
 	test("GET /api/v1/uploads/:id/content descarga archivo de recurso publicado", async () => {

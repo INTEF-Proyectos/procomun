@@ -25,6 +25,7 @@ export interface Resource {
 	levels?: string[];
 	mediaItems?: MediaItemRecord[];
 	elpxPreview?: { hash: string; previewUrl: string } | null;
+	elpxFileUrl?: string | null;
 	rating?: { average: number; count: number };
 	favoriteCount?: number;
 	featuredAt?: string | null;
