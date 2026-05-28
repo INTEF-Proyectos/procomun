@@ -12,7 +12,7 @@ export async function createElpxProject(
 		uploadSessionId?: string | null;
 		version?: number;
 		hasPreview?: boolean;
-		elpxMetadata?: string | null;
+		elpxMetadata?: Record<string, unknown> | null;
 	},
 ) {
 	const id = crypto.randomUUID();

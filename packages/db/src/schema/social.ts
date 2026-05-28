@@ -1,6 +1,7 @@
 import { relations } from "drizzle-orm";
 import {
 	integer,
+	jsonb,
 	pgTable,
 	text,
 	timestamp,
@@ -67,7 +68,7 @@ export const activityEvents = pgTable("activity_events", {
 	resourceTitle: text("resource_title"),
 	resourceSlug: varchar("resource_slug", { length: 512 }),
 	description: text("description").notNull(),
-	metadata: text("metadata"),
+	metadata: jsonb("metadata"),
 	createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
