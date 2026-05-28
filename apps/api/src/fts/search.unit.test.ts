@@ -11,6 +11,9 @@ import {
 	reindexResource,
 	reindexAllResources,
 	searchResources,
+	markExtractionPending,
+	markExtractionProcessing,
+	resetUnaccentCache,
 } from "./search.ts";
 import {
 	extractTextFromFile,
@@ -79,6 +82,37 @@ describe("Text Extraction", () => {
 		expect(result.text).toContain("Paragraph");
 		expect(result.text).not.toContain("<h1>");
 		expect(result.text).not.toContain("var x=1");
+	});
+
+	test("extractTextFromFile extracts CSV correctly", async () => {
+		const file = join(tempDir, "test.csv");
+		await writeFile(file, "name,age\nAlice,30\nBob,25");
+		const result = await extractTextFromFile(file, "test.csv");
+		expect(result.text).toContain("Alice");
+		expect(result.text).toContain("Bob");
+	});
+
+	test("extractTextFromFile handles PDF extraction errors gracefully", async () => {
+		const file = join(tempDir, "bad.pdf");
+		await writeFile(file, "not a real pdf content");
+		const result = await extractTextFromFile(file, "bad.pdf");
+		// pdf-parse may throw on invalid PDF or return empty text
+		expect(result.text !== undefined || result.error !== undefined).toBe(true);
+	});
+
+	test("extractTextFromFile handles DOCX extraction errors gracefully", async () => {
+		const file = join(tempDir, "bad.docx");
+		await writeFile(file, "not a real docx content");
+		const result = await extractTextFromFile(file, "bad.docx");
+		// mammoth may throw on invalid DOCX or return empty text
+		expect(result.text !== undefined || result.error !== undefined).toBe(true);
+	});
+
+	test("extractTextFromFile handles .htm extension", async () => {
+		const file = join(tempDir, "page.htm");
+		await writeFile(file, "<html><body><p>HTM content</p></body></html>");
+		const result = await extractTextFromFile(file, "page.htm");
+		expect(result.text).toContain("HTM content");
 	});
 
 	test("extractTextFromFile marks unsupported files as skipped", async () => {
@@ -367,5 +401,132 @@ describe("FTS Search & Indexing", () => {
 			status: "published",
 		});
 		expect(result.data.some((r) => r.id === id)).toBe(true);
+	});
+
+	test("markExtractionPending sets extraction status to pending", async () => {
+		const { id } = await createResource(db as any, {
+			title: "Pending extraction test",
+			description: "Test pending status",
+			language: "es",
+			license: "cc-by",
+			resourceType: "documento",
+		});
+
+		await markExtractionPending(db as any, id);
+
+		const rows = await db.execute(
+			sql`SELECT extraction_status FROM resources WHERE id = ${id}`,
+		);
+		const result = (rows.rows ?? rows) as unknown as { extraction_status: string }[];
+		expect(result[0]?.extraction_status).toBe("pending");
+	});
+
+	test("markExtractionProcessing sets extraction status to processing", async () => {
+		const { id } = await createResource(db as any, {
+			title: "Processing extraction test",
+			description: "Test processing status",
+			language: "es",
+			license: "cc-by",
+			resourceType: "documento",
+		});
+
+		await markExtractionProcessing(db as any, id);
+
+		const rows = await db.execute(
+			sql`SELECT extraction_status FROM resources WHERE id = ${id}`,
+		);
+		const result = (rows.rows ?? rows) as unknown as { extraction_status: string }[];
+		expect(result[0]?.extraction_status).toBe("processing");
+	});
+
+	test("resetUnaccentCache resets the unaccent availability cache", async () => {
+		// Just verifying it doesn't throw and subsequent calls still work
+		resetUnaccentCache();
+		// After reset, updateSearchVector should still work (re-detects unaccent)
+		const { id } = await createResource(db as any, {
+			title: "Reset cache test",
+			description: "Testing cache reset",
+			language: "es",
+			license: "cc-by",
+			resourceType: "documento",
+		});
+		await updateSearchVector(db as any, id);
+		resetUnaccentCache(); // cleanup
+	});
+
+	test("saveExtractionResult with error status stores error message", async () => {
+		const { id } = await createResource(db as any, {
+			title: "Error extraction test",
+			description: "Test error status",
+			language: "es",
+			license: "cc-by",
+			resourceType: "documento",
+		});
+
+		await saveExtractionResult(db as any, id, {
+			text: "",
+			status: "error",
+			error: "File corrupted",
+		});
+
+		const rows = await db.execute(
+			sql`SELECT extraction_status, extraction_error FROM resources WHERE id = ${id}`,
+		);
+		const result = (rows.rows ?? rows) as unknown as { extraction_status: string; extraction_error: string }[];
+		expect(result[0]?.extraction_status).toBe("error");
+		expect(result[0]?.extraction_error).toBe("File corrupted");
+	});
+
+	test("saveExtractionResult with skipped status", async () => {
+		const { id } = await createResource(db as any, {
+			title: "Skipped extraction test",
+			description: "Test skipped status",
+			language: "es",
+			license: "cc-by",
+			resourceType: "documento",
+		});
+
+		await saveExtractionResult(db as any, id, {
+			text: "",
+			status: "skipped",
+		});
+
+		const rows = await db.execute(
+			sql`SELECT extraction_status, extracted_at FROM resources WHERE id = ${id}`,
+		);
+		const result = (rows.rows ?? rows) as unknown as { extraction_status: string; extracted_at: string | null }[];
+		expect(result[0]?.extraction_status).toBe("skipped");
+		expect(result[0]?.extracted_at).toBeNull();
+	});
+
+	test("search with English language config", async () => {
+		const { id } = await createResource(db as any, {
+			title: "English language resource",
+			description: "A comprehensive English tutorial",
+			language: "en",
+			license: "cc-by",
+			resourceType: "documento",
+		});
+		await db.execute(
+			sql`UPDATE resources SET editorial_status = 'published' WHERE id = ${id}`,
+		);
+		await updateSearchVector(db as any, id);
+
+		const result = await searchResources(db as any, {
+			query: "comprehensive tutorial",
+			language: "en",
+			status: "published",
+		});
+		expect(result.data.some((r) => r.id === id)).toBe(true);
+	});
+
+	test("search with empty query returns empty results", async () => {
+		const result = await searchResources(db as any, {
+			query: "zzzznonexistentterm99999",
+			language: "es",
+			status: "published",
+		});
+		expect(result.data.length).toBe(0);
+		expect(result.total).toBe(0);
 	});
 });

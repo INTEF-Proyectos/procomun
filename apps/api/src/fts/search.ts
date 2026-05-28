@@ -52,7 +52,6 @@ export function resetUnaccentCache() {
  */
 export async function updateSearchVector(db: DrizzleDB, resourceId: string) {
 	const hasUnaccent = await isUnaccentAvailable(db);
-	const textFn = hasUnaccent ? "unaccent" : "";
 
 	if (hasUnaccent) {
 		await db.execute(sql`
@@ -287,7 +286,6 @@ export async function reindexAllResources(
 			.offset(processed);
 
 		if (batch.length === 0) {
-			hasMore = false;
 			break;
 		}
 
