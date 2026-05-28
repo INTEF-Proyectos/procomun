@@ -508,15 +508,17 @@ export class HttpApiClient implements ApiClient {
 		return res.json();
 	}
 
-	async trackDownload(slug: string): Promise<{ count: number }> {
+	async trackDownload(slug: string, format?: string): Promise<{ count: number }> {
 		const res = await fetch(`/api/v1/resources/${slug}/download`, {
 			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({ format: format ?? "direct" }),
 			credentials: "include",
 		});
 		return res.json();
 	}
 
-	async getResourceStats(slug: string): Promise<{ downloadCount: number; favoriteCount: number; ratingAvg: number; ratingCount: number }> {
+	async getResourceStats(slug: string): Promise<{ downloadCount: number; exportCounts: { scorm: number; ims: number; web: number; epub: number }; favoriteCount: number; ratingAvg: number; ratingCount: number; userFavorited: boolean }> {
 		const res = await fetch(`/api/v1/resources/${slug}/stats`);
 		return res.json();
 	}
