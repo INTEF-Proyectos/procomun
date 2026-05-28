@@ -180,6 +180,7 @@ export const SCHEMA_STATEMENTS = [
 		id TEXT PRIMARY KEY,
 		resource_id TEXT NOT NULL REFERENCES resources(id) ON DELETE CASCADE,
 		user_id TEXT REFERENCES "user"(id) ON DELETE SET NULL,
+		format VARCHAR(20) NOT NULL DEFAULT 'direct',
 		created_at TIMESTAMP NOT NULL DEFAULT NOW()
 	)`,
 	// Indexes

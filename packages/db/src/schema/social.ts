@@ -53,6 +53,7 @@ export const downloads = pgTable("downloads", {
 		.references(() => resources.id, { onDelete: "cascade" }),
 	userId: text("user_id")
 		.references(() => user.id, { onDelete: "set null" }),
+	format: varchar("format", { length: 20 }).notNull().default("direct"),
 	createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
