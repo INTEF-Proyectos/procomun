@@ -7,6 +7,7 @@ export {
 	saveExtractionResult,
 	markExtractionPending,
 	markExtractionProcessing,
+	resetUnaccentCache,
 	type FtsSearchOptions,
 	type FtsSearchResult,
 } from "./search.ts";

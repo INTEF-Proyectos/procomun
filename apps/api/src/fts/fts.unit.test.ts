@@ -167,9 +167,10 @@ describe("FTS Search & Indexing", () => {
 		});
 
 		// Publish all resources for searching
-		const allResources = await db.execute(
+		const rawResources = await db.execute(
 			sql`SELECT id FROM resources`,
-		) as unknown as { id: string }[];
+		);
+		const allResources = (rawResources.rows ?? rawResources) as unknown as { id: string }[];
 		for (const r of allResources) {
 			await db.execute(
 				sql`UPDATE resources SET editorial_status = 'published' WHERE id = ${r.id}`,
@@ -178,10 +179,12 @@ describe("FTS Search & Indexing", () => {
 
 		// Save extracted text for the first resource
 		const first = allResources[0];
-		await saveExtractionResult(db as any, first.id, {
-			text: "Este documento trata sobre números primos y ecuaciones cuadráticas",
-			status: "completed",
-		});
+		if (first) {
+			await saveExtractionResult(db as any, first.id, {
+				text: "Este documento trata sobre números primos y ecuaciones cuadráticas",
+				status: "completed",
+			});
+		}
 
 		// Update search vectors for all
 		for (const r of allResources) {
@@ -242,7 +245,7 @@ describe("FTS Search & Indexing", () => {
 			(r) => r.title === "Educación física",
 		);
 		expect(titleMatch).toBeDefined();
-		if (result.data.length > 1) {
+		if (result.data.length > 1 && result.data[0]) {
 			// If multiple results, title match should be first
 			expect(result.data[0].title).toBe("Educación física");
 		}

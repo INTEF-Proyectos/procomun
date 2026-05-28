@@ -2,9 +2,11 @@
  * Full Text Search service using PostgreSQL native FTS.
  * Generates tsvector, performs searches, and handles reindexing.
  */
-import { sql, eq, and, isNull } from "drizzle-orm";
+import { sql, eq, isNull } from "drizzle-orm";
 import { resources } from "@procomun/db/schema";
-import type { DrizzleDB } from "@procomun/db/repository";
+
+// biome-ignore lint: generic drizzle db type
+type DrizzleDB = any;
 
 /** FTS dictionary configuration by language code */
 const LANGUAGE_CONFIGS: Record<string, string> = {
@@ -24,30 +26,77 @@ function getFtsConfig(language: string): string {
 }
 
 /**
+ * Check if unaccent extension is available. Cache the result.
+ */
+let _unaccentAvailable: boolean | null = null;
+
+async function isUnaccentAvailable(db: DrizzleDB): Promise<boolean> {
+	if (_unaccentAvailable !== null) return _unaccentAvailable;
+	try {
+		await db.execute(sql`SELECT unaccent('test')`);
+		_unaccentAvailable = true;
+	} catch {
+		_unaccentAvailable = false;
+	}
+	return _unaccentAvailable;
+}
+
+/** Reset unaccent cache (for testing) */
+export function resetUnaccentCache() {
+	_unaccentAvailable = null;
+}
+
+/**
  * Update the search_vector for a specific resource.
  * Combines title (A), keywords (B), description (C), extracted_text (D).
  */
 export async function updateSearchVector(db: DrizzleDB, resourceId: string) {
-	await db.execute(sql`
-		UPDATE resources SET search_vector =
-			setweight(to_tsvector(
-				(CASE WHEN language IN ('en') THEN 'english' ELSE 'spanish' END)::regconfig,
-				unaccent(coalesce(title, ''))
-			), 'A') ||
-			setweight(to_tsvector(
-				(CASE WHEN language IN ('en') THEN 'english' ELSE 'spanish' END)::regconfig,
-				unaccent(coalesce(keywords, ''))
-			), 'B') ||
-			setweight(to_tsvector(
-				(CASE WHEN language IN ('en') THEN 'english' ELSE 'spanish' END)::regconfig,
-				unaccent(coalesce(description, ''))
-			), 'C') ||
-			setweight(to_tsvector(
-				(CASE WHEN language IN ('en') THEN 'english' ELSE 'spanish' END)::regconfig,
-				unaccent(coalesce(extracted_text, ''))
-			), 'D')
-		WHERE id = ${resourceId}
-	`);
+	const hasUnaccent = await isUnaccentAvailable(db);
+	const textFn = hasUnaccent ? "unaccent" : "";
+
+	if (hasUnaccent) {
+		await db.execute(sql`
+			UPDATE resources SET search_vector =
+				setweight(to_tsvector(
+					(CASE WHEN language IN ('en') THEN 'english' ELSE 'spanish' END)::regconfig,
+					unaccent(coalesce(title, ''))
+				), 'A') ||
+				setweight(to_tsvector(
+					(CASE WHEN language IN ('en') THEN 'english' ELSE 'spanish' END)::regconfig,
+					unaccent(coalesce(keywords, ''))
+				), 'B') ||
+				setweight(to_tsvector(
+					(CASE WHEN language IN ('en') THEN 'english' ELSE 'spanish' END)::regconfig,
+					unaccent(coalesce(description, ''))
+				), 'C') ||
+				setweight(to_tsvector(
+					(CASE WHEN language IN ('en') THEN 'english' ELSE 'spanish' END)::regconfig,
+					unaccent(coalesce(extracted_text, ''))
+				), 'D')
+			WHERE id = ${resourceId}
+		`);
+	} else {
+		await db.execute(sql`
+			UPDATE resources SET search_vector =
+				setweight(to_tsvector(
+					(CASE WHEN language IN ('en') THEN 'english' ELSE 'spanish' END)::regconfig,
+					coalesce(title, '')
+				), 'A') ||
+				setweight(to_tsvector(
+					(CASE WHEN language IN ('en') THEN 'english' ELSE 'spanish' END)::regconfig,
+					coalesce(keywords, '')
+				), 'B') ||
+				setweight(to_tsvector(
+					(CASE WHEN language IN ('en') THEN 'english' ELSE 'spanish' END)::regconfig,
+					coalesce(description, '')
+				), 'C') ||
+				setweight(to_tsvector(
+					(CASE WHEN language IN ('en') THEN 'english' ELSE 'spanish' END)::regconfig,
+					coalesce(extracted_text, '')
+				), 'D')
+			WHERE id = ${resourceId}
+		`);
+	}
 }
 
 /**
@@ -134,38 +183,76 @@ export async function searchResources(
 	const offset = opts.offset ?? 0;
 	const config = getFtsConfig(opts.language ?? "es");
 	const status = opts.status ?? "published";
+	const hasUnaccent = await isUnaccentAvailable(db);
 
-	// Use websearch_to_tsquery for user-friendly query parsing
-	const results: FtsSearchResult[] = await db.execute(sql`
-		SELECT
-			r.id,
-			r.slug,
-			r.title,
-			r.description,
-			ts_rank(r.search_vector, websearch_to_tsquery(${config}::regconfig, unaccent(${opts.query}))) AS rank,
-			ts_headline(
-				${config}::regconfig,
-				coalesce(r.description, ''),
-				websearch_to_tsquery(${config}::regconfig, unaccent(${opts.query})),
-				'StartSel=<mark>, StopSel=</mark>, MaxWords=35, MinWords=15'
-			) AS headline
-		FROM resources r
-		WHERE r.search_vector @@ websearch_to_tsquery(${config}::regconfig, unaccent(${opts.query}))
-			AND r.editorial_status = ${status}
-			AND r.deleted_at IS NULL
-		ORDER BY rank DESC
-		LIMIT ${limit}
-		OFFSET ${offset}
-	`) as unknown as FtsSearchResult[];
+	let results: FtsSearchResult[];
+	let countResult: { total: string | number }[];
 
-	// Count total matches
-	const countResult = await db.execute(sql`
-		SELECT count(*) AS total
-		FROM resources r
-		WHERE r.search_vector @@ websearch_to_tsquery(${config}::regconfig, unaccent(${opts.query}))
-			AND r.editorial_status = ${status}
-			AND r.deleted_at IS NULL
-	`) as unknown as { total: string | number }[];
+	if (hasUnaccent) {
+		const rawResults = await db.execute(sql`
+			SELECT
+				r.id,
+				r.slug,
+				r.title,
+				r.description,
+				ts_rank(r.search_vector, websearch_to_tsquery(${config}::regconfig, unaccent(${opts.query}))) AS rank,
+				ts_headline(
+					${config}::regconfig,
+					coalesce(r.description, ''),
+					websearch_to_tsquery(${config}::regconfig, unaccent(${opts.query})),
+					'StartSel=<mark>, StopSel=</mark>, MaxWords=35, MinWords=15'
+				) AS headline
+			FROM resources r
+			WHERE r.search_vector @@ websearch_to_tsquery(${config}::regconfig, unaccent(${opts.query}))
+				AND r.editorial_status = ${status}
+				AND r.deleted_at IS NULL
+			ORDER BY rank DESC
+			LIMIT ${limit}
+			OFFSET ${offset}
+		`);
+		results = (rawResults.rows ?? rawResults) as unknown as FtsSearchResult[];
+
+		const rawCount = await db.execute(sql`
+			SELECT count(*) AS total
+			FROM resources r
+			WHERE r.search_vector @@ websearch_to_tsquery(${config}::regconfig, unaccent(${opts.query}))
+				AND r.editorial_status = ${status}
+				AND r.deleted_at IS NULL
+		`);
+		countResult = (rawCount.rows ?? rawCount) as unknown as { total: string | number }[];
+	} else {
+		const rawResults = await db.execute(sql`
+			SELECT
+				r.id,
+				r.slug,
+				r.title,
+				r.description,
+				ts_rank(r.search_vector, websearch_to_tsquery(${config}::regconfig, ${opts.query})) AS rank,
+				ts_headline(
+					${config}::regconfig,
+					coalesce(r.description, ''),
+					websearch_to_tsquery(${config}::regconfig, ${opts.query}),
+					'StartSel=<mark>, StopSel=</mark>, MaxWords=35, MinWords=15'
+				) AS headline
+			FROM resources r
+			WHERE r.search_vector @@ websearch_to_tsquery(${config}::regconfig, ${opts.query})
+				AND r.editorial_status = ${status}
+				AND r.deleted_at IS NULL
+			ORDER BY rank DESC
+			LIMIT ${limit}
+			OFFSET ${offset}
+		`);
+		results = (rawResults.rows ?? rawResults) as unknown as FtsSearchResult[];
+
+		const rawCount = await db.execute(sql`
+			SELECT count(*) AS total
+			FROM resources r
+			WHERE r.search_vector @@ websearch_to_tsquery(${config}::regconfig, ${opts.query})
+				AND r.editorial_status = ${status}
+				AND r.deleted_at IS NULL
+		`);
+		countResult = (rawCount.rows ?? rawCount) as unknown as { total: string | number }[];
+	}
 
 	const total = Number(countResult[0]?.total ?? 0);
 

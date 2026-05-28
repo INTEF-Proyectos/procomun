@@ -3,8 +3,12 @@
  * Reutilizable por: API (dev local), CLI (seed), preview (navegador).
  */
 export const SCHEMA_STATEMENTS = [
-	// Extensions for Full Text Search
-	`CREATE EXTENSION IF NOT EXISTS unaccent`,
+	// Extensions for Full Text Search (may not be available in PGlite)
+	`DO $$ BEGIN
+		CREATE EXTENSION IF NOT EXISTS unaccent;
+	EXCEPTION WHEN OTHERS THEN
+		RAISE NOTICE 'unaccent extension not available, skipping';
+	END $$`,
 	`CREATE TABLE IF NOT EXISTS "user" (
 		id TEXT PRIMARY KEY,
 		email VARCHAR(255) NOT NULL UNIQUE,
@@ -216,7 +220,10 @@ export const SCHEMA_STATEMENTS = [
 	`CREATE INDEX IF NOT EXISTS idx_elpx_projects_hash ON elpx_projects(hash)`,
 	`CREATE INDEX IF NOT EXISTS idx_elpx_projects_resource_id ON elpx_projects(resource_id)`,
 	`CREATE INDEX IF NOT EXISTS idx_taxonomies_type ON taxonomies(type)`,
-	`CREATE INDEX IF NOT EXISTS idx_resources_search_vector ON resources USING GIN (search_vector)`,
+	`DO $$ BEGIN
+		CREATE INDEX idx_resources_search_vector ON resources USING GIN (search_vector);
+	EXCEPTION WHEN OTHERS THEN NULL;
+	END $$`,
 	`DO $$ BEGIN
 		ALTER TABLE "resources" ADD COLUMN created_by TEXT REFERENCES "user"(id);
 	EXCEPTION WHEN duplicate_column THEN NULL;
