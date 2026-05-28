@@ -99,7 +99,7 @@ function getStatusBadgeClass(editorialStatus: string): string {
 }
 
 
-function ResourceDetailContent({ resource, session, stats, isFavorited, onDownloadTracked }: { resource: Resource; session: SessionData | null; stats: ResourceStats | null; isFavorited: boolean; onDownloadTracked?: (count: number) => void }) {
+function ResourceDetailContent({ resource, session, stats, isFavorited, onDownloadTracked }: { resource: Resource; session: SessionData | null; stats: ResourceStats | null; isFavorited: boolean; onDownloadTracked?: (count: number, format?: ResourceExportKind | "direct") => void }) {
   const status = STATUS_MAP[resource.editorialStatus] ?? STATUS_MAP.draft;
   const keywords = resource.keywords
     ? resource.keywords.split(",").map((keyword) => keyword.trim()).filter(Boolean)
@@ -167,7 +167,7 @@ function ResourceDetailContent({ resource, session, stats, isFavorited, onDownlo
         void getApiClient()
           .then((api) => api.trackDownload(resource.slug, formatTrack))
           .then((result) => {
-            if (onDownloadTracked) onDownloadTracked(result.count);
+            if (onDownloadTracked) onDownloadTracked(result.count, formatTrack);
           })
           .catch(() => {});
         return;
@@ -290,7 +290,7 @@ function ResourceDetailContent({ resource, session, stats, isFavorited, onDownlo
                   getApiClient()
                     .then((api) => api.trackDownload(resource.slug, "direct"))
                     .then((result) => {
-                      if (onDownloadTracked) onDownloadTracked(result.count);
+                      if (onDownloadTracked) onDownloadTracked(result.count, "direct");
                     })
                     .catch(() => {})
                     .finally(() => {
@@ -528,6 +528,33 @@ interface ResourceStats {
   ratingCount: number;
 }
 
+export function updateStatsAfterDownload(
+  current: ResourceStats | null,
+  count: number,
+  format?: ResourceExportKind | "direct",
+): ResourceStats | null {
+  if (!current) return current;
+  if (!format || format === "direct") {
+    return { ...current, downloadCount: count };
+  }
+
+  const exportCounts = current.exportCounts ?? {
+    scorm: 0,
+    ims: 0,
+    web: 0,
+    epub: 0,
+  };
+
+  return {
+    ...current,
+    downloadCount: count,
+    exportCounts: {
+      ...exportCounts,
+      [format]: exportCounts[format] + 1,
+    },
+  };
+}
+
 export function ResourceDetailIsland() {
   const [resource, setResource] = useState<Resource | null | undefined>(undefined);
   const [session, setSession] = useState<SessionData | null>(null);
@@ -599,7 +626,7 @@ export function ResourceDetailIsland() {
 
   return (
     <div className="detail-page">
-      <ResourceDetailContent resource={resource as Resource} session={session} stats={stats} isFavorited={isFavorited} onDownloadTracked={(count) => setStats((prev) => prev ? { ...prev, downloadCount: count } : prev)} />
+      <ResourceDetailContent resource={resource as Resource} session={session} stats={stats} isFavorited={isFavorited} onDownloadTracked={(count, format) => setStats((prev) => updateStatsAfterDownload(prev, count, format))} />
     </div>
   );
 }
