@@ -15,6 +15,7 @@ const NAV_ITEMS: NavItem[] = [
 	{ id: "resources", label: "Recursos", icon: "library_books", minRole: ROLE_LEVELS.curator },
 	{ id: "collections", label: "Colecciones", icon: "collections_bookmark", minRole: ROLE_LEVELS.curator },
 	{ id: "categories", label: "Categorias", icon: "category", minRole: ROLE_LEVELS.curator },
+	{ id: "reports", label: "Denuncias", icon: "flag", minRole: ROLE_LEVELS.curator },
 	{ id: "users", label: "Usuarios", icon: "group", minRole: ROLE_LEVELS.admin },
 ];
 

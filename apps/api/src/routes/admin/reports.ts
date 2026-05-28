@@ -77,6 +77,13 @@ reportRoutes.patch("/:id", async (c) => {
 		actionTaken: body.actionTaken as repo.ReportAction | undefined,
 	});
 
+	// Apply real action on the resource if applicable
+	if (body.actionTaken === "resource_deactivated" && report.resourceId) {
+		await repo.updateEditorialStatus(getDb().db, report.resourceId, "archived", currentUser.id);
+	} else if (body.actionTaken === "resource_deleted" && report.resourceId) {
+		await repo.deleteResource(getDb().db, report.resourceId);
+	}
+
 	const updated = await repo.getReportById(getDb().db, id);
 	return c.json(updated);
 });

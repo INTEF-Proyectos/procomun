@@ -16,6 +16,7 @@ import type {
 	MediaItemRecord,
 	UploadSessionRecord,
 	UploadConfig,
+	ReportRecord,
 } from "./api-client.ts";
 
 /**
@@ -518,6 +519,47 @@ export class HttpApiClient implements ApiClient {
 
 	async getResourceStats(slug: string): Promise<{ downloadCount: number; favoriteCount: number; ratingAvg: number; ratingCount: number }> {
 		const res = await fetch(`/api/v1/resources/${slug}/stats`);
+		return res.json();
+	}
+
+	async reportResource(slug: string, reason: string, description?: string): Promise<{ id: string }> {
+		const res = await fetch(`/api/v1/resources/${slug}/report`, {
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			credentials: "include",
+			body: JSON.stringify({ reason, description }),
+		});
+		if (!res.ok) {
+			const err = await res.json().catch(() => ({}));
+			throw new Error(err.error || "Error al enviar la denuncia");
+		}
+		return res.json();
+	}
+
+	async listReports(opts?: { status?: string; reason?: string; resourceId?: string; limit?: number; offset?: number }): Promise<PaginatedResult<ReportRecord>> {
+		const params = new URLSearchParams();
+		if (opts?.status) params.set("status", opts.status);
+		if (opts?.reason) params.set("reason", opts.reason);
+		if (opts?.resourceId) params.set("resourceId", opts.resourceId);
+		if (opts?.limit) params.set("limit", String(opts.limit));
+		if (opts?.offset) params.set("offset", String(opts.offset));
+		const res = await fetch(`/api/admin/reports?${params}`, { credentials: "include" });
+		return res.json();
+	}
+
+	async getReportById(id: string): Promise<ReportRecord | null> {
+		const res = await fetch(`/api/admin/reports/${id}`, { credentials: "include" });
+		if (!res.ok) return null;
+		return res.json();
+	}
+
+	async updateReport(id: string, data: { status?: string; resolution?: string; actionTaken?: string }): Promise<ReportRecord> {
+		const res = await fetch(`/api/admin/reports/${id}`, {
+			method: "PATCH",
+			headers: { "Content-Type": "application/json" },
+			credentials: "include",
+			body: JSON.stringify(data),
+		});
 		return res.json();
 	}
 
