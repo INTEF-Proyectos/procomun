@@ -294,7 +294,7 @@ export async function getStats(): Promise<typeof MOCK_STATS> {
 // Track download
 // ---------------------------------------------------------------------------
 
-export async function trackDownload(slug: string): Promise<{ count: number }> {
+export async function trackDownload(slug: string, _format?: string): Promise<{ count: number }> {
   await delay();
   // In-memory counter
   const key = `dl-${slug}`;
@@ -307,13 +307,20 @@ export async function trackDownload(slug: string): Promise<{ count: number }> {
 // Get resource stats (aggregated)
 // ---------------------------------------------------------------------------
 
-export async function getResourceStats(slug: string): Promise<{ downloadCount: number; favoriteCount: number; ratingAvg: number; ratingCount: number }> {
+export async function getResourceStats(slug: string): Promise<{ downloadCount: number; exportCounts: { scorm: number; ims: number; web: number; epub: number }; favoriteCount: number; ratingAvg: number; ratingCount: number; userFavorited: boolean }> {
   await delay();
   const resource = MOCK_RESOURCES.find(r => r.slug === slug);
   return {
     downloadCount: Math.floor(Math.random() * 500) + 10,
+    exportCounts: {
+      scorm: Math.floor(Math.random() * 20),
+      ims: Math.floor(Math.random() * 20),
+      web: Math.floor(Math.random() * 20),
+      epub: Math.floor(Math.random() * 20),
+    },
     favoriteCount: resource?.favoriteCount ?? 0,
     ratingAvg: resource?.rating?.average ?? 0,
     ratingCount: resource?.rating?.count ?? 0,
+    userFavorited: favoritedSlugs.has(slug),
   };
 }

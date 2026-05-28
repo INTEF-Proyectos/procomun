@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { getElpxMediaItem, getResourceElpxFileUrl, isElpxFilename, RESOURCE_EXPORT_OPTIONS } from "./resource-export.ts";
+import { buildExportFilename, getElpxMediaItem, getResourceElpxFileUrl, isElpxFilename, RESOURCE_EXPORT_OPTIONS } from "./resource-export.ts";
 
 describe("resource-export", () => {
 	test("detecta extensiones .elpx y .elp", () => {
@@ -37,5 +37,21 @@ describe("resource-export", () => {
 	test("expone los cuatro formatos esperados", () => {
 		expect(RESOURCE_EXPORT_OPTIONS.map((option) => option.id)).toEqual(["scorm", "ims", "web", "epub"]);
 		expect(RESOURCE_EXPORT_OPTIONS.map((option) => option.editorFormat)).toEqual(["scorm12", "ims", "html5", "epub3"]);
+	});
+
+	test("genera nombres de archivo con sufijo de formato", () => {
+		expect(buildExportFilename("Mi Recurso Pedagógico", "scorm")).toBe("mi-recurso-pedagogico_scorm.zip");
+		expect(buildExportFilename("Mi Recurso Pedagógico", "ims")).toBe("mi-recurso-pedagogico_ims.zip");
+		expect(buildExportFilename("Mi Recurso Pedagógico", "web")).toBe("mi-recurso-pedagogico_web.zip");
+		expect(buildExportFilename("Mi Recurso Pedagógico", "epub")).toBe("mi-recurso-pedagogico.epub");
+	});
+
+	test("usa 'recurso' como fallback cuando el título produce slug vacío", () => {
+		expect(buildExportFilename("---", "scorm")).toBe("recurso_scorm.zip");
+		expect(buildExportFilename("", "epub")).toBe("recurso.epub");
+	});
+
+	test("normaliza caracteres especiales y acentos", () => {
+		expect(buildExportFilename("Éducación & Ciência!", "web")).toBe("educacion-ciencia_web.zip");
 	});
 });

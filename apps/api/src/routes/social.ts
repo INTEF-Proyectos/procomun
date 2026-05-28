@@ -234,8 +234,21 @@ socialRoutes.post("/resources/:slug/download", async (c) => {
 		return c.json({ error: "Recurso no encontrado" }, 404);
 	}
 
+	let format = "direct";
+	try {
+		const body = await c.req.json<{ format?: string }>();
+		if (body && typeof body.format === "string") {
+			const allowed = ["direct", "scorm", "ims", "web", "epub"];
+			if (allowed.includes(body.format)) {
+				format = body.format;
+			}
+		}
+	} catch {
+		// No body or invalid JSON — default to "direct"
+	}
+
 	const currentUser = c.get("user") as { id: string } | undefined;
-	const count = await incrementDownload(resource.id, currentUser?.id);
+	const count = await incrementDownload(resource.id, currentUser?.id, format);
 
 	if (currentUser?.id) {
 		await logActivity({
