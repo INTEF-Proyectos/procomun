@@ -2,6 +2,7 @@ import { userCreate } from "./commands/user-create.ts";
 import { userList } from "./commands/user-list.ts";
 import { seed } from "./commands/seed.ts";
 import { seedResources } from "./commands/seed-resources.ts";
+import { ftsReindex } from "./commands/fts-reindex.ts";
 
 const [command, ...args] = process.argv.slice(2);
 
@@ -10,6 +11,7 @@ const commands: Record<string, (args: string[]) => Promise<void>> = {
 	"user:list": userList,
 	seed: async () => seed(),
 	"seed:resources": seedResources,
+	"fts:reindex": async () => ftsReindex(),
 };
 
 async function main() {
@@ -20,6 +22,7 @@ async function main() {
 		console.log("  user:list");
 		console.log("  seed              Crear usuarios de desarrollo (admin, curator, author, reader)");
 		console.log("  seed:resources    Generar recursos aleatorios (--count 10, 100, 1000, 10000 --clean)");
+		console.log("  fts:reindex       Reindexar search_vector de todos los recursos");
 		process.exit(0);
 	}
 

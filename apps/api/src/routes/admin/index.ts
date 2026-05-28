@@ -6,6 +6,7 @@ import { collectionRoutes } from "./collections.ts";
 import { taxonomyRoutes } from "./taxonomies.ts";
 import { elpxAdminRoutes } from "./elpx.ts";
 import { settingsRoutes } from "./settings.ts";
+import { ftsRoutes } from "./fts.ts";
 
 const adminRoutes = new Hono<AuthEnv>();
 
@@ -19,5 +20,6 @@ adminRoutes.route("/taxonomies", taxonomyRoutes);
 adminRoutes.route("/uploads", adminUploadRoutes);
 adminRoutes.route("/elpx", elpxAdminRoutes);
 adminRoutes.route("/settings", settingsRoutes);
+adminRoutes.route("/fts", ftsRoutes);
 
 export { adminRoutes };

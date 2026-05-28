@@ -13,6 +13,7 @@ import {
 	listPublishedCollections,
 	listPublishedResources,
 } from "../public/service.ts";
+import { searchResources } from "../fts/search.ts";
 const publicRoutes = new Hono();
 
 publicRoutes.get("/resources", async (c) => {
@@ -118,6 +119,25 @@ publicRoutes.get("/config/badges", async (c) => {
 		destacadoMinAvg: Number(settings.badge_destacado_min_avg ?? "4.0"),
 		destacadoMinFavorites: Number(settings.badge_destacado_min_favorites ?? "3"),
 	});
+});
+
+publicRoutes.get("/search", async (c) => {
+	const query = c.req.query("q") ?? "";
+	if (!query.trim()) {
+		return c.json({ data: [], total: 0 });
+	}
+	const { limit, offset } = parsePagination(c);
+	const language = c.req.query("language") ?? "es";
+
+	const result = await searchResources(getDb().db, {
+		query,
+		limit,
+		offset,
+		language,
+		status: "published",
+	});
+
+	return c.json(result);
 });
 
 publicRoutes.get("/stats", async (c) => {
