@@ -32,7 +32,7 @@
     "typescript": "6.0.3"
   },
   "dependencies": {
-    "@electric-sql/pglite": "0.4.5",
+    "@electric-sql/pglite": "0.5.1",
     "drizzle-orm": "^0.45.2"
   }
 }
