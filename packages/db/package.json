@@ -21,7 +21,7 @@
 		"test": "bun test"
 	},
 	"dependencies": {
-		"@electric-sql/pglite": "0.4.5",
+		"@electric-sql/pglite": "0.5.1",
 		"@faker-js/faker": "10.4.0",
 		"drizzle-orm": "0.45.2"
 	},
