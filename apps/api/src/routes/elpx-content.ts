@@ -172,8 +172,12 @@ async function handleContent(c: any) {
 				"X-Content-Type-Options": "nosniff",
 				"Referrer-Policy": "same-origin",
 				"Cache-Control": "no-cache, must-revalidate",
+				// La directiva `sandbox` fuerza un origen opaco para el contenido de
+				// autor del .elpx: el JS sigue ejecutándose (interactividad) pero NO
+				// con el origen autenticado de la plataforma, aunque se abra en una
+				// pestaña nueva. Sin `allow-same-origin` a propósito (ADR-0026).
 				"Content-Security-Policy":
-					"default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; media-src 'self' data: blob: https:; font-src 'self' data:; connect-src 'self'; frame-src 'self' https:; frame-ancestors 'self'; form-action 'self'; base-uri 'self'",
+					"default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; media-src 'self' data: blob: https:; font-src 'self' data:; connect-src 'self'; frame-src 'self' https:; frame-ancestors 'self'; form-action 'self'; base-uri 'self'; sandbox allow-scripts allow-popups allow-forms allow-popups-to-escape-sandbox",
 			},
 		});
 	}

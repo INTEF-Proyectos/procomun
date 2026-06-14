@@ -238,6 +238,27 @@ tasks:
       Resultado: 158 pass, 0 fail, cobertura 91.07%.
       Riesgo: apps/api/src/routes/admin.ts es el principal punto ciego de cobertura por ramas.
 
+  T-2026-06-14-001:
+    date: 2026-06-14
+    agent: "seguridad-privacidad-legal + backend-api-servicios + frontend-ux-accesibilidad + qa-validacion"
+    task: "Apertura segura de .elpx: extracción endurecida (zip slip/symlink/zip bomb) y renderizado con origen opaco (ADR-0026)"
+    status: Done
+    related: [ADR-0026]
+    notes: >
+      Detectados dos problemas a partir de articulo-seguridad-exelearning y del plugin Moodle mod_exelearning_3.
+      A) processElpxUpload extraía con unzip directo sin validar nombres (zip slip), sin rechazar symlinks ni
+      limitar tamaño/entradas (zip bomb). Nuevo módulo apps/api/src/services/elpx-safe-extract.ts: isUnsafeZipEntry,
+      inspección del directorio central del ZIP (límites anti zip-bomb y detección de symlinks antes de extraer),
+      assertExtractionContained (realpath + rechazo de symlinks post-extracción) y safeExtractElpx con rollback.
+      B) El contenido de autor se servía/embebía same-origin: se añadió la directiva sandbox (origen opaco, sin
+      allow-same-origin) a la CSP de elpx-content.ts y se retiró allow-same-origin de los iframes de preview
+      (ResourceCard, HomeDataIsland, CatalogIsland, PublicCollectionsIsland, catalog-controller, ResourceDetailIsland,
+      EditarPage). El iframe del editor first-party queda intacto de forma consciente. Sin SCORM no hace falta puente
+      postMessage same-origin, por lo que la mitigación del render se simplifica a origen opaco.
+      Tests: apps/api/src/services/elpx-safe-extract.unit.test.ts (zip slip, symlink, zip bomb por número/tamaño/ratio,
+      contención y rollback) + aserción de sandbox en CSP en elpx-processor.unit.test.ts. Validado con bun test.
+      Trazabilidad: ADR-0026, decision-log.yaml, docs/casos/seguridad-apertura-elpx/.
+
   T-2026-03-27-003:
     date: 2026-03-27
     agent: "documentacion-y-roadmap"

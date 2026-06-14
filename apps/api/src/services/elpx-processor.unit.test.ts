@@ -394,6 +394,19 @@ describe("elpxContentRoutes", () => {
 		expect(res.headers.get("Content-Security-Policy")).toBeTruthy();
 	});
 
+	it("aísla el contenido de autor con sandbox de origen opaco en la CSP", async () => {
+		const res = await app.request(`/api/v1/elpx/${fakeHash}`);
+
+		expect(res.status).toBe(200);
+		const csp = res.headers.get("Content-Security-Policy") ?? "";
+		// El contenido del .elpx debe servirse con origen opaco: directiva
+		// sandbox presente y SIN allow-same-origin (ADR-0026, no hay SCORM que
+		// exija puente same-origin).
+		expect(csp).toContain("sandbox");
+		expect(csp).toContain("allow-scripts");
+		expect(csp).not.toContain("allow-same-origin");
+	});
+
 	it("establece cabecera Cache-Control en recursos estaticos", async () => {
 		const res = await app.request(
 			`/api/v1/elpx/${fakeHash}/images/photo.png`,
