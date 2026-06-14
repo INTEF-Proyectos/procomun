@@ -36,6 +36,29 @@ const MIME_TYPES: Record<string, string> = {
 // Accept both SHA-1 hashes (40 hex chars) and UUIDs
 const HASH_PATTERN = /^[a-f0-9-]{8,40}$/i;
 
+// Script de promoción de embeds inyectado en el HTML del .elpx (ADR-0027).
+const EMBED_SHIM_URL = "/api/v1/elpx/embed-shim.js";
+const EMBED_SHIM_TAG = `<script src="${EMBED_SHIM_URL}"></script>`;
+const EMBED_SHIM_PATH = path.join(
+	import.meta.dir,
+	"../../static/elpx/embed-shim.js",
+);
+let embedShimCache: string | null = null;
+
+async function readEmbedShim(): Promise<string> {
+	if (embedShimCache === null) {
+		embedShimCache = await Bun.file(EMBED_SHIM_PATH).text();
+	}
+	return embedShimCache;
+}
+
+function injectEmbedShim(html: string): string {
+	if (html.includes("</head>")) {
+		return html.replace("</head>", `${EMBED_SHIM_TAG}</head>`);
+	}
+	return `${EMBED_SHIM_TAG}${html}`;
+}
+
 function sanitizePath(raw: string): string | null {
 	let decoded: string;
 	try {
@@ -165,7 +188,7 @@ async function handleContent(c: any) {
 
 	if (ext === "html" || ext === "htm") {
 		const html = await Bun.file(fullPath).text();
-		const rewritten = rewriteRelativeUrls(html, hash, file);
+		const rewritten = injectEmbedShim(rewriteRelativeUrls(html, hash, file));
 		return new Response(rewritten, {
 			headers: {
 				"Content-Type": "text/html",
@@ -202,6 +225,19 @@ async function handleContent(c: any) {
 		},
 	});
 }
+
+// Ruta estática del shim de embeds. Debe registrarse ANTES de "/:hash" para
+// que no la capture el patrón de hash (ADR-0027).
+elpxContentRoutes.get("/embed-shim.js", async () => {
+	const shim = await readEmbedShim();
+	return new Response(shim, {
+		headers: {
+			"Content-Type": "application/javascript; charset=utf-8",
+			"X-Content-Type-Options": "nosniff",
+			"Cache-Control": "public, max-age=3600",
+		},
+	});
+});
 
 elpxContentRoutes.get("/:hash", handleContent);
 elpxContentRoutes.get("/:hash/*", handleContent);

@@ -163,3 +163,9 @@ ADR-0026:
   status: Aceptado
   date: 2026-06-14
   file: 0026-apertura-segura-elpx.md
+
+ADR-0027:
+  title: "Reproducción segura de vídeos/PDF embebidos en .elpx (promote-to-parent con player en modal)"
+  status: Aceptado
+  date: 2026-06-14
+  file: 0027-reproduccion-segura-embeds-elpx.md

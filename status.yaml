@@ -238,6 +238,24 @@ tasks:
       Resultado: 158 pass, 0 fail, cobertura 91.07%.
       Riesgo: apps/api/src/routes/admin.ts es el principal punto ciego de cobertura por ramas.
 
+  T-2026-06-14-002:
+    date: 2026-06-14
+    agent: "seguridad-privacidad-legal + frontend-ux-accesibilidad + interoperabilidad-educativa + qa-validacion"
+    task: "Reproducción segura de vídeos/PDF embebidos en .elpx con origen opaco (ADR-0027)"
+    status: Done
+    related: [ADR-0027, T-2026-06-14-001]
+    notes: >
+      El origen opaco de la Parte 1 (ADR-0026) rompe los embeds anidados (YouTube/Vimeo/PDF) porque el sandbox
+      se hereda. Solución promote-to-parent simplificada (fachada + player en modal), valorando el enfoque de
+      mod_exelearning_3 (DEC-0061, robusto pero overlay con geometría). Piezas: shim apps/api/static/elpx/embed-shim.js
+      (inyectado por elpx-content.ts en el HTML servido), módulo de política apps/frontend/src/lib/elpx-embed-policy.ts
+      (classifyEmbed: rechaza userinfo/no-https/same-origin-vídeo; canonicaliza YouTube a nocookie; modo abierto),
+      y relay apps/frontend/src/hooks/use-elpx-embed-relay.ts + EmbedModal.tsx (reusa Dialog.tsx) montado en
+      ResourceDetailIsland. Autenticación por identidad de ventana (origen opaco => event.origin no fiable).
+      Invariante: vídeo solo si cross-origin https. Fixture remote-embeds.elpx añadido (YouTube/Vimeo/Mediateca/PDF).
+      Tests: elpx-embed-policy.unit.test.ts (driven sobre el fixture), use-elpx-embed-relay.unit.test.ts,
+      EmbedModal.unit.test.tsx, inyección del shim en elpx-processor.unit.test.ts. bun test verde, cobertura 90.13%.
+
   T-2026-06-14-001:
     date: 2026-06-14
     agent: "seguridad-privacidad-legal + backend-api-servicios + frontend-ux-accesibilidad + qa-validacion"

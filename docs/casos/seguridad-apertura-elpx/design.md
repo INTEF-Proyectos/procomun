@@ -42,3 +42,9 @@ El iframe del **editor eXeLearning** (`editorUrl`/`iframeRef` en `ResourceDetail
 
 ## Por qué "no hay SCORM" simplifica
 En Moodle, el tracking SCORM exige un puente `postMessage` same-origin entre el contenido y el LMS, lo que dificulta el origen opaco. Procomún no hace tracking SCORM en el render, así que los previews pueden ser opacos sin perder funcionalidad.
+
+## C. Reproducción de embeds (vídeos/PDF) — addendum (ADR-0027)
+El origen opaco se hereda por los iframes anidados, así que los embeds de YouTube/Vimeo/PDF del autor se rompen. Solución **promote-to-parent** simplificada (fachada + player en modal), sin reintroducir `allow-same-origin` en el contenido:
+- **Shim** `apps/api/static/elpx/embed-shim.js`, inyectado por `elpx-content.ts`: dentro del iframe opaco sustituye los embeds por una fachada clicable que hace `postMessage` al padre.
+- **Política** `apps/frontend/src/lib/elpx-embed-policy.ts` (`classifyEmbed`): valida (rechaza userinfo/no-https y **vídeo same-origin**), canonicaliza proveedores conocidos. Modo abierto.
+- **Relay + modal** `apps/frontend/src/hooks/use-elpx-embed-relay.ts` + `apps/frontend/src/islands/catalog/EmbedModal.tsx` (reusa `Dialog.tsx`), montado en `ResourceDetailIsland`. Autentica por identidad de ventana. El player carga la URL del proveedor con su propio origen, aislado por SOP.

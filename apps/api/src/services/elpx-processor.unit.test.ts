@@ -407,6 +407,32 @@ describe("elpxContentRoutes", () => {
 		expect(csp).not.toContain("allow-same-origin");
 	});
 
+	it("inyecta el shim de embeds antes de </head> en el HTML (ADR-0027)", async () => {
+		const res = await app.request(`/api/v1/elpx/${fakeHash}`);
+
+		expect(res.status).toBe(200);
+		const html = await res.text();
+		expect(html).toContain(
+			'<script src="/api/v1/elpx/embed-shim.js"></script>',
+		);
+		// Inyectado dentro del <head>, antes de cerrarlo.
+		const shimIndex = html.indexOf("/api/v1/elpx/embed-shim.js");
+		const headClose = html.indexOf("</head>");
+		expect(shimIndex).toBeGreaterThan(-1);
+		expect(headClose).toBeGreaterThan(-1);
+		expect(shimIndex).toBeLessThan(headClose);
+	});
+
+	it("sirve el shim de embeds como JavaScript", async () => {
+		const res = await app.request("/api/v1/elpx/embed-shim.js");
+
+		expect(res.status).toBe(200);
+		expect(res.headers.get("Content-Type")).toContain("javascript");
+		expect(res.headers.get("X-Content-Type-Options")).toBe("nosniff");
+		const js = await res.text();
+		expect(js).toContain("procomun-elpx-embed");
+	});
+
 	it("establece cabecera Cache-Control en recursos estaticos", async () => {
 		const res = await app.request(
 			`/api/v1/elpx/${fakeHash}/images/photo.png`,

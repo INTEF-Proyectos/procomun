@@ -46,6 +46,19 @@ bun run lint (biome)
 2. `curl -I http://localhost:PORT/api/v1/elpx/{hash}/index.html` → la cabecera `Content-Security-Policy` incluye `... sandbox allow-scripts ...` sin `allow-same-origin`.
 3. En el navegador, abrir un preview y comprobar en DevTools que el documento del iframe reporta origen `null` (opaco), manteniendo la interactividad del contenido.
 
+## Embeds (vídeos/PDF) — addendum (ADR-0027)
+
+```
+bun test elpx-embed-policy.unit.test.ts        → política sobre los 4 embeds reales de remote-embeds.elpx
+bun test use-elpx-embed-relay.unit.test.ts     → autenticación por identidad + invariante same-origin
+bun test EmbedModal.unit.test.tsx              → ramas vídeo/PDF del player
+bun test elpx-processor.unit.test.ts           → inyección del shim antes de </head> + ruta /embed-shim.js
+bun run test:unit                              → 509 pass, 0 fail
+bun run check-coverage                         → 90.13% ✅; elpx-embed-policy.ts 100% líneas
+```
+
+Verificación manual sugerida: abrir la ficha de un recurso `remote-embeds.elpx`; el embed aparece como fachada; al pulsar se abre el modal y el vídeo de YouTube reproduce; en DevTools el documento del `.elpx` sigue con origen `null`.
+
 ## Estado
 
-Requisitos R1.1–R1.5, R2.1–R2.4 y R3.1–R3.2: **cumplidos** y validados con `bun test` en verde.
+Requisitos R1.1–R1.5, R2.1–R2.4 y R3.1–R3.2 (extracción + origen opaco) y reproducción segura de embeds (ADR-0027): **cumplidos** y validados con `bun test` en verde.
