@@ -38,7 +38,12 @@ const HASH_PATTERN = /^[a-f0-9-]{8,40}$/i;
 
 // Script de promoción de embeds inyectado en el HTML del .elpx (ADR-0027).
 const EMBED_SHIM_URL = "/api/v1/elpx/embed-shim.js";
-const EMBED_SHIM_TAG = `<script src="${EMBED_SHIM_URL}"></script>`;
+// `crossorigin` para que el script se cargue en modo CORS: el contenido del
+// .elpx se ejecuta en origen opaco (ADR-0026) y es embebible cross-origin, así
+// que sus propios scripts deben pedirse con CORS (servimos ACAO `*`). Sin esto,
+// el dev server de Vite los bloquea ("[Vite] Cross-origin requests for classic
+// scripts must be made with CORS mode enabled").
+const EMBED_SHIM_TAG = `<script src="${EMBED_SHIM_URL}" crossorigin="anonymous"></script>`;
 const EMBED_SHIM_PATH = path.join(
 	import.meta.dir,
 	"../../static/elpx/embed-shim.js",
@@ -50,6 +55,18 @@ async function readEmbedShim(): Promise<string> {
 		embedShimCache = await Bun.file(EMBED_SHIM_PATH).text();
 	}
 	return embedShimCache;
+}
+
+// Añade crossorigin="anonymous" a los <script src="/api/v1/elpx/..."> propios
+// del paquete para que se carguen en modo CORS bajo el origen opaco.
+export function addCrossOriginToLocalScripts(html: string): string {
+	return html.replace(
+		/<script\b([^>]*\bsrc\s*=\s*["']\/api\/v1\/elpx\/[^"']*["'][^>]*)>/gi,
+		(match, attrs) =>
+			/\bcrossorigin\b/i.test(attrs)
+				? match
+				: `<script${attrs} crossorigin="anonymous">`,
+	);
 }
 
 function injectEmbedShim(html: string): string {
@@ -188,13 +205,18 @@ async function handleContent(c: any) {
 
 	if (ext === "html" || ext === "htm") {
 		const html = await Bun.file(fullPath).text();
-		const rewritten = injectEmbedShim(rewriteRelativeUrls(html, hash, file));
+		const rewritten = addCrossOriginToLocalScripts(
+			injectEmbedShim(rewriteRelativeUrls(html, hash, file)),
+		);
 		return new Response(rewritten, {
 			headers: {
 				"Content-Type": "text/html",
 				"X-Content-Type-Options": "nosniff",
 				"Referrer-Policy": "same-origin",
 				"Cache-Control": "no-cache, must-revalidate",
+				// El contenido del .elpx es embebible cross-origin y se ejecuta en
+				// origen opaco, por lo que sus propios recursos se piden en modo CORS.
+				"Access-Control-Allow-Origin": "*",
 				// La directiva `sandbox` fuerza un origen opaco para el contenido de
 				// autor del .elpx: el JS sigue ejecutándose (interactividad) pero NO
 				// con el origen autenticado de la plataforma, aunque se abra en una
@@ -213,6 +235,7 @@ async function handleContent(c: any) {
 				"Content-Type": "text/css",
 				"X-Content-Type-Options": "nosniff",
 				"Cache-Control": "public, max-age=3600",
+				"Access-Control-Allow-Origin": "*",
 			},
 		});
 	}
@@ -222,6 +245,7 @@ async function handleContent(c: any) {
 			"Content-Type": mimeType,
 			"X-Content-Type-Options": "nosniff",
 			"Cache-Control": "public, max-age=3600",
+			"Access-Control-Allow-Origin": "*",
 		},
 	});
 }
@@ -235,6 +259,7 @@ elpxContentRoutes.get("/embed-shim.js", async () => {
 			"Content-Type": "application/javascript; charset=utf-8",
 			"X-Content-Type-Options": "nosniff",
 			"Cache-Control": "public, max-age=3600",
+			"Access-Control-Allow-Origin": "*",
 		},
 	});
 });

@@ -50,6 +50,15 @@ Se adopta la **Opción 2**. Tres piezas:
 * Las miniaturas de las tarjetas reciben el shim (muestran fachada en vez de embed roto) pero no montan modal: el click allí se ignora.
 * Pendiente (follow-up): emitir `Permissions-Policy` restrictiva al servir el contenido para denegar cámara/GPS/etc. al iframe.
 
+## Carga de los recursos propios del paquete bajo origen opaco (CORS)
+
+Bajo el origen opaco, el documento del `.elpx` tiene `origin = "null"`, por lo que **sus propios subrecursos** (scripts del paquete y el shim) se piden como **cross-origin** (`Origin: null`). Para que se carguen correctamente:
+
+* La API sirve el contenido del `.elpx` con `Access-Control-Allow-Origin: *` (es contenido público y, además, embebible cross-origin: existe la función "Ponlo en tu web").
+* En el HTML servido se añade `crossorigin="anonymous"` a los `<script src="/api/v1/elpx/...">` propios (incluido el shim), para que se carguen en modo CORS.
+
+Sin esto, los scripts clásicos del paquete fallan en el **dev server de Vite**, que bloquea peticiones cross-origin no-cors a scripts (`[Vite] Cross-origin requests for classic scripts must be made with CORS mode enabled`). Verificado en navegador: con `crossorigin` + ACAO, los scripts del `.elpx` cargan, el shim promociona el embed a una fachada y el modal reproduce el vídeo de YouTube (youtube-nocookie). El render directo por la API (producción, sin Vite) ya funcionaba; el `crossorigin`/ACAO es además correcto para el caso de incrustación en terceros.
+
 ## Notas de Implementación
 
 * Puntos de extensión: el shim (`embed-shim.js`), `classifyEmbed` (allowlist/canonicalización) y `EmbedModal` (players).

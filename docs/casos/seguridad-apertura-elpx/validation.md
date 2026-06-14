@@ -57,7 +57,9 @@ bun run test:unit                              → 509 pass, 0 fail
 bun run check-coverage                         → 90.13% ✅; elpx-embed-policy.ts 100% líneas
 ```
 
-Verificación manual sugerida: abrir la ficha de un recurso `remote-embeds.elpx`; el embed aparece como fachada; al pulsar se abre el modal y el vídeo de YouTube reproduce; en DevTools el documento del `.elpx` sigue con origen `null`.
+Verificación manual (realizada en navegador, dev): en la ficha de `remote-embeds.elpx` el embed de YouTube aparece como fachada "▶ Ver contenido externo"; al activarse, el relay valida la identidad de la ventana (`event.source`) y abre el modal con el player `youtube-nocookie`, que reproduce el vídeo. El documento del `.elpx` mantiene `window.origin === "null"` (origen opaco).
+
+Nota CORS (ADR-0027): bajo origen opaco los scripts propios del paquete se piden cross-origin (`Origin: null`). Se sirven con `Access-Control-Allow-Origin: *` y `crossorigin="anonymous"` en sus `<script>` para que carguen en modo CORS; sin esto, el dev server de Vite los bloquea (`[Vite] Cross-origin requests for classic scripts...`). Verificado: `jQuery`/`bootstrap` cargan y el shim ejecuta.
 
 ## Estado
 
