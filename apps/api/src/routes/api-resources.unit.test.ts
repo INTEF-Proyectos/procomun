@@ -1,0 +1,168 @@
+import { expect, test, describe } from "bun:test";
+import { Hono } from "hono";
+import type { AuthEnv } from "../auth/middleware.ts";
+import { apiResourceRoutes } from "./api-resources.ts";
+
+/**
+ * Creates a test app with token auth mocked (bypasses actual token validation).
+ * If mockUser is null, the middleware returns 401.
+ */
+function createApiApp(mockUser: Record<string, unknown> | null = null) {
+	const app = new Hono<AuthEnv>();
+
+	// Mock the token auth middleware
+	app.use("*", async (c, next) => {
+		if (!mockUser) {
+			return c.json({ error: "Token de autenticación requerido" }, 401);
+		}
+		c.set("user", mockUser as AuthEnv["Variables"]["user"]);
+		c.set("session", null);
+		await next();
+	});
+
+	app.route("/api/v1/publish/resources", apiResourceRoutes);
+	return app;
+}
+
+const validResource = {
+	title: "Recurso de prueba API",
+	description: "Descripción del recurso creado vía API",
+	language: "es",
+	license: "cc-by",
+	resourceType: "documento",
+};
+
+describe("API Resources — sin autenticación", () => {
+	const app = createApiApp(null);
+
+	test("POST /api/v1/publish/resources → 401 sin token", async () => {
+		const res = await app.request("/api/v1/publish/resources", {
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify(validResource),
+		});
+		expect(res.status).toBe(401);
+	});
+
+	test("GET /api/v1/publish/resources/some-id → 401 sin token", async () => {
+		const res = await app.request("/api/v1/publish/resources/some-id");
+		expect(res.status).toBe(401);
+	});
+});
+
+describe("API Resources — con autenticación", () => {
+	const app = createApiApp({ id: "user-1", role: "author", email: "test@example.com", name: "Test" });
+
+	test("POST /api/v1/publish/resources → 201 con body válido", async () => {
+		const res = await app.request("/api/v1/publish/resources", {
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify(validResource),
+		});
+		expect(res.status).toBe(201);
+		const body = await res.json();
+		expect(body.id).toBeDefined();
+		expect(body.slug).toBeDefined();
+		expect(body.editorialStatus).toBe("draft");
+	});
+
+	test("POST /api/v1/publish/resources → 201 con editorialStatus review", async () => {
+		const res = await app.request("/api/v1/publish/resources", {
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({ ...validResource, editorialStatus: "review" }),
+		});
+		expect(res.status).toBe(201);
+		const body = await res.json();
+		expect(body.editorialStatus).toBe("review");
+	});
+
+	test("POST /api/v1/publish/resources → 400 sin campos obligatorios", async () => {
+		const res = await app.request("/api/v1/publish/resources", {
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({ title: "Solo título" }),
+		});
+		expect(res.status).toBe(400);
+		const body = await res.json();
+		expect(body.details).toBeDefined();
+		expect(Array.isArray(body.details)).toBe(true);
+		expect(body.details.length).toBeGreaterThan(0);
+	});
+
+	test("POST /api/v1/publish/resources → 400 sin JSON", async () => {
+		const res = await app.request("/api/v1/publish/resources", {
+			method: "POST",
+			headers: { "Content-Type": "text/plain" },
+			body: "not json",
+		});
+		expect(res.status).toBe(400);
+	});
+
+	test("GET /api/v1/publish/resources/:id → 404 si no existe", async () => {
+		const res = await app.request("/api/v1/publish/resources/non-existent-id");
+		expect(res.status).toBe(404);
+	});
+
+	test("Full CRUD flow: create, get, update, delete", async () => {
+		// Create
+		const createRes = await app.request("/api/v1/publish/resources", {
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify(validResource),
+		});
+		expect(createRes.status).toBe(201);
+		const { id } = await createRes.json();
+
+		// Get
+		const getRes = await app.request(`/api/v1/publish/resources/${id}`);
+		expect(getRes.status).toBe(200);
+		const resource = await getRes.json();
+		expect(resource.title).toBe(validResource.title);
+		expect(resource.editorialStatus).toBe("draft");
+
+		// Update
+		const updateRes = await app.request(`/api/v1/publish/resources/${id}`, {
+			method: "PUT",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({ title: "Título actualizado" }),
+		});
+		expect(updateRes.status).toBe(200);
+		const updateBody = await updateRes.json();
+		expect(updateBody.updated).toBe(true);
+
+		// Delete
+		const deleteRes = await app.request(`/api/v1/publish/resources/${id}`, {
+			method: "DELETE",
+		});
+		expect(deleteRes.status).toBe(200);
+		const deleteBody = await deleteRes.json();
+		expect(deleteBody.deleted).toBe(true);
+
+		// Verify deleted
+		const getDeleted = await app.request(`/api/v1/publish/resources/${id}`);
+		expect(getDeleted.status).toBe(404);
+	});
+});
+
+describe("API Resources — permisos", () => {
+	test("PUT → 404 si recurso no pertenece al usuario", async () => {
+		// Create resource as user-1
+		const appUser1 = createApiApp({ id: "user-1", role: "author", email: "u1@test.com", name: "U1" });
+		const createRes = await appUser1.request("/api/v1/publish/resources", {
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify(validResource),
+		});
+		const { id } = await createRes.json();
+
+		// Try to update as user-2
+		const appUser2 = createApiApp({ id: "user-2", role: "author", email: "u2@test.com", name: "U2" });
+		const updateRes = await appUser2.request(`/api/v1/publish/resources/${id}`, {
+			method: "PUT",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({ title: "Hack attempt" }),
+		});
+		expect(updateRes.status).toBe(403);
+	});
+});

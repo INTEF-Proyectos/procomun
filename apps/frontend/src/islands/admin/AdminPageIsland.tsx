@@ -8,6 +8,7 @@ import { AdminResourcesSection } from "./AdminResourcesSection.tsx";
 import { AdminUsersSection } from "./AdminUsersSection.tsx";
 import { AdminCollectionsSection } from "./AdminCollectionsSection.tsx";
 import { AdminCategoriesSection } from "./AdminCategoriesSection.tsx";
+import { AdminApiTokensSection } from "./AdminApiTokensSection.tsx";
 import "./AdminPageIsland.css";
 
 export type AdminSection =
@@ -15,7 +16,8 @@ export type AdminSection =
 	| "resources"
 	| "collections"
 	| "categories"
-	| "users";
+	| "users"
+	| "api-tokens";
 
 const VALID_SECTIONS: AdminSection[] = [
 	"dashboard",
@@ -23,6 +25,7 @@ const VALID_SECTIONS: AdminSection[] = [
 	"collections",
 	"categories",
 	"users",
+	"api-tokens",
 ];
 
 
@@ -103,6 +106,9 @@ export function AdminPageIsland() {
 				)}
 				{section === "users" && userLevel >= ROLE_LEVELS.admin && (
 					<AdminUsersSection />
+				)}
+				{section === "api-tokens" && userLevel >= ROLE_LEVELS.admin && (
+					<AdminApiTokensSection />
 				)}
 			</main>
 		</div>
