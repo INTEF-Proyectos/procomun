@@ -13,7 +13,26 @@ import { ftsRoutes } from "./fts.ts";
 const adminRoutes = new Hono<AuthEnv>();
 
 adminRoutes.use("*", requireAuth);
-adminRoutes.use("*", requireRole("curator"));
+// Piso mínimo del backoffice: creadores de contenido (author+). Bloquea a reader.
+// Las secciones de recursos/subidas/elpx se sirven a author+ (DEF-221); el resto
+// eleva el requisito a curator o admin con gates explícitos por sección, como
+// defensa adicional al control de acceso interno de cada sub-router.
+adminRoutes.use("*", requireRole("author"));
+
+adminRoutes.use("/collections", requireRole("curator"));
+adminRoutes.use("/collections/*", requireRole("curator"));
+adminRoutes.use("/taxonomies", requireRole("curator"));
+adminRoutes.use("/taxonomies/*", requireRole("curator"));
+adminRoutes.use("/reports", requireRole("curator"));
+adminRoutes.use("/reports/*", requireRole("curator"));
+adminRoutes.use("/users", requireRole("curator"));
+adminRoutes.use("/users/*", requireRole("curator"));
+adminRoutes.use("/settings", requireRole("admin"));
+adminRoutes.use("/settings/*", requireRole("admin"));
+adminRoutes.use("/fts", requireRole("admin"));
+adminRoutes.use("/fts/*", requireRole("admin"));
+adminRoutes.use("/api-tokens", requireRole("admin"));
+adminRoutes.use("/api-tokens/*", requireRole("admin"));
 
 adminRoutes.route("/resources", resourceRoutes);
 adminRoutes.route("/users", userRoutes);
@@ -24,9 +43,6 @@ adminRoutes.route("/elpx", elpxAdminRoutes);
 adminRoutes.route("/settings", settingsRoutes);
 adminRoutes.route("/reports", reportRoutes);
 adminRoutes.route("/fts", ftsRoutes);
-
-adminRoutes.use("/api-tokens", requireRole("admin"));
-adminRoutes.use("/api-tokens/*", requireRole("admin"));
 adminRoutes.route("/api-tokens", adminApiTokensRoutes);
 
 export { adminRoutes };

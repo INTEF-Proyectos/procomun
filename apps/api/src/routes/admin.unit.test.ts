@@ -375,16 +375,18 @@ describe("Rutas admin — RBAC por rol", () => {
 		expect(res.status).toBe(403);
 	});
 
-	test("author no puede acceder a /admin", async () => {
+	// DEF-221 (#221): author y editor SÍ pueden gestionar recursos (son creadores
+	// de contenido), aunque no el resto del backoffice.
+	test("author puede acceder a recursos", async () => {
 		const app = createAdminApp({ id: "1", role: "author" });
 		const res = await app.request("/api/admin/resources");
-		expect(res.status).toBe(403);
+		expect(res.status).toBe(200);
 	});
 
-	test("editor no puede acceder a /admin", async () => {
+	test("editor puede acceder a recursos", async () => {
 		const app = createAdminApp({ id: "1", role: "editor" });
 		const res = await app.request("/api/admin/resources");
-		expect(res.status).toBe(403);
+		expect(res.status).toBe(200);
 	});
 
 	test("curator puede acceder a /admin", async () => {
@@ -462,6 +464,73 @@ describe("Rutas admin — RBAC por rol", () => {
 		const authorApp = createAdminApp({ id: "author-collections", role: "author" });
 		const res = await authorApp.request("/api/admin/collections");
 		expect(res.status).toBe(403);
+	});
+});
+
+describe("Rutas admin — subida de recursos por author/editor/curator (DEF-221)", () => {
+	async function setupUser(id: string, role: string) {
+		await repo.ensureUser(getDb().db, { id, email: `${id}@local.invalid`, name: `User ${id}`, role });
+		return createAdminApp({ id, role, email: `${id}@local.invalid`, name: `User ${id}` });
+	}
+
+	test("author puede crear un recurso (no 'Permisos insuficientes')", async () => {
+		const app = await setupUser(`author-${crypto.randomUUID()}`, "author");
+		const res = await app.request("/api/admin/resources", {
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify(validResource),
+		});
+		expect(res.status).toBe(201);
+	});
+
+	test("author puede crear un borrador", async () => {
+		const app = await setupUser(`author-d-${crypto.randomUUID()}`, "author");
+		const res = await app.request("/api/admin/resources/draft", { method: "POST" });
+		expect(res.status).toBe(201);
+	});
+
+	test("editor puede crear un recurso", async () => {
+		const app = await setupUser(`editor-${crypto.randomUUID()}`, "editor");
+		const res = await app.request("/api/admin/resources", {
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify(validResource),
+		});
+		expect(res.status).toBe(201);
+	});
+
+	test("curator puede crear un recurso y acceder a su propio borrador (no 'Recurso no encontrado')", async () => {
+		const id = `curator-${crypto.randomUUID()}`;
+		const app = await setupUser(id, "curator");
+		const createRes = await app.request("/api/admin/resources", {
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify(validResource),
+		});
+		expect(createRes.status).toBe(201);
+		const created = await createRes.json();
+
+		// Regresión DEF-221: el creador debe poder ver su propio borrador.
+		const getRes = await app.request(`/api/admin/resources/${created.id}`);
+		expect(getRes.status).toBe(200);
+		const body = await getRes.json();
+		expect(body.id).toBe(created.id);
+	});
+
+	test("reader NO puede crear recursos", async () => {
+		const app = createAdminApp({ id: "reader-x", role: "reader" });
+		const res = await app.request("/api/admin/resources", {
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify(validResource),
+		});
+		expect(res.status).toBe(403);
+	});
+
+	test("author NO puede acceder a usuarios ni a settings", async () => {
+		const app = await setupUser(`author-deny-${crypto.randomUUID()}`, "author");
+		expect((await app.request("/api/admin/users")).status).toBe(403);
+		expect((await app.request("/api/admin/settings")).status).toBe(403);
 	});
 });
 

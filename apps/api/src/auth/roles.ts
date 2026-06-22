@@ -19,11 +19,14 @@ export function canManageResource(
 	},
 ) {
 	if (hasMinRole(user.role, "admin")) return true;
+	// El creador siempre puede gestionar su propio recurso, en cualquier estado
+	// (DEF-221: un curator que crea un recurso debe poder ver/editar su borrador).
+	if (hasMinRole(user.role, "author") && resource.createdBy === user.id) {
+		return true;
+	}
+	// Un curator además gestiona la cola de curación (recursos en revisión).
 	if (hasMinRole(user.role, "curator")) {
 		return resource.editorialStatus === "review";
-	}
-	if (hasMinRole(user.role, "author")) {
-		return resource.createdBy === user.id;
 	}
 	return false;
 }
