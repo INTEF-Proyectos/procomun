@@ -532,6 +532,38 @@ describe("Rutas admin — subida de recursos por author/editor/curator (DEF-221)
 		expect((await app.request("/api/admin/users")).status).toBe(403);
 		expect((await app.request("/api/admin/settings")).status).toBe(403);
 	});
+
+	test("un author que NO es el creador no puede subir/guardar elpx en un recurso ajeno (IDOR)", async () => {
+		const ownerApp = await setupUser(`elpx-owner-${crypto.randomUUID()}`, "author");
+		const createRes = await ownerApp.request("/api/admin/resources", {
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify(validResource),
+		});
+		const { id: resourceId } = await createRes.json();
+
+		const intruderApp = await setupUser(`elpx-intruder-${crypto.randomUUID()}`, "author");
+		expect((await intruderApp.request(`/api/admin/elpx/upload/${resourceId}`, { method: "POST" })).status).toBe(403);
+		expect((await intruderApp.request(`/api/admin/elpx/save/${resourceId}`, { method: "POST" })).status).toBe(403);
+
+		// El creador sí pasa el control de propiedad (no 403; 400 por faltar el fichero).
+		const ownerUpload = await ownerApp.request(`/api/admin/elpx/upload/${resourceId}`, { method: "POST" });
+		expect(ownerUpload.status).not.toBe(403);
+	});
+});
+
+describe("Rutas admin — uploads/config", () => {
+	test("author puede leer la config, no expone storageDir y reader queda bloqueado", async () => {
+		const authorApp = createAdminApp({ id: "cfg-author", role: "author" });
+		const res = await authorApp.request("/api/admin/uploads/config");
+		expect(res.status).toBe(200);
+		const body = await res.json();
+		expect(body.storageDir).toBeUndefined();
+		expect(typeof body.maxFileSizeBytes).toBe("number");
+
+		const readerApp = createAdminApp({ id: "cfg-reader", role: "reader" });
+		expect((await readerApp.request("/api/admin/uploads/config")).status).toBe(403);
+	});
 });
 
 describe("Rutas admin — usuarios", () => {
