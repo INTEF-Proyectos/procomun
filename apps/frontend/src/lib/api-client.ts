@@ -290,7 +290,9 @@ export interface ApiClient {
 
 	listUsers(opts?: { q?: string; role?: string; limit?: number; offset?: number }): Promise<PaginatedResult<UserRecord>>;
 	getUserById(id: string): Promise<UserRecord | null>;
+	createUser(data: { name?: string; email: string; password: string; role?: string }): Promise<{ ok: boolean; id?: string; error?: string; details?: { field: string; message: string }[] }>;
 	updateUser(id: string, data: Partial<Pick<UserRecord, "name" | "role" | "isActive">>): Promise<{ ok: boolean; error?: string }>;
+	deleteUser(id: string): Promise<{ ok: boolean; error?: string }>;
 
 	listCollections(opts?: { q?: string; limit?: number; offset?: number }): Promise<PaginatedResult<CollectionRecord>>;
 	getCollectionById(id: string): Promise<CollectionRecord | null>;

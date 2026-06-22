@@ -731,6 +731,190 @@ describe("Rutas admin — taxonomías", () => {
 	});
 });
 
+describe("Rutas admin — alta de usuarios (DEF-019)", () => {
+	const adminApp = createAdminApp({ id: "1", role: "admin", email: "admin@test.com", name: "Admin" });
+
+	test("POST /api/admin/users → 201 crea el usuario SIN cambiar la sesión activa", async () => {
+		const email = `nuevo-${crypto.randomUUID()}@test.com`;
+		const res = await adminApp.request("/api/admin/users", {
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({ name: "Nuevo", email, password: "supersecret8" }),
+		});
+		expect(res.status).toBe(201);
+		const body = await res.json();
+		expect(body.id).toBeDefined();
+		expect(body.created).toBe(true);
+
+		// Regresión DEF-019: el endpoint NO debe iniciar sesión como el nuevo usuario.
+		expect(res.headers.get("set-cookie")).toBeNull();
+
+		// El nuevo usuario aparece en el listado
+		const listRes = await adminApp.request(`/api/admin/users?q=${encodeURIComponent(email)}`);
+		const list = await listRes.json();
+		expect(list.data.some((u: { email: string }) => u.email === email)).toBe(true);
+	});
+
+	test("POST /api/admin/users → 400 con email inválido o contraseña corta", async () => {
+		const bad = await adminApp.request("/api/admin/users", {
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({ name: "X", email: "no-es-email", password: "123" }),
+		});
+		expect(bad.status).toBe(400);
+		const body = await bad.json();
+		expect(Array.isArray(body.details)).toBe(true);
+		expect(body.details.length).toBeGreaterThan(0);
+	});
+
+	test("POST /api/admin/users → 409 si el email ya existe", async () => {
+		const email = `dup-${crypto.randomUUID()}@test.com`;
+		const first = await adminApp.request("/api/admin/users", {
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({ name: "Dup", email, password: "supersecret8" }),
+		});
+		expect(first.status).toBe(201);
+
+		const second = await adminApp.request("/api/admin/users", {
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({ name: "Dup2", email, password: "supersecret8" }),
+		});
+		expect(second.status).toBe(409);
+	});
+
+	test("POST /api/admin/users → 403 para roles no administradores", async () => {
+		const curatorApp = createAdminApp({ id: "cur-create", role: "curator" });
+		const res = await curatorApp.request("/api/admin/users", {
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({ name: "X", email: `c-${crypto.randomUUID()}@test.com`, password: "supersecret8" }),
+		});
+		expect(res.status).toBe(403);
+	});
+});
+
+describe("Rutas admin — baja de usuarios (DEF-020)", () => {
+	const adminApp = createAdminApp({ id: "1", role: "admin", email: "admin@test.com", name: "Admin" });
+
+	test("DELETE /api/admin/users/:id → 200 y el usuario desaparece del listado", async () => {
+		const email = `borrar-${crypto.randomUUID()}@test.com`;
+		const createRes = await adminApp.request("/api/admin/users", {
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({ name: "Para borrar", email, password: "supersecret8" }),
+		});
+		const { id } = await createRes.json();
+
+		const delRes = await adminApp.request(`/api/admin/users/${id}`, { method: "DELETE" });
+		expect(delRes.status).toBe(200);
+		const delBody = await delRes.json();
+		expect(delBody.deleted).toBe(true);
+
+		// Regresión DEF-020: ya no aparece en el listado
+		const listRes = await adminApp.request(`/api/admin/users?q=${encodeURIComponent(email)}`);
+		const list = await listRes.json();
+		expect(list.data.some((u: { id: string }) => u.id === id)).toBe(false);
+	});
+
+	test("DELETE /api/admin/users/:id → 404 para id inexistente", async () => {
+		const res = await adminApp.request("/api/admin/users/no-existe-xyz", { method: "DELETE" });
+		expect(res.status).toBe(404);
+	});
+
+	test("DELETE /api/admin/users/:id → 400 al intentar borrarse a sí mismo", async () => {
+		const res = await adminApp.request("/api/admin/users/1", { method: "DELETE" });
+		expect(res.status).toBe(400);
+	});
+
+	test("DELETE /api/admin/users/:id → 403 para roles no administradores", async () => {
+		const curatorApp = createAdminApp({ id: "cur-del", role: "curator" });
+		const res = await curatorApp.request("/api/admin/users/whoever", { method: "DELETE" });
+		expect(res.status).toBe(403);
+	});
+
+	test("re-eliminar o editar un usuario ya dado de baja → 404 (idempotente)", async () => {
+		const email = `idemp-${crypto.randomUUID()}@test.com`;
+		const createRes = await adminApp.request("/api/admin/users", {
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({ name: "Idemp", email, password: "supersecret8" }),
+		});
+		const { id } = await createRes.json();
+
+		const firstDelete = await adminApp.request(`/api/admin/users/${id}`, { method: "DELETE" });
+		expect(firstDelete.status).toBe(200);
+
+		// Segunda baja: ya no existe para la administración → 404 (no vuelve a "borrar")
+		const secondDelete = await adminApp.request(`/api/admin/users/${id}`, { method: "DELETE" });
+		expect(secondDelete.status).toBe(404);
+
+		// Tampoco se puede reactivar por PATCH un usuario dado de baja
+		const patchRes = await adminApp.request(`/api/admin/users/${id}`, {
+			method: "PATCH",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({ isActive: true }),
+		});
+		expect(patchRes.status).toBe(404);
+	});
+});
+
+describe("Rutas admin — usuarios: autoservicio, auditoría y validación", () => {
+	test("GET /api/admin/users devuelve ficha sintética propia para curator sin registro en BD", async () => {
+		const ghostApp = createAdminApp({ id: "ghost-self", role: "curator", email: "ghost@test.com", name: "Ghost" });
+		const res = await ghostApp.request("/api/admin/users");
+		expect(res.status).toBe(200);
+		const body = await res.json();
+		expect(body.total).toBe(1);
+		expect(body.data[0].email).toBe("ghost@test.com");
+	});
+
+	test("GET /api/admin/users/:id propio devuelve ficha sintética si no existe en BD", async () => {
+		const ghostApp = createAdminApp({ id: "ghost-self-2", role: "curator", email: "ghost2@test.com", name: "Ghost2" });
+		const res = await ghostApp.request("/api/admin/users/ghost-self-2");
+		expect(res.status).toBe(200);
+		const body = await res.json();
+		expect(body.email).toBe("ghost2@test.com");
+	});
+
+	test("GET /api/admin/users/:id ajeno → 403 para no-admin (curator)", async () => {
+		const ghostApp = createAdminApp({ id: "ghost-self-3", role: "curator" });
+		const res = await ghostApp.request("/api/admin/users/otro-id");
+		expect(res.status).toBe(403);
+	});
+
+	test("PATCH /api/admin/users/:id con rol registra auditoría y responde 200", async () => {
+		const adminApp = createAdminApp({ id: "1", role: "admin" });
+		const email = `audit-${crypto.randomUUID()}@test.com`;
+		const createRes = await adminApp.request("/api/admin/users", {
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({ name: "Audit", email, password: "supersecret8" }),
+		});
+		const { id } = await createRes.json();
+
+		const res = await adminApp.request(`/api/admin/users/${id}`, {
+			method: "PATCH",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({ role: "editor", isActive: false }),
+		});
+		expect(res.status).toBe(200);
+		const body = await res.json();
+		expect(body.updated).toBe(true);
+	});
+
+	test("POST /api/admin/users → 400 con cuerpo no JSON", async () => {
+		const adminApp = createAdminApp({ id: "1", role: "admin" });
+		const res = await adminApp.request("/api/admin/users", {
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			body: "esto no es json",
+		});
+		expect(res.status).toBe(400);
+	});
+});
+
 describe("Rutas admin — actualización de usuarios", () => {
 	test("PATCH /api/admin/users/:id → 200 actualiza usuario", async () => {
 		const adminApp = createAdminApp({ id: "1", role: "admin" });

@@ -287,6 +287,21 @@ export class HttpApiClient implements ApiClient {
 		return res.json();
 	}
 
+	async createUser(data: { name?: string; email: string; password: string; role?: string }) {
+		const res = await fetch("/api/admin/users", {
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			credentials: "include",
+			body: JSON.stringify(data),
+		});
+		if (!res.ok) {
+			const err = await res.json().catch(() => ({}));
+			return { ok: false as const, error: err.error ?? "Error al crear usuario", details: err.details };
+		}
+		const body = await res.json();
+		return { ok: true as const, id: body.id };
+	}
+
 	async updateUser(id: string, data: Partial<Pick<UserRecord, "name" | "role" | "isActive">>) {
 		const res = await fetch(`/api/admin/users/${id}`, {
 			method: "PATCH",
@@ -299,6 +314,18 @@ export class HttpApiClient implements ApiClient {
 			return { ok: false, error: err.error ?? "Error al actualizar usuario" };
 		}
 		return { ok: true };
+	}
+
+	async deleteUser(id: string) {
+		const res = await fetch(`/api/admin/users/${id}`, {
+			method: "DELETE",
+			credentials: "include",
+		});
+		if (!res.ok) {
+			const err = await res.json().catch(() => ({}));
+			return { ok: false as const, error: err.error ?? "Error al eliminar usuario" };
+		}
+		return { ok: true as const };
 	}
 
 	async listCollections(opts?: { q?: string; limit?: number; offset?: number }): Promise<PaginatedResult<CollectionRecord>> {

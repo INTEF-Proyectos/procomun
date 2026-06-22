@@ -1009,3 +1009,21 @@ tasks:
       renombrando la entrada de ficha publica a T-2026-05-26-003 sin borrar historial. Tras el merge, el coverage
       quedaba en 89.94%; se añade cobertura de los metodos de tokens API del HttpApiClient y se valida
       bun run check-coverage OK con 90.07% de lineas.
+
+  T-2026-06-22-004:
+    date: 2026-06-22
+    agent: "backend-api-servicios + frontend-ux-accesibilidad + qa-validacion"
+    task: "Endurecimiento de la gestion de usuarios en backoffice (DEF-019, DEF-020, DEF-021)"
+    status: Done
+    related: ["#213", "#214", "#215"]
+    notes: >
+      DEF-019: el alta de usuarios desde administracion usaba el endpoint publico /api/auth/sign-up/email de
+      Better Auth, que iniciaba sesion como el usuario recien creado y dejaba la pantalla en blanco. Se añade
+      POST /api/admin/users (solo admin) que crea usuario + cuenta de credenciales sin generar sesion (hash con
+      auth.$context.password.hash) y se conecta el frontend via ApiClient.createUser. DEF-020: la baja de
+      usuarios apuntaba a un endpoint inexistente; se añade DELETE /api/admin/users/:id con baja logica
+      (deleted_at + banned + is_active=false) y listUsers ahora filtra deleted_at IS NULL, de modo que el usuario
+      desaparece del listado. DEF-021: AdminPageIsland resolvia ?section=users tras conocer el rol mostrando un
+      panel en blanco a curators; se extrae resolveAdminSection (helper puro testeado) que deniega secciones por
+      encima del nivel del usuario cayendo al dashboard. Validacion: bun run test OK (668 pass, 0 fail), coverage
+      90.1%, biome lint y format OK.

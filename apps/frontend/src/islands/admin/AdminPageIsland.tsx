@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { getApiClient } from "../../lib/get-api-client.ts";
 import { url } from "../../lib/paths.ts";
 import { ROLE_LEVELS } from "../../lib/shared-utils.ts";
+import { resolveAdminSection, SECTION_MIN_ROLE } from "./admin-sections.ts";
 import { AdminSidebar } from "./AdminSidebar.tsx";
 import { AdminDashboardSection } from "./AdminDashboardSection.tsx";
 import { AdminResourcesSection } from "./AdminResourcesSection.tsx";
@@ -21,18 +22,6 @@ export type AdminSection =
 	| "users"
 	| "api-tokens";
 
-const VALID_SECTIONS: AdminSection[] = [
-	"dashboard",
-	"resources",
-	"collections",
-	"categories",
-	"reports",
-	"users",
-	"api-tokens",
-];
-
-
-
 export function AdminPageIsland() {
 	const [section, setSection] = useState<AdminSection>("dashboard");
 	const [userRole, setUserRole] = useState<string>("");
@@ -40,12 +29,6 @@ export function AdminPageIsland() {
 	const [loading, setLoading] = useState(true);
 
 	useEffect(() => {
-		const params = new URLSearchParams(window.location.search);
-		const s = params.get("section");
-		if (s && VALID_SECTIONS.includes(s as AdminSection)) {
-			setSection(s as AdminSection);
-		}
-
 		(async () => {
 			try {
 				const api = await getApiClient();
@@ -59,6 +42,19 @@ export function AdminPageIsland() {
 				}
 				setUserRole(session.user.role);
 				setUserName(session.user.name || session.user.email);
+
+				// DEF-021: respeta la sección solicitada por URL solo si el rol tiene
+				// privilegios suficientes; de lo contrario, deniega el acceso cayendo
+				// en el dashboard (evita mostrar un panel en blanco).
+				const userLevel = ROLE_LEVELS[session.user.role] ?? 0;
+				const requested = new URLSearchParams(window.location.search).get("section");
+				const resolved = resolveAdminSection(requested, userLevel);
+				setSection(resolved);
+				if (requested && requested !== resolved) {
+					const cleanUrl = new URL(window.location.href);
+					cleanUrl.searchParams.set("section", resolved);
+					window.history.replaceState({}, "", cleanUrl.toString());
+				}
 			} catch {
 				window.location.href = url("login");
 			} finally {
@@ -68,6 +64,8 @@ export function AdminPageIsland() {
 	}, []);
 
 	function changeSection(s: AdminSection) {
+		// Defensa adicional: ignora secciones por encima del nivel del usuario.
+		if ((ROLE_LEVELS[userRole] ?? 0) < SECTION_MIN_ROLE[s]) return;
 		setSection(s);
 		const newUrl = new URL(window.location.href);
 		newUrl.searchParams.set("section", s);
