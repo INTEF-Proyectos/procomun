@@ -78,7 +78,7 @@ export function ResourceCard({
               src={resource.elpxPreview!.previewUrl}
               loading="lazy"
               tabIndex={-1}
-              sandbox="allow-scripts allow-same-origin"
+              sandbox="allow-scripts"
               title="Vista previa"
             />
           </div>

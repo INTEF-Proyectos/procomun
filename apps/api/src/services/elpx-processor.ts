@@ -3,6 +3,7 @@ import path from "node:path";
 
 import { parseContentXml } from "@procomun/db/elpx-metadata";
 import type { ElpxMetadata } from "@procomun/db/elpx-metadata";
+import { safeExtractElpx } from "./elpx-safe-extract.ts";
 
 export type { ElpxMetadata };
 
@@ -110,16 +111,9 @@ export async function processElpxUpload(
   const extractPath = buildElpxPath(baseDir, hash);
   await mkdir(extractPath, { recursive: true });
 
-  // Extract ZIP
-  const proc = Bun.spawn(["unzip", "-o", filePath, "-d", extractPath], {
-    stdout: "pipe",
-    stderr: "pipe",
-  });
-  const exitCode = await proc.exited;
-
-  if (exitCode !== 0) {
-    throw new Error("Error al extraer el archivo .elpx");
-  }
+  // Extracción segura: valida nombres (zip slip), rechaza symlinks, aplica
+  // límites anti zip-bomb y verifica contención post-extracción (ADR-0026).
+  await safeExtractElpx(filePath, extractPath);
 
   const hasPreview = await fileExists(path.join(extractPath, "index.html"));
 

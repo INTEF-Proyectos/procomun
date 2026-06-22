@@ -13,7 +13,7 @@ function renderCard(r: Record<string, any>): string {
 	const preview = r.elpxPreview?.previewUrl
 		? `<div class="card-preview">
 			<iframe src="${r.elpxPreview.previewUrl}" loading="lazy" tabindex="-1"
-				sandbox="allow-scripts allow-same-origin"
+				sandbox="allow-scripts"
 				title="Vista previa"></iframe>
 			<div class="card-preview-overlay"></div>
 		</div>`
