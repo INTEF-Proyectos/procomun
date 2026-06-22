@@ -17,6 +17,8 @@ import type {
 	UploadSessionRecord,
 	UploadConfig,
 	ReportRecord,
+	ApiTokenRecord,
+	ApiTokenStats,
 } from "./api-client.ts";
 
 /**
@@ -595,6 +597,72 @@ export class HttpApiClient implements ApiClient {
 		if (!res.ok) {
 			const err = await res.json().catch(() => ({}));
 			throw new Error(err.error || "Error al generar recursos");
+		}
+		return res.json();
+	}
+
+	// API Tokens (User)
+	async listApiTokens(): Promise<ApiTokenRecord[]> {
+		const res = await fetch("/api/v1/tokens", { credentials: "include" });
+		const body = await res.json();
+		return body.data || [];
+	}
+
+	async createApiToken(name: string, expiresAt?: string): Promise<ApiTokenRecord> {
+		const res = await fetch("/api/v1/tokens", {
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			credentials: "include",
+			body: JSON.stringify({ name, expiresAt }),
+		});
+		if (!res.ok) {
+			const err = await res.json().catch(() => ({}));
+			throw new Error(err.error || "Error al crear el token de API");
+		}
+		return res.json();
+	}
+
+	async revokeApiToken(id: string): Promise<void> {
+		const res = await fetch(`/api/v1/tokens/${id}`, {
+			method: "DELETE",
+			credentials: "include",
+		});
+		if (!res.ok) {
+			const err = await res.json().catch(() => ({}));
+			throw new Error(err.error || "Error al revocar el token de API");
+		}
+	}
+
+	// API Tokens (Admin)
+	async listAllApiTokens(filters?: { userId?: string; status?: "active" | "revoked" | "expired" }): Promise<ApiTokenRecord[]> {
+		const params = new URLSearchParams();
+		if (filters?.userId) params.set("userId", filters.userId);
+		if (filters?.status) params.set("status", filters.status);
+		const qs = params.toString();
+		const res = await fetch(`/api/admin/api-tokens${qs ? `?${qs}` : ""}`, { credentials: "include" });
+		if (!res.ok) {
+			const err = await res.json().catch(() => ({}));
+			throw new Error(err.error || "Error al obtener tokens de API");
+		}
+		return res.json();
+	}
+
+	async revokeApiTokenAdmin(id: string): Promise<void> {
+		const res = await fetch(`/api/admin/api-tokens/${id}`, {
+			method: "DELETE",
+			credentials: "include",
+		});
+		if (!res.ok) {
+			const err = await res.json().catch(() => ({}));
+			throw new Error(err.error || "Error al revocar token de API (admin)");
+		}
+	}
+
+	async getGlobalApiTokenStats(): Promise<ApiTokenStats> {
+		const res = await fetch("/api/admin/api-tokens/stats", { credentials: "include" });
+		if (!res.ok) {
+			const err = await res.json().catch(() => ({}));
+			throw new Error(err.error || "Error al obtener estadísticas globales");
 		}
 		return res.json();
 	}

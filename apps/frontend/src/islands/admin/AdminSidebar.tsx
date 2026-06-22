@@ -17,6 +17,7 @@ const NAV_ITEMS: NavItem[] = [
 	{ id: "categories", label: "Categorias", icon: "category", minRole: ROLE_LEVELS.curator },
 	{ id: "reports", label: "Denuncias", icon: "flag", minRole: ROLE_LEVELS.curator },
 	{ id: "users", label: "Usuarios", icon: "group", minRole: ROLE_LEVELS.admin },
+	{ id: "api-tokens", label: "Claves de API", icon: "vpn_key", minRole: ROLE_LEVELS.admin },
 ];
 
 interface AdminSidebarProps {

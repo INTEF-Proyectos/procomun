@@ -1,0 +1,106 @@
+name: E2E Tests
+
+on:
+  pull_request:
+    branches: [ "main", "develop" ]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  e2e-chromium:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v6
+
+    - name: Setup Bun
+      uses: oven-sh/setup-bun@v2
+      with:
+        bun-version: latest
+
+    - name: Install dependencies
+      run: bun install
+
+    - name: Install Playwright browsers (Chromium)
+      run: bunx playwright install --with-deps chromium
+
+    - name: Seed database
+      run: bun run --filter '@procomun/cli' cli -- seed
+
+    - name: Start application
+      run: |
+        bun run dev &
+        # Wait for frontend and API to be ready
+        npx wait-on http://localhost:5173 http://localhost:3000/health --timeout 60000
+      env:
+        NODE_ENV: test
+
+    - name: Run E2E tests (Chromium)
+      run: bun run test:e2e
+      env:
+        E2E_BASE_URL: http://localhost:5173
+        CI: true
+
+    - name: Upload test results
+      if: failure()
+      uses: actions/upload-artifact@v4
+      with:
+        name: playwright-report-chromium
+        path: |
+          playwright-report/
+          test-results/
+        retention-days: 7
+
+  # Firefox and WebKit run on schedule or manual trigger to save CI time on PRs.
+  e2e-cross-browser:
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    strategy:
+      matrix:
+        browser: [firefox, webkit]
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v6
+
+    - name: Setup Bun
+      uses: oven-sh/setup-bun@v2
+      with:
+        bun-version: latest
+
+    - name: Install dependencies
+      run: bun install
+
+    - name: Install Playwright browsers
+      run: bunx playwright install --with-deps ${{ matrix.browser }}
+
+    - name: Seed database
+      run: bun run --filter '@procomun/cli' cli -- seed
+
+    - name: Start application
+      run: |
+        bun run dev &
+        npx wait-on http://localhost:5173 http://localhost:3000/health --timeout 60000
+      env:
+        NODE_ENV: test
+
+    - name: Run E2E tests (${{ matrix.browser }})
+      run: bunx playwright test --project=${{ matrix.browser }}
+      env:
+        E2E_BASE_URL: http://localhost:5173
+        CI: true
+
+    - name: Upload test results
+      if: failure()
+      uses: actions/upload-artifact@v4
+      with:
+        name: playwright-report-${{ matrix.browser }}
+        path: |
+          playwright-report/
+          test-results/
+        retention-days: 7

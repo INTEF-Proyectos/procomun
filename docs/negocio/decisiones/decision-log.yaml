@@ -157,3 +157,15 @@ ADR-0024:
   status: Aceptado
   date: 2026-05-26
   file: 0024-exportacion-elpx-formatos-estandar.md
+
+ADR-0026:
+  title: "Apertura segura de archivos .elpx (extracción endurecida y renderizado con origen opaco)"
+  status: Aceptado
+  date: 2026-06-14
+  file: 0026-apertura-segura-elpx.md
+
+ADR-0027:
+  title: "Reproducción segura de vídeos/PDF embebidos en .elpx (promote-to-parent con player en modal)"
+  status: Aceptado
+  date: 2026-06-14
+  file: 0027-reproduccion-segura-embeds-elpx.md

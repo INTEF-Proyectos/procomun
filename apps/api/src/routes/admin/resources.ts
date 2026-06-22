@@ -20,6 +20,7 @@ import {
 	requireManageableResource,
 	requireUploadSessionForManagedResource,
 } from "./guards.ts";
+import { updateSearchVector } from "../../fts/search.ts";
 
 const db = () => getDb().db;
 
@@ -86,6 +87,8 @@ const resourceRoutes = buildCrudRoutes({
 			resourceSlug: r.slug,
 			description: `Creaste el recurso «${(data as { title?: string }).title}»`,
 		});
+		// Update search vector for the new resource
+		await updateSearchVector(db(), r.id);
 	},
 	afterUpdate: async (user, id, entity, _data) => {
 		const r = entity as { title?: string; slug?: string };
@@ -97,6 +100,8 @@ const resourceRoutes = buildCrudRoutes({
 			resourceSlug: r.slug ?? null,
 			description: `Actualizaste el recurso «${r.title}»`,
 		});
+		// Re-generate search vector on metadata update
+		await updateSearchVector(db(), id);
 	},
 	afterDelete: async (user, id, entity) => {
 		const r = entity as { title?: string; slug?: string };

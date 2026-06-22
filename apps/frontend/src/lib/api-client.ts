@@ -193,6 +193,29 @@ export interface SessionData {
 	user: SessionUser;
 }
 
+export interface ApiTokenRecord {
+	id: string;
+	name: string;
+	tokenPrefix: string;
+	lastUsedAt: string | null;
+	expiresAt: string | null;
+	revokedAt: string | null;
+	requestCount: number;
+	createdAt: string;
+	token?: string;
+	user?: {
+		id: string;
+		name: string | null;
+		email: string;
+	};
+}
+
+export interface ApiTokenStats {
+	activeCount: number;
+	revokedCount: number;
+	totalRequests: number;
+}
+
 export interface AppConfig {
 	oidcEnabled: boolean;
 	oidcEndSessionUrl: string | null;
@@ -306,6 +329,16 @@ export interface ApiClient {
 	getBadgeConfig(): Promise<BadgeConfig>;
 	getSettings(): Promise<Record<string, string>>;
 	updateSettings(settings: Record<string, string>): Promise<Record<string, string>>;
+
+	// API Tokens (User)
+	listApiTokens(): Promise<ApiTokenRecord[]>;
+	createApiToken(name: string, expiresAt?: string): Promise<ApiTokenRecord>;
+	revokeApiToken(id: string): Promise<void>;
+
+	// API Tokens (Admin)
+	listAllApiTokens(filters?: { userId?: string; status?: "active" | "revoked" | "expired" }): Promise<ApiTokenRecord[]>;
+	revokeApiTokenAdmin(id: string): Promise<void>;
+	getGlobalApiTokenStats(): Promise<ApiTokenStats>;
 
 	// Dev
 	seedResources(count: number, clean?: boolean): Promise<{ count: number; durationMs: number }>;

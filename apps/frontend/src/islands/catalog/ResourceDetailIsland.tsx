@@ -7,6 +7,8 @@ import { FILE_ICONS, formatBytes, STATUS_MAP, TYPE_ICONS } from "../../lib/resou
 import { RatingIsland } from "../social/RatingIsland.tsx";
 import { FavoriteIsland } from "../social/FavoriteIsland.tsx";
 import { ReportButton } from "../social/ReportButton.tsx";
+import { EmbedModal } from "./EmbedModal.tsx";
+import { useElpxEmbedRelay } from "../../hooks/use-elpx-embed-relay.ts";
 import "../../lib/paraglide-client.ts";
 import * as m from "../../paraglide/messages.js";
 import { getLocale } from "../../paraglide/runtime.js";
@@ -118,6 +120,13 @@ function ResourceDetailContent({ resource, session, stats, isFavorited, onDownlo
   const totalFileSize = resource.mediaItems?.reduce((sum, item) => sum + (item.fileSize ?? 0), 0) ?? 0;
   const exportSourceUrl = getResourceElpxFileUrl(resource);
   const iframeRef = useRef<HTMLIFrameElement | null>(null);
+  // Relay de embeds del preview: vídeos/PDF promocionados a un player de
+  // confianza en el frame principal sin perder el origen opaco (ADR-0027).
+  const previewIframeRef = useRef<HTMLIFrameElement | null>(null);
+  const { activeEmbed, close: closeEmbed } = useElpxEmbedRelay(
+    previewIframeRef,
+    resource.elpxPreview?.previewUrl,
+  );
   const [exportReady, setExportReady] = useState(false);
   const [exportingFormat, setExportingFormat] = useState<ResourceExportKind | null>(null);
   const [exportError, setExportError] = useState("");
@@ -355,14 +364,16 @@ function ResourceDetailContent({ resource, session, stats, isFavorited, onDownlo
               <h2>{m.detail_preview_title()}</h2>
               <div className="elpx-preview-wrapper">
                 <iframe
+                  ref={previewIframeRef}
                   src={resource.elpxPreview!.previewUrl}
                   className="elpx-preview-iframe"
-                  sandbox="allow-scripts allow-same-origin allow-popups allow-popups-to-escape-sandbox"
+                  sandbox="allow-scripts allow-popups allow-popups-to-escape-sandbox"
                   referrerPolicy="no-referrer"
                   loading="lazy"
                   title={m.detail_preview_iframe()}
                 />
               </div>
+              <EmbedModal embed={activeEmbed} onClose={closeEmbed} />
             </section>
           ) : null}
 
