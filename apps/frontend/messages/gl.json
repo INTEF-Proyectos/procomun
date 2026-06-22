@@ -1,7 +1,6 @@
 {
   "skip_to_content": "Saltar ao contido",
   "main_navigation": "Navegación principal",
-
   "nav_home": "Inicio",
   "nav_explore": "Explorar",
   "nav_articles": "Artigos",
@@ -17,14 +16,12 @@
   "nav_user_menu_label": "Menú de usuario",
   "nav_search_placeholder": "Buscar recursos educativos...",
   "nav_search_label": "Buscar recursos",
-
   "lang_switcher_label": "Cambiar idioma",
   "lang_es": "Español",
   "lang_en": "English",
   "lang_ca": "Català",
   "lang_gl": "Galego",
   "lang_eu": "Euskara",
-
   "hero_title": "Atopa e comparte o mellor",
   "hero_title_accent": "coñecemento educativo.",
   "hero_subtitle": "Accede a máis de 100.000 obxectos de aprendizaxe, recursos e coleccións creadas por e para docentes.",
@@ -38,7 +35,6 @@
   "hero_filter_secundaria": "Secundaria",
   "hero_filter_bachillerato": "Bacharelato",
   "hero_filter_fp": "FP",
-
   "home_stats_label": "Cifras da plataforma",
   "home_stats_resources": "Recursos OER",
   "home_stats_teachers": "Docentes Activos",
@@ -65,7 +61,6 @@
   "home_cta_quality_desc": "Sistema de revisión por pares e métricas de uso real.",
   "home_news_title": "Últimas Novidades",
   "home_news_see_feed": "Ver feed completo",
-
   "footer_desc": "Rede de recursos educativos en aberto do Ministerio de Educación, Formación Profesional e Deportes.",
   "footer_share": "Compartir",
   "footer_web": "Web",
@@ -84,7 +79,6 @@
   "footer_sitemap": "Mapa Web",
   "footer_faq": "Preguntas Frecuentes",
   "footer_copyright": "© Ministerio de Educación, Formación Profesional e Deportes - INTEF",
-
   "common_loading": "Cargando…",
   "common_close": "Pechar",
   "common_cancel": "Cancelar",
@@ -99,7 +93,6 @@
   "common_remove_favorite": "Quitar de favoritos",
   "common_save_favorite": "Gardar en favoritos",
   "common_delete_label": "Eliminar {label}",
-
   "catalog_title": "Explorar recursos",
   "catalog_filters": "Filtros",
   "catalog_results_count": "{count} resultados atopados",
@@ -107,7 +100,6 @@
   "catalog_sort_popular": "Populares",
   "catalog_sort_rating": "Valoración",
   "catalog_empty": "Non se atoparon recursos.",
-
   "auth_login_title": "Iniciar sesión",
   "auth_register_title": "Crear conta",
   "auth_email": "Correo electrónico",
@@ -115,7 +107,6 @@
   "auth_login_btn": "Iniciar sesión",
   "auth_register_btn": "Crear conta",
   "auth_required": "Necesitas iniciar sesión.",
-
   "resource_edit_title": "Editar recurso",
   "resource_not_found": "Recurso non atopado.",
   "resource_back_home": "Volver ao inicio",
@@ -128,18 +119,14 @@
   "resource_approve": "Aprobar",
   "resource_archive": "Arquivar",
   "resource_restore_draft": "Restaurar a borrador",
-
   "pagination_label": "Paxinación",
   "pagination_previous": "Páxina anterior",
   "pagination_next": "Páxina seguinte",
-
   "rating_label": "Valoración: {value} de {max}",
   "rating_select": "Selecciona unha valoración",
   "rating_star": "{count} estrela",
   "rating_stars": "{count} estrelas",
-
   "base_footer": "Plataforma de recursos educativos abertos",
-
   "catalog_advanced_filters": "Filtros Avanzados",
   "catalog_resource_type": "Tipo de Recurso",
   "catalog_language": "Idioma",
@@ -159,7 +146,6 @@
   "catalog_sort_by": "Ordenar por:",
   "catalog_sort_relevance": "Máis relevantes",
   "catalog_preview": "Vista previa",
-
   "detail_home": "Inicio",
   "detail_explore": "Explorar",
   "detail_updated": "Actualizado o {date}",
@@ -193,7 +179,6 @@
   "detail_loading": "Cargando recurso...",
   "detail_error": "Erro ao cargar o recurso.",
   "detail_not_found": "Non se atopou o recurso.",
-
   "profile_my_resources": "Os meus recursos",
   "profile_favorites": "Favoritos",
   "profile_ratings": "As miñas valoracións",
@@ -229,7 +214,6 @@
   "profile_load_error_desc": "Non se puido cargar a información do panel. Téntao de novo.",
   "profile_edit_resource": "Editar {title}",
   "profile_title": "O meu panel",
-
   "activity_resource_created": "Creaches «{title}»",
   "activity_resource_updated": "Actualizaches «{title}»",
   "activity_resource_published": "Publicaches «{title}»",
@@ -240,7 +224,6 @@
   "activity_favorite_removed": "Quitaches de favoritos «{title}»",
   "activity_file_uploaded": "Subiches un ficheiro a «{title}»",
   "activity_resource_downloaded": "Descargaches «{title}»",
-
   "auth_login_subtitle": "Accede á túa conta para xestionar recursos e participar na comunidade.",
   "auth_email_label": "Correo electrónico",
   "auth_email_placeholder": "ti@email.com",
@@ -265,5 +248,42 @@
   "auth_register_submitting": "Creando conta...",
   "auth_register_error": "Erro ao crear a conta. Téntao de novo.",
   "auth_has_account": "Xa tes conta?",
-  "auth_sign_in": "Inicia sesión"
+  "auth_sign_in": "Inicia sesión",
+  "api_keys_title": "Chaves de API",
+  "api_keys_desc": "As chaves de API permítenche acceder de forma programática á publicación de recursos educativos.",
+  "api_keys_create_btn": "Nova chave de API",
+  "api_keys_empty_title": "Non hai chaves de API",
+  "api_keys_empty_desc": "Crea unha chave de API para comezar a publicar recursos mediante a API.",
+  "api_keys_col_name": "Nome",
+  "api_keys_col_prefix": "Prefixo",
+  "api_keys_col_created": "Creada o",
+  "api_keys_col_expires": "Expira o",
+  "api_keys_col_last_used": "Último uso",
+  "api_keys_col_requests": "Peticións",
+  "api_keys_col_status": "Estado",
+  "api_keys_col_actions": "Accións",
+  "api_keys_status_active": "Activa",
+  "api_keys_status_revoked": "Revogada",
+  "api_keys_status_expired": "Expirada",
+  "api_keys_never_used": "Nunca usada",
+  "api_keys_no_expiration": "Sen expiración",
+  "api_keys_revoke_tooltip": "Revogar chave de API",
+  "api_keys_create_dialog_title": "Chave de API creada",
+  "api_keys_create_dialog_desc": "Copia a túa chave de API agora. Non poderás vela de novo por motivos de seguridade.",
+  "api_keys_create_dialog_warning": "ADVERTENCIA: Se perdes esta chave, terás que revogala e crear unha nova.",
+  "api_keys_create_dialog_copy": "Copiar chave",
+  "api_keys_create_dialog_copied": "Copiada!",
+  "api_keys_revoke_dialog_title": "Revogar chave de API",
+  "api_keys_revoke_dialog_desc": "Estás seguro de que queres revogar a chave de API \"{name}\"? Esta acción non se pode deshacer e calquera integración que a use deixará de funcionar.",
+  "api_keys_revoke_dialog_confirm": "Revogar",
+  "api_keys_admin_title": "Control de Chaves de API",
+  "api_keys_admin_desc": "Gestión e auditoría de tokens de API globais.",
+  "api_keys_admin_stat_active": "Chaves Activas",
+  "api_keys_admin_stat_revoked": "Chaves Revogadas",
+  "api_keys_admin_stat_requests": "Peticións Totals",
+  "api_keys_admin_filter_user": "Filtrar por usuario",
+  "api_keys_admin_filter_status": "Filtrar por estado",
+  "api_keys_admin_filter_all_users": "Todos os usuarios",
+  "api_keys_admin_filter_all_status": "Todos os estados",
+  "api_keys_admin_col_user": "Usuario"
 }

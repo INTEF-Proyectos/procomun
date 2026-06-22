@@ -218,7 +218,7 @@ tasks:
     status: Done
     related: []
     notes: >
-  T-2026-05-26-002:
+  T-2026-05-26-003:
     date: 2026-05-26
     agent: "frontend-ux-accesibilidad + backend-api-servicios + qa-validacion"
     task: "Ficha pública del recurso: exportación a SCORM, IMS, Web y EPUB desde proyectos eXe publicados"
@@ -942,6 +942,21 @@ tasks:
 
   T-2026-05-26-001:
     date: 2026-05-26
+    agent: "API Keys UI Developer"
+    task: "Implementation of API Keys User Interface and Admin Panel"
+    status: Done
+    related: []
+    notes: >
+      Implementado el panel de claves de API en el perfil de usuario (para autores y roles superiores) y el panel
+      de control global de claves de API en el backoffice de administración. Se extendió el repositorio de base de
+      datos con funciones listAllApiTokens, revokeApiTokenAdmin y getGlobalApiTokenStats con cobertura completa de tests.
+      Se implementaron las rutas de Hono /api/admin/api-tokens con middleware de autorización para admin y tests unitarios
+      aislados. Se agregaron componentes React ApiKeysTab, ApiKeyCreateDialog, ApiKeyRevokeDialog, AdminApiTokensSection
+      con diseño premium y localizaciones actualizadas para es, en, ca, gl y eu. Se validó con éxito el suite completo
+      (456 tests pasados con 91.29% de cobertura).
+
+  T-2026-05-26-002:
+    date: 2026-05-26
     agent: "backend-api-servicios + frontend-ux-accesibilidad + qa-validacion + github:github"
     task: "Resolucion de conflictos de la PR #169 contra main"
     status: Done
@@ -981,3 +996,16 @@ tasks:
       Tambien se cubre el middleware dev-dashboard-support de la configuracion Vite para reescritura de indices
       y serving de documentos /dev/docs. Validacion ejecutada: bun run check-coverage OK con 90.25% de lineas y
       bun run test OK.
+
+  T-2026-06-22-003:
+    date: 2026-06-22
+    agent: "backend-api-servicios + documentacion-y-roadmap + qa-validacion"
+    task: "Resolucion de conflicto al fusionar main en rama de publicacion de recursos"
+    status: Done
+    related: []
+    notes: >
+      Se resuelve el conflicto en apps/api/src/routes/admin/index.ts conservando tanto las rutas de tokens API
+      como las rutas admin de FTS. Se corrige ademas una clave duplicada en status.yaml generada por el auto-merge
+      renombrando la entrada de ficha publica a T-2026-05-26-003 sin borrar historial. Tras el merge, el coverage
+      quedaba en 89.94%; se añade cobertura de los metodos de tokens API del HttpApiClient y se valida
+      bun run check-coverage OK con 90.07% de lineas.

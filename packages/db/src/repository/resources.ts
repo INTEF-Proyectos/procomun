@@ -42,6 +42,7 @@ type ResourceMutationInput = {
 	subjects?: string[];
 	levels?: string[];
 	createdBy?: string;
+	editorialStatus?: string;
 };
 
 const resourceBaseSelection = {
@@ -206,7 +207,7 @@ export async function createResource(db: DrizzleDB, data: ResourceMutationInput)
 		author: data.author ?? null,
 		publisher: data.publisher ?? null,
 		createdBy: data.createdBy ?? null,
-		editorialStatus: "draft",
+		editorialStatus: data.editorialStatus ?? "draft",
 		createdAt: now,
 		updatedAt: now,
 	});
