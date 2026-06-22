@@ -747,3 +747,63 @@ describe("Rutas admin — actualización de usuarios", () => {
 		}
 	});
 });
+
+describe("Rutas admin FTS — con sesión de admin", () => {
+	const app = createAdminApp({ id: "1", role: "admin" });
+
+	test("POST /api/admin/fts/reindex/:id → 200 con recurso existente", async () => {
+		// Create a resource first
+		const createRes = await app.request("/api/admin/resources", {
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({
+				title: "FTS reindex test",
+				description: "Testing FTS reindex",
+				language: "es",
+				license: "cc-by",
+				resourceType: "documento",
+			}),
+		});
+		const { id } = await createRes.json();
+
+		const res = await app.request(`/api/admin/fts/reindex/${id}`, {
+			method: "POST",
+		});
+		expect(res.status).toBe(200);
+		const body = await res.json();
+		expect(body.reindexed).toBe(true);
+		expect(body.id).toBe(id);
+	});
+
+	test("POST /api/admin/fts/re-extract/:id → 200 con recurso existente", async () => {
+		const createRes = await app.request("/api/admin/resources", {
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({
+				title: "FTS re-extract test",
+				description: "Testing FTS re-extraction",
+				language: "es",
+				license: "cc-by",
+				resourceType: "documento",
+			}),
+		});
+		const { id } = await createRes.json();
+
+		const res = await app.request(`/api/admin/fts/re-extract/${id}`, {
+			method: "POST",
+		});
+		expect(res.status).toBe(200);
+		const body = await res.json();
+		expect(body.reExtracted).toBe(true);
+		expect(body.id).toBe(id);
+	});
+
+	test("POST /api/admin/fts/reindex-all → 200", async () => {
+		const res = await app.request("/api/admin/fts/reindex-all", {
+			method: "POST",
+		});
+		expect(res.status).toBe(200);
+		const body = await res.json();
+		expect(body.reindexed).toBeGreaterThanOrEqual(0);
+	});
+});

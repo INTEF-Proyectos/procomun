@@ -3,6 +3,7 @@
 # Variables
 BUN = bun
 EXELEARNING_EDITOR_DIR = apps/api/static/exelearning-editor
+EXELEARNING_EDITOR_INDEX = $(EXELEARNING_EDITOR_DIR)/static/index.html
 EXELEARNING_EDITOR_REPO = exelearning/exelearning
 
 # Default target
@@ -16,7 +17,7 @@ up: deps seed ensure-exelearning-editor
 
 # Descarga el editor solo si no existe
 ensure-exelearning-editor:
-	@if [ ! -f $(EXELEARNING_EDITOR_DIR)/index.html ]; then \
+	@if [ ! -f $(EXELEARNING_EDITOR_INDEX) ]; then \
 		$(MAKE) download-exelearning-editor; \
 	else \
 		echo "Editor eXeLearning ya descargado."; \

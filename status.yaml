@@ -952,3 +952,32 @@ tasks:
       la validacion de parentId y los mensajes de error visibles en el formulario. Se alineo ademas App.tsx con
       el nuevo contrato de tests exportando canAccessAdminPanel. Validacion obligatoria ejecutada con bun test
       completo en verde: 449 pass, 0 fail.
+
+  T-2026-06-22-001:
+    date: 2026-06-22
+    agent: "backend-api-servicios + qa-validacion + project-manager"
+    task: "Hotfix del arranque make up: seed CLI deja de fallar por importacion ansiosa de FTS"
+    status: Done
+    related: []
+    notes: >
+      Se corrige la ruta relativa rota de apps/cli/src/commands/fts-reindex.ts hacia apps/api y se difieren las
+      importaciones de API/FTS hasta ejecutar fts:reindex. El dispatcher de apps/cli/src/index.ts pasa a cargar
+      comandos bajo demanda para que seed y --help no importen modulos ajenos. El Makefile comprueba ahora el
+      index real del editor eXeLearning en static/index.html para evitar una descarga innecesaria en make up.
+      Se retiran node_modules anidados generados con symlinks obsoletos para que Bun resuelva desde node_modules
+      raiz. Tests añadidos para el dispatcher CLI y la resolucion diferida de dependencias FTS. Validacion
+      ejecutada: make seed OK, make ensure-exelearning-editor OK, bun run check-test-files OK y bun run
+      scripts/run-bun-suite.ts unit OK con 523 pass, 0 fail.
+
+  T-2026-06-22-002:
+    date: 2026-06-22
+    agent: "qa-validacion"
+    task: "Correccion de coverage de lineas por debajo del umbral minimo"
+    status: Done
+    related: []
+    notes: >
+      Se amplia la cobertura del cliente HTTP frontend con pruebas de fetch mockeado para rutas publicas,
+      autenticacion, administracion, uploads, colecciones, taxonomias, endpoints sociales, settings y seed.
+      Tambien se cubre el middleware dev-dashboard-support de la configuracion Vite para reescritura de indices
+      y serving de documentos /dev/docs. Validacion ejecutada: bun run check-coverage OK con 90.25% de lineas y
+      bun run test OK.
