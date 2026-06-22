@@ -6,6 +6,7 @@ import { buildExportFilename, getResourceElpxFileUrl, RESOURCE_EXPORT_OPTIONS, t
 import { FILE_ICONS, formatBytes, STATUS_MAP, TYPE_ICONS } from "../../lib/resource-display.ts";
 import { RatingIsland } from "../social/RatingIsland.tsx";
 import { FavoriteIsland } from "../social/FavoriteIsland.tsx";
+import { ReportButton } from "../social/ReportButton.tsx";
 import { EmbedModal } from "./EmbedModal.tsx";
 import { useElpxEmbedRelay } from "../../hooks/use-elpx-embed-relay.ts";
 import "../../lib/paraglide-client.ts";
@@ -507,7 +508,7 @@ function ResourceDetailContent({ resource, session, stats, isFavorited, onDownlo
               </div>
             ) : null}
 
-            {/* Actions: Favorite + Share */}
+            {/* Actions: Favorite + Share + Report */}
             <div className="meta-section">
               <div className="meta-actions">
                 <FavoriteIsland
@@ -517,6 +518,10 @@ function ResourceDetailContent({ resource, session, stats, isFavorited, onDownlo
                   currentUserId={currentUserId}
                 />
                 <ShareButton />
+                <ReportButton
+                  resourceSlug={resource.slug}
+                  currentUserId={currentUserId}
+                />
               </div>
             </div>
           </div>
