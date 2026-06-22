@@ -6,6 +6,7 @@ import { collectionRoutes } from "./collections.ts";
 import { taxonomyRoutes } from "./taxonomies.ts";
 import { elpxAdminRoutes } from "./elpx.ts";
 import { settingsRoutes } from "./settings.ts";
+import { reportRoutes } from "./reports.ts";
 import { adminApiTokensRoutes } from "./api-tokens.ts";
 import { ftsRoutes } from "./fts.ts";
 
@@ -21,6 +22,7 @@ adminRoutes.route("/taxonomies", taxonomyRoutes);
 adminRoutes.route("/uploads", adminUploadRoutes);
 adminRoutes.route("/elpx", elpxAdminRoutes);
 adminRoutes.route("/settings", settingsRoutes);
+adminRoutes.route("/reports", reportRoutes);
 adminRoutes.route("/fts", ftsRoutes);
 
 adminRoutes.use("/api-tokens", requireRole("admin"));

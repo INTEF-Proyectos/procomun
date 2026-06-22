@@ -100,6 +100,24 @@ export interface PaginatedResult<T> {
 	offset: number;
 }
 
+export interface ReportRecord {
+	id: string;
+	resourceId: string;
+	resourceTitle?: string;
+	resourceSlug?: string;
+	reporterId?: string | null;
+	reporterName?: string | null;
+	reason: string;
+	description?: string | null;
+	status: string;
+	moderatorId?: string | null;
+	resolution?: string | null;
+	actionTaken?: string | null;
+	createdAt: string;
+	updatedAt: string;
+	resolvedAt?: string | null;
+}
+
 export interface MediaItemRecord {
 	id: string;
 	resourceId: string;
@@ -300,6 +318,12 @@ export interface ApiClient {
 	getUserActivity(opts?: { limit?: number; offset?: number }): Promise<PaginatedResult<import("./types/user-extended.ts").ActivityItem>>;
 	trackDownload(slug: string, format?: string): Promise<{ count: number }>;
 	getResourceStats(slug: string): Promise<{ downloadCount: number; exportCounts: { scorm: number; ims: number; web: number; epub: number }; favoriteCount: number; ratingAvg: number; ratingCount: number; userFavorited: boolean }>;
+	reportResource(slug: string, reason: string, description?: string): Promise<{ id: string }>;
+
+	// Admin Reports
+	listReports(opts?: { status?: string; reason?: string; resourceId?: string; limit?: number; offset?: number }): Promise<PaginatedResult<ReportRecord>>;
+	getReportById(id: string): Promise<ReportRecord | null>;
+	updateReport(id: string, data: { status?: string; resolution?: string; actionTaken?: string }): Promise<ReportRecord>;
 
 	// Badges / Settings
 	getBadgeConfig(): Promise<BadgeConfig>;

@@ -279,4 +279,50 @@ socialRoutes.get("/resources/:slug/stats", async (c) => {
 	return c.json(await getResourceSocialStats(resource.id, currentUser?.id));
 });
 
+// ---------------------------------------------------------------------------
+// POST /resources/:slug/report (auth required — submit content report)
+// ---------------------------------------------------------------------------
+socialRoutes.post("/resources/:slug/report", requireAuth, async (c) => {
+	const { slug } = c.req.param();
+	const currentUser = c.get("user")!;
+
+	const resource = await resolveResourceBySlug(slug);
+	if (!resource) {
+		return c.json({ error: "Recurso no encontrado" }, 404);
+	}
+
+	const body = await c.req.json<{ reason: string; description?: string }>();
+
+	if (!body.reason || !repo.REPORT_REASONS.includes(body.reason as repo.ReportReason)) {
+		return c.json(
+			{ error: `Motivo inválido. Válidos: ${repo.REPORT_REASONS.join(", ")}` },
+			400,
+		);
+	}
+
+	// Sanitize description: trim and limit length
+	const description = body.description
+		? body.description.trim().slice(0, 2000)
+		: null;
+
+	const result = await repo.createReport(getDb().db, {
+		resourceId: resource.id,
+		reporterId: currentUser.id,
+		reason: body.reason as repo.ReportReason,
+		description,
+	});
+
+	await logActivity({
+		userId: currentUser.id,
+		type: "report_submitted",
+		resourceId: resource.id,
+		resourceTitle: resource.title,
+		resourceSlug: resource.slug,
+		description: `Reportaste «${resource.title}» por ${body.reason}`,
+		metadata: { reason: body.reason },
+	});
+
+	return c.json(result, 201);
+});
+
 export { socialRoutes };
