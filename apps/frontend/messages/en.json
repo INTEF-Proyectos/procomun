@@ -1,7 +1,6 @@
 {
   "skip_to_content": "Skip to content",
   "main_navigation": "Main navigation",
-
   "nav_home": "Home",
   "nav_explore": "Explore",
   "nav_articles": "Articles",
@@ -17,14 +16,12 @@
   "nav_user_menu_label": "User menu",
   "nav_search_placeholder": "Search educational resources...",
   "nav_search_label": "Search resources",
-
   "lang_switcher_label": "Change language",
   "lang_es": "Español",
   "lang_en": "English",
   "lang_ca": "Català",
   "lang_gl": "Galego",
   "lang_eu": "Euskara",
-
   "hero_title": "Find and share the best",
   "hero_title_accent": "educational knowledge.",
   "hero_subtitle": "Access over 100,000 learning objects, resources and collections created by and for teachers.",
@@ -38,7 +35,6 @@
   "hero_filter_secundaria": "Secondary",
   "hero_filter_bachillerato": "Upper Secondary",
   "hero_filter_fp": "Vocational",
-
   "home_stats_label": "Platform figures",
   "home_stats_resources": "OER Resources",
   "home_stats_teachers": "Active Teachers",
@@ -65,7 +61,6 @@
   "home_cta_quality_desc": "Peer review system and real usage metrics.",
   "home_news_title": "Latest News",
   "home_news_see_feed": "See full feed",
-
   "footer_desc": "Open educational resources network of the Ministry of Education, Vocational Training and Sports.",
   "footer_share": "Share",
   "footer_web": "Web",
@@ -84,7 +79,6 @@
   "footer_sitemap": "Sitemap",
   "footer_faq": "FAQ",
   "footer_copyright": "© Ministry of Education, Vocational Training and Sports - INTEF",
-
   "common_loading": "Loading…",
   "common_close": "Close",
   "common_cancel": "Cancel",
@@ -99,7 +93,6 @@
   "common_remove_favorite": "Remove from favorites",
   "common_save_favorite": "Save to favorites",
   "common_delete_label": "Delete {label}",
-
   "catalog_title": "Explore resources",
   "catalog_filters": "Filters",
   "catalog_results_count": "{count} results found",
@@ -107,7 +100,6 @@
   "catalog_sort_popular": "Popular",
   "catalog_sort_rating": "Rating",
   "catalog_empty": "No resources found.",
-
   "auth_login_title": "Sign in",
   "auth_register_title": "Create account",
   "auth_email": "Email",
@@ -115,7 +107,6 @@
   "auth_login_btn": "Sign in",
   "auth_register_btn": "Create account",
   "auth_required": "You need to sign in.",
-
   "resource_edit_title": "Edit resource",
   "resource_not_found": "Resource not found.",
   "resource_back_home": "Back to home",
@@ -128,18 +119,14 @@
   "resource_approve": "Approve",
   "resource_archive": "Archive",
   "resource_restore_draft": "Restore to draft",
-
   "pagination_label": "Pagination",
   "pagination_previous": "Previous page",
   "pagination_next": "Next page",
-
   "rating_label": "Rating: {value} of {max}",
   "rating_select": "Select a rating",
   "rating_star": "{count} star",
   "rating_stars": "{count} stars",
-
   "base_footer": "Open educational resources platform",
-
   "catalog_advanced_filters": "Advanced Filters",
   "catalog_resource_type": "Resource Type",
   "catalog_language": "Language",
@@ -159,7 +146,6 @@
   "catalog_sort_by": "Sort by:",
   "catalog_sort_relevance": "Most relevant",
   "catalog_preview": "Preview",
-
   "detail_home": "Home",
   "detail_explore": "Explore",
   "detail_updated": "Updated on {date}",
@@ -193,7 +179,6 @@
   "detail_loading": "Loading resource...",
   "detail_error": "Error loading the resource.",
   "detail_not_found": "Resource not found.",
-
   "profile_my_resources": "My resources",
   "profile_favorites": "Favorites",
   "profile_ratings": "My ratings",
@@ -229,7 +214,6 @@
   "profile_load_error_desc": "Could not load dashboard information. Please try again.",
   "profile_edit_resource": "Edit {title}",
   "profile_title": "My dashboard",
-
   "activity_resource_created": "You created \"{title}\"",
   "activity_resource_updated": "You updated \"{title}\"",
   "activity_resource_published": "You published \"{title}\"",
@@ -240,7 +224,6 @@
   "activity_favorite_removed": "You removed \"{title}\" from favorites",
   "activity_file_uploaded": "You uploaded a file to \"{title}\"",
   "activity_resource_downloaded": "You downloaded \"{title}\"",
-
   "auth_login_subtitle": "Sign in to manage resources and join the community.",
   "auth_email_label": "Email address",
   "auth_email_placeholder": "you@email.com",
@@ -265,5 +248,42 @@
   "auth_register_submitting": "Creating account...",
   "auth_register_error": "Error creating the account. Please try again.",
   "auth_has_account": "Already have an account?",
-  "auth_sign_in": "Sign in"
+  "auth_sign_in": "Sign in",
+  "api_keys_title": "API Keys",
+  "api_keys_desc": "API keys allow you to access the educational resource publishing API programmatically.",
+  "api_keys_create_btn": "New API Key",
+  "api_keys_empty_title": "No API Keys",
+  "api_keys_empty_desc": "Create an API key to start publishing resources via the API.",
+  "api_keys_col_name": "Name",
+  "api_keys_col_prefix": "Prefix",
+  "api_keys_col_created": "Created on",
+  "api_keys_col_expires": "Expires on",
+  "api_keys_col_last_used": "Last used",
+  "api_keys_col_requests": "Requests",
+  "api_keys_col_status": "Status",
+  "api_keys_col_actions": "Actions",
+  "api_keys_status_active": "Active",
+  "api_keys_status_revoked": "Revoked",
+  "api_keys_status_expired": "Expired",
+  "api_keys_never_used": "Never used",
+  "api_keys_no_expiration": "No expiration",
+  "api_keys_revoke_tooltip": "Revoke API key",
+  "api_keys_create_dialog_title": "API Key Created",
+  "api_keys_create_dialog_desc": "Copy your API key now. For security reasons, you will not be able to see it again.",
+  "api_keys_create_dialog_warning": "WARNING: If you lose this key, you will have to revoke it and create a new one.",
+  "api_keys_create_dialog_copy": "Copy key",
+  "api_keys_create_dialog_copied": "Copied!",
+  "api_keys_revoke_dialog_title": "Revoke API Key",
+  "api_keys_revoke_dialog_desc": "Are you sure you want to revoke the API key \"{name}\"? This action cannot be undone and any integration using it will stop working.",
+  "api_keys_revoke_dialog_confirm": "Revoke",
+  "api_keys_admin_title": "API Keys Control",
+  "api_keys_admin_desc": "Global management and auditing of API tokens.",
+  "api_keys_admin_stat_active": "Active Keys",
+  "api_keys_admin_stat_revoked": "Revoked Keys",
+  "api_keys_admin_stat_requests": "Total Requests",
+  "api_keys_admin_filter_user": "Filter by user",
+  "api_keys_admin_filter_status": "Filter by status",
+  "api_keys_admin_filter_all_users": "All users",
+  "api_keys_admin_filter_all_status": "All statuses",
+  "api_keys_admin_col_user": "User"
 }

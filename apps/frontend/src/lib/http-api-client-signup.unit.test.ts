@@ -421,4 +421,55 @@ describe("HttpApiClient", () => {
 		expect(bodyAsJson(calls[13])).toEqual({ count: 4, clean: true });
 		expect(bodyAsJson(calls[14])).toEqual({ count: 1 });
 	});
+
+	test("covers user and admin API token endpoints", async () => {
+		const calls = mockFetchQueue([
+			jsonResponse({ data: [{ id: "token-1", name: "CLI" }] }),
+			jsonResponse({ id: "token-2", name: "Import", token: "pck_secret" }, 201),
+			jsonResponse({ error: "invalid token name" }, 400),
+			emptyResponse(204),
+			jsonResponse({}, 500),
+			jsonResponse([{ id: "token-3", userId: "u1" }]),
+			jsonResponse({ error: "admin only" }, 403),
+			jsonResponse({ success: true }),
+			jsonResponse({}, 500),
+			jsonResponse({ total: 3, active: 2, revoked: 1, expired: 0 }),
+			jsonResponse({}, 500),
+		]);
+		const client = new HttpApiClient();
+
+		await expect(client.listApiTokens()).resolves.toEqual([{ id: "token-1", name: "CLI" }]);
+		await expect(client.createApiToken("Import", "2030-01-01T00:00:00.000Z")).resolves.toEqual({
+			id: "token-2",
+			name: "Import",
+			token: "pck_secret",
+		});
+		await expect(client.createApiToken("")).rejects.toThrow("invalid token name");
+		await expect(client.revokeApiToken("token-1")).resolves.toBeUndefined();
+		await expect(client.revokeApiToken("missing")).rejects.toThrow("Error al revocar el token de API");
+		await expect(client.listAllApiTokens({ userId: "u1", status: "active" })).resolves.toEqual([
+			{ id: "token-3", userId: "u1" },
+		]);
+		await expect(client.listAllApiTokens()).rejects.toThrow("admin only");
+		await expect(client.revokeApiTokenAdmin("token-3")).resolves.toBeUndefined();
+		await expect(client.revokeApiTokenAdmin("missing")).rejects.toThrow("Error al revocar token de API (admin)");
+		await expect(client.getGlobalApiTokenStats()).resolves.toEqual({ total: 3, active: 2, revoked: 1, expired: 0 });
+		await expect(client.getGlobalApiTokenStats()).rejects.toThrow("Error al obtener estadísticas globales");
+
+		expect(calls[0].url).toBe("/api/v1/tokens");
+		expect(calls[0].init?.credentials).toBe("include");
+		expect(calls[1].url).toBe("/api/v1/tokens");
+		expect(calls[1].init?.method).toBe("POST");
+		expect(bodyAsJson(calls[1])).toEqual({ name: "Import", expiresAt: "2030-01-01T00:00:00.000Z" });
+		expect(calls[3]).toMatchObject({
+			url: "/api/v1/tokens/token-1",
+			init: { method: "DELETE", credentials: "include" },
+		});
+		expect(calls[5].url).toBe("/api/admin/api-tokens?userId=u1&status=active");
+		expect(calls[7]).toMatchObject({
+			url: "/api/admin/api-tokens/token-3",
+			init: { method: "DELETE", credentials: "include" },
+		});
+		expect(calls[9].url).toBe("/api/admin/api-tokens/stats");
+	});
 });

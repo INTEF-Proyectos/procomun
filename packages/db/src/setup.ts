@@ -220,6 +220,20 @@ export const SCHEMA_STATEMENTS = [
 	`CREATE INDEX IF NOT EXISTS idx_elpx_projects_hash ON elpx_projects(hash)`,
 	`CREATE INDEX IF NOT EXISTS idx_elpx_projects_resource_id ON elpx_projects(resource_id)`,
 	`CREATE INDEX IF NOT EXISTS idx_taxonomies_type ON taxonomies(type)`,
+	`CREATE TABLE IF NOT EXISTS "api_tokens" (
+		id TEXT PRIMARY KEY,
+		user_id TEXT NOT NULL REFERENCES "user"(id) ON DELETE CASCADE,
+		name VARCHAR(255) NOT NULL,
+		token_hash VARCHAR(64) NOT NULL UNIQUE,
+		token_prefix VARCHAR(8) NOT NULL,
+		last_used_at TIMESTAMP,
+		expires_at TIMESTAMP,
+		revoked_at TIMESTAMP,
+		request_count INTEGER NOT NULL DEFAULT 0,
+		created_at TIMESTAMP NOT NULL DEFAULT NOW()
+	)`,
+	`CREATE INDEX IF NOT EXISTS idx_api_tokens_user_id ON api_tokens(user_id)`,
+	`CREATE INDEX IF NOT EXISTS idx_api_tokens_hash ON api_tokens(token_hash)`,
 	`DO $$ BEGIN
 		CREATE INDEX idx_resources_search_vector ON resources USING GIN (search_vector);
 	EXCEPTION WHEN OTHERS THEN NULL;

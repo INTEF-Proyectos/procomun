@@ -11,3 +11,4 @@ export * from "./repository/collection-resources.ts";
 export * from "./repository/taxonomies.ts";
 export * from "./repository/elpx-projects.ts";
 export * from "./repository/settings.ts";
+export * from "./repository/api-tokens.ts";
