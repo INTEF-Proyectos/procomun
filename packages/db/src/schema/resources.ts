@@ -1,6 +1,7 @@
 import { relations } from "drizzle-orm";
 import {
 	boolean,
+	customType,
 	integer,
 	pgTable,
 	text,
@@ -8,6 +9,13 @@ import {
 	varchar,
 } from "drizzle-orm/pg-core";
 import { user } from "./auth.ts";
+
+// Custom type for tsvector (not natively supported by Drizzle)
+const tsvector = customType<{ data: string }>({
+	dataType() {
+		return "tsvector";
+	},
+});
 
 export const resources = pgTable("resources", {
 	id: text("id").primaryKey(),
@@ -45,6 +53,13 @@ export const resources = pgTable("resources", {
 	// Importación
 	importedAt: timestamp("imported_at"),
 	importSource: text("import_source"),
+
+	// Full Text Search
+	extractedText: text("extracted_text"),
+	searchVector: tsvector("search_vector"),
+	extractionStatus: varchar("extraction_status", { length: 20 }).notNull().default("pending"),
+	extractedAt: timestamp("extracted_at"),
+	extractionError: text("extraction_error"),
 
 	// Sistema
 	deletedAt: timestamp("deleted_at"),

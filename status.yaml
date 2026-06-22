@@ -218,7 +218,7 @@ tasks:
     status: Done
     related: []
     notes: >
-  T-2026-05-26-002:
+  T-2026-05-26-003:
     date: 2026-05-26
     agent: "frontend-ux-accesibilidad + backend-api-servicios + qa-validacion"
     task: "Ficha pública del recurso: exportación a SCORM, IMS, Web y EPUB desde proyectos eXe publicados"
@@ -237,6 +237,45 @@ tasks:
       Nueva suite packages/db/src/repository.unit.test.ts para usuarios, colecciones y taxonomías.
       Resultado: 158 pass, 0 fail, cobertura 91.07%.
       Riesgo: apps/api/src/routes/admin.ts es el principal punto ciego de cobertura por ramas.
+
+  T-2026-06-14-002:
+    date: 2026-06-14
+    agent: "seguridad-privacidad-legal + frontend-ux-accesibilidad + interoperabilidad-educativa + qa-validacion"
+    task: "Reproducción segura de vídeos/PDF embebidos en .elpx con origen opaco (ADR-0027)"
+    status: Done
+    related: [ADR-0027, T-2026-06-14-001]
+    notes: >
+      El origen opaco de la Parte 1 (ADR-0026) rompe los embeds anidados (YouTube/Vimeo/PDF) porque el sandbox
+      se hereda. Solución promote-to-parent simplificada (fachada + player en modal), valorando el enfoque de
+      mod_exelearning_3 (DEC-0061, robusto pero overlay con geometría). Piezas: shim apps/api/static/elpx/embed-shim.js
+      (inyectado por elpx-content.ts en el HTML servido), módulo de política apps/frontend/src/lib/elpx-embed-policy.ts
+      (classifyEmbed: rechaza userinfo/no-https/same-origin-vídeo; canonicaliza YouTube a nocookie; modo abierto),
+      y relay apps/frontend/src/hooks/use-elpx-embed-relay.ts + EmbedModal.tsx (reusa Dialog.tsx) montado en
+      ResourceDetailIsland. Autenticación por identidad de ventana (origen opaco => event.origin no fiable).
+      Invariante: vídeo solo si cross-origin https. Fixture remote-embeds.elpx añadido (YouTube/Vimeo/Mediateca/PDF).
+      Tests: elpx-embed-policy.unit.test.ts (driven sobre el fixture), use-elpx-embed-relay.unit.test.ts,
+      EmbedModal.unit.test.tsx, inyección del shim en elpx-processor.unit.test.ts. bun test verde, cobertura 90.13%.
+
+  T-2026-06-14-001:
+    date: 2026-06-14
+    agent: "seguridad-privacidad-legal + backend-api-servicios + frontend-ux-accesibilidad + qa-validacion"
+    task: "Apertura segura de .elpx: extracción endurecida (zip slip/symlink/zip bomb) y renderizado con origen opaco (ADR-0026)"
+    status: Done
+    related: [ADR-0026]
+    notes: >
+      Detectados dos problemas a partir de articulo-seguridad-exelearning y del plugin Moodle mod_exelearning_3.
+      A) processElpxUpload extraía con unzip directo sin validar nombres (zip slip), sin rechazar symlinks ni
+      limitar tamaño/entradas (zip bomb). Nuevo módulo apps/api/src/services/elpx-safe-extract.ts: isUnsafeZipEntry,
+      inspección del directorio central del ZIP (límites anti zip-bomb y detección de symlinks antes de extraer),
+      assertExtractionContained (realpath + rechazo de symlinks post-extracción) y safeExtractElpx con rollback.
+      B) El contenido de autor se servía/embebía same-origin: se añadió la directiva sandbox (origen opaco, sin
+      allow-same-origin) a la CSP de elpx-content.ts y se retiró allow-same-origin de los iframes de preview
+      (ResourceCard, HomeDataIsland, CatalogIsland, PublicCollectionsIsland, catalog-controller, ResourceDetailIsland,
+      EditarPage). El iframe del editor first-party queda intacto de forma consciente. Sin SCORM no hace falta puente
+      postMessage same-origin, por lo que la mitigación del render se simplifica a origen opaco.
+      Tests: apps/api/src/services/elpx-safe-extract.unit.test.ts (zip slip, symlink, zip bomb por número/tamaño/ratio,
+      contención y rollback) + aserción de sandbox en CSP en elpx-processor.unit.test.ts. Validado con bun test.
+      Trazabilidad: ADR-0026, decision-log.yaml, docs/casos/seguridad-apertura-elpx/.
 
   T-2026-03-27-003:
     date: 2026-03-27
@@ -928,3 +967,45 @@ tasks:
       la validacion de parentId y los mensajes de error visibles en el formulario. Se alineo ademas App.tsx con
       el nuevo contrato de tests exportando canAccessAdminPanel. Validacion obligatoria ejecutada con bun test
       completo en verde: 449 pass, 0 fail.
+
+  T-2026-06-22-001:
+    date: 2026-06-22
+    agent: "backend-api-servicios + qa-validacion + project-manager"
+    task: "Hotfix del arranque make up: seed CLI deja de fallar por importacion ansiosa de FTS"
+    status: Done
+    related: []
+    notes: >
+      Se corrige la ruta relativa rota de apps/cli/src/commands/fts-reindex.ts hacia apps/api y se difieren las
+      importaciones de API/FTS hasta ejecutar fts:reindex. El dispatcher de apps/cli/src/index.ts pasa a cargar
+      comandos bajo demanda para que seed y --help no importen modulos ajenos. El Makefile comprueba ahora el
+      index real del editor eXeLearning en static/index.html para evitar una descarga innecesaria en make up.
+      Se retiran node_modules anidados generados con symlinks obsoletos para que Bun resuelva desde node_modules
+      raiz. Tests añadidos para el dispatcher CLI y la resolucion diferida de dependencias FTS. Validacion
+      ejecutada: make seed OK, make ensure-exelearning-editor OK, bun run check-test-files OK y bun run
+      scripts/run-bun-suite.ts unit OK con 523 pass, 0 fail.
+
+  T-2026-06-22-002:
+    date: 2026-06-22
+    agent: "qa-validacion"
+    task: "Correccion de coverage de lineas por debajo del umbral minimo"
+    status: Done
+    related: []
+    notes: >
+      Se amplia la cobertura del cliente HTTP frontend con pruebas de fetch mockeado para rutas publicas,
+      autenticacion, administracion, uploads, colecciones, taxonomias, endpoints sociales, settings y seed.
+      Tambien se cubre el middleware dev-dashboard-support de la configuracion Vite para reescritura de indices
+      y serving de documentos /dev/docs. Validacion ejecutada: bun run check-coverage OK con 90.25% de lineas y
+      bun run test OK.
+
+  T-2026-06-22-003:
+    date: 2026-06-22
+    agent: "backend-api-servicios + documentacion-y-roadmap + qa-validacion"
+    task: "Resolucion de conflicto al fusionar main en rama de publicacion de recursos"
+    status: Done
+    related: []
+    notes: >
+      Se resuelve el conflicto en apps/api/src/routes/admin/index.ts conservando tanto las rutas de tokens API
+      como las rutas admin de FTS. Se corrige ademas una clave duplicada en status.yaml generada por el auto-merge
+      renombrando la entrada de ficha publica a T-2026-05-26-003 sin borrar historial. Tras el merge, el coverage
+      quedaba en 89.94%; se añade cobertura de los metodos de tokens API del HttpApiClient y se valida
+      bun run check-coverage OK con 90.07% de lineas.

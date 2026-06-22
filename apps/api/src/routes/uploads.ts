@@ -18,6 +18,7 @@ import {
 	validateUploadCandidate,
 } from "../uploads/config.ts";
 import { processElpxUpload } from "../services/elpx-processor.ts";
+import { enqueueExtraction } from "../fts/worker.ts";
 
 const USER_HEADER = "x-procomun-upload-user";
 
@@ -204,6 +205,11 @@ async function getTusServer() {
 						console.error("[elpx] Error procesando .elpx:", err);
 					}
 				}
+
+				// Trigger async text extraction for FTS
+				enqueueExtraction(session.resourceId, upload.id).catch((err) => {
+					console.error("[fts] Error enqueuing extraction:", err?.message ?? err);
+				});
 
 				return {
 					headers: {

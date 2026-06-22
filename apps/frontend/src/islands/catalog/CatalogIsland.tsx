@@ -123,7 +123,7 @@ function ResourceCard({ resource, initialFavorited = false, isLoggedIn = false, 
 						src={resource.elpxPreview!.previewUrl}
 						loading="lazy"
 						tabIndex={-1}
-						sandbox="allow-scripts allow-same-origin"
+						sandbox="allow-scripts"
 						title={m.catalog_preview()}
 					/>
 					<div className="card-preview-overlay" />
