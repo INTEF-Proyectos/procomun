@@ -16,6 +16,8 @@ import type {
 	MediaItemRecord,
 	UploadSessionRecord,
 	UploadConfig,
+	ApiTokenRecord,
+	ApiTokenStats,
 } from "./api-client.ts";
 
 /**
@@ -508,15 +510,17 @@ export class HttpApiClient implements ApiClient {
 		return res.json();
 	}
 
-	async trackDownload(slug: string): Promise<{ count: number }> {
+	async trackDownload(slug: string, format?: string): Promise<{ count: number }> {
 		const res = await fetch(`/api/v1/resources/${slug}/download`, {
 			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({ format: format ?? "direct" }),
 			credentials: "include",
 		});
 		return res.json();
 	}
 
-	async getResourceStats(slug: string): Promise<{ downloadCount: number; favoriteCount: number; ratingAvg: number; ratingCount: number }> {
+	async getResourceStats(slug: string): Promise<{ downloadCount: number; exportCounts: { scorm: number; ims: number; web: number; epub: number }; favoriteCount: number; ratingAvg: number; ratingCount: number; userFavorited: boolean }> {
 		const res = await fetch(`/api/v1/resources/${slug}/stats`);
 		return res.json();
 	}
@@ -551,6 +555,72 @@ export class HttpApiClient implements ApiClient {
 		if (!res.ok) {
 			const err = await res.json().catch(() => ({}));
 			throw new Error(err.error || "Error al generar recursos");
+		}
+		return res.json();
+	}
+
+	// API Tokens (User)
+	async listApiTokens(): Promise<ApiTokenRecord[]> {
+		const res = await fetch("/api/v1/tokens", { credentials: "include" });
+		const body = await res.json();
+		return body.data || [];
+	}
+
+	async createApiToken(name: string, expiresAt?: string): Promise<ApiTokenRecord> {
+		const res = await fetch("/api/v1/tokens", {
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			credentials: "include",
+			body: JSON.stringify({ name, expiresAt }),
+		});
+		if (!res.ok) {
+			const err = await res.json().catch(() => ({}));
+			throw new Error(err.error || "Error al crear el token de API");
+		}
+		return res.json();
+	}
+
+	async revokeApiToken(id: string): Promise<void> {
+		const res = await fetch(`/api/v1/tokens/${id}`, {
+			method: "DELETE",
+			credentials: "include",
+		});
+		if (!res.ok) {
+			const err = await res.json().catch(() => ({}));
+			throw new Error(err.error || "Error al revocar el token de API");
+		}
+	}
+
+	// API Tokens (Admin)
+	async listAllApiTokens(filters?: { userId?: string; status?: "active" | "revoked" | "expired" }): Promise<ApiTokenRecord[]> {
+		const params = new URLSearchParams();
+		if (filters?.userId) params.set("userId", filters.userId);
+		if (filters?.status) params.set("status", filters.status);
+		const qs = params.toString();
+		const res = await fetch(`/api/admin/api-tokens${qs ? `?${qs}` : ""}`, { credentials: "include" });
+		if (!res.ok) {
+			const err = await res.json().catch(() => ({}));
+			throw new Error(err.error || "Error al obtener tokens de API");
+		}
+		return res.json();
+	}
+
+	async revokeApiTokenAdmin(id: string): Promise<void> {
+		const res = await fetch(`/api/admin/api-tokens/${id}`, {
+			method: "DELETE",
+			credentials: "include",
+		});
+		if (!res.ok) {
+			const err = await res.json().catch(() => ({}));
+			throw new Error(err.error || "Error al revocar token de API (admin)");
+		}
+	}
+
+	async getGlobalApiTokenStats(): Promise<ApiTokenStats> {
+		const res = await fetch("/api/admin/api-tokens/stats", { credentials: "include" });
+		if (!res.ok) {
+			const err = await res.json().catch(() => ({}));
+			throw new Error(err.error || "Error al obtener estadísticas globales");
 		}
 		return res.json();
 	}

@@ -28,7 +28,7 @@ function IframePreview({ src, className, iframeWidth = 1024, iframeHeight = 768,
 
 	return (
 		<div className={`home-iframe-wrap ${className ?? ""}`} ref={ref}>
-			<iframe src={src} loading="lazy" tabIndex={-1} sandbox="allow-scripts allow-same-origin" title="Vista previa" />
+			<iframe src={src} loading="lazy" tabIndex={-1} sandbox="allow-scripts" title="Vista previa" />
 		</div>
 	);
 }

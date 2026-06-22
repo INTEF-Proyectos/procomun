@@ -36,6 +36,46 @@ const MIME_TYPES: Record<string, string> = {
 // Accept both SHA-1 hashes (40 hex chars) and UUIDs
 const HASH_PATTERN = /^[a-f0-9-]{8,40}$/i;
 
+// Script de promoción de embeds inyectado en el HTML del .elpx (ADR-0027).
+const EMBED_SHIM_URL = "/api/v1/elpx/embed-shim.js";
+// `crossorigin` para que el script se cargue en modo CORS: el contenido del
+// .elpx se ejecuta en origen opaco (ADR-0026) y es embebible cross-origin, así
+// que sus propios scripts deben pedirse con CORS (servimos ACAO `*`). Sin esto,
+// el dev server de Vite los bloquea ("[Vite] Cross-origin requests for classic
+// scripts must be made with CORS mode enabled").
+const EMBED_SHIM_TAG = `<script src="${EMBED_SHIM_URL}" crossorigin="anonymous"></script>`;
+const EMBED_SHIM_PATH = path.join(
+	import.meta.dir,
+	"../../static/elpx/embed-shim.js",
+);
+let embedShimCache: string | null = null;
+
+async function readEmbedShim(): Promise<string> {
+	if (embedShimCache === null) {
+		embedShimCache = await Bun.file(EMBED_SHIM_PATH).text();
+	}
+	return embedShimCache;
+}
+
+// Añade crossorigin="anonymous" a los <script src="/api/v1/elpx/..."> propios
+// del paquete para que se carguen en modo CORS bajo el origen opaco.
+export function addCrossOriginToLocalScripts(html: string): string {
+	return html.replace(
+		/<script\b([^>]*\bsrc\s*=\s*["']\/api\/v1\/elpx\/[^"']*["'][^>]*)>/gi,
+		(match, attrs) =>
+			/\bcrossorigin\b/i.test(attrs)
+				? match
+				: `<script${attrs} crossorigin="anonymous">`,
+	);
+}
+
+function injectEmbedShim(html: string): string {
+	if (html.includes("</head>")) {
+		return html.replace("</head>", `${EMBED_SHIM_TAG}</head>`);
+	}
+	return `${EMBED_SHIM_TAG}${html}`;
+}
+
 function sanitizePath(raw: string): string | null {
 	let decoded: string;
 	try {
@@ -165,15 +205,24 @@ async function handleContent(c: any) {
 
 	if (ext === "html" || ext === "htm") {
 		const html = await Bun.file(fullPath).text();
-		const rewritten = rewriteRelativeUrls(html, hash, file);
+		const rewritten = addCrossOriginToLocalScripts(
+			injectEmbedShim(rewriteRelativeUrls(html, hash, file)),
+		);
 		return new Response(rewritten, {
 			headers: {
 				"Content-Type": "text/html",
 				"X-Content-Type-Options": "nosniff",
 				"Referrer-Policy": "same-origin",
 				"Cache-Control": "no-cache, must-revalidate",
+				// El contenido del .elpx es embebible cross-origin y se ejecuta en
+				// origen opaco, por lo que sus propios recursos se piden en modo CORS.
+				"Access-Control-Allow-Origin": "*",
+				// La directiva `sandbox` fuerza un origen opaco para el contenido de
+				// autor del .elpx: el JS sigue ejecutándose (interactividad) pero NO
+				// con el origen autenticado de la plataforma, aunque se abra en una
+				// pestaña nueva. Sin `allow-same-origin` a propósito (ADR-0026).
 				"Content-Security-Policy":
-					"default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; media-src 'self' data: blob: https:; font-src 'self' data:; connect-src 'self'; frame-src 'self' https:; frame-ancestors 'self'; form-action 'self'; base-uri 'self'",
+					"default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; media-src 'self' data: blob: https:; font-src 'self' data:; connect-src 'self'; frame-src 'self' https:; frame-ancestors 'self'; form-action 'self'; base-uri 'self'; sandbox allow-scripts allow-popups allow-forms allow-popups-to-escape-sandbox",
 			},
 		});
 	}
@@ -186,6 +235,7 @@ async function handleContent(c: any) {
 				"Content-Type": "text/css",
 				"X-Content-Type-Options": "nosniff",
 				"Cache-Control": "public, max-age=3600",
+				"Access-Control-Allow-Origin": "*",
 			},
 		});
 	}
@@ -195,9 +245,24 @@ async function handleContent(c: any) {
 			"Content-Type": mimeType,
 			"X-Content-Type-Options": "nosniff",
 			"Cache-Control": "public, max-age=3600",
+			"Access-Control-Allow-Origin": "*",
 		},
 	});
 }
+
+// Ruta estática del shim de embeds. Debe registrarse ANTES de "/:hash" para
+// que no la capture el patrón de hash (ADR-0027).
+elpxContentRoutes.get("/embed-shim.js", async () => {
+	const shim = await readEmbedShim();
+	return new Response(shim, {
+		headers: {
+			"Content-Type": "application/javascript; charset=utf-8",
+			"X-Content-Type-Options": "nosniff",
+			"Cache-Control": "public, max-age=3600",
+			"Access-Control-Allow-Origin": "*",
+		},
+	});
+});
 
 elpxContentRoutes.get("/:hash", handleContent);
 elpxContentRoutes.get("/:hash/*", handleContent);
