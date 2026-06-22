@@ -8,8 +8,32 @@ import {
 	buildElpxPath,
 	removeElpxExtraction,
 } from "./elpx-processor.ts";
-import { elpxContentRoutes } from "../routes/elpx-content.ts";
+import { elpxContentRoutes, addCrossOriginToLocalScripts } from "../routes/elpx-content.ts";
 import { Hono } from "hono";
+
+// ---------------------------------------------------------------------------
+// addCrossOriginToLocalScripts (ADR-0027)
+// ---------------------------------------------------------------------------
+describe("addCrossOriginToLocalScripts", () => {
+	it("añade crossorigin a los scripts propios del paquete", () => {
+		const html = `<script src="/api/v1/elpx/abc/libs/jquery.js"></script>`;
+		const out = addCrossOriginToLocalScripts(html);
+		expect(out).toContain(
+			'<script src="/api/v1/elpx/abc/libs/jquery.js" crossorigin="anonymous">',
+		);
+	});
+
+	it("no duplica crossorigin si ya existe", () => {
+		const html = `<script src="/api/v1/elpx/abc/libs/jquery.js" crossorigin="use-credentials"></script>`;
+		const out = addCrossOriginToLocalScripts(html);
+		expect(out).toBe(html);
+	});
+
+	it("no toca scripts externos (cross-origin reales)", () => {
+		const html = `<script src="https://cdn.example.com/x.js"></script>`;
+		expect(addCrossOriginToLocalScripts(html)).toBe(html);
+	});
+});
 
 // --- Helpers to create ZIP fixtures ---
 
@@ -392,6 +416,62 @@ describe("elpxContentRoutes", () => {
 		expect(res.headers.get("X-Content-Type-Options")).toBe("nosniff");
 		expect(res.headers.get("Referrer-Policy")).toBe("same-origin");
 		expect(res.headers.get("Content-Security-Policy")).toBeTruthy();
+	});
+
+	it("aísla el contenido de autor con sandbox de origen opaco en la CSP", async () => {
+		const res = await app.request(`/api/v1/elpx/${fakeHash}`);
+
+		expect(res.status).toBe(200);
+		const csp = res.headers.get("Content-Security-Policy") ?? "";
+		// El contenido del .elpx debe servirse con origen opaco: directiva
+		// sandbox presente y SIN allow-same-origin (ADR-0026, no hay SCORM que
+		// exija puente same-origin).
+		expect(csp).toContain("sandbox");
+		expect(csp).toContain("allow-scripts");
+		expect(csp).not.toContain("allow-same-origin");
+	});
+
+	it("inyecta el shim de embeds antes de </head> en el HTML (ADR-0027)", async () => {
+		const res = await app.request(`/api/v1/elpx/${fakeHash}`);
+
+		expect(res.status).toBe(200);
+		const html = await res.text();
+		// El shim se carga en modo CORS (crossorigin) para que el dev server de
+		// Vite no bloquee el script clásico bajo origen opaco (ADR-0027).
+		expect(html).toContain('src="/api/v1/elpx/embed-shim.js"');
+		expect(html).toContain(
+			'<script src="/api/v1/elpx/embed-shim.js" crossorigin="anonymous"></script>',
+		);
+		// Inyectado dentro del <head>, antes de cerrarlo.
+		const shimIndex = html.indexOf("/api/v1/elpx/embed-shim.js");
+		const headClose = html.indexOf("</head>");
+		expect(shimIndex).toBeGreaterThan(-1);
+		expect(headClose).toBeGreaterThan(-1);
+		expect(shimIndex).toBeLessThan(headClose);
+	});
+
+	it("sirve el shim de embeds como JavaScript con CORS (ADR-0027)", async () => {
+		const res = await app.request("/api/v1/elpx/embed-shim.js");
+
+		expect(res.status).toBe(200);
+		expect(res.headers.get("Content-Type")).toContain("javascript");
+		expect(res.headers.get("X-Content-Type-Options")).toBe("nosniff");
+		expect(res.headers.get("Access-Control-Allow-Origin")).toBe("*");
+		const js = await res.text();
+		expect(js).toContain("procomun-elpx-embed");
+	});
+
+	it("sirve el contenido .elpx con CORS y crossorigin en scripts propios (ADR-0027)", async () => {
+		const res = await app.request(`/api/v1/elpx/${fakeHash}`);
+
+		expect(res.status).toBe(200);
+		// El contenido del .elpx es embebible cross-origin y corre en origen
+		// opaco: se sirve con ACAO y sus scripts propios en modo CORS.
+		expect(res.headers.get("Access-Control-Allow-Origin")).toBe("*");
+
+		// Un static (imagen) también lleva ACAO.
+		const asset = await app.request(`/api/v1/elpx/${fakeHash}/images/photo.png`);
+		expect(asset.headers.get("Access-Control-Allow-Origin")).toBe("*");
 	});
 
 	it("establece cabecera Cache-Control en recursos estaticos", async () => {
