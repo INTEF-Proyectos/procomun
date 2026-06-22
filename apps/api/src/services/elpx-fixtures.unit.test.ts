@@ -24,6 +24,7 @@ const FIXTURES = [
 	"propiedades.elpx",
 	"really-simple-test-project.elpx",
 	"un-contenido-de-ejemplo-para-probar-estilos-y-catalogacion.elpx",
+	"remote-embeds.elpx",
 ];
 
 afterAll(async () => {

@@ -32,3 +32,19 @@ export function getResourceElpxFileUrl(
 	if (resource.elpxFileUrl) return resource.elpxFileUrl;
 	return getElpxMediaItem(resource.mediaItems)?.url ?? null;
 }
+
+export function buildExportFilename(title: string, format: ResourceExportKind): string {
+	const slug = title
+		.toLowerCase()
+		.normalize("NFD")
+		.replaceAll(/[\u0300-\u036f]/g, "")
+		.replaceAll(/[^a-z0-9]+/g, "-")
+		.replaceAll(/(^-|-$)/g, "") || "recurso";
+	const suffixes: Record<ResourceExportKind, string> = {
+		scorm: "_scorm.zip",
+		ims: "_ims.zip",
+		web: "_web.zip",
+		epub: ".epub",
+	};
+	return `${slug}${suffixes[format]}`;
+}

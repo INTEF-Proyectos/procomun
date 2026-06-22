@@ -1,10 +1,43 @@
 import { afterEach, describe, expect, mock, test } from "bun:test";
 import { HttpApiClient } from "./http-api-client.ts";
 
+type FetchCall = {
+	url: string;
+	init?: RequestInit;
+};
+
+function jsonResponse(body: unknown, status = 200, headers?: HeadersInit): Response {
+	return new Response(JSON.stringify(body), {
+		status,
+		headers: { "Content-Type": "application/json", ...headers },
+	});
+}
+
+function emptyResponse(status = 200, headers?: HeadersInit): Response {
+	const body = status === 204 || status === 304 ? null : "";
+	return new Response(body, { status, headers });
+}
+
+function bodyAsJson(call: FetchCall): unknown {
+	return JSON.parse(call.init?.body as string);
+}
+
+function mockFetchQueue(responses: Response[]): FetchCall[] {
+	const calls: FetchCall[] = [];
+	globalThis.fetch = mock(async (url: string | URL | Request, init?: RequestInit) => {
+		calls.push({ url: String(url), init });
+		const response = responses.shift();
+		if (!response) throw new Error(`Unexpected fetch call: ${String(url)}`);
+		return response;
+	}) as typeof fetch;
+	return calls;
+}
+
 describe("HttpApiClient.signUp", () => {
 	const originalFetch = globalThis.fetch;
 
 	afterEach(() => {
+		mock.restore();
 		globalThis.fetch = originalFetch;
 	});
 
@@ -53,5 +86,339 @@ describe("HttpApiClient.signUp", () => {
 
 		expect(result.ok).toBe(false);
 		expect(result.error).toBe("Error al crear la cuenta");
+	});
+});
+
+describe("HttpApiClient", () => {
+	const originalFetch = globalThis.fetch;
+
+	afterEach(() => {
+		mock.restore();
+		globalThis.fetch = originalFetch;
+	});
+
+	test("fetches public resources, collections, config and stats", async () => {
+		const calls = mockFetchQueue([
+			jsonResponse({ data: [{ id: "r1" }], total: 1 }),
+			jsonResponse({ id: "r1", slug: "algebra" }),
+			emptyResponse(404),
+			jsonResponse({ data: [{ id: "c1" }], total: 1 }),
+			jsonResponse({ id: "c1", slug: "stem" }),
+			emptyResponse(404),
+			jsonResponse({ oidcEnabled: true }),
+			jsonResponse({ users: 7 }),
+		]);
+		const client = new HttpApiClient();
+
+		await expect(
+			client.listResources({
+				q: "algebra",
+				limit: 10,
+				offset: 5,
+				resourceType: "lesson",
+				language: "es",
+				license: "cc-by",
+			}),
+		).resolves.toEqual({ data: [{ id: "r1" }], total: 1 });
+		await expect(client.getResourceBySlug("algebra")).resolves.toEqual({ id: "r1", slug: "algebra" });
+		await expect(client.getResourceBySlug("missing")).resolves.toBeNull();
+		await expect(client.listPublicCollections({ q: "stem", limit: 20, offset: 2 })).resolves.toEqual({
+			data: [{ id: "c1" }],
+			total: 1,
+		});
+		await expect(client.getPublicCollectionBySlug("stem")).resolves.toEqual({ id: "c1", slug: "stem" });
+		await expect(client.getPublicCollectionBySlug("missing")).resolves.toBeNull();
+		await expect(client.getConfig()).resolves.toEqual({ oidcEnabled: true });
+		await expect(client.getPlatformStats()).resolves.toEqual({ users: 7 });
+
+		expect(calls.map((call) => call.url)).toEqual([
+			"/api/v1/resources?q=algebra&limit=10&offset=5&resourceType=lesson&language=es&license=cc-by",
+			"/api/v1/resources/algebra",
+			"/api/v1/resources/missing",
+			"/api/v1/collections?q=stem&limit=20&offset=2",
+			"/api/v1/collections/stem",
+			"/api/v1/collections/missing",
+			"/api/v1/config",
+			"/api/v1/stats",
+		]);
+	});
+
+	test("handles session and sign-in flows", async () => {
+		const calls = mockFetchQueue([
+			emptyResponse(401),
+			jsonResponse({}),
+			jsonResponse({ user: { id: "u1" } }),
+			jsonResponse({}),
+			jsonResponse({ message: "Bad credentials" }, 401),
+			emptyResponse(302, { location: "/admin" }),
+			jsonResponse({ url: "/oidc" }),
+			emptyResponse(500),
+			emptyResponse(204),
+		]);
+		const client = new HttpApiClient();
+
+		await expect(client.getSession()).resolves.toBeNull();
+		await expect(client.getSession()).resolves.toBeNull();
+		await expect(client.getSession()).resolves.toEqual({ user: { id: "u1" } });
+		const throwingFetch = globalThis.fetch;
+		globalThis.fetch = mock(async () => {
+			throw new Error("network");
+		}) as typeof fetch;
+		await expect(client.getSession()).resolves.toBeNull();
+		globalThis.fetch = throwingFetch;
+
+		await expect(client.signIn("user@example.com", "secret")).resolves.toEqual({ ok: true });
+		await expect(client.signIn("user@example.com", "bad")).resolves.toEqual({ ok: false, error: "Bad credentials" });
+		await expect(client.signInOidc()).resolves.toEqual({ ok: true, redirectUrl: "/admin" });
+		await expect(client.signInOidc()).resolves.toEqual({ ok: true, redirectUrl: "/oidc" });
+		await expect(client.signInOidc()).resolves.toEqual({ ok: false, error: "No se pudo iniciar el login institucional" });
+		await client.signOut();
+
+		expect(calls[0].init?.credentials).toBe("include");
+		expect(calls[3].url).toBe("/api/auth/sign-in/email");
+		expect(calls[3].init?.method).toBe("POST");
+		expect(bodyAsJson(calls[3])).toEqual({ email: "user@example.com", password: "secret" });
+		expect(calls[5].url).toBe("/api/auth/sign-in/oauth2");
+		expect(bodyAsJson(calls[5])).toEqual({ providerId: "oidc", callbackURL: "/admin" });
+		expect(calls[8]).toMatchObject({
+			url: "/api/auth/sign-out",
+			init: { method: "POST", credentials: "include" },
+		});
+	});
+
+	test("covers admin resource and upload operations", async () => {
+		const calls = mockFetchQueue([
+			jsonResponse({ data: [{ id: "r1" }], total: 1 }),
+			emptyResponse(500),
+			jsonResponse({ id: "r1" }),
+			emptyResponse(404),
+			jsonResponse([{ id: "m1" }]),
+			emptyResponse(404),
+			jsonResponse([{ id: "up1" }]),
+			emptyResponse(404),
+			jsonResponse({ id: "draft", slug: "draft" }, 201),
+			jsonResponse({ error: "no draft" }, 500),
+			jsonResponse({ id: "created", slug: "created" }, 201),
+			jsonResponse({ error: "invalid" }, 400),
+			jsonResponse({ ok: true }),
+			jsonResponse({ error: "invalid", details: ["title"] }, 400),
+			jsonResponse({ id: "r1", status: "published" }),
+			jsonResponse({ error: "bad transition" }, 400),
+			emptyResponse(204),
+			jsonResponse({ maxFileSizeBytes: 1_000 }),
+			jsonResponse({ id: "up1", cancelled: true }),
+			jsonResponse({ error: "missing upload" }, 404),
+			jsonResponse({ id: "m1", deleted: true }),
+			jsonResponse({}, 500),
+			jsonResponse({ id: "p1" }),
+			emptyResponse(404),
+			jsonResponse({ id: "p2" }),
+			jsonResponse({}, 500),
+		]);
+		const client = new HttpApiClient();
+
+		await expect(client.listAdminResources({ q: "math", limit: 0, offset: 0, status: "review" })).resolves.toEqual({
+			data: [{ id: "r1" }],
+			total: 1,
+		});
+		await expect(client.listAdminResources()).rejects.toThrow("listAdminResources failed: 500");
+		await expect(client.getResourceById("r1")).resolves.toEqual({ id: "r1" });
+		await expect(client.getResourceById("missing")).resolves.toBeNull();
+		await expect(client.listResourceMediaItems("r1")).resolves.toEqual([{ id: "m1" }]);
+		await expect(client.listResourceMediaItems("missing")).resolves.toEqual([]);
+		await expect(client.listResourceUploads("r1")).resolves.toEqual([{ id: "up1" }]);
+		await expect(client.listResourceUploads("missing")).resolves.toEqual([]);
+		await expect(client.createDraftResource()).resolves.toEqual({ id: "draft", slug: "draft" });
+		await expect(client.createDraftResource()).rejects.toThrow("no draft");
+		await expect(client.createResource({ title: "T" } as never)).resolves.toEqual({ id: "created", slug: "created" });
+		await expect(client.createResource({ title: "" } as never)).rejects.toEqual({ error: "invalid" });
+		await expect(client.updateResource("r1", { title: "Updated" } as never)).resolves.toEqual({ ok: true });
+		await expect(client.updateResource("r1", {} as never)).resolves.toEqual({
+			ok: false,
+			error: "invalid",
+			details: ["title"],
+		});
+		await expect(client.updateResourceStatus("r1", "published")).resolves.toEqual({ id: "r1", status: "published" });
+		await expect(client.updateResourceStatus("r1", "archived")).rejects.toEqual({ error: "bad transition" });
+		await client.deleteResource("r1");
+		await expect(client.getUploadConfig()).resolves.toEqual({ maxFileSizeBytes: 1_000 });
+		await expect(client.cancelUpload("up1")).resolves.toEqual({ id: "up1", cancelled: true });
+		await expect(client.cancelUpload("missing")).rejects.toEqual({ error: "missing upload" });
+		await expect(client.deleteMediaItem("r1", "m1")).resolves.toEqual({ id: "m1", deleted: true });
+		await expect(client.deleteMediaItem("r1", "m2")).rejects.toThrow("Error al eliminar el archivo");
+		await expect(client.getElpxProject("r1")).resolves.toEqual({ id: "p1" });
+		await expect(client.getElpxProject("missing")).resolves.toBeNull();
+		await expect(client.generateElpx("r1")).resolves.toEqual({ id: "p2" });
+		await expect(client.generateElpx("r1")).rejects.toThrow("Error al generar el .elpx");
+
+		expect(calls[0].url).toBe("/api/admin/resources?q=math&limit=0&offset=0&status=review");
+		expect(calls[8]).toMatchObject({
+			url: "/api/admin/resources/draft",
+			init: { method: "POST", credentials: "include" },
+		});
+		expect(calls[10].url).toBe("/api/admin/resources");
+		expect(bodyAsJson(calls[10])).toEqual({ title: "T" });
+		expect(calls[14].url).toBe("/api/admin/resources/r1/status");
+		expect(bodyAsJson(calls[14])).toEqual({ status: "published" });
+		expect(calls[16].init?.method).toBe("DELETE");
+		expect(calls[24].url).toBe("/api/admin/elpx/generate/r1");
+	});
+
+	test("covers users, collections and taxonomies", async () => {
+		const calls = mockFetchQueue([
+			jsonResponse({ data: [{ id: "u1" }], total: 1 }),
+			jsonResponse({ id: "u1" }),
+			emptyResponse(404),
+			jsonResponse({ ok: true }),
+			jsonResponse({}, 500),
+			jsonResponse({ data: [{ id: "c1" }], total: 1 }),
+			jsonResponse({ id: "c1" }),
+			emptyResponse(404),
+			jsonResponse([{ resourceId: "r1" }]),
+			emptyResponse(404),
+			jsonResponse({ id: "c2" }, 201),
+			jsonResponse({ error: "collection invalid" }, 400),
+			jsonResponse({ ok: true }),
+			jsonResponse({ error: "bad collection", details: ["title"] }, 400),
+			emptyResponse(204),
+			jsonResponse({ ok: true }),
+			jsonResponse({ error: "already linked" }, 409),
+			jsonResponse({ ok: true }),
+			jsonResponse({ error: "missing link" }, 404),
+			jsonResponse({ ok: true }),
+			jsonResponse({}, 409),
+			jsonResponse({ data: [{ id: "t1" }], total: 1 }),
+			jsonResponse({ id: "t1" }),
+			emptyResponse(404),
+			jsonResponse({ id: "t2" }, 201),
+			jsonResponse({ error: "taxonomy invalid" }, 400),
+			jsonResponse({ ok: true }),
+			jsonResponse({ error: "bad taxonomy", details: ["name"] }, 400),
+			emptyResponse(204),
+		]);
+		const client = new HttpApiClient();
+
+		await expect(client.listUsers({ q: "ana", role: "admin", limit: 10, offset: 5 })).resolves.toEqual({
+			data: [{ id: "u1" }],
+			total: 1,
+		});
+		await expect(client.getUserById("u1")).resolves.toEqual({ id: "u1" });
+		await expect(client.getUserById("missing")).resolves.toBeNull();
+		await expect(client.updateUser("u1", { name: "Ana", isActive: true })).resolves.toEqual({ ok: true });
+		await expect(client.updateUser("u1", { role: "admin" })).resolves.toEqual({
+			ok: false,
+			error: "Error al actualizar usuario",
+		});
+		await expect(client.listCollections({ q: "stem", limit: 10, offset: 2 })).resolves.toEqual({
+			data: [{ id: "c1" }],
+			total: 1,
+		});
+		await expect(client.getCollectionById("c1")).resolves.toEqual({ id: "c1" });
+		await expect(client.getCollectionById("missing")).resolves.toBeNull();
+		await expect(client.listCollectionResources("c1")).resolves.toEqual([{ resourceId: "r1" }]);
+		await expect(client.listCollectionResources("missing")).resolves.toEqual([]);
+		await expect(client.createCollection({ title: "C", description: "D" })).resolves.toEqual({ id: "c2" });
+		await expect(client.createCollection({ title: "", description: "" })).rejects.toEqual({ error: "collection invalid" });
+		await expect(client.updateCollection("c1", { title: "New" })).resolves.toEqual({ ok: true });
+		await expect(client.updateCollection("c1", {})).resolves.toEqual({
+			ok: false,
+			error: "bad collection",
+			details: ["title"],
+		});
+		await client.deleteCollection("c1");
+		await expect(client.addResourceToCollection("c1", "r1")).resolves.toEqual({ ok: true });
+		await expect(client.addResourceToCollection("c1", "r1")).rejects.toEqual({ error: "already linked" });
+		await expect(client.removeResourceFromCollection("c1", "r1")).resolves.toEqual({ ok: true });
+		await expect(client.removeResourceFromCollection("c1", "r2")).rejects.toEqual({ error: "missing link" });
+		await expect(client.reorderCollectionResource("c1", "r1", "up")).resolves.toEqual({ ok: true });
+		await expect(client.reorderCollectionResource("c1", "r1", "down")).resolves.toEqual({
+			ok: false,
+			error: "No se pudo reordenar el recurso",
+		});
+		await expect(client.listTaxonomies({ q: "eso", type: "level", limit: 10, offset: 1 })).resolves.toEqual({
+			data: [{ id: "t1" }],
+			total: 1,
+		});
+		await expect(client.getTaxonomyById("t1")).resolves.toEqual({ id: "t1" });
+		await expect(client.getTaxonomyById("missing")).resolves.toBeNull();
+		await expect(client.createTaxonomy({ name: "ESO", type: "level" })).resolves.toEqual({ id: "t2" });
+		await expect(client.createTaxonomy({ name: "" })).rejects.toEqual({ error: "taxonomy invalid" });
+		await expect(client.updateTaxonomy("t1", { name: "Primaria" })).resolves.toEqual({ ok: true });
+		await expect(client.updateTaxonomy("t1", {})).resolves.toEqual({
+			ok: false,
+			error: "bad taxonomy",
+			details: ["name"],
+		});
+		await client.deleteTaxonomy("t1");
+
+		expect(calls[0].url).toBe("/api/admin/users?q=ana&role=admin&limit=10&offset=5");
+		expect(calls[3].init?.method).toBe("PATCH");
+		expect(bodyAsJson(calls[3])).toEqual({ name: "Ana", isActive: true });
+		expect(calls[5].url).toBe("/api/admin/collections?q=stem&limit=10&offset=2");
+		expect(calls[15].url).toBe("/api/admin/collections/c1/resources");
+		expect(bodyAsJson(calls[15])).toEqual({ resourceId: "r1" });
+		expect(calls[19].url).toBe("/api/admin/collections/c1/resources/reorder");
+		expect(bodyAsJson(calls[19])).toEqual({ resourceId: "r1", direction: "up" });
+		expect(calls[21].url).toBe("/api/admin/taxonomies?q=eso&type=level&limit=10&offset=1");
+	});
+
+	test("covers social endpoints, settings and development seeding", async () => {
+		const calls = mockFetchQueue([
+			jsonResponse({ avg: 4 }),
+			jsonResponse({ score: 5 }, 201),
+			jsonResponse({ error: "login required" }, 401),
+			jsonResponse({ favorited: true }),
+			jsonResponse({ data: [{ id: "r1" }], total: 1 }),
+			jsonResponse({ data: [{ id: "r2" }], total: 1 }),
+			jsonResponse({ resources: 3 }),
+			jsonResponse({ data: [{ id: "a1" }], total: 1 }),
+			jsonResponse({ count: 9 }),
+			jsonResponse({ downloadCount: 9 }),
+			jsonResponse({ showQualityBadges: "true" }),
+			jsonResponse({ siteName: "Procomun" }),
+			jsonResponse({ siteName: "Nuevo" }),
+			jsonResponse({ count: 4, durationMs: 12 }),
+			jsonResponse({}, 500),
+		]);
+		const client = new HttpApiClient();
+
+		await expect(client.getResourceRatings("algebra")).resolves.toEqual({ avg: 4 });
+		await expect(client.submitRating("algebra", 5)).resolves.toEqual({ score: 5 });
+		await expect(client.submitRating("algebra", 1)).rejects.toEqual({ error: "login required" });
+		await expect(client.toggleFavorite("algebra")).resolves.toEqual({ favorited: true });
+		await expect(client.getUserFavorites({ limit: 10, offset: 5 })).resolves.toEqual({
+			data: [{ id: "r1" }],
+			total: 1,
+		});
+		await expect(client.getUserRatings({ limit: 20, offset: 10 })).resolves.toEqual({
+			data: [{ id: "r2" }],
+			total: 1,
+		});
+		await expect(client.getUserDashboard()).resolves.toEqual({ resources: 3 });
+		await expect(client.getUserActivity({ limit: 5, offset: 1 })).resolves.toEqual({
+			data: [{ id: "a1" }],
+			total: 1,
+		});
+		await expect(client.trackDownload("algebra")).resolves.toEqual({ count: 9 });
+		await expect(client.getResourceStats("algebra")).resolves.toEqual({ downloadCount: 9 });
+		await expect(client.getBadgeConfig()).resolves.toEqual({ showQualityBadges: "true" });
+		await expect(client.getSettings()).resolves.toEqual({ siteName: "Procomun" });
+		await expect(client.updateSettings({ siteName: "Nuevo" })).resolves.toEqual({ siteName: "Nuevo" });
+		await expect(client.seedResources(4, true)).resolves.toEqual({ count: 4, durationMs: 12 });
+		await expect(client.seedResources(1)).rejects.toThrow("Error al generar recursos");
+
+		expect(calls[1].url).toBe("/api/v1/resources/algebra/ratings");
+		expect(calls[1].init?.method).toBe("POST");
+		expect(bodyAsJson(calls[1])).toEqual({ score: 5 });
+		expect(calls[4].url).toBe("/api/v1/users/me/favorites?limit=10&offset=5");
+		expect(calls[5].url).toBe("/api/v1/users/me/ratings?limit=20&offset=10");
+		expect(calls[7].url).toBe("/api/v1/users/me/activity?limit=5&offset=1");
+		expect(bodyAsJson(calls[8])).toEqual({ format: "direct" });
+		expect(calls[12].url).toBe("/api/admin/settings");
+		expect(calls[12].init?.method).toBe("PUT");
+		expect(bodyAsJson(calls[12])).toEqual({ siteName: "Nuevo" });
+		expect(calls[13].url).toBe("/api/dev/seed-resources");
+		expect(bodyAsJson(calls[13])).toEqual({ count: 4, clean: true });
+		expect(bodyAsJson(calls[14])).toEqual({ count: 1 });
 	});
 });
