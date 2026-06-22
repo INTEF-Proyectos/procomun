@@ -968,3 +968,16 @@ tasks:
       raiz. Tests añadidos para el dispatcher CLI y la resolucion diferida de dependencias FTS. Validacion
       ejecutada: make seed OK, make ensure-exelearning-editor OK, bun run check-test-files OK y bun run
       scripts/run-bun-suite.ts unit OK con 523 pass, 0 fail.
+
+  T-2026-06-22-002:
+    date: 2026-06-22
+    agent: "qa-validacion"
+    task: "Correccion de coverage de lineas por debajo del umbral minimo"
+    status: Done
+    related: []
+    notes: >
+      Se amplia la cobertura del cliente HTTP frontend con pruebas de fetch mockeado para rutas publicas,
+      autenticacion, administracion, uploads, colecciones, taxonomias, endpoints sociales, settings y seed.
+      Tambien se cubre el middleware dev-dashboard-support de la configuracion Vite para reescritura de indices
+      y serving de documentos /dev/docs. Validacion ejecutada: bun run check-coverage OK con 90.25% de lineas y
+      bun run test OK.
