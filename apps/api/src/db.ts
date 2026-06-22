@@ -42,6 +42,17 @@ function createDb() {
 	const pglite = new PGlite(dataDir);
 
 	_initPromise = (async () => {
+		// PGlite ejecuta Postgres sobre WASM con una pila pequeña; bajo procesos
+		// de larga vida y stacks async profundos (p. ej. el servidor de dev
+		// durante la suite E2E), `check_stack_depth` se dispara en consultas
+		// triviales ("stack depth limit exceeded") y deja la conexión inutilizable.
+		// Ampliamos el límite al arrancar; si la plataforma lo rechaza, seguimos
+		// con el valor por defecto en lugar de impedir el arranque.
+		try {
+			await pglite.exec("SET max_stack_depth = '7680kB'");
+		} catch {
+			// Sin cambios: usar el max_stack_depth por defecto.
+		}
 		const { createTables } = await import("@procomun/db/setup");
 		await createTables(pglite);
 	})();
