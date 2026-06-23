@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { Outlet, Link, useParams, useLocation, useNavigate } from "react-router-dom";
+import { Outlet, Link, useParams, useLocation } from "react-router-dom";
 import { PublicNavIsland } from "../islands/layout/PublicNavIsland.tsx";
 import { HELP_FOOTER_LINKS, buildHelpHref } from "../lib/help-content.ts";
 import * as m from "../paraglide/messages.js";
@@ -29,7 +29,6 @@ export function buildCatalogSearchResetUrl(pathname: string, search: string, exp
 export function PublicLayout() {
 	const { locale } = useParams<{ locale?: string }>();
 	const location = useLocation();
-	const navigate = useNavigate();
 	const effectiveLocale = locale && VALID_LOCALES.has(locale) ? locale : "es";
 
 	function localUrl(path: string): string {
@@ -55,6 +54,11 @@ export function PublicLayout() {
 	const showNavSearch = ["/explorar", "/colecciones", "/ayuda", "/recurso", "/perfil", "/registro", "/admin"].some(
 		(p) => normalizedPath.startsWith(p),
 	);
+
+	function handleClearSearch() {
+		if (typeof window === "undefined") return;
+		window.location.assign(clearSearchUrl);
+	}
 
 	useEffect(() => {
 		document.body.classList.toggle("nav-search-visible", showNavSearch);
@@ -98,7 +102,7 @@ export function PublicLayout() {
 									type="button"
 									className="public-nav-search-clear"
 									aria-label="Limpiar búsqueda"
-									onClick={() => navigate(clearSearchUrl)}
+									onClick={handleClearSearch}
 								>
 									<span className="material-symbols-outlined" aria-hidden="true">close</span>
 								</button>

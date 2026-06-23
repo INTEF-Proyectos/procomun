@@ -1104,3 +1104,16 @@ tasks:
       filtrado solo por las facetas restantes. Se añaden helpers y regresión en
       apps/frontend/src/islands/app/AppShellIslands.unit.test.tsx. Validación: bun test de la unidad afectada
       OK (3 pass, 0 fail) y bun test completo OK (714 pass, 0 fail).
+  T-2026-06-23-003:
+    date: 2026-06-23
+    agent: "frontend-ux-accesibilidad + qa-validacion + documentacion-y-roadmap"
+    task: "Corrección de navegación para que 'Limpiar búsqueda' resetee realmente el catálogo (#198)"
+    status: Done
+    related: ["#198", "#226"]
+    notes: >
+      El botón del buscador de navegación estaba usando navigate() de React Router, pero CatalogIsland mantiene
+      su estado de búsqueda con history/popstate manual. Resultado: el término desaparecía visualmente, pero la
+      lista seguía con los resultados anteriores. Se cambia la acción a navegación real del navegador
+      (window.location.assign) hacia la URL sin `q`, alineándola con el submit GET del propio buscador y
+      forzando que /explorar relea el estado correcto desde la URL. Validación: bun test de la unidad afectada
+      OK (3 pass, 0 fail) y bun test completo OK (714 pass, 0 fail).
