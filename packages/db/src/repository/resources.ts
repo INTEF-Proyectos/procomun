@@ -121,9 +121,12 @@ export async function listResources(db: DrizzleDB, opts: ResourceListOptions) {
 	if (opts.search) {
 		const term = buildSearchTerm(opts.search);
 		conditions.push(
+			// DEF-014: incluir el nombre del creador (user.name, mostrado como
+			// "autor" en el listado) además del campo de texto libre `author`.
 			sql`(${normalizeSearch(resources.title)} LIKE ${term} OR
                  ${normalizeSearch(resources.description)} LIKE ${term} OR
                  ${normalizeSearch(resources.author)} LIKE ${term} OR
+                 ${normalizeSearch(user.name)} LIKE ${term} OR
                  ${normalizeSearch(resources.keywords)} LIKE ${term})`,
 		);
 	}
@@ -154,6 +157,9 @@ export async function listResources(db: DrizzleDB, opts: ResourceListOptions) {
 	const countResult = await db
 		.select({ count: sql<number>`count(*)` })
 		.from(resources)
+		// El join debe coincidir con la consulta de datos: el filtro de búsqueda
+		// puede referirse a user.name (DEF-014).
+		.leftJoin(user, eq(resources.createdBy, user.id))
 		.where(where);
 
 	return { data: rows, total: Number(countResult[0]?.count ?? 0), limit, offset };

@@ -28,7 +28,11 @@ const db = () => getDb().db;
 
 const adminUploadRoutes = new Hono<AuthEnv>();
 
-adminUploadRoutes.get("/config", async (c) => c.json(getUploadConfig()));
+adminUploadRoutes.get("/config", async (c) => {
+	// No exponer storageDir (ruta absoluta interna del servidor) al cliente.
+	const { storageDir: _storageDir, ...clientConfig } = getUploadConfig();
+	return c.json(clientConfig);
+});
 
 adminUploadRoutes.use("/:id/*", requireRole("author"));
 
