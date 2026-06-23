@@ -1077,3 +1077,43 @@ tasks:
       la par que /generate. Ademas /api/admin/uploads/config dejaba de requerir curator y filtraba storageDir
       (ruta interna del servidor); se omite storageDir en la respuesta. Tests de IDOR y de la config añadidos.
       Validacion final: bun run test OK (650 pass, 0 fail), coverage 90.38%, lint/format OK.
+  T-2026-06-23-001:
+    date: 2026-06-23
+    agent: "frontend-ux-accesibilidad + qa-validacion + documentacion-y-roadmap"
+    task: "La búsqueda del catálogo público puede limpiarse desde el propio campo (#198)"
+    status: Done
+    related: ["#198"]
+    notes: >
+      Se añade un control explicito "Limpiar búsqueda" dentro del campo de búsqueda de cabecera del catálogo
+      público para vaciar solo el término `q` sin depender de la acción global "Limpiar filtros". El botón
+      aparece únicamente cuando hay texto, devuelve el foco al input tras limpiar y dispara la sincronización
+      del catálogo con query vacía. Se añaden pruebas de regresión en
+      apps/frontend/src/islands/catalog/CatalogIslands.unit.test.tsx. Validación: bun test de la suite del
+      catálogo OK (6 pass, 0 fail) y bun test completo OK (712 pass, 0 fail).
+  T-2026-06-23-002:
+    date: 2026-06-23
+    agent: "frontend-ux-accesibilidad + qa-validacion + documentacion-y-roadmap"
+    task: "Ajuste final de #198 en el buscador real de navegación del catálogo público"
+    status: Done
+    related: ["#198", "#226"]
+    notes: >
+      La corrección inicial se aplicó a CatalogSearchIsland, pero la UI visible en /explorar usa el buscador
+      fijo de PublicLayout. Se corrige ahí la funcionalidad real: el input refleja `q` desde la URL activa y
+      la acción "Limpiar búsqueda" elimina `q` y `page` de la URL de /explorar, preservando otros filtros
+      activos si existen, para recargar el catálogo sin término de búsqueda y volver al listado completo
+      filtrado solo por las facetas restantes. Se añaden helpers y regresión en
+      apps/frontend/src/islands/app/AppShellIslands.unit.test.tsx. Validación: bun test de la unidad afectada
+      OK (3 pass, 0 fail) y bun test completo OK (714 pass, 0 fail).
+  T-2026-06-23-003:
+    date: 2026-06-23
+    agent: "frontend-ux-accesibilidad + qa-validacion + documentacion-y-roadmap"
+    task: "Corrección de navegación para que 'Limpiar búsqueda' resetee realmente el catálogo (#198)"
+    status: Done
+    related: ["#198", "#226"]
+    notes: >
+      El botón del buscador de navegación estaba usando navigate() de React Router, pero CatalogIsland mantiene
+      su estado de búsqueda con history/popstate manual. Resultado: el término desaparecía visualmente, pero la
+      lista seguía con los resultados anteriores. Se cambia la acción a navegación real del navegador
+      (window.location.assign) hacia la URL sin `q`, alineándola con el submit GET del propio buscador y
+      forzando que /explorar relea el estado correcto desde la URL. Validación: bun test de la unidad afectada
+      OK (3 pass, 0 fail) y bun test completo OK (714 pass, 0 fail).

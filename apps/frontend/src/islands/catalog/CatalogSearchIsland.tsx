@@ -12,6 +12,7 @@ interface CatalogSearchIslandProps {
 export function CatalogSearchIsland({ initialQuery = "" }: CatalogSearchIslandProps) {
 	const [query, setQuery] = useState(initialQuery);
 	const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+	const inputRef = useRef<HTMLInputElement | null>(null);
 
 	useEffect(() => {
 		function handleSync(event: Event) {
@@ -43,27 +44,50 @@ export function CatalogSearchIsland({ initialQuery = "" }: CatalogSearchIslandPr
 		}, 300);
 	}
 
+	function clearQuery() {
+		if (debounceRef.current) {
+			clearTimeout(debounceRef.current);
+			debounceRef.current = null;
+		}
+		setQuery("");
+		dispatchCatalogQueryChange("");
+		inputRef.current?.focus();
+	}
+
 	return (
-		<input
-			type="text"
-			id="header-search"
-			placeholder="Buscar recursos..."
-			aria-label="Buscar recursos"
-			className="header-search-input"
-			value={query}
-			onChange={(event) => {
-				const nextQuery = event.currentTarget.value;
-				setQuery(nextQuery);
-				queueDispatch(nextQuery);
-			}}
-			onKeyDown={(event) => {
-				if (event.key !== "Enter") return;
-				if (debounceRef.current) {
-					clearTimeout(debounceRef.current);
-					debounceRef.current = null;
-				}
-				dispatchCatalogQueryChange(query.trim());
-			}}
-		/>
+		<div className="header-search-field">
+			<input
+				ref={inputRef}
+				type="search"
+				id="header-search"
+				placeholder="Buscar recursos..."
+				aria-label="Buscar recursos"
+				className="header-search-input"
+				value={query}
+				onChange={(event) => {
+					const nextQuery = event.currentTarget.value;
+					setQuery(nextQuery);
+					queueDispatch(nextQuery);
+				}}
+				onKeyDown={(event) => {
+					if (event.key !== "Enter") return;
+					if (debounceRef.current) {
+						clearTimeout(debounceRef.current);
+						debounceRef.current = null;
+					}
+					dispatchCatalogQueryChange(query.trim());
+				}}
+			/>
+			{query ? (
+				<button
+					type="button"
+					className="header-search-clear"
+					aria-label="Limpiar búsqueda"
+					onClick={clearQuery}
+				>
+					<span className="material-symbols-outlined" aria-hidden="true">close</span>
+				</button>
+			) : null}
+		</div>
 	);
 }

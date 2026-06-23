@@ -7,6 +7,25 @@ import "../styles/public-layout.css";
 
 const VALID_LOCALES = new Set(["es", "en", "ca", "gl", "eu"]);
 
+export function normalizePublicPath(pathname: string): string {
+	return pathname.replace(/^\/(?:en|ca|gl|eu)(?=\/|$)/, "") || "/";
+}
+
+export function getCatalogSearchQuery(pathname: string, search: string): string {
+	if (!normalizePublicPath(pathname).startsWith("/explorar")) return "";
+	return new URLSearchParams(search).get("q")?.trim() ?? "";
+}
+
+export function buildCatalogSearchResetUrl(pathname: string, search: string, explorePath: string): string {
+	if (!normalizePublicPath(pathname).startsWith("/explorar")) return explorePath;
+
+	const params = new URLSearchParams(search);
+	params.delete("q");
+	params.delete("page");
+	const nextSearch = params.toString();
+	return nextSearch ? `${explorePath}?${nextSearch}` : explorePath;
+}
+
 export function PublicLayout() {
 	const { locale } = useParams<{ locale?: string }>();
 	const location = useLocation();
@@ -18,7 +37,10 @@ export function PublicLayout() {
 		return `/${effectiveLocale}/${clean}`;
 	}
 
-	const normalizedPath = location.pathname.replace(/^\/(?:en|ca|gl|eu)\//, "/");
+	const normalizedPath = normalizePublicPath(location.pathname);
+	const currentSearchQuery = getCatalogSearchQuery(location.pathname, location.search);
+	const explorePath = localUrl("explorar");
+	const clearSearchUrl = buildCatalogSearchResetUrl(location.pathname, location.search, explorePath);
 
 	const activePage = (() => {
 		if (normalizedPath === "/") return "inicio";
@@ -32,6 +54,11 @@ export function PublicLayout() {
 	const showNavSearch = ["/explorar", "/colecciones", "/ayuda", "/recurso", "/perfil", "/registro", "/admin"].some(
 		(p) => normalizedPath.startsWith(p),
 	);
+
+	function handleClearSearch() {
+		if (typeof window === "undefined") return;
+		window.location.assign(clearSearchUrl);
+	}
 
 	useEffect(() => {
 		document.body.classList.toggle("nav-search-visible", showNavSearch);
@@ -54,7 +81,13 @@ export function PublicLayout() {
 						</div>
 					</div>
 					<div className="public-nav-search" id="nav-search">
-						<form action={localUrl("explorar")} method="get" className="public-nav-search-form" role="search">
+						<form
+							key={`${location.pathname}?${location.search}`}
+							action={explorePath}
+							method="get"
+							className="public-nav-search-form"
+							role="search"
+						>
 							<span className="material-symbols-outlined public-nav-search-icon" aria-hidden="true">search</span>
 							<input
 								type="search"
@@ -62,7 +95,18 @@ export function PublicLayout() {
 								className="public-nav-search-input"
 								placeholder={m.nav_search_placeholder()}
 								aria-label={m.nav_search_label()}
+								defaultValue={currentSearchQuery}
 							/>
+							{currentSearchQuery ? (
+								<button
+									type="button"
+									className="public-nav-search-clear"
+									aria-label="Limpiar búsqueda"
+									onClick={handleClearSearch}
+								>
+									<span className="material-symbols-outlined" aria-hidden="true">close</span>
+								</button>
+							) : null}
 						</form>
 					</div>
 					<PublicNavIsland />
