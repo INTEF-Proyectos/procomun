@@ -1010,6 +1010,20 @@ tasks:
       quedaba en 89.94%; se añade cobertura de los metodos de tokens API del HttpApiClient y se valida
       bun run check-coverage OK con 90.07% de lineas.
 
+  T-2026-06-22-005:
+    date: 2026-06-22
+    agent: "frontend-ux-accesibilidad + qa-validacion"
+    task: "El ancho del editor de colecciones ocultaba las acciones del listado (DEF-015)"
+    status: Done
+    related: ["#209"]
+    notes: >
+      DEF-015: dentro del modal de edicion de colecciones, la sub-tabla de recursos desbordaba
+      horizontalmente y los botones de accion (Subir/Bajar/Quitar) quedaban ocultos tras el scroll. Se ensancha
+      .admin-edit-dialog a min(880px, 95vw) (separandolo del dialogo de confirmacion base de 520px), se compacta
+      el relleno de las celdas de la sub-tabla y se hace que .collection-resource-section .admin-actions-cell
+      envuelva (flex-wrap) alineando al inicio, de modo que las acciones quedan siempre visibles. Test de
+      regresion de CSS añadido (collections-editor-layout.unit.test.ts). Validacion: bun run test OK (644 pass,
+      0 fail), coverage 90.26%, biome lint/format OK.
   T-2026-06-22-006:
     date: 2026-06-22
     agent: "busqueda-y-descubrimiento + qa-validacion"
