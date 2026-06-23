@@ -49,23 +49,11 @@ function UserDialog({ user, onClose, onSaved }: UserDialogProps) {
 			if (isEdit) {
 				await api.updateUser(user!.id, { name: name.trim(), role });
 			} else {
-				// Create user via Better Auth sign-up endpoint
-				const res = await fetch("/api/auth/sign-up/email", {
-					method: "POST",
-					headers: { "Content-Type": "application/json" },
-					credentials: "include",
-					body: JSON.stringify({ name: name.trim(), email: email.trim(), password }),
-				});
-				if (!res.ok) {
-					const err = await res.json().catch(() => ({}));
-					throw new Error((err as Record<string, string>).message || "Error al crear usuario");
-				}
-				// Set role if not the default (author)
-				if (role !== "author") {
-					const created = await res.json().catch(() => null);
-					if (created?.user?.id) {
-						await api.updateUser(created.user.id, { role });
-					}
+				// Alta desde administración (DEF-019): crea el usuario sin tocar la
+				// sesión del administrador (no usa el registro público de Better Auth).
+				const result = await api.createUser({ name: name.trim(), email: email.trim(), password, role });
+				if (!result.ok) {
+					throw new Error(result.error || "Error al crear usuario");
 				}
 			}
 			onSaved();
@@ -175,9 +163,9 @@ export function AdminUsersSection() {
 		if (!confirm(`¿Eliminar el usuario "${user.name || user.email}"? Esta acción no se puede deshacer.`)) return;
 		setBusyId(user.id);
 		try {
-			// Delete via Better Auth admin API
-			const res = await fetch(`/api/admin/users/${user.id}`, { method: "DELETE", credentials: "include" });
-			if (res.ok) {
+			const api = await getApiClient();
+			const result = await api.deleteUser(user.id);
+			if (result.ok) {
 				setRows((prev) => prev.filter((u) => u.id !== user.id));
 				setTotal((prev) => prev - 1);
 			}

@@ -8,6 +8,7 @@ import {
 	createElpxProject,
 	createResource,
 	createTaxonomy,
+	createUserWithCredentials,
 	deleteCollection,
 	deleteElpxProject,
 	deleteMediaItem,
@@ -19,6 +20,7 @@ import {
 	getElpxProjectByHash,
 	getElpxProjectByResourceId,
 	getTaxonomyById,
+	getUserByEmail,
 	getUserById,
 	listCollectionResources,
 	listCollections,
@@ -26,6 +28,7 @@ import {
 	listUsers,
 	removeResourceFromCollection,
 	reorderCollectionResource,
+	softDeleteUser,
 	updateCollection,
 	updateTaxonomy,
 	updateUser,
@@ -311,5 +314,83 @@ describe("repository collection-resources", () => {
 		const items = await listCollectionResources(db, collectionId);
 		expect(items[0].resourceId).toBe(secondResourceId);
 		expect(items[1].resourceId).toBe(resourceId);
+	});
+});
+
+describe("repository — gestión de usuarios (alta y baja)", () => {
+	let db: ReturnType<typeof drizzle>;
+	let pglite: PGlite;
+
+	beforeEach(async () => {
+		pglite = new PGlite();
+		await createTables(pglite);
+		db = drizzle(pglite, { schema });
+	});
+
+	afterEach(async () => {
+		await pglite.close();
+	});
+
+	test("getUserByEmail localiza por correo o devuelve null", async () => {
+		await ensureUser(db, { id: "u-email", email: "find@example.com", name: "Find", role: "author" });
+
+		const found = await getUserByEmail(db, "find@example.com");
+		expect(found?.id).toBe("u-email");
+
+		const missing = await getUserByEmail(db, "nope@example.com");
+		expect(missing).toBeNull();
+	});
+
+	test("createUserWithCredentials crea el usuario y su cuenta de credenciales", async () => {
+		const created = await createUserWithCredentials(db, {
+			email: "nuevo@example.com",
+			name: "Nuevo Usuario",
+			role: "editor",
+			passwordHash: "salt:deadbeef",
+		});
+
+		expect(created?.email).toBe("nuevo@example.com");
+		expect(created?.role).toBe("editor");
+		expect(created?.id).toBeTruthy();
+
+		// Aparece en el listado de administración
+		const list = await listUsers(db, {});
+		expect(list.data.some((u) => u.email === "nuevo@example.com")).toBe(true);
+
+		// Se guarda una cuenta "credential" con el hash de contraseña
+		const accounts = (await db.select().from(schema.account)).filter((a) => a.userId === created!.id);
+		expect(accounts).toHaveLength(1);
+		expect(accounts[0].providerId).toBe("credential");
+		expect(accounts[0].password).toBe("salt:deadbeef");
+	});
+
+	test("softDeleteUser elimina al usuario del listado y revoca sus sesiones", async () => {
+		await ensureUser(db, { id: "u-del", email: "del@example.com", name: "Del", role: "author" });
+		// Sesión activa que debe revocarse al dar de baja (DEF-020)
+		await db.insert(schema.session).values({
+			id: "sess-del",
+			userId: "u-del",
+			token: "token-del",
+			expiresAt: new Date(Date.now() + 86_400_000),
+			createdAt: new Date(),
+			updatedAt: new Date(),
+		});
+
+		const before = await listUsers(db, {});
+		expect(before.data.some((u) => u.id === "u-del")).toBe(true);
+
+		await softDeleteUser(db, "u-del");
+
+		const after = await listUsers(db, {});
+		expect(after.data.some((u) => u.id === "u-del")).toBe(false);
+		expect(after.total).toBe(before.total - 1);
+
+		// Un usuario dado de baja ya no es consultable (getUserById lo excluye)
+		const stillThere = await getUserById(db, "u-del");
+		expect(stillThere).toBeNull();
+
+		// Las sesiones activas quedan revocadas
+		const sessions = (await db.select().from(schema.session)).filter((s) => s.userId === "u-del");
+		expect(sessions).toHaveLength(0);
 	});
 });

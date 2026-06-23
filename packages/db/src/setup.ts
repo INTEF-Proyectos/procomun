@@ -23,7 +23,8 @@ export const SCHEMA_STATEMENTS = [
 		ban_expires TIMESTAMP,
 		created_at TIMESTAMP NOT NULL DEFAULT NOW(),
 		updated_at TIMESTAMP NOT NULL DEFAULT NOW(),
-		last_login_at TIMESTAMP
+		last_login_at TIMESTAMP,
+		deleted_at TIMESTAMP
 	)`,
 	`CREATE TABLE IF NOT EXISTS "session" (
 		id TEXT PRIMARY KEY,
@@ -244,6 +245,10 @@ export const SCHEMA_STATEMENTS = [
 	END $$`,
 	`DO $$ BEGIN
 		ALTER TABLE "user" ADD COLUMN bio TEXT;
+	EXCEPTION WHEN duplicate_column THEN NULL;
+	END $$`,
+	`DO $$ BEGIN
+		ALTER TABLE "user" ADD COLUMN deleted_at TIMESTAMP;
 	EXCEPTION WHEN duplicate_column THEN NULL;
 	END $$`,
 	`DO $$ BEGIN
