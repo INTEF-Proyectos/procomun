@@ -1057,6 +1057,19 @@
   margin-bottom: 1rem;
 }
 
+/* DEF-015: dentro del editor, las celdas de la sub-tabla de recursos usan menos
+   relleno y los botones de acción se alinean al inicio y envuelven, de modo que
+   Subir/Bajar/Quitar quedan siempre visibles aunque el panel sea estrecho. */
+.collection-resource-section .admin-table th,
+.collection-resource-section .admin-table td {
+  padding: 0.625rem 0.75rem;
+}
+
+.collection-resource-section .admin-actions-cell {
+  justify-content: flex-start;
+  flex-wrap: wrap;
+}
+
 .admin-form-row {
   display: grid;
   grid-template-columns: 1fr;
@@ -1214,6 +1227,14 @@
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.2);
   max-height: calc(100vh - 2rem);
   overflow: auto;
+}
+
+/* DEF-015: el editor de colecciones incrusta una sub-tabla de recursos; necesita
+   más ancho que el diálogo de confirmación para que los botones de acción del
+   listado (Subir/Bajar/Quitar) se vean sin scroll horizontal. */
+.admin-edit-dialog {
+  max-width: min(880px, 95vw);
+  width: 100%;
 }
 
 .admin-edit-dialog h2 {

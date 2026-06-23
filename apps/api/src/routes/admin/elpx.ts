@@ -54,6 +54,7 @@ elpxAdminRoutes.post("/upload/:resourceId", requireRole("author"), async (c) => 
 
 	const resource = await repo.getResourceById(getDb().db, resourceId);
 	if (!resource) return c.json({ error: "Recurso no encontrado" }, 404);
+	if (!canManageResource(user, resource)) return c.json({ error: "Permisos insuficientes" }, 403);
 
 	const body = await c.req.parseBody();
 	const file = body.file;
@@ -162,6 +163,7 @@ elpxAdminRoutes.post("/save/:resourceId", requireRole("author"), async (c) => {
 
 	const resource = await repo.getResourceById(getDb().db, resourceId);
 	if (!resource) return c.json({ error: "Recurso no encontrado" }, 404);
+	if (!canManageResource(user, resource)) return c.json({ error: "Permisos insuficientes" }, 403);
 
 	const body = await c.req.parseBody();
 	const file = body.file;

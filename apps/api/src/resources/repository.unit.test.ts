@@ -219,3 +219,33 @@ describe("Repository — CRUD completo", () => {
 		expect(Number.isFinite(result.total)).toBe(true);
 	});
 });
+
+describe("listResources — búsqueda por nombre de autor (DEF-014)", () => {
+	test("encuentra recursos por nombre o apellido del creador aunque el título y el campo author no lo contengan", async () => {
+		await repo.ensureUser(db(), {
+			id: "u-humberto",
+			email: "humberto@test.com",
+			name: "Humberto Expósito",
+			role: "author",
+		});
+		const created = await createResource({
+			...baseResource,
+			title: `Material didactico ${crypto.randomUUID()}`,
+			description: "Contenido sin el nombre del creador",
+			author: null,
+			createdBy: "u-humberto",
+		});
+
+		// Por nombre
+		const byName = await listResources({ search: "Humberto" });
+		expect(byName.data.some((r) => r.id === created.id)).toBe(true);
+		expect(byName.total).toBeGreaterThan(0);
+
+		// Por apellido (con acento → normalizado)
+		const bySurname = await listResources({ search: "Expósito" });
+		expect(bySurname.data.some((r) => r.id === created.id)).toBe(true);
+
+		// El conteo no debe romper (la query de conteo también debe unir la tabla user).
+		expect(bySurname.total).toBeGreaterThan(0);
+	});
+});

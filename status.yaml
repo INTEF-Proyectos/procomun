@@ -1027,3 +1027,53 @@ tasks:
       panel en blanco a curators; se extrae resolveAdminSection (helper puro testeado) que deniega secciones por
       encima del nivel del usuario cayendo al dashboard. Validacion: bun run test OK (668 pass, 0 fail), coverage
       90.1%, biome lint y format OK.
+  T-2026-06-22-005:
+    date: 2026-06-22
+    agent: "frontend-ux-accesibilidad + qa-validacion"
+    task: "El ancho del editor de colecciones ocultaba las acciones del listado (DEF-015)"
+    status: Done
+    related: ["#209"]
+    notes: >
+      DEF-015: dentro del modal de edicion de colecciones, la sub-tabla de recursos desbordaba
+      horizontalmente y los botones de accion (Subir/Bajar/Quitar) quedaban ocultos tras el scroll. Se ensancha
+      .admin-edit-dialog a min(880px, 95vw) (separandolo del dialogo de confirmacion base de 520px), se compacta
+      el relleno de las celdas de la sub-tabla y se hace que .collection-resource-section .admin-actions-cell
+      envuelva (flex-wrap) alineando al inicio, de modo que las acciones quedan siempre visibles. Test de
+      regresion de CSS añadido (collections-editor-layout.unit.test.ts). Validacion: bun run test OK (644 pass,
+      0 fail), coverage 90.26%, biome lint/format OK.
+  T-2026-06-22-006:
+    date: 2026-06-22
+    agent: "busqueda-y-descubrimiento + qa-validacion"
+    task: "La búsqueda de recursos en backoffice no encontraba por nombre/apellido de autor (DEF-014)"
+    status: Done
+    related: ["#208"]
+    notes: >
+      DEF-014: listResources solo buscaba en title/description/author(texto libre)/keywords, pero el listado
+      muestra como autor el nombre del creador (createdByName = user.name). Buscar "Humberto" o "Expósito" no
+      devolvia resultados. Se añade user.name a la condicion de busqueda (con normalizacion de acentos) y se
+      añade el leftJoin de user a la consulta de conteo para que el total no rompa. Test de regresion en
+      apps/api/src/resources/repository.unit.test.ts. Validacion: bun run test OK (643 pass, 0 fail), coverage
+      90.26%, biome lint/format OK.
+  T-2026-06-22-007:
+    date: 2026-06-22
+    agent: "backend-api-servicios + seguridad-privacidad-legal + qa-validacion"
+    task: "author/editor/curator no podian subir recursos correctamente (#221)"
+    status: Done
+    related: ["#221"]
+    notes: >
+      El gate global requireRole("curator") en /api/admin (introducido al corregir DEF-004) bloqueaba a author
+      y editor con "Permisos insuficientes" pese a que las rutas de recursos usan baseRole "author". Ademas
+      canManageResource solo permitia al curator gestionar recursos en "review", por lo que un curator que creaba
+      un recurso (borrador) no podia verlo y la UI mostraba "Recurso no encontrado". Solucion: el gate global de
+      /api/admin baja a requireRole("author") (sigue bloqueando reader) y cada seccion que requiere mas privilegio
+      (collections, taxonomies, reports, users -> curator; settings, fts, api-tokens -> admin) recibe un gate
+      explicito, ademas del control interno de cada sub-router. canManageResource pasa a permitir que el creador
+      gestione su propio recurso en cualquier estado, manteniendo la cola de curacion (review) para el curator.
+      Sin cambios de frontend (ResourceFormIsland/ResourceEditorIsland ya admitian author+). Tests de matriz de
+      permisos añadidos/actualizados.
+      Revision de seguridad adversaria posterior: al bajar el piso a author quedaban expuestas dos rutas elpx
+      (/upload/:resourceId y /save/:resourceId) que solo comprobaban existencia del recurso (IDOR: cualquier
+      author podia sobrescribir el .elpx de un recurso ajeno); se añade el control canManageResource a ambas, a
+      la par que /generate. Ademas /api/admin/uploads/config dejaba de requerir curator y filtraba storageDir
+      (ruta interna del servidor); se omite storageDir en la respuesta. Tests de IDOR y de la config añadidos.
+      Validacion final: bun run test OK (650 pass, 0 fail), coverage 90.38%, lint/format OK.

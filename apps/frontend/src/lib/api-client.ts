@@ -179,7 +179,8 @@ export interface UploadConfig {
 	sessionTtlMs: number;
 	allowedMimeTypes: string[];
 	allowedExtensions: string[];
-	storageDir: string;
+	/** Solo servidor: no se expone al cliente vía /api/admin/uploads/config. */
+	storageDir?: string;
 }
 
 export interface SessionUser {
