@@ -24,9 +24,13 @@ export function canManageResource(
 	if (hasMinRole(user.role, "author") && resource.createdBy === user.id) {
 		return true;
 	}
-	// Un curator además gestiona la cola de curación (recursos en revisión).
+	// Un curator gestiona la cola de curación (recursos en revisión) y, además,
+	// cualquier recurso que él mismo haya curado. Al cambiar el estado de un recurso
+	// desde "review" queda registrado como assignedCuratorId (ver updateEditorialStatus),
+	// por lo que debe conservar el acceso aunque el recurso ya no esté en revisión
+	// (DEF-009 / #205: antes pasaba a "recurso no encontrado" tras publicarlo/devolverlo a borrador).
 	if (hasMinRole(user.role, "curator")) {
-		return resource.editorialStatus === "review";
+		return resource.editorialStatus === "review" || resource.assignedCuratorId === user.id;
 	}
 	return false;
 }

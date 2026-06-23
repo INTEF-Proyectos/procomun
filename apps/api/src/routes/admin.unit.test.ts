@@ -366,6 +366,94 @@ describe("Rutas admin — flujo editorial visible para curator", () => {
 		const publishBody = await publishRes.json() as { status: string };
 		expect(publishBody.status).toBe("published");
 	});
+
+	test("curator sigue accediendo al recurso tras pasarlo de review a draft (DEF-009 / #205)", async () => {
+		await repo.ensureUser(getDb().db, {
+			id: "curator-review",
+			email: "curator-review@local.invalid",
+			name: "Curator Review",
+			role: "curator",
+		});
+		await repo.ensureUser(getDb().db, {
+			id: "admin-review",
+			email: "admin-review@local.invalid",
+			name: "Admin Review",
+			role: "admin",
+		});
+
+		const createRes = await adminApp.request("/api/admin/resources", {
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({ ...validResource, title: `DEF-009 draft ${crypto.randomUUID()}` }),
+		});
+		expect(createRes.status).toBe(201);
+		const created = await createRes.json() as { id: string };
+
+		// El recurso entra en la cola de revisión.
+		const reviewRes = await adminApp.request(`/api/admin/resources/${created.id}/status`, {
+			method: "PATCH",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({ status: "review" }),
+		});
+		expect(reviewRes.status).toBe(200);
+
+		// El curator lo rechaza devolviéndolo a borrador.
+		const draftRes = await curatorApp.request(`/api/admin/resources/${created.id}/status`, {
+			method: "PATCH",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({ status: "draft" }),
+		});
+		expect(draftRes.status).toBe(200);
+
+		// Regresión DEF-009: el curator que actuó debe seguir viendo el recurso.
+		const getRes = await curatorApp.request(`/api/admin/resources/${created.id}`);
+		expect(getRes.status).toBe(200);
+		const body = await getRes.json() as { id: string; editorialStatus: string };
+		expect(body.id).toBe(created.id);
+		expect(body.editorialStatus).toBe("draft");
+	});
+
+	test("curator sigue accediendo al recurso tras publicarlo desde review (DEF-009 / #205)", async () => {
+		await repo.ensureUser(getDb().db, {
+			id: "curator-review",
+			email: "curator-review@local.invalid",
+			name: "Curator Review",
+			role: "curator",
+		});
+		await repo.ensureUser(getDb().db, {
+			id: "admin-review",
+			email: "admin-review@local.invalid",
+			name: "Admin Review",
+			role: "admin",
+		});
+
+		const createRes = await adminApp.request("/api/admin/resources", {
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({ ...validResource, title: `DEF-009 pub ${crypto.randomUUID()}` }),
+		});
+		expect(createRes.status).toBe(201);
+		const created = await createRes.json() as { id: string };
+
+		await adminApp.request(`/api/admin/resources/${created.id}/status`, {
+			method: "PATCH",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({ status: "review" }),
+		});
+
+		const publishRes = await curatorApp.request(`/api/admin/resources/${created.id}/status`, {
+			method: "PATCH",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({ status: "published" }),
+		});
+		expect(publishRes.status).toBe(200);
+
+		// Regresión DEF-009: el curator que publica debe seguir viendo el recurso.
+		const getRes = await curatorApp.request(`/api/admin/resources/${created.id}`);
+		expect(getRes.status).toBe(200);
+		const body = await getRes.json() as { id: string; editorialStatus: string };
+		expect(body.editorialStatus).toBe("published");
+	});
 });
 
 describe("Rutas admin — RBAC por rol", () => {
