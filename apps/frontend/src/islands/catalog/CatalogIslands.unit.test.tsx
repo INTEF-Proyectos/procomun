@@ -10,6 +10,13 @@ describe("Catalog islands", () => {
 
 		expect(html).toContain("Buscar recursos...");
 		expect(html).toContain("matematicas");
+		expect(html).toContain("Limpiar búsqueda");
+	});
+
+	test("CatalogSearchIsland oculta el limpiador si no hay término", () => {
+		const html = renderToStaticMarkup(<CatalogSearchIsland initialQuery="" />);
+
+		expect(html).not.toContain("Limpiar búsqueda");
 	});
 
 	test("CatalogIsland renderiza el shell inicial del catalogo", () => {

@@ -1077,3 +1077,16 @@ tasks:
       la par que /generate. Ademas /api/admin/uploads/config dejaba de requerir curator y filtraba storageDir
       (ruta interna del servidor); se omite storageDir en la respuesta. Tests de IDOR y de la config añadidos.
       Validacion final: bun run test OK (650 pass, 0 fail), coverage 90.38%, lint/format OK.
+  T-2026-06-23-001:
+    date: 2026-06-23
+    agent: "frontend-ux-accesibilidad + qa-validacion + documentacion-y-roadmap"
+    task: "La búsqueda del catálogo público puede limpiarse desde el propio campo (#198)"
+    status: Done
+    related: ["#198"]
+    notes: >
+      Se añade un control explicito "Limpiar búsqueda" dentro del campo de búsqueda de cabecera del catálogo
+      público para vaciar solo el término `q` sin depender de la acción global "Limpiar filtros". El botón
+      aparece únicamente cuando hay texto, devuelve el foco al input tras limpiar y dispara la sincronización
+      del catálogo con query vacía. Se añaden pruebas de regresión en
+      apps/frontend/src/islands/catalog/CatalogIslands.unit.test.tsx. Validación: bun test de la suite del
+      catálogo OK (6 pass, 0 fail) y bun test completo OK (712 pass, 0 fail).
