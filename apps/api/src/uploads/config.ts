@@ -157,7 +157,13 @@ export async function ensureUploadStorageDir(config: ReturnType<typeof getUpload
  * Uses RFC 5987 encoding so browsers receive the original UTF-8 name.
  */
 export function contentDisposition(disposition: "attachment" | "inline", filename: string): string {
-	const ascii = filename.replace(/[^\x20-\x7e]/g, "_");
+	// Reemplaza lo no imprimible (neutraliza CR/LF) y escapa comillas y barras
+	// invertidas según el quoted-pair de RFC 6266, para que un nombre con `"` no
+	// rompa la quoted-string e inyecte parámetros adicionales en la cabecera.
+	const ascii = filename
+		.replace(/[^\x20-\x7e]/g, "_")
+		.replace(/\\/g, "\\\\")
+		.replace(/"/g, '\\"');
 	const encoded = encodeURIComponent(filename);
 	return `${disposition}; filename="${ascii}"; filename*=UTF-8''${encoded}`;
 }
