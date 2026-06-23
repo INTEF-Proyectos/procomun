@@ -302,7 +302,7 @@ export class HttpApiClient implements ApiClient {
 		return { ok: true as const, id: body.id };
 	}
 
-	async updateUser(id: string, data: Partial<Pick<UserRecord, "name" | "role" | "isActive">>) {
+	async updateUser(id: string, data: Partial<Pick<UserRecord, "name" | "bio" | "role" | "isActive">>) {
 		const res = await fetch(`/api/admin/users/${id}`, {
 			method: "PATCH",
 			headers: { "Content-Type": "application/json" },

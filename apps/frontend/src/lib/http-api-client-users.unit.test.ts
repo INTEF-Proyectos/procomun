@@ -58,6 +58,31 @@ describe("HttpApiClient.createUser (DEF-019)", () => {
 	});
 });
 
+describe("HttpApiClient.updateUser (DEF-004)", () => {
+	const originalFetch = globalThis.fetch;
+	afterEach(() => {
+		mock.restore();
+		globalThis.fetch = originalFetch;
+	});
+
+	test("envía nombre y bio en el PATCH a /api/admin/users/:id", async () => {
+		const { calls } = captureFetch(jsonResponse({ id: "u-1", updated: true }));
+		const client = new HttpApiClient();
+
+		const result = await client.updateUser("u-1", { name: "Nuevo Nombre", bio: "Mi nueva bio" });
+
+		expect(result).toEqual({ ok: true });
+		expect(calls).toHaveLength(1);
+		expect(calls[0].url).toBe("/api/admin/users/u-1");
+		expect(calls[0].init?.method).toBe("PATCH");
+		expect(calls[0].init?.credentials).toBe("include");
+		// Regresión DEF-004: la bio debe viajar en el cuerpo del PATCH.
+		const body = JSON.parse(calls[0].init?.body as string);
+		expect(body.name).toBe("Nuevo Nombre");
+		expect(body.bio).toBe("Mi nueva bio");
+	});
+});
+
 describe("HttpApiClient.deleteUser (DEF-020)", () => {
 	const originalFetch = globalThis.fetch;
 	afterEach(() => {

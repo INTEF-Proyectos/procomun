@@ -1117,3 +1117,21 @@ tasks:
       (window.location.assign) hacia la URL sin `q`, alineándola con el submit GET del propio buscador y
       forzando que /explorar relea el estado correcto desde la URL. Validación: bun test de la unidad afectada
       OK (3 pass, 0 fail) y bun test completo OK (714 pass, 0 fail).
+  T-2026-06-23-005:
+    date: 2026-06-23
+    agent: "backend-api-servicios + frontend-ux-accesibilidad + qa-validacion + documentacion-y-roadmap"
+    task: "El perfil no persiste el campo \"sobre mí\" (bio) al editar nombre y biografía (DEF-004 / #201)"
+    status: Done
+    related: ["#201", "DEF-004", "MP-08"]
+    notes: >
+      La columna bio existía en el esquema (user.bio) pero quedaba aislada en toda la pila: USER_COLUMNS no la
+      seleccionaba (las lecturas nunca la devolvían), repo.updateUser no la aceptaba en su tipo, el endpoint
+      PATCH /api/admin/users/:id no la extraía del body, el tipo UserRecord y la firma de updateUser del cliente
+      la excluían, y PublicDashboardIsland ni la enviaba al guardar ni la cargaba al montar (fijaba bio: null).
+      Resultado: el nombre se guardaba (curator+, único rol con acceso a /users tras DEF-021) pero la bio no.
+      Se propaga bio de extremo a extremo: schema→repo (USER_COLUMNS + updateUser)→endpoint (extrae bio,
+      admite vaciarla)→api-client/http-api-client (tipos)→PublicDashboardIsland (envía editForm.bio y precarga la
+      bio real vía getUserById). TDD: tests que fallaban primero (bio undefined) y luego en verde en repositorio
+      (repository.unit.test.ts), endpoint con autoservicio de curator y vaciado por admin (admin.unit.test.ts) y
+      contrato del cliente (http-api-client-users.unit.test.ts). Validación: bun run test:standard OK
+      (684 pass, 0 fail), check-test-files OK, biome lint/format OK y check-coverage OK (90.21% ≥ 90%).
