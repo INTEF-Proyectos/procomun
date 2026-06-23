@@ -1010,6 +1010,19 @@ tasks:
       quedaba en 89.94%; se añade cobertura de los metodos de tokens API del HttpApiClient y se valida
       bun run check-coverage OK con 90.07% de lineas.
 
+  T-2026-06-22-006:
+    date: 2026-06-22
+    agent: "busqueda-y-descubrimiento + qa-validacion"
+    task: "La búsqueda de recursos en backoffice no encontraba por nombre/apellido de autor (DEF-014)"
+    status: Done
+    related: ["#208"]
+    notes: >
+      DEF-014: listResources solo buscaba en title/description/author(texto libre)/keywords, pero el listado
+      muestra como autor el nombre del creador (createdByName = user.name). Buscar "Humberto" o "Expósito" no
+      devolvia resultados. Se añade user.name a la condicion de busqueda (con normalizacion de acentos) y se
+      añade el leftJoin de user a la consulta de conteo para que el total no rompa. Test de regresion en
+      apps/api/src/resources/repository.unit.test.ts. Validacion: bun run test OK (643 pass, 0 fail), coverage
+      90.26%, biome lint/format OK.
   T-2026-06-22-007:
     date: 2026-06-22
     agent: "backend-api-servicios + seguridad-privacidad-legal + qa-validacion"
