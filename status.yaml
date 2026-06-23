@@ -1117,3 +1117,19 @@ tasks:
       (window.location.assign) hacia la URL sin `q`, alineándola con el submit GET del propio buscador y
       forzando que /explorar relea el estado correcto desde la URL. Validación: bun test de la unidad afectada
       OK (3 pass, 0 fail) y bun test completo OK (714 pass, 0 fail).
+  T-2026-06-23-007:
+    date: 2026-06-23
+    agent: "arquitectura-solucion + metadatos-y-curacion + busqueda-y-descubrimiento + documentacion-y-roadmap"
+    task: "Diseño de la épica de versionado de recursos (#31)"
+    status: Done
+    related: ["#31", "ADR-0029", "epic-004"]
+    notes: >
+      Fase de diseño de la épica (sin implementación). Se crea docs/epics/epic-004-versionado-recursos/
+      (requirements.md + design.md) y ADR-0029, que decide el modelo: snapshots inmutables en una tabla
+      resource_versions (append-only) + puntero resources.current_version_id a la versión vigente, versionando
+      archivos y metadatos juntos, almacenamiento de binarios por contenido (hash, con reutilización y GC),
+      rollback no destructivo (restaurar crea una versión vigente nueva) e indexación/feeds solo de la versión
+      vigente para no duplicar en búsqueda. Reutiliza RBAC (ADR-0008), jsonb (ADR-0025) y storage local
+      (ADR-0011). Alcance por fases F1 (modelo+historial), F2 (descarga+rollback), F3 (retención+búsqueda).
+      La implementación queda como features derivadas; el issue #31 NO se cierra con este PR (solo diseño):
+      se referencia con Refs.

@@ -169,3 +169,9 @@ ADR-0027:
   status: Aceptado
   date: 2026-06-14
   file: 0027-reproduccion-segura-embeds-elpx.md
+
+ADR-0029:
+  title: "Modelo de versionado de recursos (snapshots inmutables + puntero a versión vigente)"
+  status: Propuesto
+  date: 2026-06-23
+  file: 0029-versionado-recursos.md
