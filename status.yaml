@@ -1090,3 +1090,17 @@ tasks:
       del catálogo con query vacía. Se añaden pruebas de regresión en
       apps/frontend/src/islands/catalog/CatalogIslands.unit.test.tsx. Validación: bun test de la suite del
       catálogo OK (6 pass, 0 fail) y bun test completo OK (712 pass, 0 fail).
+  T-2026-06-23-002:
+    date: 2026-06-23
+    agent: "frontend-ux-accesibilidad + qa-validacion + documentacion-y-roadmap"
+    task: "Ajuste final de #198 en el buscador real de navegación del catálogo público"
+    status: Done
+    related: ["#198", "#226"]
+    notes: >
+      La corrección inicial se aplicó a CatalogSearchIsland, pero la UI visible en /explorar usa el buscador
+      fijo de PublicLayout. Se corrige ahí la funcionalidad real: el input refleja `q` desde la URL activa y
+      la acción "Limpiar búsqueda" elimina `q` y `page` de la URL de /explorar, preservando otros filtros
+      activos si existen, para recargar el catálogo sin término de búsqueda y volver al listado completo
+      filtrado solo por las facetas restantes. Se añaden helpers y regresión en
+      apps/frontend/src/islands/app/AppShellIslands.unit.test.tsx. Validación: bun test de la unidad afectada
+      OK (3 pass, 0 fail) y bun test completo OK (714 pass, 0 fail).
