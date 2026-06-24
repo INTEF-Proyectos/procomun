@@ -169,3 +169,9 @@ ADR-0027:
   status: Aceptado
   date: 2026-06-14
   file: 0027-reproduccion-segura-embeds-elpx.md
+
+ADR-0028:
+  title: "Versionado de recursos educativos"
+  status: Propuesto
+  date: 2026-06-24
+  file: 0028-versionado-recursos-educativos.md

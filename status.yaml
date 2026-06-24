@@ -1187,3 +1187,15 @@ tasks:
       sin preview, sin botón de eXeLearning y con uploader manual de adjuntos visible. Se corrige el
       endpoint para devolver el objeto JSONB directamente y se añade regresión en apps/api/src/routes/admin.unit.test.ts
       verificando metadata, previewUrl y nombre original del .elpx. Validación: bun test apps/api/src/routes/admin.unit.test.ts OK.
+  T-2026-06-24-003:
+    date: 2026-06-24
+    agent: "evaluacion-tecnologica + documentacion-y-roadmap"
+    task: "Apertura de ADR para estudiar el versionado de recursos educativos en Procomun"
+    status: Done
+    related: ["ADR-0028"]
+    notes: >
+      Se crea ADR-0028 en estado Propuesto para estudiar el versionado funcional de los recursos educativos
+      subidos a la plataforma. La ADR compara auditoría simple, snapshots relacionales, event sourcing, Git
+      como backend de historial, object storage versionado y un modelo híbrido PostgreSQL snapshots + storage
+      versionado. No hay cambios de código. Validación documental: status.yaml y decision-log.yaml parsean
+      correctamente con Ruby YAML.
