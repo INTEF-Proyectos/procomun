@@ -1172,3 +1172,18 @@ tasks:
       cubre el nuevo contrato del cliente; además se ejecutan regresiones en admin.unit.test.ts y
       http-api-client-signup.unit.test.ts. Validación: bun test sobre las 4 suites afectadas OK
       (120 pass, 0 fail).
+  T-2026-06-24-002:
+    date: 2026-06-24
+    agent: "backend-api-servicios + frontend-ux-accesibilidad + qa-validacion + documentacion-y-roadmap"
+    task: "Hotfix del flujo .elpx en edición: el endpoint admin volvía null/500 tras migrar elpx_metadata a jsonb y la UI caía al modo de subida manual"
+    status: Done
+    related: ["ADR-0025", "DEF-ELPX-EDIT"]
+    notes: >
+      La ruta GET /api/admin/resources/:id/elpx seguía haciendo JSON.parse(elpx.elpxMetadata) aunque
+      packages/db/migrations/0002_text_to_jsonb_metadata.sql migró el campo a jsonb. Con Drizzle/PostgreSQL
+      el valor ya llega como objeto, así que la ruta lanzaba excepción al abrir EditarPage para recursos con
+      proyecto .elpx. El frontend captura ese fallo como null en getElpxProject(), pierde elpxPreview y
+      calcula showMultiUpload=true / showDirectUpload=false, reproduciendo exactamente el síntoma reportado:
+      sin preview, sin botón de eXeLearning y con uploader manual de adjuntos visible. Se corrige el
+      endpoint para devolver el objeto JSONB directamente y se añade regresión en apps/api/src/routes/admin.unit.test.ts
+      verificando metadata, previewUrl y nombre original del .elpx. Validación: bun test apps/api/src/routes/admin.unit.test.ts OK.

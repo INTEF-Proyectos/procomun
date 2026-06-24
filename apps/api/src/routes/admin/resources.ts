@@ -200,7 +200,7 @@ resourceRoutes.get("/:id/elpx", async (c) => {
 		if (elpxMedia) elpxFileUrl = elpxMedia.url;
 	}
 
-	const metadata = elpx.elpxMetadata ? JSON.parse(elpx.elpxMetadata) : null;
+	const metadata = elpx.elpxMetadata ?? null;
 	return c.json({
 		id: elpx.id,
 		hash: elpx.hash,
