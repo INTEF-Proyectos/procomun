@@ -277,8 +277,8 @@ export function PublicDashboardIsland() {
 
         const { user } = session;
 
-        // Fetch dashboard data + badge config
-        const [dashData, config] = await Promise.all([
+        // Fetch dashboard data + badge config + perfil persistido (DEF-004: incluye bio)
+        const [dashData, config, profile] = await Promise.all([
           api.getUserDashboard().catch(() => ({
             draftCount: 0,
             publishedCount: 0,
@@ -287,15 +287,16 @@ export function PublicDashboardIsland() {
             recentResources: [] as Resource[],
           })),
           api.getBadgeConfig().catch(() => null),
+          api.getMyProfile().catch(() => null),
         ]);
         if (config) setBadgeConfig(config);
 
         setDashboard({
           user: {
             id: user.id,
-            name: user.name || user.email.split("@")[0],
+            name: profile?.name || user.name || user.email.split("@")[0],
             avatarUrl: null,
-            bio: null,
+            bio: profile?.bio ?? null,
             role: user.role,
             resourceCount: (dashData.draftCount ?? 0) + (dashData.publishedCount ?? 0),
             favoriteCount: dashData.favoriteCount ?? 0,
@@ -371,7 +372,10 @@ export function PublicDashboardIsland() {
 
     try {
       const api = await getApiClient();
-      await api.updateUser(dashboard.user.id, { name: editForm.name });
+      const result = await api.updateMyProfile({ name: editForm.name, bio: editForm.bio });
+      if (!result.ok) {
+        throw new Error(result.error ?? "Error al actualizar perfil");
+      }
 
       setDashboard({
         ...dashboard,

@@ -120,8 +120,10 @@ userRoutes.patch("/:id", async (c) => {
 	if (!existing) return c.json({ error: "Usuario no encontrado" }, 404);
 
 	const body = await c.req.json();
-	const updates: { name?: string | null; role?: string; isActive?: boolean } = {};
+	const updates: { name?: string | null; bio?: string | null; role?: string; isActive?: boolean } = {};
 	if ("name" in body) updates.name = typeof body.name === "string" ? body.name : null;
+	// DEF-004 (#201): el perfil debe persistir también el campo "sobre mí" (bio).
+	if ("bio" in body) updates.bio = typeof body.bio === "string" ? body.bio : null;
 	if (hasMinRole(currentUser.role, "admin")) {
 		if (typeof body.role === "string" && body.role in ROLE_LEVELS) updates.role = body.role;
 		if (typeof body.isActive === "boolean") updates.isActive = body.isActive;
