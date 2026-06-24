@@ -1119,6 +1119,55 @@ describe("Rutas admin — actualización de usuarios", () => {
 			expect(res.status).toBe(200);
 		}
 	});
+
+	test("PATCH /api/admin/users/:id → autoservicio persiste nombre y bio (DEF-004 / #201)", async () => {
+		// El backoffice de usuarios exige curator+ (DEF-021); un curator editando su
+		// propio perfil reproduce el caso real del defecto (el nombre se guardaba, la bio no).
+		const id = `self-bio-${crypto.randomUUID()}`;
+		const email = `${id}@test.com`;
+		await repo.ensureUser(getDb().db, { id, email, name: "Self Bio", role: "curator" });
+		const selfApp = createAdminApp({ id, role: "curator", email, name: "Self Bio" });
+
+		const patchRes = await selfApp.request(`/api/admin/users/${id}`, {
+			method: "PATCH",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({ name: "Self Bio Editado", bio: "Mi biografía actualizada" }),
+		});
+		expect(patchRes.status).toBe(200);
+
+		// Regresión DEF-004: al volver al perfil, la bio debe seguir persistida.
+		const getRes = await selfApp.request(`/api/admin/users/${id}`);
+		expect(getRes.status).toBe(200);
+		const body = await getRes.json();
+		expect(body.name).toBe("Self Bio Editado");
+		expect(body.bio).toBe("Mi biografía actualizada");
+	});
+
+	test("PATCH /api/admin/users/:id → admin puede vaciar la bio (DEF-004 / #201)", async () => {
+		const adminApp = createAdminApp({ id: "1", role: "admin" });
+		const email = `bio-clear-${crypto.randomUUID()}@test.com`;
+		const createRes = await adminApp.request("/api/admin/users", {
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({ name: "Con Bio", email, password: "supersecret8" }),
+		});
+		const { id } = await createRes.json();
+
+		await adminApp.request(`/api/admin/users/${id}`, {
+			method: "PATCH",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({ bio: "Texto inicial" }),
+		});
+		await adminApp.request(`/api/admin/users/${id}`, {
+			method: "PATCH",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({ bio: "" }),
+		});
+
+		const getRes = await adminApp.request(`/api/admin/users/${id}`);
+		const body = await getRes.json();
+		expect(body.bio).toBe("");
+	});
 });
 
 describe("Rutas admin FTS — con sesión de admin", () => {

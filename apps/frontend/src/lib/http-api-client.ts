@@ -302,7 +302,7 @@ export class HttpApiClient implements ApiClient {
 		return { ok: true as const, id: body.id };
 	}
 
-	async updateUser(id: string, data: Partial<Pick<UserRecord, "name" | "role" | "isActive">>) {
+	async updateUser(id: string, data: Partial<Pick<UserRecord, "name" | "bio" | "role" | "isActive">>) {
 		const res = await fetch(`/api/admin/users/${id}`, {
 			method: "PATCH",
 			headers: { "Content-Type": "application/json" },
@@ -527,6 +527,26 @@ export class HttpApiClient implements ApiClient {
 	async getUserDashboard() {
 		const res = await fetch("/api/v1/users/me/dashboard", { credentials: "include" });
 		return res.json();
+	}
+
+	async getMyProfile(): Promise<UserRecord | null> {
+		const res = await fetch("/api/v1/users/me/profile", { credentials: "include" });
+		if (!res.ok) return null;
+		return res.json();
+	}
+
+	async updateMyProfile(data: Partial<Pick<UserRecord, "name" | "bio">>) {
+		const res = await fetch("/api/v1/users/me/profile", {
+			method: "PATCH",
+			headers: { "Content-Type": "application/json" },
+			credentials: "include",
+			body: JSON.stringify(data),
+		});
+		if (!res.ok) {
+			const err = await res.json().catch(() => ({}));
+			return { ok: false, error: err.error ?? "Error al actualizar perfil" };
+		}
+		return { ok: true };
 	}
 
 	async getUserActivity(opts?: { limit?: number; offset?: number }): Promise<import("./api-client.ts").PaginatedResult<import("./types/user-extended.ts").ActivityItem>> {

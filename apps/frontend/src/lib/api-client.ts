@@ -43,6 +43,7 @@ export interface UserRecord {
 	id: string;
 	email: string;
 	name: string | null;
+	bio: string | null;
 	role: string;
 	isActive: boolean;
 	createdAt?: string | number | Date | null;
@@ -292,7 +293,7 @@ export interface ApiClient {
 	listUsers(opts?: { q?: string; role?: string; limit?: number; offset?: number }): Promise<PaginatedResult<UserRecord>>;
 	getUserById(id: string): Promise<UserRecord | null>;
 	createUser(data: { name?: string; email: string; password: string; role?: string }): Promise<{ ok: boolean; id?: string; error?: string; details?: { field: string; message: string }[] }>;
-	updateUser(id: string, data: Partial<Pick<UserRecord, "name" | "role" | "isActive">>): Promise<{ ok: boolean; error?: string }>;
+	updateUser(id: string, data: Partial<Pick<UserRecord, "name" | "bio" | "role" | "isActive">>): Promise<{ ok: boolean; error?: string }>;
 	deleteUser(id: string): Promise<{ ok: boolean; error?: string }>;
 
 	listCollections(opts?: { q?: string; limit?: number; offset?: number }): Promise<PaginatedResult<CollectionRecord>>;
@@ -318,6 +319,8 @@ export interface ApiClient {
 	getUserFavorites(opts?: { limit?: number; offset?: number }): Promise<PaginatedResult<Resource>>;
 	getUserRatings(opts?: { limit?: number; offset?: number }): Promise<PaginatedResult<Resource>>;
 	getUserDashboard(): Promise<{ draftCount: number; publishedCount: number; favoriteCount: number; ratingCount?: number; recentResources: Resource[] }>;
+	getMyProfile(): Promise<UserRecord | null>;
+	updateMyProfile(data: Partial<Pick<UserRecord, "name" | "bio">>): Promise<{ ok: boolean; error?: string }>;
 	getUserActivity(opts?: { limit?: number; offset?: number }): Promise<PaginatedResult<import("./types/user-extended.ts").ActivityItem>>;
 	trackDownload(slug: string, format?: string): Promise<{ count: number }>;
 	getResourceStats(slug: string): Promise<{ downloadCount: number; exportCounts: { scorm: number; ims: number; web: number; epub: number }; favoriteCount: number; ratingAvg: number; ratingCount: number; userFavorited: boolean }>;

@@ -341,6 +341,20 @@ describe("repository — gestión de usuarios (alta y baja)", () => {
 		expect(missing).toBeNull();
 	});
 
+	test("updateUser persiste el campo bio y getUserById lo devuelve (DEF-004 / #201)", async () => {
+		await ensureUser(db, { id: "u-bio", email: "bio@example.com", name: "Bio User", role: "author" });
+
+		await updateUser(db, "u-bio", { name: "Bio Editada", bio: "Profesora de matemáticas" });
+
+		const updated = await getUserById(db, "u-bio");
+		expect(updated?.name).toBe("Bio Editada");
+		expect(updated?.bio).toBe("Profesora de matemáticas");
+
+		// El listado de administración también debe exponer la bio.
+		const list = await listUsers(db, { id: "u-bio" });
+		expect(list.data[0]?.bio).toBe("Profesora de matemáticas");
+	});
+
 	test("createUserWithCredentials crea el usuario y su cuenta de credenciales", async () => {
 		const created = await createUserWithCredentials(db, {
 			email: "nuevo@example.com",

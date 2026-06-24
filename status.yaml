@@ -1134,3 +1134,41 @@ tasks:
       unitarios (DEF-009) y de integración (curator: review→draft y review→published seguido de GET 200) en
       apps/api/src/routes/admin.unit.test.ts. Validación: bun run test:standard OK (683 pass, 0 fail),
       check-test-files OK y biome lint OK.
+  T-2026-06-23-005:
+    date: 2026-06-23
+    agent: "backend-api-servicios + frontend-ux-accesibilidad + qa-validacion + documentacion-y-roadmap"
+    task: "El perfil no persiste el campo \"sobre mí\" (bio) al editar nombre y biografía (DEF-004 / #201)"
+    status: Done
+    related: ["#201", "DEF-004", "MP-08"]
+    notes: >
+      La columna bio existía en el esquema (user.bio) pero quedaba aislada en toda la pila: USER_COLUMNS no la
+      seleccionaba (las lecturas nunca la devolvían), repo.updateUser no la aceptaba en su tipo, el endpoint
+      PATCH /api/admin/users/:id no la extraía del body, el tipo UserRecord y la firma de updateUser del cliente
+      la excluían, y PublicDashboardIsland ni la enviaba al guardar ni la cargaba al montar (fijaba bio: null).
+      Resultado: el nombre se guardaba (curator+, único rol con acceso a /users tras DEF-021) pero la bio no.
+      Se propaga bio de extremo a extremo: schema→repo (USER_COLUMNS + updateUser)→endpoint (extrae bio,
+      admite vaciarla)→api-client/http-api-client (tipos)→PublicDashboardIsland (envía editForm.bio y precarga la
+      bio real vía getUserById). TDD: tests que fallaban primero (bio undefined) y luego en verde en repositorio
+      (repository.unit.test.ts), endpoint con autoservicio de curator y vaciado por admin (admin.unit.test.ts) y
+      contrato del cliente (http-api-client-users.unit.test.ts). Validación: bun run test:standard OK
+      (684 pass, 0 fail), check-test-files OK, biome lint/format OK y check-coverage OK (90.21% ≥ 90%).
+  T-2026-06-24-001:
+    date: 2026-06-24
+    agent: "backend-api-servicios + frontend-ux-accesibilidad + qa-validacion + documentacion-y-roadmap"
+    task: "El perfil propio persiste nombre y bio para reader, author y editor fuera del backoffice de usuarios (PR #234)"
+    status: Done
+    related: ["#234", "DEF-004"]
+    notes: >
+      La rama ya había resuelto la persistencia para curator/admin porque su dashboard reutilizaba
+      /api/admin/users/:id, pero reader quedaba bloqueado por requireRole(author) a nivel /api/admin y
+      author/editor por requireRole(curator) en /api/admin/users/*, de modo que el frontend recibía error
+      de permisos al guardar/recargar el perfil. PublicDashboardIsland trataba ese resultado como éxito y
+      solo actualizaba estado local, por eso los cambios se veían hasta recargar. Se añade un camino de
+      autoservicio independiente en apps/api/src/routes/social.ts con GET/PATCH /api/v1/users/me/profile,
+      que sincroniza la fila de user cuando aún no existe y persiste name/bio para cualquier usuario
+      autenticado. El dashboard pasa a usar getMyProfile/updateMyProfile y valida result.ok antes de
+      anunciar guardado correcto. TDD/regresión: apps/api/src/routes/social.unit.test.ts cubre reader
+      sin fila previa + persistencia tras recarga; apps/frontend/src/lib/http-api-client-users.unit.test.ts
+      cubre el nuevo contrato del cliente; además se ejecutan regresiones en admin.unit.test.ts y
+      http-api-client-signup.unit.test.ts. Validación: bun test sobre las 4 suites afectadas OK
+      (120 pass, 0 fail).
