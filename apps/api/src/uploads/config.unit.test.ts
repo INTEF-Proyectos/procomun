@@ -3,6 +3,7 @@ import {
 	buildUploadPublicUrl,
 	buildUploadStorageKey,
 	canManageResourceUpload,
+	contentDisposition,
 	extractFileExtension,
 	getUploadConfig,
 	sanitizeFilename,
@@ -80,5 +81,23 @@ describe("upload config helpers", () => {
 	test("genera claves de storage y urls públicas estables", () => {
 		expect(buildUploadStorageKey("res-1", "upload-1", "Vídeo final.mp4")).toBe("resource/res-1/upload-1/Video-final.mp4");
 		expect(buildUploadPublicUrl("upload-1")).toBe("/api/v1/uploads/upload-1/content");
+	});
+
+	test("contentDisposition escapa comillas y neutraliza CR/LF en el nombre", () => {
+		// Un nombre con comilla no debe romper la quoted-string: queda escapada.
+		const header = contentDisposition("attachment", 'a";x=y.pdf');
+		expect(header).toContain('filename="a\\";x=y.pdf"');
+		expect(header.startsWith("attachment; ")).toBe(true);
+
+		// Las barras invertidas también se escapan.
+		expect(contentDisposition("inline", 'a\\b.pdf')).toContain('filename="a\\\\b.pdf"');
+
+		// CR/LF se neutralizan en la parte ASCII (sin response splitting).
+		const injected = contentDisposition("attachment", `evil\r\nSet-Cookie: x=1.pdf`);
+		expect(injected).not.toContain("\r");
+		expect(injected).not.toContain("\n");
+
+		// Los nombres normales no se alteran.
+		expect(contentDisposition("attachment", "informe.pdf")).toContain('filename="informe.pdf"');
 	});
 });
