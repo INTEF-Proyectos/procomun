@@ -153,6 +153,63 @@ describe("generateElpxFromFiles", { timeout: 30_000 }, () => {
 		expect(metadata.title).toBe("Solo metadatos");
 	});
 
+	it("neutraliza nombres con salto de ruta y no escribe fuera del staging (CAND-001)", async () => {
+		const filePath = await makeTempFile("trav", "fuente.pdf", "datos");
+		const outputPath = path.join(TEMP_DIR, "trav-output.elpx");
+		const baseDir = path.join(TEMP_DIR, "trav-base");
+		await mkdir(baseDir, { recursive: true });
+		// Centinela en el directorio padre del staging; no debe crearse jamás.
+		const sentinel = path.join(os.tmpdir(), "procomun-cand001-proof.txt");
+		await rm(sentinel, { force: true });
+
+		await generateElpxFromFiles({
+			title: "Intento de traversal",
+			files: [
+				{ filename: "../procomun-cand001-proof.txt", filePath },
+				{ filename: "/etc/evil.pdf", filePath },
+				{ filename: "..\\..\\windows.pdf", filePath },
+			],
+			outputPath,
+		});
+
+		// No se escribió ningún archivo fuera del directorio de staging.
+		expect(await Bun.file(sentinel).exists()).toBe(false);
+
+		// El paquete contiene los archivos con nombres saneados (solo basename).
+		const result = await processElpxUpload(outputPath, baseDir);
+		expect(await Bun.file(path.join(result.extractPath, "procomun-cand001-proof.txt")).exists()).toBe(true);
+		expect(await Bun.file(path.join(result.extractPath, "evil.pdf")).exists()).toBe(true);
+		expect(await Bun.file(path.join(result.extractPath, "windows.pdf")).exists()).toBe(true);
+	});
+
+	it("evita que un archivo subido sobrescriba content.xml o index.html (CAND-001)", async () => {
+		const evilXml = await makeTempFile("collide", "evil-content", "<malicioso/>");
+		const evilHtml = await makeTempFile("collide", "evil-index", "<h1>hijack</h1>");
+		const outputPath = path.join(TEMP_DIR, "collide-output.elpx");
+		const baseDir = path.join(TEMP_DIR, "collide-base");
+		await mkdir(baseDir, { recursive: true });
+
+		await generateElpxFromFiles({
+			title: "Recurso colisión",
+			author: "Docente",
+			files: [
+				{ filename: "content.xml", filePath: evilXml },
+				{ filename: "index.html", filePath: evilHtml },
+			],
+			outputPath,
+		});
+
+		// Los metadatos generados siguen intactos (no los pisó el archivo subido).
+		const metadata = await parseElpxMetadata(outputPath);
+		expect(metadata.title).toBe("Recurso colisión");
+		expect(metadata.author).toBe("Docente");
+
+		// El archivo subido se conserva bajo un nombre renombrado.
+		const result = await processElpxUpload(outputPath, baseDir);
+		expect(await Bun.file(path.join(result.extractPath, "content-adjunto.xml")).exists()).toBe(true);
+		expect(await Bun.file(path.join(result.extractPath, "index-adjunto.html")).exists()).toBe(true);
+	});
+
 	it("los caracteres especiales en el título se escapan en el XML generado", async () => {
 		const outputPath = path.join(TEMP_DIR, "test7-output.elpx");
 
