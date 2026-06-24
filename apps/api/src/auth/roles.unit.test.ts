@@ -30,12 +30,13 @@ describe("auth roles helpers", () => {
 				{ createdBy: "author-1", assignedCuratorId: null, editorialStatus: "draft" },
 			),
 		).toBe(true);
+		// DEF-009 (#205): el curator asignado conserva el acceso tras publicar el recurso.
 		expect(
 			canManageResource(
 				{ id: "curator-1", role: "curator" },
 				{ createdBy: "author-1", assignedCuratorId: "curator-1", editorialStatus: "published" },
 			),
-		).toBe(false);
+		).toBe(true);
 		expect(
 			canManageResource(
 				{ id: "curator-1", role: "curator" },
@@ -54,6 +55,48 @@ describe("auth roles helpers", () => {
 				{ createdBy: "author-1", assignedCuratorId: "curator-1", editorialStatus: "review" },
 			),
 		).toBe(false);
+	});
+
+	test("canManageResource lets the assigned curator keep access after changing status (DEF-009)", () => {
+		// Regresión DEF-009 (#205): un curator que toma un recurso de la cola de
+		// revisión y lo pasa a draft/published/archived queda como assignedCuratorId
+		// y debe poder seguir leyéndolo y gestionándolo; antes perdía el acceso (404).
+		const curator = { id: "curator-1", role: "curator" };
+		expect(
+			canManageResource(curator, {
+				createdBy: "author-1",
+				assignedCuratorId: "curator-1",
+				editorialStatus: "draft",
+			}),
+		).toBe(true);
+		expect(
+			canManageResource(curator, {
+				createdBy: "author-1",
+				assignedCuratorId: "curator-1",
+				editorialStatus: "published",
+			}),
+		).toBe(true);
+		expect(
+			canManageResource(curator, {
+				createdBy: "author-1",
+				assignedCuratorId: "curator-1",
+				editorialStatus: "archived",
+			}),
+		).toBe(true);
+		// Un curator distinto al asignado no gana acceso a un recurso ya fuera de revisión.
+		expect(
+			canManageResource(
+				{ id: "curator-2", role: "curator" },
+				{ createdBy: "author-1", assignedCuratorId: "curator-1", editorialStatus: "published" },
+			),
+		).toBe(false);
+		// Sigue pudiendo trabajar cualquier recurso de la cola de revisión.
+		expect(
+			canManageResource(
+				{ id: "curator-3", role: "curator" },
+				{ createdBy: "author-1", assignedCuratorId: null, editorialStatus: "review" },
+			),
+		).toBe(true);
 	});
 
 	test("canManageCollection allows curator and admin access", () => {

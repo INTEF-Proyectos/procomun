@@ -1117,6 +1117,23 @@ tasks:
       (window.location.assign) hacia la URL sin `q`, alineándola con el submit GET del propio buscador y
       forzando que /explorar relea el estado correcto desde la URL. Validación: bun test de la unidad afectada
       OK (3 pass, 0 fail) y bun test completo OK (714 pass, 0 fail).
+  T-2026-06-23-004:
+    date: 2026-06-23
+    agent: "backend-api-servicios + qa-validacion + documentacion-y-roadmap"
+    task: "Un curator pierde el acceso a un recurso tras cambiarle el estado desde review (DEF-009 / #205)"
+    status: Done
+    related: ["#205", "DEF-009", "MP-10"]
+    notes: >
+      canManageResource (apps/api/src/auth/roles.ts) solo permitía a un curator gestionar recursos en estado
+      "review". Al pasar un recurso de review a draft o published el recurso dejaba de cumplir esa condición y el
+      curator que acababa de actuar sobre él recibía 403 (la UI del editor lo mostraba como "recurso no
+      encontrado"). Como updateEditorialStatus registra siempre el assignedCuratorId al cambiar el estado, se
+      amplía la regla para que el curator conserve el acceso a los recursos que él mismo curó
+      (editorialStatus === "review" || assignedCuratorId === user.id), sin abrir acceso a otros curators ni a
+      recursos ajenos. Se actualiza la aserción de regresión existente en roles.unit.test.ts y se añaden tests
+      unitarios (DEF-009) y de integración (curator: review→draft y review→published seguido de GET 200) en
+      apps/api/src/routes/admin.unit.test.ts. Validación: bun run test:standard OK (683 pass, 0 fail),
+      check-test-files OK y biome lint OK.
   T-2026-06-23-005:
     date: 2026-06-23
     agent: "backend-api-servicios + frontend-ux-accesibilidad + qa-validacion + documentacion-y-roadmap"
