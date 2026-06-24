@@ -12,6 +12,7 @@ const USER_COLUMNS = {
 	id: user.id,
 	email: user.email,
 	name: user.name,
+	bio: user.bio,
 	role: user.role,
 	isActive: user.isActive,
 	createdAt: user.createdAt,
@@ -97,7 +98,7 @@ export async function ensureUser(
 export async function updateUser(
 	db: DrizzleDB,
 	id: string,
-	data: Partial<{ name: string | null; role: string; isActive: boolean }>,
+	data: Partial<{ name: string | null; bio: string | null; role: string; isActive: boolean }>,
 ) {
 	await db
 		.update(user)
