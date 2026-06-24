@@ -86,6 +86,44 @@ describe("Rutas admin — con sesión de admin", () => {
 		expect(body.title).toBe(validResource.title);
 	});
 
+	test("GET /api/admin/resources/:id/elpx → 200 con metadata JSONB", async () => {
+		const createRes = await app.request("/api/admin/resources", {
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({ ...validResource, title: "Recurso con ELPX" }),
+		});
+		const created = await createRes.json();
+
+		await repo.createElpxProject(getDb().db, {
+			resourceId: created.id,
+			hash: `hash-${crypto.randomUUID().replace(/-/g, "").slice(0, 16)}`,
+			extractPath: "/tmp/elpx-test",
+			originalFilename: "actividad.elpx",
+			hasPreview: true,
+			elpxMetadata: {
+				title: "Título ELPX",
+				description: "Descripción ELPX",
+				author: "Autor ELPX",
+				language: "es",
+				license: "cc-by",
+			},
+		});
+
+		const res = await app.request(`/api/admin/resources/${created.id}/elpx`);
+		expect(res.status).toBe(200);
+		const body = await res.json();
+		expect(body.hash).toContain("hash-");
+		expect(body.previewUrl).toContain("/api/v1/elpx/");
+		expect(body.originalFilename).toBe("actividad.elpx");
+		expect(body.metadata).toEqual({
+			title: "Título ELPX",
+			description: "Descripción ELPX",
+			author: "Autor ELPX",
+			language: "es",
+			license: "cc-by",
+		});
+	});
+
 	test("GET /api/admin/resources/:id → 404 para id inexistente", async () => {
 		const res = await app.request("/api/admin/resources/no-existe-xyz");
 		expect(res.status).toBe(404);
