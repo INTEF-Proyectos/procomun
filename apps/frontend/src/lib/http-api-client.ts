@@ -529,6 +529,26 @@ export class HttpApiClient implements ApiClient {
 		return res.json();
 	}
 
+	async getMyProfile(): Promise<UserRecord | null> {
+		const res = await fetch("/api/v1/users/me/profile", { credentials: "include" });
+		if (!res.ok) return null;
+		return res.json();
+	}
+
+	async updateMyProfile(data: Partial<Pick<UserRecord, "name" | "bio">>) {
+		const res = await fetch("/api/v1/users/me/profile", {
+			method: "PATCH",
+			headers: { "Content-Type": "application/json" },
+			credentials: "include",
+			body: JSON.stringify(data),
+		});
+		if (!res.ok) {
+			const err = await res.json().catch(() => ({}));
+			return { ok: false, error: err.error ?? "Error al actualizar perfil" };
+		}
+		return { ok: true };
+	}
+
 	async getUserActivity(opts?: { limit?: number; offset?: number }): Promise<import("./api-client.ts").PaginatedResult<import("./types/user-extended.ts").ActivityItem>> {
 		const params = new URLSearchParams();
 		if (opts?.limit) params.set("limit", String(opts.limit));

@@ -319,6 +319,8 @@ export interface ApiClient {
 	getUserFavorites(opts?: { limit?: number; offset?: number }): Promise<PaginatedResult<Resource>>;
 	getUserRatings(opts?: { limit?: number; offset?: number }): Promise<PaginatedResult<Resource>>;
 	getUserDashboard(): Promise<{ draftCount: number; publishedCount: number; favoriteCount: number; ratingCount?: number; recentResources: Resource[] }>;
+	getMyProfile(): Promise<UserRecord | null>;
+	updateMyProfile(data: Partial<Pick<UserRecord, "name" | "bio">>): Promise<{ ok: boolean; error?: string }>;
 	getUserActivity(opts?: { limit?: number; offset?: number }): Promise<PaginatedResult<import("./types/user-extended.ts").ActivityItem>>;
 	trackDownload(slug: string, format?: string): Promise<{ count: number }>;
 	getResourceStats(slug: string): Promise<{ downloadCount: number; exportCounts: { scorm: number; ims: number; web: number; epub: number }; favoriteCount: number; ratingAvg: number; ratingCount: number; userFavorited: boolean }>;

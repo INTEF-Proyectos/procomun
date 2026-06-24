@@ -83,6 +83,39 @@ describe("HttpApiClient.updateUser (DEF-004)", () => {
 	});
 });
 
+describe("HttpApiClient.updateMyProfile (PR-234)", () => {
+	const originalFetch = globalThis.fetch;
+	afterEach(() => {
+		mock.restore();
+		globalThis.fetch = originalFetch;
+	});
+
+	test("usa el endpoint público autenticado del perfil propio", async () => {
+		const { calls } = captureFetch(jsonResponse({ id: "u-1", updated: true }));
+		const client = new HttpApiClient();
+
+		const result = await client.updateMyProfile({ name: "Nuevo Nombre", bio: "Mi nueva bio" });
+
+		expect(result).toEqual({ ok: true });
+		expect(calls).toHaveLength(1);
+		expect(calls[0].url).toBe("/api/v1/users/me/profile");
+		expect(calls[0].init?.method).toBe("PATCH");
+		expect(calls[0].init?.credentials).toBe("include");
+		expect(JSON.parse(calls[0].init?.body as string)).toEqual({
+			name: "Nuevo Nombre",
+			bio: "Mi nueva bio",
+		});
+	});
+
+	test("expone el error cuando el guardado falla", async () => {
+		captureFetch(jsonResponse({ error: "Permisos insuficientes" }, 403));
+		const client = new HttpApiClient();
+
+		const result = await client.updateMyProfile({ name: "Nope" });
+		expect(result).toEqual({ ok: false, error: "Permisos insuficientes" });
+	});
+});
+
 describe("HttpApiClient.deleteUser (DEF-020)", () => {
 	const originalFetch = globalThis.fetch;
 	afterEach(() => {

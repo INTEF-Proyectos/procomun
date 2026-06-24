@@ -287,7 +287,7 @@ export function PublicDashboardIsland() {
             recentResources: [] as Resource[],
           })),
           api.getBadgeConfig().catch(() => null),
-          api.getUserById(user.id).catch(() => null),
+          api.getMyProfile().catch(() => null),
         ]);
         if (config) setBadgeConfig(config);
 
@@ -372,7 +372,10 @@ export function PublicDashboardIsland() {
 
     try {
       const api = await getApiClient();
-      await api.updateUser(dashboard.user.id, { name: editForm.name, bio: editForm.bio });
+      const result = await api.updateMyProfile({ name: editForm.name, bio: editForm.bio });
+      if (!result.ok) {
+        throw new Error(result.error ?? "Error al actualizar perfil");
+      }
 
       setDashboard({
         ...dashboard,
