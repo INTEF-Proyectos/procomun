@@ -86,6 +86,44 @@ describe("Rutas admin — con sesión de admin", () => {
 		expect(body.title).toBe(validResource.title);
 	});
 
+	test("GET /api/admin/resources/:id/elpx → 200 con metadata JSONB", async () => {
+		const createRes = await app.request("/api/admin/resources", {
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({ ...validResource, title: "Recurso con ELPX" }),
+		});
+		const created = await createRes.json();
+
+		await repo.createElpxProject(getDb().db, {
+			resourceId: created.id,
+			hash: `hash-${crypto.randomUUID().replace(/-/g, "").slice(0, 16)}`,
+			extractPath: "/tmp/elpx-test",
+			originalFilename: "actividad.elpx",
+			hasPreview: true,
+			elpxMetadata: {
+				title: "Título ELPX",
+				description: "Descripción ELPX",
+				author: "Autor ELPX",
+				language: "es",
+				license: "cc-by",
+			},
+		});
+
+		const res = await app.request(`/api/admin/resources/${created.id}/elpx`);
+		expect(res.status).toBe(200);
+		const body = await res.json();
+		expect(body.hash).toContain("hash-");
+		expect(body.previewUrl).toContain("/api/v1/elpx/");
+		expect(body.originalFilename).toBe("actividad.elpx");
+		expect(body.metadata).toEqual({
+			title: "Título ELPX",
+			description: "Descripción ELPX",
+			author: "Autor ELPX",
+			language: "es",
+			license: "cc-by",
+		});
+	});
+
 	test("GET /api/admin/resources/:id → 404 para id inexistente", async () => {
 		const res = await app.request("/api/admin/resources/no-existe-xyz");
 		expect(res.status).toBe(404);
@@ -365,6 +403,94 @@ describe("Rutas admin — flujo editorial visible para curator", () => {
 		expect(publishRes.status).toBe(200);
 		const publishBody = await publishRes.json() as { status: string };
 		expect(publishBody.status).toBe("published");
+	});
+
+	test("curator sigue accediendo al recurso tras pasarlo de review a draft (DEF-009 / #205)", async () => {
+		await repo.ensureUser(getDb().db, {
+			id: "curator-review",
+			email: "curator-review@local.invalid",
+			name: "Curator Review",
+			role: "curator",
+		});
+		await repo.ensureUser(getDb().db, {
+			id: "admin-review",
+			email: "admin-review@local.invalid",
+			name: "Admin Review",
+			role: "admin",
+		});
+
+		const createRes = await adminApp.request("/api/admin/resources", {
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({ ...validResource, title: `DEF-009 draft ${crypto.randomUUID()}` }),
+		});
+		expect(createRes.status).toBe(201);
+		const created = await createRes.json() as { id: string };
+
+		// El recurso entra en la cola de revisión.
+		const reviewRes = await adminApp.request(`/api/admin/resources/${created.id}/status`, {
+			method: "PATCH",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({ status: "review" }),
+		});
+		expect(reviewRes.status).toBe(200);
+
+		// El curator lo rechaza devolviéndolo a borrador.
+		const draftRes = await curatorApp.request(`/api/admin/resources/${created.id}/status`, {
+			method: "PATCH",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({ status: "draft" }),
+		});
+		expect(draftRes.status).toBe(200);
+
+		// Regresión DEF-009: el curator que actuó debe seguir viendo el recurso.
+		const getRes = await curatorApp.request(`/api/admin/resources/${created.id}`);
+		expect(getRes.status).toBe(200);
+		const body = await getRes.json() as { id: string; editorialStatus: string };
+		expect(body.id).toBe(created.id);
+		expect(body.editorialStatus).toBe("draft");
+	});
+
+	test("curator sigue accediendo al recurso tras publicarlo desde review (DEF-009 / #205)", async () => {
+		await repo.ensureUser(getDb().db, {
+			id: "curator-review",
+			email: "curator-review@local.invalid",
+			name: "Curator Review",
+			role: "curator",
+		});
+		await repo.ensureUser(getDb().db, {
+			id: "admin-review",
+			email: "admin-review@local.invalid",
+			name: "Admin Review",
+			role: "admin",
+		});
+
+		const createRes = await adminApp.request("/api/admin/resources", {
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({ ...validResource, title: `DEF-009 pub ${crypto.randomUUID()}` }),
+		});
+		expect(createRes.status).toBe(201);
+		const created = await createRes.json() as { id: string };
+
+		await adminApp.request(`/api/admin/resources/${created.id}/status`, {
+			method: "PATCH",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({ status: "review" }),
+		});
+
+		const publishRes = await curatorApp.request(`/api/admin/resources/${created.id}/status`, {
+			method: "PATCH",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({ status: "published" }),
+		});
+		expect(publishRes.status).toBe(200);
+
+		// Regresión DEF-009: el curator que publica debe seguir viendo el recurso.
+		const getRes = await curatorApp.request(`/api/admin/resources/${created.id}`);
+		expect(getRes.status).toBe(200);
+		const body = await getRes.json() as { id: string; editorialStatus: string };
+		expect(body.editorialStatus).toBe("published");
 	});
 });
 
@@ -1030,6 +1156,55 @@ describe("Rutas admin — actualización de usuarios", () => {
 			});
 			expect(res.status).toBe(200);
 		}
+	});
+
+	test("PATCH /api/admin/users/:id → autoservicio persiste nombre y bio (DEF-004 / #201)", async () => {
+		// El backoffice de usuarios exige curator+ (DEF-021); un curator editando su
+		// propio perfil reproduce el caso real del defecto (el nombre se guardaba, la bio no).
+		const id = `self-bio-${crypto.randomUUID()}`;
+		const email = `${id}@test.com`;
+		await repo.ensureUser(getDb().db, { id, email, name: "Self Bio", role: "curator" });
+		const selfApp = createAdminApp({ id, role: "curator", email, name: "Self Bio" });
+
+		const patchRes = await selfApp.request(`/api/admin/users/${id}`, {
+			method: "PATCH",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({ name: "Self Bio Editado", bio: "Mi biografía actualizada" }),
+		});
+		expect(patchRes.status).toBe(200);
+
+		// Regresión DEF-004: al volver al perfil, la bio debe seguir persistida.
+		const getRes = await selfApp.request(`/api/admin/users/${id}`);
+		expect(getRes.status).toBe(200);
+		const body = await getRes.json();
+		expect(body.name).toBe("Self Bio Editado");
+		expect(body.bio).toBe("Mi biografía actualizada");
+	});
+
+	test("PATCH /api/admin/users/:id → admin puede vaciar la bio (DEF-004 / #201)", async () => {
+		const adminApp = createAdminApp({ id: "1", role: "admin" });
+		const email = `bio-clear-${crypto.randomUUID()}@test.com`;
+		const createRes = await adminApp.request("/api/admin/users", {
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({ name: "Con Bio", email, password: "supersecret8" }),
+		});
+		const { id } = await createRes.json();
+
+		await adminApp.request(`/api/admin/users/${id}`, {
+			method: "PATCH",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({ bio: "Texto inicial" }),
+		});
+		await adminApp.request(`/api/admin/users/${id}`, {
+			method: "PATCH",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({ bio: "" }),
+		});
+
+		const getRes = await adminApp.request(`/api/admin/users/${id}`);
+		const body = await getRes.json();
+		expect(body.bio).toBe("");
 	});
 });
 

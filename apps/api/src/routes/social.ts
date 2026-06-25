@@ -209,6 +209,50 @@ socialRoutes.get("/users/me/dashboard", requireAuth, async (c) => {
 });
 
 // ---------------------------------------------------------------------------
+// GET /users/me/profile (auth required)
+// ---------------------------------------------------------------------------
+socialRoutes.get("/users/me/profile", requireAuth, async (c) => {
+	const currentUser = c.get("user")!;
+	const found = await repo.getUserById(getDb().db, currentUser.id);
+
+	if (found) return c.json(found);
+
+	return c.json({
+		id: currentUser.id,
+		email: currentUser.email ?? "",
+		name: currentUser.name ?? null,
+		bio: null,
+		role: currentUser.role ?? "reader",
+		isActive: true,
+	});
+});
+
+// ---------------------------------------------------------------------------
+// PATCH /users/me/profile (auth required)
+// ---------------------------------------------------------------------------
+socialRoutes.patch("/users/me/profile", requireAuth, async (c) => {
+	const currentUser = c.get("user")!;
+	await repo.ensureUser(getDb().db, {
+		id: currentUser.id,
+		email: currentUser.email ?? `${currentUser.id}@local.invalid`,
+		name: currentUser.name ?? null,
+		role: currentUser.role ?? "reader",
+	});
+
+	const body = await c.req.json().catch(() => null);
+	if (!body || typeof body !== "object") {
+		return c.json({ error: "Cuerpo de la petición inválido" }, 400);
+	}
+
+	const updates: { name?: string | null; bio?: string | null } = {};
+	if ("name" in body) updates.name = typeof body.name === "string" ? body.name : null;
+	if ("bio" in body) updates.bio = typeof body.bio === "string" ? body.bio : null;
+
+	await repo.updateUser(getDb().db, currentUser.id, updates);
+	return c.json({ id: currentUser.id, updated: true });
+});
+
+// ---------------------------------------------------------------------------
 // GET /users/me/activity (auth required)
 // ---------------------------------------------------------------------------
 socialRoutes.get("/users/me/activity", requireAuth, async (c) => {

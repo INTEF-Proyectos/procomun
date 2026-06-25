@@ -3,6 +3,7 @@ import {
 	buildUploadPublicUrl,
 	buildUploadStorageKey,
 	canManageResourceUpload,
+	contentDisposition,
 	extractFileExtension,
 	getUploadConfig,
 	sanitizeFilename,
@@ -33,6 +34,40 @@ describe("upload config helpers", () => {
 		expect(validateUploadCandidate(config, { filename: "dataset.csv", mimeType: "text/csv", fileSize: config.maxFileSizeBytes + 1 }).ok).toBe(false);
 	});
 
+	test("rechaza nombres con separadores de ruta o salto de directorio (CAND-001)", () => {
+		const config = getUploadConfig({});
+		const peligrosos = [
+			"../owned.pdf",
+			"..\\owned.pdf",
+			"sub/owned.pdf",
+			"sub\\owned.pdf",
+			"/var/www/shell.pdf",
+			"C:\\Windows\\evil.pdf",
+		];
+		for (const filename of peligrosos) {
+			const result = validateUploadCandidate(config, {
+				filename,
+				mimeType: "application/pdf",
+				fileSize: 12,
+			});
+			expect(result.ok).toBe(false);
+		}
+	});
+
+	test("rechaza referencias de directorio puras y caracteres de control", () => {
+		const config = getUploadConfig({});
+		expect(validateUploadCandidate(config, { filename: ".", mimeType: "application/pdf", fileSize: 12 }).ok).toBe(false);
+		expect(validateUploadCandidate(config, { filename: "..", mimeType: "application/pdf", fileSize: 12 }).ok).toBe(false);
+		expect(validateUploadCandidate(config, { filename: `doc${String.fromCharCode(0)}.pdf`, mimeType: "application/pdf", fileSize: 12 }).ok).toBe(false);
+		expect(validateUploadCandidate(config, { filename: `doc${String.fromCharCode(31)}.pdf`, mimeType: "application/pdf", fileSize: 12 }).ok).toBe(false);
+	});
+
+	test("acepta nombres legítimos con puntos internos o acentos", () => {
+		const config = getUploadConfig({});
+		expect(validateUploadCandidate(config, { filename: "informe.final.pdf", mimeType: "application/pdf", fileSize: 12 }).ok).toBe(true);
+		expect(validateUploadCandidate(config, { filename: "Vídeo final.mp4", mimeType: "video/mp4", fileSize: 12 }).ok).toBe(true);
+	});
+
 	test("aplica permisos de upload por rol", () => {
 		const resource = { createdBy: "author-1", assignedCuratorId: "curator-1" };
 		expect(canManageResourceUpload({ id: "admin-1", role: "admin" }, resource)).toBe(true);
@@ -46,5 +81,23 @@ describe("upload config helpers", () => {
 	test("genera claves de storage y urls públicas estables", () => {
 		expect(buildUploadStorageKey("res-1", "upload-1", "Vídeo final.mp4")).toBe("resource/res-1/upload-1/Video-final.mp4");
 		expect(buildUploadPublicUrl("upload-1")).toBe("/api/v1/uploads/upload-1/content");
+	});
+
+	test("contentDisposition escapa comillas y neutraliza CR/LF en el nombre", () => {
+		// Un nombre con comilla no debe romper la quoted-string: queda escapada.
+		const header = contentDisposition("attachment", 'a";x=y.pdf');
+		expect(header).toContain('filename="a\\";x=y.pdf"');
+		expect(header.startsWith("attachment; ")).toBe(true);
+
+		// Las barras invertidas también se escapan.
+		expect(contentDisposition("inline", 'a\\b.pdf')).toContain('filename="a\\\\b.pdf"');
+
+		// CR/LF se neutralizan en la parte ASCII (sin response splitting).
+		const injected = contentDisposition("attachment", `evil\r\nSet-Cookie: x=1.pdf`);
+		expect(injected).not.toContain("\r");
+		expect(injected).not.toContain("\n");
+
+		// Los nombres normales no se alteran.
+		expect(contentDisposition("attachment", "informe.pdf")).toContain('filename="informe.pdf"');
 	});
 });

@@ -94,6 +94,34 @@ export function extractFileExtension(filename: string) {
 	return path.extname(filename).toLowerCase();
 }
 
+// Caracteres de control (incluido NUL) que nunca deben aparecer en un nombre de archivo.
+const CONTROL_CHARS = /[\u0000-\u001f\u007f]/;
+
+/**
+ * Rechaza nombres de archivo que podrían provocar path traversal o escritura
+ * fuera del directorio previsto (CWE-22/CWE-73). Devuelve el mensaje de error
+ * en español si el nombre es peligroso, o `null` si es seguro.
+ *
+ * Se aplica en la frontera de entrada (antes de persistir el nombre) y es la
+ * primera línea de defensa; la generación de paquetes añade defensa en
+ * profundidad reduciendo el nombre a un basename y comprobando el confinamiento.
+ */
+export function rejectUnsafeFilename(filename: string): string | null {
+	if (filename === "." || filename === "..") {
+		return "El nombre no puede ser una referencia de directorio (. o ..)";
+	}
+	if (CONTROL_CHARS.test(filename)) {
+		return "El nombre contiene caracteres de control no permitidos";
+	}
+	if (filename.includes("/") || filename.includes("\\")) {
+		return "El nombre no puede contener separadores de ruta (/ o \\)";
+	}
+	if (/^[a-zA-Z]:/.test(filename)) {
+		return "El nombre no puede contener un prefijo de unidad (C:, D:, …)";
+	}
+	return null;
+}
+
 export function canManageResourceUpload(user: UploadUser, resource: UploadTargetResource) {
 	const role = user.role ?? "reader";
 	if (role === "admin") return true;
@@ -112,6 +140,11 @@ export function validateUploadCandidate(
 ) {
 	if (!data.filename.trim()) {
 		return { ok: false, error: "El nombre del archivo es obligatorio" };
+	}
+
+	const unsafe = rejectUnsafeFilename(data.filename);
+	if (unsafe) {
+		return { ok: false, error: unsafe };
 	}
 
 	const extension = extractFileExtension(data.filename);
@@ -157,7 +190,13 @@ export async function ensureUploadStorageDir(config: ReturnType<typeof getUpload
  * Uses RFC 5987 encoding so browsers receive the original UTF-8 name.
  */
 export function contentDisposition(disposition: "attachment" | "inline", filename: string): string {
-	const ascii = filename.replace(/[^\x20-\x7e]/g, "_");
+	// Reemplaza lo no imprimible (neutraliza CR/LF) y escapa comillas y barras
+	// invertidas según el quoted-pair de RFC 6266, para que un nombre con `"` no
+	// rompa la quoted-string e inyecte parámetros adicionales en la cabecera.
+	const ascii = filename
+		.replace(/[^\x20-\x7e]/g, "_")
+		.replace(/\\/g, "\\\\")
+		.replace(/"/g, '\\"');
 	const encoded = encodeURIComponent(filename);
 	return `${disposition}; filename="${ascii}"; filename*=UTF-8''${encoded}`;
 }

@@ -13,6 +13,15 @@ import { resolveStoredFilePath, getUploadConfig } from "../uploads/config.ts";
 import * as repo from "@procomun/db/repository";
 
 /**
+ * Neutraliza caracteres de control (incluidos CR/LF, NUL y secuencias ANSI)
+ * antes de escribir un valor potencialmente controlado por el usuario en los
+ * logs, para evitar inyección/envenenamiento de logs (CWE-117).
+ */
+export function sanitizeForLog(value: string): string {
+	return value.replace(/[\u0000-\u001f\u007f]/g, "?");
+}
+
+/**
  * Queue an extraction job for a resource after upload completion.
  * This is fire-and-forget — errors are recorded in the DB, not thrown.
  */
@@ -74,7 +83,7 @@ export async function processExtraction(
 
 	if (result.error) {
 		console.error(
-			`[fts] Extraction error: resource=${resourceId}, file=${filename}, error=${result.error}`,
+			`[fts] Extraction error: resource=${resourceId}, file=${sanitizeForLog(filename)}, error=${sanitizeForLog(result.error)}`,
 		);
 		await saveExtractionResult(db, resourceId, {
 			text: "",

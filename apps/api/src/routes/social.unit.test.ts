@@ -148,6 +148,56 @@ describe("Social — Favorites", () => {
 	});
 });
 
+describe("Social — My profile", () => {
+	test("GET /users/me/profile → devuelve perfil sintético si no existe fila aún", async () => {
+		const readerApp = createSocialApp({
+			id: `reader-${crypto.randomUUID()}`,
+			role: "reader",
+			name: "Reader Test",
+			email: "reader@test.com",
+		});
+
+		const res = await readerApp.request("/api/v1/users/me/profile");
+		expect(res.status).toBe(200);
+		const body = await res.json() as { name: string | null; bio: string | null; role: string };
+		expect(body.name).toBe("Reader Test");
+		expect(body.bio).toBeNull();
+		expect(body.role).toBe("reader");
+	});
+
+	test("PATCH /users/me/profile → reader persiste nombre y bio y reaparece tras recarga", async () => {
+		const id = `reader-profile-${crypto.randomUUID()}`;
+		const readerApp = createSocialApp({
+			id,
+			role: "reader",
+			name: "Reader Inicial",
+			email: `${id}@test.com`,
+		});
+
+		const patchRes = await readerApp.request("/api/v1/users/me/profile", {
+			method: "PATCH",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({ name: "Reader Editado", bio: "Bio persistida" }),
+		});
+		expect(patchRes.status).toBe(200);
+
+		const getRes = await readerApp.request("/api/v1/users/me/profile");
+		expect(getRes.status).toBe(200);
+		const body = await getRes.json() as { name: string | null; bio: string | null };
+		expect(body.name).toBe("Reader Editado");
+		expect(body.bio).toBe("Bio persistida");
+	});
+
+	test("PATCH /users/me/profile → 401 without auth", async () => {
+		const res = await anonApp.request("/api/v1/users/me/profile", {
+			method: "PATCH",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({ name: "Anon" }),
+		});
+		expect(res.status).toBe(401);
+	});
+});
+
 describe("Social — Downloads", () => {
 	test("POST /resources/:slug/download → log download", async () => {
 		const { slug } = await createPublishedResource(adminApp, "dl-1");
