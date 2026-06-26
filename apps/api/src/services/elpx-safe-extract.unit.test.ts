@@ -240,6 +240,27 @@ describe("assertExtractionContained", () => {
 			/enlace simbólico/i,
 		);
 	});
+
+	// Anti zip-bomb autoritativo: mide el tamaño REAL materializado, no el
+	// declarado en el directorio central (que el atacante puede forjar a 0).
+	it("rechaza cuando el tamaño real extraído supera maxBytes", async () => {
+		const dir = path.join(tempDir, "contained-toobig");
+		await mkdir(dir, { recursive: true });
+		// 2 KiB reales en disco frente a un límite de 1 KiB.
+		await writeFile(path.join(dir, "payload.bin"), Buffer.alloc(2 * 1024));
+		await expect(assertExtractionContained(dir, 1024)).rejects.toThrow(
+			/tamaño máximo permitido/i,
+		);
+	});
+
+	it("acepta cuando el tamaño real extraído está bajo maxBytes", async () => {
+		const dir = path.join(tempDir, "contained-undersize");
+		await mkdir(dir, { recursive: true });
+		await writeFile(path.join(dir, "payload.bin"), Buffer.alloc(2 * 1024));
+		await expect(
+			assertExtractionContained(dir, 64 * 1024),
+		).resolves.toBeUndefined();
+	});
 });
 
 // ---------------------------------------------------------------------------

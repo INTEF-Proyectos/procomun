@@ -188,10 +188,20 @@ export function inspectZipEntries(
  * symlink (podría apuntar fuera) y la ruta real de cada entrada contenida en la
  * ruta real de `dir`. Defensa en profundidad tras las comprobaciones de nombre.
  *
+ * Además acumula el tamaño REAL de los archivos materializados en disco y
+ * rechaza la extracción si supera `maxBytes`. Esta es la guarda anti zip-bomb
+ * autoritativa: los tamaños del directorio central del ZIP los controla el
+ * atacante (puede forjar size=0), pero `unzip` infla los streams deflate reales
+ * e ignora esos tamaños declarados. Medir lo materializado cierra ese bypass.
+ *
  * Port de `zip_utils.php::assert_extraction_contained`.
  */
-export async function assertExtractionContained(dir: string): Promise<void> {
+export async function assertExtractionContained(
+  dir: string,
+  maxBytes: number = DEFAULT_ELPX_EXTRACT_LIMITS.maxTotalUncompressed,
+): Promise<void> {
   const root = await realpath(dir);
+  let totalBytes = 0;
 
   async function walk(current: string): Promise<void> {
     const dirents = await readdir(current, { withFileTypes: true });
@@ -212,6 +222,13 @@ export async function assertExtractionContained(dir: string): Promise<void> {
 
       if (stats.isDirectory()) {
         await walk(full);
+      } else if (stats.isFile()) {
+        totalBytes += stats.size;
+        if (totalBytes > maxBytes) {
+          throw new Error(
+            `La extracción del .elpx excede el tamaño máximo permitido (${totalBytes} > ${maxBytes} bytes)`,
+          );
+        }
       }
     }
   }
@@ -248,8 +265,10 @@ export async function safeExtractElpx(
       throw new Error("Error al extraer el archivo .elpx");
     }
 
-    // Defensa post-extracción: nada pudo escapar del destino.
-    await assertExtractionContained(extractPath);
+    // Defensa post-extracción: nada pudo escapar del destino y el tamaño real
+    // materializado en disco no supera el límite (guarda anti zip-bomb que no
+    // confía en los tamaños declarados del directorio central).
+    await assertExtractionContained(extractPath, limits.maxTotalUncompressed);
   } catch (error) {
     await rm(extractPath, { recursive: true, force: true });
     throw error;
