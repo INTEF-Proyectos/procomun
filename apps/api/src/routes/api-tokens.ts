@@ -6,6 +6,10 @@ import { ensureCurrentUser } from "../auth/user-sync.ts";
 import { getDb } from "../db.ts";
 import * as repo from "@procomun/db/repository";
 
+// Tope de tokens activos por usuario: evita que un usuario cree tokens de forma
+// ilimitada (entre otros, para eludir el rate limit que ahora va por usuario).
+const MAX_ACTIVE_TOKENS_PER_USER = 10;
+
 const apiTokenRoutes = new Hono<AuthEnv>();
 
 // Token management requires auth (applied via session middleware at registration)
@@ -41,6 +45,16 @@ apiTokenRoutes.post("/", async (c) => {
 		if (expiresAt <= new Date()) {
 			return c.json({ error: "La fecha de expiración debe ser futura" }, 400);
 		}
+	}
+
+	const activeCount = await repo.countActiveApiTokens(db, user.id);
+	if (activeCount >= MAX_ACTIVE_TOKENS_PER_USER) {
+		return c.json(
+			{
+				error: `Has alcanzado el número máximo de tokens activos (${MAX_ACTIVE_TOKENS_PER_USER}). Revoca alguno antes de crear otro.`,
+			},
+			429,
+		);
 	}
 
 	const result = await repo.createApiToken(db, {

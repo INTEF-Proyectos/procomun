@@ -47,8 +47,9 @@ export async function tokenAuthMiddleware(c: Context<AuthEnv>, next: Next) {
 		return c.json({ error: "Token inválido o expirado" }, 401);
 	}
 
-	// Rate limiting
-	const rateLimit = checkRateLimit(result.tokenId);
+	// Rate limiting por usuario (no por token): de lo contrario un usuario podría
+	// rotar/crear múltiples tokens para multiplicar su cuota y eludir el límite.
+	const rateLimit = checkRateLimit(result.userId);
 	c.header("X-RateLimit-Limit", String(RATE_LIMIT_MAX));
 	c.header("X-RateLimit-Remaining", String(rateLimit.remaining));
 	c.header("X-RateLimit-Reset", String(Math.ceil(rateLimit.resetAt / 1000)));
