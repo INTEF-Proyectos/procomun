@@ -236,6 +236,11 @@ async function handleContent(c: any) {
 				"X-Content-Type-Options": "nosniff",
 				"Cache-Control": "public, max-age=3600",
 				"Access-Control-Allow-Origin": "*",
+				// `sandbox` (sin tokens) fuerza un origen opaco e impide la ejecución
+				// de scripts si el recurso se navega como documento de primer nivel.
+				// Protege frente a XSS almacenado vía contenido de autor que el
+				// navegador pueda interpretar como activo (ej. CSS) (ADR-0026).
+				"Content-Security-Policy": "sandbox",
 			},
 		});
 	}
@@ -246,6 +251,12 @@ async function handleContent(c: any) {
 			"X-Content-Type-Options": "nosniff",
 			"Cache-Control": "public, max-age=3600",
 			"Access-Control-Allow-Origin": "*",
+			// `sandbox` (sin tokens) fuerza un origen opaco e impide la ejecución de
+			// scripts cuando un recurso de autor se navega como documento de primer
+			// nivel. Imprescindible para extensiones ejecutables por el navegador
+			// como SVG (image/svg+xml), que pueden contener <script> y provocar XSS
+			// almacenado en el origen autenticado de la plataforma (ADR-0026).
+			"Content-Security-Policy": "sandbox",
 		},
 	});
 }
