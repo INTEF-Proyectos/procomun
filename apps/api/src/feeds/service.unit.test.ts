@@ -110,4 +110,36 @@ describe("buildFeed", () => {
 
 		expect(atom).toContain("http://localhost/recursos/res-1");
 	});
+
+	test("neutralizes all CDATA terminators to prevent breakout (issue #248)", () => {
+		// Payload con DOS terminadores `]]>`: el segundo escapaba al saneo
+		// de xml-js (String.replace solo cambia la primera aparición) y cerraba
+		// la sección CDATA, inyectando `<img onerror>` como marcado vivo.
+		const payload = "x]]>]]><img src=x onerror=alert(1)>";
+		const maliciousResources = [
+			{
+				...sampleResources[0],
+				title: payload,
+				description: payload,
+			},
+		];
+		const feed = buildFeed({
+			...baseOpts,
+			title: payload,
+			description: payload,
+			resources: maliciousResources,
+			total: 1,
+		});
+
+		for (const xml of [feed.atom1(), feed.rss2()]) {
+			// No hay ruptura de CDATA: el terminador nunca queda justo antes del marcado.
+			expect(xml.includes("]]><img")).toBe(false);
+			// El payload queda inerte dentro de CDATA; tras eliminar las secciones
+			// CDATA no debe quedar ningún `<img` como marcado vivo.
+			const withoutCdata = xml.replace(/<!\[CDATA\[[\s\S]*?\]\]>/g, "");
+			expect(withoutCdata.includes("<img")).toBe(false);
+			// El terminador queda neutralizado.
+			expect(xml).toContain("]]&gt;");
+		}
+	});
 });

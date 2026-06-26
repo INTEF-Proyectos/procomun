@@ -5,6 +5,22 @@ import { getDb } from "../db.ts";
 const DEFAULT_PAGE_SIZE = 20;
 const MAX_PAGE_SIZE = 50;
 
+/**
+ * Neutraliza TODOS los terminadores de sección CDATA (`]]>`) en una cadena
+ * derivada del usuario antes de entregarla a la librería `feed`.
+ *
+ * La librería envuelve título/descripción en `<![CDATA[...]]>` y el `xml-js`
+ * subyacente solo sanea la PRIMERA aparición de `]]>` (usa `String.replace`
+ * con un primer argumento de tipo string). Un payload con dos o más `]]>`
+ * deja el resto intactos, cerrando la sección CDATA e inyectando marcado
+ * (feed malformado / posible XSS en lectores que renderizan HTML).
+ *
+ * Usamos `replaceAll` para neutralizar todas las apariciones.
+ */
+function neutralizeCdata(value: string): string {
+	return value.replaceAll("]]>", "]]&gt;");
+}
+
 export interface FeedOptions {
 	baseUrl: string;
 	limit?: number;
@@ -48,8 +64,8 @@ export function buildFeed(opts: {
 		opts;
 
 	const feed = new Feed({
-		title,
-		description,
+		title: neutralizeCdata(title),
+		description: neutralizeCdata(description),
 		id: feedId,
 		link: siteUrl,
 		language: "es",
@@ -80,22 +96,25 @@ export function buildFeed(opts: {
 		const categories: { name: string; term?: string }[] = [];
 
 		if (resource.resourceType) {
-			categories.push({ name: resource.resourceType, term: resource.resourceType });
+			categories.push({
+				name: neutralizeCdata(resource.resourceType),
+				term: neutralizeCdata(resource.resourceType),
+			});
 		}
 		if (resource.keywords) {
 			for (const kw of resource.keywords.split(",").map((k) => k.trim()).filter(Boolean)) {
-				categories.push({ name: kw });
+				categories.push({ name: neutralizeCdata(kw) });
 			}
 		}
 
 		feed.addItem({
-			title: resource.title ?? "Sin título",
+			title: neutralizeCdata(resource.title ?? "Sin título"),
 			id: resourceUrl,
 			link: resourceUrl,
-			description: resource.description ?? "",
+			description: neutralizeCdata(resource.description ?? ""),
 			date: toDate(resource.createdAt),
 			author: resource.author || resource.createdByName
-				? [{ name: resource.author ?? resource.createdByName ?? "Anónimo" }]
+				? [{ name: neutralizeCdata(resource.author ?? resource.createdByName ?? "Anónimo") }]
 				: [{ name: "Anónimo" }],
 			category: categories,
 			extensions: resource.license
