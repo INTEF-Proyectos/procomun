@@ -233,23 +233,57 @@ export async function createResource(db: DrizzleDB, data: ResourceMutationInput)
 	return { id, slug };
 }
 
+// Campos descriptivos que el usuario puede editar libremente. NO incluye
+// editorialStatus, createdBy, slug, assignedCuratorId, curatedAt, featuredAt,
+// deletedAt, etc.: esas columnas solo cambian por sus rutas dedicadas y con sus
+// controles de rol (p. ej. updateEditorialStatus + validateTransition).
+const EDITABLE_RESOURCE_FIELDS = [
+	"title",
+	"description",
+	"language",
+	"license",
+	"resourceType",
+	"keywords",
+	"author",
+	"publisher",
+] as const;
+
+export type EditableResourceFields = Partial<
+	Record<(typeof EDITABLE_RESOURCE_FIELDS)[number], string>
+>;
+
+/**
+ * Reduce un objeto arbitrario al conjunto de campos descriptivos editables.
+ * Defensa contra mass assignment: aunque la capa de ruta entregue el cuerpo
+ * crudo, aquí nunca se escriben columnas sensibles (editorialStatus, createdBy,
+ * slug, …) que llegarían como claves extra. Ver ADR de control de acceso.
+ */
+export function pickEditableResourceFields(
+	data: Record<string, unknown>,
+): EditableResourceFields {
+	const safe: EditableResourceFields = {};
+	for (const field of EDITABLE_RESOURCE_FIELDS) {
+		const value = data[field];
+		if (value !== undefined) {
+			safe[field] = value as string;
+		}
+	}
+	return safe;
+}
+
 export async function updateResource(
 	db: DrizzleDB,
 	id: string,
-	data: Partial<{
-		title: string;
-		description: string;
-		language: string;
-		license: string;
-		resourceType: string;
-		keywords: string;
-		author: string;
-		publisher: string;
-	}>,
+	data: Record<string, unknown>,
 ) {
+	// Whitelist explícito: solo persistimos campos descriptivos. Cualquier otra
+	// clave del cuerpo (editorialStatus, createdBy, slug, assignedCuratorId,
+	// featuredAt, deletedAt, …) se descarta para evitar mass assignment.
+	const safe = pickEditableResourceFields(data);
+
 	await db
 		.update(resources)
-		.set({ ...data, updatedAt: new Date() })
+		.set({ ...safe, updatedAt: new Date() })
 		.where(and(eq(resources.id, id), isNull(resources.deletedAt)));
 }
 
