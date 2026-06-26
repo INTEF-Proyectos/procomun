@@ -29,7 +29,9 @@ elpxAdminRoutes.post("/analyze", requireRole("author"), async (c) => {
 		return c.json({ error: "El archivo debe ser .elpx" }, 400);
 	}
 
-	const tempPath = path.join(tmpdir(), `procomun-elpx-${Date.now()}-${file.name}`);
+	// No derivar la ruta temporal de file.name (path traversal, issue #249).
+	// Se genera un nombre único en servidor; la extensión .elpx ya quedó validada arriba.
+	const tempPath = path.join(tmpdir(), `procomun-elpx-${crypto.randomUUID()}.elpx`);
 	try {
 		const buffer = await file.arrayBuffer();
 		await writeFile(tempPath, Buffer.from(buffer));
