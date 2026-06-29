@@ -1,18 +1,87 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { Resource, SessionData } from "../../lib/api-client.ts";
 import { getApiClient } from "../../lib/get-api-client.ts";
-import { url } from "../../lib/paths.ts";
+import { getBaseUrl, url } from "../../lib/paths.ts";
 import { buildExportFilename, getResourceElpxFileUrl, RESOURCE_EXPORT_OPTIONS, type ResourceExportKind } from "../../lib/resource-export.ts";
 import { FILE_ICONS, formatBytes, STATUS_MAP, TYPE_ICONS } from "../../lib/resource-display.ts";
 import { RatingIsland } from "../social/RatingIsland.tsx";
 import { FavoriteIsland } from "../social/FavoriteIsland.tsx";
 import { ReportButton } from "../social/ReportButton.tsx";
-import { EmbedModal } from "./EmbedModal.tsx";
-import { useElpxEmbedRelay } from "../../hooks/use-elpx-embed-relay.ts";
 import "../../lib/paraglide-client.ts";
 import * as m from "../../paraglide/messages.js";
 import { getLocale } from "../../paraglide/runtime.js";
 import { hasMinRole } from "../../lib/shared-utils.ts";
+
+/**
+ * Bridge compartido de eXeLearning (lado padre), vendorizado verbatim desde
+ * mod_exelearning (paridad con wp-exelearning/omeka-s-exelearning):
+ *  - exe_media_policy.js  → esquema/validación compartidos (window.exeMediaPolicy).
+ *  - exe_embed_relay.js   → overlay promote-to-parent de vídeos/PDF cross-origin.
+ *  - exe_media_host.js    → host del iDevice de vídeo interactivo (window.exeMediaHost).
+ * Sustituye al sistema bespoke (EmbedModal + use-elpx-embed-relay + elpx-embed-policy).
+ */
+type ExeBridgeWindow = Window & {
+  exeEmbedRelay?: {
+    init: (config: { mode: "open" | "strict"; whitelist?: string[] }) => unknown;
+  };
+  exeMediaHost?: {
+    attach: (
+      iframe: HTMLIFrameElement,
+      opts: Record<string, unknown>,
+    ) => { detach: () => void };
+  };
+  __exeEmbedRelayReady?: boolean;
+  __exeBridgeLoader?: Promise<void>;
+};
+
+// Carga un <script> clásico una sola vez (los ficheros vendorizados exponen
+// globals en window y no son módulos ES). Resuelve cuando el script ha cargado.
+function loadScriptOnce(src: string): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const existing = document.querySelector<HTMLScriptElement>(
+      `script[data-exe-bridge="${src}"]`,
+    );
+    if (existing) {
+      if (existing.dataset.loaded === "1") {
+        resolve();
+        return;
+      }
+      existing.addEventListener("load", () => resolve());
+      existing.addEventListener("error", () =>
+        reject(new Error(`No se pudo cargar ${src}`)),
+      );
+      return;
+    }
+    const script = document.createElement("script");
+    script.src = src;
+    // Encadenamos secuencialmente, pero async=false preserva además el orden
+    // relativo entre estos scripts si el navegador los agrupa.
+    script.async = false;
+    script.dataset.exeBridge = src;
+    script.addEventListener("load", () => {
+      script.dataset.loaded = "1";
+      resolve();
+    });
+    script.addEventListener("error", () =>
+      reject(new Error(`No se pudo cargar ${src}`)),
+    );
+    document.head.appendChild(script);
+  });
+}
+
+// El ORDEN importa: exe_media_host.js lee window.exeMediaPolicy en tiempo de
+// carga, así que la policy debe cargarse antes que el relay y el host. Se cachea
+// la promesa para que múltiples montajes reutilicen la misma carga.
+function loadElpxBridge(): Promise<void> {
+  const w = window as unknown as ExeBridgeWindow;
+  if (!w.__exeBridgeLoader) {
+    const base = getBaseUrl();
+    w.__exeBridgeLoader = loadScriptOnce(`${base}elpx/exe_media_policy.js`)
+      .then(() => loadScriptOnce(`${base}elpx/exe_embed_relay.js`))
+      .then(() => loadScriptOnce(`${base}elpx/exe_media_host.js`));
+  }
+  return w.__exeBridgeLoader;
+}
 
 function ShareButton() {
   const [copied, setCopied] = useState(false);
@@ -120,13 +189,11 @@ function ResourceDetailContent({ resource, session, stats, isFavorited, onDownlo
   const totalFileSize = resource.mediaItems?.reduce((sum, item) => sum + (item.fileSize ?? 0), 0) ?? 0;
   const exportSourceUrl = getResourceElpxFileUrl(resource);
   const iframeRef = useRef<HTMLIFrameElement | null>(null);
-  // Relay de embeds del preview: vídeos/PDF promocionados a un player de
-  // confianza en el frame principal sin perder el origen opaco (ADR-0027).
+  // Preview iframe: el bridge compartido de eXeLearning (lado padre) superpone
+  // los players de vídeo/PDF cross-origin sobre el contenido de origen opaco y
+  // puentea el iDevice de vídeo interactivo. Paridad con mod_exelearning/wp/omeka.
   const previewIframeRef = useRef<HTMLIFrameElement | null>(null);
-  const { activeEmbed, close: closeEmbed } = useElpxEmbedRelay(
-    previewIframeRef,
-    resource.elpxPreview?.previewUrl,
-  );
+  const previewUrl = resource.elpxPreview?.previewUrl;
   const [exportReady, setExportReady] = useState(false);
   const [exportingFormat, setExportingFormat] = useState<ResourceExportKind | null>(null);
   const [exportError, setExportError] = useState("");
@@ -192,6 +259,46 @@ function ResourceDetailContent({ resource, session, stats, isFavorited, onDownlo
     window.addEventListener("message", handleMessage);
     return () => window.removeEventListener("message", handleMessage);
   }, [exportSourceUrl, onDownloadTracked, resource.slug, exportingFormat]);
+
+  // Conecta el bridge compartido de eXeLearning al iframe de preview: carga los
+  // scripts vendorizados (policy → relay → host) y, ya montado el iframe,
+  // inicializa el relay (overlay de vídeos/PDF cross-origin) una vez por página y
+  // engancha el host de vídeo interactivo a este iframe. El relay valida cada
+  // embed por sí mismo y pinta el overlay inline (sin modal React).
+  useEffect(() => {
+    if (!previewUrl) return;
+    const iframe = previewIframeRef.current;
+    if (!iframe) return;
+
+    let detach: (() => void) | undefined;
+    let cancelled = false;
+
+    void loadElpxBridge()
+      .then(() => {
+        if (cancelled) return;
+        const w = window as unknown as ExeBridgeWindow;
+        // El relay es global a la página: se inicializa una sola vez (registra
+        // listeners de message/scroll/resize y resuelve el iframe de contenido
+        // por identidad de ventana en cada mensaje).
+        if (w.exeEmbedRelay && !w.__exeEmbedRelayReady) {
+          w.exeEmbedRelay.init({ mode: "open" });
+          w.__exeEmbedRelayReady = true;
+        }
+        // El host de vídeo interactivo es por-iframe: se engancha al montar y se
+        // desengancha al desmontar.
+        if (w.exeMediaHost) {
+          detach = w.exeMediaHost.attach(iframe, {}).detach;
+        }
+      })
+      .catch(() => {
+        /* carga del bridge fallida: la preview sigue funcionando sin overlay */
+      });
+
+    return () => {
+      cancelled = true;
+      if (detach) detach();
+    };
+  }, [previewUrl]);
 
   const handleExport = useCallback((format: ResourceExportKind) => {
     const iframeWindow = iframeRef.current?.contentWindow;
@@ -373,7 +480,6 @@ function ResourceDetailContent({ resource, session, stats, isFavorited, onDownlo
                   title={m.detail_preview_iframe()}
                 />
               </div>
-              <EmbedModal embed={activeEmbed} onClose={closeEmbed} />
             </section>
           ) : null}
 
