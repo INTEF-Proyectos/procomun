@@ -3,6 +3,7 @@ import { useSearchParams, useNavigate } from "react-router-dom";
 import { getApiClient } from "../lib/get-api-client.ts";
 import { url } from "../lib/paths.ts";
 import type { Resource } from "../lib/api-client.ts";
+import { CONTENT_IFRAME_SANDBOX } from "../lib/embed-sandbox.ts";
 import "../styles/editar.css";
 
 const STATUS_LABELS: Record<string, { label: string; cssClass: string }> = {
@@ -509,7 +510,7 @@ export default function EditarPage() {
                   <iframe
                     src={previewUrl}
                     className="edit-preview-iframe"
-                    sandbox="allow-scripts allow-popups allow-popups-to-escape-sandbox"
+                    sandbox={CONTENT_IFRAME_SANDBOX}
                     loading="lazy"
                     title="Vista previa"
                   />

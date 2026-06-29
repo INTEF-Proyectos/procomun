@@ -11,6 +11,7 @@ import "../../lib/paraglide-client.ts";
 import * as m from "../../paraglide/messages.js";
 import { getLocale } from "../../paraglide/runtime.js";
 import { hasMinRole } from "../../lib/shared-utils.ts";
+import { CONTENT_IFRAME_SANDBOX } from "../../lib/embed-sandbox.ts";
 
 /**
  * Bridge compartido de eXeLearning (lado padre), vendorizado verbatim desde
@@ -474,7 +475,7 @@ function ResourceDetailContent({ resource, session, stats, isFavorited, onDownlo
                   ref={previewIframeRef}
                   src={resource.elpxPreview!.previewUrl}
                   className="elpx-preview-iframe"
-                  sandbox="allow-scripts allow-popups allow-popups-to-escape-sandbox"
+                  sandbox={CONTENT_IFRAME_SANDBOX}
                   referrerPolicy="no-referrer"
                   loading="lazy"
                   title={m.detail_preview_iframe()}
