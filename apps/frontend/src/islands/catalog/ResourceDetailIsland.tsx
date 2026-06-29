@@ -12,6 +12,7 @@ import * as m from "../../paraglide/messages.js";
 import { getLocale } from "../../paraglide/runtime.js";
 import { hasMinRole } from "../../lib/shared-utils.ts";
 import { CONTENT_IFRAME_SANDBOX } from "../../lib/embed-sandbox.ts";
+import { configuredEmbedMode } from "../../lib/embed-mode.ts";
 
 /**
  * Bridge compartido de eXeLearning (lado padre), vendorizado verbatim desde
@@ -282,7 +283,7 @@ function ResourceDetailContent({ resource, session, stats, isFavorited, onDownlo
         // listeners de message/scroll/resize y resuelve el iframe de contenido
         // por identidad de ventana en cada mensaje).
         if (w.exeEmbedRelay && !w.__exeEmbedRelayReady) {
-          w.exeEmbedRelay.init({ mode: "open" });
+          w.exeEmbedRelay.init({ mode: configuredEmbedMode() });
           w.__exeEmbedRelayReady = true;
         }
         // El host de vídeo interactivo es por-iframe: se engancha al montar y se
