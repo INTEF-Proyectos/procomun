@@ -166,8 +166,9 @@ ADR-0026:
 
 ADR-0027:
   title: "Reproducción segura de vídeos/PDF embebidos en .elpx (promote-to-parent con player en modal)"
-  status: Aceptado
+  status: Supersedido
   date: 2026-06-14
+  superseded_by: ADR-0029
   file: 0027-reproduccion-segura-embeds-elpx.md
 
 ADR-0028:
@@ -175,3 +176,9 @@ ADR-0028:
   status: Propuesto
   date: 2026-06-24
   file: 0028-versionado-recursos-educativos.md
+
+ADR-0029:
+  title: "Migración al bridge de medios externos compartido de eXeLearning (paridad con mod_exelearning)"
+  status: Aceptado
+  date: 2026-06-29
+  file: 0029-migracion-bridge-medios-compartido-exelearning.md
