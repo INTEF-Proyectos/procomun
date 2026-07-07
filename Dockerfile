@@ -36,6 +36,7 @@ RUN RELEASE_URL=$(curl -s "https://api.github.com/repos/exelearning/exelearning/
 FROM base AS frontend-build
 
 COPY --from=install /app/node_modules ./node_modules
+COPY --from=install /app/apps/frontend/node_modules ./apps/frontend/node_modules
 COPY package.json tsconfig.json ./
 COPY apps/frontend/ apps/frontend/
 COPY packages/db/ packages/db/
