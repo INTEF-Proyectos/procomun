@@ -9,6 +9,9 @@ const sessionProtectedApiPatterns = [
 	"/api/dev/*",
 	"/api/uploads/*",
 	"/api/v1/tokens/*",
+	// Preview-session management is owner-gated; the authless serving route
+	// (`/api/v1/preview/*`) is deliberately NOT listed — it is a capability URL.
+	"/api/v1/preview-session/*",
 ];
 
 const sessionProtectedSocialPatterns = [
