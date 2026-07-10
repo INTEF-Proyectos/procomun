@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import { PGlite } from "@electric-sql/pglite";
+import { eq } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/pglite";
 import * as schema from "./schema/index.ts";
 import {
@@ -15,6 +16,7 @@ import {
 	deleteTaxonomy,
 	ensureUser,
 	failUploadSession,
+	findLegacyResourceByExternalId,
 	getCollectionById,
 	getCollectionBySlug,
 	getElpxProjectByHash,
@@ -22,8 +24,10 @@ import {
 	getTaxonomyById,
 	getUserByEmail,
 	getUserById,
+	importLegacyResourceWithElpx,
 	listCollectionResources,
 	listCollections,
+	listMediaItemsForResource,
 	listTaxonomies,
 	listUsers,
 	removeResourceFromCollection,
@@ -33,6 +37,7 @@ import {
 	updateTaxonomy,
 	updateUser,
 } from "./repository.ts";
+import { ensureLegacyImportSystemUser } from "./legacy-import/system-user.ts";
 import { createTables } from "./setup.ts";
 
 describe("repository admin helpers", () => {
@@ -406,5 +411,165 @@ describe("repository — gestión de usuarios (alta y baja)", () => {
 		// Las sesiones activas quedan revocadas
 		const sessions = (await db.select().from(schema.session)).filter((s) => s.userId === "u-del");
 		expect(sessions).toHaveLength(0);
+	});
+});
+
+describe("legacy import repository (epic-004-migracion-legacy-procomun)", () => {
+	let db: ReturnType<typeof drizzle>;
+	let pglite: PGlite;
+
+	const baseResourceInput = {
+		externalId: "es_test_9999999",
+		importSource: "legacy-procomun",
+		sourceUri: "https://ode.educacion.es/INTEF/es_test_9999999",
+		title: "Recurso de prueba legacy",
+		description: "Descripción de prueba",
+		language: "es",
+		license: "cc-by-sa",
+		resourceType: "proyecto",
+		subjects: ["Matemáticas"],
+		levels: ["Educación Secundaria Obligatoria"],
+		author: "Autora de prueba",
+		publisher: "Editorial de prueba",
+		keywords: "geometria,areas",
+		importedAt: new Date("2024-05-22T20:07:51.000Z"),
+	};
+
+	function buildMediaInput(uploadId: string) {
+		return {
+			uploadId,
+			ownerId: "legacy-import-system-user",
+			fileSize: 12345,
+			mimeType: "application/zip",
+			url: `/api/v1/uploads/${uploadId}/content`,
+			storageKey: `resource/legacy/${uploadId}/recurso.elpx`,
+			finalChecksum: "deadbeef",
+		};
+	}
+
+	const elpxInput = {
+		hash: "hash-legacy-test-0001",
+		extractPath: "/tmp/legacy-import-test/hash-legacy-test-0001",
+		originalFilename: "recurso.elpx",
+		hasPreview: true,
+		elpxMetadata: { title: "Recurso de prueba legacy" },
+	};
+
+	beforeEach(async () => {
+		pglite = new PGlite();
+		await createTables(pglite);
+		db = drizzle(pglite, { schema });
+		await ensureUser(db, {
+			id: "legacy-import-system-user",
+			email: "legacy-import@system.local",
+			role: "admin",
+		});
+	});
+
+	afterEach(async () => {
+		await pglite.close();
+	});
+
+	test("findLegacyResourceByExternalId devuelve null cuando no existe", async () => {
+		const found = await findLegacyResourceByExternalId(db, "legacy-procomun", "no-existe");
+		expect(found).toBeNull();
+	});
+
+	test("importLegacyResourceWithElpx persiste resource + subjects + levels + elpx_project + media_item + upload_session", async () => {
+		const uploadId = crypto.randomUUID();
+		const result = await importLegacyResourceWithElpx(db, {
+			resource: baseResourceInput,
+			elpx: elpxInput,
+			media: buildMediaInput(uploadId),
+		});
+
+		expect(result.resourceId).toBeTruthy();
+		expect(result.slug).toContain("recurso-de-prueba-legacy");
+
+		const found = await findLegacyResourceByExternalId(db, "legacy-procomun", baseResourceInput.externalId);
+		expect(found?.id).toBe(result.resourceId);
+
+		const elpxProject = await getElpxProjectByResourceId(db, result.resourceId);
+		expect(elpxProject?.hash).toBe(elpxInput.hash);
+		expect(elpxProject?.hasPreview).toBe(true);
+
+		const media = await listMediaItemsForResource(db, result.resourceId);
+		expect(media).toHaveLength(1);
+		expect(media[0]?.filename).toBe("recurso.elpx");
+		expect(media[0]?.isPrimary).toBe(true);
+
+		const subjects = await db
+			.select()
+			.from(schema.resourceSubjects)
+			.where(eq(schema.resourceSubjects.resourceId, result.resourceId));
+		expect(subjects.map((s) => s.subject)).toEqual(["Matemáticas"]);
+	});
+
+	test("re-ejecutar sobre el mismo externalId no duplica (idempotencia vía índice único)", async () => {
+		const firstUploadId = crypto.randomUUID();
+		await importLegacyResourceWithElpx(db, {
+			resource: baseResourceInput,
+			elpx: elpxInput,
+			media: buildMediaInput(firstUploadId),
+		});
+
+		const existing = await findLegacyResourceByExternalId(
+			db,
+			"legacy-procomun",
+			baseResourceInput.externalId,
+		);
+		expect(existing).not.toBeNull();
+
+		// El orquestador CLI comprueba findLegacyResourceByExternalId antes de
+		// llamar a importLegacyResourceWithElpx; si se ignora esa comprobación,
+		// el índice único de BD debe seguir impidiendo el duplicado.
+		await expect(
+			importLegacyResourceWithElpx(db, {
+				resource: baseResourceInput,
+				elpx: { ...elpxInput, hash: "hash-legacy-test-0002" },
+				media: buildMediaInput(crypto.randomUUID()),
+			}),
+		).rejects.toThrow();
+
+		const all = await db
+			.select()
+			.from(schema.resources)
+			.where(eq(schema.resources.externalId, baseResourceInput.externalId));
+		expect(all).toHaveLength(1);
+	});
+
+	test("un .elpx con el mismo hash bajo otro externalId falla por la unicidad de elpx_projects.hash", async () => {
+		await importLegacyResourceWithElpx(db, {
+			resource: baseResourceInput,
+			elpx: elpxInput,
+			media: buildMediaInput(crypto.randomUUID()),
+		});
+
+		await expect(
+			importLegacyResourceWithElpx(db, {
+				resource: { ...baseResourceInput, externalId: "es_test_otro_id" },
+				elpx: elpxInput, // mismo hash
+				media: buildMediaInput(crypto.randomUUID()),
+			}),
+		).rejects.toThrow();
+	});
+
+	test("ensureLegacyImportSystemUser puede usarse como ownerId real de upload_sessions", async () => {
+		const systemUser = await ensureLegacyImportSystemUser(db);
+		expect(systemUser?.id).toBeTruthy();
+
+		const uploadId = crypto.randomUUID();
+		const result = await importLegacyResourceWithElpx(db, {
+			resource: { ...baseResourceInput, externalId: "es_test_system_user" },
+			elpx: { ...elpxInput, hash: "hash-legacy-test-system-user" },
+			media: { ...buildMediaInput(uploadId), ownerId: systemUser!.id },
+		});
+
+		const sessions = await db
+			.select()
+			.from(schema.uploadSessions)
+			.where(eq(schema.uploadSessions.resourceId, result.resourceId));
+		expect(sessions[0]?.ownerId).toBe(systemUser!.id);
+		expect(sessions[0]?.status).toBe("completed");
 	});
 });

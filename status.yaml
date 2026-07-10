@@ -1199,3 +1199,57 @@ tasks:
       como backend de historial, object storage versionado y un modelo híbrido PostgreSQL snapshots + storage
       versionado. No hay cambios de código. Validación documental: status.yaml y decision-log.yaml parsean
       correctamente con Ruby YAML.
+  T-2026-07-10-001:
+    date: 2026-07-10
+    agent: "ingestas-y-migraciones + backend-api-servicios + documentacion-y-roadmap"
+    task: "Apertura de la épica de importación de recursos legacy Procomún (.elpx) y corrección de bug bloqueante en el parser de metadatos .elpx"
+    status: Done
+    related: ["ADR-0029", "epic-004-migracion-legacy-procomun"]
+    notes: >
+      Se analizan 9 pares .json+.elpx de ode-export/ (export real de la plataforma legacy Procomún) para
+      diseñar un importador automático. Se detecta y corrige un bug real en packages/db/src/elpx-metadata.ts:
+      METADATA_KEYS esperaba las claves "license"/"lom_general_language" pero los content.xml reales (9
+      ejemplos legacy + 8 fixtures de test ya existentes) usan "pp_license"/"pp_lang", por lo que language
+      nunca se extraía y license solo por casualidad. Se añaden ambas claves sin retirar las antiguas y se
+      endurece apps/api/src/services/elpx-fixtures.unit.test.ts para exigir license/language no vacíos en
+      todos los fixtures (antes solo exigía "al menos uno"). Se añade índice único parcial
+      resources_import_source_external_id_idx sobre (import_source, external_id) en packages/db/src/schema/resources.ts
+      + packages/db/src/setup.ts + migración packages/db/migrations/0004_resources_import_dedup_index.sql,
+      para garantizar idempotencia del importador a nivel de BD. Se documenta la decisión en ADR-0029 y se
+      abre la épica epic-004-migracion-legacy-procomun con requirements/design/tasks/validation. Pendiente:
+      implementar packages/db/src/legacy-import/* (mapeo/normalización), packages/db/src/repository/legacy-import.ts
+      y el comando apps/cli/src/commands/import-legacy-procomun.ts, y ejecutar el piloto sobre los 9 ejemplos.
+      Validación hasta ahora: bun test apps/api/src/services/elpx-fixtures.unit.test.ts (26 pass, 0 fail),
+      bun test packages/db/src/repository.unit.test.ts packages/db/src/search.test.ts (18 pass, 0 fail).
+  T-2026-07-10-002:
+    date: 2026-07-10
+    agent: "ingestas-y-migraciones + backend-api-servicios + qa-validacion"
+    task: "Implementación completa del importador legacy Procomún (.elpx) y piloto sobre los 9 ejemplos de ode-export/"
+    status: Done
+    related: ["ADR-0029", "epic-004-migracion-legacy-procomun", "T-2026-07-10-001"]
+    notes: >
+      Completa el trabajo abierto en T-2026-07-10-001: módulos packages/db/src/legacy-import/
+      (types, normalize-license, normalize-language, resource-type-map, field-mapper, system-user, index)
+      con tests unitarios; packages/db/src/repository/legacy-import.ts (findLegacyResourceByExternalId,
+      importLegacyResourceWithElpx con transacción por registro); comando
+      apps/cli/src/commands/import-legacy-procomun.ts (import:legacy-procomun, flags --source-dir/--dry-run/
+      --limit/--only/--report-dir) registrado en apps/cli/src/index.ts. Fixtures versionadas creadas en
+      packages/db/src/test-fixtures/legacy-procomun/, apps/api/src/test-fixtures/elpx/ y
+      apps/cli/src/test-fixtures/legacy-procomun/ — ANONIMIZADAS con autorización explícita del usuario
+      (nombres/emails reales de docentes de ode-export/ sustituidos por valores sintéticos, incluido el
+      pp_author embebido en el ZIP de 1615293421477.elpx, re-empaquetado y verificado contra el pipeline
+      real antes de sustituir el fixture).
+      Piloto ejecutado sobre los 9 ejemplos reales de ode-export/ (no versionado): dry-run y ejecución real
+      coinciden exactamente — importados=8, bloqueados=1 (es_2025101012_9102834, combinación de licencia CC
+      inexistente "non derived"+"share alike"), errores=0. La ejecución real se hizo únicamente en un
+      entorno PGlite/storage temporal aislado bajo /tmp (autorizado explícitamente por el usuario) y se
+      eliminó por completo tras verificar por consulta directa a BD que los 8 recursos tienen metadatos,
+      hasPreview=true y tamaños de adjunto correctos; nunca se escribió en local-data/ del repo ni se
+      comprometió a git. Detectado (no bloqueante) durante el piloto: PGlite en modo disco puede colgarse
+      indefinidamente al reabrir un directorio de datos ya inicializado por un proceso anterior sin cierre
+      limpio (pglite.close() no se llama en el CLI) — mitigado en el piloto usando un directorio nuevo por
+      ejecución; queda como riesgo a vigilar si se automatiza la Fase 3 con procesos de larga duración.
+      Validación: bun test apps/ packages/ scripts/ → 783 pass, 0 fail. bun run scripts/check-test-files.ts
+      → sin incidencias. Pendiente para siguiente iteración: ampliar RESOURCE_TYPE_DICTIONARY con los 3
+      tipos sin mapeo detectados en el piloto (mapa-conceptual, leccion-magistral, cuestionario) y
+      verificación visual en el backoffice admin.

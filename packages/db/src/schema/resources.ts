@@ -1,4 +1,4 @@
-import { relations } from "drizzle-orm";
+import { relations, sql } from "drizzle-orm";
 import {
 	boolean,
 	customType,
@@ -6,6 +6,7 @@ import {
 	pgTable,
 	text,
 	timestamp,
+	uniqueIndex,
 	varchar,
 } from "drizzle-orm/pg-core";
 import { user } from "./auth.ts";
@@ -66,7 +67,14 @@ export const resources = pgTable("resources", {
 
 	createdAt: timestamp("created_at").notNull().defaultNow(),
 	updatedAt: timestamp("updated_at").notNull().defaultNow(),
-});
+}, (table) => [
+	// Garantiza idempotencia a nivel de BD para importadores externos: un mismo
+	// (import_source, external_id) no puede crear dos recursos. Parcial porque
+	// external_id es null para recursos no importados (no deben restringirse entre sí).
+	uniqueIndex("resources_import_source_external_id_idx")
+		.on(table.importSource, table.externalId)
+		.where(sql`${table.externalId} IS NOT NULL`),
+]);
 
 export const mediaItems = pgTable("media_items", {
 	id: text("id").primaryKey(),

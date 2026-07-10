@@ -141,37 +141,38 @@ describe("metadata content validation", { timeout: 30_000 }, () => {
 		console.log("[mermaid] title:", metadata.title);
 	});
 
-	it("language field contains a reasonable value when present", { timeout: 30_000 }, async () => {
-		// Check all fixtures and collect language values
+	it("language field is populated for every real fixture (pp_lang key)", { timeout: 30_000 }, async () => {
+		// Every content.xml in FIXTURES_DIR carries a pp_lang odeProperty (verified by
+		// inspection). If this regresses, METADATA_KEYS in elpx-metadata.ts stopped
+		// mapping pp_lang -> language.
 		const languages: Record<string, string> = {};
 
 		for (const fixture of FIXTURES) {
 			const fixturePath = path.join(FIXTURES_DIR, fixture);
 			const metadata = await parseElpxMetadata(fixturePath);
-			if (metadata.language.length > 0) {
-				languages[fixture] = metadata.language;
-				// Language codes are typically 2-5 chars (e.g., "es", "en", "pt-BR")
-				expect(metadata.language.length).toBeLessThanOrEqual(10);
-			}
+			expect(metadata.language.length).toBeGreaterThan(0);
+			// Language codes are typically 2-5 chars (e.g., "es", "en", "pt-BR")
+			expect(metadata.language.length).toBeLessThanOrEqual(10);
+			languages[fixture] = metadata.language;
 		}
 
 		console.log("Fixtures with language:", languages);
 	});
 
-	it("license field is populated when present", { timeout: 30_000 }, async () => {
+	it("license field is populated for every real fixture (license/pp_license key)", { timeout: 30_000 }, async () => {
+		// Every content.xml in FIXTURES_DIR carries either a bare "license" or a
+		// "pp_license" odeProperty (verified by inspection). If this regresses,
+		// METADATA_KEYS in elpx-metadata.ts stopped mapping one of those keys.
 		const licenses: Record<string, string> = {};
 
 		for (const fixture of FIXTURES) {
 			const fixturePath = path.join(FIXTURES_DIR, fixture);
 			const metadata = await parseElpxMetadata(fixturePath);
-			if (metadata.license.length > 0) {
-				licenses[fixture] = metadata.license;
-			}
+			expect(metadata.license.length).toBeGreaterThan(0);
+			licenses[fixture] = metadata.license;
 		}
 
 		console.log("Fixtures with license:", licenses);
-		// At least one fixture should have a license
-		expect(Object.keys(licenses).length).toBeGreaterThan(0);
 	});
 });
 
