@@ -103,6 +103,7 @@ let noContentXmlElpxPath: string;
 let elpxWithIndexPath: string;
 let extractedContentDir: string;
 let fakeHash: string;
+let fakeSha256Hash: string;
 
 async function createZipFile(
 	zipPath: string,
@@ -183,6 +184,18 @@ beforeAll(async () => {
 	await writeFile(
 		path.join(extractedContentDir, "images", "photo.png"),
 		"fake-png-bytes",
+		"utf-8",
+	);
+
+	// 6) Directorio extraído con hash SHA-256 (64 chars): el importador legacy
+	// Procomún usa el checksum del .elpx como hash para dedupe por contenido
+	// (ADR-0029), a diferencia del UUID/SHA-1 (<=40 chars) del flujo normal.
+	fakeSha256Hash = "b".repeat(64);
+	const sha256ContentDir = path.join(tempDir, "elpx", fakeSha256Hash);
+	await mkdir(sha256ContentDir, { recursive: true });
+	await writeFile(
+		path.join(sha256ContentDir, "index.html"),
+		SAMPLE_INDEX_HTML,
 		"utf-8",
 	);
 });
@@ -375,6 +388,13 @@ describe("elpxContentRoutes", () => {
 		expect(res.status).toBe(404);
 		const body = await res.json();
 		expect(body.error).toBeTruthy();
+	});
+
+	it("acepta un hash SHA-256 de 64 caracteres (importador legacy Procomún, ADR-0029)", async () => {
+		const res = await app.request(`/api/v1/elpx/${fakeSha256Hash}`);
+
+		expect(res.status).toBe(200);
+		expect(res.headers.get("Content-Type")).toBe("text/html");
 	});
 
 	it("devuelve 404 para hash valido pero sin contenido extraido", async () => {

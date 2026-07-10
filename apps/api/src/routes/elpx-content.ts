@@ -33,8 +33,11 @@ const MIME_TYPES: Record<string, string> = {
 	txt: "text/plain",
 };
 
-// Accept both SHA-1 hashes (40 hex chars) and UUIDs
-const HASH_PATTERN = /^[a-f0-9-]{8,40}$/i;
+// Acepta UUIDs (36 caracteres, generación normal vía crypto.randomUUID()),
+// hashes SHA-1 (40 caracteres) y hashes SHA-256 (64 caracteres, usados por el
+// importador legacy Procomún para dedupe por contenido — ver ADR-0029). El
+// límite superior coincide con elpx_projects.hash varchar(64).
+const HASH_PATTERN = /^[a-f0-9-]{8,64}$/i;
 
 // Script de promoción de embeds inyectado en el HTML del .elpx (ADR-0027).
 const EMBED_SHIM_URL = "/api/v1/elpx/embed-shim.js";
