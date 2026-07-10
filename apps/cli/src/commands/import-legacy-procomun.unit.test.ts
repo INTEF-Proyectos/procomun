@@ -2,9 +2,11 @@ import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
+import { resolveLegacyExternalId } from "@procomun/db/legacy-import";
 import {
 	findLegacySourcePairs,
 	loadImportLegacyProcomunDependencies,
+	resolvePairs,
 	runImportLegacyProcomun,
 } from "./import-legacy-procomun.ts";
 
@@ -39,6 +41,13 @@ function buildMockDeps(storageDir: string, overrides: Partial<Deps> = {}): Deps 
 		computeFileSha256: (async () => "mock-checksum") as Deps["computeFileSha256"],
 		buildUploadPublicUrl: ((id: string) => `/api/v1/uploads/${id}/content`) as Deps["buildUploadPublicUrl"],
 		sanitizeFilename: ((f: string) => f) as Deps["sanitizeFilename"],
+		removeElpxExtraction: (async () => {}) as Deps["removeElpxExtraction"],
+		updateSearchVector: (async () => {}) as Deps["updateSearchVector"],
+		// Implementación real (no mockeada): es pura y los fixtures de estos
+		// tests son JSON vacíos "{}", así que resuelve "" y cada par cae al
+		// fallback por baseName, preservando la identidad distinta de cada par
+		// que esperan los tests existentes.
+		resolveLegacyExternalId,
 		mapLegacyRecord: (() => ({
 			externalId: "es_mock",
 			blocking: false,
@@ -70,7 +79,8 @@ function buildMockDeps(storageDir: string, overrides: Partial<Deps> = {}): Deps 
 				mediaItemId: "mock-media-id",
 				elpxProjectId: "mock-elpx-id",
 			}),
-			// biome-ignore lint: mock parcial del barrel de repositorio, solo se usan los dos anteriores
+			getElpxProjectByHash: async () => null,
+			// biome-ignore lint: mock parcial del barrel de repositorio, solo se usan las anteriores
 		} as Deps["repo"],
 	};
 
@@ -99,6 +109,64 @@ describe("findLegacySourcePairs", () => {
 		expect(pairs).toHaveLength(1);
 		expect(pairs[0]?.baseName).toBe("a");
 		expect(incomplete.sort()).toEqual(["b", "c"]);
+	});
+});
+
+describe("resolvePairs", () => {
+	let dir: string;
+
+	beforeEach(async () => {
+		dir = await mkdtemp(path.join(tmpdir(), "legacy-resolve-"));
+	});
+
+	afterEach(async () => {
+		await rm(dir, { recursive: true, force: true });
+	});
+
+	test("resuelve el externalId del JSON aunque difiera del nombre del fichero", async () => {
+		// El nombre de fichero exportado no siempre coincide con idODE (solo
+		// ocurre así en la muestra observada) — resolvePairs debe leer el JSON.
+		await writeFile(
+			path.join(dir, "nombre-de-fichero-cualquiera.json"),
+			JSON.stringify({ idODE: "es_externo_real" }),
+		);
+		await writeFile(path.join(dir, "nombre-de-fichero-cualquiera.elpx"), "zip-bytes");
+
+		const { pairs } = await findLegacySourcePairs(dir);
+		const resolved = await resolvePairs(pairs, resolveLegacyExternalId);
+
+		expect(resolved).toHaveLength(1);
+		expect(resolved[0]?.externalId).toBe("es_externo_real");
+		expect(resolved[0]?.parseError).toBeUndefined();
+	});
+
+	test("captura un JSON malformado como parseError sin lanzar, con fallback al nombre de fichero", async () => {
+		await writeFile(path.join(dir, "corrupto.json"), "{ esto no es JSON válido");
+		await writeFile(path.join(dir, "corrupto.elpx"), "zip-bytes");
+		await writeFile(path.join(dir, "valido.json"), JSON.stringify({ idODE: "es_valido" }));
+		await writeFile(path.join(dir, "valido.elpx"), "zip-bytes");
+
+		const { pairs } = await findLegacySourcePairs(dir);
+		const resolved = await resolvePairs(pairs, resolveLegacyExternalId);
+
+		const corrupted = resolved.find((r) => r.pair.baseName === "corrupto");
+		expect(corrupted?.parseError).toBeTruthy();
+		expect(corrupted?.externalId).toBe("corrupto");
+
+		const valid = resolved.find((r) => r.pair.baseName === "valido");
+		expect(valid?.parseError).toBeUndefined();
+		expect(valid?.externalId).toBe("es_valido");
+	});
+
+	test("cae al nombre de fichero cuando el JSON es válido pero no trae idODE/id", async () => {
+		await writeFile(path.join(dir, "sin-id.json"), JSON.stringify({ titleStr: "Sin identificador" }));
+		await writeFile(path.join(dir, "sin-id.elpx"), "zip-bytes");
+
+		const { pairs } = await findLegacySourcePairs(dir);
+		const resolved = await resolvePairs(pairs, resolveLegacyExternalId);
+
+		expect(resolved[0]?.externalId).toBe("sin-id");
+		expect(resolved[0]?.parseError).toBeUndefined();
 	});
 });
 
@@ -244,6 +312,7 @@ describe("runImportLegacyProcomun (deps mockeadas)", () => {
 						elpxProjectId: "mock-elpx-id-2",
 					};
 				},
+				getElpxProjectByHash: async () => null,
 			} as Deps["repo"],
 		});
 
@@ -254,7 +323,23 @@ describe("runImportLegacyProcomun (deps mockeadas)", () => {
 		expect(report.totals.imported).toBe(1);
 	});
 
-	test("--only filtra a un único par por nombre base", async () => {
+	test("un .json malformado se reporta como error sin abortar el resto del lote", async () => {
+		await writeFile(path.join(dir, "es_mock.json"), "{ esto no es JSON válido");
+		await writeFile(path.join(dir, "otro.json"), "{}");
+		await writeFile(path.join(dir, "otro.elpx"), "fake-zip-bytes");
+
+		const deps = buildMockDeps(storageDir);
+		const report = await runImportLegacyProcomun({ sourceDir: dir, dryRun: false }, deps);
+
+		expect(report.totals.processed).toBe(2);
+		expect(report.totals.errored).toBe(1);
+		expect(report.totals.imported).toBe(1);
+		const errorRecord = report.records.find((r) => r.outcome === "error");
+		expect(errorRecord?.externalId).toBe("es_mock");
+		expect((errorRecord as { message?: string })?.message).toContain("JSON");
+	});
+
+	test("--only filtra por el externalId resuelto del JSON (aquí coincide con el nombre base)", async () => {
 		await writeFile(path.join(dir, "otro.json"), "{}");
 		await writeFile(path.join(dir, "otro.elpx"), "fake-zip-bytes");
 

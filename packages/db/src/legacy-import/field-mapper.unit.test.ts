@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
 import path from "node:path";
-import { mapLegacyRecord } from "./field-mapper.ts";
+import { mapLegacyRecord, resolveLegacyExternalId } from "./field-mapper.ts";
 import type { LegacyOdeJson } from "./types.ts";
 
 const FIXTURES_DIR = path.join(import.meta.dir, "../test-fixtures/legacy-procomun");
@@ -89,5 +89,86 @@ describe("mapLegacyRecord", () => {
 		expect(result.blocking).toBe(true);
 		expect(result.externalId).toBe("");
 		expect(result.resource.title).toBe("nombre-del-archivo.elpx");
+	});
+
+	it("falls back to id when idODE is an empty string, not just null/undefined", () => {
+		const result = mapLegacyRecord(
+			{
+				idODE: "",
+				id: "es_fallback_id",
+				descriptionStr: "d",
+				rightsCopyrightAndOtherRestrictionsStr: "creative commons: attribution",
+			},
+			"fallback.elpx",
+		);
+
+		expect(result.blocking).toBe(false);
+		expect(result.externalId).toBe("es_fallback_id");
+	});
+
+	it("resolveLegacyExternalId treats an empty idODE the same as a missing one", () => {
+		expect(resolveLegacyExternalId({ idODE: "", id: "es_x" })).toBe("es_x");
+		expect(resolveLegacyExternalId({ idODE: "es_y", id: "es_x" })).toBe("es_y");
+		expect(resolveLegacyExternalId({})).toBe("");
+	});
+
+	it("falls back to technicalLocationStr when rutaAccesoContenidos is an empty string", () => {
+		const result = mapLegacyRecord(
+			{
+				idODE: "es_test",
+				descriptionStr: "d",
+				rightsCopyrightAndOtherRestrictionsStr: "creative commons: attribution",
+				rutaAccesoContenidos: "",
+				technicalLocationStr: "https://ode.educacion.es/INTEF/es_test",
+			},
+			"fallback.elpx",
+		);
+
+		expect(result.resource.sourceUri).toBe("https://ode.educacion.es/INTEF/es_test");
+	});
+
+	it("truncates resourceType/subjects/levels/keywords that exceed the destination column limits, with warnings", () => {
+		const longSubject = "M".repeat(300);
+		const longLevel = "N".repeat(150);
+		const longKeywords = Array.from({ length: 5 }, (_, i) => `palabra-clave-larga-numero-${i}`.repeat(10));
+
+		const result = mapLegacyRecord(
+			{
+				idODE: "es_test_long",
+				descriptionStr: "d",
+				rightsCopyrightAndOtherRestrictionsStr: "creative commons: attribution",
+				knowledgeArea: [longSubject],
+				learningContext: [longLevel],
+				labelsStr: longKeywords,
+			},
+			"fallback.elpx",
+		);
+
+		expect(result.blocking).toBe(false);
+		expect(result.resource.subjects[0]?.length).toBeLessThanOrEqual(255);
+		expect(result.resource.levels[0]?.length).toBeLessThanOrEqual(100);
+		expect(result.resource.keywords?.length).toBeLessThanOrEqual(1000);
+		expect(result.warnings.some((w) => w.field === "subjects")).toBe(true);
+		expect(result.warnings.some((w) => w.field === "levels")).toBe(true);
+		expect(result.warnings.some((w) => w.field === "keywords")).toBe(true);
+	});
+
+	it("does not warn about truncation when all values already fit the destination limits", () => {
+		const result = mapLegacyRecord(
+			{
+				idODE: "es_test_short",
+				descriptionStr: "d",
+				rightsCopyrightAndOtherRestrictionsStr: "creative commons: attribution",
+				knowledgeArea: ["Matemáticas"],
+				learningContext: ["Bachillerato"],
+				labelsStr: ["geometria", "areas"],
+			},
+			"fallback.elpx",
+		);
+
+		expect(result.warnings.some((w) => w.field === "subjects")).toBe(false);
+		expect(result.warnings.some((w) => w.field === "levels")).toBe(false);
+		expect(result.warnings.some((w) => w.field === "keywords")).toBe(false);
+		expect(result.resource.keywords).toBe("geometria,areas");
 	});
 });

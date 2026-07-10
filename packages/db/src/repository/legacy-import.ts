@@ -102,7 +102,13 @@ export async function importLegacyResourceWithElpx(
 			// "draft" (decisión revisada, ver Actualización 2026-07-10 en ADR-0029).
 			editorialStatus: "published",
 			importedAt: input.resource.importedAt,
-			createdAt: now,
+			// El catálogo público ordena por createdAt DESC (listResources()); usar
+			// el instante de ejecución del importador aquí haría que TODO el
+			// catálogo legacy apareciese como "recién creado" y desplazase
+			// contenido genuinamente reciente. Se usa la fecha de origen
+			// (importedAt) para conservar la cronología histórica real, con
+			// fallback a "now" solo si no pudo resolverse ninguna fecha de origen.
+			createdAt: input.resource.importedAt ?? now,
 			updatedAt: now,
 		});
 

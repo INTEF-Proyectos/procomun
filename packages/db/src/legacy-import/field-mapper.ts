@@ -6,6 +6,13 @@ import type { LegacyOdeJson, MappedLegacyResource, MappingResult, MappingWarning
 const MAX_TITLE_LENGTH = 500;
 const MAX_DESCRIPTION_LENGTH = 5000;
 const MAX_AUTHOR_LENGTH = 500;
+// Límites de columna/aplicación en el destino (ver packages/db/src/schema/resources.ts
+// y packages/db/src/validation.ts): un valor legacy más largo debe truncarse con
+// warning en vez de arriesgar un error de inserción en BD.
+const MAX_RESOURCE_TYPE_LENGTH = 100; // resources.resource_type varchar(100)
+const MAX_SUBJECT_LENGTH = 255; // resource_subjects.subject varchar(255)
+const MAX_LEVEL_LENGTH = 100; // resource_levels.level varchar(100)
+const MAX_KEYWORDS_LENGTH = 1000; // límite de aplicación en validateCreateResource
 const IMPORT_SOURCE = "legacy-procomun";
 
 function firstNonEmpty(values: (string | null | undefined)[]): string {
@@ -30,6 +37,52 @@ function dedupeTrimmed(values: (string | null | undefined)[] | null | undefined)
 		}
 	}
 	return result;
+}
+
+/**
+ * Trunca cada valor de una lista al límite de columna dado y vuelve a
+ * deduplicar (dos valores distintos podrían colapsar al mismo prefijo tras
+ * truncar). Devuelve cuántos valores se truncaron para poder avisar.
+ */
+function truncateList(values: string[], max: number): { values: string[]; truncatedCount: number } {
+	let truncatedCount = 0;
+	const truncated = values.map((value) => {
+		if (value.length > max) {
+			truncatedCount++;
+			return value.slice(0, max);
+		}
+		return value;
+	});
+	return { values: [...new Set(truncated)], truncatedCount };
+}
+
+/**
+ * Construye la cadena de `keywords` (join por comas) respetando el límite de
+ * caracteres de aplicación: añade palabras clave mientras quepan enteras y
+ * corta antes de partir una a la mitad, en vez de truncar el string final a
+ * ciegas.
+ */
+function buildKeywords(values: string[], max: number): { keywords: string | null; truncated: boolean } {
+	if (values.length === 0) return { keywords: null, truncated: false };
+
+	let result = "";
+	let truncated = false;
+	for (const keyword of values) {
+		const candidate = result ? `${result},${keyword}` : keyword;
+		if (candidate.length > max) {
+			truncated = true;
+			break;
+		}
+		result = candidate;
+	}
+
+	if (!result) {
+		// La primera palabra clave por sí sola ya supera el límite.
+		result = truncate(values[0] ?? "", max);
+		truncated = true;
+	}
+
+	return { keywords: result, truncated };
 }
 
 /**
@@ -66,6 +119,16 @@ function parseImportedAt(json: LegacyOdeJson): Date | null {
 }
 
 /**
+ * Resuelve el identificador externo de un registro legacy (`idODE`, con
+ * fallback a `id`). Se exporta para que el CLI pueda resolverlo de forma
+ * consistente al filtrar por `--only <externalId>` sin duplicar la lógica de
+ * fallback de `mapLegacyRecord`.
+ */
+export function resolveLegacyExternalId(json: LegacyOdeJson): string {
+	return firstNonEmpty([json.idODE, json.id]);
+}
+
+/**
  * Mapea un registro JSON legacy de Procomún (ver docs/epics/epic-004-migracion-legacy-procomun/design.md)
  * al perfil mínimo de metadatos de procomun-ng (ADR-0009). No toca base de
  * datos ni el .elpx — es una función pura para poder testear el mapeo de
@@ -75,7 +138,7 @@ export function mapLegacyRecord(json: LegacyOdeJson, fallbackTitle: string): Map
 	const warnings: MappingWarning[] = [];
 	const blockingErrors: string[] = [];
 
-	const externalId = (json.idODE ?? json.id ?? "").trim();
+	const externalId = resolveLegacyExternalId(json);
 	if (!externalId) {
 		blockingErrors.push("Falta idODE/id: no se puede identificar ni deduplicar el recurso");
 	}
@@ -116,6 +179,14 @@ export function mapLegacyRecord(json: LegacyOdeJson, fallbackTitle: string): Map
 			message: `Tipo de recurso sin equivalencia conocida, usando slug "${resourceTypeResult.resourceType}"`,
 		});
 	}
+	let resourceType = resourceTypeResult.resourceType;
+	if (resourceType.length > MAX_RESOURCE_TYPE_LENGTH) {
+		resourceType = truncate(resourceType, MAX_RESOURCE_TYPE_LENGTH);
+		warnings.push({
+			field: "resourceType",
+			message: `Tipo de recurso truncado a ${MAX_RESOURCE_TYPE_LENGTH} caracteres`,
+		});
+	}
 
 	const author =
 		firstNonEmpty([
@@ -131,10 +202,41 @@ export function mapLegacyRecord(json: LegacyOdeJson, fallbackTitle: string): Map
 	}
 
 	const publisher = (json.publicatorNameStr ?? "").trim() || null;
-	const keywords = dedupeTrimmed(json.labelsStr).join(",") || null;
-	const subjects = dedupeTrimmed(json.knowledgeArea);
-	const levels = dedupeTrimmed(json.learningContext);
-	const sourceUri = (json.rutaAccesoContenidos ?? json.technicalLocationStr ?? "").trim() || null;
+
+	const { keywords, truncated: keywordsTruncated } = buildKeywords(
+		dedupeTrimmed(json.labelsStr),
+		MAX_KEYWORDS_LENGTH,
+	);
+	if (keywordsTruncated) {
+		warnings.push({
+			field: "keywords",
+			message: `Palabras clave truncadas a ${MAX_KEYWORDS_LENGTH} caracteres (alguna se omitió)`,
+		});
+	}
+
+	const { values: subjects, truncatedCount: subjectsTruncated } = truncateList(
+		dedupeTrimmed(json.knowledgeArea),
+		MAX_SUBJECT_LENGTH,
+	);
+	if (subjectsTruncated > 0) {
+		warnings.push({
+			field: "subjects",
+			message: `${subjectsTruncated} materia(s) truncada(s) a ${MAX_SUBJECT_LENGTH} caracteres`,
+		});
+	}
+
+	const { values: levels, truncatedCount: levelsTruncated } = truncateList(
+		dedupeTrimmed(json.learningContext),
+		MAX_LEVEL_LENGTH,
+	);
+	if (levelsTruncated > 0) {
+		warnings.push({
+			field: "levels",
+			message: `${levelsTruncated} nivel(es) truncado(s) a ${MAX_LEVEL_LENGTH} caracteres`,
+		});
+	}
+
+	const sourceUri = firstNonEmpty([json.rutaAccesoContenidos, json.technicalLocationStr]) || null;
 
 	const resource: MappedLegacyResource = {
 		externalId,
@@ -144,7 +246,7 @@ export function mapLegacyRecord(json: LegacyOdeJson, fallbackTitle: string): Map
 		description,
 		language: languageResult.language,
 		license: licenseResult.license,
-		resourceType: resourceTypeResult.resourceType,
+		resourceType,
 		subjects,
 		levels,
 		author: author ? truncate(author, MAX_AUTHOR_LENGTH) : null,

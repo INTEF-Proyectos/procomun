@@ -26,23 +26,23 @@ apps/cli/src/commands/import-legacy-procomun.ts   (orquestador CLI)
 
 | Origen | Destino | Transformación |
 |---|---|---|
-| `idODE` (fallback `id`) | `resources.externalId` | tal cual; unicidad garantizada junto con `importSource` |
+| `idODE` (fallback `id`) | `resources.externalId` | `firstNonEmpty()` — trata cadenas vacías igual que `null`/`undefined`; unicidad garantizada junto con `importSource` |
 | — (constante) | `resources.importSource` | `"legacy-procomun"` |
-| `rutaAccesoContenidos` (fallback `technicalLocationStr`) | `resources.sourceUri` | tal cual |
+| `rutaAccesoContenidos` (fallback `technicalLocationStr`) | `resources.sourceUri` | `firstNonEmpty()` |
 | `titleStr` | `resources.title` | `trim()`, trunca a 500 |
 | `descriptionStr` (fallback `educationalDescriptionStr[0]`) | `resources.description` | `trim()`, trunca a 5000; vacío en ambas → **bloqueante** |
 | `generalLanguageStr[0]` (fallback `educationalLanguageStr[0]`) | `resources.language` | `normalizeLanguage()`; si no reconocido → fallback `"es"` marcado `guessed: true` (tolerable) |
 | `rightsCopyrightAndOtherRestrictionsStr` | `resources.license` | `normalizeLicense()`; si no matchea → **bloqueante** |
-| `resourceType[0]` (fallback `educationalLearningResourceTypeStr[0]`) | `resources.resourceType` | `mapResourceType()`; diccionario + slug de fallback (tolerable) |
-| `knowledgeArea[]` | `resource_subjects` | una fila por valor no vacío, `trim()` |
-| `learningContext[]` | `resource_levels` | una fila por valor no vacío, `trim()` |
+| `resourceType[0]` (fallback `educationalLearningResourceTypeStr[0]`) | `resources.resourceType` | `mapResourceType()`; diccionario + slug de fallback; trunca a 100 (`varchar(100)`), warning si se trunca |
+| `knowledgeArea[]` | `resource_subjects` | una fila por valor no vacío, `trim()`, trunca a 255 (`varchar(255)`), warning agregado si se trunca alguna |
+| `learningContext[]` | `resource_levels` | una fila por valor no vacío, `trim()`, trunca a 100 (`varchar(100)`), warning agregado si se trunca alguna |
 | `authorStr[0]` (fallback `publicatorNameStr`) | `resources.author` | primer valor no vacío tras `trim()`, trunca a 500 |
 | `publicatorNameStr` | `resources.publisher` | `trim()`, opcional |
-| `labelsStr[]` (filtrando vacíos) | `resources.keywords` | `join(",")` deduplicado |
-| `publicationDate` (fallback `fechaRegistro` parseado `YYYYMMDD`) | `resources.importedAt` | fecha de origen, no instante de ejecución del importador |
+| `labelsStr[]` (filtrando vacíos) | `resources.keywords` | join por comas respetando el límite de 1000 caracteres (añade palabras clave completas mientras quepan, no corta una a la mitad), warning si se omite alguna |
+| `publicationDate` (fallback `fechaRegistro` parseado `YYYYMMDD`) | `resources.importedAt` **y** `resources.createdAt` | fecha de origen, no instante de ejecución del importador — usada también como `createdAt` para que el catálogo público (`listResources()`, `ORDER BY createdAt DESC`) conserve la cronología histórica real; ver Actualización 2026-07-10 en ADR-0029 |
 | — | `resources.editorialStatus` | `"published"` fijo — decisión revisada el 2026-07-10, ver Actualización en ADR-0029 (originalmente se importaba como `"draft"`) |
 | — | `resources.createdBy` | `null` |
-| `.elpx` | `elpx_projects` + `media_items` + `upload_sessions` | vía `processElpxUpload()` reutilizado, mismo patrón que `POST /api/admin/elpx/upload/:resourceId` |
+| `.elpx` | `elpx_projects` + `media_items` + `upload_sessions` | vía `processElpxUpload()` reutilizado con `{ hash: checksumSHA256 }` explícito (no un UUID aleatorio), mismo patrón que `POST /api/admin/elpx/upload/:resourceId` |
 
 ### `normalizeLicense()`
 1. Normaliza a minúsculas, sin acentos, espacios colapsados.
@@ -61,8 +61,10 @@ Diccionario de equivalencias conocidas (LOM-ES → vocabulario informal ya usado
 
 - Índice único parcial en BD: `resources_import_source_external_id_idx` sobre `(import_source, external_id) WHERE external_id IS NOT NULL` (ver migración `packages/db/migrations/0004_resources_import_dedup_index.sql` y `packages/db/src/setup.ts`).
 - Comprobación previa (`findLegacyResourceByExternalId`) antes de insertar → registros ya existentes se cuentan como `skipped`, no como error.
-- Deduplicación secundaria por contenido: `elpx_projects.hash` ya es único; un `.elpx` idéntico bajo dos `idODE` distintos se detecta como "duplicado de contenido".
+- Deduplicación secundaria por contenido: `elpx_projects.hash` es el checksum SHA-256 real del `.elpx` (pasado explícitamente a `processElpxUpload(..., { hash: checksum })`, no un UUID aleatorio); un `.elpx` idéntico bajo dos `idODE` distintos falla por la unicidad del hash y se reporta como error, sin duplicar contenido en `storageDir/elpx/`.
+- Si la persistencia falla tras una extracción exitosa, el `extractPath` en disco solo se limpia (`removeElpxExtraction()`) cuando ningún otro `elpx_project` ya lo referencia (`getElpxProjectByHash`) — evita borrar la extracción de un recurso legítimamente ya persistido con el mismo hash (el caso de deduplicación anterior).
 - Transacción Drizzle **por registro** (no por lote de 500): cada recurso toca 6 tablas y tiene efectos de sistema de ficheros (extracción del `.elpx`); un fallo aislado no debe invalidar los registros ya confirmados del lote.
+- La lectura y el mapeo de cada `.json` están envueltos en su propio `try/catch` (`resolvePairs()` para el parseo, y el bloque de mapeo para `mapLegacyRecord()`): un `.json` corrupto o con forma inesperada se reporta como `error` para ese registro y no aborta el resto del lote.
 
 ## Errores bloqueantes vs. tolerables
 
@@ -89,6 +91,12 @@ Sin transacción atómica global (deliberado). Cada ejecución se marca con un `
 Flags: `--source-dir <path>`, `--dry-run`, `--limit <n>`, `--only <externalId>`, `--report-dir <path>` (por defecto `local-data/legacy-import-reports/`, ya gitignored).
 
 Sigue los patrones ya existentes en `apps/cli/src/commands/`: progreso incremental (patrón `fts-reindex.ts`), skip silencioso con log por registro (patrón `seed-resources.ts`).
+
+`--only <externalId>` filtra por el `externalId` real resuelto del contenido del `.json` (`resolvePairs()` lee y parsea cada `.json` del directorio antes de filtrar), no por el nombre de fichero — el nombre exportado solo coincide con `idODE` en la muestra observada, no es un identificador fiable en general.
+
+## Indexación para búsqueda (FTS)
+
+Tras persistir cada recurso con éxito, el comando llama a `updateSearchVector(db, resourceId)` (`apps/api/src/fts/search.ts`, mismo helper que usa la creación manual de recursos en `apps/admin/resources.ts`) para que quede indexado en `resources.search_vector` de inmediato, sin depender de una ejecución manual posterior de `fts:reindex`. Es una llamada *best-effort*: si falla, el recurso ya persistido y `published` no se marca como `error` (perdería la idempotencia y quedaría bloqueado en reintentos posteriores, ya que `findLegacyResourceByExternalId` lo detectaría como existente), sino que se añade un warning tolerable al registro (`imported` con warning) indicando que hay que correr `fts:reindex` manualmente para ese recurso.
 
 ## Fixtures de test
 

@@ -1296,3 +1296,36 @@ tasks:
       packages/db/src/seed-data.ts). Se añade assertion de regresión en packages/db/src/repository.unit.test.ts
       y se actualiza design.md de la épica. Validación: bun test packages/db/src/repository.unit.test.ts
       apps/cli/ → 40 pass, 0 fail.
+  T-2026-07-10-005:
+    date: 2026-07-10
+    agent: "qa-validacion + backend-api-servicios + metadatos-y-curacion"
+    task: "Corrección de 8 hallazgos de la revisión del PR #268 (importador legacy Procomún)"
+    status: Done
+    related: ["epic-004-migracion-legacy-procomun", "ADR-0029"]
+    notes: >
+      Se revisan los comentarios del PR #268 en GitHub (revisor erseco, CHANGES_REQUESTED, + bot Codex) y se
+      corrigen 8 problemas reales: (1) [P1] createdAt usaba el instante de ejecución del import en vez de la
+      fecha de publicación original, desplazando el orden del catálogo público (listResources ORDER BY
+      createdAt DESC) — fix: createdAt = importedAt ?? now en repository/legacy-import.ts. (2) [P2] un .json
+      malformado abortaba todo el lote — fix: nueva función resolvePairs() en import-legacy-procomun.ts que
+      lee/parsea cada .json con try/catch por par, reportado como outcome "error" sin detener el resto.
+      (3) [P2] los recursos importados no quedaban indexados para búsqueda (search_vector nunca se
+      actualizaba) — fix: llamada best-effort a updateSearchVector() tras cada persistencia exitosa.
+      (4) [P2] elpx_projects.hash era un UUID aleatorio en vez del checksum SHA-256 real, por lo que la
+      deduplicación por contenido documentada en ADR-0029 no funcionaba — fix: se pasa { hash: checksum } a
+      processElpxUpload(). (5) [P2] si la persistencia fallaba tras una extracción exitosa, el directorio
+      extraído quedaba huérfano — fix: limpieza con removeElpxExtraction() solo si ningún otro elpx_project
+      ya referencia ese hash (getElpxProjectByHash), para no romper una deduplicación legítima. (6) [P2] los
+      fallbacks de campos (idODE??id, rutaAccesoContenidos??technicalLocationStr) no cubrían cadenas vacías
+      — fix: ambos usan firstNonEmpty(), exportado también como resolveLegacyExternalId() para reutilizar en
+      el CLI. (7) [P2] --only filtraba por nombre de fichero en vez del externalId real documentado — fix:
+      resolvePairs() resuelve el externalId real leyendo cada .json antes de filtrar. (8) [P2] los valores
+      mapeados no respetaban los límites de columna del destino (resourceType varchar(100), materias
+      varchar(255), niveles varchar(100), keywords límite de aplicación 1000) — fix: truncado explícito con
+      warning en field-mapper.ts. Se añade sección de actualización en ADR-0029 (sin reescribir la decisión
+      original) y se actualiza design.md de la épica. Validación: bun test apps/ packages/ scripts/ → 794
+      pass, 0 fail (11 tests nuevos); bun run scripts/check-test-files.ts sin incidencias; re-ejecución del
+      piloto sobre los 9 ejemplos reales de ode-export/ en entorno temporal aislado — mismos resultados que
+      el piloto original (importados=8, bloqueados=1, errores=0), con createdAt reflejando ahora la fecha de
+      publicación original de cada recurso (verificado por consulta directa a BD) y search_vector poblado en
+      los 8 recursos importados.

@@ -491,11 +491,15 @@ describe("legacy import repository (epic-004-migracion-legacy-procomun)", () => 
 
 		// Los recursos legacy ya estaban publicados en origen: se importan
 		// directamente como "published", no como "draft" (ver ADR-0029).
+		// createdAt debe usar la fecha de origen (importedAt), no el instante de
+		// ejecución del import, para no desplazar el orden del catálogo público
+		// (listResources ordena por createdAt DESC).
 		const [resourceRow] = await db
-			.select({ editorialStatus: schema.resources.editorialStatus })
+			.select({ editorialStatus: schema.resources.editorialStatus, createdAt: schema.resources.createdAt })
 			.from(schema.resources)
 			.where(eq(schema.resources.id, result.resourceId));
 		expect(resourceRow?.editorialStatus).toBe("published");
+		expect(resourceRow?.createdAt?.toISOString()).toBe(baseResourceInput.importedAt.toISOString());
 
 		const elpxProject = await getElpxProjectByResourceId(db, result.resourceId);
 		expect(elpxProject?.hash).toBe(elpxInput.hash);
@@ -579,5 +583,21 @@ describe("legacy import repository (epic-004-migracion-legacy-procomun)", () => 
 			.where(eq(schema.uploadSessions.resourceId, result.resourceId));
 		expect(sessions[0]?.ownerId).toBe(systemUser!.id);
 		expect(sessions[0]?.status).toBe("completed");
+	});
+
+	test("createdAt cae al instante de ejecución cuando no se pudo resolver una fecha de origen", async () => {
+		const before = new Date();
+		const result = await importLegacyResourceWithElpx(db, {
+			resource: { ...baseResourceInput, externalId: "es_test_sin_fecha", importedAt: null },
+			elpx: { ...elpxInput, hash: "hash-legacy-test-sin-fecha" },
+			media: buildMediaInput(crypto.randomUUID()),
+		});
+
+		const [resourceRow] = await db
+			.select({ createdAt: schema.resources.createdAt })
+			.from(schema.resources)
+			.where(eq(schema.resources.id, result.resourceId));
+		expect(resourceRow?.createdAt).not.toBeNull();
+		expect(resourceRow!.createdAt.getTime()).toBeGreaterThanOrEqual(before.getTime());
 	});
 });

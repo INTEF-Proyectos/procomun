@@ -9,18 +9,21 @@
 import { mkdir, readdir, stat, unlink } from "node:fs/promises";
 import path from "node:path";
 import { parseArgs } from "node:util";
+import type { LegacyOdeJson } from "@procomun/db/legacy-import";
 
 export async function loadImportLegacyProcomunDependencies() {
 	const [
 		{ getDb, waitForDb },
-		{ processElpxUpload },
+		{ processElpxUpload, removeElpxExtraction },
 		{ getUploadConfig, ensureUploadStorageDir, computeFileSha256, buildUploadPublicUrl, sanitizeFilename },
+		{ updateSearchVector },
 		legacyImport,
 		repo,
 	] = await Promise.all([
 		import("../../../api/src/db.ts"),
 		import("../../../api/src/services/elpx-processor.ts"),
 		import("../../../api/src/uploads/config.ts"),
+		import("../../../api/src/fts/search.ts"),
 		import("@procomun/db/legacy-import"),
 		import("@procomun/db/repository"),
 	]);
@@ -29,19 +32,22 @@ export async function loadImportLegacyProcomunDependencies() {
 		getDb,
 		waitForDb,
 		processElpxUpload,
+		removeElpxExtraction,
 		getUploadConfig,
 		ensureUploadStorageDir,
 		computeFileSha256,
 		buildUploadPublicUrl,
 		sanitizeFilename,
+		updateSearchVector,
 		mapLegacyRecord: legacyImport.mapLegacyRecord,
+		resolveLegacyExternalId: legacyImport.resolveLegacyExternalId,
 		ensureLegacyImportSystemUser: legacyImport.ensureLegacyImportSystemUser,
 		repo,
 	};
 }
 
 interface PairedSource {
-	/** Nombre base del fichero, usado para emparejar --only (en los datos legacy observados coincide con idODE) */
+	/** Nombre base compartido por `.json` y `.elpx` (solo agrupación de ficheros). */
 	baseName: string;
 	jsonPath: string;
 	elpxPath: string;
@@ -74,6 +80,43 @@ export async function findLegacySourcePairs(
 	}
 
 	return { pairs, incomplete };
+}
+
+interface ResolvedPair {
+	pair: PairedSource;
+	/** externalId resuelto desde el JSON, o baseName del fichero si no pudo leerse/parsearse. */
+	externalId: string;
+	json?: LegacyOdeJson;
+	parseError?: string;
+}
+
+/**
+ * Lee y parsea el `.json` de cada par para resolver su `externalId` real
+ * (`idODE`/`id`) ANTES de aplicar `--only`: el nombre de fichero no es un
+ * identificador fiable (solo coincide con `idODE` en la muestra observada),
+ * así que `--only <externalId>` debe filtrar por el valor real del JSON, no
+ * por el nombre base. Los fallos de lectura/parseo se capturan por par en vez
+ * de propagarse, para que un `.json` corrupto no aborte el resto del lote.
+ */
+export async function resolvePairs(
+	pairs: PairedSource[],
+	resolveLegacyExternalId: (json: LegacyOdeJson) => string,
+): Promise<ResolvedPair[]> {
+	const resolved: ResolvedPair[] = [];
+	for (const pair of pairs) {
+		try {
+			const json = (await Bun.file(pair.jsonPath).json()) as LegacyOdeJson;
+			const externalId = resolveLegacyExternalId(json) || pair.baseName;
+			resolved.push({ pair, externalId, json });
+		} catch (err) {
+			resolved.push({
+				pair,
+				externalId: pair.baseName,
+				parseError: err instanceof Error ? err.message : String(err),
+			});
+		}
+	}
+	return resolved;
 }
 
 type RecordOutcome =
@@ -204,13 +247,13 @@ export async function runImportLegacyProcomun(
 	const systemUser = options.dryRun ? null : await deps.ensureLegacyImportSystemUser(db);
 
 	const { pairs: allPairs, incomplete } = await findLegacySourcePairs(options.sourceDir);
-	let pairs = allPairs;
-	if (options.only) pairs = pairs.filter((p) => p.baseName === options.only);
-	if (options.limit != null) pairs = pairs.slice(0, options.limit);
+	let resolvedPairs = await resolvePairs(allPairs, deps.resolveLegacyExternalId);
+	if (options.only) resolvedPairs = resolvedPairs.filter((r) => r.externalId === options.only);
+	if (options.limit != null) resolvedPairs = resolvedPairs.slice(0, options.limit);
 
 	console.log(
 		`[import:legacy-procomun] ${allPairs.length} pares encontrados en ${options.sourceDir}` +
-			`${options.dryRun ? " (dry-run)" : ""}, procesando ${pairs.length}...`,
+			`${options.dryRun ? " (dry-run)" : ""}, procesando ${resolvedPairs.length}...`,
 	);
 	if (incomplete.length) {
 		console.log(
@@ -224,10 +267,34 @@ export async function runImportLegacyProcomun(
 	let blocked = 0;
 	let errored = 0;
 
-	for (const pair of pairs) {
-		const json = await Bun.file(pair.jsonPath).json();
+	for (const resolved of resolvedPairs) {
+		if (resolved.parseError) {
+			errored++;
+			records.push({
+				outcome: "error",
+				externalId: resolved.externalId,
+				message: `No se pudo leer/parsear el JSON: ${resolved.parseError}`,
+			});
+			console.error(`[error] ${resolved.externalId}: no se pudo leer/parsear el JSON: ${resolved.parseError}`);
+			continue;
+		}
+
+		const { pair } = resolved;
+		// biome-ignore lint/style/noNonNullAssertion: !parseError garantiza json presente (ver resolvePairs)
+		const json = resolved.json!;
 		const elpxFilename = path.basename(pair.elpxPath);
-		const mapping = deps.mapLegacyRecord(json, elpxFilename);
+
+		let mapping: ReturnType<typeof deps.mapLegacyRecord>;
+		try {
+			mapping = deps.mapLegacyRecord(json, elpxFilename);
+		} catch (err) {
+			errored++;
+			const message = err instanceof Error ? err.message : String(err);
+			records.push({ outcome: "error", externalId: resolved.externalId, message });
+			console.error(`[error] ${resolved.externalId}: ${message}`);
+			continue;
+		}
+
 		const warningMessages = mapping.warnings.map((w) => `${w.field}: ${w.message}`);
 
 		if (mapping.blocking) {
@@ -261,13 +328,18 @@ export async function runImportLegacyProcomun(
 
 		const uploadId = crypto.randomUUID();
 		const storagePath = path.join(config.storageDir, uploadId);
+		let processed: Awaited<ReturnType<typeof deps.processElpxUpload>> | undefined;
 		try {
 			await Bun.write(storagePath, Bun.file(pair.elpxPath));
-			const [checksum, fileStat, processed] = await Promise.all([
+			const [checksum, fileStat] = await Promise.all([
 				deps.computeFileSha256(storagePath),
 				stat(storagePath),
-				deps.processElpxUpload(storagePath, config.storageDir),
 			]);
+			// El hash se fija al checksum SHA-256 del fichero (no un UUID aleatorio):
+			// es lo que permite que la unicidad de elpx_projects.hash detecte el
+			// mismo .elpx importado bajo dos externalId distintos (deduplicación
+			// secundaria por contenido, ver design.md de epic-004).
+			processed = await deps.processElpxUpload(storagePath, config.storageDir, { hash: checksum });
 
 			const result = await deps.repo.importLegacyResourceWithElpx(db, {
 				resource: {
@@ -294,6 +366,19 @@ export async function runImportLegacyProcomun(
 				},
 			});
 
+			// Indexación best-effort: un fallo aquí no invalida la importación (el
+			// recurso ya está persistido y publicado), solo queda temporalmente
+			// fuera de la búsqueda pública hasta un `fts:reindex` manual.
+			try {
+				await deps.updateSearchVector(db, result.resourceId);
+			} catch (err) {
+				const message = err instanceof Error ? err.message : String(err);
+				warningMessages.push(
+					`search_vector: no se pudo indexar para búsqueda (${message}); ejecutar fts:reindex manualmente`,
+				);
+				console.error(`[warning] ${mapping.externalId}: fallo al indexar search_vector: ${message}`);
+			}
+
 			imported++;
 			records.push({
 				outcome: "imported",
@@ -312,6 +397,18 @@ export async function runImportLegacyProcomun(
 			console.error(`[error] ${mapping.externalId}: ${message}`);
 			// No aborta el lote: el fichero copiado a storage se limpia best-effort.
 			await unlink(storagePath).catch(() => {});
+
+			if (processed) {
+				// Solo limpiar el directorio extraído si ningún otro elpx_project ya
+				// lo referencia: si el fallo fue justo un choque de hash único (el
+				// mismo .elpx bajo dos externalId distintos), el extractPath
+				// pertenece legítimamente al recurso ya persistido con ese hash y
+				// borrarlo rompería su preview.
+				const stillReferenced = await deps.repo.getElpxProjectByHash(db, processed.hash);
+				if (!stillReferenced) {
+					await deps.removeElpxExtraction(processed.extractPath).catch(() => {});
+				}
+			}
 		}
 	}
 
@@ -324,7 +421,7 @@ export async function runImportLegacyProcomun(
 		totals: {
 			pairsFound: allPairs.length,
 			incompletePairs: incomplete.length,
-			processed: pairs.length,
+			processed: resolvedPairs.length,
 			imported,
 			skippedExisting,
 			blocked,

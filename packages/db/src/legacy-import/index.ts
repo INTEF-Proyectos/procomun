@@ -1,4 +1,4 @@
-export { mapLegacyRecord } from "./field-mapper.ts";
+export { mapLegacyRecord, resolveLegacyExternalId } from "./field-mapper.ts";
 export { normalizeLanguage } from "./normalize-language.ts";
 export { normalizeLicense } from "./normalize-license.ts";
 export { mapResourceType } from "./resource-type-map.ts";
