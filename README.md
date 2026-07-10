@@ -147,7 +147,9 @@ En desarrollo con Vite, el soporte para `/dev/` y `/dev/docs/*` está cableado e
 
 ## Importador de recursos legacy Procomún
 
-`import:legacy-procomun` importa recursos exportados de la plataforma Procomún legacy en pares `<id>.json` + `<id>.elpx` (metadatos + paquete eXeLearning), mapeándolos al perfil mínimo de metadatos (ADR-0009) y persistiéndolos como recursos `published`. Reutiliza el pipeline de subida/extracción `.elpx` ya existente y es idempotente: reejecutarlo sobre el mismo directorio no duplica nada.
+La empresa que mantiene la plataforma Procomún actual (legacy) dispone de una herramienta propia que exporta todos los tipos de recursos de su repositorio y los convierte a paquete eXeLearning. Cada recurso exportado genera dos ficheros con el mismo nombre base: un `.elpx` (el paquete eXeLearning) y un `.json` con los metadatos del recurso (título, descripción, autoría, licencia, materia, etapa educativa, etc.).
+
+`import:legacy-procomun` toma un directorio con esos pares `<id>.json` + `<id>.elpx`, mapea los metadatos al perfil mínimo de procomun-ng (ADR-0009) y persiste cada recurso como `published`. Reutiliza el pipeline de subida/extracción `.elpx` ya existente y es idempotente: reejecutarlo sobre el mismo directorio no duplica nada.
 
 ```bash
 make cli ARGS="import:legacy-procomun --source-dir <ruta-a-los-pares .json+.elpx> --dry-run"
