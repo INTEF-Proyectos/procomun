@@ -40,7 +40,7 @@ apps/cli/src/commands/import-legacy-procomun.ts   (orquestador CLI)
 | `publicatorNameStr` | `resources.publisher` | `trim()`, opcional |
 | `labelsStr[]` (filtrando vacíos) | `resources.keywords` | `join(",")` deduplicado |
 | `publicationDate` (fallback `fechaRegistro` parseado `YYYYMMDD`) | `resources.importedAt` | fecha de origen, no instante de ejecución del importador |
-| — | `resources.editorialStatus` | `"draft"` fijo |
+| — | `resources.editorialStatus` | `"published"` fijo — decisión revisada el 2026-07-10, ver Actualización en ADR-0029 (originalmente se importaba como `"draft"`) |
 | — | `resources.createdBy` | `null` |
 | `.elpx` | `elpx_projects` + `media_items` + `upload_sessions` | vía `processElpxUpload()` reutilizado, mismo patrón que `POST /api/admin/elpx/upload/:resourceId` |
 

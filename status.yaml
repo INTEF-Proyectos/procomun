@@ -1281,3 +1281,18 @@ tasks:
       importación completa de los 9 ejemplos de ode-export/ en un entorno temporal aislado, EXIT_CODE=0,
       ~2.3s de duración total (antes: cuelgue indefinido). Pendiente: que el usuario reintente contra su
       local-data/ real y confirme visualmente en el backoffice admin.
+  T-2026-07-10-004:
+    date: 2026-07-10
+    agent: "metadatos-y-curacion + backend-api-servicios"
+    task: "Confirmación visual del usuario en backoffice admin + decisión de negocio: recursos legacy se importan como published, no draft"
+    status: Done
+    related: ["epic-004-migracion-legacy-procomun", "ADR-0029"]
+    notes: >
+      El usuario confirma visualmente en el backoffice admin (local-data/ real) que los recursos importados
+      en T-2026-07-10-003 son correctos tras los dos fixes de proceso. A continuación pide explícitamente
+      que los recursos legacy queden publicados en vez de en borrador. Se revisa ADR-0029 (Actualización
+      2026-07-10): editorialStatus pasa de "draft" fijo a "published" fijo en
+      packages/db/src/repository/legacy-import.ts, sin fijar curatedAt/assignedCuratorId (mismo patrón que
+      packages/db/src/seed-data.ts). Se añade assertion de regresión en packages/db/src/repository.unit.test.ts
+      y se actualiza design.md de la épica. Validación: bun test packages/db/src/repository.unit.test.ts
+      apps/cli/ → 40 pass, 0 fail.

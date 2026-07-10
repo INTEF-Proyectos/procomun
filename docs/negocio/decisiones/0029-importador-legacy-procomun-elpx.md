@@ -54,3 +54,13 @@ Se adopta la Opción B + D + F:
 * Comando CLI: `apps/cli/src/commands/import-legacy-procomun.ts` (`import:legacy-procomun`), con modo `--dry-run` para validar sin escribir en BD.
 * Módulos de mapeo/normalización en `packages/db/src/legacy-import/`.
 * Antes de ejecutar sobre el volumen real (Fase 3 del plan de ejecución), deben resolverse con INTEF: alcance completo vs. selectivo de la migración, tratamiento de usuarios/autoría histórica, y formatos legacy adicionales obligatorios.
+
+## Actualización 2026-07-10 — `editorialStatus` de recursos importados
+
+### Decisión revisada
+El punto 7 de la Decisión original ("`editorialStatus: 'draft'` fijo") queda sustituido: los recursos importados desde Procomún legacy se crean directamente con `editorialStatus: "published"`, no `"draft"`. Motivo: son recursos que ya estaban publicados y editorialmente curados en la plataforma de origen; mantenerlos ocultos tras la importación no aporta valor y generaría una cola de revisión editorial innecesaria (riesgo ya anotado en la sección "Negativas / Riesgos" de esta ADR, que queda resuelto con este cambio).
+
+### Consecuencias de la revisión
+* Los recursos importados son visibles públicamente desde el momento de la importación, sin paso previo por `review`.
+* No se fija `curatedAt`/`assignedCuratorId` al importar (mismo patrón que `packages/db/src/seed-data.ts`, que también crea recursos `published` sin pasar por el flujo de curación).
+* Implementado en `packages/db/src/repository/legacy-import.ts` (`importLegacyResourceWithElpx`), con test de regresión en `packages/db/src/repository.unit.test.ts` que verifica `editorialStatus === "published"`.

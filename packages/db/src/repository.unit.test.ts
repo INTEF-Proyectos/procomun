@@ -489,6 +489,14 @@ describe("legacy import repository (epic-004-migracion-legacy-procomun)", () => 
 		const found = await findLegacyResourceByExternalId(db, "legacy-procomun", baseResourceInput.externalId);
 		expect(found?.id).toBe(result.resourceId);
 
+		// Los recursos legacy ya estaban publicados en origen: se importan
+		// directamente como "published", no como "draft" (ver ADR-0029).
+		const [resourceRow] = await db
+			.select({ editorialStatus: schema.resources.editorialStatus })
+			.from(schema.resources)
+			.where(eq(schema.resources.id, result.resourceId));
+		expect(resourceRow?.editorialStatus).toBe("published");
+
 		const elpxProject = await getElpxProjectByResourceId(db, result.resourceId);
 		expect(elpxProject?.hash).toBe(elpxInput.hash);
 		expect(elpxProject?.hasPreview).toBe(true);

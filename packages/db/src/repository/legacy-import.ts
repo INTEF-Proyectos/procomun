@@ -97,7 +97,10 @@ export async function importLegacyResourceWithElpx(
 			keywords: input.resource.keywords,
 			author: input.resource.author,
 			publisher: input.resource.publisher,
-			editorialStatus: "draft",
+			// Los recursos legacy ya estaban publicados y curados en la plataforma
+			// de origen; se importan directamente como "published" en vez de
+			// "draft" (decisión revisada, ver Actualización 2026-07-10 en ADR-0029).
+			editorialStatus: "published",
 			importedAt: input.resource.importedAt,
 			createdAt: now,
 			updatedAt: now,
