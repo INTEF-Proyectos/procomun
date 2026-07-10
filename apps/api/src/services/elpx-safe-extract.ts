@@ -239,9 +239,15 @@ export async function safeExtractElpx(
     // Validación previa: lanza antes de extraer si algo es peligroso.
     inspectZipEntries(Buffer.from(buf), limits);
 
+    // stdout/stderr en "ignore": unzip -o emite una línea por fichero extraído
+    // y nadie leía esos streams. Con "pipe" y un .elpx de decenas/cientos de
+    // entradas, el buffer del pipe se llena, el proceso hijo se bloquea
+    // escribiendo y `proc.exited` nunca se resuelve — invisible en la API (el
+    // servidor no necesita salir) pero cuelga cualquier script de vida corta
+    // (p. ej. el CLI de importación) que sí necesita devolver el control.
     const proc = Bun.spawn(["unzip", "-o", filePath, "-d", extractPath], {
-      stdout: "pipe",
-      stderr: "pipe",
+      stdout: "ignore",
+      stderr: "ignore",
     });
     const exitCode = await proc.exited;
     if (exitCode !== 0) {

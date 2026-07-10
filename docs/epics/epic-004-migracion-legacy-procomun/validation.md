@@ -51,4 +51,16 @@ Verificación directa en BD de los 8 recursos importados: `title`, `language`, `
 
 ### Pendiente para fases siguientes
 - Ampliar `RESOURCE_TYPE_DICTIONARY` con los 3 casos sin mapeo detectados en el piloto.
-- Verificación visual en el backoffice admin (UI) de los recursos importados — no realizada en esta pasada porque la ejecución real se hizo en un entorno temporal desechado inmediatamente después de la verificación por BD directa, no en el entorno de desarrollo local con frontend levantado.
+
+## Fase 1 — pruebas manuales del usuario y dos bugs adicionales encontrados (2026-07-10)
+
+Al probar el comando manualmente contra su entorno de desarrollo local (`local-data/`, vía `make cli`), el usuario encontró dos problemas no cubiertos por los tests automatizados (ambos con proceso corto de vida — la suite de tests fuerza su propia salida y no los detecta; el servidor API tampoco, porque nunca necesita terminar):
+
+1. **El proceso se quedaba colgado tras completar la importación.** Causa: `apps/api/src/services/elpx-safe-extract.ts` (código preexistente, ADR-0026a) lanza `unzip` con `stdout: "pipe", stderr: "pipe"` pero nunca lee esos streams. `unzip -o` es verboso (una línea por fichero extraído); con `.elpx` de decenas/cientos de entradas el buffer del pipe se llena, el proceso `unzip` se bloquea escribiendo y `proc.exited` nunca se resuelve. Fix: `stdout`/`stderr` a `"ignore"` (igual que el otro `Bun.spawn` en `elpx-processor.ts`, que ya lo hacía bien). Verificado: la importación completa de los 9 ejemplos pasó de colgarse indefinidamente a completarse en ~2s.
+2. **Tras arreglar (1), el proceso salía con código 99 en vez de 0.** Causa: PGlite (Postgres compilado a WASM vía Emscripten) fija `process.exitCode = 99` como red de seguridad (`quit_()` interno) cuando el proceso Node/Bun va a terminar sin haber cerrado explícitamente la conexión — reproducible incluso llamando a `process.exit(0)` a mano, porque algo en el runtime de PGlite muta `process.exitCode` de forma asíncrona antes de que se ejecute esa línea. Fix: `apps/cli/src/commands/import-legacy-procomun.ts` ahora cierra `db.$client` (si expone `.close()`) antes de `process.exit()`, y calcula el código de salida en una variable local en vez de leer `process.exitCode` (que puede haber sido mutado por PGlite).
+
+Ambos bugs eran preexistentes en la infraestructura reutilizada, no introducidos por el importador — pero solo se manifiestan en un proceso de vida corta como este CLI, por lo que no habían aparecido hasta esta prueba manual. Quedan corregidos y verificados con `bun test` (783/783) más una reproducción manual: ejecución completa de los 9 ejemplos, `EXIT_CODE=0`, ~2.3s de duración total (antes: cuelgue indefinido).
+
+### Pendiente
+- Verificación visual en el backoffice admin (UI) por parte del usuario — pendiente de confirmación tras aplicar estos dos fixes.
+- Considerar si `elpx-safe-extract.ts` debería drenar/loguear stdout de `unzip` en vez de ignorarlo del todo, si en el futuro se necesita diagnosticar fallos de extracción con más detalle (fuera de alcance de esta épica).

@@ -1253,3 +1253,31 @@ tasks:
       → sin incidencias. Pendiente para siguiente iteración: ampliar RESOURCE_TYPE_DICTIONARY con los 3
       tipos sin mapeo detectados en el piloto (mapa-conceptual, leccion-magistral, cuestionario) y
       verificación visual en el backoffice admin.
+  T-2026-07-10-003:
+    date: 2026-07-10
+    agent: "backend-api-servicios + qa-validacion"
+    task: "Fix de dos bugs de proceso encontrados al probar import:legacy-procomun manualmente contra local-data/"
+    status: Done
+    related: ["epic-004-migracion-legacy-procomun", "ADR-0026"]
+    notes: >
+      El usuario probó el comando contra su entorno de desarrollo local (make cli) y reportó que el proceso
+      se quedaba colgado tras completar la importación (no devolvía el control a la shell) y que no veía
+      los recursos en la aplicación. Diagnóstico reproducido de forma aislada:
+      (1) apps/api/src/services/elpx-safe-extract.ts (código preexistente, ADR-0026a) lanza `unzip` vía
+      Bun.spawn con stdout/stderr "pipe" pero nunca lee esos streams; unzip -o es verboso (una línea por
+      fichero extraído) y con .elpx de decenas/cientos de entradas el buffer del pipe se llena, el proceso
+      hijo se bloquea escribiendo y `proc.exited` nunca se resuelve — invisible en el servidor API (nunca
+      necesita salir) y en `bun test` (el test runner fuerza su propia salida), solo visible en un script de
+      vida corta como este CLI. Fix: stdout/stderr a "ignore" (mismo patrón ya usado en el otro Bun.spawn de
+      elpx-processor.ts). (2) Tras corregir (1), el proceso salía con código 99 en vez de 0: PGlite (Postgres
+      compilado a WASM/Emscripten) fija process.exitCode=99 como red de seguridad (función interna quit_())
+      cuando el proceso Node/Bun va a terminar sin haber cerrado explícitamente la conexión — reproducible
+      incluso llamando a process.exit(0) a mano. Fix: apps/cli/src/commands/import-legacy-procomun.ts cierra
+      db.$client (si expone .close()) antes de process.exit(), y calcula el código de salida en una variable
+      local en vez de leer process.exitCode (mutable de forma asíncrona por PGlite).
+      Ambos bugs eran preexistentes en infraestructura reutilizada (no introducidos por el importador) pero
+      solo se manifiestan en procesos de vida corta, por lo que no habían aparecido hasta esta prueba manual
+      del usuario. Validación: bun test apps/ packages/ scripts/ → 783 pass, 0 fail. Reproducción manual:
+      importación completa de los 9 ejemplos de ode-export/ en un entorno temporal aislado, EXIT_CODE=0,
+      ~2.3s de duración total (antes: cuelgue indefinido). Pendiente: que el usuario reintente contra su
+      local-data/ real y confirme visualmente en el backoffice admin.

@@ -157,9 +157,29 @@ export async function importLegacyProcomun(args: string[]) {
 			`bloqueados=${report.totals.blocked} errores=${report.totals.errored} incompletos=${report.totals.incompletePairs}`,
 	);
 
-	if (report.totals.errored > 0) {
-		process.exitCode = 1;
+	// Calculado ANTES de cerrar la conexión: el runtime WASM de PGlite puede
+	// mutar process.exitCode de forma asíncrona en background (ver comentario
+	// más abajo), así que no hay que confiar en su valor en este punto.
+	const exitCode = report.totals.errored > 0 ? 1 : 0;
+
+	// La conexión PGlite compartida (apps/api/src/db.ts) está pensada para un
+	// proceso servidor de larga vida y nunca se cierra explícitamente. En un
+	// script de un solo uso como este CLI, el runtime WASM/Emscripten de
+	// PGlite detecta que el proceso Node/Bun va a terminar sin haber cerrado
+	// limpiamente su instancia y fija `process.exitCode = 99` como red de
+	// seguridad (ver quit_() en @electric-sql/pglite) — reproducible incluso
+	// llamando a process.exit(0) explícitamente. Cerrar el cliente antes de
+	// salir evita esa ruta y deja el código de salida real (0/1).
+	const client = deps.getDb().db.$client as { close?: () => unknown } | undefined;
+	if (typeof client?.close === "function") {
+		try {
+			await client.close();
+		} catch {
+			// No impide reportar el resultado real de la importación.
+		}
 	}
+
+	process.exit(exitCode);
 }
 
 /**
