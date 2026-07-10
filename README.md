@@ -145,6 +145,23 @@ Cómo abrirlo:
 
 En desarrollo con Vite, el soporte para `/dev/` y `/dev/docs/*` está cableado en `apps/frontend/vite.config.ts`. En la imagen de Docker, el build copia `docs/`, `.agents/`, `README.md`, `AGENTS.md` y los YAML necesarios para que el panel siga funcionando.
 
+## Importador de recursos legacy Procomún
+
+`import:legacy-procomun` importa recursos exportados de la plataforma Procomún legacy en pares `<id>.json` + `<id>.elpx` (metadatos + paquete eXeLearning), mapeándolos al perfil mínimo de metadatos (ADR-0009) y persistiéndolos como recursos `published`. Reutiliza el pipeline de subida/extracción `.elpx` ya existente y es idempotente: reejecutarlo sobre el mismo directorio no duplica nada.
+
+```bash
+make cli ARGS="import:legacy-procomun --source-dir <ruta-a-los-pares .json+.elpx> --dry-run"
+make cli ARGS="import:legacy-procomun --source-dir <ruta>"
+```
+
+Flags disponibles: `--source-dir <ruta>` (obligatorio), `--dry-run` (valida y mapea sin escribir en BD), `--limit <n>`, `--only <externalId>` (reintenta un único registro), `--report-dir <ruta>` (por defecto `local-data/legacy-import-reports/`).
+
+Al terminar escribe un `informe_ingesta-<runId>.json` con el desglose (importados, omitidos por ya existir, bloqueados por licencia no reconocida u otros motivos, y warnings tolerables).
+
+**Con PGlite (por defecto, sin `DATABASE_URL`)**: detén el servidor de desarrollo (`make up` / `make up-api`) antes de lanzar el import — PGlite es una base de datos embebida de un solo proceso y no soporta que dos procesos abran el mismo directorio de datos a la vez. Con PostgreSQL real (`make up-postgres` o `DATABASE_URL` configurada) no hace falta parar nada, ya que Postgres sí admite conexiones concurrentes de varios procesos.
+
+Documentación completa: [ADR-0029](docs/negocio/decisiones/0029-importador-legacy-procomun-elpx.md) y [`docs/epics/epic-004-migracion-legacy-procomun/`](docs/epics/epic-004-migracion-legacy-procomun/) (requisitos, diseño, mapeo de campos, resultados del piloto).
+
 ## Testing y calidad
 
 El flujo estándar del repo es:
