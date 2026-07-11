@@ -24,8 +24,10 @@
  * the published-content CSP in `elpx-content.ts` (no `frame-src https:`,
  * `base-uri 'none'`, no `allow-popups-to-escape-sandbox`).
  *
- * Mount at `/api/v1/preview` and set the editor's
- * `embeddingConfig.previewTransport = "http"` + `previewBasePath = "/api/v1/preview"`.
+ * Mount at `/api/v1/preview` (serving) and `/api/v1/preview-session`
+ * (management). The embedded editor activates the HTTP transport through the
+ * `previewHttp` block injected by `exelearning-editor.ts`
+ * (`protocolVersion: 2`, `managementBaseUrl`, `servingBaseUrl`).
  */
 import { type Context, Hono } from "hono";
 import type { AuthEnv } from "../auth/middleware.ts";
@@ -110,19 +112,31 @@ export type ParsedRange =
 
 /**
  * Parse a single-range `Range` header against a body of `totalSize` bytes.
- * Returns `null` when no range was requested, an inclusive byte window when it
- * is satisfiable, and `"unsatisfiable"` for anything else (multi-range,
- * malformed, out of bounds) — the contract answers those with 416.
+ *
+ * Three outcomes, matching serving contract v2 §4:
+ * - `null` — no Range, OR a Range the server does not honor as a partial
+ *   request (a non-`bytes` unit, a multi-range list, or otherwise malformed
+ *   syntax). Per the contract these are IGNORED and answered with a normal
+ *   `200` full response — NOT a `416`.
+ * - an inclusive `{ start, end }` window — a satisfiable single range (`206`).
+ * - `"unsatisfiable"` — a syntactically valid single range that cannot be met
+ *   (first-byte-pos past EOF, inverted bounds, zero-length suffix, empty body);
+ *   only this case answers `416`.
  */
 export function parseRangeHeader(
 	value: string | null | undefined,
 	totalSize: number,
 ): ParsedRange {
 	if (!value) return null;
+	// Anything that is not a single `bytes=<start>-<end>` request — a non-bytes
+	// unit (`items=…`), a multi-range list (`bytes=0-1,3-4`), or plain garbage —
+	// is not a range we serve: ignore it and fall through to the full response.
 	const match = /^bytes=(\d*)-(\d*)$/.exec(value.trim());
-	if (!match) return "unsatisfiable";
+	if (!match) return null;
 	const [, rawStart, rawEnd] = match;
-	if (rawStart === "" && rawEnd === "") return "unsatisfiable";
+	// `bytes=-` names neither a first-byte-pos nor a suffix-length: malformed,
+	// so ignore it (full response) rather than answering 416.
+	if (rawStart === "" && rawEnd === "") return null;
 	if (rawStart === "") {
 		// Suffix form: last N bytes.
 		const suffix = Number.parseInt(rawEnd as string, 10);
@@ -218,6 +232,27 @@ function servePreviewFile(
 
 export const previewRoutes = new Hono();
 
+/**
+ * Bare-capability-URL redirect: `…/{previewId}` and `…/{previewId}/` answer a
+ * `302` to `…/{previewId}/index.html` instead of serving index bytes inline
+ * (serving contract v2 §4). This guarantees the iframe's relative-URL base is
+ * always `…/{previewId}/`, so the entry document's sub-resources (`theme/…`,
+ * `libs/…`, `img/…`) resolve correctly. The Location is an absolute path built
+ * from the request path (trailing slash trimmed) so a mount prefix is preserved
+ * and a trailing slash cannot double the id under relative resolution.
+ */
+function redirectToIndex(c: Context): Response {
+	const basePath = c.req.path.replace(/\/+$/, "");
+	return new Response(null, {
+		status: 302,
+		headers: {
+			...baseHeaders(),
+			"Cache-Control": "no-store",
+			Location: `${basePath}/index.html`,
+		},
+	});
+}
+
 // Derive the sub-path from c.req.path (Hono decodes the id segment there, the
 // same way c.req.param decodes it) so an encoded hex char in the id cannot
 // desync the split. NOT new URL(c.req.url).pathname, whose raw (still-encoded)
@@ -231,7 +266,12 @@ function handlePreview(c: Context): Response {
 	}
 	const pathParts = c.req.path.split("/");
 	const idIndex = pathParts.indexOf(previewId);
-	const relPath = pathParts.slice(idIndex + 1).join("/") || "index.html";
+	const relPath = pathParts.slice(idIndex + 1).join("/");
+	// Bare capability URL (…/{previewId} or …/{previewId}/) → redirect to the
+	// entry document rather than serving it verbatim from the bare path.
+	if (relPath === "") {
+		return redirectToIndex(c);
+	}
 
 	return servePreviewFile(previewId, relPath, {
 		ifNoneMatch: c.req.header("if-none-match"),

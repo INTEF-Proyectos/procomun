@@ -621,18 +621,28 @@ describe("GET /api/v1/preview/:previewId/* (authless serving)", () => {
 		}
 	});
 
-	test("serves index.html for the bare session URL without redirecting", async () => {
+	test("redirects the bare session URL (and trailing slash) to index.html (302)", async () => {
 		const previewId = await servedSession({
 			"index.html": "<html>root</html>",
 		});
+		// Contract v2 §4: the bare capability URL must 302 to …/{previewId}/index.html
+		// so the iframe's relative-URL base is always …/{previewId}/ — never serve
+		// index bytes from the bare path. The absolute-path Location must resolve to
+		// the same target from both the no-slash and trailing-slash forms.
 		for (const suffix of ["", "/"]) {
 			const res = await ownerApp.request(
 				`/api/v1/preview/${previewId}${suffix}`,
+				{ redirect: "manual" },
 			);
-			expect(res.status).toBe(200);
-			expect([301, 302, 303, 307, 308]).not.toContain(res.status);
-			expect(res.headers.get("location")).toBeNull();
-			expect(await res.text()).toBe("<html>root</html>");
+			expect(res.status).toBe(302);
+			expect(res.headers.get("location")).toBe(
+				`/api/v1/preview/${previewId}/index.html`,
+			);
+			// Hardening headers ride even the redirect; the redirect is never cached.
+			expect(res.headers.get("x-content-type-options")).toBe("nosniff");
+			expect(res.headers.get("cache-control")).toBe("no-store");
+			// The bare URL must not leak the document bytes.
+			expect(await res.text()).toBe("");
 		}
 	});
 
@@ -833,6 +843,33 @@ describe("GET /api/v1/preview asset tier (ETag / Range)", () => {
 		);
 		expect(res.status).toBe(416);
 		expect(res.headers.get("content-range")).toBe("bytes */10");
+	});
+
+	// Contract v2 §4: malformed / multi-range / non-bytes-unit Range headers are
+	// IGNORED — the server answers a normal 200 full response, not a 416. Only a
+	// syntactically valid single unsatisfiable range keeps 416 (asserted above).
+	test("ignores unhonored Range headers and serves the full 200 body", async () => {
+		const previewId = await sessionWithAsset(
+			"media/clip.mp4",
+			KEY_B,
+			"0123456789",
+		);
+		const ignored = [
+			"bytes=0-1,3-4", // multi-range list
+			"items=0-4", // non-bytes unit
+			"bytes=abc", // malformed
+			"bytes=-", // no first-byte-pos and no suffix-length
+			"kittens", // pure garbage
+		];
+		for (const range of ignored) {
+			const res = await anonApp.request(
+				`/api/v1/preview/${previewId}/media/clip.mp4`,
+				{ headers: { Range: range } },
+			);
+			expect(res.status, `Range: ${range}`).toBe(200);
+			expect(res.headers.get("content-range")).toBeNull();
+			expect(await res.text()).toBe("0123456789");
+		}
 	});
 });
 
