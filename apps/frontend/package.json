@@ -10,7 +10,7 @@
 		"test": "bun test"
 	},
 	"dependencies": {
-		"@electric-sql/pglite": "0.5.3",
+		"@electric-sql/pglite": "0.5.4",
 		"@inlang/paraglide-js": "^2.15.1",
 		"@procomun/db": "workspace:*",
 		"@testing-library/dom": "^10.4.1",
