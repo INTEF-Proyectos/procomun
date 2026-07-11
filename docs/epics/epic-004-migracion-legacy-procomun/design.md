@@ -61,8 +61,8 @@ Diccionario de equivalencias conocidas (LOM-ES → vocabulario informal ya usado
 
 - Índice único parcial en BD: `resources_import_source_external_id_idx` sobre `(import_source, external_id) WHERE external_id IS NOT NULL` (ver migración `packages/db/migrations/0004_resources_import_dedup_index.sql` y `packages/db/src/setup.ts`).
 - Comprobación previa (`findLegacyResourceByExternalId`) antes de insertar → registros ya existentes se cuentan como `skipped`, no como error.
-- Deduplicación secundaria por contenido: `elpx_projects.hash` es el checksum SHA-256 real del `.elpx` (pasado explícitamente a `processElpxUpload(..., { hash: checksum })`, no un UUID aleatorio); un `.elpx` idéntico bajo dos `idODE` distintos falla por la unicidad del hash y se reporta como error, sin duplicar contenido en `storageDir/elpx/`.
-- Si la persistencia falla tras una extracción exitosa, el `extractPath` en disco solo se limpia (`removeElpxExtraction()`) cuando ningún otro `elpx_project` ya lo referencia (`getElpxProjectByHash`) — evita borrar la extracción de un recurso legítimamente ya persistido con el mismo hash (el caso de deduplicación anterior).
+- Deduplicación secundaria por contenido: `elpx_projects.hash` es el checksum SHA-256 real del `.elpx` (pasado explícitamente a `processElpxUpload(..., { hash: checksum })`, no un UUID aleatorio). Antes de extraer, se comprueba `getElpxProjectByHash()`; si el hash ya existe, el registro se reporta como `error` sin volver a extraer (ver sección "Comprobación de duplicados antes de extraer" más abajo) — evita que un contenido `.elpx` idéntico bajo dos `idODE` distintos comparta ruta de extracción con un recurso ya persistido.
+- Si la persistencia falla por cualquier otro motivo tras una extracción exitosa (fallo de BD, de red, etc. — no un choque de hash, que ya se descarta antes de extraer), el `extractPath` en disco se limpia con `removeElpxExtraction()` como parte de la limpieza best-effort del registro fallido.
 - Transacción Drizzle **por registro** (no por lote de 500): cada recurso toca 6 tablas y tiene efectos de sistema de ficheros (extracción del `.elpx`); un fallo aislado no debe invalidar los registros ya confirmados del lote.
 - La lectura y el mapeo de cada `.json` están envueltos en su propio `try/catch` (`resolvePairs()` para el parseo, y el bloque de mapeo para `mapLegacyRecord()`): un `.json` corrupto o con forma inesperada se reporta como `error` para ese registro y no aborta el resto del lote.
 
@@ -82,7 +82,14 @@ Diccionario de equivalencias conocidas (LOM-ES → vocabulario informal ya usado
 
 ## Rollback
 
-Sin transacción atómica global (deliberado). Cada ejecución se marca con un `runId`. Rollback de una ejecución completa: `deleteResource()` (soft delete ya existente, cascada a tablas relacionadas) filtrando por `importSource` + rango de `createdAt`, más limpieza física de `extractPath` en disco con `removeElpxExtraction()` (el `CASCADE` de BD no borra ficheros extraídos).
+Sin transacción atómica global (deliberado). Cada ejecución se marca con un `runId` y escribe su informe en `informe_ingesta-<runId>.json` (o `informe_ingesta-dryrun-<runId>.json` en `--dry-run`, que no requiere rollback al no escribir nada).
+
+**Identificación de los recursos de una ejecución**: el rollback **no debe** filtrar por rango de `createdAt` — ese campo contiene ahora la fecha de publicación original de cada recurso (ver Actualización 2026-07-10 de ADR-0029), no el instante de la importación, así que no identifica qué recursos pertenecen a qué ejecución. La fuente de verdad es el propio informe: cada registro con `outcome: "imported"` incluye su `resourceId` exacto. El procedimiento de rollback es:
+
+1. Leer `informe_ingesta-<runId>.json` y extraer los `resourceId` de todos los registros con `outcome: "imported"`.
+2. Por cada `resourceId`: `deleteResource()` (soft delete ya existente, cascada a `resource_subjects`/`resource_levels`/`media_items`/`elpx_projects`/`upload_sessions`), más limpieza física de `extractPath` en disco con `removeElpxExtraction()` (el `CASCADE` de BD no borra ficheros extraídos) — solo si ningún otro `elpx_project` referencia el mismo `hash` (`getElpxProjectByHash()`, mismo criterio que usa el propio importador para no romper una deduplicación legítima).
+
+Si el informe de una ejecución se ha perdido, como alternativa menos precisa se puede acotar por `upload_sessions.createdAt` (ese campo sí conserva el instante real de la importación, sin verse afectado por el cambio de semántica de `resources.createdAt`) unido a `resources` por `resource_id`, filtrando además por `resources.import_source = 'legacy-procomun'` y el rango de tiempo aproximado de la ejecución — pero es un mecanismo de último recurso, no el procedimiento recomendado.
 
 ## Comando CLI
 
@@ -92,7 +99,15 @@ Flags: `--source-dir <path>`, `--dry-run`, `--limit <n>`, `--only <externalId>`,
 
 Sigue los patrones ya existentes en `apps/cli/src/commands/`: progreso incremental (patrón `fts-reindex.ts`), skip silencioso con log por registro (patrón `seed-resources.ts`).
 
-`--only <externalId>` filtra por el `externalId` real resuelto del contenido del `.json` (`resolvePairs()` lee y parsea cada `.json` del directorio antes de filtrar), no por el nombre de fichero — el nombre exportado solo coincide con `idODE` en la muestra observada, no es un identificador fiable en general.
+`--only <externalId>` filtra por el `externalId` real resuelto del contenido del `.json` (`iterateResolvedPairs()` lee y parsea cada `.json` para resolverlo), no por el nombre de fichero — el nombre exportado solo coincide con `idODE` en la muestra observada, no es un identificador fiable en general.
+
+### Lectura en streaming, no precomputada
+
+`iterateResolvedPairs()` es un generador async (`AsyncGenerator`), no una función que devuelve un array precomputado: el bucle principal lo consume con `for await...of` y corta (`break`) en cuanto `--only` encuentra su objetivo o `--limit` alcanza su cupo. Por la semántica de los generadores de JavaScript, el resto de ficheros del directorio nunca se leen ni parsean — necesario porque el volumen real documentado (~78.800 recursos, ver ADR-0029) haría que materializar todos los JSON en memoria antes de filtrar agotara memoria innecesariamente, y que `--limit 1` leyera igualmente el lote completo antes de recortar.
+
+### Comprobación de duplicados antes de extraer
+
+Como `elpx_projects.hash` es ahora el checksum real del `.elpx`, dos recursos con contenido idéntico compiten por la misma ruta de extracción (`storageDir/elpx/<checksum>`). Por eso `getElpxProjectByHash()` se comprueba **antes** de llamar a `processElpxUpload()`, no después: `safeExtractElpx()` hace rollback destructivo de `extractPath` si la extracción falla a mitad de camino, y si esa ruta ya perteneciera a un recurso legítimamente persistido, ese rollback borraría su preview. Al comprobar antes de extraer, un contenido duplicado nunca llega a extraerse de nuevo — se reporta directamente como `error` con un mensaje explícito, y el recurso ya existente queda intacto.
 
 ## Indexación para búsqueda (FTS)
 

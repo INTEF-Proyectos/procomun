@@ -1329,3 +1329,35 @@ tasks:
       el piloto original (importados=8, bloqueados=1, errores=0), con createdAt reflejando ahora la fecha de
       publicación original de cada recurso (verificado por consulta directa a BD) y search_vector poblado en
       los 8 recursos importados.
+  T-2026-07-11-001:
+    date: 2026-07-11
+    agent: "backend-api-servicios + qa-validacion"
+    task: "Fix de regresión en previsualización .elpx + segunda ronda de revisión del PR #268 (3 hallazgos más)"
+    status: Done
+    related: ["epic-004-migracion-legacy-procomun", "ADR-0029"]
+    notes: >
+      El usuario reporta que la previsualización de recursos importados muestra {"error":"Identificador no
+      válido"}. Causa: apps/api/src/routes/elpx-content.ts validaba el hash con HASH_PATTERN /^[a-f0-9-]{8,40}$/i
+      (pensado para UUID de 36 caracteres o SHA-1 de 40), pero T-2026-07-10-005 hizo que el importador legacy
+      use el checksum SHA-256 (64 caracteres) como elpx_projects.hash, que ese patrón rechazaba con 404. Fix:
+      se amplía el límite superior a 64 caracteres (coincide con elpx_projects.hash varchar(64)); test de
+      regresión añadido que sirve contenido real bajo un hash de 64 caracteres (commit c114c42b).
+      A continuación, el revisor del PR #268 (erseco) mantiene CHANGES_REQUESTED sobre la implementación de
+      T-2026-07-10-005, señalando 3 problemas nuevos: (1) [P1] resolvePairs() leía y retenía en memoria todos
+      los JSON antes de aplicar --only/--limit, sin escalar al volumen real (~78.800 recursos) — --limit 1
+      igualmente parseaba el lote completo. Fix: sustituida por iterateResolvedPairs(), un generador async
+      consumido con for await...of + break en runImportLegacyProcomun, que por semántica de generadores deja
+      de leer ficheros en cuanto se alcanza el límite u objetivo; test de regresión que cuenta invocaciones
+      del resolver de externalId tras pedir solo 2 de 3 elementos. (2) [P1] la extracción del .elpx ocurría
+      sobre storageDir/elpx/<checksum> ANTES de comprobar si ese hash ya existía en BD; como safeExtractElpx()
+      hace rollback destructivo de extractPath si la extracción falla a mitad de camino, un contenido
+      duplicado podía borrar la preview de un recurso ya persistido. Fix: getElpxProjectByHash() se comprueba
+      antes de processElpxUpload(); si el hash ya existe, se lanza un error explícito sin extraer nada — la
+      limpieza en el catch ya no necesita volver a comprobar el hash (ver test de integración actualizado que
+      verifica el mensaje "no se vuelve a extraer"). (3) [P2] la documentación de rollback en design.md seguía
+      proponiendo filtrar por createdAt tras el cambio de semántica del punto (1) de T-2026-07-10-005 (createdAt
+      ahora es la fecha histórica, no el instante de ejecución) — fix documental: usar los resourceId de los
+      registros "imported" del informe de ejecución como fuente de verdad para el rollback, con
+      upload_sessions.createdAt como alternativa de último recurso. Se añade sección de actualización en
+      ADR-0029 (2026-07-11) y se actualiza design.md. Validación: bun test apps/ packages/ scripts/ → 796
+      pass, 0 fail; bun run scripts/check-test-files.ts sin incidencias.

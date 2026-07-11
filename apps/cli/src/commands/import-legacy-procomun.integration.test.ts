@@ -153,6 +153,10 @@ describe("import:legacy-procomun — deduplicación por contenido y limpieza de 
 		const failed = report.records.find((r) => r.outcome === "error");
 		expect(succeeded?.externalId).toBe("es_dup_a"); // orden alfabético: dup-a antes que dup-b
 		expect(failed?.externalId).toBe("es_dup_b");
+		// El mensaje confirma que la detección ocurrió ANTES de extraer (no un
+		// fallo de inserción en BD tras una extracción ya realizada): prueba de
+		// que getElpxProjectByHash() se comprueba antes de processElpxUpload().
+		expect((failed as { message?: string })?.message).toContain("no se vuelve a extraer");
 
 		const firstResource = await deps.repo.findLegacyResourceByExternalId(
 			deps.getDb().db,

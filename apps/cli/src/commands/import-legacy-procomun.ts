@@ -46,6 +46,8 @@ export async function loadImportLegacyProcomunDependencies() {
 	};
 }
 
+type Deps = Awaited<ReturnType<typeof loadImportLegacyProcomunDependencies>>;
+
 interface PairedSource {
 	/** Nombre base compartido por `.json` y `.elpx` (solo agrupación de ficheros). */
 	baseName: string;
@@ -91,32 +93,37 @@ interface ResolvedPair {
 }
 
 /**
- * Lee y parsea el `.json` de cada par para resolver su `externalId` real
- * (`idODE`/`id`) ANTES de aplicar `--only`: el nombre de fichero no es un
- * identificador fiable (solo coincide con `idODE` en la muestra observada),
- * así que `--only <externalId>` debe filtrar por el valor real del JSON, no
- * por el nombre base. Los fallos de lectura/parseo se capturan por par en vez
- * de propagarse, para que un `.json` corrupto no aborte el resto del lote.
+ * Lee y parsea el `.json` de cada par de uno en uno (generador async, no un
+ * array precomputado): con el volumen real documentado (~78.800 recursos,
+ * ver ADR-0029), materializar todos los JSON en memoria antes de aplicar
+ * `--only`/`--limit` no escala y hace que `--limit 1` igualmente parsee el
+ * lote completo. Al consumirse con `for await` + `break`, el llamante deja de
+ * leer ficheros en cuanto tiene lo que necesita.
+ *
+ * Resuelve el `externalId` real (`idODE`/`id`) desde el contenido del JSON:
+ * el nombre de fichero no es un identificador fiable (solo coincide con
+ * `idODE` en la muestra observada), así que `--only <externalId>` debe
+ * filtrar por el valor real del JSON, no por el nombre base. Los fallos de
+ * lectura/parseo se capturan por par en vez de propagarse, para que un
+ * `.json` corrupto no aborte el resto del lote.
  */
-export async function resolvePairs(
+export async function* iterateResolvedPairs(
 	pairs: PairedSource[],
 	resolveLegacyExternalId: (json: LegacyOdeJson) => string,
-): Promise<ResolvedPair[]> {
-	const resolved: ResolvedPair[] = [];
+): AsyncGenerator<ResolvedPair> {
 	for (const pair of pairs) {
 		try {
 			const json = (await Bun.file(pair.jsonPath).json()) as LegacyOdeJson;
 			const externalId = resolveLegacyExternalId(json) || pair.baseName;
-			resolved.push({ pair, externalId, json });
+			yield { pair, externalId, json };
 		} catch (err) {
-			resolved.push({
+			yield {
 				pair,
 				externalId: pair.baseName,
 				parseError: err instanceof Error ? err.message : String(err),
-			});
+			};
 		}
 	}
-	return resolved;
 }
 
 type RecordOutcome =
@@ -232,7 +239,7 @@ export async function importLegacyProcomun(args: string[]) {
  */
 export async function runImportLegacyProcomun(
 	options: { sourceDir: string; dryRun: boolean; limit?: number; only?: string },
-	deps: Awaited<ReturnType<typeof loadImportLegacyProcomunDependencies>>,
+	deps: Deps,
 ): Promise<ImportLegacyProcomunReport> {
 	const startedAt = new Date().toISOString();
 	const runId = crypto.randomUUID();
@@ -247,13 +254,12 @@ export async function runImportLegacyProcomun(
 	const systemUser = options.dryRun ? null : await deps.ensureLegacyImportSystemUser(db);
 
 	const { pairs: allPairs, incomplete } = await findLegacySourcePairs(options.sourceDir);
-	let resolvedPairs = await resolvePairs(allPairs, deps.resolveLegacyExternalId);
-	if (options.only) resolvedPairs = resolvedPairs.filter((r) => r.externalId === options.only);
-	if (options.limit != null) resolvedPairs = resolvedPairs.slice(0, options.limit);
 
 	console.log(
 		`[import:legacy-procomun] ${allPairs.length} pares encontrados en ${options.sourceDir}` +
-			`${options.dryRun ? " (dry-run)" : ""}, procesando ${resolvedPairs.length}...`,
+			`${options.dryRun ? " (dry-run)" : ""}` +
+			`${options.only ? ` (--only ${options.only})` : ""}` +
+			`${options.limit != null ? ` (--limit ${options.limit})` : ""}...`,
 	);
 	if (incomplete.length) {
 		console.log(
@@ -262,12 +268,20 @@ export async function runImportLegacyProcomun(
 	}
 
 	const records: RecordOutcome[] = [];
+	let processed = 0;
 	let imported = 0;
 	let skippedExisting = 0;
 	let blocked = 0;
 	let errored = 0;
 
-	for (const resolved of resolvedPairs) {
+	// Streaming: se itera par a par (ver iterateResolvedPairs) y se corta en
+	// cuanto --only encuentra su objetivo o --limit alcanza su cupo, sin haber
+	// leído ni parseado los ficheros restantes del directorio.
+	for await (const resolved of iterateResolvedPairs(allPairs, deps.resolveLegacyExternalId)) {
+		if (options.only && resolved.externalId !== options.only) continue;
+
+		processed++;
+
 		if (resolved.parseError) {
 			errored++;
 			records.push({
@@ -276,15 +290,17 @@ export async function runImportLegacyProcomun(
 				message: `No se pudo leer/parsear el JSON: ${resolved.parseError}`,
 			});
 			console.error(`[error] ${resolved.externalId}: no se pudo leer/parsear el JSON: ${resolved.parseError}`);
+			if (options.only) break;
+			if (options.limit != null && processed >= options.limit) break;
 			continue;
 		}
 
 		const { pair } = resolved;
-		// biome-ignore lint/style/noNonNullAssertion: !parseError garantiza json presente (ver resolvePairs)
+		// biome-ignore lint/style/noNonNullAssertion: !parseError garantiza json presente (ver iterateResolvedPairs)
 		const json = resolved.json!;
 		const elpxFilename = path.basename(pair.elpxPath);
 
-		let mapping: ReturnType<typeof deps.mapLegacyRecord>;
+		let mapping: ReturnType<typeof deps.mapLegacyRecord> | undefined;
 		try {
 			mapping = deps.mapLegacyRecord(json, elpxFilename);
 		} catch (err) {
@@ -292,124 +308,56 @@ export async function runImportLegacyProcomun(
 			const message = err instanceof Error ? err.message : String(err);
 			records.push({ outcome: "error", externalId: resolved.externalId, message });
 			console.error(`[error] ${resolved.externalId}: ${message}`);
-			continue;
 		}
 
-		const warningMessages = mapping.warnings.map((w) => `${w.field}: ${w.message}`);
+		if (mapping) {
+			const warningMessages = mapping.warnings.map((w) => `${w.field}: ${w.message}`);
 
-		if (mapping.blocking) {
-			blocked++;
-			records.push({
-				outcome: "blocked",
-				externalId: mapping.externalId || pair.baseName,
-				reasons: mapping.blockingErrors,
-			});
-			console.log(`[bloqueado] ${pair.baseName}: ${mapping.blockingErrors.join("; ")}`);
-			continue;
-		}
-
-		const existing = await deps.repo.findLegacyResourceByExternalId(
-			db,
-			mapping.resource.importSource,
-			mapping.externalId,
-		);
-		if (existing) {
-			skippedExisting++;
-			records.push({ outcome: "skipped_existing", externalId: mapping.externalId });
-			console.log(`[omitido] ${mapping.externalId}: ya importado (resourceId=${existing.id})`);
-			continue;
-		}
-
-		if (options.dryRun) {
-			imported++;
-			records.push({ outcome: "would_import", externalId: mapping.externalId, warnings: warningMessages });
-			continue;
-		}
-
-		const uploadId = crypto.randomUUID();
-		const storagePath = path.join(config.storageDir, uploadId);
-		let processed: Awaited<ReturnType<typeof deps.processElpxUpload>> | undefined;
-		try {
-			await Bun.write(storagePath, Bun.file(pair.elpxPath));
-			const [checksum, fileStat] = await Promise.all([
-				deps.computeFileSha256(storagePath),
-				stat(storagePath),
-			]);
-			// El hash se fija al checksum SHA-256 del fichero (no un UUID aleatorio):
-			// es lo que permite que la unicidad de elpx_projects.hash detecte el
-			// mismo .elpx importado bajo dos externalId distintos (deduplicación
-			// secundaria por contenido, ver design.md de epic-004).
-			processed = await deps.processElpxUpload(storagePath, config.storageDir, { hash: checksum });
-
-			const result = await deps.repo.importLegacyResourceWithElpx(db, {
-				resource: {
-					...mapping.resource,
-					// mapping.blocking === false garantiza license !== null (ver field-mapper.ts)
-					license: mapping.resource.license as string,
-				},
-				elpx: {
-					hash: processed.hash,
-					extractPath: processed.extractPath,
-					originalFilename: elpxFilename,
-					hasPreview: processed.hasPreview,
-					elpxMetadata: processed.metadata,
-				},
-				media: {
-					uploadId,
-					// biome-ignore lint/style/noNonNullAssertion: systemUser existe siempre fuera de dry-run
-					ownerId: systemUser!.id,
-					fileSize: fileStat.size,
-					mimeType: "application/zip",
-					url: deps.buildUploadPublicUrl(uploadId),
-					storageKey: `legacy-import/${uploadId}/${deps.sanitizeFilename(elpxFilename)}`,
-					finalChecksum: checksum,
-				},
-			});
-
-			// Indexación best-effort: un fallo aquí no invalida la importación (el
-			// recurso ya está persistido y publicado), solo queda temporalmente
-			// fuera de la búsqueda pública hasta un `fts:reindex` manual.
-			try {
-				await deps.updateSearchVector(db, result.resourceId);
-			} catch (err) {
-				const message = err instanceof Error ? err.message : String(err);
-				warningMessages.push(
-					`search_vector: no se pudo indexar para búsqueda (${message}); ejecutar fts:reindex manualmente`,
+			if (mapping.blocking) {
+				blocked++;
+				records.push({
+					outcome: "blocked",
+					externalId: mapping.externalId || pair.baseName,
+					reasons: mapping.blockingErrors,
+				});
+				console.log(`[bloqueado] ${pair.baseName}: ${mapping.blockingErrors.join("; ")}`);
+			} else {
+				const existing = await deps.repo.findLegacyResourceByExternalId(
+					db,
+					mapping.resource.importSource,
+					mapping.externalId,
 				);
-				console.error(`[warning] ${mapping.externalId}: fallo al indexar search_vector: ${message}`);
-			}
-
-			imported++;
-			records.push({
-				outcome: "imported",
-				externalId: mapping.externalId,
-				resourceId: result.resourceId,
-				warnings: warningMessages,
-			});
-			console.log(
-				`[importado] ${mapping.externalId} -> ${result.resourceId}` +
-					`${warningMessages.length ? ` (${warningMessages.length} warnings)` : ""}`,
-			);
-		} catch (err) {
-			errored++;
-			const message = err instanceof Error ? err.message : String(err);
-			records.push({ outcome: "error", externalId: mapping.externalId, message });
-			console.error(`[error] ${mapping.externalId}: ${message}`);
-			// No aborta el lote: el fichero copiado a storage se limpia best-effort.
-			await unlink(storagePath).catch(() => {});
-
-			if (processed) {
-				// Solo limpiar el directorio extraído si ningún otro elpx_project ya
-				// lo referencia: si el fallo fue justo un choque de hash único (el
-				// mismo .elpx bajo dos externalId distintos), el extractPath
-				// pertenece legítimamente al recurso ya persistido con ese hash y
-				// borrarlo rompería su preview.
-				const stillReferenced = await deps.repo.getElpxProjectByHash(db, processed.hash);
-				if (!stillReferenced) {
-					await deps.removeElpxExtraction(processed.extractPath).catch(() => {});
+				if (existing) {
+					skippedExisting++;
+					records.push({ outcome: "skipped_existing", externalId: mapping.externalId });
+					console.log(`[omitido] ${mapping.externalId}: ya importado (resourceId=${existing.id})`);
+				} else if (options.dryRun) {
+					imported++;
+					records.push({
+						outcome: "would_import",
+						externalId: mapping.externalId,
+						warnings: warningMessages,
+					});
+				} else {
+					await persistImportedResource({
+						deps,
+						db,
+						config,
+						pair,
+						elpxFilename,
+						mapping,
+						warningMessages,
+						systemUser,
+						records,
+						onImported: () => imported++,
+						onErrored: () => errored++,
+					});
 				}
 			}
 		}
+
+		if (options.only) break;
+		if (options.limit != null && processed >= options.limit) break;
 	}
 
 	return {
@@ -421,7 +369,7 @@ export async function runImportLegacyProcomun(
 		totals: {
 			pairsFound: allPairs.length,
 			incompletePairs: incomplete.length,
-			processed: resolvedPairs.length,
+			processed,
 			imported,
 			skippedExisting,
 			blocked,
@@ -430,4 +378,121 @@ export async function runImportLegacyProcomun(
 		incompletePairs: incomplete,
 		records,
 	};
+}
+
+/**
+ * Copia el `.elpx` a storage, calcula su checksum y lo persiste. Aislado en
+ * su propia función para mantener legible el bucle principal de
+ * `runImportLegacyProcomun`.
+ */
+async function persistImportedResource(params: {
+	deps: Deps;
+	db: ReturnType<Deps["getDb"]>["db"];
+	config: ReturnType<Deps["getUploadConfig"]>;
+	pair: PairedSource;
+	elpxFilename: string;
+	mapping: ReturnType<Deps["mapLegacyRecord"]>;
+	warningMessages: string[];
+	systemUser: { id: string } | null;
+	records: RecordOutcome[];
+	onImported: () => void;
+	onErrored: () => void;
+}): Promise<void> {
+	const { deps, db, config, pair, elpxFilename, mapping, warningMessages, systemUser, records, onImported, onErrored } =
+		params;
+
+	const uploadId = crypto.randomUUID();
+	const storagePath = path.join(config.storageDir, uploadId);
+	let processed: Awaited<ReturnType<typeof deps.processElpxUpload>> | undefined;
+	try {
+		await Bun.write(storagePath, Bun.file(pair.elpxPath));
+		const [checksum, fileStat] = await Promise.all([
+			deps.computeFileSha256(storagePath),
+			stat(storagePath),
+		]);
+
+		// Comprobar ANTES de extraer si este contenido ya está importado bajo
+		// otro recurso: extraer directamente sobre storageDir/elpx/<checksum> sin
+		// esta comprobación previa arriesgaría que un fallo a mitad de la
+		// extracción borrase (safeExtractElpx hace rollback destructivo) el
+		// directorio activo de un recurso ya persistido con ese mismo hash.
+		const existingElpxProject = await deps.repo.getElpxProjectByHash(db, checksum);
+		if (existingElpxProject) {
+			throw new Error(
+				`El .elpx tiene el mismo contenido (hash ${checksum}) que un recurso ya importado (resourceId=${existingElpxProject.resourceId}); no se vuelve a extraer.`,
+			);
+		}
+
+		// El hash se fija al checksum SHA-256 del fichero (no un UUID aleatorio):
+		// es lo que permite que la unicidad de elpx_projects.hash detecte el
+		// mismo .elpx importado bajo dos externalId distintos (deduplicación
+		// secundaria por contenido, ver design.md de epic-004).
+		processed = await deps.processElpxUpload(storagePath, config.storageDir, { hash: checksum });
+
+		const result = await deps.repo.importLegacyResourceWithElpx(db, {
+			resource: {
+				...mapping.resource,
+				// mapping.blocking === false garantiza license !== null (ver field-mapper.ts)
+				license: mapping.resource.license as string,
+			},
+			elpx: {
+				hash: processed.hash,
+				extractPath: processed.extractPath,
+				originalFilename: elpxFilename,
+				hasPreview: processed.hasPreview,
+				elpxMetadata: processed.metadata,
+			},
+			media: {
+				uploadId,
+				// biome-ignore lint/style/noNonNullAssertion: systemUser existe siempre fuera de dry-run
+				ownerId: systemUser!.id,
+				fileSize: fileStat.size,
+				mimeType: "application/zip",
+				url: deps.buildUploadPublicUrl(uploadId),
+				storageKey: `legacy-import/${uploadId}/${deps.sanitizeFilename(elpxFilename)}`,
+				finalChecksum: checksum,
+			},
+		});
+
+		// Indexación best-effort: un fallo aquí no invalida la importación (el
+		// recurso ya está persistido y publicado), solo queda temporalmente
+		// fuera de la búsqueda pública hasta un `fts:reindex` manual.
+		try {
+			await deps.updateSearchVector(db, result.resourceId);
+		} catch (err) {
+			const message = err instanceof Error ? err.message : String(err);
+			warningMessages.push(
+				`search_vector: no se pudo indexar para búsqueda (${message}); ejecutar fts:reindex manualmente`,
+			);
+			console.error(`[warning] ${mapping.externalId}: fallo al indexar search_vector: ${message}`);
+		}
+
+		onImported();
+		records.push({
+			outcome: "imported",
+			externalId: mapping.externalId,
+			resourceId: result.resourceId,
+			warnings: warningMessages,
+		});
+		console.log(
+			`[importado] ${mapping.externalId} -> ${result.resourceId}` +
+				`${warningMessages.length ? ` (${warningMessages.length} warnings)` : ""}`,
+		);
+	} catch (err) {
+		onErrored();
+		const message = err instanceof Error ? err.message : String(err);
+		records.push({ outcome: "error", externalId: mapping.externalId, message });
+		console.error(`[error] ${mapping.externalId}: ${message}`);
+		// No aborta el lote: el fichero copiado a storage se limpia best-effort.
+		await unlink(storagePath).catch(() => {});
+
+		// Como el choque de hash duplicado ya se descarta ANTES de extraer (ver
+		// arriba), cualquier fallo que llegue aquí tras una extracción exitosa
+		// (processed !== undefined) es de otra naturaleza (BD, red, etc.) y el
+		// directorio extraído no pertenece a ningún recurso ya persistido: se
+		// puede limpiar sin comprobación adicional.
+		if (processed) {
+			await deps.removeElpxExtraction(processed.extractPath).catch(() => {});
+		}
+	}
 }

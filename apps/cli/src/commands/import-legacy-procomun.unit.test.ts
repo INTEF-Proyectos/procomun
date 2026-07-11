@@ -3,14 +3,21 @@ import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { resolveLegacyExternalId } from "@procomun/db/legacy-import";
+import type { LegacyOdeJson } from "@procomun/db/legacy-import";
 import {
 	findLegacySourcePairs,
+	iterateResolvedPairs,
 	loadImportLegacyProcomunDependencies,
-	resolvePairs,
 	runImportLegacyProcomun,
 } from "./import-legacy-procomun.ts";
 
 type Deps = Awaited<ReturnType<typeof loadImportLegacyProcomunDependencies>>;
+
+async function collect<T>(iter: AsyncGenerator<T>): Promise<T[]> {
+	const out: T[] = [];
+	for await (const item of iter) out.push(item);
+	return out;
+}
 
 function buildMockDeps(storageDir: string, overrides: Partial<Deps> = {}): Deps {
 	const base: Deps = {
@@ -112,7 +119,7 @@ describe("findLegacySourcePairs", () => {
 	});
 });
 
-describe("resolvePairs", () => {
+describe("iterateResolvedPairs", () => {
 	let dir: string;
 
 	beforeEach(async () => {
@@ -125,7 +132,7 @@ describe("resolvePairs", () => {
 
 	test("resuelve el externalId del JSON aunque difiera del nombre del fichero", async () => {
 		// El nombre de fichero exportado no siempre coincide con idODE (solo
-		// ocurre así en la muestra observada) — resolvePairs debe leer el JSON.
+		// ocurre así en la muestra observada) — iterateResolvedPairs debe leer el JSON.
 		await writeFile(
 			path.join(dir, "nombre-de-fichero-cualquiera.json"),
 			JSON.stringify({ idODE: "es_externo_real" }),
@@ -133,7 +140,7 @@ describe("resolvePairs", () => {
 		await writeFile(path.join(dir, "nombre-de-fichero-cualquiera.elpx"), "zip-bytes");
 
 		const { pairs } = await findLegacySourcePairs(dir);
-		const resolved = await resolvePairs(pairs, resolveLegacyExternalId);
+		const resolved = await collect(iterateResolvedPairs(pairs, resolveLegacyExternalId));
 
 		expect(resolved).toHaveLength(1);
 		expect(resolved[0]?.externalId).toBe("es_externo_real");
@@ -147,7 +154,7 @@ describe("resolvePairs", () => {
 		await writeFile(path.join(dir, "valido.elpx"), "zip-bytes");
 
 		const { pairs } = await findLegacySourcePairs(dir);
-		const resolved = await resolvePairs(pairs, resolveLegacyExternalId);
+		const resolved = await collect(iterateResolvedPairs(pairs, resolveLegacyExternalId));
 
 		const corrupted = resolved.find((r) => r.pair.baseName === "corrupto");
 		expect(corrupted?.parseError).toBeTruthy();
@@ -163,10 +170,42 @@ describe("resolvePairs", () => {
 		await writeFile(path.join(dir, "sin-id.elpx"), "zip-bytes");
 
 		const { pairs } = await findLegacySourcePairs(dir);
-		const resolved = await resolvePairs(pairs, resolveLegacyExternalId);
+		const resolved = await collect(iterateResolvedPairs(pairs, resolveLegacyExternalId));
 
 		expect(resolved[0]?.externalId).toBe("sin-id");
 		expect(resolved[0]?.parseError).toBeUndefined();
+	});
+
+	test("es perezoso: no lee/resuelve pares más allá de los que el consumidor pide (no escala mal con --limit)", async () => {
+		// Regresión del hallazgo P1 de la revisión del PR #268: con un array
+		// precomputado, `--limit 1` sobre ~78.800 recursos igualmente leería y
+		// parsearía los 78.800 JSON antes de recortar a 1. Con el generador, el
+		// consumidor puede dejar de pedir elementos y los restantes nunca se
+		// tocan — se comprueba contando cuántas veces se invoca el resolver de
+		// externalId (inyectado), que solo se llama una vez por par realmente leído.
+		await writeFile(path.join(dir, "a.json"), JSON.stringify({ idODE: "a" }));
+		await writeFile(path.join(dir, "a.elpx"), "zip-bytes");
+		await writeFile(path.join(dir, "b.json"), JSON.stringify({ idODE: "b" }));
+		await writeFile(path.join(dir, "b.elpx"), "zip-bytes");
+		await writeFile(path.join(dir, "c.json"), JSON.stringify({ idODE: "c" }));
+		await writeFile(path.join(dir, "c.elpx"), "zip-bytes");
+
+		const { pairs } = await findLegacySourcePairs(dir);
+		expect(pairs).toHaveLength(3);
+
+		let resolveCalls = 0;
+		const spyResolve = (json: LegacyOdeJson) => {
+			resolveCalls++;
+			return resolveLegacyExternalId(json);
+		};
+
+		const iterator = iterateResolvedPairs(pairs, spyResolve);
+		const first = await iterator.next();
+		const second = await iterator.next();
+		// Deliberadamente NO se pide un tercer elemento.
+		expect(first.done).toBe(false);
+		expect(second.done).toBe(false);
+		expect(resolveCalls).toBe(2);
 	});
 });
 
