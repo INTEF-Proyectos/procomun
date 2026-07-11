@@ -29,8 +29,13 @@ exelearningEditorRoutes.get("/index.html", async (c) => {
 	// Determine editor base URL for asset resolution
 	const editorBaseUrl = "/api/v1/exelearning-editor";
 
-	// Inject <base> tag for relative asset resolution
-	html = html.replace("<head>", `<head>\n<base href="${editorBaseUrl}/">`);
+	// Inject <base> for relative asset resolution, then the Service Worker
+	// neutralizing stub — it MUST run before any editor script so a same-origin
+	// preview SW can never register on the Procomun origin.
+	html = html.replace(
+		"<head>",
+		`<head>\n<base href="${editorBaseUrl}/">\n${SW_NEUTRALIZE_SCRIPT}`,
+	);
 
 	// Inject Procomun embedding config before </head> (like editor-bootstrap.php)
 	//
@@ -79,6 +84,41 @@ window.__PROCOMUN_CONFIG__ = {
 		},
 	});
 });
+
+/**
+ * Interim Service Worker neutralizing stub.
+ *
+ * The bundled pre-v2 editor (v4.0.1) still ships `loadPreviewFromServiceWorker()`
+ * and can call `navigator.serviceWorker.register('/preview-sw.js')` to drive a
+ * SAME-ORIGIN Service Worker preview. On the Procomun origin that would run
+ * untrusted author content same-origin — exactly what the opaque HTTP preview
+ * (serving contract v2) exists to prevent. Until the HTTP-preview-v2 editor
+ * build ships (see ADR-0030) and this stub becomes unnecessary, neutralize SW
+ * registration so no preview SW can be installed on this origin; the supported
+ * transport is the injected `previewHttp` config. Mirrors the same-purpose stub
+ * in mod_exelearning / nextcloud-exelearning / omeka-s-exelearning.
+ *
+ * The dummy returned from `register()` is a full ServiceWorkerRegistration-like
+ * object (not a bare `{}`) because the v4 editor calls `reg.addEventListener`
+ * and would otherwise throw and abort its hidden export iframe.
+ */
+const SW_NEUTRALIZE_SCRIPT = `<script>
+(function () {
+	'use strict';
+	if (!('serviceWorker' in navigator)) return;
+	var dummy = {
+		scope: '', installing: null, waiting: null, active: null,
+		addEventListener: function () {}, removeEventListener: function () {},
+		update: function () { return Promise.resolve(); },
+		unregister: function () { return Promise.resolve(true); }
+	};
+	try {
+		navigator.serviceWorker.register = function () { return Promise.resolve(dummy); };
+		navigator.serviceWorker.getRegistration = function () { return Promise.resolve(undefined); };
+		navigator.serviceWorker.getRegistrations = function () { return Promise.resolve([]); };
+	} catch (e) { void e; }
+})();
+<\/script>`;
 
 /**
  * Bridge script injected into the editor iframe.

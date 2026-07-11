@@ -43,6 +43,21 @@ describe("GET /api/v1/exelearning-editor/index.html", () => {
 		expect(res.headers.get("cache-control")).toBe("no-cache");
 	});
 
+	test("neutraliza el registro de Service Worker (protección interina)", async () => {
+		const res = await app.request("/api/v1/exelearning-editor/index.html");
+		expect(res.status).toBe(200);
+		const html = await res.text();
+		// The pre-v2 editor could otherwise register a same-origin preview SW.
+		expect(html).toContain("navigator.serviceWorker.register = function");
+		expect(html).toContain("navigator.serviceWorker.getRegistration = function");
+		expect(html).toContain("navigator.serviceWorker.getRegistrations = function");
+		// Must be injected in <head>, before the editor's body scripts run.
+		const swIdx = html.indexOf("navigator.serviceWorker.register");
+		const bodyIdx = html.indexOf("<body");
+		expect(swIdx).toBeGreaterThan(-1);
+		expect(bodyIdx === -1 || swIdx < bodyIdx).toBe(true);
+	});
+
 	test("activa el transporte HTTP de preview (serving contract v2)", async () => {
 		const res = await app.request("/api/v1/exelearning-editor/index.html");
 		expect(res.status).toBe(200);
