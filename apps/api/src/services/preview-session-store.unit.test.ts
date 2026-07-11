@@ -7,6 +7,7 @@ import {
 	createSession,
 	DEFAULT_PREVIEW_SESSION_LIMITS,
 	deleteSession,
+	evaluatePreviewReplicaConfig,
 	type FixedResourceResolver,
 	getFile,
 	getLimitsFromEnv,
@@ -721,6 +722,44 @@ describe("getFile (three-layer resolution)", () => {
 		);
 		(session.assetRefs as Map<string, string>).set("orphan.png", KEY_B);
 		expect(getFile(session, "orphan.png", fixed)).toBeNull();
+	});
+});
+
+describe("evaluatePreviewReplicaConfig", () => {
+	it("is silent for a single-replica deployment (flag unset)", () => {
+		expect(evaluatePreviewReplicaConfig({} as NodeJS.ProcessEnv)).toBeNull();
+	});
+
+	it("warns when multi-replica is declared without sticky-routing confirmation", () => {
+		const warning = evaluatePreviewReplicaConfig({
+			PREVIEW_MULTI_REPLICA: "1",
+		} as NodeJS.ProcessEnv);
+		expect(warning).toContain("sticky routing");
+		expect(warning).toContain("PREVIEW_STICKY_ROUTING_CONFIRMED");
+	});
+
+	it("is silent once sticky routing is confirmed", () => {
+		expect(
+			evaluatePreviewReplicaConfig({
+				PREVIEW_MULTI_REPLICA: "true",
+				PREVIEW_STICKY_ROUTING_CONFIRMED: "yes",
+			} as NodeJS.ProcessEnv),
+		).toBeNull();
+	});
+
+	it("treats non-truthy flag values as off", () => {
+		expect(
+			evaluatePreviewReplicaConfig({
+				PREVIEW_MULTI_REPLICA: "0",
+			} as NodeJS.ProcessEnv),
+		).toBeNull();
+		// A confirmation that is not truthy does not silence a genuine warning.
+		expect(
+			evaluatePreviewReplicaConfig({
+				PREVIEW_MULTI_REPLICA: "on",
+				PREVIEW_STICKY_ROUTING_CONFIRMED: "maybe",
+			} as NodeJS.ProcessEnv),
+		).toContain("sticky routing");
 	});
 });
 

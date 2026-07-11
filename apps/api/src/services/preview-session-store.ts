@@ -116,6 +116,44 @@ export function getLimitsFromEnv(
 	};
 }
 
+/** Truthy-env test shared by the replica-topology guard. */
+function isEnvFlagOn(value: string | undefined): boolean {
+	return /^(1|true|yes|on)$/i.test((value ?? "").trim());
+}
+
+/**
+ * Startup guard for the process-local store's one real deployment hazard.
+ *
+ * Preview sessions live in this process's memory (see the module header). A
+ * multi-replica deployment therefore needs sticky routing keyed on the
+ * `previewId` path segment so every management and serving request for a
+ * session lands on the replica that owns it; otherwise sessions appear to
+ * vanish (sporadic 404s / lost previews). We cannot reliably detect a cluster
+ * from inside one process, so this is an operator ACKNOWLEDGEMENT check, not
+ * cluster detection: if `PREVIEW_MULTI_REPLICA` is set but the operator has not
+ * also confirmed sticky routing via `PREVIEW_STICKY_ROUTING_CONFIRMED`, return
+ * a prominent warning string for the entrypoint to log. Returns `null` when the
+ * configuration is coherent (single replica, or multi-replica + confirmed).
+ *
+ * See docs/operaciones/preview-sessions.md and ADR-0030.
+ */
+export function evaluatePreviewReplicaConfig(
+	env: NodeJS.ProcessEnv = process.env,
+): string | null {
+	if (!isEnvFlagOn(env.PREVIEW_MULTI_REPLICA)) return null;
+	if (isEnvFlagOn(env.PREVIEW_STICKY_ROUTING_CONFIRMED)) return null;
+	return (
+		"PREVIEW_MULTI_REPLICA is set but PREVIEW_STICKY_ROUTING_CONFIRMED is not. " +
+		"Preview sessions are stored in this process's memory, so multi-replica " +
+		"deployments require sticky routing keyed on the previewId path segment " +
+		"(management /api/v1/preview-session/:id/* AND serving /api/v1/preview/:id/*); " +
+		"without it, requests can hit a replica that does not own the session and " +
+		"previews appear to vanish. Configure sticky/consistent-hash routing (see " +
+		"docs/operaciones/preview-sessions.md and ADR-0030), then set " +
+		"PREVIEW_STICKY_ROUTING_CONFIRMED=1 to silence this warning."
+	);
+}
+
 // ---------------------------------------------------------------------------
 // Traversal-safe path normalization and MIME resolution for the content map.
 //

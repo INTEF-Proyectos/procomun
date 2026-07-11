@@ -55,18 +55,39 @@ Implementation:
 
 ## How the editor activates it
 
+The embedded-editor bootstrap (`apps/api/src/routes/exelearning-editor.ts`)
+injects a `previewHttp` block into `window.__EXE_EMBEDDING_CONFIG__`. The core
+editor's `HttpPreviewProvider` reads it to drive the management API and point the
+opaque preview iframe at the serving base:
+
 ```jsonc
 {
-  "embeddingConfig": {
-    "previewTransport": "http",
-    "previewBasePath": "/api/v1/preview"
+  "previewHttp": {
+    "protocolVersion": 2,
+    "managementBaseUrl": "/api/v1/preview-session", // owner-gated, session cookie
+    "servingBaseUrl": "/api/v1/preview"             // authless capability URL
   }
 }
 ```
 
-There is **no silent fallback**: if `http` is selected and the endpoint is
-missing or answers with the wrong `protocolVersion`, the editor surfaces an
-error rather than downgrading to a same-origin document.
+Auth is the **same-origin better-auth cookie**: the core client sends
+`credentials: 'same-origin'` on management requests, so Procomún needs **no**
+`managementHeaders`/`managementQuery` (there is no CSRF token — SameSite cookie +
+CORS allowlist only). Both URLs are root-relative, so the editor's injected
+`<base>` does not rewrite them.
+
+There is **no silent fallback**: if the endpoint is missing or answers with the
+wrong `protocolVersion`, the editor surfaces an error rather than downgrading to
+a same-origin document.
+
+> **Activation dependency.** The bundled static editor (v4.0.1) predates the core
+> `HttpPreviewProvider` and still uses the legacy transport, so these HTTP v2
+> routes are served and tested but **not yet driven by a real editor**. Real
+> activation requires a core release shipping `HttpPreviewProvider` and the
+> `bundles/preview-fixed-resources.json` manifest (the `Dockerfile` pulls the
+> latest `exelearning/exelearning` release). The `previewHttp` wiring is in place
+> so activation is just that release bump. See
+> [ADR-0030](negocio/decisiones/0030-topologia-store-preview-http.md).
 
 ## The fixed-resource manifest
 
@@ -149,9 +170,16 @@ for `/api/v1/preview-session/*` in `app/middleware.ts` (mirroring
 ## Serving route (authless capability URL)
 
 ```
+GET /api/v1/preview/{previewId}          → 302 redirect to {previewId}/index.html
+GET /api/v1/preview/{previewId}/         → 302 redirect to {previewId}/index.html
 GET /api/v1/preview/{previewId}/*        → the previewed file
 ```
 
+- **Bare-URL redirect.** The bare capability URL (and its trailing-slash form)
+  answers `302 Location: …/{previewId}/index.html` — it never serves the index
+  bytes inline. This keeps the iframe's relative-URL base at `…/{previewId}/` so
+  the entry document's sub-resources resolve correctly. The `Location` is an
+  absolute path (trailing slash trimmed) so a trailing slash cannot double the id.
 - **Cookieless capability URL.** The opaque iframe sends no SameSite cookie, so
   the route must not depend on the auth cookie. It is gated purely on the
   unguessable server-minted `previewId` (a v4 UUID) + an idle TTL — the same
@@ -165,8 +193,11 @@ GET /api/v1/preview/{previewId}/*        → the previewed file
   404. Client input never reaches the filesystem; only manifest-listed,
   containment-checked paths do.
 - **Range requests.** Session-asset responses advertise `Accept-Ranges: bytes`
-  and honor a single range (`206`, `416` on invalid). Documents and fixed
-  resources ignore Range.
+  and honor a **single** `bytes=` range (`206`). A syntactically valid but
+  unsatisfiable single range (start past EOF, inverted bounds, zero-length
+  suffix) answers `416`. A **malformed, multi-range, or non-`bytes`-unit** Range
+  header is **ignored** — a normal `200` full response, not a `416`. Documents
+  and fixed resources ignore Range entirely.
 - **Conditional requests.** Session-asset responses carry `ETag: "<assetKey>"`
   and answer `If-None-Match` with `304`.
 
@@ -221,6 +252,19 @@ This string **must stay byte-identical** to eXe core `previewCspHeader()` (singl
 line joined by `; `, no trailing `;`). It is **stricter** than Procomún's
 published-content CSP (which allows `frame-src https:`, `base-uri 'self'`, and
 `allow-popups-to-escape-sandbox`) — the preview must use the strict core string.
+
+## Deployment topology (in-memory store)
+
+Preview sessions live in the `app` process's memory and are not persisted; they
+die on restart and the client recreates them transparently on the next refresh
+(any `404` triggers a re-prepare). Global limits are **per process**. Production
+is single-replica today, so the in-memory store is correct as-is. A multi-replica
+deployment needs **sticky routing keyed on the `previewId` path segment** for both
+management and serving (with the session `CREATE` pinned to its owning replica).
+The full rationale, the `nginx` example, and the `PREVIEW_MULTI_REPLICA` /
+`PREVIEW_STICKY_ROUTING_CONFIRMED` startup guard are in
+[ADR-0030](negocio/decisiones/0030-topologia-store-preview-http.md) and
+[`docs/operaciones/preview-sessions.md`](operaciones/preview-sessions.md).
 
 ## Conformance
 

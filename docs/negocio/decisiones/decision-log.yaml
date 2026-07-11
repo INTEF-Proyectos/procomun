@@ -182,3 +182,9 @@ ADR-0029:
   status: Aceptado
   date: 2026-06-29
   file: 0029-migracion-bridge-medios-compartido-exelearning.md
+
+ADR-0030:
+  title: "Topología de almacenamiento del preview HTTP (store en memoria por proceso + enrutado sticky por previewId) y cableado del editor embebido"
+  status: Aceptado
+  date: 2026-07-11
+  file: 0030-topologia-store-preview-http.md
