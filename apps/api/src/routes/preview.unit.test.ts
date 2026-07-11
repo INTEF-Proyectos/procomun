@@ -625,18 +625,23 @@ describe("GET /api/v1/preview/:previewId/* (authless serving)", () => {
 		const previewId = await servedSession({
 			"index.html": "<html>root</html>",
 		});
-		// Contract v2 §4: the bare capability URL must 302 to …/{previewId}/index.html
-		// so the iframe's relative-URL base is always …/{previewId}/ — never serve
-		// index bytes from the bare path. The absolute-path Location must resolve to
-		// the same target from both the no-slash and trailing-slash forms.
-		for (const suffix of ["", "/"]) {
+		// Contract v2 §4: the bare capability URL must 302 to the entry document,
+		// never serve index bytes inline. The Location is RELATIVE (BASE_PATH /
+		// app:// safe), byte-identical to core: no trailing slash → {id}/index.html
+		// (resolves against …/{id}); trailing slash → index.html (resolves against
+		// …/{id}/). Both land on …/{id}/index.html without doubling or dropping the id.
+		const cases: Array<[string, string]> = [
+			["", `${previewId}/index.html`],
+			["/", "index.html"],
+		];
+		for (const [suffix, expectedLocation] of cases) {
 			const res = await ownerApp.request(
 				`/api/v1/preview/${previewId}${suffix}`,
 				{ redirect: "manual" },
 			);
-			expect(res.status).toBe(302);
-			expect(res.headers.get("location")).toBe(
-				`/api/v1/preview/${previewId}/index.html`,
+			expect(res.status, `suffix "${suffix}"`).toBe(302);
+			expect(res.headers.get("location"), `suffix "${suffix}"`).toBe(
+				expectedLocation,
 			);
 			// Hardening headers ride even the redirect; the redirect is never cached.
 			expect(res.headers.get("x-content-type-options")).toBe("nosniff");

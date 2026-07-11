@@ -244,21 +244,25 @@ export const previewRoutes = new Hono();
 
 /**
  * Bare-capability-URL redirect: `…/{previewId}` and `…/{previewId}/` answer a
- * `302` to `…/{previewId}/index.html` instead of serving index bytes inline
+ * `302` to the canonical entry document instead of serving index bytes inline
  * (serving contract v2 §4). This guarantees the iframe's relative-URL base is
  * always `…/{previewId}/`, so the entry document's sub-resources (`theme/…`,
- * `libs/…`, `img/…`) resolve correctly. The Location is an absolute path built
- * from the request path (trailing slash trimmed) so a mount prefix is preserved
- * and a trailing slash cannot double the id under relative resolution.
+ * `libs/…`, `img/…`) resolve correctly.
+ *
+ * The `Location` is RELATIVE — byte-identical to eXe core `preview-serving.ts`,
+ * so it survives a BASE_PATH mount and the Electron `app://` origin without the
+ * server having to know its own mount prefix: a trailing slash resolves
+ * `index.html` against `…/{previewId}/`; no trailing slash resolves
+ * `{previewId}/index.html` against `…/{previewId}`. Emitting the wrong one would
+ * either double or drop the id segment.
  */
-function redirectToIndex(c: Context): Response {
-	const basePath = c.req.path.replace(/\/+$/, "");
+function redirectToIndex(location: string): Response {
 	return new Response(null, {
 		status: 302,
 		headers: {
 			...baseHeaders(),
 			"Cache-Control": "no-store",
-			Location: `${basePath}/index.html`,
+			Location: location,
 		},
 	});
 }
@@ -278,9 +282,13 @@ function handlePreview(c: Context): Response {
 	const idIndex = pathParts.indexOf(previewId);
 	const relPath = pathParts.slice(idIndex + 1).join("/");
 	// Bare capability URL (…/{previewId} or …/{previewId}/) → redirect to the
-	// entry document rather than serving it verbatim from the bare path.
+	// entry document rather than serving it verbatim from the bare path. Match
+	// core exactly: a trailing slash → `index.html`; no slash → `{id}/index.html`.
 	if (relPath === "") {
-		return redirectToIndex(c);
+		const location = c.req.path.endsWith("/")
+			? "index.html"
+			: `${previewId}/index.html`;
+		return redirectToIndex(location);
 	}
 
 	return servePreviewFile(previewId, relPath, {

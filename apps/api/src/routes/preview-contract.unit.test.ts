@@ -241,25 +241,30 @@ describe("preview serving contract v2 — conformance vectors", () => {
 				init,
 			);
 
+			// Assert against `substituted.expect` — its values already have
+			// `{previewId}` replaced, which matters for header expectations like the
+			// bare-root redirect's relative `Location: {previewId}/index.html`.
 			expect(res.status, `status for step "${step.id}"`).toBe(
-				step.expect.status,
+				substituted.expect.status,
 			);
-			if (step.expect.headers) expectHeaders(res, step.expect.headers);
+			if (substituted.expect.headers)
+				expectHeaders(res, substituted.expect.headers);
 
 			// Read the body at most once, then run every body-shaped assertion off it.
 			const needsBody =
-				step.expect.bodyText !== undefined || step.expect.body !== undefined;
+				substituted.expect.bodyText !== undefined ||
+				substituted.expect.body !== undefined;
 			const isCreate = step.id === "create-session";
 			if (needsBody || isCreate) {
 				const text = await res.text();
-				if (step.expect.bodyText !== undefined)
+				if (substituted.expect.bodyText !== undefined)
 					expect(text, `bodyText for step "${step.id}"`).toBe(
-						step.expect.bodyText,
+						substituted.expect.bodyText,
 					);
-				if (step.expect.body !== undefined || isCreate) {
+				if (substituted.expect.body !== undefined || isCreate) {
 					const json = JSON.parse(text);
-					if (step.expect.body !== undefined)
-						expectBodySubset(json, step.expect.body);
+					if (substituted.expect.body !== undefined)
+						expectBodySubset(json, substituted.expect.body);
 					if (isCreate) {
 						previewId = json.previewId as string;
 						expect(previewId).toMatch(
