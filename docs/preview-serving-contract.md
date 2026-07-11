@@ -176,10 +176,12 @@ GET /api/v1/preview/{previewId}/*        → the previewed file
 ```
 
 - **Bare-URL redirect.** The bare capability URL (and its trailing-slash form)
-  answers `302 Location: …/{previewId}/index.html` — it never serves the index
-  bytes inline. This keeps the iframe's relative-URL base at `…/{previewId}/` so
-  the entry document's sub-resources resolve correctly. The `Location` is an
-  absolute path (trailing slash trimmed) so a trailing slash cannot double the id.
+  answers `302` to the entry document — it never serves the index bytes inline.
+  This keeps the iframe's relative-URL base at `…/{previewId}/` so the entry
+  document's sub-resources resolve correctly. The `Location` is **relative**
+  (BASE_PATH / `app://` safe), byte-identical to core: no trailing slash →
+  `{previewId}/index.html`; trailing slash → `index.html`. Both resolve to
+  `…/{previewId}/index.html` without doubling or dropping the id.
 - **Cookieless capability URL.** The opaque iframe sends no SameSite cookie, so
   the route must not depend on the auth cookie. It is gated purely on the
   unguessable server-minted `previewId` (a v4 UUID) + an idle TTL — the same
