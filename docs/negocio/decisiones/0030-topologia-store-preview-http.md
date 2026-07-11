@@ -54,8 +54,9 @@ ahora **inyecta la configuración `previewHttp`** (`protocolVersion: 2`,
 `managementBaseUrl: /api/v1/preview-session`, `servingBaseUrl: /api/v1/preview`)
 en `window.__EXE_EMBEDDING_CONFIG__`. Sin embargo, el editor estático empaquetado
 (v4.0.1) **es anterior** al `HttpPreviewProvider` del core y todavía usa el
-transporte heredado (Service Worker mismo-origen con *fallback* a `srcdoc`). Por
-tanto, **las rutas HTTP v2 quedan servidas y probadas, pero aún no las conduce
+transporte heredado de Service Worker mismo-origen (`srcdoc` ya no existe como
+transporte de contenido en el core). Por tanto, **las rutas HTTP v2 quedan
+servidas y probadas, pero aún no las conduce
 ningún editor**: la activación real depende de una **release del core** con
 `HttpPreviewProvider` y con el manifiesto `bundles/preview-fixed-resources.json`
 (que el `Dockerfile` descarga desde la última release de `exelearning/exelearning`).

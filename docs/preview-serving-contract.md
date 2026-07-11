@@ -2,8 +2,11 @@
 
 Procomún implements the eXeLearning **Preview Serving Contract v2** so the
 embedded editor can render the **editor preview of untrusted author HTML/JS** in
-a browser-enforced **opaque origin** over a real HTTP capability URL — instead of
-the lower-fidelity `srcdoc` fallback.
+a browser-enforced **opaque origin** over a real HTTP capability URL. This is the
+only supported preview transport for the embedded editor: `srcdoc` has been
+removed as an authored-content transport in core, so if the host supplies no
+valid `previewHttp` config the editor **fails closed** (a clear error) rather
+than falling back to a same-origin document.
 
 This is a per-host **adapter** of the single source of truth in eXe core:
 
