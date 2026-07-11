@@ -157,6 +157,27 @@ lugar hay un **acuse de recibo del operador**:
   para silenciar el aviso.
 - En réplica única, deja ambas variables sin definir.
 
+## Monitorización
+
+Al ser un store en memoria por proceso, lo relevante de vigilar es:
+
+- **Memoria del contenedor por réplica.** Es el recurso que consumen las sesiones
+  (hasta el tope global, 2 GiB por defecto, **por proceso**). Vigila el RSS del
+  contenedor `app` con `docker stats` o el sistema de métricas; un consumo
+  sostenido cerca del tope indica que conviene subir réplicas (con enrutado
+  *sticky*) o bajar `PREVIEW_GLOBAL_MAX_BYTES_MB`.
+- **Aviso de arranque.** Un `[preview] PREVIEW_MULTI_REPLICA is set but …` en los
+  logs de arranque es una configuración multi-réplica sin afinidad confirmada:
+  trátalo como alerta.
+- **Tasa de 404 en las rutas de preview.** Un pico de 404 en
+  `/api/v1/preview/{id}/...` o `/api/v1/preview-session/{id}/...` **sin** un
+  reinicio reciente es la firma de un enrutado *sticky* mal configurado (las
+  peticiones caen en una réplica que no posee la sesión). Con réplica única, los
+  404 solo deberían aparecer tras un reinicio (y el cliente se recupera solo).
+- **Health check.** El endpoint `GET /health` sigue reflejando la vitalidad del
+  proceso (ver [operaciones.md](operaciones.md)); no distingue el estado del
+  preview, que es efímero por diseño.
+
 ## Almacén compartido: descartado por ahora
 
 Un *store* compartido/persistente (Redis/Postgres/S3) se descartó (ADR-0030): la
