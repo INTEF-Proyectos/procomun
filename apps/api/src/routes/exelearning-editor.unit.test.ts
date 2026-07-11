@@ -43,6 +43,21 @@ describe("GET /api/v1/exelearning-editor/index.html", () => {
 		expect(res.headers.get("cache-control")).toBe("no-cache");
 	});
 
+	test("activa el transporte HTTP de preview (serving contract v2)", async () => {
+		const res = await app.request("/api/v1/exelearning-editor/index.html");
+		expect(res.status).toBe(200);
+		const html = await res.text();
+		// previewHttp block: protocol v2 + the owner-gated management base and the
+		// authless serving base. No managementHeaders/managementQuery — auth is the
+		// same-origin better-auth cookie.
+		expect(html).toContain("previewHttp");
+		expect(html).toContain("protocolVersion: 2");
+		expect(html).toContain('managementBaseUrl: "/api/v1/preview-session"');
+		expect(html).toContain('servingBaseUrl: "/api/v1/preview"');
+		expect(html).not.toContain("managementHeaders");
+		expect(html).not.toContain("managementQuery");
+	});
+
 	test("inyecta bridge script con soporte de exportación", async () => {
 		const res = await app.request("/api/v1/exelearning-editor/index.html");
 		expect(res.status).toBe(200);

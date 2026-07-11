@@ -33,6 +33,15 @@ exelearningEditorRoutes.get("/index.html", async (c) => {
 	html = html.replace("<head>", `<head>\n<base href="${editorBaseUrl}/">`);
 
 	// Inject Procomun embedding config before </head> (like editor-bootstrap.php)
+	//
+	// `previewHttp` activates the HTTP preview transport (serving contract v2):
+	// the editor's HttpPreviewProvider creates a session on the owner-gated
+	// management API, uploads assets/revisions, and points the opaque preview
+	// iframe at the authless serving base. Auth is the same-origin better-auth
+	// cookie — the core client sends `credentials: 'same-origin'` on management —
+	// so no managementHeaders/managementQuery are needed for Procomun. Both URLs
+	// are root-relative (leading slash), so the injected <base> does not rewrite
+	// them and they resolve against the site origin.
 	const configScript = `
 <script>
 window.__EXE_EMBEDDING_CONFIG__ = {
@@ -40,6 +49,11 @@ window.__EXE_EMBEDDING_CONFIG__ = {
 	initialProjectUrl: ${JSON.stringify(elpxUrl || null)},
 	parentOrigin: window.location.origin,
 	trustedOrigins: [window.location.origin],
+	previewHttp: {
+		protocolVersion: 2,
+		managementBaseUrl: "/api/v1/preview-session",
+		servingBaseUrl: "/api/v1/preview",
+	},
 	hideUI: {
 		fileMenu: true,
 		saveButton: true,
