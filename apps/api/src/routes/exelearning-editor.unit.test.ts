@@ -17,6 +17,9 @@ beforeAll(() => {
 		mkdirSync(path.join(editorDir, "app"), { recursive: true });
 		writeFileSync(path.join(editorDir, "index.html"), "<html><head></head><body>mock editor</body></html>");
 		writeFileSync(path.join(editorDir, "app", "app.bundle.js"), "// mock");
+		// Present so the "must not be served" test proves the route refuses a file
+		// that actually exists on disk, not merely a missing one.
+		writeFileSync(path.join(editorDir, "preview-sw.js"), "// mock preview service worker");
 		createdMockDir = true;
 	}
 });
@@ -122,5 +125,15 @@ describe("GET /api/v1/exelearning-editor/* — static assets", () => {
 	test("devuelve 404 para archivo inexistente", async () => {
 		const res = await app.request("/api/v1/exelearning-editor/nonexistent.js");
 		expect(res.status).toBe(404);
+	});
+
+	test("NO sirve preview-sw.js aunque exista (defensa en profundidad)", async () => {
+		// Serving the legacy preview SW same-origin would let the pre-v2 editor run
+		// untrusted author content as the authenticated user. Must 404 even though
+		// the file exists on disk.
+		for (const p of ["preview-sw.js", "static/preview-sw.js"]) {
+			const res = await app.request(`/api/v1/exelearning-editor/${p}`);
+			expect(res.status, p).toBe(404);
+		}
 	});
 });
