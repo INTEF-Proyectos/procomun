@@ -829,25 +829,27 @@ describe("GET /api/v1/preview asset tier (ETag / Range)", () => {
 		expect(await res.text()).toBe("789");
 	});
 
-	test("answers an unsatisfiable range with 416", async () => {
+	// Contract v2 §4: 416 is ONLY for a VALID single unsatisfiable range —
+	// first-byte-pos at/past EOF, or a zero-length suffix (bytes=-0).
+	test("answers a valid unsatisfiable range with 416", async () => {
 		const previewId = await sessionWithAsset(
 			"media/clip.mp4",
 			KEY_B,
 			"0123456789",
 		);
-		const res = await anonApp.request(
-			`/api/v1/preview/${previewId}/media/clip.mp4`,
-			{
-				headers: { Range: "bytes=99-" },
-			},
-		);
-		expect(res.status).toBe(416);
-		expect(res.headers.get("content-range")).toBe("bytes */10");
+		for (const range of ["bytes=99-", "bytes=-0"]) {
+			const res = await anonApp.request(
+				`/api/v1/preview/${previewId}/media/clip.mp4`,
+				{ headers: { Range: range } },
+			);
+			expect(res.status, `Range: ${range}`).toBe(416);
+			expect(res.headers.get("content-range")).toBe("bytes */10");
+		}
 	});
 
-	// Contract v2 §4: malformed / multi-range / non-bytes-unit Range headers are
-	// IGNORED — the server answers a normal 200 full response, not a 416. Only a
-	// syntactically valid single unsatisfiable range keeps 416 (asserted above).
+	// Contract v2 §4: malformed / multi-range / non-bytes-unit Range headers, AND
+	// an INVALID single range (last-byte-pos < first-byte-pos, RFC 9110), are
+	// IGNORED — a normal 200 full response, not a 416.
 	test("ignores unhonored Range headers and serves the full 200 body", async () => {
 		const previewId = await sessionWithAsset(
 			"media/clip.mp4",
@@ -860,6 +862,8 @@ describe("GET /api/v1/preview asset tier (ETag / Range)", () => {
 			"bytes=abc", // malformed
 			"bytes=-", // no first-byte-pos and no suffix-length
 			"kittens", // pure garbage
+			"bytes=5-2", // last < first: invalid spec → ignore (NOT 416)
+			"bytes=15-2", // invalid spec beats out-of-range: ignore (NOT 416)
 		];
 		for (const range of ignored) {
 			const res = await anonApp.request(

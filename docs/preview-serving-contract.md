@@ -193,11 +193,12 @@ GET /api/v1/preview/{previewId}/*        → the previewed file
   404. Client input never reaches the filesystem; only manifest-listed,
   containment-checked paths do.
 - **Range requests.** Session-asset responses advertise `Accept-Ranges: bytes`
-  and honor a **single** `bytes=` range (`206`). A syntactically valid but
-  unsatisfiable single range (start past EOF, inverted bounds, zero-length
-  suffix) answers `416`. A **malformed, multi-range, or non-`bytes`-unit** Range
-  header is **ignored** — a normal `200` full response, not a `416`. Documents
-  and fixed resources ignore Range entirely.
+  and honor a **single** `bytes=` range (`206`). A **valid** single range that is
+  unsatisfiable (first-byte-pos at/past EOF, or a zero-length suffix `bytes=-0`)
+  answers `416`. A header that is **malformed, multi-range, non-`bytes`-unit, or
+  an invalid spec** (`bytes=5-2`, last-byte-pos < first-byte-pos per RFC 9110) is
+  **ignored** — a normal `200` full response, not a `416`. Documents and fixed
+  resources ignore Range entirely.
 - **Conditional requests.** Session-asset responses carry `ETag: "<assetKey>"`
   and answer `If-None-Match` with `304`.
 

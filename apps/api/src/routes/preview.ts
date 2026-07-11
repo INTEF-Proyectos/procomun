@@ -115,13 +115,14 @@ export type ParsedRange =
  *
  * Three outcomes, matching serving contract v2 §4:
  * - `null` — no Range, OR a Range the server does not honor as a partial
- *   request (a non-`bytes` unit, a multi-range list, or otherwise malformed
- *   syntax). Per the contract these are IGNORED and answered with a normal
- *   `200` full response — NOT a `416`.
+ *   request: a non-`bytes` unit, a multi-range list, plain garbage, OR an
+ *   INVALID single range (`bytes=5-2`, last-byte-pos < first-byte-pos — an
+ *   invalid byte-range-spec per RFC 9110). Per the contract all of these are
+ *   IGNORED and answered with a normal `200` full response — NOT a `416`.
  * - an inclusive `{ start, end }` window — a satisfiable single range (`206`).
- * - `"unsatisfiable"` — a syntactically valid single range that cannot be met
- *   (first-byte-pos past EOF, inverted bounds, zero-length suffix, empty body);
- *   only this case answers `416`.
+ * - `"unsatisfiable"` — a VALID single range that cannot be met: first-byte-pos
+ *   at/past EOF (`bytes=99-`), a zero-length suffix (`bytes=-0`), or an empty
+ *   body. Only this case answers `416`.
  */
 export function parseRangeHeader(
 	value: string | null | undefined,
@@ -138,16 +139,25 @@ export function parseRangeHeader(
 	// so ignore it (full response) rather than answering 416.
 	if (rawStart === "" && rawEnd === "") return null;
 	if (rawStart === "") {
-		// Suffix form: last N bytes.
+		// Suffix form: last N bytes. A zero-length suffix (or an empty body) is a
+		// VALID but unsatisfiable range → 416.
 		const suffix = Number.parseInt(rawEnd as string, 10);
 		if (suffix === 0 || totalSize === 0) return "unsatisfiable";
 		return { start: Math.max(0, totalSize - suffix), end: totalSize - 1 };
 	}
 	const start = Number.parseInt(rawStart as string, 10);
-	if (start >= totalSize) return "unsatisfiable";
-	if (rawEnd === "") return { start, end: totalSize - 1 };
+	if (rawEnd === "") {
+		// Open-ended `bytes=start-`: satisfiable iff first-byte-pos is before EOF.
+		return start >= totalSize ? "unsatisfiable" : { start, end: totalSize - 1 };
+	}
 	const end = Number.parseInt(rawEnd as string, 10);
-	if (end < start) return "unsatisfiable";
+	// last-byte-pos < first-byte-pos is an INVALID byte-range-spec (RFC 9110):
+	// the header is ignored (200 full), NOT answered with 416. This structural
+	// invalidity is checked BEFORE satisfiability, so it holds regardless of
+	// length (e.g. `bytes=15-2` is invalid → 200, never 416).
+	if (end < start) return null;
+	// Valid spec; unsatisfiable only when first-byte-pos is at/past EOF.
+	if (start >= totalSize) return "unsatisfiable";
 	return { start, end: Math.min(end, totalSize - 1) };
 }
 
