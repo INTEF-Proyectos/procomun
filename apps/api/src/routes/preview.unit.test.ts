@@ -650,6 +650,34 @@ describe("GET /api/v1/preview/:previewId/* (authless serving)", () => {
 		}
 	});
 
+	test("resolves the relative path even when a hex char of the id segment is percent-encoded", async () => {
+		const previewId = await servedSession({
+			"index.html": "<html>root</html>",
+			"html/page.html": "<html>deep</html>",
+		});
+		// Percent-encode the first hex char of the (valid, existing) id so the raw id
+		// segment differs from the server-decoded id. The relPath derivation must not
+		// desync: the request has to serve the SAME file as the un-encoded id.
+		const encodedId = `%${previewId.charCodeAt(0).toString(16)}${previewId.slice(1)}`;
+		expect(encodedId).not.toBe(previewId);
+
+		const rootPlain = await anonApp.request(
+			`/api/v1/preview/${previewId}/index.html`,
+		);
+		const rootEncoded = await anonApp.request(
+			`/api/v1/preview/${encodedId}/index.html`,
+		);
+		expect(rootEncoded.status).toBe(200);
+		expect(await rootEncoded.text()).toBe(await rootPlain.text());
+
+		// A nested relPath must survive the encoded id segment too.
+		const deep = await anonApp.request(
+			`/api/v1/preview/${encodedId}/html/page.html`,
+		);
+		expect(deep.status).toBe(200);
+		expect(await deep.text()).toBe("<html>deep</html>");
+	});
+
 	test("serves nothing until the first revision publishes (revision 0)", async () => {
 		const previewId = await createViaApi();
 		const res = await anonApp.request(

@@ -218,16 +218,18 @@ function servePreviewFile(
 
 export const previewRoutes = new Hono();
 
-// Mirrors elpx-content.ts's handleContent: derive the sub-path from the URL
-// (percent-encoding preserved for normalizeContentPath) rather than a decoded
-// wildcard param.
+// Derive the sub-path from c.req.path (Hono decodes the id segment there, the
+// same way c.req.param decodes it) so an encoded hex char in the id cannot
+// desync the split. NOT new URL(c.req.url).pathname, whose raw (still-encoded)
+// id segment would make indexOf(decodedId) miss and strand the relPath.
+// c.req.path keeps %2f encoded within the remaining segments, so traversal
+// safety is still enforced by normalizeContentPath downstream.
 function handlePreview(c: Context): Response {
 	const previewId = c.req.param("previewId");
 	if (!previewId || !PREVIEW_ID_PATTERN.test(previewId)) {
 		return notFound();
 	}
-	const url = new URL(c.req.url);
-	const pathParts = url.pathname.split("/");
+	const pathParts = c.req.path.split("/");
 	const idIndex = pathParts.indexOf(previewId);
 	const relPath = pathParts.slice(idIndex + 1).join("/") || "index.html";
 
