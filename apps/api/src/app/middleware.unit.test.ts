@@ -9,7 +9,97 @@ import {
 	getSessionForServing,
 	resetDependencies,
 } from "../services/preview-session-store.ts";
-import { registerGlobalMiddleware } from "./middleware.ts";
+import {
+	registerGlobalMiddleware,
+	validatePreviewManagementRequest,
+} from "./middleware.ts";
+
+const FRONTEND_URL = "https://procomun.example.org";
+const MANAGEMENT_PATH = "/api/v1/preview-session/756f4e31-18e6-4f16-b868-516c5b945d8b/assets";
+
+describe("validatePreviewManagementRequest", () => {
+	test("accepts an unsafe request from the exact frontend origin", () => {
+		expect(
+			validatePreviewManagementRequest({
+				method: "POST",
+				path: MANAGEMENT_PATH,
+				origin: FRONTEND_URL,
+				secFetchSite: "same-origin",
+				frontendUrl: `${FRONTEND_URL}/app`,
+			}),
+		).toBeNull();
+	});
+
+	test("rejects a missing Origin on an unsafe management request", () => {
+		expect(
+			validatePreviewManagementRequest({
+				method: "POST",
+				path: MANAGEMENT_PATH,
+				secFetchSite: "same-origin",
+				frontendUrl: FRONTEND_URL,
+			}),
+		).toMatch(/same-origin frontend/);
+	});
+
+	test("rejects foreign and sibling-subdomain origins", () => {
+		for (const origin of [
+			"https://evil.example.net",
+			"https://attacker.example.org",
+		]) {
+			expect(
+				validatePreviewManagementRequest({
+					method: "DELETE",
+					path: MANAGEMENT_PATH,
+					origin,
+					secFetchSite: "same-origin",
+					frontendUrl: FRONTEND_URL,
+				}),
+			).toMatch(/same-origin frontend/);
+		}
+	});
+
+	test("rejects same-site and cross-site Fetch Metadata", () => {
+		for (const secFetchSite of ["same-site", "cross-site", "none"]) {
+			expect(
+				validatePreviewManagementRequest({
+					method: "POST",
+					path: MANAGEMENT_PATH,
+					origin: FRONTEND_URL,
+					secFetchSite,
+					frontendUrl: FRONTEND_URL,
+				}),
+			).toMatch(/Sec-Fetch-Site/);
+		}
+	});
+
+	test("allows safe methods and the authless serving route", () => {
+		expect(
+			validatePreviewManagementRequest({
+				method: "GET",
+				path: MANAGEMENT_PATH,
+				frontendUrl: FRONTEND_URL,
+			}),
+		).toBeNull();
+		expect(
+			validatePreviewManagementRequest({
+				method: "POST",
+				path: "/api/v1/preview/756f4e31-18e6-4f16-b868-516c5b945d8b/index.html",
+				frontendUrl: FRONTEND_URL,
+			}),
+		).toBeNull();
+	});
+
+	test("fails closed when FRONTEND_URL is invalid", () => {
+		expect(
+			validatePreviewManagementRequest({
+				method: "POST",
+				path: MANAGEMENT_PATH,
+				origin: FRONTEND_URL,
+				frontendUrl: "not a URL",
+			}),
+		).toMatch(/FRONTEND_URL is invalid/);
+	});
+});
 
 describe("registerGlobalMiddleware", () => {
 	test("applies CORS headers on API routes", async () => {
@@ -24,6 +114,26 @@ describe("registerGlobalMiddleware", () => {
 		expect(response.status).toBe(200);
 		expect(response.headers.get("access-control-allow-origin")).toBe("http://localhost:5173");
 		expect(response.headers.get("access-control-allow-credentials")).toBe("true");
+	});
+
+	test("rejects a cross-origin preview management mutation before the route", async () => {
+		const app = new Hono<AuthEnv>();
+		registerGlobalMiddleware(app);
+		app.post("/api/v1/preview-session/test", (c) => c.json({ reached: true }));
+
+		const response = await app.request("/api/v1/preview-session/test", {
+			method: "POST",
+			headers: {
+				Origin: "https://attacker.example.org",
+				"Sec-Fetch-Site": "same-site",
+			},
+		});
+
+		expect(response.status).toBe(403);
+		expect(await response.json()).toEqual({
+			success: false,
+			error: "Preview management requires the configured same-origin frontend",
+		});
 	});
 
 	test("does not override the authless preview serving route's ACAO:*", async () => {
