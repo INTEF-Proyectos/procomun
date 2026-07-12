@@ -1,284 +1,170 @@
-# Preview Serving Contract v2 — Host-Served Opaque HTTP Preview
+# HTTP editor preview — Procomún adapter
 
-Procomún implements the eXeLearning **Preview Serving Contract v2** so the
-embedded editor can render the **editor preview of untrusted author HTML/JS** in
-a browser-enforced **opaque origin** over a real HTTP capability URL. This is the
-only supported preview transport for the embedded editor: `srcdoc` has been
-removed as an authored-content transport in core, so if the host supplies no
-valid `previewHttp` config the editor **fails closed** (a clear error) rather
-than falling back to a same-origin document.
+Procomún implements eXeLearning **Preview Serving Contract v2** for the embedded editor. The canonical protocol, CSP, scriptable MIME set, bridge files, and conformance vectors live in eXeLearning core. This document records the Procomún mapping and operational constraints.
 
-This is a per-host **adapter** of the single source of truth in eXe core:
+The authored preview runs in an iframe without `allow-same-origin`. Scriptable responses also receive the sandbox-first CSP, so a capability URL remains opaque when opened directly.
 
-- Canonical contract: eXe core `doc/development/preview-serving-contract.md`
-- Isolation policy (verbatim CSP): eXe core `src/shared/security/previewSandbox.ts` → `previewCspHeader()`
-- Reference store/serving: eXe core `src/services/preview-session-manager.ts`,
-  `preview-serving.ts`, `preview-fixed-resources.ts`
+There is no authored-content `srcdoc` transport and no implicit Service Worker fallback. Missing or invalid `previewHttp` configuration fails closed.
 
-Procomún already serves **published** `.elpx` content in an opaque origin
-(ADR-0026) via `apps/api/src/routes/elpx-content.ts` (Hono, `/api/v1/elpx/:hash/*`).
-The **editor preview** is the same idea applied to the authoring flow: served
-from a short-lived **preview session** instead of a published upload.
+## Transport configuration
 
-Because Procomún is TypeScript/Bun like eXe core, it mirrors core's
-`previewCspHeader()` string and the `preview-session-manager` semantics directly,
-rather than reimplementing them in a foreign runtime as the PHP hosts
-(Moodle/WordPress/Omeka) do.
-
-**Protocol version: 2.** Version 1 (full SHA-256 manifest + content-addressed
-blob diff) was never consumed by a shipped host editor and is removed, not kept
-alongside. A client that receives a create-session response without
-`protocolVersion: 2` must surface an error (no silent fallback).
-
-## Why v2 (the incremental model)
-
-Protocol v1 treated every refresh as a full export: the client re-hashed the
-whole file set, serialized a full manifest, and the server re-hashed every
-uploaded blob into a per-session content-addressed store — `O(total project
-size)` per one-word edit, dominated by project media and by installation files
-(libraries, themes, iDevice runtimes) that are identical for every project.
-
-v2 splits the preview into **three layers with different lifecycles** so a
-refresh costs `O(invalidated documents + new assets)`:
-
-| Layer | Contents | Lifecycle | Transferred |
-|---|---|---|---|
-| **Fixed installation resources** | official libraries, iDevice runtimes, base theme files, PDF.js, content CSS, logo, bundled fonts | immutable per installed editor version | **never** — served from the installed static editor, gated by a build manifest |
-| **Session project assets** | author images/audio/video/PDF/attachments | immutable per `assetKey`; live for the whole preview session | **once per session** (again only if replaced → new key) |
-| **Generated documents** | page HTML, navigation, generated CSS/JS, user-theme/iDevice files | change with every edit | **only the changed files**, as an atomic revision delta |
-
-Implementation:
-
-- Session store (three layers, atomic revisions, TTL, budgets, LRU):
-  [`apps/api/src/services/preview-session-store.ts`](../apps/api/src/services/preview-session-store.ts)
-- Fixed-resource resolver (manifest-gated, containment-checked):
-  [`apps/api/src/services/preview-fixed-resources.ts`](../apps/api/src/services/preview-fixed-resources.ts)
-- HTTP routes (management + serving):
-  [`apps/api/src/routes/preview.ts`](../apps/api/src/routes/preview.ts)
-
-## How the editor activates it
-
-The embedded-editor bootstrap (`apps/api/src/routes/exelearning-editor.ts`)
-injects a `previewHttp` block into `window.__EXE_EMBEDDING_CONFIG__`. The core
-editor's `HttpPreviewProvider` reads it to drive the management API and point the
-opaque preview iframe at the serving base:
+`apps/api/src/routes/exelearning-editor.ts` injects:
 
 ```jsonc
 {
   "previewHttp": {
     "protocolVersion": 2,
-    "managementBaseUrl": "/api/v1/preview-session", // owner-gated, session cookie
-    "servingBaseUrl": "/api/v1/preview"             // authless capability URL
+    "managementBaseUrl": "/api/v1/preview-session",
+    "servingBaseUrl": "/api/v1/preview"
   }
 }
 ```
 
-Auth is the **same-origin better-auth cookie**: the core client sends
-`credentials: 'same-origin'` on management requests, so Procomún needs **no**
-`managementHeaders`/`managementQuery` (there is no CSRF token — SameSite cookie +
-CORS allowlist only). Both URLs are root-relative, so the editor's injected
-`<base>` does not rewrite them.
+Management requests use `credentials: "same-origin"`. Serving requests use `credentials: "omit"`.
 
-There is **no silent fallback**: if the endpoint is missing or answers with the
-wrong `protocolVersion`, the editor surfaces an error rather than downgrading to
-a same-origin document.
+## Endpoint mapping
 
-> **Activation dependency.** The bundled static editor (v4.0.1) predates the core
-> `HttpPreviewProvider` and still uses the legacy transport, so these HTTP v2
-> routes are served and tested but **not yet driven by a real editor**. Real
-> activation requires a core release shipping `HttpPreviewProvider` and the
-> `bundles/preview-fixed-resources.json` manifest (the `Dockerfile` pulls the
-> latest `exelearning/exelearning` release). The `previewHttp` wiring is in place
-> so activation is just that release bump. See
-> [ADR-0030](negocio/decisiones/0030-topologia-store-preview-http.md).
-
-## The fixed-resource manifest
-
-The installed static editor ships `bundles/preview-fixed-resources.json` (under
-`apps/api/static/exelearning-editor/static`). It is the **only** authority for
-what the serving route may resolve outside a session:
-
-```jsonc
-{
-  "schemaVersion": 1,
-  "buildVersion": "<editor version at build time>",
-  "resources": {
-    // fixedResourceId → { path (relative to the distribution root), size }
-    "libs/jquery/jquery.min.js": { "path": "libs/jquery/jquery.min.js", "size": 89476 },
-    "theme:base/icon.svg":       { "path": "files/perm/themes/base/base/icon.svg", "size": 71 }
-  }
-}
-```
-
-- The resolver resolves a `fixedResourceId` by **exact map lookup** — client
-  input never becomes a path — and reads `resources[id].path` under the
-  distribution root with lexical **and** symlink containment checks.
-- Unknown ids are a lookup miss, never a filesystem probe; a revision that
-  references one is rejected `422 unknown-fixed-resources`.
-- A **missing or invalid manifest is non-fatal**: the fixed layer is simply
-  disabled (revisions carrying `fixedRefs` get a 422 and the client demotes those
-  paths to document writes), warned about once. Until the static editor build
-  emits the manifest for protocol v2, the fixed layer stays off and everything
-  rides the session layers.
-
-## Management API (session-authenticated, owner-scoped)
-
-Mounted at `/api/v1/preview-session`; the `sessionMiddleware` guard is applied
-for `/api/v1/preview-session/*` in `app/middleware.ts` (mirroring
-`/api/v1/tokens/*`). A user may only touch their **own** sessions (403 otherwise,
-404 for unknown ids). Owner ids are better-auth string user ids.
-
-| Method & path | Body | Success response |
+| Operation | Route | Trust model |
 |---|---|---|
-| `POST /api/v1/preview-session` | – | `201` `{ previewId, protocolVersion: 2, revision: 0, limits: { maxFilesPerSession, maxBytesPerSession, maxAssetBytes, recommendedBatchBytes } }` |
-| `POST /api/v1/preview-session/:previewId/assets` | multipart: `assets` (JSON `[{ key, size }]`), `files[]` (index-aligned) | `200` `{ stored, alreadyStored, rejected }` |
-| `POST /api/v1/preview-session/:previewId/revisions` | multipart: `revision` (JSON, below), `files[]` (index-aligned with `writes`) | `200` `{ revision, active: true }` |
-| `DELETE /api/v1/preview-session/:previewId` | – | `200` `{ success: true }` |
+| Create session | `POST /api/v1/preview-session` | authenticated, origin-validated |
+| Upload assets | `POST /api/v1/preview-session/{previewId}/assets` | authenticated, origin-validated, owner-scoped |
+| Publish revision | `POST /api/v1/preview-session/{previewId}/revisions` | authenticated, origin-validated, owner-scoped |
+| Delete session | `DELETE /api/v1/preview-session/{previewId}` | authenticated, origin-validated, owner-scoped |
+| Serve preview | `GET /api/v1/preview/{previewId}/{path}` | authless capability URL |
 
-- **Assets.** `key` must match `^[0-9a-fA-F-]{36}@[0-9a-f]{8,64}$` (project asset
-  id + content-hash prefix); the server validates the shape and treats the key as
-  an opaque token — it never hashes. Keys are **immutable**: re-uploading a held
-  key reports it in `alreadyStored` and does **not** replace the bytes (replaced
-  author files get a new key). The byte budget is enforced twice — on declared
-  sizes before buffering, on actual bytes while buffering.
-- **Revisions.** The `revision` JSON field:
+Unknown sessions return `404`; sessions owned by another user return `403`.
 
-  ```jsonc
-  {
-    "baseRevision": 17,        // the revision the client believes is active
-    "nextRevision": 18,        // must be baseRevision + 1
-    "writes": ["index.html"],  // aligned with files[]
-    "deletes": ["html/old.html"],
-    "assetRefs": { "content/resources/photo.png": "<assetKey>" },  // FULL map
-    "fixedRefs": { "libs/jquery/jquery.min.js": "libs/jquery/jquery.min.js" }  // FULL map
-  }
-  ```
+## Authentication and CSRF boundary
 
-  Validation order: session exists (`404`) → `baseRevision` equals the active
-  revision **and** `nextRevision` is `baseRevision + 1`, else
-  `409 { reason: "revision-conflict", currentRevision }` → every path safe, else
-  `400` → every `assetRefs` value stored, else
-  `422 { reason: "missing-assets", missing }` → every `fixedRefs` value in the
-  manifest, else `422 { reason: "unknown-fixed-resources", resources }` → file
-  count / byte budgets, else `413`. All bytes are buffered first, then the store
-  publishes documents + both ref maps + the revision number in **one synchronous
-  swap**, so a concurrent `GET` observes revision *N* or *N+1*, never a mixture.
-  Until the first revision publishes, the serving route 404s every path.
-- **Budgets & TTL.** Per-session file-count and byte caps, a per-asset cap, a
-  global cap with LRU eviction, per-user session caps, and an idle-TTL sweeper.
-  Reference defaults: 30-min idle TTL, 4 sessions/user, 5000 files/session,
-  200 MiB/session, 128 MiB/asset, 2 GiB global. All overridable via the
-  `PREVIEW_*` env knobs.
+Management requires a Better Auth session and session ownership. `SameSite=Lax` is pinned explicitly as defense in depth, but it is not the application-level CSRF boundary.
 
-## Serving route (authless capability URL)
+Every unsafe preview-management request must satisfy:
 
+1. `Origin` exactly equals the configured frontend origin.
+2. `Sec-Fetch-Site` equals `same-origin` when the browser sends Fetch Metadata.
+
+This rejects foreign origins and sibling subdomains even when they are same-site. Missing or invalid `FRONTEND_URL` fails closed for preview mutations.
+
+Safe methods and the authless serving capability route are outside this check. The serving route must remain accessible to the opaque iframe with `Origin: null` and no credentials.
+
+The app-wide credentialed CORS middleware is skipped only for `/api/v1/preview/*`, preserving `Access-Control-Allow-Origin: *` without `Access-Control-Allow-Credentials`. Management retains the credentialed frontend-origin CORS policy.
+
+## Protocol layers
+
+1. **Fixed resources** — official editor resources resolved through `bundles/preview-fixed-resources.json`; never uploaded into a session.
+2. **Session assets** — author images, audio, video, PDF, and attachments; immutable per `{assetId}@{hash}` key and uploaded once per session.
+3. **Generated documents** — page HTML and generated CSS/JS; only changed files are sent as an atomic revision delta.
+
+The API validates asset keys, paths, declared sizes, actual sizes, aligned multipart parts, referenced assets, fixed-resource IDs, file counts, and byte budgets.
+
+## Session store and topology
+
+The current store is process-local and in-memory. This matches the documented single-replica production topology.
+
+Consequences:
+
+- a process restart invalidates active preview sessions;
+- the client recreates a session after a management or serving `404`;
+- quotas are per process;
+- a multi-replica deployment requires sticky routing for create, management, and serving;
+- multi-replica mode without confirmed affinity emits an operational warning.
+
+The store is not a durable project store. Project data remains in the editor; preview sessions are disposable render state.
+
+### Memory considerations
+
+Multipart assets are currently parsed and materialized in memory before being inserted into the process-local store. Default limits must therefore be sized against real RSS and external-memory measurements rather than treated as a safe target.
+
+Before increasing limits or replica concurrency, measure:
+
+- one large asset;
+- a full legal batch;
+- four sessions owned by one user;
+- multiple concurrent users;
+- temporary `FormData`/`ArrayBuffer` copies;
+- cleanup and process restart.
+
+A future implementation may spool large assets to private temporary storage without changing the wire protocol.
+
+## Atomic revisions
+
+Assets are immutable under validated keys. Generated documents and complete asset/fixed reference maps are published synchronously as one new revision state.
+
+The active revision changes only after all input validation and buffering succeed. Missing multipart parts are rejected before publication. A reader observes revision N or N+1, never a partially updated map.
+
+## Serving behavior
+
+Resolution order for the active revision:
+
+```text
+generated document → session asset reference → fixed-resource reference → 404
 ```
-GET /api/v1/preview/{previewId}          → 302 redirect to {previewId}/index.html
-GET /api/v1/preview/{previewId}/         → 302 redirect to {previewId}/index.html
-GET /api/v1/preview/{previewId}/*        → the previewed file
-```
 
-- **Bare-URL redirect.** The bare capability URL (and its trailing-slash form)
-  answers `302` to the entry document — it never serves the index bytes inline.
-  This keeps the iframe's relative-URL base at `…/{previewId}/` so the entry
-  document's sub-resources resolve correctly. The `Location` is **relative**
-  (BASE_PATH / `app://` safe), byte-identical to core: no trailing slash →
-  `{previewId}/index.html`; trailing slash → `index.html`. Both resolve to
-  `…/{previewId}/index.html` without doubling or dropping the id.
-- **Cookieless capability URL.** The opaque iframe sends no SameSite cookie, so
-  the route must not depend on the auth cookie. It is gated purely on the
-  unguessable server-minted `previewId` (a v4 UUID) + an idle TTL — the same
-  authless model as the published `/api/v1/elpx/:hash/*` route. The serving path
-  is deliberately **not** listed in `sessionProtectedApiPatterns`.
-- `previewId` **must** match `^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$`;
-  anything else → 404. (Stricter than the elpx route's `HASH_PATTERN`, which also
-  accepts SHA-1.)
-- **Resolution order** (exact-key lookups against the **active revision** only):
-  `documents[path]` → `assets[assetRefs[path]]` → `manifest[fixedRefs[path]]` →
-  404. Client input never reaches the filesystem; only manifest-listed,
-  containment-checked paths do.
-- **Range requests.** Session-asset responses advertise `Accept-Ranges: bytes`
-  and honor a **single** `bytes=` range (`206`). A **valid** single range that is
-  unsatisfiable (first-byte-pos at/past EOF, or a zero-length suffix `bytes=-0`)
-  answers `416`. A header that is **malformed, multi-range, non-`bytes`-unit, or
-  an invalid spec** (`bytes=5-2`, last-byte-pos < first-byte-pos per RFC 9110) is
-  **ignored** — a normal `200` full response, not a `416`. Documents and fixed
-  resources ignore Range entirely.
-- **Conditional requests.** Session-asset responses carry `ETag: "<assetKey>"`
-  and answer `If-None-Match` with `304`.
+A bare capability URL redirects with a relative `302` target to `{previewId}/index.html`, preserving the correct base for relative resources.
 
-## Required response headers (on every response, including 404s)
+Range behavior for session assets:
 
-```
+- valid satisfiable single range → `206`;
+- valid unsatisfiable single range, including `bytes=-0` → `416`;
+- malformed, multi-range, non-`bytes`, or inverted range → ignore and return the full `200` response.
+
+Assets support ETag and `If-None-Match`.
+
+## Response security policy
+
+Every response, including errors, includes:
+
+```text
 X-Content-Type-Options: nosniff
 Referrer-Policy: no-referrer
 Permissions-Policy: camera=(), microphone=(), geolocation=(), payment=()
-Access-Control-Allow-Origin: *          (authless + cookieless; NEVER with credentials)
-Content-Type: <the file's real MIME type>
+Access-Control-Allow-Origin: *
 ```
 
-`Cache-Control` is **tiered by layer** — not `no-store` uniformly:
+`Access-Control-Allow-Origin: *` is used only by the cookieless serving route and is never paired with credentials.
 
-| Response | Cache-Control |
-|---|---|
-| Generated document (layer 3) | `no-store` |
-| Session project asset (layer 2) | `no-cache` (+ `ETag`, honor `If-None-Match`) |
-| Fixed installation resource (layer 1) | `private, max-age=31536000` |
-| 404 / errors | `no-store` |
+HTML, SVG, XML, `text/xml`, and XHTML from every layer receive the byte-identical sandbox-first CSP defined by eXeLearning core. The iframe sandbox omits `allow-same-origin`.
 
-> Note the deltas vs. the **published** elpx route: preview uses
-> `Referrer-Policy: no-referrer` (published uses `same-origin`) and a **stricter**
-> CSP profile. Do not reuse `elpx-content.ts`'s CSP for the preview.
+Cache policy is layer-specific:
 
-On **every scriptable document type** — `text/html`, **`image/svg+xml`**,
-`application/xml`, `text/xml`, `application/xhtml+xml` — from **any** resolution
-layer (session or fixed), additionally emit the sandbox-first CSP **verbatim**
-(an author SVG opened top-level runs its inline `<script>` same-origin without it;
-`nosniff` does not help — SVG is already scriptable):
+- generated document: `no-store`;
+- session asset: `no-cache`, ETag, optional Range;
+- fixed resource: `private, max-age=31536000`;
+- error: `no-store`.
 
-```
-Content-Security-Policy:
-  sandbox allow-scripts allow-popups allow-forms;
-  default-src 'self';
-  script-src 'self' 'unsafe-inline' 'unsafe-eval';
-  style-src 'self' 'unsafe-inline';
-  img-src 'self' data: blob: https:;
-  media-src 'self' data: blob: https:;
-  font-src 'self' data:;
-  connect-src 'self';
-  frame-src 'self' https://www.youtube-nocookie.com https://player.vimeo.com;
-  child-src 'self' https://www.youtube-nocookie.com https://player.vimeo.com;
-  object-src 'none';
-  base-uri 'none';
-  form-action 'self';
-  frame-ancestors 'self';
+Preview capability IDs are redacted from durable audit paths.
+
+## External media
+
+The embedded preview uses the synchronized eXeLearning shim, relay, media policy, and media host. Core is the canonical source.
+
+The untrusted child reports maintained-provider identifiers and geometry. The trusted parent reconstructs canonical provider URLs and clamps overlays to the content rectangle.
+
+## Activation status
+
+The host adapter is implemented and tested, but the released editor currently bundled by Procomún predates `HttpPreviewProvider`. Production activation requires a core editor release containing:
+
+```text
+HttpPreviewProvider
+StaticServiceWorkerPreviewProvider
+bundles/preview-fixed-resources.json
 ```
 
-This string **must stay byte-identical** to eXe core `previewCspHeader()` (single
-line joined by `; `, no trailing `;`). It is **stricter** than Procomún's
-published-content CSP (which allows `frame-src https:`, `base-uri 'self'`, and
-`allow-popups-to-escape-sandbox`) — the preview must use the strict core string.
+Until that editor is installed, the released client ignores `previewHttp`. Bootstrap-string and API tests do not by themselves prove browser activation.
 
-## Deployment topology (in-memory store)
+The final integration gate is a browser test using one reproducible static-editor artifact from the target core commit, demonstrating create → assets → revision → opaque capability iframe → incremental update → cleanup.
 
-Preview sessions live in the `app` process's memory and are not persisted; they
-die on restart and the client recreates them transparently on the next refresh
-(any `404` triggers a re-prepare). Global limits are **per process**. Production
-is single-replica today, so the in-memory store is correct as-is. A multi-replica
-deployment needs **sticky routing keyed on the `previewId` path segment** for both
-management and serving (with the session `CREATE` pinned to its owning replica).
-The full rationale, the `nginx` example, and the `PREVIEW_MULTI_REPLICA` /
-`PREVIEW_STICKY_ROUTING_CONFIRMED` startup guard are in
-[ADR-0030](negocio/decisiones/0030-topologia-store-preview-http.md) and
-[`docs/operaciones/preview-sessions.md`](operaciones/preview-sessions.md).
+## Conformance and tests
 
-## Conformance
+The Procomún harness replays an exact vendored copy of the core vectors. Additional tests cover:
 
-Beyond the byte-identical CSP assertion in the route unit tests, this adapter
-replays the shared contract vectors vendored from core at
-[`apps/api/test/preview-contract/vectors.json`](../apps/api/test/preview-contract/vectors.json)
-in [`apps/api/src/routes/preview-contract.unit.test.ts`](../apps/api/src/routes/preview-contract.unit.test.ts):
-a canned session (assets + a revision + a conflict + traversal and scriptable-SVG
-probes) with the expected status codes and headers, so protocol semantics — not
-just the CSP string — stay aligned across hosts. Refresh the JSON from core; do
-not fork it.
+- session authentication and ownership;
+- exact-origin and Fetch Metadata rejection;
+- capability-route CORS isolation;
+- malformed and missing multipart input;
+- Range, ETag, bare-root redirect, CSP, expiry, and cleanup;
+- fixed-resource containment;
+- audit-log capability redaction;
+- store topology configuration.
+
+When this document conflicts with the canonical core contract, the core contract wins and the adapter must be updated.
