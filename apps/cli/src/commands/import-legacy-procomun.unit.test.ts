@@ -362,6 +362,92 @@ describe("runImportLegacyProcomun (deps mockeadas)", () => {
 		expect(report.totals.imported).toBe(1);
 	});
 
+	test("dos ejecuciones concurrentes del mismo contenido nunca limpian el extractPath de la que sí se persiste (TOCTOU)", async () => {
+		// Regresión de la 3ª ronda de revisión del PR #268: la comprobación
+		// previa de getElpxProjectByHash() no es atómica con la extracción ni la
+		// persistencia. Se simula la carrera con getElpxProjectByHash() devolviendo
+		// siempre null (ambas ejecuciones "ven" que el hash no existe todavía) y
+		// dos llamadas a runImportLegacyProcomun lanzadas con Promise.all.
+		await writeFile(path.join(dir, "dup-a.json"), "{}");
+		await writeFile(path.join(dir, "dup-a.elpx"), "fake-zip-bytes-a");
+		await writeFile(path.join(dir, "dup-b.json"), "{}");
+		await writeFile(path.join(dir, "dup-b.elpx"), "fake-zip-bytes-b");
+
+		const removedPaths: string[] = [];
+		const extractPathsAtInsert: string[] = [];
+		let insertCalls = 0;
+
+		const deps = buildMockDeps(storageDir, {
+			mapLegacyRecord: ((json: unknown, fallbackTitle: string) => ({
+				externalId: fallbackTitle.replace(".elpx", ""),
+				blocking: false,
+				blockingErrors: [],
+				warnings: [],
+				resource: {
+					externalId: fallbackTitle.replace(".elpx", ""),
+					importSource: "legacy-procomun",
+					sourceUri: null,
+					title: fallbackTitle,
+					description: "d",
+					language: "es",
+					license: "cc-by",
+					resourceType: "documento",
+					subjects: [],
+					levels: [],
+					author: null,
+					publisher: null,
+					keywords: null,
+					importedAt: null,
+				},
+			})) as Deps["mapLegacyRecord"],
+			// Réplica fiel de cómo processElpxUpload real construye extractPath
+			// (buildElpxPath(baseDir, hash) = path.join(baseDir, "elpx", hash)):
+			// depende del `opts.hash` que reciba, no del storagePath. Esto es lo
+			// que hace que el test distinga entre pasar el checksum (bug: ambos
+			// intentos comparten ruta) y pasar el uploadId (fix: rutas únicas).
+			processElpxUpload: (async (_storagePath: string, baseDir: string, opts?: { hash?: string }) => ({
+				hash: opts?.hash ?? "no-hash-provided",
+				extractPath: `${baseDir}/elpx/${opts?.hash ?? "no-hash-provided"}`,
+				hasPreview: true,
+				metadata: { title: "t", description: "d", author: "a", license: "l", language: "es", learningResourceType: "" },
+			})) as Deps["processElpxUpload"],
+			removeElpxExtraction: (async (extractPath: string) => {
+				removedPaths.push(extractPath);
+			}) as Deps["removeElpxExtraction"],
+			repo: {
+				findLegacyResourceByExternalId: async () => null,
+				// Ambas ejecuciones ven "no existe" — la carrera pasa el pre-check.
+				getElpxProjectByHash: async () => null,
+				importLegacyResourceWithElpx: async (_db: unknown, input: any) => {
+					insertCalls++;
+					extractPathsAtInsert.push(input.elpx.extractPath);
+					if (insertCalls === 1) {
+						return { resourceId: "winner-id", slug: "winner", mediaItemId: "m1", elpxProjectId: "e1" };
+					}
+					throw new Error('duplicate key value violates unique constraint "elpx_projects_hash_idx"');
+				},
+			} as Deps["repo"],
+		});
+
+		const [reportA, reportB] = await Promise.all([
+			runImportLegacyProcomun({ sourceDir: dir, dryRun: false, only: "dup-a" }, deps),
+			runImportLegacyProcomun({ sourceDir: dir, dryRun: false, only: "dup-b" }, deps),
+		]);
+
+		expect(reportA.totals.imported + reportB.totals.imported).toBe(1);
+		expect(reportA.totals.errored + reportB.totals.errored).toBe(1);
+		expect(extractPathsAtInsert).toHaveLength(2);
+
+		// La ruta limpiada debe ser exactamente la del intento que perdió la
+		// restricción única (segunda llamada a importLegacyResourceWithElpx),
+		// nunca la del que ganó y persistió su elpx_project.
+		const winnerPath = extractPathsAtInsert[0];
+		const loserPath = extractPathsAtInsert[1];
+		expect(winnerPath).not.toBe(loserPath); // rutas únicas por intento, nunca compartidas
+		expect(removedPaths).toEqual([loserPath]);
+		expect(removedPaths).not.toContain(winnerPath);
+	});
+
 	test("un .json malformado se reporta como error sin abortar el resto del lote", async () => {
 		await writeFile(path.join(dir, "es_mock.json"), "{ esto no es JSON válido");
 		await writeFile(path.join(dir, "otro.json"), "{}");

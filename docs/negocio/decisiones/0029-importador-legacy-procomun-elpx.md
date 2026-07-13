@@ -91,3 +91,23 @@ Tras el commit anterior, el revisor mantuvo `CHANGES_REQUESTED` señalando que l
 **Hallazgo colateral encontrado por el usuario al probar manualmente** (no parte de la revisión del PR, pero causado por el fix #4 de la ronda anterior): la ruta de previsualización de `.elpx` (`apps/api/src/routes/elpx-content.ts`) validaba el hash con un patrón `{8,40}` caracteres (pensado para UUID o SHA-1), que rechazaba con 404 los hashes SHA-256 (64 caracteres) que ahora genera el importador legacy. Corregido ampliando el patrón a `{8,64}` (coincide con `elpx_projects.hash varchar(64)`), con test de regresión que sirve contenido real bajo un hash de 64 caracteres.
 
 Validación: `bun test` completo del monorepo (796/796, +2 tests nuevos) y re-ejecución de los tests de integración de deduplicación por contenido, confirmando que el mensaje de error del registro fallido ahora indica explícitamente "no se vuelve a extraer" (prueba de que la detección ocurre antes de la extracción, no como fallo de inserción posterior).
+
+## Actualización 2026-07-13 — tercera ronda de revisión del PR #268: condición de carrera (TOCTOU) en la deduplicación por hash
+
+El fix del punto 2 de la ronda anterior (comprobar `getElpxProjectByHash()` antes de extraer) resolvía el caso secuencial, pero el revisor señaló que **no es atómico**: dos ejecuciones concurrentes del importador (dos procesos CLI corriendo a la vez, o dos llamadas paralelas) podrían ambas comprobar que un hash no existe todavía, ambas extraer sobre `storageDir/elpx/<checksum>` (la misma ruta física, porque estaba basada en el checksum), y cuando una de las dos inserciones ganase la restricción única de `elpx_projects.hash` y la otra fallase, el bloque `catch` de la perdedora — que tras el fix anterior limpiaba el `extractPath` sin comprobación adicional, asumiendo que un choque de hash ya se había descartado antes de extraer — borraría el directorio compartido, incluida la preview del recurso que sí se había persistido con éxito.
+
+### Decisión revisada
+
+Se desacopla la **ruta física de extracción** del **valor lógico de deduplicación**:
+
+* `processElpxUpload(storagePath, config.storageDir, { hash: uploadId })` — la ruta de extracción (`storageDir/elpx/<uploadId>`) se basa en el `uploadId` generado por cada intento (`crypto.randomUUID()`, único por llamada), no en el checksum del contenido. Dos intentos, aunque tengan el mismo contenido, **nunca** comparten ruta física.
+* Al persistir, `elpx_projects.hash` sigue guardando el **checksum SHA-256 real** (no `processed.hash`, que ahora vale `uploadId`) — la deduplicación de contenido en BD sigue intacta y sigue siendo atómica, porque la garantiza la restricción `UNIQUE` del motor de base de datos, no una comprobación previa en aplicación.
+* La comprobación previa `getElpxProjectByHash()` se mantiene como optimización (evita extraer contenido ya conocido en el caso común, no concurrente), pero deja de ser la única defensa.
+* En el `catch`, la limpieza de `extractPath` vuelve a ser incondicional — y ahora es **siempre segura**, porque la ruta es intrínsecamente exclusiva del intento que falló; jamás puede coincidir con la de otro intento, gane o pierda la carrera.
+
+### Consecuencias
+* Bajo una carrera real, ambos intentos extraen su propia copia física del contenido (duplicación temporal de I/O en el caso raro de colisión concurrente), pero solo uno persiste su fila en BD; el otro limpia su propio directorio sin riesgo.
+* Test de regresión unitario (mocks): dos llamadas a `runImportLegacyProcomun` con `Promise.all`, simulando que ambas ven `getElpxProjectByHash() → null`; verifica que la ruta limpiada es siempre la del intento perdedor, nunca la del ganador. Confirmado que el test falla con el código anterior (revertido temporalmente para verificarlo) y pasa con el fix.
+* Test de integración con concurrencia real (PGlite + storage real, sin mocks): dos ejecuciones de `runImportLegacyProcomun` lanzadas con `Promise.all` sobre un `.elpx` sintético idéntico bajo dos `externalId`; confirma en el log que la carrera ocurre de verdad (el registro perdedor falla por la restricción única real de BD, no por el pre-check) y que la preview del recurso ganador permanece íntegra.
+
+Validación: `bun test` completo del monorepo (798/798, +2 tests nuevos) y `check-test-files.ts` sin incidencias.

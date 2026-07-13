@@ -1361,3 +1361,37 @@ tasks:
       upload_sessions.createdAt como alternativa de último recurso. Se añade sección de actualización en
       ADR-0029 (2026-07-11) y se actualiza design.md. Validación: bun test apps/ packages/ scripts/ → 796
       pass, 0 fail; bun run scripts/check-test-files.ts sin incidencias.
+  T-2026-07-13-001:
+    date: 2026-07-13
+    agent: "backend-api-servicios + qa-validacion"
+    task: "Fix de condición de carrera (TOCTOU) en deduplicación por hash — tercera ronda de revisión del PR #268"
+    status: Done
+    related: ["epic-004-migracion-legacy-procomun", "ADR-0029"]
+    notes: >
+      El revisor (erseco) mantiene CHANGES_REQUESTED sobre el commit 976e0ff6, señalando que
+      getElpxProjectByHash() comprobado antes de extraer (fix de T-2026-07-11-001) no es atómico: dos
+      ejecuciones concurrentes podrían ambas ver que el hash no existe, ambas extraer sobre
+      storageDir/elpx/<checksum> (misma ruta física, por estar basada en el checksum), y cuando una
+      inserción gane la restricción única y la otra falle, el catch (que tras el fix anterior limpiaba sin
+      comprobación adicional) borraría el directorio compartido, incluida la preview del recurso que sí se
+      persistió. Fix: se desacopla la ruta física de extracción del valor de deduplicación —
+      processElpxUpload(storagePath, config.storageDir, { hash: uploadId }) usa el uploadId (único por
+      intento, crypto.randomUUID() en cada llamada) para construir extractPath, nunca el checksum; al
+      persistir, elpx_projects.hash sigue guardando el checksum real (no processed.hash), así que la
+      deduplicación en BD sigue intacta y ahora es genuinamente atómica (la garantiza la restricción UNIQUE
+      del motor, no una comprobación en aplicación). La limpieza en el catch vuelve a ser incondicional y es
+      siempre segura, porque cada ruta es exclusiva de su propio intento. getElpxProjectByHash() antes de
+      extraer se conserva como optimización para el caso común no concurrente.
+      Se añaden dos tests de regresión pedidos explícitamente por el revisor: (1) unitario con mocks —
+      simula la carrera forzando que getElpxProjectByHash() devuelva null en dos llamadas paralelas a
+      runImportLegacyProcomun vía Promise.all, verificando que la ruta limpiada es siempre la del intento
+      perdedor; verificado manualmente que este test falla si se revierte el fix (se comprobó revirtiendo
+      temporalmente hash: uploadId -> hash: checksum y confirmando el fallo esperado, luego restaurado).
+      (2) integración con concurrencia real (PGlite + storage real, sin mocks) — dos llamadas a
+      runImportLegacyProcomun con Promise.all sobre un .elpx sintético idéntico bajo dos externalId
+      distintos; el log confirma que la carrera ocurre de verdad (el perdedor falla por la restricción única
+      real de BD, no por el pre-check) y que la preview del ganador permanece íntegra. Se añade sección de
+      actualización en ADR-0029 (2026-07-13) y se actualiza design.md (nueva sección "Rutas de extracción
+      únicas por intento", sustituye a "Comprobación de duplicados antes de extraer"). Validación: bun test
+      apps/ packages/ scripts/ → 798 pass, 0 fail (+2 tests nuevos); bun run scripts/check-test-files.ts sin
+      incidencias.

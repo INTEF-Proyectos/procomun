@@ -411,11 +411,11 @@ async function persistImportedResource(params: {
 			stat(storagePath),
 		]);
 
-		// Comprobar ANTES de extraer si este contenido ya está importado bajo
-		// otro recurso: extraer directamente sobre storageDir/elpx/<checksum> sin
-		// esta comprobación previa arriesgaría que un fallo a mitad de la
-		// extracción borrase (safeExtractElpx hace rollback destructivo) el
-		// directorio activo de un recurso ya persistido con ese mismo hash.
+		// Comprobación previa (optimización, NO la única defensa — ver más abajo):
+		// evita gastar trabajo de extracción para contenido ya conocido en el
+		// caso común y secuencial. Bajo concurrencia real esta comprobación por
+		// sí sola no basta (TOCTOU): dos ejecuciones podrían pasarla ambas antes
+		// de que cualquiera persista.
 		const existingElpxProject = await deps.repo.getElpxProjectByHash(db, checksum);
 		if (existingElpxProject) {
 			throw new Error(
@@ -423,11 +423,16 @@ async function persistImportedResource(params: {
 			);
 		}
 
-		// El hash se fija al checksum SHA-256 del fichero (no un UUID aleatorio):
-		// es lo que permite que la unicidad de elpx_projects.hash detecte el
-		// mismo .elpx importado bajo dos externalId distintos (deduplicación
-		// secundaria por contenido, ver design.md de epic-004).
-		processed = await deps.processElpxUpload(storagePath, config.storageDir, { hash: checksum });
+		// La ruta física de extracción se basa en `uploadId` (único por intento,
+		// ver crypto.randomUUID() más abajo), NO en el checksum del contenido:
+		// dos intentos concurrentes con el mismo .elpx (incluso si ambos superan
+		// la comprobación previa por una carrera) extraen siempre en directorios
+		// distintos, así que nunca pueden pisarse ni, si uno de los dos falla al
+		// persistir, arriesgar borrar el directorio que el otro sí está usando.
+		// La deduplicación de contenido sigue garantizada de forma atómica por la
+		// restricción UNIQUE de `elpx_projects.hash` en BD (ver `elpx.hash` más
+		// abajo, que guarda el checksum real, no `processed.hash`).
+		processed = await deps.processElpxUpload(storagePath, config.storageDir, { hash: uploadId });
 
 		const result = await deps.repo.importLegacyResourceWithElpx(db, {
 			resource: {
@@ -436,7 +441,7 @@ async function persistImportedResource(params: {
 				license: mapping.resource.license as string,
 			},
 			elpx: {
-				hash: processed.hash,
+				hash: checksum,
 				extractPath: processed.extractPath,
 				originalFilename: elpxFilename,
 				hasPreview: processed.hasPreview,
@@ -486,11 +491,12 @@ async function persistImportedResource(params: {
 		// No aborta el lote: el fichero copiado a storage se limpia best-effort.
 		await unlink(storagePath).catch(() => {});
 
-		// Como el choque de hash duplicado ya se descarta ANTES de extraer (ver
-		// arriba), cualquier fallo que llegue aquí tras una extracción exitosa
-		// (processed !== undefined) es de otra naturaleza (BD, red, etc.) y el
-		// directorio extraído no pertenece a ningún recurso ya persistido: se
-		// puede limpiar sin comprobación adicional.
+		// Seguro incondicionalmente: `processed.extractPath` está basado en el
+		// `uploadId` único de ESTE intento (no en el checksum del contenido), así
+		// que nunca coincide con la ruta de otro intento — ni siquiera si dos
+		// ejecuciones concurrentes importan el mismo .elpx a la vez y compiten
+		// por la misma restricción UNIQUE de elpx_projects.hash. Limpiar aquí
+		// jamás puede borrar el directorio de un recurso ya persistido.
 		if (processed) {
 			await deps.removeElpxExtraction(processed.extractPath).catch(() => {});
 		}

@@ -16,6 +16,40 @@ import {
 // probar el camino bloqueante end-to-end.
 const FIXTURES_DIR = path.join(import.meta.dir, "../test-fixtures/legacy-procomun");
 
+const MINIMAL_CONTENT_XML = `<?xml version="1.0" encoding="UTF-8"?>
+<ode xmlns="http://www.intef.es/xsd/ode" version="2.0">
+  <odeProperties>
+    <odeProperty>
+      <key>pp_title</key>
+      <value>Recurso de prueba para carrera concurrente</value>
+    </odeProperty>
+    <odeProperty>
+      <key>pp_lang</key>
+      <value>es</value>
+    </odeProperty>
+    <odeProperty>
+      <key>pp_license</key>
+      <value>creative commons: attribution</value>
+    </odeProperty>
+  </odeProperties>
+</ode>`;
+
+/** Construye un .elpx (ZIP) mínimo pero válido, ajeno a las fixtures reales
+ * ya usadas/persistidas en otros describe de este mismo archivo (comparten
+ * la misma BD PGlite del proceso de test) — necesario para el test de
+ * carrera, que necesita contenido nunca antes visto por elpx_projects.hash. */
+async function createMinimalElpx(destPath: string): Promise<void> {
+	const staging = await mkdtemp(path.join(tmpdir(), "elpx-race-staging-"));
+	await writeFile(path.join(staging, "content.xml"), MINIMAL_CONTENT_XML, "utf-8");
+	const proc = Bun.spawn(["python3", "-m", "zipfile", "-c", destPath, "content.xml"], {
+		cwd: staging,
+		stdout: "ignore",
+		stderr: "ignore",
+	});
+	const exitCode = await proc.exited;
+	if (exitCode !== 0) throw new Error(`No se pudo crear el .elpx sintético (exit ${exitCode})`);
+}
+
 describe("import:legacy-procomun (integración, PGlite en memoria vía test-setup.ts)", () => {
 	let deps: Awaited<ReturnType<typeof loadImportLegacyProcomunDependencies>>;
 
@@ -180,5 +214,87 @@ describe("import:legacy-procomun — deduplicación por contenido y limpieza de 
 			"es_dup_b",
 		);
 		expect(secondResource).toBeNull();
+	});
+});
+
+describe("import:legacy-procomun — carrera real entre dos ejecuciones concurrentes (TOCTOU)", () => {
+	let deps: Awaited<ReturnType<typeof loadImportLegacyProcomunDependencies>>;
+	let raceDir: string;
+
+	beforeAll(async () => {
+		process.env.UPLOAD_STORAGE_DIR = await mkdtemp(path.join(tmpdir(), "legacy-import-storage-race-"));
+		deps = await loadImportLegacyProcomunDependencies();
+
+		raceDir = await mkdtemp(path.join(tmpdir(), "legacy-import-race-source-"));
+		// Contenido sintético nunca antes visto por elpx_projects.hash en este
+		// proceso de test (a diferencia de reutilizar una fixture ya persistida
+		// en otro describe de este archivo, que compartiría el mismo checksum
+		// que un recurso YA importado y no ejercitaría la carrera real).
+		await createMinimalElpx(path.join(raceDir, "race-a.elpx"));
+		await copyFile(path.join(raceDir, "race-a.elpx"), path.join(raceDir, "race-b.elpx"));
+		for (const [name, externalId] of [
+			["race-a", "es_race_a"],
+			["race-b", "es_race_b"],
+		] as const) {
+			await writeFile(
+				path.join(raceDir, `${name}.json`),
+				JSON.stringify({
+					idODE: externalId,
+					titleStr: `Carrera ${externalId}`,
+					descriptionStr: "Contenido idéntico para forzar una carrera real entre dos ejecuciones.",
+					generalLanguageStr: ["es"],
+					rightsCopyrightAndOtherRestrictionsStr: "creative commons: attribution",
+					resourceType: ["documento"],
+				}),
+			);
+		}
+	});
+
+	test("dos ejecuciones lanzadas con Promise.all sobre el mismo contenido: una gana, la otra falla, ninguna preview se pierde", async () => {
+		// Concurrencia real (no mockeada): dos llamadas independientes a
+		// runImportLegacyProcomun lanzadas a la vez con Promise.all, cada una
+		// filtrando por su propio --only. El interleaving real de las
+		// operaciones async (escritura a disco, cálculo de checksum, extracción
+		// del ZIP, consultas a PGlite) puede intercalar ambos flujos antes de
+		// que cualquiera persista — exactamente el escenario TOCTOU señalado en
+		// la revisión del PR #268.
+		const [reportA, reportB] = await Promise.all([
+			runImportLegacyProcomun({ sourceDir: raceDir, dryRun: false, only: "es_race_a" }, deps),
+			runImportLegacyProcomun({ sourceDir: raceDir, dryRun: false, only: "es_race_b" }, deps),
+		]);
+
+		const totalImported = reportA.totals.imported + reportB.totals.imported;
+		const totalErrored = reportA.totals.errored + reportB.totals.errored;
+		expect(totalImported).toBe(1);
+		expect(totalErrored).toBe(1);
+
+		// Averiguar cuál de los dos ganó (createdAt no sirve como pista fiable
+		// aquí porque ambos JSON no traen publicationDate: cae a "now" para
+		// ambos) — se identifica por cuál de los dos externalId quedó persistido.
+		const winnerExternalId = (await deps.repo.findLegacyResourceByExternalId(
+			deps.getDb().db,
+			"legacy-procomun",
+			"es_race_a",
+		))
+			? "es_race_a"
+			: "es_race_b";
+
+		const winner = await deps.repo.findLegacyResourceByExternalId(
+			deps.getDb().db,
+			"legacy-procomun",
+			winnerExternalId,
+		);
+		expect(winner).not.toBeNull();
+
+		const elpxProject = await deps.repo.getElpxProjectByResourceId(deps.getDb().db, winner!.id);
+		expect(elpxProject).not.toBeNull();
+
+		// La preview del recurso que sí ganó la carrera debe seguir intacta: el
+		// intento perdedor, al fallar su inserción por la restricción única de
+		// hash, no debe haber borrado un directorio de extracción compartido
+		// (la garantía de fondo es que, tras el fix, cada intento extrae en su
+		// propia ruta única por uploadId, así que no hay nada que compartir).
+		const contentXmlExists = await Bun.file(path.join(elpxProject!.extractPath, "content.xml")).exists();
+		expect(contentXmlExists).toBe(true);
 	});
 });
