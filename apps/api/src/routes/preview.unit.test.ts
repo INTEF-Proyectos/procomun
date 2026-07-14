@@ -44,6 +44,9 @@ describe("simplified opaque preview routes", () => {
 		const html = await serving.request(`http://host/${previewId}/index.html`);
 		expect(html.status).toBe(200);
 		expect(html.headers.get("content-security-policy")).toContain("sandbox allow-scripts");
+		expect(html.headers.get("content-security-policy")).toContain("allow-downloads");
+		expect(html.headers.get("content-security-policy")).toContain("allow-presentation");
+		expect(html.headers.get("content-security-policy")).not.toContain("allow-same-origin");
 		expect(html.headers.get("access-control-allow-origin")).toBe("*");
 		expect(await html.text()).toContain("window.active=true");
 

@@ -6,12 +6,11 @@
  * are deliberately no layers, revisions, deltas, fixed-resource manifests, or
  * external-media overlays.
  *
- * The Content-Security-Policy emitted here MUST stay BYTE-IDENTICAL to eXe core
- * `previewCspHeader()` (`src/shared/security/previewSandbox.ts`) — single line,
- * directives joined by "; ", no trailing ";". It is intentionally STRICTER than
- * the published-content CSP in `elpx-content.ts` (no `frame-src https:`,
- * `base-uri 'none'`, no `allow-popups-to-escape-sandbox`): the preview must use
- * the strict core string. Add a drift check (mirror `check-embed-sync`).
+ * The response CSP mirrors the core iframe's functional sandbox tokens while
+ * adding resource restrictions suitable for the capability route. It is
+ * intentionally stricter than the published-content CSP in `elpx-content.ts`:
+ * it limits nested frames, uses `base-uri 'none'`, and does not allow popups to
+ * escape the sandbox.
  *
  * See `docs/preview-serving-contract.md` for the two-route contract.
  */
@@ -43,11 +42,11 @@ const SCRIPTABLE_TYPES = new Set([
 ]);
 
 /**
- * The sandbox-first preview CSP. MUST be byte-identical to eXe core
- * `previewCspHeader()`. Kept as a single joined string (no trailing ";").
+ * Sandbox-first preview CSP, kept as a single joined string without a trailing
+ * semicolon so emitted headers remain deterministic.
  */
 const PREVIEW_CSP = [
-	"sandbox allow-scripts allow-popups allow-forms",
+	"sandbox allow-scripts allow-popups allow-forms allow-downloads allow-presentation",
 	"default-src 'self'",
 	"script-src 'self' 'unsafe-inline' 'unsafe-eval'",
 	"style-src 'self' 'unsafe-inline'",
