@@ -175,3 +175,9 @@ ADR-0028:
   status: Propuesto
   date: 2026-06-24
   file: 0028-versionado-recursos-educativos.md
+
+ADR-0029:
+  title: "Complete snapshots for opaque embedded editor previews"
+  status: Aceptado
+  date: 2026-07-14
+  file: 0029-simplified-opaque-editor-preview.md

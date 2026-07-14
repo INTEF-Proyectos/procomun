@@ -1199,3 +1199,14 @@ tasks:
       como backend de historial, object storage versionado y un modelo híbrido PostgreSQL snapshots + storage
       versionado. No hay cambios de código. Validación documental: status.yaml y decision-log.yaml parsean
       correctamente con Ruby YAML.
+  T-2026-07-14-001:
+    date: 2026-07-14
+    agent: "security + backend-api-services + interoperability + qa"
+    task: "Replace preview protocol v2 with a complete-snapshot opaque iframe contract"
+    status: Done
+    related: ["ADR-0029", "exelearning#1968", "procomun#260"]
+    notes: >
+      The embedded editor uploads a complete ZIP snapshot through an authenticated,
+      same-origin and resource-scoped route. An authless expiring capability serves
+      the files with an opaque sandbox CSP. Layered resources, incremental revisions,
+      manifests and speculative external-media relays are intentionally omitted.
