@@ -45,6 +45,10 @@ window.__EXE_EMBEDDING_CONFIG__ = {
 		saveButton: true,
 		userMenu: true,
 	},
+	previewSnapshot: ${resourceId ? `{
+		managementUrl: "/api/v1/preview-sessions/${encodeURIComponent(resourceId)}",
+		servingBaseUrl: "/exe-preview/"
+	}` : "null"},
 };
 window.__PROCOMUN_CONFIG__ = {
 	resourceId: ${JSON.stringify(resourceId)},
@@ -165,8 +169,9 @@ const BRIDGE_SCRIPT = `<script>
 	}
 
 	async function handleMessage(event) {
+		if (event.source !== window.parent || event.origin !== targetOrigin) return;
 		var msg = event?.data;
-		if (!msg?.type || msg.source === 'procomun-bridge') return;
+		if (!msg || typeof msg !== 'object' || typeof msg.type !== 'string' || msg.source === 'procomun-bridge') return;
 		try {
 			switch (msg.type) {
 				case 'WP_REQUEST_SAVE':

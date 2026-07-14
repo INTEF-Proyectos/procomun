@@ -39,6 +39,8 @@ describe("GET /api/v1/exelearning-editor/index.html", () => {
 		expect(html).toContain("r1");
 		expect(html).toContain("<base");
 		expect(html).toContain("__PROCOMUN_CONFIG__");
+		expect(html).toContain('managementUrl: "/api/v1/preview-sessions/r1"');
+		expect(html).toContain('servingBaseUrl: "/exe-preview/"');
 		expect(res.headers.get("content-type")).toContain("text/html");
 		expect(res.headers.get("cache-control")).toBe("no-cache");
 	});
@@ -50,6 +52,8 @@ describe("GET /api/v1/exelearning-editor/index.html", () => {
 		expect(html).toContain("WP_REQUEST_SAVE");
 		expect(html).toContain("WP_REQUEST_EXPORT");
 		expect(html).toContain("EXELEARNING_READY");
+		expect(html).toContain("event.source !== window.parent");
+		expect(html).toContain("event.origin !== targetOrigin");
 	});
 
 	test("bridge script declara WP_REQUEST_EXPORT en capabilities", async () => {
@@ -73,6 +77,7 @@ describe("GET /api/v1/exelearning-editor/index.html", () => {
 		expect(res.status).toBe(200);
 		const html = await res.text();
 		expect(html).toContain("initialProjectUrl: null");
+		expect(html).toContain("previewSnapshot: null");
 	});
 });
 

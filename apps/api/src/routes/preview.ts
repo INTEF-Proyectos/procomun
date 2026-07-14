@@ -1,12 +1,10 @@
 /**
  * Editor-preview serving route — host-served opaque HTTP preview.
  *
- * Reference adapter of the eXeLearning **Preview Serving Contract**
- * (eXe core `doc/development/preview-serving-contract.md`). It serves the editor
- * preview of UNTRUSTED author HTML/JS in a browser-enforced **opaque origin**
- * over an authless capability URL, so the preview gets real per-page URLs
- * (working intra-content navigation and open-in-new-tab) instead of the srcdoc
- * fallback.
+ * The authenticated management route replaces one complete ZIP snapshot. The
+ * authless serving route resolves files through an expiring capability. There
+ * are deliberately no layers, revisions, deltas, fixed-resource manifests, or
+ * external-media overlays.
  *
  * The Content-Security-Policy emitted here MUST stay BYTE-IDENTICAL to eXe core
  * `previewCspHeader()` (`src/shared/security/previewSandbox.ts`) — single line,
@@ -15,14 +13,18 @@
  * `base-uri 'none'`, no `allow-popups-to-escape-sandbox`): the preview must use
  * the strict core string. Add a drift check (mirror `check-embed-sync`).
  *
- * Mount at `/api/v1/preview` and set the editor's
- * `embeddingConfig.previewTransport = "http"` + `previewBasePath = "/api/v1/preview"`.
- *
- * NOTE: the preview SESSION STORE and the authenticated MANAGEMENT API
- * (POST /api/v1/preview-session, /:id/manifest, /:id/blobs, DELETE /:id) are
- * FOLLOW-UP — see the TODO on `getPreviewFile()`. This file is the serving half.
+ * See `docs/preview-serving-contract.md` for the two-route contract.
  */
-import { Hono } from "hono";
+import * as repo from "@procomun/db/repository";
+import { type Context, Hono } from "hono";
+import type { AuthEnv } from "../auth/middleware.ts";
+import { canManageResource } from "../auth/roles.ts";
+import { getDb } from "../db.ts";
+import {
+	PreviewSnapshotError,
+	PreviewSnapshotStore,
+	previewSnapshotStore,
+} from "../services/preview-snapshot-store.ts";
 
 // Server-minted preview session id: a v4-shaped UUID. Stricter than the elpx
 // route's HASH_PATTERN (which also accepts SHA-1) — a preview id is never a hash.
@@ -88,32 +90,9 @@ function notFound(): Response {
 	});
 }
 
-type PreviewFile = { bytes: Uint8Array | ArrayBuffer; contentType: string };
-
-/**
- * Resolve a file from the preview session's ACTIVE manifest.
- *
- * TODO(preview-session): back this with a store mirroring eXe core
- * `preview-session-manager.ts` — content-addressed blobs, server-side re-hash of
- * every uploaded blob, atomic manifest swap, per-session/global byte budgets,
- * and an idle-TTL sweeper — populated by the authenticated management API
- * (POST /api/v1/preview-session, /:id/manifest, /:id/blobs, DELETE /:id). Until
- * that lands this returns null (the route always 404s), so mounting it is safe.
- * Path resolution MUST be an exact key lookup in the store (normalise + reject
- * traversal), never a real filesystem read.
- */
-async function getPreviewFile(
-	_previewId: string,
-	_relPath: string,
-): Promise<PreviewFile | null> {
-	return null;
-}
-
-export const previewRoutes = new Hono();
-
 // Signature mirrors elpx-content.ts's handleContent (Procomún uses `c: any` and
 // derives the sub-path from the URL, not a wildcard param).
-async function handlePreview(c: any): Promise<Response> {
+async function handlePreview(c: Context, store: PreviewSnapshotStore): Promise<Response> {
 	const previewId = c.req.param("previewId");
 	if (!previewId || !PREVIEW_ID_PATTERN.test(previewId)) {
 		return notFound();
@@ -123,7 +102,7 @@ async function handlePreview(c: any): Promise<Response> {
 	const idIndex = pathParts.indexOf(previewId);
 	const relPath = pathParts.slice(idIndex + 1).join("/") || "index.html";
 
-	const file = await getPreviewFile(previewId, relPath);
+	const file = store.get(previewId, relPath);
 	if (!file) {
 		return notFound();
 	}
@@ -134,12 +113,79 @@ async function handlePreview(c: any): Promise<Response> {
 	};
 	// Emit the opaque sandbox CSP on every scriptable document type so a directly
 	// opened capability URL (new tab / raw URL) stays opaque.
-	const baseType = file.contentType.split(";")[0].trim().toLowerCase();
+	const baseType = (file.contentType.split(";")[0] ?? "").trim().toLowerCase();
 	if (SCRIPTABLE_TYPES.has(baseType)) {
 		headers["Content-Security-Policy"] = PREVIEW_CSP;
 	}
 	return new Response(file.bytes, { headers });
-};
+}
 
-previewRoutes.get("/:previewId", handlePreview);
-previewRoutes.get("/:previewId/*", handlePreview);
+export function createPreviewServingRoutes(store: PreviewSnapshotStore = previewSnapshotStore): Hono {
+	const routes = new Hono();
+	routes.get("/:previewId", (c) => handlePreview(c, store));
+	routes.get("/:previewId/*", (c) => handlePreview(c, store));
+	return routes;
+}
+
+export const previewServingRoutes = createPreviewServingRoutes();
+
+type ProjectAuthorizer = (user: { id: string; role?: string | null }, projectId: string) => Promise<boolean>;
+
+async function defaultProjectAuthorizer(user: { id: string; role?: string | null }, projectId: string): Promise<boolean> {
+	const resource = await repo.getResourceById(getDb().db, projectId);
+	return Boolean(resource && canManageResource({ id: user.id, role: user.role ?? undefined }, resource));
+}
+
+function sameOriginRequest(request: Request): boolean {
+	const origin = request.headers.get("Origin");
+	return Boolean(origin && origin === new URL(request.url).origin);
+}
+
+function errorResponse(c: Context<AuthEnv>, error: unknown): Response {
+	if (!(error instanceof PreviewSnapshotError)) return c.json({ error: "No se pudo actualizar la previsualización" }, 500);
+	const status = error.code === "forbidden" ? 403 : error.code === "not-found" ? 404 : error.code === "too-large" ? 413 : 400;
+	return c.json({ error: error.message }, status);
+}
+
+export function createPreviewManagementRoutes(
+	store: PreviewSnapshotStore = previewSnapshotStore,
+	authorizeProject: ProjectAuthorizer = defaultProjectAuthorizer,
+): Hono<AuthEnv> {
+	const routes = new Hono<AuthEnv>();
+	routes.post("/:projectId", async (c) => {
+		const user = c.get("user");
+		const projectId = c.req.param("projectId");
+		if (!user) return c.json({ error: "No autenticado" }, 401);
+		if (!sameOriginRequest(c.req.raw)) return c.json({ error: "Origen no válido" }, 403);
+		if (!(await authorizeProject(user, projectId))) return c.json({ error: "Recurso no encontrado" }, 404);
+		const form = await c.req.formData();
+		const snapshot = form.get("snapshot");
+		if (!(snapshot instanceof File)) return c.json({ error: "Falta el snapshot ZIP" }, 400);
+		try {
+			const previewId = await store.replace({
+				ownerId: user.id,
+				projectId,
+				previewId: typeof form.get("previewId") === "string" ? String(form.get("previewId")) : undefined,
+				archive: new Uint8Array(await snapshot.arrayBuffer()),
+			});
+			return c.json({ previewId, previewUrl: `${new URL(c.req.url).origin}/exe-preview/${previewId}/index.html` });
+		} catch (error) {
+			return errorResponse(c, error);
+		}
+	});
+	routes.delete("/:projectId/:previewId", async (c) => {
+		const user = c.get("user");
+		const { projectId, previewId } = c.req.param();
+		if (!user) return c.json({ error: "No autenticado" }, 401);
+		if (!sameOriginRequest(c.req.raw)) return c.json({ error: "Origen no válido" }, 403);
+		if (!(await authorizeProject(user, projectId))) return c.json({ error: "Recurso no encontrado" }, 404);
+		try {
+			return store.delete(user.id, projectId, previewId) ? c.body(null, 204) : c.json({ error: "No encontrado" }, 404);
+		} catch (error) {
+			return errorResponse(c, error);
+		}
+	});
+	return routes;
+}
+
+export const previewManagementRoutes = createPreviewManagementRoutes();

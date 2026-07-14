@@ -7,6 +7,7 @@ import { elpxContentRoutes } from "../routes/elpx-content.ts";
 import { exelearningEditorRoutes } from "../routes/exelearning-editor.ts";
 import { feedRoutes } from "../routes/feeds.ts";
 import { publicRoutes } from "../routes/public.ts";
+import { previewManagementRoutes, previewServingRoutes } from "../routes/preview.ts";
 import { socialRoutes } from "../routes/social.ts";
 import { uploadRoutes } from "../routes/uploads.ts";
 import { apiResourceRoutes } from "../routes/api-resources.ts";
@@ -27,6 +28,8 @@ export function registerRoutes(app: Hono<AuthEnv>) {
 	app.route("/api/v1", socialRoutes);
 	app.route("/api/v1/elpx", elpxContentRoutes);
 	app.route("/api/v1/exelearning-editor", exelearningEditorRoutes);
+	app.route("/api/v1/preview-sessions", previewManagementRoutes);
+	app.route("/exe-preview", previewServingRoutes);
 	app.route("/api/v1/tokens", apiTokenRoutes);
 	app.use("/api/v1/publish/*", tokenAuthMiddleware);
 	app.route("/api/v1/publish/resources", apiResourceRoutes);
