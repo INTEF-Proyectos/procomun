@@ -3,7 +3,9 @@ import { normalizeLicense } from "./normalize-license.ts";
 
 describe("normalizeLicense", () => {
 	it("maps a plain attribution + share alike string (es_2024052212_9181312 style)", () => {
-		const result = normalizeLicense("creative commons: attribution - share alike 4.0");
+		const result = normalizeLicense(
+			"creative commons: attribution - share alike 4.0",
+		);
 		expect(result).toEqual({
 			license: "cc-by-sa",
 			matched: true,
@@ -13,7 +15,9 @@ describe("normalizeLicense", () => {
 	});
 
 	it("maps attribution + non commercial + share alike (1676602802114 style)", () => {
-		const result = normalizeLicense("creative commons: attribution - non commercial - share alike");
+		const result = normalizeLicense(
+			"creative commons: attribution - non commercial - share alike",
+		);
 		expect(result.matched).toBe(true);
 		expect(result.license).toBe("cc-by-nc-sa");
 	});
@@ -48,7 +52,9 @@ describe("normalizeLicense", () => {
 	});
 
 	it("resolves ND + SA without NC to cc-by-sa", () => {
-		const result = normalizeLicense("creative commons: attribution - non derived work - share alike");
+		const result = normalizeLicense(
+			"creative commons: attribution - non derived work - share alike",
+		);
 		expect(result.matched).toBe(true);
 		expect(result.license).toBe("cc-by-sa");
 		expect(result.ndSaConflictResolved).toBe(true);
@@ -72,8 +78,12 @@ describe("normalizeLicense", () => {
 	});
 
 	it("ignores version suffixes", () => {
-		const withVersion = normalizeLicense("creative commons: attribution - share alike 3.0");
-		const withoutVersion = normalizeLicense("creative commons: attribution - share alike");
+		const withVersion = normalizeLicense(
+			"creative commons: attribution - share alike 3.0",
+		);
+		const withoutVersion = normalizeLicense(
+			"creative commons: attribution - share alike",
+		);
 		expect(withVersion.license).toBe(withoutVersion.license);
 	});
 });

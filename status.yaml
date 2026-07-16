@@ -1541,3 +1541,11 @@ tasks:
       test nuevo de #273) con coverage 90,65%; el test de ND+SA de #273 pasa; diff -w contra
       origin/main sobre packages/db/src/legacy-import/ muestra como único cambio no-formato el
       [\s\S], confirmando que no se ha revertido nada de #273.
+      Corrección posterior (mismo día): la primera pasada de formateo de este merge fue un no-op
+      silencioso. Al cambiar a la rama de la PR #271 (que aún fija biome@0.3.3) y ejecutar allí
+      bun install, node_modules quedó con el paquete equivocado; al volver a esta rama no se
+      reinstaló, así que bunx @biomejs/biome resolvía al binario falso y format/lint salían 0 sin
+      analizar nada — exactamente el fallo que esta PR corrige. Lo detectó el Format Check de CI,
+      que sí instala en limpio. Tras bun install (biome 2.4.8 real) se reformatearon los 4
+      ficheros afectados. Lección operativa: tras cambiar entre ramas con distinta dependencia de
+      biome hay que reinstalar, y un "exit 0" sin resumen de biome es señal de binario falso.

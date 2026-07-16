@@ -34,7 +34,12 @@ export function normalizeLicense(
 ): LicenseNormalizationResult {
 	const rawInput = raw ?? "";
 	if (!rawInput.trim()) {
-		return { license: null, matched: false, rawInput, ndSaConflictResolved: false };
+		return {
+			license: null,
+			matched: false,
+			rawInput,
+			ndSaConflictResolved: false,
+		};
 	}
 
 	const normalized = stripAccents(rawInput.toLowerCase())
@@ -46,19 +51,34 @@ export function normalizeLicense(
 		normalized.includes("dominio publico") ||
 		normalized.includes("public domain")
 	) {
-		return { license: "cc0", matched: true, rawInput, ndSaConflictResolved: false };
+		return {
+			license: "cc0",
+			matched: true,
+			rawInput,
+			ndSaConflictResolved: false,
+		};
 	}
 
 	const isCreativeCommons =
 		normalized.includes("creative commons") ||
 		/(^|[^a-z])cc([^a-z]|$)/.test(normalized);
 	if (!isCreativeCommons) {
-		return { license: null, matched: false, rawInput, ndSaConflictResolved: false };
+		return {
+			license: null,
+			matched: false,
+			rawInput,
+			ndSaConflictResolved: false,
+		};
 	}
 
 	if (!normalized.includes("attribution")) {
 		// Sin "attribution" no hay licencia CC estándar soportada por VALID_LICENSES.
-		return { license: null, matched: false, rawInput, ndSaConflictResolved: false };
+		return {
+			license: null,
+			matched: false,
+			rawInput,
+			ndSaConflictResolved: false,
+		};
 	}
 
 	const nc =
@@ -88,8 +108,18 @@ export function normalizeLicense(
 	else code = "cc-by";
 
 	if (!(VALID_LICENSES as readonly string[]).includes(code)) {
-		return { license: null, matched: false, rawInput, ndSaConflictResolved: false };
+		return {
+			license: null,
+			matched: false,
+			rawInput,
+			ndSaConflictResolved: false,
+		};
 	}
 
-	return { license: code as LicenseCode, matched: true, rawInput, ndSaConflictResolved };
+	return {
+		license: code as LicenseCode,
+		matched: true,
+		rawInput,
+		ndSaConflictResolved,
+	};
 }
