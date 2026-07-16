@@ -175,3 +175,9 @@ ADR-0028:
   status: Propuesto
   date: 2026-06-24
   file: 0028-versionado-recursos-educativos.md
+
+ADR-0030:
+  title: "Verificación de correo en el registro y capa de envío de email"
+  status: Aceptado
+  date: 2026-06-23
+  file: 0030-verificacion-email-registro.md
