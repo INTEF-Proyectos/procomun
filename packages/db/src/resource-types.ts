@@ -16,7 +16,7 @@ export interface ResourceTypeDefinition {
  * importador sigue siendo responsable de decidir qué texto de origen legacy
  * mapea a cada valor.
  */
-export const RESOURCE_TYPES: ResourceTypeDefinition[] = [
+export const RESOURCE_TYPES = [
 	{ value: "documento", label: "Documento" },
 	{ value: "presentacion", label: "Presentación" },
 	{ value: "video", label: "Vídeo" },
@@ -30,6 +30,8 @@ export const RESOURCE_TYPES: ResourceTypeDefinition[] = [
 	{ value: "guia-docente", label: "Guía docente" },
 	{ value: "infografia", label: "Infografía" },
 	{ value: "mapa-conceptual", label: "Mapa conceptual" },
-];
+] as const satisfies readonly ResourceTypeDefinition[];
 
-export const RESOURCE_TYPE_VALUES: readonly string[] = RESOURCE_TYPES.map((t) => t.value);
+export type ResourceTypeValue = (typeof RESOURCE_TYPES)[number]["value"];
+
+export const RESOURCE_TYPE_VALUES: readonly ResourceTypeValue[] = RESOURCE_TYPES.map((type) => type.value);
