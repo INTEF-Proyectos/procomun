@@ -25,6 +25,8 @@ import {
 	updateSearchVector,
 } from "./search.ts";
 
+type TestDatabase = Parameters<typeof createResource>[0];
+
 describe("Text Extraction", () => {
 	let tempDir: string;
 
@@ -163,15 +165,17 @@ describe("Text Extraction", () => {
 
 describe("FTS Search & Indexing", () => {
 	let db: ReturnType<typeof drizzle>;
+	let testDb: TestDatabase;
 	let pglite: PGlite;
 
 	beforeAll(async () => {
 		pglite = new PGlite();
 		await createTables(pglite);
 		db = drizzle(pglite, { schema });
+		testDb = db as unknown as TestDatabase;
 
 		// Create test resources
-		await createResource(db as any, {
+		await createResource(testDb, {
 			title: "Matemáticas avanzadas",
 			description: "Curso completo de álgebra y cálculo diferencial",
 			language: "es",
@@ -180,7 +184,7 @@ describe("FTS Search & Indexing", () => {
 			keywords: "matemáticas, álgebra, cálculo",
 		});
 
-		await createResource(db as any, {
+		await createResource(testDb, {
 			title: "English Grammar",
 			description: "A complete guide to English grammar rules",
 			language: "en",
@@ -189,7 +193,7 @@ describe("FTS Search & Indexing", () => {
 			keywords: "english, grammar, language",
 		});
 
-		await createResource(db as any, {
+		await createResource(testDb, {
 			title: "Educación física",
 			description: "Ejercicios para educación primaria",
 			language: "es",
@@ -212,7 +216,7 @@ describe("FTS Search & Indexing", () => {
 		// Save extracted text for the first resource
 		const first = allResources[0];
 		if (first) {
-			await saveExtractionResult(db as any, first.id, {
+			await saveExtractionResult(testDb, first.id, {
 				text: "Este documento trata sobre números primos y ecuaciones cuadráticas",
 				status: "completed",
 			});
@@ -220,7 +224,7 @@ describe("FTS Search & Indexing", () => {
 
 		// Update search vectors for all
 		for (const r of allResources) {
-			await updateSearchVector(db as any, r.id);
+			await updateSearchVector(testDb, r.id);
 		}
 	});
 
@@ -229,7 +233,7 @@ describe("FTS Search & Indexing", () => {
 	});
 
 	test("search by title finds resource", async () => {
-		const result = await searchResources(db as any, {
+		const result = await searchResources(testDb, {
 			query: "matemáticas",
 			language: "es",
 			status: "published",
@@ -241,7 +245,7 @@ describe("FTS Search & Indexing", () => {
 	});
 
 	test("search by description finds resource", async () => {
-		const result = await searchResources(db as any, {
+		const result = await searchResources(testDb, {
 			query: "álgebra",
 			language: "es",
 			status: "published",
@@ -253,7 +257,7 @@ describe("FTS Search & Indexing", () => {
 	});
 
 	test("search by extracted text finds resource", async () => {
-		const result = await searchResources(db as any, {
+		const result = await searchResources(testDb, {
 			query: "ecuaciones cuadráticas",
 			language: "es",
 			status: "published",
@@ -265,7 +269,7 @@ describe("FTS Search & Indexing", () => {
 	});
 
 	test("title match ranks higher than content match", async () => {
-		const result = await searchResources(db as any, {
+		const result = await searchResources(testDb, {
 			query: "educación",
 			language: "es",
 			status: "published",
@@ -282,7 +286,7 @@ describe("FTS Search & Indexing", () => {
 	});
 
 	test("search with pagination", async () => {
-		const result = await searchResources(db as any, {
+		const result = await searchResources(testDb, {
 			query: "educación OR matemáticas OR grammar",
 			language: "es",
 			status: "published",
@@ -294,7 +298,7 @@ describe("FTS Search & Indexing", () => {
 	});
 
 	test("search returns total count", async () => {
-		const result = await searchResources(db as any, {
+		const result = await searchResources(testDb, {
 			query: "matemáticas",
 			language: "es",
 			status: "published",
@@ -304,7 +308,7 @@ describe("FTS Search & Indexing", () => {
 
 	test("search does not return deleted resources", async () => {
 		// Create and soft-delete a resource
-		const { id } = await createResource(db as any, {
+		const { id } = await createResource(testDb, {
 			title: "Recurso eliminado con búsqueda especial",
 			description: "Este recurso fue eliminado",
 			language: "es",
@@ -314,9 +318,9 @@ describe("FTS Search & Indexing", () => {
 		await db.execute(
 			sql`UPDATE resources SET editorial_status = 'published', deleted_at = NOW() WHERE id = ${id}`,
 		);
-		await updateSearchVector(db as any, id);
+		await updateSearchVector(testDb, id);
 
-		const result = await searchResources(db as any, {
+		const result = await searchResources(testDb, {
 			query: "búsqueda especial",
 			language: "es",
 			status: "published",
@@ -325,16 +329,16 @@ describe("FTS Search & Indexing", () => {
 	});
 
 	test("search does not return draft resources", async () => {
-		const { id } = await createResource(db as any, {
+		const { id } = await createResource(testDb, {
 			title: "Borrador con término único xyzborrador",
 			description: "Este es un borrador",
 			language: "es",
 			license: "cc-by",
 			resourceType: "documento",
 		});
-		await updateSearchVector(db as any, id);
+		await updateSearchVector(testDb, id);
 
-		const result = await searchResources(db as any, {
+		const result = await searchResources(testDb, {
 			query: "xyzborrador",
 			language: "es",
 			status: "published",
@@ -343,7 +347,7 @@ describe("FTS Search & Indexing", () => {
 	});
 
 	test("reindexResource updates vector", async () => {
-		const { id } = await createResource(db as any, {
+		const { id } = await createResource(testDb, {
 			title: "Reindex test original",
 			description: "Original description",
 			language: "es",
@@ -353,15 +357,15 @@ describe("FTS Search & Indexing", () => {
 		await db.execute(
 			sql`UPDATE resources SET editorial_status = 'published' WHERE id = ${id}`,
 		);
-		await updateSearchVector(db as any, id);
+		await updateSearchVector(testDb, id);
 
 		// Update title
-		await updateResource(db as any, id, {
+		await updateResource(testDb, id, {
 			title: "Reindex test actualizado terminounico42",
 		});
-		await reindexResource(db as any, id);
+		await reindexResource(testDb, id);
 
-		const result = await searchResources(db as any, {
+		const result = await searchResources(testDb, {
 			query: "terminounico42",
 			language: "es",
 			status: "published",
@@ -370,12 +374,12 @@ describe("FTS Search & Indexing", () => {
 	});
 
 	test("reindexAllResources processes all resources", async () => {
-		const result = await reindexAllResources(db as any);
+		const result = await reindexAllResources(testDb);
 		expect(result.processed).toBeGreaterThan(0);
 	});
 
 	test("search vector updates when extraction result is saved", async () => {
-		const { id } = await createResource(db as any, {
+		const { id } = await createResource(testDb, {
 			title: "Recurso para extracción",
 			description: "Test extraction",
 			language: "es",
@@ -386,12 +390,12 @@ describe("FTS Search & Indexing", () => {
 			sql`UPDATE resources SET editorial_status = 'published' WHERE id = ${id}`,
 		);
 
-		await saveExtractionResult(db as any, id, {
+		await saveExtractionResult(testDb, id, {
 			text: "contenido extraído único fotosíntesis clorofila",
 			status: "completed",
 		});
 
-		const result = await searchResources(db as any, {
+		const result = await searchResources(testDb, {
 			query: "fotosíntesis",
 			language: "es",
 			status: "published",
@@ -400,7 +404,7 @@ describe("FTS Search & Indexing", () => {
 	});
 
 	test("markExtractionPending sets extraction status to pending", async () => {
-		const { id } = await createResource(db as any, {
+		const { id } = await createResource(testDb, {
 			title: "Pending extraction test",
 			description: "Test pending status",
 			language: "es",
@@ -408,7 +412,7 @@ describe("FTS Search & Indexing", () => {
 			resourceType: "documento",
 		});
 
-		await markExtractionPending(db as any, id);
+		await markExtractionPending(testDb, id);
 
 		const rows = await db.execute(
 			sql`SELECT extraction_status FROM resources WHERE id = ${id}`,
@@ -420,7 +424,7 @@ describe("FTS Search & Indexing", () => {
 	});
 
 	test("markExtractionProcessing sets extraction status to processing", async () => {
-		const { id } = await createResource(db as any, {
+		const { id } = await createResource(testDb, {
 			title: "Processing extraction test",
 			description: "Test processing status",
 			language: "es",
@@ -428,7 +432,7 @@ describe("FTS Search & Indexing", () => {
 			resourceType: "documento",
 		});
 
-		await markExtractionProcessing(db as any, id);
+		await markExtractionProcessing(testDb, id);
 
 		const rows = await db.execute(
 			sql`SELECT extraction_status FROM resources WHERE id = ${id}`,
@@ -443,19 +447,19 @@ describe("FTS Search & Indexing", () => {
 		// Just verifying it doesn't throw and subsequent calls still work
 		resetUnaccentCache();
 		// After reset, updateSearchVector should still work (re-detects unaccent)
-		const { id } = await createResource(db as any, {
+		const { id } = await createResource(testDb, {
 			title: "Reset cache test",
 			description: "Testing cache reset",
 			language: "es",
 			license: "cc-by",
 			resourceType: "documento",
 		});
-		await updateSearchVector(db as any, id);
+		await updateSearchVector(testDb, id);
 		resetUnaccentCache(); // cleanup
 	});
 
 	test("saveExtractionResult with error status stores error message", async () => {
-		const { id } = await createResource(db as any, {
+		const { id } = await createResource(testDb, {
 			title: "Error extraction test",
 			description: "Test error status",
 			language: "es",
@@ -463,7 +467,7 @@ describe("FTS Search & Indexing", () => {
 			resourceType: "documento",
 		});
 
-		await saveExtractionResult(db as any, id, {
+		await saveExtractionResult(testDb, id, {
 			text: "",
 			status: "error",
 			error: "File corrupted",
@@ -481,7 +485,7 @@ describe("FTS Search & Indexing", () => {
 	});
 
 	test("saveExtractionResult with skipped status", async () => {
-		const { id } = await createResource(db as any, {
+		const { id } = await createResource(testDb, {
 			title: "Skipped extraction test",
 			description: "Test skipped status",
 			language: "es",
@@ -489,7 +493,7 @@ describe("FTS Search & Indexing", () => {
 			resourceType: "documento",
 		});
 
-		await saveExtractionResult(db as any, id, {
+		await saveExtractionResult(testDb, id, {
 			text: "",
 			status: "skipped",
 		});
@@ -506,7 +510,7 @@ describe("FTS Search & Indexing", () => {
 	});
 
 	test("search with English language config", async () => {
-		const { id } = await createResource(db as any, {
+		const { id } = await createResource(testDb, {
 			title: "English language resource",
 			description: "A comprehensive English tutorial",
 			language: "en",
@@ -516,9 +520,9 @@ describe("FTS Search & Indexing", () => {
 		await db.execute(
 			sql`UPDATE resources SET editorial_status = 'published' WHERE id = ${id}`,
 		);
-		await updateSearchVector(db as any, id);
+		await updateSearchVector(testDb, id);
 
-		const result = await searchResources(db as any, {
+		const result = await searchResources(testDb, {
 			query: "comprehensive tutorial",
 			language: "en",
 			status: "published",
@@ -527,7 +531,7 @@ describe("FTS Search & Indexing", () => {
 	});
 
 	test("search with empty query returns empty results", async () => {
-		const result = await searchResources(db as any, {
+		const result = await searchResources(testDb, {
 			query: "zzzznonexistentterm99999",
 			language: "es",
 			status: "published",
