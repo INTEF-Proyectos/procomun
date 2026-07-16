@@ -120,7 +120,7 @@ ADR-0018:
   title: "Migración de Astro a React Router + Vite SPA"
   status: Aceptado
   date: 2026-04-10
-  file: 0018-migracion-astro-a-react-router.md
+  file: 0018-migracion-astro-paraglide.md
 
 ADR-0019:
   title: "Formato YAML para tracking y dashboard de desarrollo"
@@ -168,7 +168,7 @@ ADR-0027:
   title: "Reproducción segura de vídeos/PDF embebidos en .elpx (promote-to-parent con player en modal)"
   status: Supersedido
   date: 2026-06-14
-  superseded_by: ADR-0029
+  superseded_by: ADR-0031
   file: 0027-reproduccion-segura-embeds-elpx.md
 
 ADR-0028:
@@ -177,14 +177,14 @@ ADR-0028:
   date: 2026-06-24
   file: 0028-versionado-recursos-educativos.md
 
-ADR-0029:
-  title: "Migración al bridge de medios externos compartido de eXeLearning (paridad con mod_exelearning)"
+ADR-0031:
+  title: "Migración al bridge de medios externos compartido de eXeLearning"
   status: Aceptado
   date: 2026-06-29
-  file: 0029-migracion-bridge-medios-compartido-exelearning.md
+  file: 0031-migracion-bridge-medios-compartido-exelearning.md
 
-ADR-0030:
-  title: "Topología de almacenamiento del preview HTTP (store en memoria por proceso + enrutado sticky por previewId) y cableado del editor embebido"
+ADR-0032:
+  title: "Topología del preview HTTP y cableado del editor embebido"
   status: Aceptado
   date: 2026-07-11
-  file: 0030-topologia-store-preview-http.md
+  file: 0032-topologia-store-preview-http.md
