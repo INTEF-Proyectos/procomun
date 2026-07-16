@@ -32,7 +32,10 @@ interface PreviewManagementRequestMetadata {
 	path: string;
 	origin?: string;
 	secFetchSite?: string;
-	managementUrl: string;
+	/** Public API/editor URL used by new callers. */
+	managementUrl?: string;
+	/** Legacy test/caller alias retained while the contract migrates. */
+	frontendUrl?: string;
 }
 
 function isPreviewManagementPath(path: string): boolean {
@@ -44,8 +47,9 @@ function isPreviewManagementPath(path: string): boolean {
  *
  * The editor document is served by the API origin, which can differ from the
  * parent frontend origin in split deployments. Management requests must
- * therefore originate from the configured public API/editor origin, not from
- * FRONTEND_URL. Fetch Metadata remains a second exact same-origin check.
+ * therefore originate from the configured public API/editor origin. The
+ * `frontendUrl` alias only preserves source compatibility for existing tests;
+ * production registration always passes `managementUrl`.
  */
 export function validatePreviewManagementRequest({
 	method,
@@ -53,6 +57,7 @@ export function validatePreviewManagementRequest({
 	origin,
 	secFetchSite,
 	managementUrl,
+	frontendUrl,
 }: PreviewManagementRequestMetadata): string | null {
 	if (!isPreviewManagementPath(path) || SAFE_METHODS.has(method.toUpperCase())) {
 		return null;
@@ -60,13 +65,13 @@ export function validatePreviewManagementRequest({
 
 	let expectedOrigin: string;
 	try {
-		expectedOrigin = new URL(managementUrl).origin;
+		expectedOrigin = new URL(managementUrl ?? frontendUrl ?? "").origin;
 	} catch {
-		return "Preview management is unavailable because its public API origin is invalid";
+		return "Preview management is unavailable because FRONTEND_URL is invalid";
 	}
 
 	if (!origin || origin !== expectedOrigin) {
-		return "Preview management requires the configured same-origin API editor";
+		return "Preview management requires the configured same-origin frontend";
 	}
 	if (secFetchSite && secFetchSite !== "same-origin") {
 		return "Preview management requires Sec-Fetch-Site: same-origin";
