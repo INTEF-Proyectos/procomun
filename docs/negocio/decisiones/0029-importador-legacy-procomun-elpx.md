@@ -143,3 +143,68 @@ El texto de la actualización 2026-07-13 (más arriba) describe la ruta física 
 * El test de la carrera concurrente (TOCTOU, actualización 2026-07-13) se adapta al nuevo orden: ambas ejecuciones concurrentes llegan ahora a `importLegacyResourceWithElpx()`, y es la restricción UNIQUE (real, con PGlite, en el test de integración) la que decide — no el orden de extracción en disco.
 
 Validación: `bun test` completo del monorepo (807/807) y `check-test-files.ts` sin incidencias.
+
+## Actualización 2026-07-16 (2) — resolución de la combinación de licencia ND+SA en vez de bloquear
+
+Tras revisar el informe de una importación real (826 pares, 101 bloqueados), el usuario confirmó una observación: 99 de los 101 bloqueos comparten exactamente la misma cadena de origen, `"creative commons: attribution - non derived work - non commercial - share alike"` — no son 99 problemas distintos, sino un único patrón sistemático del origen legacy.
+
+### Decisión
+
+`ND` (no derivadas) y `SA` (compartir igual) son mutuamente excluyentes en las licencias Creative Commons reales: `ND` prohíbe crear obras derivadas; `SA` exige que las obras derivadas se liberen con la misma licencia. No puede haber una obra derivada que a la vez esté prohibida y deba compartirse igual — es una contradicción lógica, no una combinación que Creative Commons simplemente no haya definido todavía. Por eso `VALID_LICENSES` (`packages/db/src/validation.ts`) nunca ha tenido una séptima variante `cc-by-nc-nd-sa`: no existe tal licencia, ni existirá.
+
+Se confirma con el usuario que la cadena de origen es, casi con toda seguridad, un error de captura en el formulario de origen legacy (ambas casillas "no derivadas" y "compartir igual" marcadas a la vez, cuando nunca deberían coexistir), y se decide: **cuando `normalizeLicense()` detecta `ND` y `SA` a la vez, se descarta `ND` y se prioriza `SA`** — es decir, `"attribution - non derived work - non commercial - share alike"` se resuelve a `cc-by-nc-sa`, no se bloquea. El registro se importa con un warning tolerable (`field: "license"`) indicando qué se asumió, para que quede trazable y revisable en el informe de ejecución.
+
+### Consecuencias
+
+* Recursos que antes se bloqueaban (99 del ejemplo real) ahora se importan, con licencia `cc-by-nc-sa` (o `cc-by-sa` si además no llevaban `non commercial`) y un warning explícito.
+* `LicenseNormalizationResult` gana un campo `ndSaConflictResolved: boolean` para que el llamante (`field-mapper.ts`) sepa cuándo emitir el warning, sin cambiar la firma de `matched`/`license`.
+* El fixture de test `es_2025101012_9102834.json` (usado en `apps/cli/src/test-fixtures/legacy-procomun/`), que antes ejercitaba el camino bloqueante end-to-end, ahora ejercita el camino de resolución con warning — los tests de integración que lo usaban como "contenido `.elpx` garantizado no persistido" (deduplicación por hash) se migraron a contenido sintético generado en el propio test, porque ese fixture ahora sí se persiste en el mismo proceso de test (comparten una única BD PGlite).
+* Esta regla es específica del importador legacy (`normalizeLicense()` solo se usa desde `field-mapper.ts`); no afecta a la validación de licencias en la creación manual de recursos, que sigue validando directamente contra `VALID_LICENSES` sin pasar por esta normalización de texto libre.
+
+Validación: `bun test` completo del monorepo (808/808, +1 test nuevo) y `check-test-files.ts` sin incidencias.
+
+## Actualización 2026-07-16 (3) — fuente única de verdad para tipos de recurso, y 10 equivalencias nuevas
+
+Al revisar el informe de la importación real (826 pares), el usuario observó que los tipos de recurso sin equivalencia (248→281 tras el fix de licencia) no eran solo un problema del diccionario del importador: `resources.resourceType` es `varchar(100)` **sin enum en BD** (`packages/db/src/validation.ts`), y tres ficheros mantenían cada uno su propia lista informal de "tipos soportados", desincronizadas entre sí:
+
+* `packages/db/src/legacy-import/resource-type-map.ts` (diccionario de equivalencias del importador) — no incluía `actividad-interactiva`.
+* `apps/frontend/src/lib/resource-filters.ts` (opciones del filtro de búsqueda pública) — no incluía `guia-docente` ni `infografia`, pese a que sí se usan en datos reales (`seed-data.ts`).
+* `packages/db/src/seed-data.ts` (datos de ejemplo) — usaba tipos que ni el importador ni el filtro público reconocían.
+
+### Decisión
+
+1. **Fuente única de verdad**: nuevo módulo `packages/db/src/resource-types.ts` (`RESOURCE_TYPES`, `RESOURCE_TYPE_VALUES`), exportado como `@procomun/db/resource-types`. `apps/frontend/src/lib/resource-filters.ts` deriva `RESOURCE_TYPE_OPTIONS` de esta lista en vez de mantener una copia a mano — un tipo nuevo añadido aquí se propaga automáticamente al filtro público.
+2. **Nuevo tipo `mapa-conceptual`**: en vez de forzar los mapas conceptuales (46 recursos del ejemplo real) dentro de `infografia` (categoría existente más cercana), el usuario decidió que un mapa conceptual es una categoría propia — se añade a `RESOURCE_TYPES`.
+3. **10 equivalencias nuevas en el diccionario del importador** (`resource-type-map.ts`), mapeo de negocio confirmado con el usuario tras revisar los valores de origen reales (español y término LOM en inglés, `educationalLearningResourceTypeStr`) de cada bucket sin equivalencia:
+
+   | Valor de origen | → Tipo canónico |
+   |---|---|
+   | "Lección magistral" | `presentacion` |
+   | "Juego didáctico" / *integrated media* | `actividad-interactiva` |
+   | "Mapa conceptual" / *conceptual map* | `mapa-conceptual` |
+   | "Cuestionario" / *self assessment* | `evaluacion` |
+   | "Simulación" / *experiment* | `actividad-interactiva` |
+   | "Problema abierto" | `ejercicio` |
+   | "Aprendizaje basado en problemas" | `proyecto` |
+   | "Texto narrativo" / *narrative text* | `documento` |
+   | "Webquest" | `actividad-interactiva` |
+   | "Presentación multimedia" | `presentacion` |
+
+   Se indexan tanto por el texto español (`resourceType`) como, cuando corresponde a un término LOM estándar fiable, por su valor en inglés (`educationalLearningResourceTypeStr`), para cubrir mejor el resto del corpus real (~78.800 recursos), no solo la muestra de 826 analizada.
+
+### Consecuencias
+* Guardián de deriva: `resource-types.unit.test.ts` verifica que todo `resourceType` usado en `seed-data.ts` está en `RESOURCE_TYPE_VALUES`, para que las tres listas no puedan volver a desincronizarse sin que un test lo detecte.
+* Sobre la muestra de 826 pares, los warnings de `resourceType` deberían bajar significativamente en la próxima ejecución (275 registros afectados por estos 10 valores).
+* Esta es una unificación pragmática ("parche rápido"), no un rediseño del modelo de datos: `resourceType` sigue siendo texto libre sin validar en BD, y el sistema de taxonomías ya existente sigue desconectado de `resources` (riesgo ya anotado en la sección "Negativas / Riesgos" de esta ADR). Queda abierto un caso de investigación (`docs/casos/tipos-de-recurso/`) para decidir si `resourceType` debería convertirse en vocabulario controlado a medio plazo.
+
+Validación: `bun test` completo del monorepo (824/824, +16 tests nuevos), `bunx @biomejs/biome check .` y `check-test-files.ts` sin incidencias; `apps/frontend` compila (`vite build`) con el nuevo import.
+
+### Correcciones de la revisión del PR #274
+
+El fix del tipado del diccionario (`RESOURCE_TYPE_DICTIONARY: Record<string, ResourceTypeValue>`, derivando `ResourceTypeValue` de `RESOURCE_TYPES as const`) se aplicó y fusionó directamente. Quedó un hallazgo [P2] sin resolver en el merge: `apps/frontend/src/islands/resources/resource-form-options.ts` (usado por los formularios de alta/edición) mantenía su propia lista con solo 10 de los 13 tipos reales, sin `guia-docente`, `infografia` ni el nuevo `mapa-conceptual`.
+
+Al corregirlo se encontraron **dos sitios adicionales con el mismo problema, no cubiertos por el fix inicial de `resource-form-options.ts`**: `apps/frontend/src/pages/NuevoPage.tsx` y `apps/frontend/src/pages/EditarPage.tsx` (rutas reales `/nuevo` y `/editar`, registradas en `App.tsx`) tenían sus propios bloques `<option>` de `resourceType` escritos a mano directamente en el JSX, sin pasar por `resource-form-options.ts` en absoluto — cinco sitios en total mantenían alguna copia del vocabulario de tipos antes de esta ADR, no tres. En `EditarPage.tsx` el bug era además más grave que "no aparece la opción seleccionada": el `<select>` es no controlado (`ref={resourceTypeRef}`, `defaultValue={res.resourceType ?? "documento"}`); si `res.resourceType` no está entre las 10 opciones hardcodeadas, el navegador selecciona la primera (`documento`) sin avisar, y al guardar (`resourceTypeRef.current?.value`) se persiste ese valor — **editar cualquier otro campo de un recurso con `mapa-conceptual`, `guia-docente` o `infografia` le cambiaba silenciosamente el tipo a `documento`**.
+
+Fix: los tres ficheros (`resource-form-options.ts`, `NuevoPage.tsx`, `EditarPage.tsx`) renderizan ahora `RESOURCE_TYPE_OPTIONS`/`RESOURCE_TYPES` vía `.map()`, sin ningún `<option>` escrito a mano. `ResourceFormIsland.tsx`/`ResourceEditorIsland.tsx` ya lo hacían correctamente y no necesitaron cambios.
+
+Validación: `bun test` completo del monorepo (824/824), `bunx @biomejs/biome check .` y `check-test-files.ts` sin incidencias; `apps/frontend` compila (`vite build`).

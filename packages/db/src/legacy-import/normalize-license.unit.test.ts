@@ -8,6 +8,7 @@ describe("normalizeLicense", () => {
 			license: "cc-by-sa",
 			matched: true,
 			rawInput: "creative commons: attribution - share alike 4.0",
+			ndSaConflictResolved: false,
 		});
 	});
 
@@ -19,7 +20,12 @@ describe("normalizeLicense", () => {
 
 	it("maps bare attribution to cc-by", () => {
 		const result = normalizeLicense("creative commons: attribution");
-		expect(result).toEqual({ license: "cc-by", matched: true, rawInput: "creative commons: attribution" });
+		expect(result).toEqual({
+			license: "cc-by",
+			matched: true,
+			rawInput: "creative commons: attribution",
+			ndSaConflictResolved: false,
+		});
 	});
 
 	it("maps cc0 / public domain variants", () => {
@@ -27,12 +33,25 @@ describe("normalizeLicense", () => {
 		expect(normalizeLicense("dominio público").license).toBe("cc0");
 	});
 
-	it("rejects the invalid non-derived + share-alike combination (es_2025101012_9102834 style)", () => {
+	it("resolves the impossible non-derived + share-alike combo to *-sa, dropping ND (es_2025101012_9102834 style)", () => {
+		// ND ("no derivadas") y SA ("compartir igual") son mutuamente
+		// excluyentes en las licencias CC reales — decisión de negocio
+		// confirmada tras la revisión del PR #268: se interpreta como un error
+		// de captura del origen legacy y se prioriza SA sobre ND, en vez de
+		// bloquear el registro (ver ADR-0029).
 		const result = normalizeLicense(
 			"creative commons: attribution - non derived work - non commercial - share alike",
 		);
-		expect(result.matched).toBe(false);
-		expect(result.license).toBeNull();
+		expect(result.matched).toBe(true);
+		expect(result.license).toBe("cc-by-nc-sa");
+		expect(result.ndSaConflictResolved).toBe(true);
+	});
+
+	it("resolves ND + SA without NC to cc-by-sa", () => {
+		const result = normalizeLicense("creative commons: attribution - non derived work - share alike");
+		expect(result.matched).toBe(true);
+		expect(result.license).toBe("cc-by-sa");
+		expect(result.ndSaConflictResolved).toBe(true);
 	});
 
 	it("rejects non-Creative-Commons text as a blocking case", () => {

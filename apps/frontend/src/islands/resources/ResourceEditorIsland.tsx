@@ -4,7 +4,7 @@ import { getApiClient } from "../../lib/get-api-client.ts";
 import { url } from "../../lib/paths.ts";
 import { AccessibleFeedback } from "../shared/AccessibleFeedback.tsx";
 import { ROLE_LEVELS, hasMinRole } from "../../lib/shared-utils.ts";
-import { LANGUAGE_OPTIONS, LICENSE_OPTIONS, RESOURCE_TYPE_OPTIONS } from "./resource-form-options.ts";
+import { LANGUAGE_OPTIONS, LICENSE_OPTIONS, getResourceTypeOptions } from "./resource-form-options.ts";
 
 interface ResourceFormState {
 	title: string;
@@ -257,6 +257,7 @@ export function ResourceEditorIsland() {
 		const userLevel = ROLE_LEVELS[userRole] ?? 0;
 		return userLevel >= (ROLE_LEVELS[rule.minRole] ?? 99);
 	});
+	const resourceTypeOptions = getResourceTypeOptions(form.resourceType);
 
 	return (
 		<>
@@ -455,7 +456,7 @@ export function ResourceEditorIsland() {
 						value={form.resourceType}
 						onChange={(event) => setFieldValue("resourceType", event.currentTarget.value)}
 					>
-						{RESOURCE_TYPE_OPTIONS.map((option) => (
+						{resourceTypeOptions.map((option) => (
 							<option key={option.value} value={option.value}>{option.label}</option>
 						))}
 					</select>
