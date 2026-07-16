@@ -51,7 +51,7 @@ ADR-0008:
   title: "Modelo de autorización (RBAC)"
   status: Aceptado
   date: 2026-03-26
-  file: 0008-modelo-de-autorizacion.md
+  file: 0008-modelo-autorizacion.md
 
 ADR-0009:
   title: "Perfil mínimo de metadatos para recursos educativos"
@@ -120,7 +120,7 @@ ADR-0018:
   title: "Migración de Astro a React Router + Vite SPA"
   status: Aceptado
   date: 2026-04-10
-  file: 0018-migracion-astro-paraglide.md
+  file: 0018-migracion-astro-react-router.md
 
 ADR-0019:
   title: "Formato YAML para tracking y dashboard de desarrollo"
