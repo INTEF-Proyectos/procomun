@@ -1199,3 +1199,28 @@ tasks:
       como backend de historial, object storage versionado y un modelo híbrido PostgreSQL snapshots + storage
       versionado. No hay cambios de código. Validación documental: status.yaml y decision-log.yaml parsean
       correctamente con Ruby YAML.
+
+  T-2026-07-16-001:
+    date: 2026-07-16
+    agent: "Organización multiagente: coordinación + arqueología + inventario + medición + evaluacion-tecnologica + defensor/crítico de reescritura + arquitectura incremental + datos + seguridad-privacidad-legal + qa-validacion + costes + 2 revisores adversariales"
+    status: Done
+    task: "Caso documental: evaluación de estrategia de modernización/reescritura de la plataforma y ADR-0029 en estado Propuesto"
+    related: ["ADR-0029"]
+    notes: >
+      Nuevo caso docs/casos/evaluacion-reescritura-plataforma/ con línea base medida sobre eea2fe7d
+      (702 tests pass, cobertura 90.32%, E2E 54 pass/17 fixme, build 1.7s, arranque API 0.6s),
+      inventario funcional, arqueología de ADRs, evaluación tecnológica, seis alternativas comparadas
+      con matriz ponderada de 26 criterios, plan piloto documental (vertical Colecciones, dos brazos),
+      estrategia de datos/rollback, riesgos y prompt de ejecución posterior.
+      Hallazgos centrales: el lint es un no-op (biome@0.3.3 es un gestor de variables de entorno,
+      no @biomejs/biome; el format-check de CI resuelve al mismo binario), bunx tsc --noEmit reporta
+      635 errores ignorados con continue-on-error, la suite de integración esta vacía, los 17 E2E
+      saltados (test.fixme) cubren el flujo editorial de escritura, y el esquema de datos tiene
+      triple definición con migraciones drizzle-kit muertas y sin camino de upgrade.
+      ADR-0029 Propuesta: rechazar la reescritura completa y ejecutar simplificación incremental
+      (lotes 0-5), con interpretación crítica del caso Bun-en-Rust y de Strangler Fig.
+      Sin cambios de código productivo, dependencias ni lockfiles. decision-log.yaml actualizado
+      con ADR-0029. Nota: las copias del dashboard /dev/ (apps/frontend/public/dev/data/*.yaml)
+      no se sincronizaron por la restricción de no tocar apps/ en esta tarea documental; la imagen
+      Docker las regenera desde la raíz en build. Validación: parseo YAML de status.yaml y
+      decision-log.yaml, bun run design:lint, git diff --check y dos revisiones adversariales del diff.
