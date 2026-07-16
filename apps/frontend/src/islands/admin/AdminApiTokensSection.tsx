@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import type {
 	ApiTokenRecord,
 	ApiTokenStats,
@@ -24,7 +24,7 @@ export function AdminApiTokensSection() {
 	const [revokeId, setRevokeId] = useState<string | null>(null);
 	const [revokeName, setRevokeName] = useState("");
 
-	async function fetchData() {
+	const fetchData = useCallback(async () => {
 		try {
 			const api = await getApiClient();
 			const [keysData, statsData, usersData] = await Promise.all([
@@ -43,11 +43,11 @@ export function AdminApiTokensSection() {
 		} finally {
 			setLoading(false);
 		}
-	}
+	}, [selectedUserId, selectedStatus]);
 
 	useEffect(() => {
 		fetchData();
-	}, [selectedUserId, selectedStatus]);
+	}, [fetchData]);
 
 	function getStatus(key: ApiTokenRecord): "active" | "revoked" | "expired" {
 		if (key.revokedAt) return "revoked";

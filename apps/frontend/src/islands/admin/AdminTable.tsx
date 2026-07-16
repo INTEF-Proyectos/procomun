@@ -37,6 +37,20 @@ function buildPageNumbers(
 	return pages;
 }
 
+function keyedPageNumbers(
+	current: number,
+	total: number,
+): Array<{ key: string; value: number | "ellipsis" }> {
+	let previousPage = 0;
+	return buildPageNumbers(current, total).map((value) => {
+		if (value === "ellipsis") {
+			return { key: `ellipsis-after-${previousPage}`, value };
+		}
+		previousPage = value;
+		return { key: `page-${value}`, value };
+	});
+}
+
 export function AdminTable<T>({
 	columns,
 	data,
@@ -112,22 +126,21 @@ export function AdminTable<T>({
 						>
 							<span className="material-symbols-outlined">chevron_left</span>
 						</button>
-						{buildPageNumbers(page, totalPages).map((p, i) =>
-							p === "ellipsis" ? (
-								// biome-ignore lint/suspicious/noArrayIndexKey: separador posicional estático de paginación
-								<span key={`ellipsis-${i}`} className="admin-page-ellipsis">
+						{keyedPageNumbers(page, totalPages).map((item) =>
+							item.value === "ellipsis" ? (
+								<span key={item.key} className="admin-page-ellipsis">
 									...
 								</span>
 							) : (
 								<button
-									key={p}
+									key={item.key}
 									type="button"
-									className={`admin-page-btn${p === page ? " admin-page-btn-active" : ""}`}
-									onClick={() => onPageChange(p)}
-									aria-label={`Pagina ${p}`}
-									aria-current={p === page ? "page" : undefined}
+									className={`admin-page-btn${item.value === page ? " admin-page-btn-active" : ""}`}
+									onClick={() => onPageChange(item.value as number)}
+									aria-label={`Pagina ${item.value}`}
+									aria-current={item.value === page ? "page" : undefined}
 								>
-									{p.toLocaleString("es-ES")}
+									{item.value.toLocaleString("es-ES")}
 								</button>
 							),
 						)}

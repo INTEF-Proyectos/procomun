@@ -535,11 +535,9 @@ export function parseContentXmlForExport(xmlString: string): {
 	// Parse navigation structure (pages/nodes)
 	const pages: Array<Record<string, unknown>> = [];
 	const nodeRegex = /<node\b[^>]*>/gi;
-	let nodeMatch: RegExpExecArray | null;
 	let pageIndex = 0;
 
-	// biome-ignore lint/suspicious/noAssignInExpressions: patrón idiomático de iteración con RegExp.exec
-	while ((nodeMatch = nodeRegex.exec(xmlString)) !== null) {
+	for (const nodeMatch of xmlString.matchAll(nodeRegex)) {
 		const nodeStr = nodeMatch[0];
 		const idMatch = nodeStr.match(/id="([^"]*)"/);
 		const titleMatch = nodeStr.match(/title="([^"]*)"/);

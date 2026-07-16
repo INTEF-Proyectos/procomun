@@ -317,7 +317,7 @@ export function ResourceEditorIsland() {
 				className="workflow-section"
 				aria-label="Estado editorial del recurso"
 			>
-				<div className="stepper" role="group" aria-label="Progreso editorial">
+				<fieldset className="stepper" aria-label="Progreso editorial">
 					{STEPS.map((step, index) => {
 						const stepIndex = STEPS.indexOf(step);
 						const currentIndex = STEPS.indexOf(
@@ -369,7 +369,7 @@ export function ResourceEditorIsland() {
 							</Fragment>
 						);
 					})}
-				</div>
+				</fieldset>
 				<div
 					id="archived-badge"
 					className="archived-badge"
@@ -431,7 +431,7 @@ export function ResourceEditorIsland() {
 						<input data-upload-input type="file" multiple />
 					</label>
 				</div>
-				<div data-upload-dropzone className="upload-dropzone" tabIndex={0}>
+				<div data-upload-dropzone className="upload-dropzone">
 					Arrastra archivos aquí o usa el selector. Se permiten lotes de varios
 					archivos y la subida continuará si la conexión se corta.
 				</div>

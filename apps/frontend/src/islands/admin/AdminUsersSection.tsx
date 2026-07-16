@@ -1,4 +1,10 @@
-import { startTransition, useEffect, useState } from "react";
+import {
+	startTransition,
+	useCallback,
+	useEffect,
+	useRef,
+	useState,
+} from "react";
 import type { UserRecord } from "../../lib/api-client.ts";
 import { getApiClient } from "../../lib/get-api-client.ts";
 import { AdminTable, type Column } from "./AdminTable.tsx";
@@ -71,14 +77,22 @@ function UserDialog({ user, onClose, onSaved }: UserDialogProps) {
 		}
 	}
 
+	const dialogRef = useRef<HTMLDivElement>(null);
+
+	useEffect(() => {
+		function handleMouseDown(e: MouseEvent) {
+			if (dialogRef.current && !dialogRef.current.contains(e.target as Node)) {
+				onClose();
+			}
+		}
+		document.addEventListener("mousedown", handleMouseDown);
+		return () => document.removeEventListener("mousedown", handleMouseDown);
+	}, [onClose]);
+
 	return (
-		<div
-			className="admin-dialog-overlay"
-			onMouseDown={(e) => {
-				if (e.target === e.currentTarget) onClose();
-			}}
-		>
+		<div className="admin-dialog-overlay">
 			<div
+				ref={dialogRef}
 				className="admin-dialog"
 				role="dialog"
 				aria-modal="true"
@@ -192,36 +206,35 @@ export function AdminUsersSection() {
 		null,
 	);
 
-	async function loadUsers(
-		nextPage = page,
-		nextSearch = search,
-		nextRole = roleFilter,
-	) {
-		setLoading(true);
-		try {
-			const api = await getApiClient();
-			const result = await api.listUsers({
-				q: nextSearch || undefined,
-				role: nextRole || undefined,
-				limit: PAGE_SIZE,
-				offset: (nextPage - 1) * PAGE_SIZE,
-			});
-			startTransition(() => {
-				setRows(result.data);
-				setTotal(result.total);
-				setPage(nextPage);
-			});
-		} catch {
-			setRows([]);
-			setTotal(0);
-		} finally {
-			setLoading(false);
-		}
-	}
+	const loadUsers = useCallback(
+		async (nextPage: number, nextSearch: string, nextRole: string) => {
+			setLoading(true);
+			try {
+				const api = await getApiClient();
+				const result = await api.listUsers({
+					q: nextSearch || undefined,
+					role: nextRole || undefined,
+					limit: PAGE_SIZE,
+					offset: (nextPage - 1) * PAGE_SIZE,
+				});
+				startTransition(() => {
+					setRows(result.data);
+					setTotal(result.total);
+					setPage(nextPage);
+				});
+			} catch {
+				setRows([]);
+				setTotal(0);
+			} finally {
+				setLoading(false);
+			}
+		},
+		[],
+	);
 
 	useEffect(() => {
 		void loadUsers(1, "", "");
-	}, []);
+	}, [loadUsers]);
 
 	function applySearch() {
 		void loadUsers(1, search.trim(), roleFilter);

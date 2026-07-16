@@ -29,11 +29,9 @@ export function FilterPanel({
 					</span>
 					Filtros
 					{activeCount > 0 && (
-						<span
-							className="filter-panel-count"
-							aria-label={`${activeCount} filtros activos`}
-						>
+						<span className="filter-panel-count">
 							{activeCount}
+							<span className="sr-only"> filtros activos</span>
 						</span>
 					)}
 				</h2>

@@ -193,3 +193,15 @@
 		text-align: center;
 	}
 }
+
+/* Landmark <search> transparente: el form conserva el layout */
+.hero-search-landmark {
+	display: contents;
+}
+
+/* .hero-filters ahora es un fieldset semántico: reset de estilos nativos */
+fieldset.hero-filters {
+	border: 0;
+	padding: 0;
+	min-width: 0;
+}

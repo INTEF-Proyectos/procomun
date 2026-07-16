@@ -1,4 +1,4 @@
-import { startTransition, useEffect, useState } from "react";
+import { startTransition, useCallback, useEffect, useState } from "react";
 import type { UserRecord } from "../../lib/api-client.ts";
 import { getApiClient } from "../../lib/get-api-client.ts";
 import { AccessibleFeedback } from "../shared/AccessibleFeedback.tsx";
@@ -35,42 +35,41 @@ export function UsersCrudIsland() {
 	});
 	const [busyRowId, setBusyRowId] = useState<string | null>(null);
 
-	async function loadUsers(
-		nextOffset = offset,
-		nextSearch = appliedSearch,
-		nextRole = appliedRole,
-	) {
-		setStatusMessage("Cargando usuarios...");
+	const loadUsers = useCallback(
+		async (nextOffset: number, nextSearch: string, nextRole: string) => {
+			setStatusMessage("Cargando usuarios...");
 
-		try {
-			const api = await getApiClient();
-			const result = await api.listUsers({
-				q: nextSearch || undefined,
-				role: nextRole || undefined,
-				limit: PAGE_SIZE,
-				offset: nextOffset,
-			});
+			try {
+				const api = await getApiClient();
+				const result = await api.listUsers({
+					q: nextSearch || undefined,
+					role: nextRole || undefined,
+					limit: PAGE_SIZE,
+					offset: nextOffset,
+				});
 
-			startTransition(() => {
-				setRows(result.data);
-				setDraftRoles(
-					Object.fromEntries(result.data.map((user) => [user.id, user.role])),
-				);
-				setOffset(result.offset);
-				setTotal(result.total);
-				setStatusMessage(`${result.total} usuarios encontrados`);
-			});
-		} catch {
-			setRows([]);
-			setDraftRoles({});
-			setTotal(0);
-			setStatusMessage("No se pudieron cargar los usuarios.");
-		}
-	}
+				startTransition(() => {
+					setRows(result.data);
+					setDraftRoles(
+						Object.fromEntries(result.data.map((user) => [user.id, user.role])),
+					);
+					setOffset(result.offset);
+					setTotal(result.total);
+					setStatusMessage(`${result.total} usuarios encontrados`);
+				});
+			} catch {
+				setRows([]);
+				setDraftRoles({});
+				setTotal(0);
+				setStatusMessage("No se pudieron cargar los usuarios.");
+			}
+		},
+		[],
+	);
 
 	useEffect(() => {
 		void loadUsers(0, "", "");
-	}, []);
+	}, [loadUsers]);
 
 	const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 	const currentPage = Math.floor(offset / PAGE_SIZE) + 1;

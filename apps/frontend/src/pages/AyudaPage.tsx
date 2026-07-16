@@ -69,9 +69,8 @@ export default function AyudaPage() {
 							</div>
 							<p className="help-section-description">{section.description}</p>
 							<ul className="help-section-list">
-								{section.items.map((item, i) => (
-									// biome-ignore lint/suspicious/noArrayIndexKey: contenido estático de ayuda sin reordenación
-									<li key={i}>{item}</li>
+								{section.items.map((item) => (
+									<li key={item}>{item}</li>
 								))}
 							</ul>
 						</article>

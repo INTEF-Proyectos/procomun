@@ -41,3 +41,26 @@
 .star-rating-lg .material-symbols-outlined {
 	font-size: 28px;
 }
+
+/* Las estrellas interactivas usan radios nativos ocultos dentro del label */
+.star-rating-input {
+	position: absolute;
+	width: 1px;
+	height: 1px;
+	margin: -1px;
+	padding: 0;
+	border: 0;
+	clip-path: inset(50%);
+	overflow: hidden;
+	white-space: nowrap;
+}
+
+.star-rating-star {
+	position: relative;
+}
+
+.star-rating-star:focus-within {
+	outline: 2px solid var(--color-primary);
+	outline-offset: 2px;
+	border-radius: var(--radius-xs);
+}

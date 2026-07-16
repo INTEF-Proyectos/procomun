@@ -1,4 +1,10 @@
-import { type FormEvent, startTransition, useEffect, useState } from "react";
+import {
+	type FormEvent,
+	startTransition,
+	useCallback,
+	useEffect,
+	useState,
+} from "react";
 import type {
 	CollectionRecord,
 	CollectionResourceRecord,
@@ -109,32 +115,32 @@ export function CollectionsCrudIsland() {
 		| null
 	>(null);
 
-	async function loadCollections(
-		nextOffset = offset,
-		nextSearch = appliedSearch,
-	) {
-		setStatusMessage("Cargando colecciones...");
+	const loadCollections = useCallback(
+		async (nextOffset: number, nextSearch: string) => {
+			setStatusMessage("Cargando colecciones...");
 
-		try {
-			const api = await getApiClient();
-			const result = await api.listCollections({
-				q: nextSearch || undefined,
-				limit: PAGE_SIZE,
-				offset: nextOffset,
-			});
+			try {
+				const api = await getApiClient();
+				const result = await api.listCollections({
+					q: nextSearch || undefined,
+					limit: PAGE_SIZE,
+					offset: nextOffset,
+				});
 
-			startTransition(() => {
-				setRows(result.data);
-				setOffset(result.offset);
-				setTotal(result.total);
-				setStatusMessage(`${result.total} colecciones encontradas`);
-			});
-		} catch {
-			setRows([]);
-			setTotal(0);
-			setStatusMessage("No se pudieron cargar las colecciones.");
-		}
-	}
+				startTransition(() => {
+					setRows(result.data);
+					setOffset(result.offset);
+					setTotal(result.total);
+					setStatusMessage(`${result.total} colecciones encontradas`);
+				});
+			} catch {
+				setRows([]);
+				setTotal(0);
+				setStatusMessage("No se pudieron cargar las colecciones.");
+			}
+		},
+		[],
+	);
 
 	async function loadCollectionResources(collectionId: string) {
 		const api = await getApiClient();
@@ -173,7 +179,7 @@ export function CollectionsCrudIsland() {
 
 	useEffect(() => {
 		void loadCollections(0, "");
-	}, []);
+	}, [loadCollections]);
 
 	const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 	const currentPage = Math.floor(offset / PAGE_SIZE) + 1;

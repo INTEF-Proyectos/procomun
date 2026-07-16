@@ -294,9 +294,9 @@ export default function NuevoPage() {
 							Arrastra un archivo .elpx de eXeLearning para crear el recurso con
 							sus metadatos automáticamente.
 						</p>
-						<div
+						<section
+							aria-label="Zona para arrastrar el archivo .elpx"
 							className={`elpx-dropzone${isDragover ? " is-dragover" : ""}`}
-							tabIndex={0}
 							onDragOver={handleDragOver}
 							onDragLeave={handleDragLeave}
 							onDrop={handleDrop}
@@ -311,7 +311,7 @@ export default function NuevoPage() {
 								/>
 							</label>
 							<p className="elpx-drop-hint">o arrastra aquí</p>
-						</div>
+						</section>
 						{elpxLoading && (
 							<div className="elpx-loading">
 								<span>Analizando archivo...</span>

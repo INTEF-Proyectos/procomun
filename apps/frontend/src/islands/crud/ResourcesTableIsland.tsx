@@ -1,4 +1,4 @@
-import { startTransition, useEffect, useState } from "react";
+import { startTransition, useCallback, useEffect, useState } from "react";
 import type { Resource } from "../../lib/api-client.ts";
 import { getApiClient } from "../../lib/get-api-client.ts";
 import { url } from "../../lib/paths.ts";
@@ -46,38 +46,37 @@ export function ResourcesTableIsland() {
 	const [deleteTarget, setDeleteTarget] = useState<Resource | null>(null);
 	const [busyAction, setBusyAction] = useState<"delete" | null>(null);
 
-	async function loadResources(
-		nextOffset = offset,
-		nextSearch = appliedSearch,
-		nextStatus = appliedStatus,
-	) {
-		setStatusMessage("Cargando recursos...");
+	const loadResources = useCallback(
+		async (nextOffset: number, nextSearch: string, nextStatus: string) => {
+			setStatusMessage("Cargando recursos...");
 
-		try {
-			const api = await getApiClient();
-			const result = await api.listAdminResources({
-				q: nextSearch || undefined,
-				status: nextStatus || undefined,
-				limit: PAGE_SIZE,
-				offset: nextOffset,
-			});
+			try {
+				const api = await getApiClient();
+				const result = await api.listAdminResources({
+					q: nextSearch || undefined,
+					status: nextStatus || undefined,
+					limit: PAGE_SIZE,
+					offset: nextOffset,
+				});
 
-			startTransition(() => {
-				setRows(result.data);
-				setOffset(result.offset);
-				setTotal(result.total);
-				setStatusMessage(`${result.total} recursos encontrados`);
-			});
-		} catch {
-			setRows([]);
-			setTotal(0);
-			setStatusMessage("No se pudieron cargar los recursos.");
-		}
-	}
+				startTransition(() => {
+					setRows(result.data);
+					setOffset(result.offset);
+					setTotal(result.total);
+					setStatusMessage(`${result.total} recursos encontrados`);
+				});
+			} catch {
+				setRows([]);
+				setTotal(0);
+				setStatusMessage("No se pudieron cargar los recursos.");
+			}
+		},
+		[],
+	);
 
 	useEffect(() => {
 		void loadResources(0, "", "");
-	}, []);
+	}, [loadResources]);
 
 	const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 	const currentPage = Math.floor(offset / PAGE_SIZE) + 1;

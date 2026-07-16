@@ -1,4 +1,10 @@
-import { type FormEvent, startTransition, useEffect, useState } from "react";
+import {
+	type FormEvent,
+	startTransition,
+	useCallback,
+	useEffect,
+	useState,
+} from "react";
 import type { TaxonomyRecord } from "../../lib/api-client.ts";
 import { getApiClient } from "../../lib/get-api-client.ts";
 import { AccessibleFeedback } from "../shared/AccessibleFeedback.tsx";
@@ -64,38 +70,37 @@ export function TaxonomyCrudIsland() {
 		"create" | "edit" | "delete" | null
 	>(null);
 
-	async function loadTaxonomies(
-		nextOffset = offset,
-		nextSearch = appliedSearch,
-		nextType = typeFilter,
-	) {
-		setStatusMessage("Cargando categorias...");
+	const loadTaxonomies = useCallback(
+		async (nextOffset: number, nextSearch: string, nextType: string) => {
+			setStatusMessage("Cargando categorias...");
 
-		try {
-			const api = await getApiClient();
-			const result = await api.listTaxonomies({
-				q: nextSearch || undefined,
-				type: nextType || undefined,
-				limit: PAGE_SIZE,
-				offset: nextOffset,
-			});
+			try {
+				const api = await getApiClient();
+				const result = await api.listTaxonomies({
+					q: nextSearch || undefined,
+					type: nextType || undefined,
+					limit: PAGE_SIZE,
+					offset: nextOffset,
+				});
 
-			startTransition(() => {
-				setRows(result.data);
-				setOffset(result.offset);
-				setTotal(result.total);
-				setStatusMessage(`${result.total} categorias encontradas`);
-			});
-		} catch {
-			setRows([]);
-			setTotal(0);
-			setStatusMessage("No se pudieron cargar las categorias.");
-		}
-	}
+				startTransition(() => {
+					setRows(result.data);
+					setOffset(result.offset);
+					setTotal(result.total);
+					setStatusMessage(`${result.total} categorias encontradas`);
+				});
+			} catch {
+				setRows([]);
+				setTotal(0);
+				setStatusMessage("No se pudieron cargar las categorias.");
+			}
+		},
+		[],
+	);
 
 	useEffect(() => {
 		void loadTaxonomies(0, "", "");
-	}, []);
+	}, [loadTaxonomies]);
 
 	const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 	const currentPage = Math.floor(offset / PAGE_SIZE) + 1;

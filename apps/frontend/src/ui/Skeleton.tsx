@@ -45,15 +45,16 @@ export function Skeleton({
 	if (lines > 1) {
 		return (
 			<div className={`skeleton-lines ${className}`.trim()} aria-hidden="true">
-				{/* biome-ignore-start lint/suspicious/noArrayIndexKey: placeholders de skeleton sin identidad propia */}
-				{Array.from({ length: lines }, (_, i) => (
+				{Array.from({ length: lines }, (_, n) => ({
+					id: `line-${n}`,
+					width: n === lines - 1 ? "70%" : "100%",
+				})).map((line) => (
 					<div
-						key={i}
+						key={line.id}
 						className="skeleton skeleton-text"
-						style={{ width: i === lines - 1 ? "70%" : "100%" }}
+						style={{ width: line.width }}
 					/>
 				))}
-				{/* biome-ignore-end lint/suspicious/noArrayIndexKey: placeholders de skeleton sin identidad propia */}
 			</div>
 		);
 	}

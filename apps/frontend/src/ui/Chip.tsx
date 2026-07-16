@@ -1,4 +1,5 @@
 // Chip.tsx
+import type { ReactNode } from "react";
 import "./Chip.css";
 
 export interface ChipProps {
@@ -24,25 +25,11 @@ export function Chip({
 }: ChipProps) {
 	const isInteractive = !!onClick;
 	const variantClass = variant === "hero" ? " chip-hero" : "";
+	const chipClassName =
+		`chip${variantClass}${selected ? " chip-selected" : ""}${isInteractive ? " chip-interactive" : ""} ${className}`.trim();
 
-	return (
-		<span
-			className={`chip${variantClass}${selected ? " chip-selected" : ""}${isInteractive ? " chip-interactive" : ""} ${className}`.trim()}
-			role={isInteractive ? "button" : undefined}
-			tabIndex={isInteractive ? 0 : undefined}
-			aria-pressed={isInteractive ? selected : undefined}
-			onClick={onClick}
-			onKeyDown={
-				isInteractive
-					? (e) => {
-							if (e.key === "Enter" || e.key === " ") {
-								e.preventDefault();
-								onClick?.();
-							}
-						}
-					: undefined
-			}
-		>
+	const content: ReactNode = (
+		<>
 			{icon && (
 				<span
 					className="material-symbols-outlined chip-icon"
@@ -52,21 +39,45 @@ export function Chip({
 				</span>
 			)}
 			<span className="chip-label">{label}</span>
-			{removable && onRemove && (
+		</>
+	);
+
+	const removeButton = removable && onRemove && (
+		<button
+			className="chip-remove"
+			onClick={(e) => {
+				e.stopPropagation();
+				onRemove();
+			}}
+			aria-label={`Eliminar ${label}`}
+			type="button"
+		>
+			<span className="material-symbols-outlined" aria-hidden="true">
+				close
+			</span>
+		</button>
+	);
+
+	if (isInteractive) {
+		return (
+			<span className={chipClassName}>
 				<button
-					className="chip-remove"
-					onClick={(e) => {
-						e.stopPropagation();
-						onRemove();
-					}}
-					aria-label={`Eliminar ${label}`}
 					type="button"
+					className="chip-action"
+					aria-pressed={selected}
+					onClick={onClick}
 				>
-					<span className="material-symbols-outlined" aria-hidden="true">
-						close
-					</span>
+					{content}
 				</button>
-			)}
+				{removeButton}
+			</span>
+		);
+	}
+
+	return (
+		<span className={chipClassName}>
+			{content}
+			{removeButton}
 		</span>
 	);
 }

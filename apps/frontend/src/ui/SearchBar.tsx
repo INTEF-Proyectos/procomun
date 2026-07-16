@@ -38,6 +38,12 @@ export function SearchBar({
 		}
 	}, [controlledValue]);
 
+	useEffect(() => {
+		if (autoFocus) {
+			inputRef.current?.focus();
+		}
+	}, [autoFocus]);
+
 	const handleChange = useCallback(
 		(nextValue: string) => {
 			setInternalValue(nextValue);
@@ -60,45 +66,44 @@ export function SearchBar({
 	};
 
 	return (
-		<form
-			className={`search-bar search-bar-${size} ${className}`.trim()}
-			role="search"
-			aria-label="Buscar recursos"
-			onSubmit={handleSubmit}
-		>
-			<span
-				className="material-symbols-outlined search-bar-icon"
-				aria-hidden="true"
+		<search className="search-bar-landmark" aria-label="Buscar recursos">
+			<form
+				className={`search-bar search-bar-${size} ${className}`.trim()}
+				onSubmit={handleSubmit}
 			>
-				search
-			</span>
-			<input
-				ref={inputRef}
-				type="search"
-				className="search-bar-input"
-				placeholder={placeholder}
-				value={internalValue}
-				onChange={(e) => handleChange(e.target.value)}
-				autoFocus={autoFocus}
-				aria-label="Buscar"
-			/>
-			{internalValue && (
-				<button
-					type="button"
-					className="search-bar-clear"
-					onClick={handleClear}
-					aria-label="Limpiar búsqueda"
+				<span
+					className="material-symbols-outlined search-bar-icon"
+					aria-hidden="true"
 				>
-					<span className="material-symbols-outlined" aria-hidden="true">
-						close
-					</span>
-				</button>
-			)}
-			{size === "lg" && (
-				<button type="submit" className="search-bar-submit">
-					{submitLabel}
-				</button>
-			)}
-		</form>
+					search
+				</span>
+				<input
+					ref={inputRef}
+					type="search"
+					className="search-bar-input"
+					placeholder={placeholder}
+					value={internalValue}
+					onChange={(e) => handleChange(e.target.value)}
+					aria-label="Buscar"
+				/>
+				{internalValue && (
+					<button
+						type="button"
+						className="search-bar-clear"
+						onClick={handleClear}
+						aria-label="Limpiar búsqueda"
+					>
+						<span className="material-symbols-outlined" aria-hidden="true">
+							close
+						</span>
+					</button>
+				)}
+				{size === "lg" && (
+					<button type="submit" className="search-bar-submit">
+						{submitLabel}
+					</button>
+				)}
+			</form>
+		</search>
 	);
 }

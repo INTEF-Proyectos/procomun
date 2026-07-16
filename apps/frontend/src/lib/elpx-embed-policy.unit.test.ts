@@ -141,9 +141,7 @@ describe("classifyEmbed sobre remote-embeds.elpx (fixture real)", () => {
 				else if (e.name.endsWith(".html")) {
 					const html = await readFile(full, "utf-8");
 					const re = /<iframe[^>]*\ssrc="([^"]+)"/gi;
-					let m: RegExpExecArray | null;
-					// biome-ignore lint/suspicious/noAssignInExpressions: patrón idiomático de iteración con RegExp.exec
-					while ((m = re.exec(html)) !== null) {
+					for (const m of html.matchAll(re)) {
 						if (m[1]) found.add(m[1].replace(/&amp;/g, "&"));
 					}
 				}

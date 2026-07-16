@@ -110,3 +110,8 @@
 .search-bar-submit:active {
 	transform: scale(0.95);
 }
+
+/* El landmark <search> es transparente para el layout: el form conserva los estilos */
+.search-bar-landmark {
+	display: contents;
+}

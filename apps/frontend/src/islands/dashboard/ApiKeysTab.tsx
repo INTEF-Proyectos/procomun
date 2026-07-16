@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import type { ApiTokenRecord } from "../../lib/api-client.ts";
 import { getApiClient } from "../../lib/get-api-client.ts";
 import * as m from "../../paraglide/messages.js";
@@ -14,7 +14,7 @@ export function ApiKeysTab() {
 	const [revokeId, setRevokeId] = useState<string | null>(null);
 	const [revokeName, setRevokeName] = useState("");
 
-	async function fetchKeys() {
+	const fetchKeys = useCallback(async () => {
 		try {
 			const api = await getApiClient();
 			const data = await api.listApiTokens();
@@ -24,11 +24,11 @@ export function ApiKeysTab() {
 		} finally {
 			setLoading(false);
 		}
-	}
+	}, []);
 
 	useEffect(() => {
 		fetchKeys();
-	}, []);
+	}, [fetchKeys]);
 
 	function getStatus(key: ApiTokenRecord): "active" | "revoked" | "expired" {
 		if (key.revokedAt) return "revoked";

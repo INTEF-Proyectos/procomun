@@ -126,7 +126,7 @@ function ResourceCard({
 				setFavCount((prev) => prev + (bookmarked ? 1 : -1)); // rollback
 			}
 		},
-		[resource.slug, isLoggedIn],
+		[resource.slug, isLoggedIn, bookmarked],
 	);
 
 	const handleShare = useCallback(
@@ -298,88 +298,94 @@ export function CatalogIsland() {
 		listingStateRef.current = listingState;
 	}, [listingState]);
 
-	async function loadResources(nextState: ListingState, mode?: HistoryMode) {
-		const requestId = requestIdRef.current + 1;
-		requestIdRef.current = requestId;
-		setLoading(true);
-		setError("");
+	const loadResources = useCallback(
+		async (nextState: ListingState, mode?: HistoryMode) => {
+			const requestId = requestIdRef.current + 1;
+			requestIdRef.current = requestId;
+			setLoading(true);
+			setError("");
 
-		try {
-			const api = await getApiClient();
-			const offset = (nextState.page - 1) * DEFAULT_PAGE_SIZE;
-			const result = await api.listResources({
-				q: nextState.query || undefined,
-				limit: DEFAULT_PAGE_SIZE,
-				offset,
-				resourceType: nextState.resourceType || undefined,
-				language: nextState.language || undefined,
-				license: nextState.license || undefined,
-			});
-
-			if (requestId !== requestIdRef.current) return;
-
-			const paginationState = getPaginationState(
-				result.total,
-				result.limit,
-				result.offset,
-			);
-			if (nextState.page > paginationState.totalPages) {
-				await applyListingState({ ...nextState, page: 1 }, "replace", {
-					syncSearch: false,
-					scrollToTop: false,
+			try {
+				const api = await getApiClient();
+				const offset = (nextState.page - 1) * DEFAULT_PAGE_SIZE;
+				const result = await api.listResources({
+					q: nextState.query || undefined,
+					limit: DEFAULT_PAGE_SIZE,
+					offset,
+					resourceType: nextState.resourceType || undefined,
+					language: nextState.language || undefined,
+					license: nextState.license || undefined,
 				});
-				return;
-			}
 
-			startTransition(() => {
-				setResources(result.data);
-				setTotal(result.total);
-				setPagination(paginationState);
-				setLoading(false);
-			});
+				if (requestId !== requestIdRef.current) return;
 
-			if (mode) {
-				writeListingStateToHistory(
-					window.history,
-					buildListingUrl(
-						window.location.pathname,
-						window.location.search,
-						nextState,
-					),
-					mode,
+				const paginationState = getPaginationState(
+					result.total,
+					result.limit,
+					result.offset,
 				);
+				if (nextState.page > paginationState.totalPages) {
+					const fixedState = { ...nextState, page: 1 };
+					setListingState(fixedState);
+					setSidebarOpen(false);
+					await loadResources(fixedState, "replace");
+					return;
+				}
+
+				startTransition(() => {
+					setResources(result.data);
+					setTotal(result.total);
+					setPagination(paginationState);
+					setLoading(false);
+				});
+
+				if (mode) {
+					writeListingStateToHistory(
+						window.history,
+						buildListingUrl(
+							window.location.pathname,
+							window.location.search,
+							nextState,
+						),
+						mode,
+					);
+				}
+			} catch {
+				if (requestId !== requestIdRef.current) return;
+				setResources([]);
+				setTotal(0);
+				setPagination(getPaginationState(0, DEFAULT_PAGE_SIZE, 0));
+				setError(m.catalog_error());
+				setLoading(false);
 			}
-		} catch {
-			if (requestId !== requestIdRef.current) return;
-			setResources([]);
-			setTotal(0);
-			setPagination(getPaginationState(0, DEFAULT_PAGE_SIZE, 0));
-			setError(m.catalog_error());
-			setLoading(false);
-		}
-	}
+		},
+		[],
+	);
 
-	async function applyListingState(
-		nextState: ListingState,
-		mode: HistoryMode,
-		options?: { syncSearch?: boolean; scrollToTop?: boolean },
-	) {
-		const syncSearch = options?.syncSearch ?? true;
-		const scrollToTop = options?.scrollToTop ?? false;
+	const applyListingState = useCallback(
+		async (
+			nextState: ListingState,
+			mode: HistoryMode,
+			options?: { syncSearch?: boolean; scrollToTop?: boolean },
+		) => {
+			const syncSearch = options?.syncSearch ?? true;
+			const scrollToTop = options?.scrollToTop ?? false;
 
-		setListingState(nextState);
-		setSidebarOpen(false);
+			setListingState(nextState);
+			setSidebarOpen(false);
 
-		if (syncSearch) {
-			dispatchCatalogQuerySync(nextState.query);
-		}
+			if (syncSearch) {
+				dispatchCatalogQuerySync(nextState.query);
+			}
 
-		await loadResources(nextState, mode);
+			await loadResources(nextState, mode);
 
-		if (scrollToTop) {
-			window.scrollTo({ top: 0, behavior: "smooth" });
-		}
-	}
+			if (scrollToTop) {
+				window.scrollTo({ top: 0, behavior: "smooth" });
+			}
+		},
+		[loadResources],
+	);
 
 	useEffect(() => {
 		const nextViewMode =
@@ -459,7 +465,7 @@ export function CatalogIsland() {
 				handleQueryChange as EventListener,
 			);
 		};
-	}, []);
+	}, [loadResources, applyListingState]);
 
 	function updateViewMode(nextViewMode: ViewMode) {
 		setViewMode(nextViewMode);
@@ -472,10 +478,18 @@ export function CatalogIsland() {
 		void applyListingState({ ...listingState, page: 1 }, "replace");
 	}
 
-	const paginationPages = renderPaginationPages(
+	const paginationPagesRaw = renderPaginationPages(
 		pagination.currentPage,
 		pagination.totalPages,
 	);
+	let previousPaginationPage = 0;
+	const paginationPages = paginationPagesRaw.map((page) => {
+		if (page === "...") {
+			return { key: `ellipsis-after-${previousPaginationPage}`, value: page };
+		}
+		previousPaginationPage = page;
+		return { key: `page-${page}`, value: page };
+	});
 	const resourcesClassName =
 		viewMode === "list" ? "resources-list-view" : "resources-grid";
 
@@ -688,24 +702,25 @@ export function CatalogIsland() {
 						<span className="material-symbols-outlined">chevron_left</span>
 					</button>
 					<div className="pag-numbers">
-						{paginationPages.map((page, index) =>
-							page === "..." ? (
-								// biome-ignore lint/suspicious/noArrayIndexKey: separador posicional estático de paginación
-								<span key={`ellipsis-${index}`} className="pag-ellipsis">
+						{paginationPages.map((item) =>
+							item.value === "..." ? (
+								<span key={item.key} className="pag-ellipsis">
 									&hellip;
 								</span>
 							) : (
 								<button
-									key={page}
+									key={item.key}
 									type="button"
-									className={`pag-num${page === pagination.currentPage ? " active" : ""}`}
+									className={`pag-num${item.value === pagination.currentPage ? " active" : ""}`}
 									onClick={() => {
-										void applyListingState({ ...listingState, page }, "push", {
-											scrollToTop: true,
-										});
+										void applyListingState(
+											{ ...listingState, page: item.value as number },
+											"push",
+											{ scrollToTop: true },
+										);
 									}}
 								>
-									{page}
+									{item.value}
 								</button>
 							),
 						)}

@@ -57,11 +57,19 @@ export function Drawer({
 			}
 		}
 
+		function handleMouseDown(e: MouseEvent) {
+			if (drawerRef.current && !drawerRef.current.contains(e.target as Node)) {
+				onClose();
+			}
+		}
+
 		window.addEventListener("keydown", handleKeyDown);
+		document.addEventListener("mousedown", handleMouseDown);
 
 		return () => {
 			document.body.style.overflow = previousOverflow;
 			window.removeEventListener("keydown", handleKeyDown);
+			document.removeEventListener("mousedown", handleMouseDown);
 			previousFocusRef.current?.focus();
 		};
 	}, [open, onClose]);
@@ -69,12 +77,7 @@ export function Drawer({
 	if (!open) return null;
 
 	return (
-		<div
-			className="drawer-overlay"
-			onMouseDown={(e) => {
-				if (e.target === e.currentTarget) onClose();
-			}}
-		>
+		<div className="drawer-overlay">
 			<div
 				ref={drawerRef}
 				className={`drawer drawer-${position} ${className}`.trim()}

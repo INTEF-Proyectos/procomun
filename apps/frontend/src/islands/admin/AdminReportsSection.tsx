@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { ReportRecord } from "../../lib/api-client.ts";
 import { getApiClient } from "../../lib/get-api-client.ts";
 import { AdminTable, type Column } from "./AdminTable.tsx";
@@ -61,7 +61,7 @@ export function AdminReportsSection() {
 	const [actionTaken, setActionTaken] = useState("");
 	const [busy, setBusy] = useState(false);
 
-	async function loadReports(p: number, status: string) {
+	const loadReports = useCallback(async (p: number, status: string) => {
 		setLoading(true);
 		try {
 			const api = await getApiClient();
@@ -79,11 +79,28 @@ export function AdminReportsSection() {
 		} finally {
 			setLoading(false);
 		}
-	}
+	}, []);
 
 	useEffect(() => {
-		void loadReports(1, statusFilter);
-	}, []);
+		// statusFilter arranca en "" (valor inicial); la carga de montaje usa ese literal
+		void loadReports(1, "");
+	}, [loadReports]);
+
+	const resolveDialogRef = useRef<HTMLDivElement>(null);
+
+	useEffect(() => {
+		if (!selectedReport) return;
+		function handleMouseDown(e: MouseEvent) {
+			if (
+				resolveDialogRef.current &&
+				!resolveDialogRef.current.contains(e.target as Node)
+			) {
+				setSelectedReport(null);
+			}
+		}
+		document.addEventListener("mousedown", handleMouseDown);
+		return () => document.removeEventListener("mousedown", handleMouseDown);
+	}, [selectedReport]);
 
 	function handleStatusFilterChange(value: string) {
 		setStatusFilter(value);
@@ -214,13 +231,9 @@ export function AdminReportsSection() {
 
 			{/* Resolve modal */}
 			{selectedReport && (
-				<div
-					className="admin-modal-overlay"
-					onMouseDown={(e) => {
-						if (e.target === e.currentTarget) setSelectedReport(null);
-					}}
-				>
+				<div className="admin-modal-overlay">
 					<div
+						ref={resolveDialogRef}
 						className="admin-confirm-dialog"
 						role="dialog"
 						aria-modal="true"

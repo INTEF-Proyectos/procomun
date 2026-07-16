@@ -58,11 +58,19 @@ export function Dialog({
 			}
 		}
 
+		function handleMouseDown(e: MouseEvent) {
+			if (dialogRef.current && !dialogRef.current.contains(e.target as Node)) {
+				onClose();
+			}
+		}
+
 		window.addEventListener("keydown", handleKeyDown);
+		document.addEventListener("mousedown", handleMouseDown);
 
 		return () => {
 			document.body.style.overflow = previousOverflow;
 			window.removeEventListener("keydown", handleKeyDown);
+			document.removeEventListener("mousedown", handleMouseDown);
 			previousFocusRef.current?.focus();
 		};
 	}, [open, onClose]);
@@ -70,12 +78,7 @@ export function Dialog({
 	if (!open) return null;
 
 	return (
-		<div
-			className="dialog-overlay"
-			onMouseDown={(e) => {
-				if (e.target === e.currentTarget) onClose();
-			}}
-		>
+		<div className="dialog-overlay">
 			<div
 				ref={dialogRef}
 				className={`dialog dialog-${size} ${className}`.trim()}

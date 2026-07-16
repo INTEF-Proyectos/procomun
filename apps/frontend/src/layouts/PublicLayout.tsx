@@ -125,13 +125,12 @@ export function PublicLayout() {
 							</Link>
 						</div>
 					</div>
-					<div className="public-nav-search" id="nav-search">
+					<search className="public-nav-search" id="nav-search">
 						<form
 							key={`${location.pathname}?${location.search}`}
 							action={explorePath}
 							method="get"
 							className="public-nav-search-form"
-							role="search"
 						>
 							<span
 								className="material-symbols-outlined public-nav-search-icon"
@@ -163,7 +162,7 @@ export function PublicLayout() {
 								</button>
 							) : null}
 						</form>
-					</div>
+					</search>
 					<PublicNavIsland />
 				</div>
 				<div className="public-nav-separator" />
@@ -183,21 +182,16 @@ export function PublicLayout() {
 						<p className="public-footer-desc">{m.footer_desc()}</p>
 						<div className="public-footer-social">
 							<a
-								href="#"
-								className="public-footer-social-icon"
-								aria-label={m.footer_share()}
-							>
-								<span className="material-symbols-outlined">share</span>
-							</a>
-							<a
-								href="#"
+								href="https://intef.es"
+								target="_blank"
+								rel="noopener noreferrer"
 								className="public-footer-social-icon"
 								aria-label={m.footer_web()}
 							>
 								<span className="material-symbols-outlined">public</span>
 							</a>
 							<a
-								href="#"
+								href={`${localUrl("ayuda")}#contacto`}
 								className="public-footer-social-icon"
 								aria-label={m.footer_email()}
 							>
@@ -209,14 +203,18 @@ export function PublicLayout() {
 						<h4>{m.footer_explore()}</h4>
 						<Link to={localUrl("explorar")}>{m.footer_resources()}</Link>
 						<Link to={localUrl("colecciones")}>{m.footer_collections()}</Link>
-						<a href="#">{m.footer_communities()}</a>
-						<a href="#">{m.footer_users()}</a>
 					</div>
 					<div className="public-footer-col">
 						<h4>{m.footer_legal()}</h4>
-						<a href="#">{m.footer_legal_notice()}</a>
-						<a href="#">{m.footer_data_protection()}</a>
-						<a href="#">{m.footer_accessibility()}</a>
+						<a href={`${localUrl("ayuda")}#contacto`}>
+							{m.footer_legal_notice()}
+						</a>
+						<a href={`${localUrl("ayuda")}#contacto`}>
+							{m.footer_data_protection()}
+						</a>
+						<a href={`${localUrl("ayuda")}#contacto`}>
+							{m.footer_accessibility()}
+						</a>
 					</div>
 					<div className="public-footer-col">
 						<h4>{m.footer_help()}</h4>

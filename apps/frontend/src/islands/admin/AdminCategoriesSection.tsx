@@ -1,4 +1,4 @@
-import { startTransition, useEffect, useState } from "react";
+import { startTransition, useCallback, useEffect, useState } from "react";
 import type { TaxonomyRecord } from "../../lib/api-client.ts";
 import { getApiClient } from "../../lib/get-api-client.ts";
 import { ConfirmDialog } from "../shared/ConfirmDialog.tsx";
@@ -71,34 +71,33 @@ export function AdminCategoriesSection() {
 	const [deleteTarget, setDeleteTarget] = useState<TaxonomyRecord | null>(null);
 	const [busyDelete, setBusyDelete] = useState(false);
 
-	async function loadTaxonomies(
-		nextPage = page,
-		nextSearch = search,
-		nextType = typeFilter,
-	) {
-		setLoading(true);
-		try {
-			const api = await getApiClient();
-			const result = await api.listTaxonomies({
-				q: nextSearch || undefined,
-				type: nextType || undefined,
-				limit: PAGE_SIZE,
-				offset: (nextPage - 1) * PAGE_SIZE,
-			});
-			startTransition(() => {
-				setRows(result.data);
-				setTotal(result.total);
-				setPage(nextPage);
-			});
-		} catch {
-			setRows([]);
-			setTotal(0);
-		} finally {
-			setLoading(false);
-		}
-	}
+	const loadTaxonomies = useCallback(
+		async (nextPage: number, nextSearch: string, nextType: string) => {
+			setLoading(true);
+			try {
+				const api = await getApiClient();
+				const result = await api.listTaxonomies({
+					q: nextSearch || undefined,
+					type: nextType || undefined,
+					limit: PAGE_SIZE,
+					offset: (nextPage - 1) * PAGE_SIZE,
+				});
+				startTransition(() => {
+					setRows(result.data);
+					setTotal(result.total);
+					setPage(nextPage);
+				});
+			} catch {
+				setRows([]);
+				setTotal(0);
+			} finally {
+				setLoading(false);
+			}
+		},
+		[],
+	);
 
-	async function loadAllTaxonomies() {
+	const loadAllTaxonomies = useCallback(async () => {
 		try {
 			const api = await getApiClient();
 			const result = await api.listTaxonomies({ limit: 100, offset: 0 });
@@ -106,12 +105,12 @@ export function AdminCategoriesSection() {
 		} catch {
 			setAllTaxonomies([]);
 		}
-	}
+	}, []);
 
 	useEffect(() => {
 		void loadTaxonomies(1, "", "");
 		void loadAllTaxonomies();
-	}, []);
+	}, [loadTaxonomies, loadAllTaxonomies]);
 
 	function applySearch() {
 		void loadTaxonomies(1, search.trim(), typeFilter);

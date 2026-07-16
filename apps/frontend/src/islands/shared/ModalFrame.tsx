@@ -1,4 +1,4 @@
-import { type ReactNode, useEffect } from "react";
+import { type ReactNode, useEffect, useRef } from "react";
 
 interface ModalFrameProps {
 	open: boolean;
@@ -15,6 +15,8 @@ export function ModalFrame({
 	onClose,
 	children,
 }: ModalFrameProps) {
+	const contentRef = useRef<HTMLDivElement>(null);
+
 	useEffect(() => {
 		if (!open) return;
 
@@ -27,26 +29,31 @@ export function ModalFrame({
 			}
 		}
 
+		function handleMouseDown(event: MouseEvent) {
+			if (
+				contentRef.current &&
+				!contentRef.current.contains(event.target as Node)
+			) {
+				onClose();
+			}
+		}
+
 		window.addEventListener("keydown", handleEscape);
+		document.addEventListener("mousedown", handleMouseDown);
 
 		return () => {
 			document.body.style.overflow = previousOverflow;
 			window.removeEventListener("keydown", handleEscape);
+			document.removeEventListener("mousedown", handleMouseDown);
 		};
 	}, [open, onClose]);
 
 	if (!open) return null;
 
 	return (
-		<div
-			className="admin-modal-overlay"
-			onMouseDown={(event) => {
-				if (event.target === event.currentTarget) {
-					onClose();
-				}
-			}}
-		>
+		<div className="admin-modal-overlay">
 			<div
+				ref={contentRef}
 				className={className}
 				role="dialog"
 				aria-modal="true"

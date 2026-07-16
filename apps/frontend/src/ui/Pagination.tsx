@@ -35,6 +35,14 @@ export function Pagination({
 	if (totalPages <= 1) return null;
 
 	const pages = getVisiblePages(currentPage, totalPages);
+	let previousPage = 0;
+	const pageItems = pages.map((page) => {
+		if (page === "...") {
+			return { key: `ellipsis-after-${previousPage}`, value: page };
+		}
+		previousPage = page;
+		return { key: `page-${page}`, value: page };
+	});
 
 	return (
 		<nav className={`pagination ${className}`.trim()} aria-label="Paginación">
@@ -52,22 +60,21 @@ export function Pagination({
 			</button>
 
 			<div className="pagination-pages">
-				{pages.map((page, index) =>
-					page === "..." ? (
-						// biome-ignore lint/suspicious/noArrayIndexKey: separador posicional estático de paginación
-						<span key={`ellipsis-${index}`} className="pagination-ellipsis">
+				{pageItems.map((item) =>
+					item.value === "..." ? (
+						<span key={item.key} className="pagination-ellipsis">
 							...
 						</span>
 					) : (
 						<button
-							key={page}
+							key={item.key}
 							type="button"
-							className={`pagination-page${page === currentPage ? " pagination-page-active" : ""}`}
-							onClick={() => onPageChange(page)}
-							aria-label={`Página ${page}`}
-							aria-current={page === currentPage ? "page" : undefined}
+							className={`pagination-page${item.value === currentPage ? " pagination-page-active" : ""}`}
+							onClick={() => onPageChange(item.value as number)}
+							aria-label={`Página ${item.value}`}
+							aria-current={item.value === currentPage ? "page" : undefined}
 						>
-							{page}
+							{item.value}
 						</button>
 					),
 				)}

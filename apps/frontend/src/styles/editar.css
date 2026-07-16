@@ -692,3 +692,11 @@
 		order: -1;
 	}
 }
+
+/* .stepper ahora es un fieldset semántico: reset de estilos nativos */
+fieldset.stepper {
+	border: 0;
+	padding: 0;
+	margin: 0;
+	min-width: 0;
+}

@@ -67,13 +67,8 @@ export function FeaturedResourcesIsland() {
 								({HERO_RESOURCE.ratingCount} valoraciones)
 							</span>
 						</div>
-						<span
-							className="featured-download-btn"
-							aria-label="Descargar recurso"
-						>
-							<span className="material-symbols-outlined" aria-hidden="true">
-								download
-							</span>
+						<span className="featured-download-btn" aria-hidden="true">
+							<span className="material-symbols-outlined">download</span>
 						</span>
 					</div>
 				</div>

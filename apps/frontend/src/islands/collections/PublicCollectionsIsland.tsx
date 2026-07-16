@@ -1,4 +1,10 @@
-import { type FormEvent, startTransition, useEffect, useState } from "react";
+import {
+	type FormEvent,
+	startTransition,
+	useCallback,
+	useEffect,
+	useState,
+} from "react";
 import { useIframeScale } from "../../hooks/use-iframe-scale.ts";
 import type {
 	CollectionDetailRecord,
@@ -91,7 +97,7 @@ export function PublicCollectionsIsland() {
 		);
 	}
 
-	async function loadList(nextPage: number, nextQuery: string) {
+	const loadList = useCallback(async (nextPage: number, nextQuery: string) => {
 		setLoading(true);
 		setError("");
 		try {
@@ -116,9 +122,9 @@ export function PublicCollectionsIsland() {
 			setError("No se pudieron cargar las colecciones.");
 			setLoading(false);
 		}
-	}
+	}, []);
 
-	async function loadDetail(nextSlug: string) {
+	const loadDetail = useCallback(async (nextSlug: string) => {
 		setLoading(true);
 		setError("");
 		try {
@@ -140,7 +146,7 @@ export function PublicCollectionsIsland() {
 			setError("No se pudo cargar el detalle de la colección.");
 			setLoading(false);
 		}
-	}
+	}, []);
 
 	useEffect(() => {
 		function syncFromLocation(search: string) {
@@ -163,7 +169,7 @@ export function PublicCollectionsIsland() {
 		return () => {
 			window.removeEventListener("popstate", handlePopState);
 		};
-	}, []);
+	}, [loadList, loadDetail]);
 
 	async function handleSearch(event: FormEvent<HTMLFormElement>) {
 		event.preventDefault();
@@ -264,20 +270,18 @@ export function PublicCollectionsIsland() {
 					Explora agrupaciones temáticas curadas por el equipo editorial para
 					encontrar secuencias y selecciones de recursos ya organizadas.
 				</p>
-				<form
-					className="collections-search"
-					onSubmit={handleSearch}
-					role="search"
-				>
-					<input
-						type="search"
-						placeholder="Buscar por título o descripción"
-						aria-label="Buscar colecciones"
-						value={query}
-						onChange={(event) => setQuery(event.currentTarget.value)}
-					/>
-					<button type="submit">Buscar</button>
-				</form>
+				<search>
+					<form className="collections-search" onSubmit={handleSearch}>
+						<input
+							type="search"
+							placeholder="Buscar por título o descripción"
+							aria-label="Buscar colecciones"
+							value={query}
+							onChange={(event) => setQuery(event.currentTarget.value)}
+						/>
+						<button type="submit">Buscar</button>
+					</form>
+				</search>
 			</header>
 
 			<section

@@ -73,31 +73,31 @@ export function HeroIsland() {
 				<p className="hero-subtitle">{m.hero_subtitle()}</p>
 
 				<div className="hero-search-container">
-					<form
-						ref={searchRef}
-						className="hero-search-bar"
-						onSubmit={handleSubmit}
-						role="search"
-					>
-						<div className="hero-search-icon">
-							<span className="material-symbols-outlined" aria-hidden="true">
-								search
-							</span>
-						</div>
-						<input
-							className="hero-search-input"
-							type="text"
-							placeholder={m.hero_search_placeholder()}
-							aria-label={m.hero_search_label()}
-						/>
-						<button className="hero-search-btn" type="submit">
-							{m.hero_search_btn()}
-						</button>
-					</form>
+					<search className="hero-search-landmark" aria-label="Buscar recursos">
+						<form
+							ref={searchRef}
+							className="hero-search-bar"
+							onSubmit={handleSubmit}
+						>
+							<div className="hero-search-icon">
+								<span className="material-symbols-outlined" aria-hidden="true">
+									search
+								</span>
+							</div>
+							<input
+								className="hero-search-input"
+								type="text"
+								placeholder={m.hero_search_placeholder()}
+								aria-label={m.hero_search_label()}
+							/>
+							<button className="hero-search-btn" type="submit">
+								{m.hero_search_btn()}
+							</button>
+						</form>
+					</search>
 
-					<div
+					<fieldset
 						className="hero-filters"
-						role="group"
 						aria-label={m.hero_quick_filters_label()}
 					>
 						<span className="hero-filters-label">{m.hero_quick_filters()}</span>
@@ -111,7 +111,7 @@ export function HeroIsland() {
 								{FILTER_LABELS[filter.key]()}
 							</button>
 						))}
-					</div>
+					</fieldset>
 				</div>
 			</div>
 		</section>

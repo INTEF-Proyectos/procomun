@@ -152,70 +152,135 @@ export default function EditarPage() {
 	const resourceTypeRef = useRef<HTMLSelectElement>(null);
 	const keywordsRef = useRef<HTMLInputElement>(null);
 	const fileInputRef = useRef<HTMLInputElement>(null);
-	const dropzoneRef = useRef<HTMLDivElement>(null);
+	const dropzoneRef = useRef<HTMLElement>(null);
 	const uploadStatusRef = useRef<HTMLDivElement>(null);
 
-	function nextReqId(p: string) {
+	const nextReqId = useCallback((p: string) => {
 		return `${p}-${Date.now()}-${++reqCounterRef.current}`;
-	}
+	}, []);
 
-	function postToExe(
-		msg: Record<string, unknown>,
-		transferables?: Transferable[],
-	) {
-		exeIframeRef.current?.contentWindow?.postMessage(
-			msg,
-			"*",
-			transferables ?? [],
-		);
-	}
+	const postToExe = useCallback(
+		(msg: Record<string, unknown>, transferables?: Transferable[]) => {
+			exeIframeRef.current?.contentWindow?.postMessage(
+				msg,
+				"*",
+				transferables ?? [],
+			);
+		},
+		[],
+	);
 
-	const handleExeMessage = useCallback((event: MessageEvent) => {
+	const closeExeEditor = useCallback((force = false) => {
 		if (
-			!event.data?.type ||
-			event.source !== exeIframeRef.current?.contentWindow
+			exeHasChangesRef.current &&
+			!force &&
+			!confirm("Hay cambios sin guardar. ¿Cerrar?")
 		)
 			return;
-		switch (event.data.type) {
-			case "EXELEARNING_READY":
-				exeReadyRef.current = true;
-				setExeStatus("Editor listo");
-				postToExe({
-					type: "CONFIGURE",
-					requestId: nextReqId("cfg"),
-					data: {
-						hideUI: { fileMenu: true, saveButton: true, userMenu: true },
-					},
-				});
-				break;
-			case "DOCUMENT_LOADED":
-				setExeStatus("Documento cargado");
-				setExeSaveBtnDisabled(false);
-				break;
-			case "DOCUMENT_CHANGED":
-				exeHasChangesRef.current = true;
-				setExeStatus("Cambios sin guardar");
-				setExeSaveBtnDisabled(false);
-				break;
-			case "WP_SAVE_FILE":
-				if (event.data.bytes)
-					handleExeSave(
-						event.data as {
-							bytes: ArrayBuffer;
-							filename: string;
-							mimeType: string;
-						},
-					);
-				break;
-			case "WP_REQUEST_SAVE_ERROR":
-				setExeStatus(`Error: ${event.data.error}`);
-				setExeSaveBtnDisabled(false);
-				exeSavingRef.current = false;
-				setExeSavingOverlayVisible(false);
-				break;
+		setExeModalVisible(false);
+		document.body.style.overflow = "";
+		// Reset iframe src to stop the editor
+		if (exeIframeRef.current) {
+			exeIframeRef.current.src = "about:blank";
 		}
-		// eslint-disable-next-line react-hooks/exhaustive-deps
+		exeHasChangesRef.current = false;
 	}, []);
+
+	const handleExeSave = useCallback(
+		async (payload: {
+			bytes: ArrayBuffer;
+			filename: string;
+			mimeType: string;
+		}) => {
+			exeSavingRef.current = true;
+			setExeSaveBtnDisabled(true);
+			setExeStatus("Guardando...");
+			setExeSavingOverlayVisible(true);
+			try {
+				const blob = new Blob([payload.bytes], {
+					type: payload.mimeType || "application/zip",
+				});
+				const fd = new FormData();
+				fd.append("file", blob, payload.filename || "project.elpx");
+				const res = await fetch(
+					url(`api/admin/elpx/save/${exeResourceIdRef.current}`),
+					{
+						method: "POST",
+						credentials: "include",
+						body: fd,
+					},
+				);
+				if (!res.ok) throw new Error("Error al guardar");
+				postToExe({
+					type: "WP_SAVE_CONFIRMED",
+					requestId: nextReqId("confirmed"),
+				});
+				exeHasChangesRef.current = false;
+				setExeStatus("Guardado");
+				setExeSavingOverlayVisible(false);
+				setTimeout(() => {
+					closeExeEditor(true);
+					window.location.reload();
+				}, 800);
+			} catch (err) {
+				setExeStatus(`Error: ${(err as Error).message}`);
+				setExeSaveBtnDisabled(false);
+				setExeSavingOverlayVisible(false);
+			} finally {
+				exeSavingRef.current = false;
+			}
+		},
+		[postToExe, nextReqId, closeExeEditor],
+	);
+
+	const handleExeMessage = useCallback(
+		(event: MessageEvent) => {
+			if (
+				!event.data?.type ||
+				event.source !== exeIframeRef.current?.contentWindow
+			)
+				return;
+			switch (event.data.type) {
+				case "EXELEARNING_READY":
+					exeReadyRef.current = true;
+					setExeStatus("Editor listo");
+					postToExe({
+						type: "CONFIGURE",
+						requestId: nextReqId("cfg"),
+						data: {
+							hideUI: { fileMenu: true, saveButton: true, userMenu: true },
+						},
+					});
+					break;
+				case "DOCUMENT_LOADED":
+					setExeStatus("Documento cargado");
+					setExeSaveBtnDisabled(false);
+					break;
+				case "DOCUMENT_CHANGED":
+					exeHasChangesRef.current = true;
+					setExeStatus("Cambios sin guardar");
+					setExeSaveBtnDisabled(false);
+					break;
+				case "WP_SAVE_FILE":
+					if (event.data.bytes)
+						handleExeSave(
+							event.data as {
+								bytes: ArrayBuffer;
+								filename: string;
+								mimeType: string;
+							},
+						);
+					break;
+				case "WP_REQUEST_SAVE_ERROR":
+					setExeStatus(`Error: ${event.data.error}`);
+					setExeSaveBtnDisabled(false);
+					exeSavingRef.current = false;
+					setExeSavingOverlayVisible(false);
+					break;
+			}
+		},
+		[postToExe, nextReqId, handleExeSave],
+	);
 
 	useEffect(() => {
 		window.addEventListener("message", handleExeMessage);
@@ -337,7 +402,7 @@ export default function EditarPage() {
 
 		init();
 		// eslint-disable-next-line react-hooks/exhaustive-deps
-	}, [resourceId]);
+	}, [resourceId, isNew]);
 
 	async function handleFormSubmit(e: React.FormEvent) {
 		e.preventDefault();
@@ -449,66 +514,6 @@ export default function EditarPage() {
 		const elpxParam = elpxFileUrl ? encodeURIComponent(elpxFileUrl) : "";
 		if (exeIframeRef.current) {
 			exeIframeRef.current.src = `${editorPage}?elpxUrl=${elpxParam}&resourceId=${resId}`;
-		}
-	}
-
-	function closeExeEditor(force = false) {
-		if (
-			exeHasChangesRef.current &&
-			!force &&
-			!confirm("Hay cambios sin guardar. ¿Cerrar?")
-		)
-			return;
-		setExeModalVisible(false);
-		document.body.style.overflow = "";
-		// Reset iframe src to stop the editor
-		if (exeIframeRef.current) {
-			exeIframeRef.current.src = "about:blank";
-		}
-		exeHasChangesRef.current = false;
-	}
-
-	async function handleExeSave(payload: {
-		bytes: ArrayBuffer;
-		filename: string;
-		mimeType: string;
-	}) {
-		exeSavingRef.current = true;
-		setExeSaveBtnDisabled(true);
-		setExeStatus("Guardando...");
-		setExeSavingOverlayVisible(true);
-		try {
-			const blob = new Blob([payload.bytes], {
-				type: payload.mimeType || "application/zip",
-			});
-			const fd = new FormData();
-			fd.append("file", blob, payload.filename || "project.elpx");
-			const res = await fetch(
-				url(`api/admin/elpx/save/${exeResourceIdRef.current}`),
-				{
-					method: "POST",
-					credentials: "include",
-					body: fd,
-				},
-			);
-			if (!res.ok) throw new Error("Error al guardar");
-			postToExe({
-				type: "WP_SAVE_CONFIRMED",
-				requestId: nextReqId("confirmed"),
-			});
-			exeHasChangesRef.current = false;
-			setExeStatus("Guardado");
-			setExeSavingOverlayVisible(false);
-			setTimeout(() => {
-				closeExeEditor(true);
-				window.location.reload();
-			}, 800);
-		} catch (err) {
-			setExeStatus(`Error: ${(err as Error).message}`);
-			setExeSaveBtnDisabled(false);
-			setExeSavingOverlayVisible(false);
-		} finally {
-			exeSavingRef.current = false;
 		}
 	}
 
@@ -707,7 +712,6 @@ export default function EditarPage() {
 									data-upload-dropzone
 									className="edit-dropzone"
 									id="edit-multi-dropzone"
-									tabIndex={0}
 								>
 									<label className="edit-file-label">
 										<span className="material-symbols-outlined">
@@ -770,10 +774,10 @@ export default function EditarPage() {
 										? "Actualizar archivo .elpx"
 										: "Subir archivo .elpx directamente"}
 								</h3>
-								<div
+								<section
 									ref={dropzoneRef}
+									aria-label="Zona para arrastrar el archivo .elpx"
 									className="edit-dropzone"
-									tabIndex={0}
 									onDragOver={(e) => {
 										e.preventDefault();
 										dropzoneRef.current?.classList.add("is-dragover");
@@ -805,7 +809,7 @@ export default function EditarPage() {
 										/>
 									</label>
 									<p className="edit-drop-hint">o arrastra aquí</p>
-								</div>
+								</section>
 								<div
 									ref={uploadStatusRef}
 									id="edit-upload-status"

@@ -17,8 +17,10 @@ export function Breadcrumb({ items, className = "" }: BreadcrumbProps) {
 				{items.map((item, index) => {
 					const isLast = index === items.length - 1;
 					return (
-						// biome-ignore lint/suspicious/noArrayIndexKey: migas posicionales derivadas de la ruta, sin reordenación
-						<li key={index} className="breadcrumb-item">
+						<li
+							key={`${item.label}::${item.href ?? ""}`}
+							className="breadcrumb-item"
+						>
 							{index > 0 && (
 								<span
 									className="material-symbols-outlined breadcrumb-sep"

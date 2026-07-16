@@ -1,4 +1,4 @@
-import { startTransition, useEffect, useState } from "react";
+import { startTransition, useCallback, useEffect, useState } from "react";
 import type { Resource, SessionData } from "../../lib/api-client.ts";
 import { getApiClient } from "../../lib/get-api-client.ts";
 import { url } from "../../lib/paths.ts";
@@ -81,7 +81,7 @@ export function AdminResourcesSection() {
 	const [statReview, setStatReview] = useState(0);
 	const [statDraft, setStatDraft] = useState(0);
 
-	async function loadStats() {
+	const loadStats = useCallback(async () => {
 		try {
 			const api = await getApiClient();
 			const [all, pub, rev, dra] = await Promise.all([
@@ -97,34 +97,33 @@ export function AdminResourcesSection() {
 		} catch {
 			/* keep zeros */
 		}
-	}
+	}, []);
 
-	async function loadResources(
-		nextPage = page,
-		nextSearch = search,
-		nextStatus = statusFilter,
-	) {
-		setLoading(true);
-		try {
-			const api = await getApiClient();
-			const result = await api.listAdminResources({
-				q: nextSearch || undefined,
-				status: nextStatus || undefined,
-				limit: PAGE_SIZE,
-				offset: (nextPage - 1) * PAGE_SIZE,
-			});
-			startTransition(() => {
-				setRows(result.data);
-				setTotal(result.total);
-				setPage(nextPage);
-			});
-		} catch {
-			setRows([]);
-			setTotal(0);
-		} finally {
-			setLoading(false);
-		}
-	}
+	const loadResources = useCallback(
+		async (nextPage: number, nextSearch: string, nextStatus: string) => {
+			setLoading(true);
+			try {
+				const api = await getApiClient();
+				const result = await api.listAdminResources({
+					q: nextSearch || undefined,
+					status: nextStatus || undefined,
+					limit: PAGE_SIZE,
+					offset: (nextPage - 1) * PAGE_SIZE,
+				});
+				startTransition(() => {
+					setRows(result.data);
+					setTotal(result.total);
+					setPage(nextPage);
+				});
+			} catch {
+				setRows([]);
+				setTotal(0);
+			} finally {
+				setLoading(false);
+			}
+		},
+		[],
+	);
 
 	useEffect(() => {
 		void (async () => {
@@ -137,7 +136,7 @@ export function AdminResourcesSection() {
 			await loadStats();
 			await loadResources(1, "", "");
 		})();
-	}, []);
+	}, [loadStats, loadResources]);
 
 	const currentRole = session?.user.role ?? "reader";
 	const canEditResource = (resource: Resource) =>
