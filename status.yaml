@@ -1401,11 +1401,11 @@ tasks:
     agent: "devops-sre + qa-validacion + frontend-ux-accesibilidad"
     task: "Restauración de las puertas de calidad: sustitución del paquete biome equivocado por @biomejs/biome real y saneamiento asociado"
     status: Done
-    related: ["ADR-0029", "T-2026-07-16-001"]
+    related: ["ADR-0030", "T-2026-07-16-001"]
     notes: >
       La dependencia raíz "biome@0.3.3" era un paquete homónimo abandonado (gestor de variables de
       entorno), no el linter: bun run lint y el format-check de CI salían 0 sin analizar nada desde
-      el inicio del repo (hallazgo de la evaluación ADR-0029). Se sustituye por @biomejs/biome 2.4.8
+      el inicio del repo (hallazgo de la evaluación ADR-0030). Se sustituye por @biomejs/biome 2.4.8
       (coincide con el schema declarado en biome.json). Primera ejecución real: 111 errores de lint,
       275 warnings y 311 archivos sin formatear.
       Acciones (todo arreglos reales de código; biome.json queda con las reglas recomendadas
@@ -1434,7 +1434,7 @@ tasks:
       genera inlang y cuya negación biome no honra — causa del primer fallo de CI de la PR).
       Quedan 3 biome-ignore históricos previos a esta tarea (noExplicitAny "generic drizzle db
       type" en fts/search.ts, seed-random.ts y repository/shared/db.ts, nivel warning): su
-      arreglo real es el tipado del Lote 1 de ADR-0029.
+      arreglo real es el tipado del Lote 1 de ADR-0030.
       Validación: biome lint con 0 errores en todo el repo (warnings restantes = niveles por
       defecto de las reglas recomendadas, mayoría noExplicitAny/noNonNullAssertion solapados con
       el Lote 1); verificado que el gate falla con error inyectado; format-check exit 0;
@@ -1484,3 +1484,35 @@ tasks:
       1 fail) y vuelve a 26 pass al restaurarla; CLI expone import:legacy-procomun y loadCommand
       resuelve el handler; tsc sin errores nuevos imputables al merge (paso no bloqueante en CI,
       continue-on-error).
+
+  T-2026-07-16-004:
+    date: 2026-07-16
+    agent: "documentacion-y-roadmap"
+    task: "Resolución de la colisión de numeración ADR-0029 entre PR #268 (ya en main) y PR #271 (abierto)"
+    status: Done
+    related: ["ADR-0029", "ADR-0030", "T-2026-07-16-001", "T-2026-07-16-002"]
+    notes: >
+      Dos ADR distintas reclamaban el número 0029. La PR #271 se ramificó antes de que entrara la
+      PR #268 y tomó el siguiente número libre; #268 lo ocupó primero al mergear. Ambas definen la
+      clave ADR-0029 en decision-log.yaml y añaden un fichero 0029-*.md, así que #271 colisionará
+      al mergear.
+      Decisión: ADR-0029 se queda con "Importador automático de recursos legacy Procomún (.elpx)"
+      (#268) y la evaluación de estrategia de modernización de #271 pasa a ADR-0030 (número libre;
+      el máximo en main era 0029). Criterio: la ADR del importador ya está en main, en estado
+      Aceptado, y está referenciada desde README.md, docs/producto/roadmap.md, los cuatro
+      documentos de docs/epics/epic-004-migracion-legacy-procomun/, decision-log.yaml, el texto de
+      ayuda del CLI ("ver ADR-0029") y hasta desde repository.unit.test.ts; renumerarla obligaría a
+      tocar código y una decisión ya aceptada. La de #271 sigue en estado Propuesto y sin mergear,
+      por lo que moverla es inocuo.
+      Alcance de esta PR: se corrigen las referencias de T-2026-07-16-002 (contenido propio de esta
+      PR, aún sin mergear) que apuntaban a ADR-0029 queriendo decir la evaluación de reescritura —
+      related, "hallazgo de la evaluación" y "Lote 1" pasan a ADR-0030. Tras el merge de main,
+      ADR-0029 resuelve al importador, así que esas referencias señalaban al documento equivocado.
+      Las referencias a ADR-0029 de T-2026-07-16-003 sí son el importador y se dejan como están.
+      Pendiente fuera de esta PR: la PR #271 debe renombrar su fichero a
+      0029-estrategia-modernizacion-reescritura.md -> 0030-estrategia-modernizacion-reescritura.md
+      y su clave de decision-log.yaml a ADR-0030. Hasta entonces, ADR-0030 y T-2026-07-16-001 son
+      referencias adelantadas que resuelven cuando #271 entre; no se reserva la clave en
+      decision-log.yaml aquí porque apuntaría a un fichero inexistente en main.
+      Validación: parseo YAML de status.yaml; ningún gate valida numeración de ADR ni las claves
+      related, comprobado en scripts/.
