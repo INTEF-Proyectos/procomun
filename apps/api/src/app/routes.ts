@@ -14,7 +14,38 @@ import { apiResourceRoutes } from "../routes/api-resources.ts";
 import { apiTokenRoutes } from "../routes/api-tokens.ts";
 import { getLimits as getPreviewLimits } from "../services/preview-session-store.ts";
 
-const PREVIEW_MULTIPART_OVERHEAD_BYTES = 2 * 1024 * 1024;
+export const PREVIEW_MULTIPART_OVERHEAD_BYTES = 2 * 1024 * 1024;
+
+export type PreviewMultipartLengthError = {
+	status: 400 | 413;
+	error: string;
+};
+
+export function previewMultipartMaxRequestBytes(
+	maxBytesPerSession: number = getPreviewLimits().maxBytesPerSession,
+): number {
+	return maxBytesPerSession + PREVIEW_MULTIPART_OVERHEAD_BYTES;
+}
+
+/** Validate Content-Length without consuming or materializing the body. */
+export function validatePreviewMultipartContentLength(
+	rawLength: string | undefined,
+	maxRequestBytes: number = previewMultipartMaxRequestBytes(),
+): PreviewMultipartLengthError | null {
+	if (!rawLength) return null;
+
+	const contentLength = Number(rawLength);
+	if (!Number.isSafeInteger(contentLength) || contentLength < 0) {
+		return { status: 400, error: "Content-Length no válido" };
+	}
+	if (contentLength > maxRequestBytes) {
+		return {
+			status: 413,
+			error: `La petición de previsualización supera el tamaño máximo (${maxRequestBytes} bytes)`,
+		};
+	}
+	return null;
+}
 
 /**
  * Reject a known-oversized multipart request before Hono calls `formData()`.
@@ -23,23 +54,10 @@ const PREVIEW_MULTIPART_OVERHEAD_BYTES = 2 * 1024 * 1024;
  */
 async function previewMultipartBodyLimit(c: Context, next: Next) {
 	if (c.req.method !== "POST") return next();
-	const rawLength = c.req.header("content-length");
-	if (rawLength) {
-		const contentLength = Number(rawLength);
-		if (!Number.isSafeInteger(contentLength) || contentLength < 0) {
-			return c.json({ error: "Content-Length no válido" }, 400);
-		}
-		const maxRequestBytes =
-			getPreviewLimits().maxBytesPerSession + PREVIEW_MULTIPART_OVERHEAD_BYTES;
-		if (contentLength > maxRequestBytes) {
-			return c.json(
-				{
-					error: `La petición de previsualización supera el tamaño máximo (${maxRequestBytes} bytes)`,
-				},
-				413,
-			);
-		}
-	}
+	const error = validatePreviewMultipartContentLength(
+		c.req.header("content-length"),
+	);
+	if (error) return c.json({ error: error.error }, error.status);
 	return next();
 }
 
