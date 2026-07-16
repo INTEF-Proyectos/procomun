@@ -1,3 +1,5 @@
+import type { ResourceTypeValue } from "../resource-types.ts";
+
 export interface ResourceTypeMappingResult {
 	resourceType: string;
 	/** false si no había entrada en el diccionario y se usó un slug de fallback */
@@ -26,7 +28,7 @@ function slugify(value: string): string {
 // apps/frontend/src/lib/resource-filters.ts y packages/db/src/seed-data.ts).
 // Solo se listan equivalencias con confianza razonable; el resto cae al slug de
 // fallback para no forzar una categorización incorrecta.
-const RESOURCE_TYPE_DICTIONARY: Record<string, string> = {
+const RESOURCE_TYPE_DICTIONARY: Record<string, ResourceTypeValue> = {
 	"basado en proyectos": "proyecto",
 	"real project": "proyecto",
 	proyecto: "proyecto",
