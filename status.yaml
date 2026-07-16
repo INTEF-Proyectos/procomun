@@ -1199,3 +1199,37 @@ tasks:
       como backend de historial, object storage versionado y un modelo híbrido PostgreSQL snapshots + storage
       versionado. No hay cambios de código. Validación documental: status.yaml y decision-log.yaml parsean
       correctamente con Ruby YAML.
+
+  T-2026-07-16-002:
+    date: 2026-07-16
+    agent: "devops-sre + qa-validacion + frontend-ux-accesibilidad"
+    task: "Restauración de las puertas de calidad: sustitución del paquete biome equivocado por @biomejs/biome real y saneamiento asociado"
+    status: Done
+    related: ["ADR-0029", "T-2026-07-16-001"]
+    notes: >
+      La dependencia raíz "biome@0.3.3" era un paquete homónimo abandonado (gestor de variables de
+      entorno), no el linter: bun run lint y el format-check de CI salían 0 sin analizar nada desde
+      el inicio del repo (hallazgo de la evaluación ADR-0029). Se sustituye por @biomejs/biome 2.4.8
+      (coincide con el schema declarado en biome.json). Primera ejecución real: 111 errores de lint,
+      275 warnings y 311 archivos sin formatear. Acciones: biome check --write (formato + fixes
+      seguros, ~330 archivos); exclusión de assets servidos (apps/frontend/public/**,
+      apps/api/static/**) del análisis; corrección de [^] por [\s\S] en generate-elpx.ts; supresiones
+      justificadas lugar a lugar (sanitizadores de caracteres de control en fts/uploads, patrón
+      while((m=re.exec())), claves por índice en listas posicionales estáticas); type="button" en 5
+      botones (PublicNavIsland, Tabs); font-family con genérico en catalog.css. Reglas rebajadas
+      temporalmente a warn con burn-down pendiente: useExhaustiveDependencies (23 avisos en hooks
+      React, arreglo requiere criterio y no hay tests de interacción) y 6 reglas a11y
+      (useValidAnchor por href="#" placeholder del footer, useSemanticElements,
+      noStaticElementInteractions, useAriaPropsSupportedByRole, noNoninteractiveTabindex,
+      noAutofocus) = 288 warnings visibles para lote a11y dedicado.
+      Limpieza adicional: retiradas dependencias sin uso del frontend (@electric-sql/pglite,
+      drizzle-orm, @testing-library/dom, @testing-library/react) y movidas typescript/@types/* a
+      devDependencies; retirada la exclusión vestigial de optimizeDeps en vite.config.ts con su
+      aserción de test; corregido el comentario obsoleto de api-client.ts que citaba
+      PreviewApiClient; eliminado test-regex.ts suelto en la raíz (regla 15).
+      Validación: bun run lint exit 0 real (verificado que falla con error inyectado);
+      bunx @biomejs/biome format . exit 0; bun run test verde con coverage >= 90%;
+      bunx tsc --noEmit se mantiene en 635 errores (sin regresión; su burn-down es el Lote 1 de
+      ADR-0029); build de frontend OK; design:lint OK.
+      Riesgo: los 288 warnings son deuda visible que no bloquea; requieren lotes dedicados
+      (hooks y a11y) antes de subir las reglas a error.
