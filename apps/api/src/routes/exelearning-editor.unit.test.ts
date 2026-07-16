@@ -1,5 +1,9 @@
 import { expect, test, describe, beforeAll, afterAll } from "bun:test";
-import { exelearningEditorRoutes } from "./exelearning-editor.ts";
+import {
+	buildEditorConfigScript,
+	exelearningEditorRoutes,
+	toInlineScriptJson,
+} from "./exelearning-editor.ts";
 import { Hono } from "hono";
 import { existsSync, mkdirSync, writeFileSync, rmSync } from "node:fs";
 import path from "node:path";
@@ -17,8 +21,6 @@ beforeAll(() => {
 		mkdirSync(path.join(editorDir, "app"), { recursive: true });
 		writeFileSync(path.join(editorDir, "index.html"), "<html><head></head><body>mock editor</body></html>");
 		writeFileSync(path.join(editorDir, "app", "app.bundle.js"), "// mock");
-		// Present so the "must not be served" test proves the route refuses a file
-		// that actually exists on disk, not merely a missing one.
 		writeFileSync(path.join(editorDir, "preview-sw.js"), "// mock preview service worker");
 		createdMockDir = true;
 	}
@@ -44,17 +46,16 @@ describe("GET /api/v1/exelearning-editor/index.html", () => {
 		expect(html).toContain("__PROCOMUN_CONFIG__");
 		expect(res.headers.get("content-type")).toContain("text/html");
 		expect(res.headers.get("cache-control")).toBe("no-cache");
+		expect(res.headers.get("content-security-policy")).toContain("object-src 'none'");
 	});
 
 	test("neutraliza el registro de Service Worker (protección interina)", async () => {
 		const res = await app.request("/api/v1/exelearning-editor/index.html");
 		expect(res.status).toBe(200);
 		const html = await res.text();
-		// The pre-v2 editor could otherwise register a same-origin preview SW.
 		expect(html).toContain("navigator.serviceWorker.register = function");
 		expect(html).toContain("navigator.serviceWorker.getRegistration = function");
 		expect(html).toContain("navigator.serviceWorker.getRegistrations = function");
-		// Must be injected in <head>, before the editor's body scripts run.
 		const swIdx = html.indexOf("navigator.serviceWorker.register");
 		const bodyIdx = html.indexOf("<body");
 		expect(swIdx).toBeGreaterThan(-1);
@@ -65,9 +66,6 @@ describe("GET /api/v1/exelearning-editor/index.html", () => {
 		const res = await app.request("/api/v1/exelearning-editor/index.html");
 		expect(res.status).toBe(200);
 		const html = await res.text();
-		// previewHttp block: protocol v2 + the owner-gated management base and the
-		// authless serving base. No managementHeaders/managementQuery — auth is the
-		// same-origin better-auth cookie.
 		expect(html).toContain("previewHttp");
 		expect(html).toContain("protocolVersion: 2");
 		expect(html).toContain('managementBaseUrl: "/api/v1/preview-session"');
@@ -107,6 +105,39 @@ describe("GET /api/v1/exelearning-editor/index.html", () => {
 		const html = await res.text();
 		expect(html).toContain("initialProjectUrl: null");
 	});
+
+	test("escapa elpxUrl y resourceId para impedir cerrar el script", async () => {
+		const payload = "</script><img src=x onerror=alert(1)>";
+		const query = new URLSearchParams({ elpxUrl: payload, resourceId: payload });
+		const res = await app.request(`/api/v1/exelearning-editor/index.html?${query}`);
+		const html = await res.text();
+		expect(res.status).toBe(200);
+		expect(html).not.toContain("<img src=x onerror");
+		expect(html).toContain("\\u003c/script\\u003e");
+	});
+});
+
+describe("inline editor configuration encoding", () => {
+	test("buildEditorConfigScript mantiene preview v2 y neutraliza payloads", () => {
+		const payload = "</script><svg onload=alert(1)>";
+		const script = buildEditorConfigScript(
+			payload,
+			payload,
+			"/api/v1/exelearning-editor",
+		);
+		expect(script).toContain("protocolVersion: 2");
+		expect(script).not.toContain("<svg onload");
+		expect(script).toContain("\\u003c/script\\u003e");
+	});
+
+	test("toInlineScriptJson sigue siendo JSON reversible", () => {
+		const value = "</script><a>&\u2028\u2029";
+		const encoded = toInlineScriptJson(value);
+		expect(encoded).not.toContain("<");
+		expect(encoded).not.toContain(">");
+		expect(encoded).not.toContain("&");
+		expect(JSON.parse(encoded)).toBe(value);
+	});
 });
 
 describe("GET /api/v1/exelearning-editor/* — static assets", () => {
@@ -128,9 +159,6 @@ describe("GET /api/v1/exelearning-editor/* — static assets", () => {
 	});
 
 	test("NO sirve preview-sw.js aunque exista (defensa en profundidad)", async () => {
-		// Serving the legacy preview SW same-origin would let the pre-v2 editor run
-		// untrusted author content as the authenticated user. Must 404 even though
-		// the file exists on disk.
 		for (const p of ["preview-sw.js", "static/preview-sw.js"]) {
 			const res = await app.request(`/api/v1/exelearning-editor/${p}`);
 			expect(res.status, p).toBe(404);
