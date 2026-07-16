@@ -55,7 +55,8 @@ Otras dimensiones:
 | --- | --- | --- |
 | Handlers HTTP con ruta literal en `apps/api` | 106 | `grep -rE '\.(get|post|patch|delete|put)\("' apps/api/src` excluyendo tests |
 | Rutas frontend (React Router) | 12 rutas hoja + `admin/*` + variante localizada `:locale/*` | `apps/frontend/src/App.tsx:39-65` |
-| Tablas (`pgTable`) | 19 | `grep -rhoE 'pgTable\("[a-z_]+"' packages/db/src` |
+| Tablas (`pgTable`) | **21** | `grep -rh 'pgTable(' packages/db/src --include='*.ts' \| grep -v test \| wc -l` (nota: un primer conteo con regex `pgTable\("` dio 19 porque `ratings` y `favorites` declaran el nombre en la línea siguiente; el valor correcto es 21) |
+| Tablas creadas por la fuente viva (`setup.ts`) | **20** | `grep -c 'CREATE TABLE IF NOT EXISTS' packages/db/src/setup.ts` — falta `api_access_logs`, que solo crea la migración muerta `0001_needy_stellaris.sql` |
 | Migraciones SQL | 5 archivos, con **colisión de numeración** (`0002_add_downloads_format.sql` y `0002_text_to_jsonb_metadata.sql`) | `ls packages/db/migrations/` |
 | `TODO/FIXME/HACK/XXX` en código | **1** | `grep -rnE 'TODO|FIXME|HACK|XXX' apps packages scripts` |
 | Commits | 417, de 2026-03-24 a 2026-07-15 (~4 meses) | `git log --oneline | wc -l` |

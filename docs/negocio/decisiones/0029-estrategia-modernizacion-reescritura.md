@@ -24,8 +24,8 @@ Confirmadas por el encargo y por ADRs vigentes: TypeScript strict + Bun (ADR-000
 * **Tests reales y en verde**: 702 unit (29,5 s), cobertura 90,32 % (umbral 90), E2E chromium 54 pass / 17 skipped / 0 fail. Build frontend 1,7 s; bundle principal 92,56 kB gzip; API responde en 0,6 s.
 * **Tres puertas de calidad rotas en silencio**: (1) el lint es un no-op — `biome@0.3.3` es un gestor de variables de entorno homónimo, no `@biomejs/biome`; (2) el format-check de CI resuelve al mismo binario equivocado; (3) `bunx tsc --noEmit` reporta **635 errores** y CI los ignora con `continue-on-error: true`. «TypeScript strict» nunca se ha cumplido como gate.
 * **Huecos de caracterización**: suite de integración **vacía** (0 tests); 0 tests de contrato de API; los 17 E2E saltados son `test.fixme` y cubren exactamente el camino editorial de escritura; los tests HTTP existentes simulan la autenticación; ~9 de 47 registros DEF de QA manual tienen regresión etiquetada.
-* **Capa de datos con triple definición de esquema** (SQL a mano vivo en `setup.ts`; migraciones drizzle-kit muertas con journal desincronizado y colisión `0002_*`; tipos Drizzle) y **sin camino de upgrade** para BD con datos (el entrypoint de producción hace seed y «continúa si falla»); deriva ya materializada una vez (hotfix jsonb, T-2026-06-24-002).
-* **Tamaño y salud**: 29 653 LOC productivas en 220 archivos; 19 tablas; ~106 endpoints; 1 TODO; 0 reverts; 33 % de commits mencionan «fix»; sin usuarios ni despliegue de producción verificables (los datos son seed).
+* **Capa de datos con triple definición de esquema** (SQL a mano vivo en `setup.ts`; migraciones drizzle-kit muertas con journal desincronizado y colisión `0002_*`; tipos Drizzle) y **sin camino de upgrade** para BD con datos (el entrypoint de producción hace seed y «continúa si falla»). Deriva materializada dos veces: el hotfix jsonb (T-2026-06-24-002) y el hallazgo de esta evaluación — **la tabla de auditoría ENS `api_access_logs` solo la crea la migración muerta 0001; `setup.ts` no la crea (20 de 21 tablas), el middleware silencia los fallos de escritura por diseño y su test solo comprueba que no rompe la respuesta**, con lo que la traza de accesos puede no estar registrándose (verificación en runtime pendiente).
+* **Tamaño y salud**: 29 653 LOC productivas en 220 archivos; 21 tablas; ~106 endpoints; 1 TODO; 0 reverts; 33 % de commits mencionan «fix»; sin usuarios ni despliegue de producción verificables (los datos son seed).
 * **Gobernanza documental con deriva**: 33 archivos ADR para 29 entradas de índice; colisiones 0023/0024/0026; ADR-0026-FTS «Propuesto» pero implementada; 4 archivos sin estado sincronizado.
 
 ## Deuda técnica demostrada vs no demostrada
@@ -73,7 +73,7 @@ Big bang concentra el riesgo en el corte final y exige oráculo previo completo;
 * **ORM**: un ORM no es imprescindible (FTS y esquema vivo ya son SQL), pero retirar Drizzle costaría la re-integración de Better Auth (`drizzleAdapter`) y el tipado sin beneficio medido. **Drizzle se mantiene**, condicionado a consolidar una única fuente de esquema con migraciones reales. Kysely/Prisma/`Bun.sql`/SQL directo: sin mejora demostrable medida; cambiar por uniformidad está vetado.
 * **Framework HTTP**: **Hono se mantiene** — 0 incidencias atribuibles en 417 commits, acoplamiento encapsulado (fábrica CRUD, 13 líneas de composición), Better Auth agnóstico. Elysia/`Bun.serve`/Fastify: sin beneficio verificable.
 * **Frontend y bundler**: **React Router + Vite se mantienen** — sin problema medido (build 919 ms, bundle 92,5 kB gzip) y con la alternativa ya rechazada en ADR-0023 por bloqueos vigentes. El coste real del frontend es interno (módulos mixtos, cliente HTTP monolítico) y se trata con límites, no con otro framework.
-* **Modelo de datos**: 19 tablas adecuadas al dominio actual; el problema es la **gestión** del esquema (triple fuente, sin upgrade path, sin backup) — se corrige con migraciones versionadas y test de paridad `pg_dump` antes de la ingesta legacy, que es donde el esquema se estresará de verdad.
+* **Modelo de datos**: 21 tablas adecuadas al dominio actual; el problema es la **gestión** del esquema (triple fuente, `api_access_logs` sin crear en el camino vivo, sin upgrade path, sin backup) — se corrige con migraciones versionadas y test de paridad `pg_dump` antes de la ingesta legacy, que es donde el esquema se estresará de verdad.
 
 ## Decisión
 
@@ -135,6 +135,7 @@ Revisar (sin necesidad de nueva evaluación completa) si: el brazo 2 del piloto 
 3. ¿Se aprueba la propuesta de regularización documental (renumerar ADRs duplicadas 0023/0024/0026, pasar ADR-0026-FTS a Aceptado, sincronizar estados supersedidos)? Esta ADR no la ejecuta.
 4. ¿Qué formatos de preservación exige INTEF (F2-09) antes de diseñar la ingesta legacy?
 5. ¿Cuál es el estado real de los 47 registros DEF cruzado con issues de GitHub? (los documentos de QA no marcan correcciones).
+6. ¿Está registrándose realmente la auditoría de accesos en los entornos existentes? (la tabla `api_access_logs` no la crea el camino vivo de esquema; verificar en runtime y, si procede, tratar como incidencia ENS con prioridad).
 
 ## Referencias
 

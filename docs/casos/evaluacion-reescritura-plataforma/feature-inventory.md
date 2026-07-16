@@ -31,7 +31,7 @@
 | Feeds Atom/RSS | (a) | `apps/api/src/feeds/` + ruta `/feeds`; ADR-0023-feeds (no indexada) |
 | i18n 5 idiomas con Paraglide + rutas `:locale` | (a) parcial | Vigente tras la migración a Vite (plugin); E2E i18n mínimo (29 LOC) |
 | Ayuda `/ayuda`, footer legal | (a) | Feature epic-003 cerrada |
-| Auditoría de accesos y actividad (ENS) | (a) | `auth/audit.ts` → `api_access_logs`, `activity/log.ts` + tests |
+| Auditoría de accesos y actividad (ENS) | (b) con hallazgo | `auth/audit.ts` → `api_access_logs`, `activity/log.ts` + tests. **Hallazgo**: la tabla `api_access_logs` solo la crea la migración muerta 0001, no `setup.ts`; el middleware silencia fallos de escritura y su test solo verifica que no rompe la respuesta (detalle en `migration-and-rollback.md` §1) |
 | Moderación con denuncias (`reports`) | (b) | Tabla + migración 0003 (muerta) + rutas admin/reports; sin ronda QA dedicada |
 | Dashboard de desarrollo `/dev/` (YAML) | (a) | ADR-0019; middleware en `vite.config.ts` con test |
 | Seed determinista + CLI (`seed`, `user:create`…) | (a) | `apps/cli` + tests |
@@ -66,6 +66,8 @@
 * Dos drivers PostgreSQL (bun-sql y `postgres` npm) — duplicidad sin justificación registrada.
 * Dependencias vestigiales: `@electric-sql/pglite` y `drizzle-orm` en frontend (0 imports); `@testing-library/dom`/`react` declaradas y **sin un solo uso** en tests del frontend.
 * Tabla `comments` sin API ni UI (especulativa hasta decisión F2-30).
+* Dos generadores .elpx en `apps/cli/src/commands/` (`generate-elpx.ts` y `generate-elpx-standalone.ts`) **no cableados** en `CLI_COMMANDS` (`apps/cli/src/index.ts:3-9` solo registra user:create, user:list, seed, seed:resources, fts:reindex).
+* `test-regex.ts` en la raíz del repositorio (script de depuración de 3 líneas, versionado, del 2026-04-06) — incumple la regla 15 de AGENTS.md (el código solo va en `apps/` o `packages/`).
 
 ## 5. Comportamiento implícito que DEBE preservarse
 
@@ -93,7 +95,7 @@ Conocimiento codificado solo en implementación y tests (pregunta 5 del encargo)
 | --- | --- | --- |
 | ENS Categoría MEDIA (RD 311/2022) | ADR-0015a, `docs/epics/ens/` (categorización, riesgos, SoA, continuidad) | Documentación completa; tareas técnicas 0/12 marcadas; auditoría/trazabilidad implementadas; CodeQL/Secret Scanning no verificables desde el repo |
 | RGPD/LOPDGDD | `docs/epics/ens/evaluacion-rgpd.md` | Evaluado; **no contempla coexistencia dual de sistemas** |
-| Accesibilidad (RD 1112/2018, WCAG 2.1 AA) | `e2e/tests/accessibility/wcag.e2e.ts` (10 tests axe, wcag2a+aa, en PRs) | Gate automatizado activo; sin auditoría manual documentada |
+| Accesibilidad (RD 1112/2018; `DESIGN.md:181` fija WCAG 2.2 AA como mínimo) | `e2e/tests/accessibility/wcag.e2e.ts` (10 tests axe con tags wcag2a+wcag2aa, en PRs) | Gate automatizado activo; sin auditoría manual documentada |
 | Metadatos LOM-ES | ADR-0009 (perfil mínimo); matriz F2-05 | Perfil mínimo implementado; perfil completo pendiente (Fase 2) |
 | Formatos de preservación (SCORM 1.2/2004, IMS, ePUB, HTML) | Matriz F2-09 (validar con INTEF) | Exportación .elpx→SCORM/IMS/EPUB/Web implementada en navegador (ADR-0024) |
 | Expediente CE01698/2023 (ICA, 335 333,21 € sin IVA, 18 meses) | `docs/casos/contexto-procomun-legacy/` | Contexto contractual del legacy; PPT no obtenido |

@@ -32,7 +32,7 @@
 | Divergencia | Evidencia | Gravedad |
 | --- | --- | --- |
 | [H] `modelo-de-dominio.md` define 4 roles (`admin/curator/author/reader`); el código tiene 5 (falta `editor`, ADR-0016) | `docs/producto/modelo-de-dominio.md:143` vs `packages/db/src/validation.ts` | Media |
-| [H] `modelo-de-dominio.md` solo modela Resource, MediaItem, Collection, User; el esquema real tiene 19 tablas (social, reports, settings, api-tokens, taxonomies, uploads, elpx) | `packages/db/src/schema/` | Media |
+| [H] `modelo-de-dominio.md` solo modela Resource, MediaItem, Collection, User; el esquema real tiene 21 tablas (social, reports, settings, api-tokens, taxonomies, uploads, elpx) | `packages/db/src/schema/` | Media |
 | [H] `arquitectura.md` omite superficies API reales: `/api/v1/tokens`, `/api/v1/publish/*`, `/api/dev`, `/api/uploads`, `/feeds` | `apps/api/src/app/routes.ts:26-36` | Baja |
 | [H] Capacidades implementadas sin ADR dedicada: social (ratings/favoritos/actividad), reports/moderación, platform_settings/badges | `packages/db/src/schema/social.ts`, `reports.ts`, `settings.ts` | Baja |
 | [H] Comentario de `api-client.ts:3` menciona `PreviewApiClient`, eliminado por ADR-0017 | `apps/frontend/src/lib/api-client.ts` | Cosmética |

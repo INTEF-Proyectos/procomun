@@ -6,7 +6,7 @@
 
 **Tres definiciones del esquema, una sola viva:**
 
-1. **Fuente viva**: `packages/db/src/setup.ts` — `SCHEMA_STATEMENTS` (296 líneas): 19 `CREATE TABLE IF NOT EXISTS`, 20 índices, extensión `unaccent` e índice GIN envueltos en `DO $$ ... EXCEPTION WHEN OTHERS` (tolerancia a PGlite), y 8 bloques `DO $$ ALTER TABLE ADD COLUMN ... EXCEPTION WHEN duplicate_column` (`created_by`, `bio`, `deleted_at`, `extracted_text`, `search_vector`, `extraction_status`, `extracted_at`, `extraction_error`).
+1. **Fuente viva**: `packages/db/src/setup.ts` — `SCHEMA_STATEMENTS` (296 líneas): **20** `CREATE TABLE IF NOT EXISTS`, 20 índices, extensión `unaccent` e índice GIN envueltos en `DO $$ ... EXCEPTION WHEN OTHERS` (tolerancia a PGlite), y 8 bloques `DO $$ ALTER TABLE ADD COLUMN ... EXCEPTION WHEN duplicate_column` (`created_by`, `bio`, `deleted_at`, `extracted_text`, `search_vector`, `extraction_status`, `extracted_at`, `extraction_error`). El esquema Drizzle define **21** tablas: la que falta en `setup.ts` es `api_access_logs` (ver el hallazgo al final de esta sección).
 2. **Migraciones drizzle-kit muertas**: `packages/db/migrations/` con 5 archivos y colisión de numeración (`0002_add_downloads_format.sql` y `0002_text_to_jsonb_metadata.sql`). El journal (`meta/_journal.json`) registra 3 entradas; `0002_add_downloads_format` y `0003_add_reports_table` están fuera del journal. `drizzle-kit migrate` existe como script pero **no se invoca** en `docker-entrypoint.sh`, Makefile, Dockerfile ni CI.
 3. **Tipos**: `packages/db/src/schema/*.ts` (Drizzle).
 
@@ -18,6 +18,8 @@
 **El agujero del upgrade path (hallazgo crítico):** los bloques `ALTER` de `setup.ts` cubren solo 8 columnas; **no cubren** ni `downloads.format` ni los cambios de tipo TEXT→JSONB de `elpx_projects.elpx_metadata` y `activity_events.metadata` — esos cambios viven únicamente en migraciones que nadie ejecuta. Una BD de producción creada antes de esos cambios solo queda correcta ejecutándolas a mano; no hay registro de qué se aplicó. El riesgo ya se materializó una vez: hotfix T-2026-06-24-002 (`JSON.parse` sobre columna ya jsonb → 500 en el flujo .elpx de edición).
 
 **Sin tooling de resguardo:** `grep pg_dump|backup` en Makefile/compose → 0 resultados. No hay backup/restore documentado ni probado.
+
+**Deriva materializada nº 2 — la tabla de auditoría ENS no se crea en el camino vivo** (hallazgo verificado durante esta evaluación): `api_access_logs` está definida en `packages/db/src/schema/social.ts` y su `CREATE TABLE` solo existe en la migración muerta `0001_needy_stellaris.sql`; `setup.ts` no la crea. En un entorno aprovisionado por el camino vivo (seed/`createTables`), cada escritura de auditoría del `auditMiddleware` fallaría, y el middleware silencia el fallo por diseño (fire-and-forget). Su único test (`apps/api/src/auth/audit.unit.test.ts`) verifica exactamente «que nunca rompe la respuesta», no que se escriba la fila. Impacto: la traza de accesos exigida por ENS Categoría MEDIA puede no estar registrándose; verificación en runtime pendiente (pregunta para la persona responsable). Es el ejemplo más claro del coste real de la triple fuente de esquema.
 
 ## 2. Divergencias PostgreSQL ↔ PGlite (impacto en paridad)
 
