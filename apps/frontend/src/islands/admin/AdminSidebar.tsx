@@ -57,11 +57,12 @@ interface AdminSidebarProps {
 	userName: string;
 }
 
+// userName sigue en AdminSidebarProps (las llamadas lo pasan) pero la cabecera
+// es estática y no lo muestra, así que no se desestructura.
 export function AdminSidebar({
 	activeSection,
 	onSectionChange,
 	userRole,
-	userName,
 }: AdminSidebarProps) {
 	const userLevel = ROLE_LEVELS[userRole] ?? 0;
 

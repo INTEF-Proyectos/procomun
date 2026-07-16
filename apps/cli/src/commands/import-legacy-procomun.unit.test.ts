@@ -391,7 +391,7 @@ describe("runImportLegacyProcomun (deps mockeadas)", () => {
 
 		let calls = 0;
 		const deps = buildMockDeps(storageDir, {
-			mapLegacyRecord: ((json: unknown, fallbackTitle: string) => ({
+			mapLegacyRecord: ((_json: unknown, fallbackTitle: string) => ({
 				externalId: fallbackTitle,
 				blocking: false,
 				blockingErrors: [],
@@ -462,7 +462,7 @@ describe("runImportLegacyProcomun (deps mockeadas)", () => {
 		let insertCalls = 0;
 
 		const deps = buildMockDeps(storageDir, {
-			mapLegacyRecord: ((json: unknown, fallbackTitle: string) => ({
+			mapLegacyRecord: ((_json: unknown, fallbackTitle: string) => ({
 				externalId: fallbackTitle.replace(".elpx", ""),
 				blocking: false,
 				blockingErrors: [],

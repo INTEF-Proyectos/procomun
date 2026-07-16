@@ -210,11 +210,11 @@ function generateCoverSvg(resource: SeedResource): string {
 	const lines: string[] = [];
 	let current = "";
 	for (const word of words) {
-		if ((current + " " + word).trim().length > maxChars && current) {
+		if (`${current} ${word}`.trim().length > maxChars && current) {
 			lines.push(current.trim());
 			current = word;
 		} else {
-			current = current ? current + " " + word : word;
+			current = current ? `${current} ${word}` : word;
 		}
 	}
 	if (current) lines.push(current.trim());
@@ -339,7 +339,7 @@ function modifyContentXml(
 
 	// Replace page names (in order of appearance)
 	let pageIdx = 0;
-	result = result.replace(/<pageName>[^<]*<\/pageName>/g, (match) => {
+	result = result.replace(/<pageName>[^<]*<\/pageName>/g, (_match) => {
 		const name = pageNames[pageIdx] ?? `Pagina ${pageIdx + 1}`;
 		pageIdx++;
 		return `<pageName>${escapeXml(name)}</pageName>`;
@@ -348,7 +348,7 @@ function modifyContentXml(
 	pageIdx = 0;
 	result = result.replace(
 		/<key>titlePage<\/key>\s*<value>[^<]*<\/value>/g,
-		(match) => {
+		(_match) => {
 			const name = pageNames[pageIdx] ?? `Pagina ${pageIdx + 1}`;
 			pageIdx++;
 			return `<key>titlePage</key><value>${escapeXml(name)}</value>`;
@@ -394,7 +394,7 @@ function modifyHtml(
 	html: string,
 	resource: SeedResource,
 	pageContent?: string,
-	isIndex?: boolean,
+	_isIndex?: boolean,
 ): string {
 	let result = html;
 	// Replace <title>

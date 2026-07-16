@@ -16,22 +16,26 @@
   var elpxUrl = params.get('elpxUrl') || '';
   var resourceId = params.get('resourceId') || '';
   var base = window.location.pathname.replace(/\/[^/]*$/, '/');
-  var editorBase = base + 'exelearning-editor';
+  var editorBase = `${base}exelearning-editor`;
 
   // Load editor index.html, inject config, and display in iframe
-  fetch(editorBase + '/index.html')
+  fetch(`${editorBase}/index.html`)
     .then((r) => r.text())
     .then((html) => {
       // Inject base tag
-      html = html.replace('<head>', '<head>\n<base href="' + editorBase + '/">');
+      html = html.replace('<head>', `<head>\n<base href="${editorBase}/">`);
 
       // Inject embedding config WITHOUT untrusted data (elpxUrl sent via postMessage later)
       var configObj = 'basePath: "' + editorBase + '",' +
         'parentOrigin: "' + window.location.origin + '",' +
         'trustedOrigins: ["' + window.location.origin + '"],' +
         'hideUI: { fileMenu: true, saveButton: true, userMenu: true }';
+      // Las etiquetas de script se parten en dos trozos a propósito: la
+      // etiqueta de cierre escrita entera cerraría este bloque inline según la
+      // especificación HTML. No unir en un template literal (biome useTemplate
+      // lo propone y rompe el documento).
       var config = '<scr' + 'ipt>window.__EXE_EMBEDDING_CONFIG__ = {' + configObj + '};</scr' + 'ipt>';
-      html = html.replace('</head>', config + '\n</head>');
+      html = html.replace('</head>', `${config}\n</head>`);
 
       // Write to iframe (no untrusted data or DOM text in the HTML string)
       var frame = document.getElementById('editor-frame');

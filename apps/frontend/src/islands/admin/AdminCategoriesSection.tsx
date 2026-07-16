@@ -248,7 +248,7 @@ export function AdminCategoriesSection() {
 				>
 					{t.parentId
 						? (allTaxonomies.find((p) => p.id === t.parentId)?.name ??
-							t.parentId.slice(0, 12) + "...")
+							`${t.parentId.slice(0, 12)}...`)
 						: "-"}
 				</span>
 			),

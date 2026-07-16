@@ -23,10 +23,6 @@ type SeedClient = {
 // Helpers
 // ---------------------------------------------------------------------------
 
-function getResultLength(result: SeedQueryResult) {
-	return Array.isArray(result) ? result.length : (result.rows?.length ?? 0);
-}
-
 /** Build a SQL IN clause with numbered parameters: ($1,$2,$3) */
 function inClause(
 	ids: string[],

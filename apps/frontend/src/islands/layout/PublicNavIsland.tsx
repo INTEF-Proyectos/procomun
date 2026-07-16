@@ -4,7 +4,7 @@ import { getApiClient } from "../../lib/get-api-client.ts";
 import { buildHelpHref } from "../../lib/help-content.ts";
 import { LOCALE_LABELS } from "../../lib/i18n.ts";
 import { url } from "../../lib/paths.ts";
-import { gravatarUrl, ROLE_LEVELS } from "../../lib/shared-utils.ts";
+import { gravatarUrl } from "../../lib/shared-utils.ts";
 import * as m from "../../paraglide/messages.js";
 import { baseLocale, getLocale, locales } from "../../paraglide/runtime.js";
 import "./PublicNavIsland.css";
@@ -49,7 +49,7 @@ function LanguageSwitcher() {
 		// Strip current locale prefix to get bare path
 		let barePath = path;
 		if (base !== "/" && barePath.startsWith(base)) {
-			barePath = "/" + barePath.slice(base.length);
+			barePath = `/${barePath.slice(base.length)}`;
 		}
 		for (const loc of locales) {
 			if (loc === baseLocale) continue;

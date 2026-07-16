@@ -46,9 +46,16 @@ export function canManageResource(
 	return false;
 }
 
+/**
+ * La colección no se inspecciona: la política vigente es que cualquier curator
+ * o admin puede gestionar cualquier colección, sin comprobar curatorId. El
+ * parámetro se mantiene porque la firma la impone el contrato `canManage` de
+ * crud-builder.ts (`(user, entity) => boolean`), que invoca esta función con la
+ * entidad.
+ */
 export function canManageCollection(
 	user: { id: string; role?: string },
-	collection: { curatorId?: string | null },
+	_collection: { curatorId?: string | null },
 ) {
 	if (hasMinRole(user.role, "admin")) return true;
 	if (hasMinRole(user.role, "curator")) {

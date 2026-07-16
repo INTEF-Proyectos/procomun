@@ -63,11 +63,8 @@ export async function parseElpxMetadata(
 ): Promise<ElpxMetadata> {
 	await validateElpxFile(filePath);
 
-	// Extract content.xml from ZIP using Bun's JSZip-compatible API or fallback
-	const zipBuffer = await readFile(filePath);
-	const blob = new Blob([zipBuffer]);
-	const zipResponse = new Response(blob);
-	// Use Bun.spawn with quiet fallback — but capture via different method
+	// La extracción real la hace `unzip` más abajo; content.xml se lee del
+	// directorio temporal.
 	const tempDir = path.join(
 		(await import("node:os")).tmpdir(),
 		`elpx-parse-${Date.now()}-${Math.random().toString(36).slice(2)}`,

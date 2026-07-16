@@ -13,7 +13,7 @@ import {
 const FIXTURES_DIR = path.join(import.meta.dir, "../test-fixtures/elpx");
 const TEMP_DIR = path.join(
 	os.tmpdir(),
-	"procomun-elpx-fixture-tests-" + Date.now(),
+	`procomun-elpx-fixture-tests-${Date.now()}`,
 );
 
 const FIXTURES = [

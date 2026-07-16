@@ -68,7 +68,9 @@ export function PublicCollectionsIsland() {
 	const [query, setQuery] = useState("");
 	const [appliedQuery, setAppliedQuery] = useState("");
 	const [page, setPage] = useState(1);
-	const [slug, setSlug] = useState<string | null>(null);
+	// El valor no se lee: la fuente de verdad del slug es la URL (syncUrl); solo
+	// se conserva el setter para forzar el re-render al cambiar de colección.
+	const [, setSlug] = useState<string | null>(null);
 	const [loading, setLoading] = useState(true);
 	const [collections, setCollections] = useState<CollectionRecord[]>([]);
 	const [total, setTotal] = useState(0);

@@ -7,7 +7,6 @@ import {
 	FILE_ICONS,
 	formatBytes,
 	STATUS_MAP,
-	TYPE_ICONS,
 } from "../../lib/resource-display.ts";
 import {
 	buildExportFilename,
@@ -52,7 +51,6 @@ function ShareButton() {
 function EmbedSection({
 	title,
 	previewUrl,
-	slug,
 }: {
 	title: string;
 	previewUrl: string;

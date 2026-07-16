@@ -3,11 +3,7 @@ import { favorites, ratings, resources } from "@procomun/db/schema";
 import { and, desc, eq, isNull, sql } from "drizzle-orm";
 import { Hono } from "hono";
 import { logActivity } from "../activity/log.ts";
-import {
-	type AuthEnv,
-	requireAuth,
-	sessionMiddleware,
-} from "../auth/middleware.ts";
+import { type AuthEnv, requireAuth } from "../auth/middleware.ts";
 import { getDb } from "../db.ts";
 import { parsePagination } from "../http/pagination.ts";
 import { listUserActivity } from "../social/activity-service.ts";

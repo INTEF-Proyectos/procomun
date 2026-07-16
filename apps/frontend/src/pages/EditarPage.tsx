@@ -661,10 +661,10 @@ export default function EditarPage() {
 								defaultValue={isNew ? "" : res.title}
 								required
 								placeholder="Título del recurso"
-								aria-invalid={fieldErrors["title"] ? "true" : undefined}
+								aria-invalid={fieldErrors.title ? "true" : undefined}
 							/>
 							<span id="ed-title-error" className="edit-field-error">
-								{fieldErrors["title"] ?? ""}
+								{fieldErrors.title ?? ""}
 							</span>
 						</div>
 
@@ -832,10 +832,10 @@ export default function EditarPage() {
 								required
 								placeholder="Describe el contenido, objetivos y destinatarios..."
 								defaultValue={isNew ? "" : res.description}
-								aria-invalid={fieldErrors["description"] ? "true" : undefined}
+								aria-invalid={fieldErrors.description ? "true" : undefined}
 							/>
 							<span id="ed-description-error" className="edit-field-error">
-								{fieldErrors["description"] ?? ""}
+								{fieldErrors.description ?? ""}
 							</span>
 						</div>
 

@@ -2,11 +2,7 @@ import { and, desc, eq, sql } from "drizzle-orm";
 import { user } from "../schema/auth.ts";
 import { reports } from "../schema/reports.ts";
 import { resources } from "../schema/resources.ts";
-import {
-	type DrizzleDB,
-	normalizePagination,
-	optionalAndWhere,
-} from "./shared.ts";
+import { type DrizzleDB, normalizePagination } from "./shared.ts";
 
 export const REPORT_REASONS = [
 	"inappropriate",

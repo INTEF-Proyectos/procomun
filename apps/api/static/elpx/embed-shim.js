@@ -15,13 +15,13 @@
 	function isOpaqueOrigin() {
 		try {
 			if (window.origin === "null" || window.origin === null) return true;
-		} catch (e) {
+		} catch {
 			return true;
 		}
 		try {
 			// document.cookie lanza en documentos sandbox de origen opaco.
 			void document.cookie;
-		} catch (e) {
+		} catch {
 			return true;
 		}
 		return false;
@@ -39,7 +39,7 @@
 				u.protocol === "https:" &&
 				u.hostname.toLowerCase() !== window.location.hostname.toLowerCase()
 			);
-		} catch (e) {
+		} catch {
 			return false;
 		}
 	}
@@ -47,7 +47,7 @@
 	function isPdf(src) {
 		try {
 			return /\.pdf$/i.test(new URL(src, window.location.href).pathname);
-		} catch (e) {
+		} catch {
 			return false;
 		}
 	}
@@ -59,14 +59,14 @@
 	function absolute(src) {
 		try {
 			return new URL(src, window.location.href).href;
-		} catch (e) {
+		} catch {
 			return src;
 		}
 	}
 
 	function cssSize(attr, fallback) {
 		if (!attr) return fallback;
-		return /^[0-9]+$/.test(attr) ? attr + "px" : attr;
+		return /^[0-9]+$/.test(attr) ? `${attr}px` : attr;
 	}
 
 	function makeFacade(frame) {
@@ -114,7 +114,7 @@
 	function run() {
 		try {
 			promote(document);
-		} catch (e) {
+		} catch {
 			/* noop */
 		}
 	}
@@ -134,7 +134,7 @@
 			childList: true,
 			subtree: true,
 		});
-	} catch (e) {
+	} catch {
 		/* MutationObserver no disponible: el escaneo inicial es suficiente */
 	}
 })();

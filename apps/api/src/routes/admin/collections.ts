@@ -1,11 +1,7 @@
 import * as repo from "@procomun/db/repository";
 import { validateCollection } from "@procomun/db/validation";
 import { logActivity } from "../../activity/log.ts";
-import {
-	canManageCollection,
-	getCurrentUser,
-	hasMinRole,
-} from "../../auth/roles.ts";
+import { canManageCollection } from "../../auth/roles.ts";
 import { ensureCurrentUser } from "../../auth/user-sync.ts";
 import { getDb } from "../../db.ts";
 import { buildCrudRoutes } from "../crud-builder.ts";
@@ -51,7 +47,7 @@ const collectionRoutes = buildCrudRoutes({
 	validateUpdate: validateCollection,
 	mergeOnUpdate: true,
 	canManage: canManageCollection,
-	listFilters: (user) => ({
+	listFilters: (_user) => ({
 		curatorId: undefined,
 	}),
 	prepareCreate: async (body, user) => {

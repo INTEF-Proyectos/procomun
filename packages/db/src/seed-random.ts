@@ -1,5 +1,5 @@
 import { faker } from "@faker-js/faker/locale/es";
-import { eq, inArray, sql } from "drizzle-orm";
+import { inArray, sql } from "drizzle-orm";
 import { user } from "./schema/auth.ts";
 import { elpxProjects } from "./schema/elpx.ts";
 import {
@@ -8,7 +8,6 @@ import {
 	resourceSubjects,
 	resources,
 } from "./schema/resources.ts";
-import { uploadSessions } from "./schema/uploads.ts";
 import {
 	VALID_LANGUAGES,
 	VALID_LICENSES,

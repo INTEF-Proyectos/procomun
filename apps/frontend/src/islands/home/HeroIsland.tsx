@@ -58,8 +58,7 @@ export function HeroIsland() {
 	}
 
 	function handleFilterClick(value: string) {
-		window.location.href =
-			url("explorar") + `?level=${encodeURIComponent(value)}`;
+		window.location.href = `${url("explorar")}?level=${encodeURIComponent(value)}`;
 	}
 
 	return (

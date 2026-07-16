@@ -1,4 +1,4 @@
-import type { MediaItemRecord, Resource } from "../../lib/api-client.ts";
+import type { Resource } from "../../lib/api-client.ts";
 import type { RatingSummary } from "./social.ts";
 
 /** License metadata with display info */

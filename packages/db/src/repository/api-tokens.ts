@@ -104,7 +104,7 @@ export async function revokeApiToken(
 	tokenId: string,
 	userId: string,
 ): Promise<boolean> {
-	const result = await db
+	await db
 		.update(apiTokens)
 		.set({ revokedAt: new Date() })
 		.where(

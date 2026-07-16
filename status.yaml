@@ -1603,3 +1603,47 @@ tasks:
       tsc 665 errores (paso no bloqueante) — ninguno menciona resourceTypeOptions ni las
       resoluciones de este merge; el delta sobre la línea base de 635 es código nuevo de
       #268/#273/#274/#275 y la mayor estrictez de TS 7.
+
+  T-2026-07-16-010:
+    date: 2026-07-16
+    agent: "devops-sre + frontend-ux-accesibilidad + qa-validacion"
+    task: "Reducción de warnings de biome con arreglos reales, sin supresiones"
+    status: Done
+    related: ["ADR-0030", "T-2026-07-16-002"]
+    notes: >
+      Punto de partida: 269 warnings + 19 infos. Quedan 231 + 1 info. Se corrigen 56
+      diagnósticos, todos con cambios reales de código y sin añadir ninguna supresión.
+      Mecánicos (fix seguro de biome, sin cambio de comportamiento): noUnusedImports (15),
+      useTemplate (13), useOptionalChain (3), useLiteralKeys (5).
+      Código muerto real encontrado al revisarlos uno a uno: elpx-processor.ts construía
+      zipBuffer/blob/zipResponse que no usaba nadie (restos de un enfoque abandonado; la
+      extracción real la hace unzip), y de paso leía el fichero entero en memoria para nada;
+      seed.ts definía getResultLength sin una sola referencia; api-tokens.ts asignaba result en
+      revokeApiToken sin leerlo (se conserva el await, la función sigue devolviendo true siempre);
+      PublicCollectionsIsland tenía un estado slug que nunca se lee (se mantiene el setter);
+      AdminSidebar desestructuraba userName y EmbedSection slug sin usarlos.
+      Parámetros exigidos por una firma ajena, marcados con guion bajo en vez de eliminarse:
+      canManageCollection(user, _collection) — la política vigente es que cualquier curator o
+      admin gestiona cualquier colección, sin mirar curatorId, y el parámetro lo impone el
+      contrato canManage de crud-builder; listFilters(_user); los callbacks (_match) de
+      String.replace en generate-elpx.ts; y los mocks de mapLegacyRecord en los tests.
+      embed-shim.js: siete catch (e) con el binding sin usar, reescritos con optional catch
+      binding (catch {}), ES2019 y soportado en todos los navegadores objetivo.
+      Regresión introducida y corregida en el proceso, que conviene no repetir: el fix "unsafe"
+      de useTemplate unió '<scr' + 'ipt>' ... '</scr' + 'ipt>' en un template literal en
+      exelearning-editor-loader.html y volvió a romper el documento — es justo el bug que había
+      arreglado c4ea68a1, porque la etiqueta de cierre escrita entera cierra el bloque inline
+      según la especificación HTML. Se restaura la concatenación partida y se documenta en el
+      propio fichero para que nadie la "arregle" otra vez. Sus 6 warnings de useTemplate y
+      useOptionalChain son falsos positivos y se quedan. (Al documentarlo, el primer intento de
+      comentario contenía la etiqueta de cierre literal y reprodujo el fallo; el comentario final
+      la describe sin escribirla.)
+      Lo que NO se toca y por qué: noNonNullAssertion (134) y noExplicitAny (74) son el 90% de lo
+      que queda y no son rebajas de reglas, sino los niveles por defecto de las recomendadas. Su
+      arreglo real es modelar tipos, que es el Lote 1 de ADR-0030 (los 635 errores de tsc);
+      forzarlos aquí sería cambiar aserciones legítimas de tests por ruido o esconderlos con
+      supresiones, justo lo contrario del objetivo de esta PR. Quedan además 9
+      noDescendingSpecificity y 1 noImportantStyles de CSS, que exigen decisiones de diseño.
+      Validación: biome lint 0 errores; format exit 0; bun run test 793 pass / 0 fail con
+      coverage 90,75%; build del frontend OK; design:lint y check-test-files OK; embed-shim.js y
+      los dos HTML públicos parsean sin errores.

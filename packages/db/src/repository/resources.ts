@@ -6,7 +6,6 @@ import {
 	resourceSubjects,
 	resources,
 } from "../schema/resources.ts";
-import { favorites, ratings } from "../schema/social.ts";
 import { uploadSessions } from "../schema/uploads.ts";
 import {
 	andWhere,
