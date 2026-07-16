@@ -76,13 +76,13 @@ Suma de pesos: 54. Máximo posible: 270.
 
 | | A | B | C | D | E | F |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: |
-| **Total ponderado** (máx. 270) | 226 | **242** | 216 | 152 | 132 | 85 |
-| % del máximo | 84 % | **90 %** | 80 % | 56 % | 49 % | 31 % |
+| **Total ponderado** (máx. 270) | 226 | **242** | 216 | 142 | 132 | 85 |
+| % del máximo | 84 % | **90 %** | 80 % | 53 % | 49 % | 31 % |
 | Total sin ponderar (máx. 130) | 107 | **114** | 103 | 69 | 66 | 45 |
 
 ## 5. Sensibilidad y lectura
 
-* **El orden B > A > C ≫ D > E ≫ F es robusto**: se mantiene con todos los pesos a 1 (fila «sin ponderar») y ante perturbaciones razonables de pesos individuales (±1 en cualquier criterio no altera el podio; la brecha A/B/C frente a D/E/F es de 64+ puntos ponderados).
+* **El orden B > A > C ≫ D > E ≫ F es robusto**: se mantiene con todos los pesos a 1 (fila «sin ponderar») y ante perturbaciones razonables de pesos individuales (±1 en cualquier criterio no altera el podio; la brecha entre la peor de A/B/C y la mejor de D/E/F es de 74 puntos ponderados). Los totales se verificaron con un script de suma (no a mano).
 * A y B están cerca por diseño: B **contiene** a A y añade límites/caracterización; la elección práctica no es «A o B» sino hasta dónde llegar en el mismo camino. C se solapa con ambas (sus dos únicas sustituciones justificadas — biome real y driver único — están incluidas en los lotes de A/B).
 * E puntúa por encima de D en reducción de complejidad pero muy por debajo en valor/riesgo/entrega; su mejor variante exige exactamente la inversión (oráculo) que hace innecesaria la propia reescritura.
 * Limitación declarada: los criterios 12, 17, 24 y 25 discriminan poco (sin datos diferenciales); retirarlos no cambia el orden. No se usó precisión decimal porque los datos no la soportan.

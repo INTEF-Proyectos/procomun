@@ -50,7 +50,7 @@ Confirmadas por el encargo y por ADRs vigentes: TypeScript strict + Bun (ADR-000
 
 ## Matriz ponderada (detalle en `decision-matrix.md`)
 
-26 criterios con pesos definidos antes de puntuar. Totales (máx. 270): **B 242 (90 %) > A 226 (84 %) > C 216 (80 %) ≫ D 152 (56 %) > E 132 (49 %) ≫ F 85 (31 %)**. El orden es robusto sin ponderar y ante perturbaciones de ±1 en cualquier peso. A, B y C no son excluyentes: B contiene a A e incorpora las dos sustituciones justificadas de C.
+26 criterios con pesos definidos antes de puntuar. Totales (máx. 270): **B 242 (90 %) > A 226 (84 %) > C 216 (80 %) ≫ D 142 (53 %) > E 132 (49 %) ≫ F 85 (31 %)**. El orden es robusto sin ponderar y ante perturbaciones de ±1 en cualquier peso. A, B y C no son excluyentes: B contiene a A e incorpora las dos sustituciones justificadas de C.
 
 ## Argumento más fuerte a favor de la reescritura (íntegro en `alternatives.md`)
 
