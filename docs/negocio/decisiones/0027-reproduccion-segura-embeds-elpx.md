@@ -1,6 +1,6 @@
 # ADR-0027 Reproducción segura de vídeos/PDF embebidos en `.elpx` (promote-to-parent con player en modal)
 
-* Estado: Supersedido por [ADR-0029](0029-migracion-bridge-medios-compartido-exelearning.md)
+* Estado: Supersedido por [ADR-0031](0031-migracion-bridge-medios-compartido-exelearning.md)
 * Fecha: 2026-06-14
 * Agentes Implicados: [@.agents/skills/seguridad-privacidad-legal, @.agents/skills/frontend-ux-accesibilidad, @.agents/skills/interoperabilidad-educativa, @.agents/skills/qa-validacion]
 
