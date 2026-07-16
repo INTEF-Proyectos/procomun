@@ -10,9 +10,7 @@
  * Detección "coarse" a propósito: la validación autoritativa la hace el padre
  * (apps/frontend/src/lib/elpx-embed-policy.ts). Aquí no se confía en nada.
  */
-(function () {
-	"use strict";
-
+(() => {
 	// Activar SOLO en origen opaco (modo seguro). En same-origin no hace nada.
 	function isOpaqueOrigin() {
 		try {
@@ -36,7 +34,7 @@
 
 	function isCrossOriginHttps(src) {
 		try {
-			var u = new URL(src, window.location.href);
+			const u = new URL(src, window.location.href);
 			return (
 				u.protocol === "https:" &&
 				u.hostname.toLowerCase() !== window.location.hostname.toLowerCase()
@@ -91,7 +89,7 @@
 		span.style.pointerEvents = "none";
 		span.textContent = "▶ Ver contenido externo";
 		btn.appendChild(span);
-		btn.addEventListener("click", function () {
+		btn.addEventListener("click", () => {
 			PARENT.postMessage(
 				{ source: "procomun-elpx-embed", action: "play", url: url },
 				"*",
@@ -102,13 +100,13 @@
 
 	function promote(root) {
 		var frames = root.querySelectorAll("iframe[src]");
-		for (var i = 0; i < frames.length; i++) {
-			var frame = frames[i];
+		for (let i = 0; i < frames.length; i++) {
+			const frame = frames[i];
 			if (frame.getAttribute("data-procomun-embed")) continue;
-			var src = frame.getAttribute("src");
+			const src = frame.getAttribute("src");
 			if (!src || !isPromotable(src)) continue;
 			frame.setAttribute("data-procomun-embed", "1");
-			var facade = makeFacade(frame);
+			const facade = makeFacade(frame);
 			if (frame.parentNode) frame.parentNode.replaceChild(facade, frame);
 		}
 	}
@@ -129,7 +127,7 @@
 
 	// Re-escanear ante cambios del DOM (navegación entre páginas del paquete).
 	try {
-		var observer = new MutationObserver(function () {
+		const observer = new MutationObserver(() => {
 			run();
 		});
 		observer.observe(document.documentElement, {

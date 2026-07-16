@@ -34,9 +34,7 @@ export function parseContentXml(xml: string): ElpxMetadata {
 	const propertyRegex =
 		/<odeProperty>\s*<key>([^<]*)<\/key>\s*<value>([^<]*)<\/value>\s*<\/odeProperty>/gs;
 
-	let match: RegExpExecArray | null;
-	// biome-ignore lint/suspicious/noAssignInExpressions: patrón idiomático de iteración con RegExp.exec
-	while ((match = propertyRegex.exec(xml)) !== null) {
+	for (const match of xml.matchAll(propertyRegex)) {
 		const key = match[1]?.trim() ?? "";
 		const value = match[2]?.trim() ?? "";
 		const field = METADATA_KEYS[key];

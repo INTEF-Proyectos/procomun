@@ -119,8 +119,16 @@ export function extractFileExtension(filename: string) {
 }
 
 // Caracteres de control (incluido NUL) que nunca deben aparecer en un nombre de archivo.
-// biome-ignore lint/suspicious/noControlCharactersInRegex: deteccion deliberada de caracteres de control en nombres de archivo
-const CONTROL_CHARS = /[\u0000-\u001f\u007f]/;
+// Detección por code point (0x00-0x1F y 0x7F) para que el conjunto quede explícito.
+function hasControlChars(value: string): boolean {
+	for (const ch of value) {
+		const code = ch.codePointAt(0) ?? 0;
+		if (code <= 0x1f || code === 0x7f) {
+			return true;
+		}
+	}
+	return false;
+}
 
 /**
  * Rechaza nombres de archivo que podrían provocar path traversal o escritura
@@ -135,7 +143,7 @@ export function rejectUnsafeFilename(filename: string): string | null {
 	if (filename === "." || filename === "..") {
 		return "El nombre no puede ser una referencia de directorio (. o ..)";
 	}
-	if (CONTROL_CHARS.test(filename)) {
+	if (hasControlChars(filename)) {
 		return "El nombre contiene caracteres de control no permitidos";
 	}
 	if (filename.includes("/") || filename.includes("\\")) {

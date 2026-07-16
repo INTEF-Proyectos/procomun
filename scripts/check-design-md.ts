@@ -125,11 +125,13 @@ function normalizeScalar(value: string) {
 export function extractCssCustomProperties(css: string) {
 	const tokens: Record<string, string> = {};
 	const tokenPattern = /(--[a-z0-9-]+)\s*:\s*([^;]+);/gi;
-	let match: RegExpExecArray | null;
 
-	// biome-ignore lint/suspicious/noAssignInExpressions: patrón idiomático de iteración con RegExp.exec
-	while ((match = tokenPattern.exec(css))) {
-		tokens[match[1]] = match[2].trim();
+	for (const match of css.matchAll(tokenPattern)) {
+		const name = match[1];
+		const value = match[2];
+		if (name !== undefined && value !== undefined) {
+			tokens[name] = value.trim();
+		}
 	}
 
 	return tokens;

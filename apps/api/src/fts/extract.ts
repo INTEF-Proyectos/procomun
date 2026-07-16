@@ -114,9 +114,18 @@ async function extractDocx(filePath: string): Promise<string> {
  * Normalize extracted text: compact whitespace, trim, and truncate.
  */
 export function normalizeText(text: string): string {
-	// Remove null bytes and control characters (except newlines/tabs)
-	// biome-ignore lint/suspicious/noControlCharactersInRegex: sanitizador deliberado de caracteres de control
-	let cleaned = text.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, "");
+	// Remove null bytes and control characters (except newlines/tabs/carriage returns),
+	// filtering by code point to keep the intent explicit: drops 0x00-0x08, 0x0B, 0x0C,
+	// 0x0E-0x1F and 0x7F while preserving \t (0x09), \n (0x0A) and \r (0x0D).
+	let cleaned = Array.from(text)
+		.filter((ch) => {
+			const code = ch.codePointAt(0) ?? 0;
+			const isControl =
+				(code <= 0x1f && code !== 0x09 && code !== 0x0a && code !== 0x0d) ||
+				code === 0x7f;
+			return !isControl;
+		})
+		.join("");
 	// Compact multiple whitespace into single space
 	cleaned = cleaned.replace(/[ \t]+/g, " ");
 	// Compact multiple newlines

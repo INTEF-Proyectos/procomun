@@ -19,8 +19,14 @@ import {
  * logs, para evitar inyección/envenenamiento de logs (CWE-117).
  */
 export function sanitizeForLog(value: string): string {
-	// biome-ignore lint/suspicious/noControlCharactersInRegex: sanitizador deliberado para evitar inyeccion de logs (CWE-117)
-	return value.replace(/[\u0000-\u001f\u007f]/g, "?");
+	// Sustituye por "?" cada carácter de control (0x00-0x1F y 0x7F), filtrando
+	// por code point para que el conjunto neutralizado quede explícito.
+	return Array.from(value)
+		.map((ch) => {
+			const code = ch.codePointAt(0) ?? 0;
+			return code <= 0x1f || code === 0x7f ? "?" : ch;
+		})
+		.join("");
 }
 
 /**
