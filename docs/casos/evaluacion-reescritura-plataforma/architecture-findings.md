@@ -7,7 +7,7 @@
 
 ## 1. Estado del corpus de decisiones
 
-[H] Existen **33 archivos ADR** en `docs/negocio/decisiones/` para **29 entradas** en `decision-log.yaml` (0001–0028, con 0015a/0015b).
+[H] En el commit analizado (`eea2fe7d`) existen **32 archivos ADR** en `docs/negocio/decisiones/` para **28 entradas** en `decision-log.yaml` (numeración 0001–0028 con el desdoble 0015a/0015b y sin entrada para 0025). Esta evaluación añade la ADR-0029 a ambos lados, dejando 33 archivos / 29 entradas; el delta de 4 archivos sin indexar se mantiene igual.
 
 [H] **Colisiones de numeración** (tres pares además del 0015a/0015b ya regularizado):
 
@@ -17,7 +17,7 @@
 | 0024 | `0024-exportacion-elpx-formatos-estandar.md` (Aceptado) | `0024-api-publicacion-tokens.md` (Aceptado, **implementado**: `packages/db/src/schema/api-tokens.ts`, `apps/api/src/auth/token-auth.ts`, `/api/v1/publish/*`) |
 | 0026 | `0026-apertura-segura-elpx.md` (Aceptado) | `0026-extraccion-texto-busqueda-fts-postgresql.md` (Propuesto, **implementado**) |
 
-[H] `0025-jsonb-para-metadatos-semiestructurados.md` existe (y `status.yaml` lo referencia en T-2026-06-24-002) pero **tampoco figura en `decision-log.yaml`**. En total, cuatro archivos ADR quedan fuera del índice: 0023-feeds, 0024-api-tokens, 0025-jsonb y 0026-FTS — lo que cuadra con la aritmética 33 archivos ↔ 29 entradas.
+[H] `0025-jsonb-para-metadatos-semiestructurados.md` existe (y `status.yaml` lo referencia en T-2026-06-24-002) pero **tampoco figura en `decision-log.yaml`**. En total, cuatro archivos ADR quedan fuera del índice: 0023-feeds, 0024-api-tokens, 0025-jsonb y 0026-FTS — lo que cuadra con la aritmética 32 archivos ↔ 28 entradas del commit analizado.
 
 [H] **Estados desincronizados índice↔archivo** (el índice marca Supersedido; el archivo sigue diciendo «Aceptado»): ADR-0004, ADR-0010, ADR-0012, ADR-0013.
 

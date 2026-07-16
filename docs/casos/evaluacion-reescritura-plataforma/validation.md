@@ -50,7 +50,7 @@ Formato exigido: hipótesis → línea base → objetivo → método → gate �
 
 ## 3. Gates para recomendar una reescritura completa (estado actual)
 
-Verificación de las 14 condiciones del encargo — **hoy se cumplen 4 de 14** (las nº 2, 4, 7 y 13); seis se incumplen de plano, dos son parciales, una es dudosa y una se resuelve con esta PR:
+Verificación de las 14 condiciones del encargo — **hoy se cumplen 5 de 14** (las nº 2, 4, 7, 13 y 14); seis se incumplen de plano (1, 3, 5, 6, 8, 12), dos son parciales (9, 10) y una es dudosa (11):
 
 | # | Condición | ¿Se cumple hoy? |
 | --- | --- | --- |
@@ -67,7 +67,7 @@ Verificación de las 14 condiciones del encargo — **hoy se cumplen 4 de 14** (
 | 11 | Capacidad de mantener la versión vigente en paralelo | Dudosa (2 devs; QA activa con defectos nuevos por ronda) |
 | 12 | Criterios de aceptación de seguridad/a11y/interop/ENS | **No escritos** (los gates de `risks.md`/informe de seguridad son propuesta, no criterios aceptados) |
 | 13 | Costes de transición y arquitectura temporal identificados | **Sí** (informe de costes), con rangos de confianza baja |
-| 14 | Revisores adversariales sin riesgos críticos pendientes | Se verifica en la revisión final de esta PR |
+| 14 | Revisores adversariales sin riesgos críticos pendientes | **Sí para esta evaluación documental**: dos revisiones independientes ejecutadas (lentes: métricas/reproducibilidad y coherencia/trazabilidad) sin ningún hallazgo crítico; los hallazgos ALTO/MEDIO se corrigieron en la propia rama. Para una futura propuesta de reescritura, la condición tendría que verificarse de nuevo sobre esa propuesta |
 
 Conclusión: la reescritura completa está **bloqueada por los gates 1, 3, 5, 6, 8 y 12**; la recomendación no puede ser E ni F.
 
@@ -76,4 +76,4 @@ Conclusión: la reescritura completa está **bloqueada por los gates 1, 3, 5, 6,
 * `status.yaml` y `decision-log.yaml` re-parseados tras la edición (YAML válido).
 * `bun run design:lint` en verde (no afectado).
 * `git diff --check` sin problemas de whitespace.
-* Dos revisiones adversariales independientes del diff (resultados incorporados; ver PR).
+* Dos revisiones adversariales independientes ejecutadas sobre el diff y los artefactos (no sobre las justificaciones del redactor), con lentes separadas: métricas/reproducibilidad y coherencia/trazabilidad. Sus hallazgos (ninguno crítico) se corrigieron en commits posteriores de esta misma rama y se resumen en la descripción de la PR.

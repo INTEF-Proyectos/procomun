@@ -17,7 +17,7 @@ La evaluación se hizo con una organización multiagente, mediciones reproducibl
 
 ## Restricciones
 
-Confirmadas por el encargo y por ADRs vigentes: TypeScript strict + Bun (ADR-0001), PostgreSQL producción + PGlite desarrollo (ADR-0005/0010), Hono (ADR-0003), Drizzle (ADR-0006), Better Auth + RBAC 5 roles (ADR-0007/0008/0016), Vite (ADR-0018, ADR-0023 rechazada), ENS Categoría MEDIA (ADR-0015a), i18n Paraglide (ADR-0014), servicio canónico unificado (ADR-0021), seguridad .elpx (ADR-0026/0027), sin microservicios sin necesidad demostrable, sin cambios de tecnología por uniformidad. **Cuestionamientos, separados de la recomendación**: no se encontró ningún impedimento crítico verificable contra Bun, PostgreSQL o PGlite; el único matiz documentado es acotar el papel de PGlite (tests herméticos sí; añadir un job de CI contra PostgreSQL 17 real) sin retirarla.
+Confirmadas por el encargo y por ADRs vigentes: TypeScript strict + Bun (ADR-0001), PostgreSQL producción + PGlite desarrollo (ADR-0005/0006; el papel actual de PGlite como base de desarrollo local es el repropósito documentado tras ADR-0017), Hono (ADR-0003), Drizzle (ADR-0006), Better Auth + RBAC 5 roles (ADR-0007/0008/0016), Vite (ADR-0018, ADR-0023 rechazada), ENS Categoría MEDIA (ADR-0015a), i18n Paraglide (ADR-0014), servicio canónico unificado (ADR-0021), seguridad .elpx (ADR-0026/0027), sin microservicios sin necesidad demostrable, sin cambios de tecnología por uniformidad. **Cuestionamientos, separados de la recomendación**: no se encontró ningún impedimento crítico verificable contra Bun, PostgreSQL o PGlite; el único matiz documentado es acotar el papel de PGlite (tests herméticos sí; añadir un job de CI contra PostgreSQL 17 real) sin retirarla.
 
 ## Línea base resumida (medida el 2026-07-16; detalle en `baseline.md`)
 
@@ -26,7 +26,7 @@ Confirmadas por el encargo y por ADRs vigentes: TypeScript strict + Bun (ADR-000
 * **Huecos de caracterización**: suite de integración **vacía** (0 tests); 0 tests de contrato de API; los 17 E2E saltados son `test.fixme` y cubren exactamente el camino editorial de escritura; los tests HTTP existentes simulan la autenticación; ~9 de 47 registros DEF de QA manual tienen regresión etiquetada.
 * **Capa de datos con triple definición de esquema** (SQL a mano vivo en `setup.ts`; migraciones drizzle-kit muertas con journal desincronizado y colisión `0002_*`; tipos Drizzle) y **sin camino de upgrade** para BD con datos (el entrypoint de producción hace seed y «continúa si falla»). Deriva materializada dos veces: el hotfix jsonb (T-2026-06-24-002) y el hallazgo de esta evaluación — **la tabla de auditoría ENS `api_access_logs` solo la crea la migración muerta 0001; `setup.ts` no la crea (20 de 21 tablas), el middleware silencia los fallos de escritura por diseño y su test solo comprueba que no rompe la respuesta**, con lo que la traza de accesos puede no estar registrándose (verificación en runtime pendiente).
 * **Tamaño y salud**: 29 653 LOC productivas en 220 archivos; 21 tablas; ~106 endpoints; 1 TODO; 0 reverts; 33 % de commits mencionan «fix»; sin usuarios ni despliegue de producción verificables (los datos son seed).
-* **Gobernanza documental con deriva**: 33 archivos ADR para 29 entradas de índice; colisiones 0023/0024/0026; ADR-0026-FTS «Propuesto» pero implementada; 4 archivos sin estado sincronizado.
+* **Gobernanza documental con deriva**: en el commit analizado, 32 archivos ADR para 28 entradas de índice (4 sin indexar); colisiones de numeración 0023/0024/0026 (además del par 0015, ya regularizado como 0015a/0015b en el índice); ADR-0026-FTS «Propuesto» pero implementada; 4 archivos con estado sin sincronizar frente al índice.
 
 ## Deuda técnica demostrada vs no demostrada
 
@@ -81,7 +81,7 @@ Big bang concentra el riesgo en el corte final y exige oráculo previo completo;
 
 Materialización: programa por lotes 0–5 (opción B, que incluye A y las dos sustituciones justificadas de C) descrito en `alternatives.md` y en `implementation-agent-prompt.md`: (0) reparar lint/format y vestigios; (1) typecheck 635→0 con ratchet y gate; (2) suite de caracterización — des-fixmear los 17 E2E de escritura, contract tests black-box con login real, integración poblada, job PostgreSQL 17; (3) fuente única de esquema con migraciones versionadas, upgrade path y backup; (4) puertos y gates de arquitectura; (5) división de módulos mixtos. El piloto comparativo de `pilot-plan.md` (vertical Colecciones, dos brazos) queda diseñado para producir el único dato que podría reabrir esta decisión.
 
-**Nivel de confianza: Alto** en rechazar E/F y D (fundado en 10 de los 14 gates del encargo sin cumplirse plenamente — 6 incumplidos, 2 parciales, 1 dudoso, 1 pendiente de esta revisión —, matriz robusta, cuatro fuentes externas alineadas y precedente interno). **Medio** en el dimensionamiento exacto de los lotes (rangos de calendario con base de estimación limitada — sin histórico de velocidad del equipo).
+**Nivel de confianza: Alto** en rechazar E/F y D (fundado en 9 de los 14 gates del encargo sin cumplirse plenamente — 6 incumplidos de plano, 2 parciales, 1 dudoso —, matriz robusta, cuatro fuentes externas alineadas y precedente interno). **Medio** en el dimensionamiento exacto de los lotes (rangos de calendario con base de estimación limitada — sin histórico de velocidad del equipo).
 
 ## Ventajas medibles
 
@@ -101,7 +101,7 @@ Documental en `pilot-plan.md`: vertical Colecciones, oráculo primero (36–45 c
 
 ## Gates de decisión
 
-Los 14 gates del encargo para recomendar reescritura completa están verificados uno a uno en `validation.md` §3: **hoy se cumplen 4 de 14** (alternativas evaluadas seriamente; inventario funcional; piloto diseñado; costes de transición identificados). Se incumplen de plano seis: sin problema estructural no resoluble incrementalmente (1, 3), sin suite de caracterización (5), sin contratos documentados (6), sin piloto ejecutado (8), sin criterios de aceptación ENS/a11y escritos (12); dos son parciales (9, 10), una dudosa (11) y una se resuelve en la revisión de esta PR (14).
+Los 14 gates del encargo para recomendar reescritura completa están verificados uno a uno en `validation.md` §3: **hoy se cumplen 5 de 14** (alternativas evaluadas seriamente; inventario funcional; piloto diseñado; costes de transición identificados; revisiones adversariales de esta evaluación sin hallazgos críticos). Se incumplen de plano seis: sin problema estructural no resoluble incrementalmente (1, 3), sin suite de caracterización (5), sin contratos documentados (6), sin piloto ejecutado (8), sin criterios de aceptación ENS/a11y escritos (12); dos son parciales (9, 10) y una es dudosa (11).
 
 ## Estrategia de migración y de rollback
 
@@ -144,7 +144,7 @@ Revisar (sin necesidad de nueva evaluación completa) si: el brazo 2 del piloto 
 * Martin Fowler: «Strangler Fig Application» — https://martinfowler.com/bliki/StranglerFigApplication.html (2024-08-22; consultado 2026-07-16).
 * Microsoft Azure Architecture Center: «Strangler Fig pattern» — https://learn.microsoft.com/en-us/azure/architecture/patterns/strangler-fig (actualizado 2026-06-03; consultado 2026-07-16).
 * Joel Spolsky: «Things You Should Never Do, Part I» — https://www.joelonsoftware.com/2000/04/06/things-you-should-never-do-part-i/ (2000-04-06; consultado 2026-07-16).
-* ADRs internas: 0001, 0003, 0005, 0006, 0007, 0008, 0017, 0018, 0021, 0022, 0023 (rechazada), 0025, 0026, 0027, 0028.
+* ADRs internas: 0001, 0003, 0005, 0006, 0007, 0008, 0017, 0018, 0021, 0022, 0023 (rechazada), 0024 (exportación .elpx), 0025 (sin indexar en decision-log al cierre de esta evaluación), 0026, 0027, 0028.
 
 ## Notas de Implementación
 

@@ -44,7 +44,7 @@ Hecho relevante: el paso «Type Check» de `.github/workflows/ci.yml` ejecuta es
 | `apps/frontend` | 17 168 | 113 | 2 793 | 30 |
 | `packages/db` | 3 971 | 36 | 697 | 6 |
 | `scripts` | 712 | 5 | 252 | 5 |
-| `e2e` | — | — | 722 | 12 |
+| `e2e` | (104 LOC en 3 archivos auxiliares no-test: utils/fixtures, excluidos del total productivo) | — | 722 | 12 |
 | **Total** | **29 653** | **220** | **11 693** | **104** |
 
 Comando: `find <ws> -type f \( -name '*.ts' -o -name '*.tsx' \) ! -name '*.test.*' ! -path '*/node_modules/*' ! -path '*/dist/*' ! -path '*/static/*' ! -path '*/public/*' -exec cat {} + | wc -l` (y equivalente para tests, incluyendo `*.e2e.ts`).
@@ -58,7 +58,7 @@ Otras dimensiones:
 | Tablas (`pgTable`) | **21** | `grep -rh 'pgTable(' packages/db/src --include='*.ts' \| grep -v test \| wc -l` (nota: un primer conteo con regex `pgTable\("` dio 19 porque `ratings` y `favorites` declaran el nombre en la línea siguiente; el valor correcto es 21) |
 | Tablas creadas por la fuente viva (`setup.ts`) | **20** | `grep -c 'CREATE TABLE IF NOT EXISTS' packages/db/src/setup.ts` — falta `api_access_logs`, que solo crea la migración muerta `0001_needy_stellaris.sql` |
 | Migraciones SQL | 5 archivos, con **colisión de numeración** (`0002_add_downloads_format.sql` y `0002_text_to_jsonb_metadata.sql`) | `ls packages/db/migrations/` |
-| `TODO/FIXME/HACK/XXX` en código | **1** | `grep -rnE 'TODO|FIXME|HACK|XXX' apps packages scripts` |
+| `TODO/FIXME/HACK/XXX` en código propio | **1** | `grep -rnE 'TODO|FIXME|HACK|XXX' apps packages scripts --include='*.ts' --include='*.tsx' \| grep -v node_modules \| grep -v '/static/'` (la exclusión de `/static/` descarta el editor eXeLearning vendorizado; sin exclusiones el conteo bruto es mayor). El único marcador: `CatalogIsland.tsx:354` |
 | Commits | 417, de 2026-03-24 a 2026-07-15 (~4 meses) | `git log --oneline | wc -l` |
 
 ## 4. Dependencias

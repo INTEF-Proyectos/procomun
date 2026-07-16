@@ -34,7 +34,7 @@
 ## 3. Drizzle ORM (`packages/db`)
 
 * [H] 33 archivos productivos lo importan; fachada de repositorios por dominio (`packages/db/src/repository/`) lo aísla razonablemente.
-* [H] El buscador FTS es SQL PostgreSQL nativo puro (`apps/api/src/fts/search.ts`, 259 líneas: `to_tsvector`, `websearch_to_tsquery`, `ts_rank`, `unaccent`, GIN) donde Drizzle solo transporta (`db.execute(sql\`...\`)`).
+* [H] El buscador FTS es SQL PostgreSQL nativo puro (`apps/api/src/fts/search.ts`, 305 líneas: `to_tsvector`, `websearch_to_tsquery`, `ts_rank`, `unaccent`, GIN) donde Drizzle solo transporta (`db.execute(sql\`...\`)`).
 * [H] **Triple definición de esquema**: (1) `packages/db/src/setup.ts` — `SCHEMA_STATEMENTS`, SQL a mano, **la única fuente aplicada** (20 `CREATE TABLE IF NOT EXISTS` + 8 bloques `DO $$ ALTER TABLE ADD COLUMN` — una tabla menos que las 21 del esquema Drizzle: falta `api_access_logs`, ver `migration-and-rollback.md` §1); (2) `packages/db/migrations/` — 5 archivos drizzle-kit **muertos** (journal `meta/_journal.json` con 3 entradas; `0002_add_downloads_format.sql` y `0003_add_reports_table.sql` fuera del journal; colisión de numeración `0002_*`; `drizzle-kit migrate` no se invoca en entrypoint, Makefile ni CI); (3) `packages/db/src/schema/*.ts` — tipos.
 * [H] Riesgo materializado una vez: hotfix T-2026-06-24-002 (`status.yaml`) — una ruta siguió haciendo `JSON.parse` sobre una columna que la migración 0002 había convertido a `jsonb`.
 * [H] **No hay camino de upgrade para BD con datos**: en Docker, `docker-entrypoint.sh` ejecuta el seed (que aplica `SCHEMA_STATEMENTS`) y **continúa aunque falle**; los cambios de tipo TEXT→JSONB solo existen en migraciones que nadie ejecuta. No hay tooling de backup (`pg_dump`/restore) en Makefile ni compose.
@@ -66,7 +66,7 @@
 ## 7. Bun
 
 * [H] Usos específicos: `Bun.file` (11), `Bun.env` (7), `Bun.spawn`/`import.meta.dir`/`Bun.$` (18), `bun:test` en 87 archivos, `drizzle-orm/bun-sql` (1). `Bun.serve` directo: 0 (se usa `export default { fetch }`).
-* [H] `scripts/run-bun-suite.ts` (177 líneas) existe por dos motivos: descubrir suites por convención de sufijo y **normalizar exit-codes 99/100 de `bun test`** cuando la salida confirma 0 fail (incidencia del runner con PGlite-WASM, T-2026-03-31-001/002). Riesgo documentado: puede enmascarar cierres sucios reales.
+* [H] `scripts/run-bun-suite.ts` (176 líneas) existe por dos motivos: descubrir suites por convención de sufijo y **normalizar exit-codes 99/100 de `bun test`** cuando la salida confirma 0 fail (incidencia del runner con PGlite-WASM, T-2026-03-31-001/002). Riesgo documentado: puede enmascarar cierres sucios reales.
 * [I] Lock-in moderado-alto asumido conscientemente por ADR-0001 (restricción de producto). Sin evidencia de impedimento crítico que justifique cuestionarla.
 
 ## 8. Dependencias

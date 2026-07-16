@@ -15,7 +15,7 @@ Justificación: es la vertical más pequeña que atraviesa todas las capas exigi
 | PostgreSQL/PGlite | Tablas `collections`, `collection_resources`; consultas con JOIN y conteos |
 | Autorización | RBAC con historia real: gestión reservada a curator/admin, con defecto corregido (#162/DEF-011) |
 | Validación | Slugs, estados, payloads del CRUD |
-| Pruebas | Tests existentes en `packages/db/src/repository.unit.test.ts` y rutas admin; 4 E2E de curator en `test.fixme` (`e2e/tests/curator/review.e2e.ts`) |
+| Pruebas | Tests existentes en `packages/db/src/repository.unit.test.ts` y rutas admin; `e2e/tests/curator/review.e2e.ts` contiene 6 `test.fixme`, de los que los relativos a colecciones entran en el piloto |
 | Observabilidad | `activity_events` registra acciones; el piloto añade medición mínima de latencia por endpoint (sin dependencias nuevas: timestamps en test harness) |
 | Datos | Seed determinista: 8 colecciones, 22 recursos (compatibilidad verificable por conteos y checksums) |
 
@@ -29,7 +29,7 @@ Justificación: es la vertical más pequeña que atraviesa todas las capas exigi
 
 ## 3. Diseño experimental: dos brazos sobre la misma vertical
 
-**Fase 0 — Oráculo primero (común a ambos brazos).** Construir la caracterización de la vertical ANTES de tocar nada: (a) tests de contrato HTTP black-box (login real vía `/api/auth/*`, sin `mockUser`) para los ~12–15 endpoints de la vertical, ~3 casos por endpoint (éxito con shape, 401/403 por rol, validación) ≈ 36–45 casos; (b) des-fixmear los 4 E2E de colecciones del curator; (c) golden responses (JSON canónico con el seed) capturadas de la implementación actual; (d) doble ejecución PGlite + PostgreSQL 17 real.
+**Fase 0 — Oráculo primero (común a ambos brazos).** Construir la caracterización de la vertical ANTES de tocar nada: (a) tests de contrato HTTP black-box (login real vía `/api/auth/*`, sin `mockUser`) para los ~12–15 endpoints de la vertical, ~3 casos por endpoint (éxito con shape, 401/403 por rol, validación) ≈ 36–45 casos; (b) des-fixmear los E2E de colecciones del curator (subconjunto de los 6 `fixme` de `curator/review.e2e.ts`); (c) golden responses (JSON canónico con el seed) capturadas de la implementación actual; (d) doble ejecución PGlite + PostgreSQL 17 real.
 
 **Brazo 1 — Incremental in situ (el recomendado).** Sobre el repo: aplicar a la vertical los lotes del programa (tipos a 0 en sus archivos, división de `CollectionsCrudIsland`, `ApiClient` de colecciones como interfaz separada), manteniendo el oráculo en verde en cada paso.
 
