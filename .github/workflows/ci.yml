@@ -27,7 +27,21 @@ jobs:
       run: make deps
 
     - name: Biome Check
+      id: biome
       run: make lint
+
+    - name: Capture Biome fixes
+      if: failure() && steps.biome.outcome == 'failure'
+      run: |
+        bunx @biomejs/biome check --write .
+        git diff --binary > biome-fixes.patch
+
+    - name: Upload Biome fix patch
+      if: failure() && steps.biome.outcome == 'failure'
+      uses: actions/upload-artifact@v4
+      with:
+        name: biome-fixes
+        path: biome-fixes.patch
 
     - name: Type Check
       run: bunx tsc --noEmit
