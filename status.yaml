@@ -1549,3 +1549,24 @@ tasks:
       que sí instala en limpio. Tras bun install (biome 2.4.8 real) se reformatearon los 4
       ficheros afectados. Lección operativa: tras cambiar entre ramas con distinta dependencia de
       biome hay que reinstalar, y un "exit 0" sin resumen de biome es señal de binario falso.
+
+  T-2026-07-16-008:
+    date: 2026-07-16
+    agent: "devops-sre + qa-validacion"
+    task: "Tercera integración de main en la PR #272: entra la PR #274 (fuente única de tipos de recurso)"
+    status: Done
+    related: ["T-2026-07-16-003", "T-2026-07-16-007"]
+    notes: >
+      main avanzó otra vez durante la revisión (#273 y luego #274). La #274 automergea sin
+      conflictos, pero trae código que nunca pasó por Biome real — mismo efecto que #268 y #273 —
+      así que el Format Check de CI la marcaba: resource-type-map.unit.test.ts, resource-types.ts
+      y resource-types.unit.test.ts. Se aplica el formateo real (3 ficheros); solo formato y orden
+      de imports, verificado comparando contenido sin espacios ni comas y el multiconjunto de
+      tokens contra origin/main.
+      Patrón observado y que conviene cerrar cuanto antes: cada PR que entra en main mientras esta
+      rama está abierta añade código sin formatear, porque en main el linter sigue siendo el
+      paquete equivocado. La deuda no deja de crecer hasta que esta PR mergee.
+      Validación con biome 2.4.8 real (comprobada la versión antes de cada pasada, tras el no-op
+      de T-2026-07-16-007): format . solo señala .claude/settings.local.json, que no está
+      versionado y CI no ve; biome lint 0 errores; check-test-files OK; bun run test 790 pass /
+      0 fail (+16 tests de #274) con coverage 90,68%.
