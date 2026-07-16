@@ -2,11 +2,11 @@ import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import { copyFile, mkdtemp, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import { resources } from "@procomun/db/schema";
 import { eq } from "drizzle-orm";
 import { Hono } from "hono";
-import { elpxContentRoutes } from "../../../api/src/routes/elpx-content.ts";
+import { resources } from "@procomun/db/schema";
 import { computeFileSha256 } from "../../../api/src/uploads/config.ts";
+import { elpxContentRoutes } from "../../../api/src/routes/elpx-content.ts";
 import {
 	loadImportLegacyProcomunDependencies,
 	runImportLegacyProcomun,
@@ -14,19 +14,19 @@ import {
 
 // Fixtures versionadas (anonimizadas, ver ADR-0029): 3 pares .json+.elpx reales
 // de ode-export/, uno de ellos (es_2025101012_9102834) con una combinación de
-// licencia CC inexistente ("non derived" + "share alike") a propósito, para
-// probar el camino bloqueante end-to-end.
-const FIXTURES_DIR = path.join(
-	import.meta.dir,
-	"../test-fixtures/legacy-procomun",
-);
+// licencia CC inexistente ("non derived" + "share alike"), a propósito, para
+// probar de extremo a extremo la resolución ND+SA -> *-sa de normalizeLicense()
+// (ND y SA son mutuamente excluyentes en las licencias CC reales; se prioriza
+// SA sobre ND en vez de bloquear el registro — decisión de negocio confirmada
+// tras la revisión del PR #268, ver ADR-0029).
+const FIXTURES_DIR = path.join(import.meta.dir, "../test-fixtures/legacy-procomun");
 
-const MINIMAL_CONTENT_XML = `<?xml version="1.0" encoding="UTF-8"?>
+const MINIMAL_CONTENT_XML_TEMPLATE = `<?xml version="1.0" encoding="UTF-8"?>
 <ode xmlns="http://www.intef.es/xsd/ode" version="2.0">
   <odeProperties>
     <odeProperty>
       <key>pp_title</key>
-      <value>Recurso de prueba para carrera concurrente</value>
+      <value>Recurso de prueba __MARKER__</value>
     </odeProperty>
     <odeProperty>
       <key>pp_lang</key>
@@ -39,52 +39,41 @@ const MINIMAL_CONTENT_XML = `<?xml version="1.0" encoding="UTF-8"?>
   </odeProperties>
 </ode>`;
 
-/** Construye un .elpx (ZIP) mínimo pero válido, ajeno a las fixtures reales
- * ya usadas/persistidas en otros describe de este mismo archivo (comparten
- * la misma BD PGlite del proceso de test) — necesario para el test de
- * carrera, que necesita contenido nunca antes visto por elpx_projects.hash. */
-async function createMinimalElpx(destPath: string): Promise<void> {
-	const staging = await mkdtemp(path.join(tmpdir(), "elpx-race-staging-"));
-	await writeFile(
-		path.join(staging, "content.xml"),
-		MINIMAL_CONTENT_XML,
-		"utf-8",
-	);
-	const proc = Bun.spawn(
-		["python3", "-m", "zipfile", "-c", destPath, "content.xml"],
-		{
-			cwd: staging,
-			stdout: "ignore",
-			stderr: "ignore",
-		},
-	);
+/** Construye un .elpx (ZIP) mínimo pero válido, con contenido distinto según
+ * `marker` — necesario porque toda la suite comparte una única BD PGlite: dos
+ * llamadas con `marker` distinto producen checksums distintos, garantizando
+ * que un describe no colisione por accidente con contenido ya persistido por
+ * otro (ver elpx_projects.hash UNIQUE). Dos llamadas con el MISMO `marker`
+ * producen bytes idénticos a propósito, para los tests que necesitan
+ * contenido duplicado real (dedup, carrera). */
+async function createMinimalElpx(destPath: string, marker: string): Promise<void> {
+	const staging = await mkdtemp(path.join(tmpdir(), "elpx-staging-"));
+	const contentXml = MINIMAL_CONTENT_XML_TEMPLATE.replace("__MARKER__", marker);
+	await writeFile(path.join(staging, "content.xml"), contentXml, "utf-8");
+	const proc = Bun.spawn(["python3", "-m", "zipfile", "-c", destPath, "content.xml"], {
+		cwd: staging,
+		stdout: "ignore",
+		stderr: "ignore",
+	});
 	const exitCode = await proc.exited;
-	if (exitCode !== 0)
-		throw new Error(`No se pudo crear el .elpx sintético (exit ${exitCode})`);
+	if (exitCode !== 0) throw new Error(`No se pudo crear el .elpx sintético (exit ${exitCode})`);
 }
 
 describe("import:legacy-procomun (integración, PGlite en memoria vía test-setup.ts)", () => {
 	let deps: Awaited<ReturnType<typeof loadImportLegacyProcomunDependencies>>;
 
 	beforeAll(async () => {
-		process.env.UPLOAD_STORAGE_DIR = await mkdtemp(
-			path.join(tmpdir(), "legacy-import-storage-"),
-		);
+		process.env.UPLOAD_STORAGE_DIR = await mkdtemp(path.join(tmpdir(), "legacy-import-storage-"));
 		deps = await loadImportLegacyProcomunDependencies();
 	});
 
 	test("--dry-run no persiste nada en base de datos", async () => {
-		const report = await runImportLegacyProcomun(
-			{ sourceDir: FIXTURES_DIR, dryRun: true },
-			deps,
-		);
+		const report = await runImportLegacyProcomun({ sourceDir: FIXTURES_DIR, dryRun: true }, deps);
 
 		expect(report.totals.pairsFound).toBe(3);
-		expect(report.totals.blocked).toBe(1); // es_2025101012_9102834: licencia inválida
-		expect(report.totals.imported).toBe(2); // would_import
-		expect(
-			report.records.filter((r) => r.outcome === "would_import"),
-		).toHaveLength(2);
+		expect(report.totals.blocked).toBe(0);
+		expect(report.totals.imported).toBe(3); // would_import
+		expect(report.records.filter((r) => r.outcome === "would_import")).toHaveLength(3);
 
 		const stillMissing = await deps.repo.findLegacyResourceByExternalId(
 			deps.getDb().db,
@@ -94,19 +83,13 @@ describe("import:legacy-procomun (integración, PGlite en memoria vía test-setu
 		expect(stillMissing).toBeNull();
 	});
 
-	test("una ejecución real importa los pares válidos y bloquea el de licencia inválida", async () => {
-		const report = await runImportLegacyProcomun(
-			{ sourceDir: FIXTURES_DIR, dryRun: false },
-			deps,
-		);
+	test("una ejecución real importa los 3 pares, resolviendo la licencia ND+SA inexistente a cc-by-nc-sa con warning", async () => {
+		const report = await runImportLegacyProcomun({ sourceDir: FIXTURES_DIR, dryRun: false }, deps);
 
 		expect(report.totals.pairsFound).toBe(3);
-		expect(report.totals.imported).toBe(2);
-		expect(report.totals.blocked).toBe(1);
+		expect(report.totals.imported).toBe(3);
+		expect(report.totals.blocked).toBe(0);
 		expect(report.totals.errored).toBe(0);
-
-		const blockedRecord = report.records.find((r) => r.outcome === "blocked");
-		expect(blockedRecord?.externalId).toBe("es_2025101012_9102834");
 
 		const imported = await deps.repo.findLegacyResourceByExternalId(
 			deps.getDb().db,
@@ -115,43 +98,50 @@ describe("import:legacy-procomun (integración, PGlite en memoria vía test-setu
 		);
 		expect(imported).not.toBeNull();
 
-		const elpxProject = await deps.repo.getElpxProjectByResourceId(
-			deps.getDb().db,
-			imported!.id,
-		);
+		const elpxProject = await deps.repo.getElpxProjectByResourceId(deps.getDb().db, imported!.id);
 		expect(elpxProject?.hasPreview).toBe(true);
 		// El hash debe ser el checksum SHA-256 real del .elpx (no un UUID
 		// aleatorio), condición necesaria para que la deduplicación por
 		// contenido documentada en design.md funcione de verdad.
-		const realChecksum = await computeFileSha256(
-			path.join(FIXTURES_DIR, "1615293421477.elpx"),
-		);
+		const realChecksum = await computeFileSha256(path.join(FIXTURES_DIR, "1615293421477.elpx"));
 		expect(elpxProject?.hash).toBe(realChecksum);
 
-		const media = await deps.repo.listMediaItemsForResource(
-			deps.getDb().db,
-			imported!.id,
-		);
+		const media = await deps.repo.listMediaItemsForResource(deps.getDb().db, imported!.id);
 		expect(media).toHaveLength(1);
 		expect(media[0]?.filename).toBe("1615293421477.elpx");
 
 		const [resourceRow] = await deps
 			.getDb()
-			.db.select({
-				createdAt: resources.createdAt,
-				searchVector: resources.searchVector,
-			})
+			.db.select({ createdAt: resources.createdAt, searchVector: resources.searchVector })
 			.from(resources)
 			.where(eq(resources.id, imported!.id));
 		// createdAt debe reflejar la fecha de publicación original (1615293421477.json
 		// -> publicationDate "2021-05-29T13:48:27.339Z"), no el instante de la
 		// importación, para no alterar el orden del catálogo público.
-		expect(resourceRow?.createdAt.toISOString()).toBe(
-			"2021-05-29T13:48:27.339Z",
-		);
+		expect(resourceRow?.createdAt.toISOString()).toBe("2021-05-29T13:48:27.339Z");
 		// El recurso debe quedar indexado para búsqueda de inmediato, sin
 		// depender de una ejecución manual posterior de fts:reindex.
 		expect(resourceRow?.searchVector).not.toBeNull();
+
+		// es_2025101012_9102834 combina en origen "no derivadas" (ND) y
+		// "compartir igual" (SA), mutuamente excluyentes en las licencias CC
+		// reales — se resuelve a cc-by-nc-sa (prioriza SA) en vez de bloquear,
+		// con un warning tolerable en el informe (ver ADR-0029).
+		const ndSaRecord = report.records.find((r) => r.externalId === "es_2025101012_9102834");
+		expect(ndSaRecord?.outcome).toBe("imported");
+		expect((ndSaRecord as { warnings?: string[] })?.warnings?.some((w) => w.startsWith("license:"))).toBe(true);
+
+		const ndSaResource = await deps.repo.findLegacyResourceByExternalId(
+			deps.getDb().db,
+			"legacy-procomun",
+			"es_2025101012_9102834",
+		);
+		const [ndSaRow] = await deps
+			.getDb()
+			.db.select({ license: resources.license })
+			.from(resources)
+			.where(eq(resources.id, ndSaResource!.id));
+		expect(ndSaRow?.license).toBe("cc-by-nc-sa");
 	});
 
 	test("la URL pública de preview del recurso importado resuelve 200, no 404 (regresión hallazgo P1 revisión #268)", async () => {
@@ -166,10 +156,7 @@ describe("import:legacy-procomun (integración, PGlite en memoria vía test-setu
 			"legacy-procomun",
 			"1615293421477",
 		);
-		const elpxProject = await deps.repo.getElpxProjectByResourceId(
-			deps.getDb().db,
-			imported!.id,
-		);
+		const elpxProject = await deps.repo.getElpxProjectByResourceId(deps.getDb().db, imported!.id);
 		expect(elpxProject?.hasPreview).toBe(true);
 
 		const app = new Hono();
@@ -177,22 +164,17 @@ describe("import:legacy-procomun (integración, PGlite en memoria vía test-setu
 
 		// La URL pública real tal y como la construye buildElpxPreview() a partir
 		// de elpx.hash (ver apps/api/src/elpx/preview.ts).
-		const res = await app.request(
-			`/api/v1/elpx/${elpxProject!.hash}/index.html`,
-		);
+		const res = await app.request(`/api/v1/elpx/${elpxProject!.hash}/index.html`);
 		expect(res.status).toBe(200);
 		expect(res.headers.get("Content-Type")).toBe("text/html");
 	});
 
-	test("re-ejecutar sobre el mismo directorio es idempotente: 0 nuevos, 2 omitidos", async () => {
-		const report = await runImportLegacyProcomun(
-			{ sourceDir: FIXTURES_DIR, dryRun: false },
-			deps,
-		);
+	test("re-ejecutar sobre el mismo directorio es idempotente: 0 nuevos, 3 omitidos", async () => {
+		const report = await runImportLegacyProcomun({ sourceDir: FIXTURES_DIR, dryRun: false }, deps);
 
 		expect(report.totals.imported).toBe(0);
-		expect(report.totals.skippedExisting).toBe(2);
-		expect(report.totals.blocked).toBe(1);
+		expect(report.totals.skippedExisting).toBe(3);
+		expect(report.totals.blocked).toBe(0);
 		expect(report.totals.errored).toBe(0);
 	});
 
@@ -212,22 +194,22 @@ describe("import:legacy-procomun — deduplicación por contenido y limpieza de 
 	let dupDir: string;
 
 	beforeAll(async () => {
-		process.env.UPLOAD_STORAGE_DIR = await mkdtemp(
-			path.join(tmpdir(), "legacy-import-storage-dup-"),
-		);
+		process.env.UPLOAD_STORAGE_DIR = await mkdtemp(path.join(tmpdir(), "legacy-import-storage-dup-"));
 		deps = await loadImportLegacyProcomunDependencies();
 
 		dupDir = await mkdtemp(path.join(tmpdir(), "legacy-import-dup-source-"));
 		// Mismo binario .elpx (mismo checksum) bajo dos externalId distintos:
 		// ejercita la deduplicación secundaria por contenido documentada en
 		// design.md (dos resources.externalId distintos no pueden compartir
-		// elpx_projects.hash). Se reutiliza el .elpx del fixture bloqueado por
-		// licencia (es_2025101012_9102834): su contenido nunca llega a
-		// persistirse en el resto de la suite, así que no colisiona con hashes
-		// ya insertados por el describe anterior (misma BD PGlite compartida
-		// dentro del proceso de test).
-		const sourceElpx = path.join(FIXTURES_DIR, "es_2025101012_9102834.elpx");
-		await copyFile(sourceElpx, path.join(dupDir, "dup-a.elpx"));
+		// elpx_projects.hash). Contenido sintético con marker exclusivo de este
+		// describe (ver createMinimalElpx): antes se reutilizaba el .elpx del
+		// fixture bloqueado por licencia porque su contenido nunca llegaba a
+		// extraerse/persistirse, pero desde que normalizeLicense() resuelve la
+		// combinación ND+SA en vez de bloquear (ver ADR-0029), ese fixture SÍ se
+		// persiste en el describe anterior — reutilizarlo aquí colisionaría con
+		// su hash ya insertado (misma BD PGlite compartida por todo el archivo).
+		const sourceElpx = path.join(dupDir, "dup-a.elpx");
+		await createMinimalElpx(sourceElpx, "dedup-contenido");
 		await copyFile(sourceElpx, path.join(dupDir, "dup-b.elpx"));
 		for (const [name, externalId] of [
 			["dup-a", "es_dup_a"],
@@ -238,11 +220,9 @@ describe("import:legacy-procomun — deduplicación por contenido y limpieza de 
 				JSON.stringify({
 					idODE: externalId,
 					titleStr: `Duplicado ${externalId}`,
-					descriptionStr:
-						"Contenido duplicado para test de deduplicación por hash.",
+					descriptionStr: "Contenido duplicado para test de deduplicación por hash.",
 					generalLanguageStr: ["es"],
-					rightsCopyrightAndOtherRestrictionsStr:
-						"creative commons: attribution",
+					rightsCopyrightAndOtherRestrictionsStr: "creative commons: attribution",
 					resourceType: ["documento"],
 				}),
 			);
@@ -250,10 +230,7 @@ describe("import:legacy-procomun — deduplicación por contenido y limpieza de 
 	});
 
 	test("el segundo recurso con el mismo contenido falla por hash duplicado sin borrar el extractPath del primero", async () => {
-		const report = await runImportLegacyProcomun(
-			{ sourceDir: dupDir, dryRun: false },
-			deps,
-		);
+		const report = await runImportLegacyProcomun({ sourceDir: dupDir, dryRun: false }, deps);
 
 		expect(report.totals.processed).toBe(2);
 		expect(report.totals.imported).toBe(1);
@@ -266,9 +243,7 @@ describe("import:legacy-procomun — deduplicación por contenido y limpieza de 
 		// El mensaje confirma que la detección ocurrió ANTES de extraer (no un
 		// fallo de inserción en BD tras una extracción ya realizada): prueba de
 		// que getElpxProjectByHash() se comprueba antes de processElpxUpload().
-		expect((failed as { message?: string })?.message).toContain(
-			"no se vuelve a extraer",
-		);
+		expect((failed as { message?: string })?.message).toContain("no se vuelve a extraer");
 
 		const firstResource = await deps.repo.findLegacyResourceByExternalId(
 			deps.getDb().db,
@@ -277,18 +252,13 @@ describe("import:legacy-procomun — deduplicación por contenido y limpieza de 
 		);
 		expect(firstResource).not.toBeNull();
 
-		const elpxProject = await deps.repo.getElpxProjectByResourceId(
-			deps.getDb().db,
-			firstResource!.id,
-		);
+		const elpxProject = await deps.repo.getElpxProjectByResourceId(deps.getDb().db, firstResource!.id);
 		expect(elpxProject).not.toBeNull();
 
 		// El extractPath del primer recurso debe seguir intacto: el intento
 		// fallido del segundo NO debe haberlo borrado, o rompería la preview del
 		// primero, que sigue legítimamente en uso.
-		const contentXmlExists = await Bun.file(
-			path.join(elpxProject!.extractPath, "content.xml"),
-		).exists();
+		const contentXmlExists = await Bun.file(path.join(elpxProject!.extractPath, "content.xml")).exists();
 		expect(contentXmlExists).toBe(true);
 
 		const secondResource = await deps.repo.findLegacyResourceByExternalId(
@@ -305,21 +275,15 @@ describe("import:legacy-procomun — carrera real entre dos ejecuciones concurre
 	let raceDir: string;
 
 	beforeAll(async () => {
-		process.env.UPLOAD_STORAGE_DIR = await mkdtemp(
-			path.join(tmpdir(), "legacy-import-storage-race-"),
-		);
+		process.env.UPLOAD_STORAGE_DIR = await mkdtemp(path.join(tmpdir(), "legacy-import-storage-race-"));
 		deps = await loadImportLegacyProcomunDependencies();
 
 		raceDir = await mkdtemp(path.join(tmpdir(), "legacy-import-race-source-"));
 		// Contenido sintético nunca antes visto por elpx_projects.hash en este
-		// proceso de test (a diferencia de reutilizar una fixture ya persistida
-		// en otro describe de este archivo, que compartiría el mismo checksum
-		// que un recurso YA importado y no ejercitaría la carrera real).
-		await createMinimalElpx(path.join(raceDir, "race-a.elpx"));
-		await copyFile(
-			path.join(raceDir, "race-a.elpx"),
-			path.join(raceDir, "race-b.elpx"),
-		);
+		// proceso de test (marker exclusivo de este describe — ver
+		// createMinimalElpx), necesario para ejercitar la carrera real.
+		await createMinimalElpx(path.join(raceDir, "race-a.elpx"), "carrera-toctou");
+		await copyFile(path.join(raceDir, "race-a.elpx"), path.join(raceDir, "race-b.elpx"));
 		for (const [name, externalId] of [
 			["race-a", "es_race_a"],
 			["race-b", "es_race_b"],
@@ -329,11 +293,9 @@ describe("import:legacy-procomun — carrera real entre dos ejecuciones concurre
 				JSON.stringify({
 					idODE: externalId,
 					titleStr: `Carrera ${externalId}`,
-					descriptionStr:
-						"Contenido idéntico para forzar una carrera real entre dos ejecuciones.",
+					descriptionStr: "Contenido idéntico para forzar una carrera real entre dos ejecuciones.",
 					generalLanguageStr: ["es"],
-					rightsCopyrightAndOtherRestrictionsStr:
-						"creative commons: attribution",
+					rightsCopyrightAndOtherRestrictionsStr: "creative commons: attribution",
 					resourceType: ["documento"],
 				}),
 			);
@@ -349,14 +311,8 @@ describe("import:legacy-procomun — carrera real entre dos ejecuciones concurre
 		// que cualquiera persista — exactamente el escenario TOCTOU señalado en
 		// la revisión del PR #268.
 		const [reportA, reportB] = await Promise.all([
-			runImportLegacyProcomun(
-				{ sourceDir: raceDir, dryRun: false, only: "es_race_a" },
-				deps,
-			),
-			runImportLegacyProcomun(
-				{ sourceDir: raceDir, dryRun: false, only: "es_race_b" },
-				deps,
-			),
+			runImportLegacyProcomun({ sourceDir: raceDir, dryRun: false, only: "es_race_a" }, deps),
+			runImportLegacyProcomun({ sourceDir: raceDir, dryRun: false, only: "es_race_b" }, deps),
 		]);
 
 		const totalImported = reportA.totals.imported + reportB.totals.imported;
@@ -382,10 +338,7 @@ describe("import:legacy-procomun — carrera real entre dos ejecuciones concurre
 		);
 		expect(winner).not.toBeNull();
 
-		const elpxProject = await deps.repo.getElpxProjectByResourceId(
-			deps.getDb().db,
-			winner!.id,
-		);
+		const elpxProject = await deps.repo.getElpxProjectByResourceId(deps.getDb().db, winner!.id);
 		expect(elpxProject).not.toBeNull();
 
 		// La preview del recurso que sí ganó la carrera debe seguir intacta: el
@@ -393,9 +346,7 @@ describe("import:legacy-procomun — carrera real entre dos ejecuciones concurre
 		// hash, no debe haber borrado un directorio de extracción compartido
 		// (la garantía de fondo es que, tras el fix, cada intento extrae en su
 		// propia ruta única por uploadId, así que no hay nada que compartir).
-		const contentXmlExists = await Bun.file(
-			path.join(elpxProject!.extractPath, "content.xml"),
-		).exists();
+		const contentXmlExists = await Bun.file(path.join(elpxProject!.extractPath, "content.xml")).exists();
 		expect(contentXmlExists).toBe(true);
 	});
 });

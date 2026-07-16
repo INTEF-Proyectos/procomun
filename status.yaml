@@ -1516,3 +1516,28 @@ tasks:
       decision-log.yaml aquí porque apuntaría a un fichero inexistente en main.
       Validación: parseo YAML de status.yaml; ningún gate valida numeración de ADR ni las claves
       related, comprobado en scripts/.
+
+  T-2026-07-16-007:
+    date: 2026-07-16
+    agent: "devops-sre + qa-validacion"
+    task: "Segunda integración de main en la PR #272: entra la PR #273 (licencias legacy ND+SA) mientras la rama estaba en revisión"
+    status: Done
+    related: ["ADR-0029", "T-2026-07-16-003"]
+    notes: >
+      La PR #273 ("resolve legacy ND+SA licenses as *-sa") mergeó en main mientras esta rama
+      estaba en verde, y volvió a dejarla en conflicto. Mismo patrón que T-2026-07-16-003: los
+      cuatro ficheros en conflicto son código de importador que esta rama solo había reformateado.
+      normalize-license.ts: se conserva el cambio de main de "const nd" a "let nd" — es requisito
+      del propio fix (la línea "if (ndSaConflictResolved) nd = false" reasigna la variable, así que
+      mantener const rompería la compilación) — con el formateo de esta rama.
+      Los tres ficheros de test (normalize-license.unit.test.ts, field-mapper.unit.test.ts,
+      import-legacy-procomun.integration.test.ts) se resuelven tomando la versión de main y
+      reformateando: sus aserciones antiguas (ND+SA bloqueaba) son justo lo que #273 corrige
+      (ahora resuelve a *-sa). Antes de descartar ese lado se verificó que la aportación de esta
+      rama a los tres era solo formato y orden de imports, comparando el multiconjunto de símbolos
+      importados y el contenido sin espacios ni comas finales: ningún import se pierde.
+      field-mapper.ts automergeó limpio y el fix real [^] -> [\s\S] de T-2026-07-16-003 sobrevive.
+      Validación: biome format exit 0; biome lint 0 errores; bun run test 774 pass / 0 fail (+1
+      test nuevo de #273) con coverage 90,65%; el test de ND+SA de #273 pasa; diff -w contra
+      origin/main sobre packages/db/src/legacy-import/ muestra como único cambio no-formato el
+      [\s\S], confirmando que no se ha revertido nada de #273.
