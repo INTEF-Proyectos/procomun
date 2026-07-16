@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import {
 	LANGUAGE_OPTIONS,
 	LICENSE_OPTIONS,
+	RESOURCE_TYPE_OPTIONS,
 } from "../islands/resources/resource-form-options.ts";
 import { getApiClient } from "../lib/get-api-client.ts";
 import { url } from "../lib/paths.ts";
@@ -444,18 +445,11 @@ export default function NuevoPage() {
 								setFieldValue("resourceType", event.currentTarget.value)
 							}
 						>
-							<option value="documento">Documento</option>
-							<option value="presentacion">Presentación</option>
-							<option value="video">Vídeo</option>
-							<option value="audio">Audio</option>
-							<option value="imagen">Imagen</option>
-							<option value="actividad-interactiva">
-								Actividad interactiva
-							</option>
-							<option value="secuencia-didactica">Secuencia didáctica</option>
-							<option value="ejercicio">Ejercicio</option>
-							<option value="evaluacion">Evaluación</option>
-							<option value="proyecto">Proyecto</option>
+							{RESOURCE_TYPE_OPTIONS.map((option) => (
+								<option key={option.value} value={option.value}>
+									{option.label}
+								</option>
+							))}
 						</select>
 						<span id="resourceType-error" className="field-error" role="alert">
 							{fieldErrors.resourceType ?? ""}

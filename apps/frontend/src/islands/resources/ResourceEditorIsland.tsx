@@ -5,9 +5,9 @@ import { url } from "../../lib/paths.ts";
 import { hasMinRole, ROLE_LEVELS } from "../../lib/shared-utils.ts";
 import { AccessibleFeedback } from "../shared/AccessibleFeedback.tsx";
 import {
+	getResourceTypeOptions,
 	LANGUAGE_OPTIONS,
 	LICENSE_OPTIONS,
-	RESOURCE_TYPE_OPTIONS,
 } from "./resource-form-options.ts";
 
 interface ResourceFormState {
@@ -299,6 +299,7 @@ export function ResourceEditorIsland() {
 			return userLevel >= (ROLE_LEVELS[rule.minRole] ?? 99);
 		},
 	);
+	const resourceTypeOptions = getResourceTypeOptions(form.resourceType);
 
 	return (
 		<>
@@ -579,7 +580,7 @@ export function ResourceEditorIsland() {
 							setFieldValue("resourceType", event.currentTarget.value)
 						}
 					>
-						{RESOURCE_TYPE_OPTIONS.map((option) => (
+						{resourceTypeOptions.map((option) => (
 							<option key={option.value} value={option.value}>
 								{option.label}
 							</option>

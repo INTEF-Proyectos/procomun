@@ -1570,3 +1570,36 @@ tasks:
       de T-2026-07-16-007): format . solo señala .claude/settings.local.json, que no está
       versionado y CI no ve; biome lint 0 errores; check-test-files OK; bun run test 790 pass /
       0 fail (+16 tests de #274) con coverage 90,68%.
+
+  T-2026-07-16-009:
+    date: 2026-07-16
+    agent: "devops-sre + frontend-ux-accesibilidad + qa-validacion"
+    task: "Cuarta integración de main en la PR #272: entran la PR #269 (TypeScript 7.0.2) y la PR #275 (selects de tipo de recurso unificados)"
+    status: Done
+    related: ["T-2026-07-16-003", "T-2026-07-16-007", "T-2026-07-16-008"]
+    notes: >
+      Seis ficheros en conflicto. Los dos package.json requerían criterio porque ambos lados
+      tocaban dependencias y un "prefer ours" habría revertido el bump de la #269:
+      package.json raíz — se conserva @biomejs/biome 2.4.8 de esta rama (razón de ser de la PR;
+      main sigue con el paquete equivocado biome@0.3.3) Y el typescript 7.0.2 de la #269, con el
+      formateo en tabs de esta rama.
+      apps/frontend/package.json — la #269 subió typescript en dependencies, donde estaba antes;
+      esta rama lo había movido a devDependencies junto con @types/* como parte de la limpieza.
+      Se mantiene la estructura de esta rama (devDependencies, sin las dependencias sin uso que ya
+      se retiraron) con la versión 7.0.2 de la #269.
+      bun.lock — no se resuelve a mano: se regenera con bun install a partir de los package.json
+      ya fusionados. Resultado verificado: @biomejs/biome 2.4.8 y typescript 7.0.2, sin rastro de
+      biome@0.3.3.
+      Los tres ficheros de frontend (NuevoPage.tsx, EditarPage.tsx, ResourceEditorIsland.tsx) no
+      podían resolverse tomando un lado entero: la #275 sustituye las listas <option> escritas a
+      mano por las opciones compartidas, y esta rama tiene ahí arreglos reales previos de lint y
+      a11y. Se fusionan ambos: la funcionalidad de la #275 (RESOURCE_TYPE_OPTIONS en alta,
+      getResourceTypeOptions en edición) con el formateo, el orden de imports y los atributos
+      aria de esta rama. Comprobado que no queda ninguna lista de <option> de tipo de recurso
+      escrita a mano en apps/frontend/src/.
+      Validación con biome 2.4.8 real (versión comprobada antes de la pasada): format . solo
+      señala .claude/settings.local.json, no versionado y que CI no ve; biome lint 0 errores;
+      bun run test 793 pass / 0 fail con coverage 90,75%; build del frontend OK con TypeScript 7;
+      tsc 665 errores (paso no bloqueante) — ninguno menciona resourceTypeOptions ni las
+      resoluciones de este merge; el delta sobre la línea base de 635 es código nuevo de
+      #268/#273/#274/#275 y la mayor estrictez de TS 7.

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
+import { getResourceTypeOptions } from "../islands/resources/resource-form-options.ts";
 import type { Resource } from "../lib/api-client.ts";
 import { getApiClient } from "../lib/get-api-client.ts";
 import { url } from "../lib/paths.ts";
@@ -596,6 +597,9 @@ export default function EditarPage() {
 
 	// state === "ready"
 	const res = resource!;
+	const resourceTypeOptions = getResourceTypeOptions(
+		isNew ? null : res.resourceType,
+	);
 	const st = STATUS_LABELS[res.editorialStatus] ?? STATUS_LABELS.draft;
 	const date = formatDate(res.updatedAt || res.createdAt);
 	const previewUrl = (res as Record<string, unknown>).elpxPreview
@@ -874,20 +878,11 @@ export default function EditarPage() {
 										ref={resourceTypeRef}
 										defaultValue="actividad-interactiva"
 									>
-										<option value="documento">Documento</option>
-										<option value="presentacion">Presentación</option>
-										<option value="video">Vídeo</option>
-										<option value="audio">Audio</option>
-										<option value="imagen">Imagen</option>
-										<option value="actividad-interactiva">
-											Actividad interactiva
-										</option>
-										<option value="secuencia-didactica">
-											Secuencia didáctica
-										</option>
-										<option value="ejercicio">Ejercicio</option>
-										<option value="evaluacion">Evaluación</option>
-										<option value="proyecto">Proyecto</option>
+										{resourceTypeOptions.map((option) => (
+											<option key={option.value} value={option.value}>
+												{option.label}
+											</option>
+										))}
 									</select>
 								</div>
 							</>
@@ -1007,20 +1002,11 @@ export default function EditarPage() {
 										ref={resourceTypeRef}
 										defaultValue={res.resourceType ?? "documento"}
 									>
-										<option value="documento">Documento</option>
-										<option value="presentacion">Presentación</option>
-										<option value="video">Vídeo</option>
-										<option value="audio">Audio</option>
-										<option value="imagen">Imagen</option>
-										<option value="actividad-interactiva">
-											Actividad interactiva
-										</option>
-										<option value="secuencia-didactica">
-											Secuencia didáctica
-										</option>
-										<option value="ejercicio">Ejercicio</option>
-										<option value="evaluacion">Evaluación</option>
-										<option value="proyecto">Proyecto</option>
+										{resourceTypeOptions.map((option) => (
+											<option key={option.value} value={option.value}>
+												{option.label}
+											</option>
+										))}
 									</select>
 								</div>
 							</div>
