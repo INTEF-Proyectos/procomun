@@ -1,3 +1,4 @@
+import { sql } from "drizzle-orm";
 import { Hono } from "hono";
 import type { AuthEnv } from "../auth/middleware.ts";
 import { requireAuth } from "../auth/middleware.ts";
@@ -47,8 +48,23 @@ apiTokenRoutes.post("/", async (c) => {
 		}
 	}
 
-	const activeCount = await repo.countActiveApiTokens(db, user.id);
-	if (activeCount >= MAX_ACTIVE_TOKENS_PER_USER) {
+	// Serialize token creation per user inside the same transaction that checks
+	// the active-token count. Without this lock, concurrent requests can both see
+	// count=9 and create the 10th and 11th tokens. The lock is transaction-scoped
+	// and keyed by the user id; hash collisions only serialize unrelated users.
+	const result = await db.transaction(async (tx: typeof db) => {
+		await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${user.id}))`);
+		const activeCount = await repo.countActiveApiTokens(tx, user.id);
+		if (activeCount >= MAX_ACTIVE_TOKENS_PER_USER) return null;
+
+		return repo.createApiToken(tx, {
+			userId: user.id,
+			name: body.name?.trim() ?? "",
+			expiresAt,
+		});
+	});
+
+	if (!result) {
 		return c.json(
 			{
 				error: `Has alcanzado el número máximo de tokens activos (${MAX_ACTIVE_TOKENS_PER_USER}). Revoca alguno antes de crear otro.`,
@@ -56,12 +72,6 @@ apiTokenRoutes.post("/", async (c) => {
 			429,
 		);
 	}
-
-	const result = await repo.createApiToken(db, {
-		userId: user.id,
-		name: body.name.trim(),
-		expiresAt,
-	});
 
 	// The raw token is only shown once
 	return c.json(
