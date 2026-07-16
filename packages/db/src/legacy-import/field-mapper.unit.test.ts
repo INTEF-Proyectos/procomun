@@ -10,7 +10,7 @@ async function loadFixture(name: string): Promise<LegacyOdeJson> {
 }
 
 describe("mapLegacyRecord", () => {
-	it("maps a native MEC record (es_2025101012_9102834) but flags its invalid license combo as blocking", async () => {
+	it("maps a native MEC record (es_2025101012_9102834), resolving its ND+SA license combo to cc-by-nc-sa with a warning", async () => {
 		const json = await loadFixture("es_2025101012_9102834");
 		const result = mapLegacyRecord(json, "fallback.elpx");
 
@@ -22,10 +22,17 @@ describe("mapLegacyRecord", () => {
 		expect(result.resource.resourceType).toBe("proyecto");
 		expect(result.resource.sourceUri).toBe("https://ode.educacion.es/INTEF/es_2025101012_9102834");
 		// rightsCopyrightAndOtherRestrictionsStr combina "non derived work" + "share alike",
-		// una combinación de licencia CC inexistente -> bloqueante.
-		expect(result.blocking).toBe(true);
-		expect(result.resource.license).toBeNull();
-		expect(result.blockingErrors.some((e) => e.includes("Licencia"))).toBe(true);
+		// una combinación de licencia CC inexistente (ND y SA son mutuamente
+		// excluyentes) -> se resuelve priorizando SA sobre ND, no bloqueante
+		// (decisión de negocio confirmada, ver ADR-0029).
+		expect(result.blocking).toBe(false);
+		expect(result.resource.license).toBe("cc-by-nc-sa");
+		expect(result.blockingErrors).toHaveLength(0);
+		expect(result.warnings).toContainEqual({
+			field: "license",
+			message:
+				'Licencia de origen combinaba "no derivadas" y "compartir igual" (mutuamente excluyentes en Creative Commons real); se asume "cc-by-nc-sa" priorizando "compartir igual"',
+		});
 	});
 
 	it("maps a native MEC record with rich metadata (es_2024052212_9181312) as importable", async () => {

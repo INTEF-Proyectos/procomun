@@ -32,7 +32,7 @@ apps/cli/src/commands/import-legacy-procomun.ts   (orquestador CLI)
 | `titleStr` | `resources.title` | `trim()`, trunca a 500 |
 | `descriptionStr` (fallback `educationalDescriptionStr[0]`) | `resources.description` | `trim()`, trunca a 5000; vacío en ambas → **bloqueante** |
 | `generalLanguageStr[0]` (fallback `educationalLanguageStr[0]`) | `resources.language` | `normalizeLanguage()`; si no reconocido → fallback `"es"` marcado `guessed: true` (tolerable) |
-| `rightsCopyrightAndOtherRestrictionsStr` | `resources.license` | `normalizeLicense()`; si no matchea → **bloqueante** |
+| `rightsCopyrightAndOtherRestrictionsStr` | `resources.license` | `normalizeLicense()`; si no matchea → **bloqueante**; excepción: combinación `no derivs` + `share alike` (imposible en CC real) → se resuelve a `*-sa` con warning, no bloqueante — ver sección `normalizeLicense()` más abajo |
 | `resourceType[0]` (fallback `educationalLearningResourceTypeStr[0]`) | `resources.resourceType` | `mapResourceType()`; diccionario + slug de fallback; trunca a 100 (`varchar(100)`), warning si se trunca |
 | `knowledgeArea[]` | `resource_subjects` | una fila por valor no vacío, `trim()`, trunca a 255 (`varchar(255)`), warning agregado si se trunca alguna |
 | `learningContext[]` | `resource_levels` | una fila por valor no vacío, `trim()`, trunca a 100 (`varchar(100)`), warning agregado si se trunca alguna |
@@ -48,8 +48,9 @@ apps/cli/src/commands/import-legacy-procomun.ts   (orquestador CLI)
 1. Normaliza a minúsculas, sin acentos, espacios colapsados.
 2. Si no contiene `"creative commons"` / no empieza por `"cc"` / no es `"cc0"` → no matchea, **bloqueante**.
 3. Detecta tokens: `attribution` (base `cc-by`), `non commercial` → `-nc`, `share alike` → `-sa`, `no derivs` → `-nd`.
-4. Mapea a `VALID_LICENSES` (`packages/db/src/validation.ts`); combinación inválida → bloqueante, se registra el string crudo agrupado por frecuencia en el informe.
-5. Sufijo de versión (`4.0`, `3.0`) se ignora.
+4. **`no derivs` + `share alike` a la vez**: combinación imposible en las licencias CC reales (`ND` prohíbe obras derivadas, `SA` exige liberar las derivadas con la misma licencia — mutuamente excluyentes por diseño de Creative Commons, no una laguna de `VALID_LICENSES`). Se interpreta como error de captura del formulario de origen y se **resuelve priorizando `SA` sobre `ND`** (se descarta `ND`), no bloqueante — decisión de negocio confirmada tras la revisión del PR #268 (ver ADR-0029, actualización 2026-07-16). Se registra un warning tolerable (`field: "license"`) en el informe, no un bloqueo.
+5. Mapea a `VALID_LICENSES` (`packages/db/src/validation.ts`); cualquier otra combinación fuera de esas 6 variantes → bloqueante, se registra el string crudo agrupado por frecuencia en el informe.
+6. Sufijo de versión (`4.0`, `3.0`) se ignora.
 
 ### `normalizeLanguage()`
 Normaliza código ISO 639, valida contra `VALID_LANGUAGES`; si falla, fallback `"es"` con `guessed: true`.
