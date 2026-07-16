@@ -17,6 +17,9 @@ beforeAll(() => {
 		mkdirSync(path.join(editorDir, "app"), { recursive: true });
 		writeFileSync(path.join(editorDir, "index.html"), "<html><head></head><body>mock editor</body></html>");
 		writeFileSync(path.join(editorDir, "app", "app.bundle.js"), "// mock");
+		// Present so the "must not be served" test proves the route refuses a file
+		// that actually exists on disk, not merely a missing one.
+		writeFileSync(path.join(editorDir, "preview-sw.js"), "// mock preview service worker");
 		createdMockDir = true;
 	}
 });
@@ -41,6 +44,36 @@ describe("GET /api/v1/exelearning-editor/index.html", () => {
 		expect(html).toContain("__PROCOMUN_CONFIG__");
 		expect(res.headers.get("content-type")).toContain("text/html");
 		expect(res.headers.get("cache-control")).toBe("no-cache");
+	});
+
+	test("neutraliza el registro de Service Worker (protección interina)", async () => {
+		const res = await app.request("/api/v1/exelearning-editor/index.html");
+		expect(res.status).toBe(200);
+		const html = await res.text();
+		// The pre-v2 editor could otherwise register a same-origin preview SW.
+		expect(html).toContain("navigator.serviceWorker.register = function");
+		expect(html).toContain("navigator.serviceWorker.getRegistration = function");
+		expect(html).toContain("navigator.serviceWorker.getRegistrations = function");
+		// Must be injected in <head>, before the editor's body scripts run.
+		const swIdx = html.indexOf("navigator.serviceWorker.register");
+		const bodyIdx = html.indexOf("<body");
+		expect(swIdx).toBeGreaterThan(-1);
+		expect(bodyIdx === -1 || swIdx < bodyIdx).toBe(true);
+	});
+
+	test("activa el transporte HTTP de preview (serving contract v2)", async () => {
+		const res = await app.request("/api/v1/exelearning-editor/index.html");
+		expect(res.status).toBe(200);
+		const html = await res.text();
+		// previewHttp block: protocol v2 + the owner-gated management base and the
+		// authless serving base. No managementHeaders/managementQuery — auth is the
+		// same-origin better-auth cookie.
+		expect(html).toContain("previewHttp");
+		expect(html).toContain("protocolVersion: 2");
+		expect(html).toContain('managementBaseUrl: "/api/v1/preview-session"');
+		expect(html).toContain('servingBaseUrl: "/api/v1/preview"');
+		expect(html).not.toContain("managementHeaders");
+		expect(html).not.toContain("managementQuery");
 	});
 
 	test("inyecta bridge script con soporte de exportación", async () => {
@@ -92,5 +125,15 @@ describe("GET /api/v1/exelearning-editor/* — static assets", () => {
 	test("devuelve 404 para archivo inexistente", async () => {
 		const res = await app.request("/api/v1/exelearning-editor/nonexistent.js");
 		expect(res.status).toBe(404);
+	});
+
+	test("NO sirve preview-sw.js aunque exista (defensa en profundidad)", async () => {
+		// Serving the legacy preview SW same-origin would let the pre-v2 editor run
+		// untrusted author content as the authenticated user. Must 404 even though
+		// the file exists on disk.
+		for (const p of ["preview-sw.js", "static/preview-sw.js"]) {
+			const res = await app.request(`/api/v1/exelearning-editor/${p}`);
+			expect(res.status, p).toBe(404);
+		}
 	});
 });

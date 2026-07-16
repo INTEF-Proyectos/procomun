@@ -324,6 +324,11 @@
         var strict = config.mode === 'strict';
         var whitelist = buildWhitelist(config.whitelist);
         var overlays = [];
+        // Handles for the listeners/timer init() installs, so dispose() can remove
+        // them and init() can stay idempotent (a second init() must not stack a
+        // second drift interval + duplicate window listeners on the same relay).
+        var driftTimer = null;
+        var started = false;
 
         function findOverlay(iframe) {
             for (var i = 0; i < overlays.length; i++) {
@@ -372,6 +377,39 @@
             entry.el.style.top = (rect.top + scrollY) + 'px';
             entry.el.style.width = rect.width + 'px';
             entry.el.style.height = rect.height + 'px';
+            // Remembered so checkDrift() can detect host-driven moves of the content
+            // iframe (panel toggles, sidebar show/hide) that fire no scroll/resize.
+            entry.lastRect = { left: rect.left, top: rect.top, width: rect.width, height: rect.height };
+        }
+
+        /**
+         * Re-position any overlay whose content iframe box moved since it was last
+         * placed. The host page can move or resize the content iframe without any
+         * scroll/resize event firing (editor sidebar toggles, panel slide-ins, CSS
+         * transforms), which would strand the overlay at its old position. Called
+         * from a low-frequency interval in init(); one getBoundingClientRect per
+         * overlay per tick. Returns how many overlays were re-positioned.
+         *
+         * @returns {number}
+         */
+        function checkDrift() {
+            var moved = 0;
+            for (var i = 0; i < overlays.length; i++) {
+                var entry = overlays[i];
+                var rect = entry.iframe.getBoundingClientRect();
+                var last = entry.lastRect;
+                if (
+                    !last ||
+                    rect.left !== last.left ||
+                    rect.top !== last.top ||
+                    rect.width !== last.width ||
+                    rect.height !== last.height
+                ) {
+                    positionOverlay(entry, rect);
+                    moved += 1;
+                }
+            }
+            return moved;
         }
 
         // D1: if a promoted embed lands SAME-ORIGIN to the LMS (e.g. a cross-origin URL
@@ -500,20 +538,72 @@
         }
         /* v8 ignore stop */
 
+        // Remove every overlay (and its players) from the DOM and empty the list.
+        // A private helper here (this mirror does not export core's clear()/reflow());
+        // dispose() reuses it to tear the overlays down before removing listeners.
+        function clear() {
+            for (var i = 0; i < overlays.length; i++) {
+                var entry = overlays[i];
+                var ids = Object.keys(entry.players);
+                for (var j = 0; j < ids.length; j++) {
+                    var player = entry.players[ids[j]];
+                    if (player && player.parentNode) {
+                        player.parentNode.removeChild(player);
+                    }
+                }
+                entry.players = {};
+                if (entry.el && entry.el.parentNode) {
+                    entry.el.parentNode.removeChild(entry.el);
+                }
+            }
+            overlays.length = 0;
+        }
+
+        // Tear down clear() the overlays AND remove the window listeners + drift
+        // timer that init() installed, so a relay whose host is gone (preview panel
+        // disposed, tab closed) leaves nothing running. Idempotent; init() can run
+        // again afterwards on a reused relay.
+        function dispose() {
+            clear();
+            /* v8 ignore start */
+            if (driftTimer !== null) {
+                window.clearInterval(driftTimer);
+                driftTimer = null;
+            }
+            window.removeEventListener('message', onMessage);
+            window.removeEventListener('resize', scheduleReflow);
+            window.removeEventListener('scroll', scheduleReflow, true);
+            window.removeEventListener('load', pingAll);
+            /* v8 ignore stop */
+            started = false;
+        }
+
         return {
             onMessage: onMessage,
             sync: sync,
+            checkDrift: checkDrift,
+            dispose: dispose,
             validate: function (raw, contentSrc) {
                 return validate(raw, contentSrc, { strict: strict, whitelist: whitelist });
             },
             /* v8 ignore start */
             init: function () {
+                // Idempotent: a second init() on the same relay must not stack a
+                // second drift interval and duplicate window listeners.
+                if (started) {
+                    return this;
+                }
+                started = true;
                 window.addEventListener('message', onMessage);
                 window.addEventListener('resize', scheduleReflow);
                 window.addEventListener('scroll', scheduleReflow, true);
                 window.addEventListener('load', pingAll);
                 pingAll();
                 window.setTimeout(pingAll, 500);
+                // Host layout changes (sidebar toggles, panel slide-ins) move the
+                // content iframe with no scroll/resize event; keep the overlays
+                // pinned to it with a cheap low-frequency drift check.
+                driftTimer = window.setInterval(checkDrift, 300);
                 return this;
             }
             /* v8 ignore stop */

@@ -6,6 +6,7 @@ import { devRoutes } from "../routes/dev.ts";
 import { elpxContentRoutes } from "../routes/elpx-content.ts";
 import { exelearningEditorRoutes } from "../routes/exelearning-editor.ts";
 import { feedRoutes } from "../routes/feeds.ts";
+import { previewRoutes, previewSessionRoutes } from "../routes/preview.ts";
 import { publicRoutes } from "../routes/public.ts";
 import { socialRoutes } from "../routes/social.ts";
 import { uploadRoutes } from "../routes/uploads.ts";
@@ -26,6 +27,11 @@ export function registerRoutes(app: Hono<AuthEnv>) {
 	app.route("/api/v1", publicRoutes);
 	app.route("/api/v1", socialRoutes);
 	app.route("/api/v1/elpx", elpxContentRoutes);
+	// Authenticated preview-session management API (owner-gated) + the authless,
+	// capability-URL serving route for the opaque preview iframe. Distinct path
+	// segments, so mount order is irrelevant.
+	app.route("/api/v1/preview-session", previewSessionRoutes);
+	app.route("/api/v1/preview", previewRoutes);
 	app.route("/api/v1/exelearning-editor", exelearningEditorRoutes);
 	app.route("/api/v1/tokens", apiTokenRoutes);
 	app.use("/api/v1/publish/*", tokenAuthMiddleware);
