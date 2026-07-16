@@ -3,7 +3,7 @@ import { useSearchParams, useNavigate } from "react-router-dom";
 import { getApiClient } from "../lib/get-api-client.ts";
 import { url } from "../lib/paths.ts";
 import type { Resource } from "../lib/api-client.ts";
-import { RESOURCE_TYPE_OPTIONS } from "../islands/resources/resource-form-options.ts";
+import { getResourceTypeOptions } from "../islands/resources/resource-form-options.ts";
 import "../styles/editar.css";
 
 const STATUS_LABELS: Record<string, { label: string; cssClass: string }> = {
@@ -426,6 +426,7 @@ export default function EditarPage() {
 
   // state === "ready"
   const res = resource!;
+  const resourceTypeOptions = getResourceTypeOptions(isNew ? null : res.resourceType);
   const st = STATUS_LABELS[res.editorialStatus] ?? STATUS_LABELS.draft;
   const date = formatDate(res.updatedAt || res.createdAt);
   const previewUrl = (res as Record<string, unknown>).elpxPreview
@@ -627,7 +628,7 @@ export default function EditarPage() {
                 <div className="edit-field">
                   <label htmlFor="ed-resourceType">Tipo de recurso</label>
                   <select id="ed-resourceType" ref={resourceTypeRef} defaultValue="actividad-interactiva">
-                    {RESOURCE_TYPE_OPTIONS.map((option) => (
+                    {resourceTypeOptions.map((option) => (
                       <option key={option.value} value={option.value}>{option.label}</option>
                     ))}
                   </select>
@@ -726,7 +727,7 @@ export default function EditarPage() {
                 <div className="edit-field">
                   <label htmlFor="ed-resourceType">Tipo de recurso</label>
                   <select id="ed-resourceType" ref={resourceTypeRef} defaultValue={res.resourceType ?? "documento"}>
-                    {RESOURCE_TYPE_OPTIONS.map((option) => (
+                    {resourceTypeOptions.map((option) => (
                       <option key={option.value} value={option.value}>{option.label}</option>
                     ))}
                   </select>
