@@ -21,7 +21,9 @@ function slugify(value: string): string {
 
 // Equivalencias conocidas entre el vocabulario LOM-ES/legacy de Procomún
 // (español o inglés, ver ode-export/) y el vocabulario informal ya usado por
-// procomun-ng (apps/frontend/src/lib/resource-filters.ts, packages/db/src/seed-data.ts).
+// procomun-ng — ver packages/db/src/resource-types.ts, única fuente de
+// verdad de los tipos soportados (también usada por
+// apps/frontend/src/lib/resource-filters.ts y packages/db/src/seed-data.ts).
 // Solo se listan equivalencias con confianza razonable; el resto cae al slug de
 // fallback para no forzar una categorización incorrecta.
 const RESOURCE_TYPE_DICTIONARY: Record<string, string> = {
@@ -41,6 +43,29 @@ const RESOURCE_TYPE_DICTIONARY: Record<string, string> = {
 	"secuencia didactica": "secuencia-didactica",
 	"guia docente": "guia-docente",
 	infografia: "infografia",
+
+	// Añadidas tras revisar el informe de una importación real (826 pares):
+	// estos 10 valores de origen concentraban 275 recursos con warning de
+	// resourceType, sin ninguna equivalencia en el diccionario (mapeo
+	// confirmado con el usuario, ver ADR-0029). Se indexan por el texto
+	// español (resourceType) y, cuando corresponde a un término LOM estándar
+	// fiable, también por su valor en inglés (educationalLearningResourceTypeStr)
+	// para cubrir mejor el resto del corpus (~78.800 recursos), no solo estos.
+	"leccion magistral": "presentacion",
+	"juego didactico": "actividad-interactiva",
+	"integrated media": "actividad-interactiva",
+	"mapa conceptual": "mapa-conceptual",
+	"conceptual map": "mapa-conceptual",
+	cuestionario: "evaluacion",
+	"self assessment": "evaluacion",
+	simulacion: "actividad-interactiva",
+	experiment: "actividad-interactiva",
+	"problema abierto": "ejercicio",
+	"aprendizaje basado en problemas": "proyecto",
+	"texto narrativo": "documento",
+	"narrative text": "documento",
+	webquest: "actividad-interactiva",
+	"presentacion multimedia": "presentacion",
 };
 
 /**

@@ -162,3 +162,39 @@ Se confirma con el usuario que la cadena de origen es, casi con toda seguridad, 
 * Esta regla es específica del importador legacy (`normalizeLicense()` solo se usa desde `field-mapper.ts`); no afecta a la validación de licencias en la creación manual de recursos, que sigue validando directamente contra `VALID_LICENSES` sin pasar por esta normalización de texto libre.
 
 Validación: `bun test` completo del monorepo (808/808, +1 test nuevo) y `check-test-files.ts` sin incidencias.
+
+## Actualización 2026-07-16 (3) — fuente única de verdad para tipos de recurso, y 10 equivalencias nuevas
+
+Al revisar el informe de la importación real (826 pares), el usuario observó que los tipos de recurso sin equivalencia (248→281 tras el fix de licencia) no eran solo un problema del diccionario del importador: `resources.resourceType` es `varchar(100)` **sin enum en BD** (`packages/db/src/validation.ts`), y tres ficheros mantenían cada uno su propia lista informal de "tipos soportados", desincronizadas entre sí:
+
+* `packages/db/src/legacy-import/resource-type-map.ts` (diccionario de equivalencias del importador) — no incluía `actividad-interactiva`.
+* `apps/frontend/src/lib/resource-filters.ts` (opciones del filtro de búsqueda pública) — no incluía `guia-docente` ni `infografia`, pese a que sí se usan en datos reales (`seed-data.ts`).
+* `packages/db/src/seed-data.ts` (datos de ejemplo) — usaba tipos que ni el importador ni el filtro público reconocían.
+
+### Decisión
+
+1. **Fuente única de verdad**: nuevo módulo `packages/db/src/resource-types.ts` (`RESOURCE_TYPES`, `RESOURCE_TYPE_VALUES`), exportado como `@procomun/db/resource-types`. `apps/frontend/src/lib/resource-filters.ts` deriva `RESOURCE_TYPE_OPTIONS` de esta lista en vez de mantener una copia a mano — un tipo nuevo añadido aquí se propaga automáticamente al filtro público.
+2. **Nuevo tipo `mapa-conceptual`**: en vez de forzar los mapas conceptuales (46 recursos del ejemplo real) dentro de `infografia` (categoría existente más cercana), el usuario decidió que un mapa conceptual es una categoría propia — se añade a `RESOURCE_TYPES`.
+3. **10 equivalencias nuevas en el diccionario del importador** (`resource-type-map.ts`), mapeo de negocio confirmado con el usuario tras revisar los valores de origen reales (español y término LOM en inglés, `educationalLearningResourceTypeStr`) de cada bucket sin equivalencia:
+
+   | Valor de origen | → Tipo canónico |
+   |---|---|
+   | "Lección magistral" | `presentacion` |
+   | "Juego didáctico" / *integrated media* | `actividad-interactiva` |
+   | "Mapa conceptual" / *conceptual map* | `mapa-conceptual` |
+   | "Cuestionario" / *self assessment* | `evaluacion` |
+   | "Simulación" / *experiment* | `actividad-interactiva` |
+   | "Problema abierto" | `ejercicio` |
+   | "Aprendizaje basado en problemas" | `proyecto` |
+   | "Texto narrativo" / *narrative text* | `documento` |
+   | "Webquest" | `actividad-interactiva` |
+   | "Presentación multimedia" | `presentacion` |
+
+   Se indexan tanto por el texto español (`resourceType`) como, cuando corresponde a un término LOM estándar fiable, por su valor en inglés (`educationalLearningResourceTypeStr`), para cubrir mejor el resto del corpus real (~78.800 recursos), no solo la muestra de 826 analizada.
+
+### Consecuencias
+* Guardián de deriva: `resource-types.unit.test.ts` verifica que todo `resourceType` usado en `seed-data.ts` está en `RESOURCE_TYPE_VALUES`, para que las tres listas no puedan volver a desincronizarse sin que un test lo detecte.
+* Sobre la muestra de 826 pares, los warnings de `resourceType` deberían bajar significativamente en la próxima ejecución (275 registros afectados por estos 10 valores).
+* Esta es una unificación pragmática ("parche rápido"), no un rediseño del modelo de datos: `resourceType` sigue siendo texto libre sin validar en BD, y el sistema de taxonomías ya existente sigue desconectado de `resources` (riesgo ya anotado en la sección "Negativas / Riesgos" de esta ADR). Queda abierto un caso de investigación (`docs/casos/tipos-de-recurso/`) para decidir si `resourceType` debería convertirse en vocabulario controlado a medio plazo.
+
+Validación: `bun test` completo del monorepo (824/824, +16 tests nuevos), `bunx @biomejs/biome check .` y `check-test-files.ts` sin incidencias; `apps/frontend` compila (`vite build`) con el nuevo import.
