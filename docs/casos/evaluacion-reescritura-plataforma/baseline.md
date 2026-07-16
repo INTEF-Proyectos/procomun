@@ -98,6 +98,8 @@ Hallazgo central de esta línea base:
 
 Consecuencia metodológica: las menciones «biome lint OK» repetidas en `status.yaml` no aportan evidencia de calidad, porque el comando nunca analizó código. Este hecho no invalida la suite de tests, que sí es real y está en verde.
 
+**Actualización 2026-07-16 (posterior a la medición):** los puntos 1 y 2 quedaron **corregidos en la PR #272** (`fix/quality-gates-biome`), ejecutada tras esta evaluación como adelanto del Lote 0: `@biomejs/biome` 2.4.8 real instalado, formateo y fixes seguros aplicados (~330 archivos), errores restantes resueltos con arreglos dirigidos y supresiones justificadas, y dos grupos de reglas (deps de hooks React y a11y profunda) rebajados temporalmente a warning con burn-down explícito de 288 avisos. La primera ejecución real midió 111 errores de lint, 275 warnings y 311 archivos sin formatear; la absorción completa costó **horas, no semanas** (por debajo del gate de 1 semana de la hipótesis I2). El punto 3 (typecheck con 635 errores y `continue-on-error`) sigue vigente. Las cifras del resto de este documento describen el commit analizado `eea2fe7d`, anterior a esa corrección.
+
 ## 7. Métricas no medidas
 
 | Métrica | Motivo |

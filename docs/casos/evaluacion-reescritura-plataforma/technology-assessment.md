@@ -7,7 +7,7 @@
 
 | Pieza | Veredicto | ¿Sustituir? |
 | --- | --- | --- |
-| `biome@0.3.3` (lint/format) | **Defecto demostrado: no-op total** | **Sí, obligado** (por `@biomejs/biome` real) |
+| `biome@0.3.3` (lint/format) | **Defecto demostrado: no-op total** | **Sí, obligado** — **ya ejecutado en la PR #272** tras esta evaluación (§1) |
 | Hono | Sin evidencia de problema | No |
 | Drizzle ORM | Coste parcial (triple fuente de esquema), no atribuible al ORM en sí | No (degradar su papel: una sola fuente de esquema) |
 | Better Auth | Coste puntual demostrado (flujos opinionados) | No (aislar tras puerto propio) |
@@ -23,6 +23,7 @@
 * [H] Existe un `biome.json` con schema 2.4.8 que nunca se ejecuta.
 * [H] El typecheck de CI (`bunx tsc --noEmit`) corre con `continue-on-error: true` y hoy reporta 635 errores (ver `baseline.md` §2).
 * [I] Consecuencia: el proyecto ha operado ~4 meses sin lint, sin format-check efectivo y sin typecheck bloqueante. Las puertas reales han sido los tests (702) + cobertura ≥90 % + paridad archivo-test. Esto explica que el problema no se detectara: los comandos salían 0.
+* **Actualización 2026-07-16:** el defecto de lint/format quedó **corregido en la PR #272** (biome real 2.4.8, formateo masivo, 0 errores de lint con 288 warnings de burn-down documentado; verificado que el gate falla ante un error inyectado). El coste real de la reparación in situ fue de horas — dato relevante para la matriz de alternativas: era exactamente la medición que faltaba sobre la «vía barata». El typecheck sigue pendiente (Lote 1).
 
 ## 2. Hono (`apps/api`)
 

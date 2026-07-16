@@ -42,7 +42,7 @@ Comentarios (tabla sin API), generación .elpx especializada (ADR-0020 sin imple
 
 ## Estrategia por fases (lotes ordenados, cada uno entregable y reversible)
 
-**Lote 0 — Reparaciones triviales** (sin dependencias): sustituir `"biome": "0.3.3"` por `@biomejs/biome` en la raíz; absorber diagnósticos del primer run real (si exceden 1 semana, convertir en lote propio y reportar); retirar `@electric-sql/pglite`, `drizzle-orm` y `@testing-library/*` sin uso de `apps/frontend/package.json`; mover `typescript`/`@types/*` a dev; corregir el comentario de `api-client.ts:3`; unificar driver pg.
+**Lote 0 — Reparaciones triviales** (sin dependencias). **Parcialmente ejecutado ya en la PR #272** (2026-07-16, adelantada durante la evaluación): biome real instalado y diagnósticos absorbidos (0 errores, 288 warnings en burn-down), deps vestigiales del frontend retiradas, `typescript`/`@types/*` movidas a dev, comentario de `api-client.ts` corregido, `test-regex.ts` eliminado. **Pendiente del Lote 0**: unificar el driver pg (retirar `postgres` npm del seed) y verificar que la PR #272 esté fusionada antes de continuar (si no lo está, coordinar con esa rama en vez de duplicar el trabajo).
 
 **Lote 1 — Typecheck a cero con ratchet**: paso de CI que falla si `bunx tsc --noEmit | grep -c 'error TS'` supera el último valor registrado; quemar los 635 por tipología (TS2571 en `packages/db/src/repository/*` primero: tipar los retornos de `db.execute` una vez en `shared.ts`); al llegar a 0, retirar `continue-on-error: true` de `ci.yml`. Documentar cada bug real que aflore.
 

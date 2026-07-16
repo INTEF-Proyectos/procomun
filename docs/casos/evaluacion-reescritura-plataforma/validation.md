@@ -27,7 +27,7 @@ Formato exigido: hipótesis → línea base → objetivo → método → gate �
 
 | Hipótesis | Línea base (2026-07-16) | Objetivo | Método (reproducible) | Gate | Resultado |
 | --- | --- | --- | --- | --- | --- |
-| H1. El lint analiza código de verdad | no-op (`biome@0.3.3`) | `@biomejs/biome` real, 0 diagnósticos, paso bloqueante | `bun run lint` con el paquete correcto | exit ≠ 0 ante diagnósticos; verificable con un error inyectado | pendiente |
+| H1. El lint analiza código de verdad | no-op (`biome@0.3.3`) | `@biomejs/biome` real, 0 errores, paso bloqueante | `bun run lint` con el paquete correcto | exit ≠ 0 ante diagnósticos; verificable con un error inyectado | **Cumplida (PR #272)**: biome 2.4.8, 0 errores (288 warnings de burn-down), gate verificado con error inyectado (exit 1) |
 | H2. El typecheck bloquea CI | 635 errores; `continue-on-error: true` | 0 errores; paso bloqueante | `bunx tsc --noEmit \| grep -c 'error TS'` | ratchet: el conteo nunca sube; al llegar a 0, retirar `continue-on-error` | pendiente |
 | H3. Fuente única de esquema | 3 definiciones; journal desincronizado; colisión `0002_*` | 1 fuente + migraciones versionadas con registro aplicadas en dev/E2E/prod | diff de `pg_dump --schema-only` entre camino de migraciones y esquema actual, en PGlite y PG17 | diff vacío en ambos motores; test de upgrade sobre BD con datos | pendiente |
 | H4. Contrato API caracterizado | ~50/106 handlers con ejercicio HTTP (auth simulada); 0 contract tests black-box | 100 % de la API pública (`/api/v1`, `/feeds`) con contract test black-box y login real | suite de contrato contra servidor levantado | 0 rupturas de shape no aceptadas explícitamente | pendiente |
@@ -45,7 +45,7 @@ Formato exigido: hipótesis → línea base → objetivo → método → gate �
 | Inconveniente | Línea base | Riesgo medible | Método | Gate de replanificación | Resultado |
 | --- | --- | --- | --- | --- | --- |
 | I1. El saneamiento retrasa Fase 2 | Fase 2 sin arrancar | lotes 0–2 exceden su rango (2–6 semanas) | registro de calendario por lote | >2× el rango → re-priorizar y reportar | pendiente |
-| I2. El lint real inunda de diagnósticos | desconocida (nunca se ejecutó) | volumen de diagnósticos del primer run | primer `biome lint .` real | si exige >1 semana de absorción, tratarlo como lote propio con presupuesto | pendiente |
+| I2. El lint real inunda de diagnósticos | desconocida (nunca se ejecutó) | volumen de diagnósticos del primer run | primer `biome lint .` real | si exige >1 semana de absorción, tratarlo como lote propio con presupuesto | **Medida y resuelta (PR #272)**: 111 errores + 275 warnings + 311 archivos sin formatear; absorción en horas (muy por debajo del gate); quedan 288 warnings como burn-down explícito |
 | I3. No se obtiene el dato comparativo con la reescritura | sin dato | el brazo 2 del piloto no se ejecuta | plan de piloto §3 | si se omite el brazo 2, la ADR lo hace constar y la reapertura pierde su vía objetiva | pendiente |
 
 ## 3. Gates para recomendar una reescritura completa (estado actual)
