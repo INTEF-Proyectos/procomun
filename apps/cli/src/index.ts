@@ -6,6 +6,7 @@ export const CLI_COMMANDS = [
 	"seed",
 	"seed:resources",
 	"fts:reindex",
+	"import:legacy-procomun",
 ] as const;
 
 const commandLoaders: Record<
@@ -20,6 +21,8 @@ const commandLoaders: Record<
 		(await import("./commands/seed-resources.ts")).seedResources,
 	"fts:reindex": async () => async () =>
 		(await import("./commands/fts-reindex.ts")).ftsReindex(),
+	"import:legacy-procomun": async () =>
+		(await import("./commands/import-legacy-procomun.ts")).importLegacyProcomun,
 };
 
 export function printHelp(log: Pick<typeof console, "log"> = console) {
@@ -36,6 +39,12 @@ export function printHelp(log: Pick<typeof console, "log"> = console) {
 		"  seed:resources    Generar recursos aleatorios (--count 10, 100, 1000, 10000 --clean)",
 	);
 	log.log("  fts:reindex       Reindexar search_vector de todos los recursos");
+	log.log(
+		"  import:legacy-procomun --source-dir <ruta> [--dry-run] [--limit <n>] [--only <externalId>] [--report-dir <ruta>]",
+	);
+	log.log(
+		"                    Importa recursos legacy de Procomún (pares .json+.elpx), ver ADR-0029",
+	);
 }
 
 export async function loadCommand(command: string): Promise<CliHandler | null> {

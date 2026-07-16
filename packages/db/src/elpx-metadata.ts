@@ -12,7 +12,9 @@ export const METADATA_KEYS: Record<string, keyof ElpxMetadata> = {
 	pp_description: "description",
 	pp_author: "author",
 	license: "license",
+	pp_license: "license",
 	lom_general_language: "language",
+	pp_lang: "language",
 	pp_learningResourceType: "learningResourceType",
 };
 

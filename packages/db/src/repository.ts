@@ -8,6 +8,7 @@ export * from "./repository/api-tokens.ts";
 export * from "./repository/collection-resources.ts";
 export * from "./repository/collections.ts";
 export * from "./repository/elpx-projects.ts";
+export * from "./repository/legacy-import.ts";
 export * from "./repository/reports.ts";
 export * from "./repository/resources.ts";
 export * from "./repository/settings.ts";
