@@ -14,9 +14,15 @@ import * as pgSchema from "@procomun/db/schema";
 import { getDb } from "../db.ts";
 import { getAuthBaseUrl, getFrontendUrl } from "./urls.ts";
 import { logActivity } from "../activity/log.ts";
+import {
+	buildVerificationEmail,
+	getEmailTransport,
+	resolveEmailVerificationConfig,
+} from "../email/transport.ts";
 
 const frontendUrl = getFrontendUrl();
 const oidcEnabled = process.env.OIDC_ENABLED === "true";
+const emailVerificationConfig = resolveEmailVerificationConfig(process.env);
 
 export const auth = betterAuth({
 	baseURL: getAuthBaseUrl(),
@@ -53,9 +59,20 @@ export const auth = betterAuth({
 			return ctx;
 		},
 	},
+	emailVerification: {
+		sendVerificationEmail: async ({ user, url }) => {
+			await getEmailTransport(process.env).sendEmail(
+				buildVerificationEmail({ email: user.email, url }),
+			);
+		},
+		sendOnSignUp: emailVerificationConfig.enabled,
+		autoSignInAfterVerification: true,
+		expiresIn: emailVerificationConfig.expiresIn,
+	},
 	emailAndPassword: {
 		enabled: true,
 		minPasswordLength: 8,
+		requireEmailVerification: emailVerificationConfig.enabled,
 	},
 	session: {
 		expiresIn: 60 * 60 * 24 * 7,
