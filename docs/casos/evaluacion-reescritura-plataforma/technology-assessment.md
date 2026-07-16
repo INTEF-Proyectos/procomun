@@ -23,7 +23,7 @@
 * [H] Existe un `biome.json` con schema 2.4.8 que nunca se ejecuta.
 * [H] El typecheck de CI (`bunx tsc --noEmit`) corre con `continue-on-error: true` y hoy reporta 635 errores (ver `baseline.md` §2).
 * [I] Consecuencia: el proyecto ha operado ~4 meses sin lint, sin format-check efectivo y sin typecheck bloqueante. Las puertas reales han sido los tests (702) + cobertura ≥90 % + paridad archivo-test. Esto explica que el problema no se detectara: los comandos salían 0.
-* **Actualización 2026-07-16:** el defecto de lint/format quedó **corregido en la PR #272** (biome real 2.4.8, formateo masivo, 0 errores de lint con 288 warnings de burn-down documentado; verificado que el gate falla ante un error inyectado). El coste real de la reparación in situ fue de horas — dato relevante para la matriz de alternativas: era exactamente la medición que faltaba sobre la «vía barata». El typecheck sigue pendiente (Lote 1).
+* **Actualización 2026-07-16:** el defecto de lint/format quedó **corregido en la PR #272** (biome real 2.4.8, formateo masivo y 0 errores de lint con las reglas recomendadas completas — sin exclusiones, rebajas ni supresiones nuevas; verificado que el gate falla ante un error inyectado). El coste real de la reparación in situ, incluidos los arreglos de código de hooks y accesibilidad, fue de ~1 día con agentes — dato relevante para la matriz de alternativas: era exactamente la medición que faltaba sobre la «vía barata». El typecheck sigue pendiente (Lote 1).
 
 ## 2. Hono (`apps/api`)
 
