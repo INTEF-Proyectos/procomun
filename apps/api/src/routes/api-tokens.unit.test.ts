@@ -126,4 +126,39 @@ describe("Token management — tope de tokens activos", () => {
 		const body = await res.json();
 		expect(body.error).toContain("número máximo de tokens activos (10)");
 	});
+
+	test("dos creaciones concurrentes en el límite no pueden crear el token 11", async () => {
+		const userId = `cap-race-${crypto.randomUUID()}`;
+		const raceApp = createTokenApp({
+			id: userId,
+			role: "author",
+			email: `${userId}@example.com`,
+			name: "Cap Race",
+		});
+
+		for (let i = 0; i < 9; i++) {
+			const res = await raceApp.request("/api/v1/tokens", {
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify({ name: `Existing ${i + 1}` }),
+			});
+			expect(res.status).toBe(201);
+		}
+
+		const responses = await Promise.all(
+			["Concurrent A", "Concurrent B"].map((name) =>
+				raceApp.request("/api/v1/tokens", {
+					method: "POST",
+					headers: { "Content-Type": "application/json" },
+					body: JSON.stringify({ name }),
+				}),
+			),
+		);
+
+		expect(responses.map((response) => response.status).sort()).toEqual([201, 429]);
+
+		const listResponse = await raceApp.request("/api/v1/tokens");
+		const listBody = await listResponse.json();
+		expect(listBody.data).toHaveLength(10);
+	});
 });
