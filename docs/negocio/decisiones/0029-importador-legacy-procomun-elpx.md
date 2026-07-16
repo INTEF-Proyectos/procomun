@@ -143,3 +143,22 @@ El texto de la actualización 2026-07-13 (más arriba) describe la ruta física 
 * El test de la carrera concurrente (TOCTOU, actualización 2026-07-13) se adapta al nuevo orden: ambas ejecuciones concurrentes llegan ahora a `importLegacyResourceWithElpx()`, y es la restricción UNIQUE (real, con PGlite, en el test de integración) la que decide — no el orden de extracción en disco.
 
 Validación: `bun test` completo del monorepo (807/807) y `check-test-files.ts` sin incidencias.
+
+## Actualización 2026-07-16 (2) — resolución de la combinación de licencia ND+SA en vez de bloquear
+
+Tras revisar el informe de una importación real (826 pares, 101 bloqueados), el usuario confirmó una observación: 99 de los 101 bloqueos comparten exactamente la misma cadena de origen, `"creative commons: attribution - non derived work - non commercial - share alike"` — no son 99 problemas distintos, sino un único patrón sistemático del origen legacy.
+
+### Decisión
+
+`ND` (no derivadas) y `SA` (compartir igual) son mutuamente excluyentes en las licencias Creative Commons reales: `ND` prohíbe crear obras derivadas; `SA` exige que las obras derivadas se liberen con la misma licencia. No puede haber una obra derivada que a la vez esté prohibida y deba compartirse igual — es una contradicción lógica, no una combinación que Creative Commons simplemente no haya definido todavía. Por eso `VALID_LICENSES` (`packages/db/src/validation.ts`) nunca ha tenido una séptima variante `cc-by-nc-nd-sa`: no existe tal licencia, ni existirá.
+
+Se confirma con el usuario que la cadena de origen es, casi con toda seguridad, un error de captura en el formulario de origen legacy (ambas casillas "no derivadas" y "compartir igual" marcadas a la vez, cuando nunca deberían coexistir), y se decide: **cuando `normalizeLicense()` detecta `ND` y `SA` a la vez, se descarta `ND` y se prioriza `SA`** — es decir, `"attribution - non derived work - non commercial - share alike"` se resuelve a `cc-by-nc-sa`, no se bloquea. El registro se importa con un warning tolerable (`field: "license"`) indicando qué se asumió, para que quede trazable y revisable en el informe de ejecución.
+
+### Consecuencias
+
+* Recursos que antes se bloqueaban (99 del ejemplo real) ahora se importan, con licencia `cc-by-nc-sa` (o `cc-by-sa` si además no llevaban `non commercial`) y un warning explícito.
+* `LicenseNormalizationResult` gana un campo `ndSaConflictResolved: boolean` para que el llamante (`field-mapper.ts`) sepa cuándo emitir el warning, sin cambiar la firma de `matched`/`license`.
+* El fixture de test `es_2025101012_9102834.json` (usado en `apps/cli/src/test-fixtures/legacy-procomun/`), que antes ejercitaba el camino bloqueante end-to-end, ahora ejercita el camino de resolución con warning — los tests de integración que lo usaban como "contenido `.elpx` garantizado no persistido" (deduplicación por hash) se migraron a contenido sintético generado en el propio test, porque ese fixture ahora sí se persiste en el mismo proceso de test (comparten una única BD PGlite).
+* Esta regla es específica del importador legacy (`normalizeLicense()` solo se usa desde `field-mapper.ts`); no afecta a la validación de licencias en la creación manual de recursos, que sigue validando directamente contra `VALID_LICENSES` sin pasar por esta normalización de texto libre.
+
+Validación: `bun test` completo del monorepo (808/808, +1 test nuevo) y `check-test-files.ts` sin incidencias.

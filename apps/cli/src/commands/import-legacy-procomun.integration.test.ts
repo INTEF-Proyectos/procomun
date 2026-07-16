@@ -14,16 +14,19 @@ import {
 
 // Fixtures versionadas (anonimizadas, ver ADR-0029): 3 pares .json+.elpx reales
 // de ode-export/, uno de ellos (es_2025101012_9102834) con una combinación de
-// licencia CC inexistente ("non derived" + "share alike") a propósito, para
-// probar el camino bloqueante end-to-end.
+// licencia CC inexistente ("non derived" + "share alike"), a propósito, para
+// probar de extremo a extremo la resolución ND+SA -> *-sa de normalizeLicense()
+// (ND y SA son mutuamente excluyentes en las licencias CC reales; se prioriza
+// SA sobre ND en vez de bloquear el registro — decisión de negocio confirmada
+// tras la revisión del PR #268, ver ADR-0029).
 const FIXTURES_DIR = path.join(import.meta.dir, "../test-fixtures/legacy-procomun");
 
-const MINIMAL_CONTENT_XML = `<?xml version="1.0" encoding="UTF-8"?>
+const MINIMAL_CONTENT_XML_TEMPLATE = `<?xml version="1.0" encoding="UTF-8"?>
 <ode xmlns="http://www.intef.es/xsd/ode" version="2.0">
   <odeProperties>
     <odeProperty>
       <key>pp_title</key>
-      <value>Recurso de prueba para carrera concurrente</value>
+      <value>Recurso de prueba __MARKER__</value>
     </odeProperty>
     <odeProperty>
       <key>pp_lang</key>
@@ -36,13 +39,17 @@ const MINIMAL_CONTENT_XML = `<?xml version="1.0" encoding="UTF-8"?>
   </odeProperties>
 </ode>`;
 
-/** Construye un .elpx (ZIP) mínimo pero válido, ajeno a las fixtures reales
- * ya usadas/persistidas en otros describe de este mismo archivo (comparten
- * la misma BD PGlite del proceso de test) — necesario para el test de
- * carrera, que necesita contenido nunca antes visto por elpx_projects.hash. */
-async function createMinimalElpx(destPath: string): Promise<void> {
-	const staging = await mkdtemp(path.join(tmpdir(), "elpx-race-staging-"));
-	await writeFile(path.join(staging, "content.xml"), MINIMAL_CONTENT_XML, "utf-8");
+/** Construye un .elpx (ZIP) mínimo pero válido, con contenido distinto según
+ * `marker` — necesario porque toda la suite comparte una única BD PGlite: dos
+ * llamadas con `marker` distinto producen checksums distintos, garantizando
+ * que un describe no colisione por accidente con contenido ya persistido por
+ * otro (ver elpx_projects.hash UNIQUE). Dos llamadas con el MISMO `marker`
+ * producen bytes idénticos a propósito, para los tests que necesitan
+ * contenido duplicado real (dedup, carrera). */
+async function createMinimalElpx(destPath: string, marker: string): Promise<void> {
+	const staging = await mkdtemp(path.join(tmpdir(), "elpx-staging-"));
+	const contentXml = MINIMAL_CONTENT_XML_TEMPLATE.replace("__MARKER__", marker);
+	await writeFile(path.join(staging, "content.xml"), contentXml, "utf-8");
 	const proc = Bun.spawn(["python3", "-m", "zipfile", "-c", destPath, "content.xml"], {
 		cwd: staging,
 		stdout: "ignore",
@@ -64,9 +71,9 @@ describe("import:legacy-procomun (integración, PGlite en memoria vía test-setu
 		const report = await runImportLegacyProcomun({ sourceDir: FIXTURES_DIR, dryRun: true }, deps);
 
 		expect(report.totals.pairsFound).toBe(3);
-		expect(report.totals.blocked).toBe(1); // es_2025101012_9102834: licencia inválida
-		expect(report.totals.imported).toBe(2); // would_import
-		expect(report.records.filter((r) => r.outcome === "would_import")).toHaveLength(2);
+		expect(report.totals.blocked).toBe(0);
+		expect(report.totals.imported).toBe(3); // would_import
+		expect(report.records.filter((r) => r.outcome === "would_import")).toHaveLength(3);
 
 		const stillMissing = await deps.repo.findLegacyResourceByExternalId(
 			deps.getDb().db,
@@ -76,16 +83,13 @@ describe("import:legacy-procomun (integración, PGlite en memoria vía test-setu
 		expect(stillMissing).toBeNull();
 	});
 
-	test("una ejecución real importa los pares válidos y bloquea el de licencia inválida", async () => {
+	test("una ejecución real importa los 3 pares, resolviendo la licencia ND+SA inexistente a cc-by-nc-sa con warning", async () => {
 		const report = await runImportLegacyProcomun({ sourceDir: FIXTURES_DIR, dryRun: false }, deps);
 
 		expect(report.totals.pairsFound).toBe(3);
-		expect(report.totals.imported).toBe(2);
-		expect(report.totals.blocked).toBe(1);
+		expect(report.totals.imported).toBe(3);
+		expect(report.totals.blocked).toBe(0);
 		expect(report.totals.errored).toBe(0);
-
-		const blockedRecord = report.records.find((r) => r.outcome === "blocked");
-		expect(blockedRecord?.externalId).toBe("es_2025101012_9102834");
 
 		const imported = await deps.repo.findLegacyResourceByExternalId(
 			deps.getDb().db,
@@ -118,6 +122,26 @@ describe("import:legacy-procomun (integración, PGlite en memoria vía test-setu
 		// El recurso debe quedar indexado para búsqueda de inmediato, sin
 		// depender de una ejecución manual posterior de fts:reindex.
 		expect(resourceRow?.searchVector).not.toBeNull();
+
+		// es_2025101012_9102834 combina en origen "no derivadas" (ND) y
+		// "compartir igual" (SA), mutuamente excluyentes en las licencias CC
+		// reales — se resuelve a cc-by-nc-sa (prioriza SA) en vez de bloquear,
+		// con un warning tolerable en el informe (ver ADR-0029).
+		const ndSaRecord = report.records.find((r) => r.externalId === "es_2025101012_9102834");
+		expect(ndSaRecord?.outcome).toBe("imported");
+		expect((ndSaRecord as { warnings?: string[] })?.warnings?.some((w) => w.startsWith("license:"))).toBe(true);
+
+		const ndSaResource = await deps.repo.findLegacyResourceByExternalId(
+			deps.getDb().db,
+			"legacy-procomun",
+			"es_2025101012_9102834",
+		);
+		const [ndSaRow] = await deps
+			.getDb()
+			.db.select({ license: resources.license })
+			.from(resources)
+			.where(eq(resources.id, ndSaResource!.id));
+		expect(ndSaRow?.license).toBe("cc-by-nc-sa");
 	});
 
 	test("la URL pública de preview del recurso importado resuelve 200, no 404 (regresión hallazgo P1 revisión #268)", async () => {
@@ -145,12 +169,12 @@ describe("import:legacy-procomun (integración, PGlite en memoria vía test-setu
 		expect(res.headers.get("Content-Type")).toBe("text/html");
 	});
 
-	test("re-ejecutar sobre el mismo directorio es idempotente: 0 nuevos, 2 omitidos", async () => {
+	test("re-ejecutar sobre el mismo directorio es idempotente: 0 nuevos, 3 omitidos", async () => {
 		const report = await runImportLegacyProcomun({ sourceDir: FIXTURES_DIR, dryRun: false }, deps);
 
 		expect(report.totals.imported).toBe(0);
-		expect(report.totals.skippedExisting).toBe(2);
-		expect(report.totals.blocked).toBe(1);
+		expect(report.totals.skippedExisting).toBe(3);
+		expect(report.totals.blocked).toBe(0);
 		expect(report.totals.errored).toBe(0);
 	});
 
@@ -177,13 +201,15 @@ describe("import:legacy-procomun — deduplicación por contenido y limpieza de 
 		// Mismo binario .elpx (mismo checksum) bajo dos externalId distintos:
 		// ejercita la deduplicación secundaria por contenido documentada en
 		// design.md (dos resources.externalId distintos no pueden compartir
-		// elpx_projects.hash). Se reutiliza el .elpx del fixture bloqueado por
-		// licencia (es_2025101012_9102834): su contenido nunca llega a
-		// persistirse en el resto de la suite, así que no colisiona con hashes
-		// ya insertados por el describe anterior (misma BD PGlite compartida
-		// dentro del proceso de test).
-		const sourceElpx = path.join(FIXTURES_DIR, "es_2025101012_9102834.elpx");
-		await copyFile(sourceElpx, path.join(dupDir, "dup-a.elpx"));
+		// elpx_projects.hash). Contenido sintético con marker exclusivo de este
+		// describe (ver createMinimalElpx): antes se reutilizaba el .elpx del
+		// fixture bloqueado por licencia porque su contenido nunca llegaba a
+		// extraerse/persistirse, pero desde que normalizeLicense() resuelve la
+		// combinación ND+SA en vez de bloquear (ver ADR-0029), ese fixture SÍ se
+		// persiste en el describe anterior — reutilizarlo aquí colisionaría con
+		// su hash ya insertado (misma BD PGlite compartida por todo el archivo).
+		const sourceElpx = path.join(dupDir, "dup-a.elpx");
+		await createMinimalElpx(sourceElpx, "dedup-contenido");
 		await copyFile(sourceElpx, path.join(dupDir, "dup-b.elpx"));
 		for (const [name, externalId] of [
 			["dup-a", "es_dup_a"],
@@ -254,10 +280,9 @@ describe("import:legacy-procomun — carrera real entre dos ejecuciones concurre
 
 		raceDir = await mkdtemp(path.join(tmpdir(), "legacy-import-race-source-"));
 		// Contenido sintético nunca antes visto por elpx_projects.hash en este
-		// proceso de test (a diferencia de reutilizar una fixture ya persistida
-		// en otro describe de este archivo, que compartiría el mismo checksum
-		// que un recurso YA importado y no ejercitaría la carrera real).
-		await createMinimalElpx(path.join(raceDir, "race-a.elpx"));
+		// proceso de test (marker exclusivo de este describe — ver
+		// createMinimalElpx), necesario para ejercitar la carrera real.
+		await createMinimalElpx(path.join(raceDir, "race-a.elpx"), "carrera-toctou");
 		await copyFile(path.join(raceDir, "race-a.elpx"), path.join(raceDir, "race-b.elpx"));
 		for (const [name, externalId] of [
 			["race-a", "es_race_a"],

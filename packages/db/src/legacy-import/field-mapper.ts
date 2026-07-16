@@ -193,6 +193,13 @@ export function mapLegacyRecord(json: LegacyOdeJson, fallbackTitle: string): Map
 	const licenseResult = normalizeLicense(json.rightsCopyrightAndOtherRestrictionsStr);
 	if (!licenseResult.matched) {
 		blockingErrors.push(`Licencia no reconocida: "${licenseResult.rawInput}"`);
+	} else if (licenseResult.ndSaConflictResolved) {
+		warnings.push({
+			field: "license",
+			message:
+				`Licencia de origen combinaba "no derivadas" y "compartir igual" (mutuamente excluyentes en Creative Commons real); ` +
+				`se asume "${licenseResult.license}" priorizando "compartir igual"`,
+		});
 	}
 
 	const resourceTypeResult = mapResourceType([
