@@ -6,7 +6,7 @@
  * Uso:
  *   bun run apps/cli/src/index.ts import:legacy-procomun --source-dir <ruta> [--dry-run] [--limit <n>] [--only <externalId>] [--report-dir <ruta>]
  */
-import { mkdir, readdir, rename, stat, unlink } from "node:fs/promises";
+import { mkdir, readdir, rename, rm, stat, unlink } from "node:fs/promises";
 import path from "node:path";
 import { parseArgs } from "node:util";
 import type { LegacyOdeJson } from "@procomun/db/legacy-import";
@@ -382,6 +382,27 @@ export async function runImportLegacyProcomun(
 }
 
 /**
+ * Promociona el directorio de extracción privado por uploadId a su ruta
+ * pública final por checksum. Se llama SIEMPRE después de que la fila en BD
+ * ya esté confirmada (ver comentario en persistImportedResource), así que un
+ * directorio ya presente en `finalPath` solo puede ser basura huérfana de una
+ * ejecución anterior interrumpida entre su propio commit y su propio rename
+ * — nunca de un competidor legítimo, porque la restricción UNIQUE de
+ * `elpx_projects.hash` garantiza que nunca hay dos filas con el mismo
+ * checksum. Por eso es seguro reclamarlo (borrarlo) y reintentar una vez.
+ */
+async function promoteElpxExtractionPath(stagingPath: string, finalPath: string): Promise<void> {
+	try {
+		await rename(stagingPath, finalPath);
+	} catch (err) {
+		const code = (err as { code?: string })?.code;
+		if (code !== "ENOTEMPTY" && code !== "EEXIST") throw err;
+		await rm(finalPath, { recursive: true, force: true });
+		await rename(stagingPath, finalPath);
+	}
+}
+
+/**
  * Copia el `.elpx` a storage, calcula su checksum y lo persiste. Aislado en
  * su propia función para mantener legible el bucle principal de
  * `runImportLegacyProcomun`.
@@ -405,10 +426,6 @@ async function persistImportedResource(params: {
 	const uploadId = crypto.randomUUID();
 	const storagePath = path.join(config.storageDir, uploadId);
 	let processed: Awaited<ReturnType<typeof deps.processElpxUpload>> | undefined;
-	// Ruta que hay que limpiar en el catch si el intento falla: empieza siendo
-	// la extracción privada por uploadId y se actualiza a la ruta final por
-	// checksum en cuanto (y solo si) el rename de más abajo la promueve.
-	let extractionCleanupPath: string | undefined;
 	try {
 		await Bun.write(storagePath, Bun.file(pair.elpxPath));
 		const [checksum, fileStat] = await Promise.all([
@@ -420,8 +437,8 @@ async function persistImportedResource(params: {
 		// evita gastar trabajo de extracción para contenido ya conocido en el
 		// caso común y secuencial. Bajo concurrencia real esta comprobación por
 		// sí sola no basta (TOCTOU): dos ejecuciones podrían pasarla ambas antes
-		// de que cualquiera persista. La defensa real es el rename atómico de
-		// más abajo.
+		// de que cualquiera persista. La defensa real es la restricción UNIQUE
+		// de `elpx_projects.hash` en la inserción de más abajo.
 		const existingElpxProject = await deps.repo.getElpxProjectByHash(db, checksum);
 		if (existingElpxProject) {
 			throw new Error(
@@ -429,40 +446,27 @@ async function persistImportedResource(params: {
 			);
 		}
 
-		// Se extrae primero a una ruta privada por uploadId (único por intento,
-		// ver crypto.randomUUID() más abajo), NO directamente al checksum: dos
+		// Se extrae a una ruta privada por uploadId (único por intento, ver
+		// crypto.randomUUID() más abajo), NO directamente al checksum: dos
 		// intentos concurrentes con el mismo .elpx (incluso si ambos superan la
 		// comprobación previa por una carrera) extraen siempre en directorios
 		// distintos, así que nunca pueden pisarse durante la extracción.
 		processed = await deps.processElpxUpload(storagePath, config.storageDir, { hash: uploadId });
-		extractionCleanupPath = processed.extractPath;
 
-		// Publica el directorio bajo el nombre del checksum de forma atómica.
 		// `elpx.hash` (el checksum) es el identificador público de la preview
 		// (`/api/v1/elpx/<hash>/`, ver preview.ts y elpx-content.ts), que
 		// resuelve el fichero buscando directamente `storageDir/elpx/<hash>` —
 		// igual que en el resto de flujos de subida (uploads.ts, admin/elpx.ts),
 		// donde el directorio físico y `elpx.hash` son siempre el mismo valor.
-		// rename() sobre un directorio destino ya existente y no vacío falla con
-		// ENOTEMPTY/EEXIST (POSIX rename(2)) en vez de sobrescribir su
-		// contenido: si dos intentos concurrentes con el mismo contenido llegan
-		// hasta aquí, solo uno gana el rename; el otro lo detecta en el catch
-		// de abajo, antes de tocar la BD, sin poder pisar ni borrar el
-		// directorio del ganador.
+		// Se persiste ya como ruta final aunque la promoción física (rename, ver
+		// más abajo) todavía no haya ocurrido: es la restricción UNIQUE de esta
+		// inserción, no el rename, la que decide atómica y recuperablemente
+		// quién es el dueño legítimo de este checksum (ver P1, revisión #268,
+		// 2026-07-16 — con el rename como árbitro, un proceso interrumpido justo
+		// después de ganarlo pero antes de confirmar en BD dejaba un directorio
+		// huérfano en la ruta final que bloqueaba cualquier reimportación futura
+		// del mismo contenido sin intervención manual).
 		const finalExtractPath = deps.buildElpxPath(config.storageDir, checksum);
-		try {
-			await rename(processed.extractPath, finalExtractPath);
-		} catch (err) {
-			const code = (err as { code?: string })?.code;
-			if (code === "ENOTEMPTY" || code === "EEXIST") {
-				throw new Error(
-					`El .elpx tiene el mismo contenido (hash ${checksum}) que un recurso ya importado o en curso de importación; no se vuelve a extraer.`,
-				);
-			}
-			throw err;
-		}
-		processed = { ...processed, extractPath: finalExtractPath };
-		extractionCleanupPath = finalExtractPath;
 
 		const result = await deps.repo.importLegacyResourceWithElpx(db, {
 			resource: {
@@ -488,6 +492,22 @@ async function persistImportedResource(params: {
 				finalChecksum: checksum,
 			},
 		});
+
+		// A partir de aquí el recurso YA está persistido y publicado (la
+		// inserción de arriba confirmó que somos los únicos dueños de este
+		// checksum): cualquier fallo en los pasos siguientes es best-effort — se
+		// registra como warning, nunca como "error" de todo el registro, porque
+		// una reejecución no volverá a intentarlo (findLegacyResourceByExternalId
+		// ya lo encontrará como importado).
+		try {
+			await promoteElpxExtractionPath(processed.extractPath, finalExtractPath);
+		} catch (err) {
+			const message = err instanceof Error ? err.message : String(err);
+			warningMessages.push(
+				`preview: no se pudo promocionar el directorio de extracción a su ruta final (${message}); el contenido sigue en ${processed.extractPath}`,
+			);
+			console.error(`[warning] ${mapping.externalId}: fallo al promocionar extractPath: ${message}`);
+		}
 
 		// Indexación best-effort: un fallo aquí no invalida la importación (el
 		// recurso ya está persistido y publicado), solo queda temporalmente
@@ -521,16 +541,13 @@ async function persistImportedResource(params: {
 		// No aborta el lote: el fichero copiado a storage se limpia best-effort.
 		await unlink(storagePath).catch(() => {});
 
-		// Seguro incondicionalmente: si el rename a la ruta final por checksum
-		// nunca llegó a ejecutarse (o falló), `extractionCleanupPath` sigue
-		// apuntando a la ruta privada por uploadId de ESTE intento, que ningún
-		// otro intento puede compartir. Si el rename sí tuvo éxito,
-		// `extractionCleanupPath` es la ruta por checksum, pero solo llegamos
-		// aquí si el paso posterior (inserción en BD) falló, así que seguimos
-		// siendo los únicos dueños de ese directorio: limpiar aquí jamás puede
-		// borrar el directorio de un recurso ya persistido por otro intento.
-		if (extractionCleanupPath) {
-			await deps.removeElpxExtraction(extractionCleanupPath).catch(() => {});
+		// Seguro incondicionalmente: si se llega aquí, la inserción en BD nunca
+		// se confirmó (si lo hubiera hecho, cualquier fallo posterior se trata
+		// como warning más arriba, no como excepción de este catch), así que
+		// `processed.extractPath` sigue siendo la ruta privada por uploadId de
+		// ESTE intento, que ningún otro intento puede compartir ni haber tocado.
+		if (processed) {
+			await deps.removeElpxExtraction(processed.extractPath).catch(() => {});
 		}
 	}
 }

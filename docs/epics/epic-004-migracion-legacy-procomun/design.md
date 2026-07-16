@@ -42,7 +42,7 @@ apps/cli/src/commands/import-legacy-procomun.ts   (orquestador CLI)
 | `publicationDate` (fallback `fechaRegistro` parseado `YYYYMMDD`) | `resources.importedAt` **y** `resources.createdAt` | fecha de origen, no instante de ejecución del importador — usada también como `createdAt` para que el catálogo público (`listResources()`, `ORDER BY createdAt DESC`) conserve la cronología histórica real; ver Actualización 2026-07-10 en ADR-0029 |
 | — | `resources.editorialStatus` | `"published"` fijo — decisión revisada el 2026-07-10, ver Actualización en ADR-0029 (originalmente se importaba como `"draft"`) |
 | — | `resources.createdBy` | `null` |
-| `.elpx` | `elpx_projects` + `media_items` + `upload_sessions` | vía `processElpxUpload()` reutilizado con `{ hash: checksumSHA256 }` explícito (no un UUID aleatorio), mismo patrón que `POST /api/admin/elpx/upload/:resourceId` |
+| `.elpx` | `elpx_projects` + `media_items` + `upload_sessions` | vía `processElpxUpload()` reutilizado con `{ hash: uploadId }` (ruta de extracción privada por intento, no el checksum — ver "Rutas de extracción únicas por intento" más abajo); `elpx_projects.hash` guarda el checksum SHA-256 real y `elpx_projects.extractPath` la ruta final `storageDir/elpx/<checksum>`, aunque la promoción física a esa ruta ocurra como paso posterior al `INSERT` |
 
 ### `normalizeLicense()`
 1. Normaliza a minúsculas, sin acentos, espacios colapsados.
@@ -92,6 +92,8 @@ Sin transacción atómica global (deliberado). Cada ejecución se marca con un `
 
 Si el informe de una ejecución se ha perdido, como alternativa menos precisa se puede acotar por `upload_sessions.createdAt` (ese campo sí conserva el instante real de la importación, sin verse afectado por el cambio de semántica de `resources.createdAt`) unido a `resources` por `resource_id`, filtrando además por `resources.import_source = 'legacy-procomun'` y el rango de tiempo aproximado de la ejecución — pero es un mecanismo de último recurso, no el procedimiento recomendado.
 
+**Directorios en `storageDir/elpx/<checksum>` sin ningún `elpx_project` que los referencie no son necesariamente basura a limpiar manualmente**: desde ADR-0029 (actualización 2026-07-16), el propio importador los reclama automáticamente en su siguiente intento de importar ese mismo contenido (ver "Rutas de extracción únicas por intento, promocionadas tras el commit" más arriba). Solo hace falta limpieza manual si no se espera ninguna reimportación futura de ese contenido concreto.
+
 ## Comando CLI
 
 `apps/cli/src/commands/import-legacy-procomun.ts`, registrado en `apps/cli/src/index.ts` como `import:legacy-procomun`.
@@ -106,13 +108,20 @@ Sigue los patrones ya existentes en `apps/cli/src/commands/`: progreso increment
 
 `iterateResolvedPairs()` es un generador async (`AsyncGenerator`), no una función que devuelve un array precomputado: el bucle principal lo consume con `for await...of` y corta (`break`) en cuanto `--only` encuentra su objetivo o `--limit` alcanza su cupo. Por la semántica de los generadores de JavaScript, el resto de ficheros del directorio nunca se leen ni parsean — necesario porque el volumen real documentado (~78.800 recursos, ver ADR-0029) haría que materializar todos los JSON en memoria antes de filtrar agotara memoria innecesariamente, y que `--limit 1` leyera igualmente el lote completo antes de recortar.
 
-### Rutas de extracción únicas por intento
+### Rutas de extracción únicas por intento, promocionadas tras el commit
 
 Comprobar `getElpxProjectByHash()` antes de extraer (como hacía una iteración anterior de este diseño) reduce la ventana del problema pero no lo elimina: la comprobación no es atómica con la extracción ni con la inserción posterior (TOCTOU). Bajo concurrencia real (dos ejecuciones del CLI corriendo a la vez, o dos llamadas paralelas), ambas podrían pasar la comprobación antes de que cualquiera persista.
 
-Por eso la ruta física de extracción se desacopla del valor de deduplicación: `processElpxUpload(storagePath, config.storageDir, { hash: uploadId })` construye la ruta como `storageDir/elpx/<uploadId>` — el `uploadId` es un `crypto.randomUUID()` generado de nuevo en cada intento, así que dos intentos **nunca** comparten ruta física, tengan o no el mismo contenido. Al persistir, `elpx_projects.hash` guarda el checksum real (no `processed.hash`, que ahora vale `uploadId`) para que la deduplicación en BD siga funcionando, garantizada de forma atómica por la restricción `UNIQUE` del motor de base de datos, no por ninguna comprobación en aplicación.
+Por eso la ruta física de extracción se desacopla del valor de deduplicación durante la extracción: `processElpxUpload(storagePath, config.storageDir, { hash: uploadId })` construye la ruta como `storageDir/elpx/<uploadId>` — el `uploadId` es un `crypto.randomUUID()` generado de nuevo en cada intento, así que dos intentos **nunca** comparten ruta física durante la extracción, tengan o no el mismo contenido.
 
-Consecuencia práctica: la limpieza de `extractPath` en el `catch` es **siempre segura de forma incondicional** — como cada ruta es exclusiva de su propio intento, jamás puede coincidir con la de otro intento, gane o pierda una carrera. `getElpxProjectByHash()` antes de extraer se conserva como optimización para el caso común (evita trabajo de extracción para contenido ya conocido cuando no hay concurrencia), pero la corrección ya no depende de ella.
+**La ruta física final, sin embargo, es `storageDir/elpx/<checksum>`** (ver fila `.elpx` en la tabla de mapeo, más arriba), porque es la ruta que reconstruye la URL pública de la preview (`buildElpxPreview()` en `apps/api/src/elpx/preview.ts`, resuelta por `apps/api/src/routes/elpx-content.ts`) a partir de `elpx.hash` — igual que en el resto de flujos de subida (`uploads.ts`, `admin/elpx.ts`), donde el directorio físico y `elpx.hash` son siempre el mismo valor. El orden de las operaciones importa aquí, y quedó fijado tras dos iteraciones (ver ADR-0029, actualización 2026-07-16):
+
+1. **Primero, la inserción en BD** (`importLegacyResourceWithElpx`), con `elpx.hash = checksum` y `elpx.extractPath` ya fijado a la ruta final `storageDir/elpx/<checksum>` — aunque el directorio físico siga todavía en su ruta privada por `uploadId`. Es la restricción `UNIQUE` de `elpx_projects.hash`, atómica por diseño del motor de base de datos, la que decide de forma recuperable quién es el dueño legítimo de un checksum, no una operación de filesystem.
+2. **Después, la promoción física** (`promoteElpxExtractionPath()`): `rename(storagePath_privado, storagePath_final)`. Como la fila en BD ya confirmó que somos los únicos dueños de este checksum, cualquier directorio ya presente en la ruta final solo puede ser basura huérfana de una ejecución anterior interrumpida entre su propio commit y su propio `rename()` — nunca de un competidor legítimo. Si el `rename()` falla con `ENOTEMPTY`/`EEXIST`, se reclama (se borra el huérfano) y se reintenta una vez.
+
+Este orden es deliberado y no es intercambiable: promocionar el directorio **antes** de confirmar en BD (la primera iteración de este fix) dejaba un directorio huérfano sin fila asociada si el proceso se interrumpía justo entre ambos pasos, bloqueando permanentemente cualquier reimportación futura de ese contenido — exactamente el modo de fallo que este orden evita.
+
+Consecuencia práctica: la limpieza de `extractPath` en el `catch` (que solo se alcanza si la inserción en BD **no** llegó a confirmar) es **siempre segura de forma incondicional** sobre la ruta privada por `uploadId` — como esa ruta es exclusiva de su propio intento, jamás puede coincidir con la de otro intento, gane o pierda una carrera. Cualquier fallo **después** de que la inserción confirme (incluida la propia promoción) se trata como best-effort (warning), nunca como error del registro — ver "Indexación para búsqueda" más abajo, mismo patrón. `getElpxProjectByHash()` antes de extraer se conserva como optimización para el caso común (evita trabajo de extracción para contenido ya conocido cuando no hay concurrencia), pero la corrección ya no depende de ella.
 
 ## Indexación para búsqueda (FTS)
 

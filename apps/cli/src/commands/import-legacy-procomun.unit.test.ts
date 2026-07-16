@@ -380,18 +380,18 @@ describe("runImportLegacyProcomun (deps mockeadas)", () => {
 		expect(report.totals.imported).toBe(1);
 	});
 
-	test("dos ejecuciones concurrentes del mismo contenido: el rename atómico decide antes de llegar a BD, y la perdedora solo limpia su propio directorio (TOCTOU)", async () => {
-		// Regresión del hallazgo P1 de la revisión del PR #268 (condición de
-		// carrera en la promoción del directorio de extracción al nombre del
-		// checksum): la comprobación previa de getElpxProjectByHash() no es
-		// atómica con la extracción ni la persistencia. Se simula la carrera con
+	test("dos ejecuciones concurrentes del mismo contenido: la restricción UNIQUE de BD decide, y la perdedora solo limpia su propio directorio (TOCTOU)", async () => {
+		// Regresión del hallazgo P1 de la 3ª ronda de revisión del PR #268
+		// (condición de carrera): la comprobación previa de getElpxProjectByHash()
+		// no es atómica con la extracción ni la persistencia. Desde el hallazgo
+		// P1 de la revisión del 2026-07-16 (recuperabilidad tras caída del
+		// proceso), la inserción en BD ocurre ANTES de promocionar el directorio
+		// de extracción a su ruta final por checksum: es la restricción UNIQUE de
+		// `elpx_projects.hash`, no un rename atómico, la que decide quién gana —
+		// ver promoteElpxExtractionPath(). Se simula la carrera con
 		// getElpxProjectByHash() devolviendo siempre null (ambas ejecuciones "ven"
 		// que el hash no existe todavía) y dos llamadas a runImportLegacyProcomun
-		// lanzadas con Promise.all — la defensa real es ahora el rename() atómico
-		// de persistImportedResource: rename() sobre un directorio destino ya
-		// existente y no vacío falla con ENOTEMPTY/EEXIST en vez de sobrescribir
-		// su contenido, así que solo una de las dos ejecuciones llega siquiera a
-		// llamar a importLegacyResourceWithElpx().
+		// lanzadas con Promise.all.
 		await writeFile(path.join(dir, "dup-a.json"), "{}");
 		await writeFile(path.join(dir, "dup-a.elpx"), "fake-zip-bytes-a");
 		await writeFile(path.join(dir, "dup-b.json"), "{}");
@@ -425,8 +425,8 @@ describe("runImportLegacyProcomun (deps mockeadas)", () => {
 				},
 			})) as Deps["mapLegacyRecord"],
 			// computeFileSha256 (heredado del base mock) devuelve siempre
-			// "mock-checksum": ambos intentos apuntan al mismo directorio final
-			// por checksum, forzando la colisión en el rename.
+			// "mock-checksum": ambos intentos apuntan al mismo checksum, forzando
+			// la colisión en la restricción UNIQUE simulada abajo.
 			removeElpxExtraction: (async (extractPath: string) => {
 				removedPaths.push(extractPath);
 				await rm(extractPath, { recursive: true, force: true });
@@ -438,7 +438,10 @@ describe("runImportLegacyProcomun (deps mockeadas)", () => {
 				importLegacyResourceWithElpx: async (_db: unknown, input: any) => {
 					insertCalls++;
 					extractPathsAtInsert.push(input.elpx.extractPath);
-					return { resourceId: "winner-id", slug: "winner", mediaItemId: "m1", elpxProjectId: "e1" };
+					if (insertCalls === 1) {
+						return { resourceId: "winner-id", slug: "winner", mediaItemId: "m1", elpxProjectId: "e1" };
+					}
+					throw new Error('duplicate key value violates unique constraint "elpx_projects_hash_idx"');
 				},
 			} as Deps["repo"],
 		});
@@ -451,26 +454,55 @@ describe("runImportLegacyProcomun (deps mockeadas)", () => {
 		expect(reportA.totals.imported + reportB.totals.imported).toBe(1);
 		expect(reportA.totals.errored + reportB.totals.errored).toBe(1);
 
-		// Solo la ejecución que gana el rename atómico llega a importLegacyResourceWithElpx();
-		// la perdedora falla en el propio rename, antes de tocar la BD.
-		expect(insertCalls).toBe(1);
-		expect(extractPathsAtInsert).toHaveLength(1);
-		// La ruta persistida es la ruta final por checksum (compartida por
-		// construcción entre ambos intentos), no la ruta privada por uploadId:
-		// exactamente la que hace que la URL pública de preview resuelva bien.
+		// Ambas ejecuciones llegan a llamar a importLegacyResourceWithElpx(); la
+		// restricción UNIQUE (simulada) decide, no el orden de extracción.
+		expect(insertCalls).toBe(2);
+		expect(extractPathsAtInsert).toHaveLength(2);
+		// Las dos apuntan a la misma ruta final por checksum (construida antes de
+		// insertar, no tras un rename): exactamente la que hace que la URL
+		// pública de preview resuelva bien.
+		expect(extractPathsAtInsert[0]).toBe(extractPathsAtInsert[1]);
 		expect(extractPathsAtInsert[0]).toBe(path.join(storageDir, "elpx", "mock-checksum"));
 
 		// La perdedora limpia únicamente su propio directorio privado por
-		// uploadId (nunca visto por BD ni por el rename ganador), nunca el
-		// directorio final que sí ganó el rename y quedó persistido.
+		// uploadId (nunca visto por BD), nunca el directorio final que sí ganó y
+		// promocionó la ganadora tras confirmar en BD.
 		expect(removedPaths).toHaveLength(1);
 		expect(removedPaths[0]).not.toBe(extractPathsAtInsert[0]);
 
-		// El directorio final por checksum sigue intacto tras la carrera.
+		// El directorio final por checksum, promocionado por la ganadora tras su
+		// commit, sigue intacto tras la carrera.
 		const contentXmlExists = await Bun.file(
 			path.join(extractPathsAtInsert[0] as string, "content.xml"),
 		).exists();
 		expect(contentXmlExists).toBe(true);
+	});
+
+	test("un directorio huérfano en storageDir/elpx/<checksum> sin fila en BD no bloquea la importación (regresión P1, revisión #268: recuperación tras caída del proceso)", async () => {
+		// Antes del reordenamiento (rename antes que el commit en BD), un
+		// proceso interrumpido justo después de ganar el rename pero antes de
+		// confirmar en BD dejaba exactamente este estado: un directorio en la
+		// ruta final por checksum, sin ninguna fila en elpx_projects que lo
+		// referencie — y bloqueaba para siempre cualquier reimportación futura
+		// del mismo contenido (el rename de un nuevo intento fallaría con
+		// ENOTEMPTY contra ese huérfano). Con el commit en BD antes del rename,
+		// la inserción es la única dueña legítima del checksum, así que
+		// promoteElpxExtractionPath() puede reclamar (borrar) el huérfano.
+		await mkdir(path.join(storageDir, "elpx", "mock-checksum"), { recursive: true });
+		await writeFile(path.join(storageDir, "elpx", "mock-checksum", "content.xml"), "contenido huérfano");
+
+		const deps = buildMockDeps(storageDir); // getElpxProjectByHash del mock base -> null
+
+		const report = await runImportLegacyProcomun({ sourceDir: dir, dryRun: false }, deps);
+
+		expect(report.totals.imported).toBe(1);
+		expect(report.totals.errored).toBe(0);
+		expect(report.records[0]).toMatchObject({ outcome: "imported" });
+
+		// El huérfano se reclamó: el directorio final contiene ahora el
+		// contenido recién extraído, no el huérfano preexistente.
+		const content = await Bun.file(path.join(storageDir, "elpx", "mock-checksum", "content.xml")).text();
+		expect(content).toBe("<ode/>");
 	});
 
 	test("un .json malformado se reporta como error sin abortar el resto del lote", async () => {

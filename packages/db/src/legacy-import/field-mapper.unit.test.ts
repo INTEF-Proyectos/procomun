@@ -171,4 +171,62 @@ describe("mapLegacyRecord", () => {
 		expect(result.warnings.some((w) => w.field === "keywords")).toBe(false);
 		expect(result.resource.keywords).toBe("geometria,areas");
 	});
+
+	describe("importedAt (regresión hallazgo P2, revisión #268: fechas de calendario imposibles no deben normalizarse en silencio)", () => {
+		const base = {
+			idODE: "es_test_date",
+			descriptionStr: "d",
+			rightsCopyrightAndOtherRestrictionsStr: "creative commons: attribution",
+		};
+
+		it("parsea fechaRegistro YYYYMMDD válida", () => {
+			const result = mapLegacyRecord({ ...base, fechaRegistro: "20230228" }, "fallback.elpx");
+			expect(result.resource.importedAt?.toISOString()).toBe("2023-02-28T00:00:00.000Z");
+		});
+
+		it("rechaza fechaRegistro con un 31 de febrero en vez de normalizarlo al 3 de marzo", () => {
+			// Date.UTC(2023, 1, 31) no lanza ni da NaN: desborda a 2023-03-03.
+			const result = mapLegacyRecord({ ...base, fechaRegistro: "20230231" }, "fallback.elpx");
+			expect(result.resource.importedAt).toBeNull();
+		});
+
+		it("rechaza fechaRegistro con un mes fuera de rango (13)", () => {
+			const result = mapLegacyRecord({ ...base, fechaRegistro: "20231301" }, "fallback.elpx");
+			expect(result.resource.importedAt).toBeNull();
+		});
+
+		it("rechaza el 29 de febrero en un año no bisiesto pero lo acepta en uno bisiesto", () => {
+			const nonLeap = mapLegacyRecord({ ...base, fechaRegistro: "20230229" }, "fallback.elpx");
+			expect(nonLeap.resource.importedAt).toBeNull();
+
+			const leap = mapLegacyRecord({ ...base, fechaRegistro: "20240229" }, "fallback.elpx");
+			expect(leap.resource.importedAt?.toISOString()).toBe("2024-02-29T00:00:00.000Z");
+		});
+
+		it("acepta un publicationDate ISO válido con hora completa", () => {
+			const result = mapLegacyRecord(
+				{ ...base, publicationDate: "2021-05-29T13:48:27.339Z" },
+				"fallback.elpx",
+			);
+			expect(result.resource.importedAt?.toISOString()).toBe("2021-05-29T13:48:27.339Z");
+		});
+
+		it("rechaza un publicationDate ISO con un 31 de febrero y cae al fallback fechaRegistro", () => {
+			// new Date("2023-02-31") tiene el mismo problema de normalización que
+			// Date.UTC: desborda a 2023-03-03 en vez de fallar.
+			const result = mapLegacyRecord(
+				{ ...base, publicationDate: "2023-02-31T10:00:00.000Z", fechaRegistro: "20220101" },
+				"fallback.elpx",
+			);
+			expect(result.resource.importedAt?.toISOString()).toBe("2022-01-01T00:00:00.000Z");
+		});
+
+		it("devuelve importedAt null cuando no hay ninguna fecha de origen utilizable", () => {
+			const result = mapLegacyRecord(
+				{ ...base, publicationDate: "2023-02-31T10:00:00.000Z", fechaRegistro: "20231301" },
+				"fallback.elpx",
+			);
+			expect(result.resource.importedAt).toBeNull();
+		});
+	});
 });
