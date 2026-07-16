@@ -123,6 +123,7 @@ export function normalizeText(text: string): string {
 	let cleanedBytes = 0;
 	let pendingWhitespace = "";
 	let pendingBytes = 0;
+	let pendingExceedsLimit = false;
 	let lastPendingChar = "";
 	let consecutiveNewlines = 0;
 	let truncated = false;
@@ -130,25 +131,26 @@ export function normalizeText(text: string): string {
 	function resetPendingWhitespace() {
 		pendingWhitespace = "";
 		pendingBytes = 0;
+		pendingExceedsLimit = false;
 		lastPendingChar = "";
 		consecutiveNewlines = 0;
 	}
 
-	function appendPendingWhitespace(value: string): boolean {
+	function appendPendingWhitespace(value: string) {
 		const valueBytes = Buffer.byteLength(value, "utf-8");
 		if (
-			cleanedBytes + pendingBytes + valueBytes >
-			MAX_EXTRACTED_TEXT_BYTES
+			pendingExceedsLimit ||
+			cleanedBytes + pendingBytes + valueBytes > MAX_EXTRACTED_TEXT_BYTES
 		) {
-			truncated = true;
-			return false;
+			// Keep scanning: this whitespace may be trailing and therefore trimmed.
+			pendingExceedsLimit = true;
+		} else {
+			pendingWhitespace += value;
+			pendingBytes += valueBytes;
 		}
 
-		pendingWhitespace += value;
-		pendingBytes += valueBytes;
 		lastPendingChar = value;
 		consecutiveNewlines = value === "\n" ? consecutiveNewlines + 1 : 0;
-		return true;
 	}
 
 	for (const ch of text) {
@@ -164,18 +166,23 @@ export function normalizeText(text: string): string {
 
 			if (ch === " " || ch === "\t") {
 				if (lastPendingChar === " ") continue;
-				if (!appendPendingWhitespace(" ")) break;
+				appendPendingWhitespace(" ");
 				continue;
 			}
 
 			if (ch === "\n") {
 				if (consecutiveNewlines >= 2) continue;
-				if (!appendPendingWhitespace(ch)) break;
+				appendPendingWhitespace(ch);
 				continue;
 			}
 
-			if (!appendPendingWhitespace(ch)) break;
+			appendPendingWhitespace(ch);
 			continue;
+		}
+
+		if (pendingExceedsLimit) {
+			truncated = true;
+			break;
 		}
 
 		if (pendingWhitespace) {
