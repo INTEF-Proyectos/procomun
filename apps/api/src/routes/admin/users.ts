@@ -1,12 +1,12 @@
-import { Hono } from "hono";
-import type { AuthEnv } from "../../auth/middleware.ts";
-import { auth } from "../../auth/config.ts";
-import { getCurrentUser, hasMinRole } from "../../auth/roles.ts";
-import { logActivity } from "../../activity/log.ts";
-import { parsePagination } from "../../http/pagination.ts";
-import { ROLE_LEVELS } from "@procomun/db/validation";
-import { getDb } from "../../db.ts";
 import * as repo from "@procomun/db/repository";
+import { ROLE_LEVELS } from "@procomun/db/validation";
+import { Hono } from "hono";
+import { logActivity } from "../../activity/log.ts";
+import { auth } from "../../auth/config.ts";
+import type { AuthEnv } from "../../auth/middleware.ts";
+import { getCurrentUser, hasMinRole } from "../../auth/roles.ts";
+import { getDb } from "../../db.ts";
+import { parsePagination } from "../../http/pagination.ts";
 
 const EMAIL_PATTERN = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
 const MIN_PASSWORD_LENGTH = 8;
@@ -19,20 +19,28 @@ userRoutes.get("/", async (c) => {
 	const role = c.req.query("role") ?? undefined;
 
 	if (hasMinRole(user.role, "admin")) {
-		return c.json(await repo.listUsers(getDb().db, { limit, offset, search, role }));
+		return c.json(
+			await repo.listUsers(getDb().db, { limit, offset, search, role }),
+		);
 	}
 
-	const ownUsers = await repo.listUsers(getDb().db, { limit, offset, id: user.id });
+	const ownUsers = await repo.listUsers(getDb().db, {
+		limit,
+		offset,
+		id: user.id,
+	});
 	if (ownUsers.total > 0) return c.json(ownUsers);
 
 	return c.json({
-		data: [{
-			id: user.id,
-			email: user.email ?? "",
-			name: user.name ?? null,
-			role: user.role ?? "reader",
-			isActive: true,
-		}],
+		data: [
+			{
+				id: user.id,
+				email: user.email ?? "",
+				name: user.name ?? null,
+				role: user.role ?? "reader",
+				isActive: true,
+			},
+		],
 		total: 1,
 		limit,
 		offset,
@@ -53,17 +61,25 @@ userRoutes.post("/", async (c) => {
 		return c.json({ error: "Cuerpo de la petición inválido" }, 400);
 	}
 
-	const email = typeof body.email === "string" ? body.email.trim().toLowerCase() : "";
+	const email =
+		typeof body.email === "string" ? body.email.trim().toLowerCase() : "";
 	const password = typeof body.password === "string" ? body.password : "";
-	const name = typeof body.name === "string" && body.name.trim() ? body.name.trim() : null;
-	const role = typeof body.role === "string" && body.role in ROLE_LEVELS ? body.role : "author";
+	const name =
+		typeof body.name === "string" && body.name.trim() ? body.name.trim() : null;
+	const role =
+		typeof body.role === "string" && body.role in ROLE_LEVELS
+			? body.role
+			: "author";
 
 	const details: { field: string; message: string }[] = [];
 	if (!EMAIL_PATTERN.test(email)) {
 		details.push({ field: "email", message: "Correo electrónico inválido" });
 	}
 	if (password.length < MIN_PASSWORD_LENGTH) {
-		details.push({ field: "password", message: `La contraseña debe tener al menos ${MIN_PASSWORD_LENGTH} caracteres` });
+		details.push({
+			field: "password",
+			message: `La contraseña debe tener al menos ${MIN_PASSWORD_LENGTH} caracteres`,
+		});
 	}
 	if (details.length > 0) {
 		return c.json({ error: "Datos inválidos", details }, 400);
@@ -76,7 +92,12 @@ userRoutes.post("/", async (c) => {
 	}
 
 	const passwordHash = await (await auth.$context).password.hash(password);
-	const created = await repo.createUserWithCredentials(db, { email, name, role, passwordHash });
+	const created = await repo.createUserWithCredentials(db, {
+		email,
+		name,
+		role,
+		passwordHash,
+	});
 
 	await logActivity({
 		userId: currentUser.id,
@@ -120,12 +141,20 @@ userRoutes.patch("/:id", async (c) => {
 	if (!existing) return c.json({ error: "Usuario no encontrado" }, 404);
 
 	const body = await c.req.json();
-	const updates: { name?: string | null; bio?: string | null; role?: string; isActive?: boolean } = {};
-	if ("name" in body) updates.name = typeof body.name === "string" ? body.name : null;
+	const updates: {
+		name?: string | null;
+		bio?: string | null;
+		role?: string;
+		isActive?: boolean;
+	} = {};
+	if ("name" in body)
+		updates.name = typeof body.name === "string" ? body.name : null;
 	// DEF-004 (#201): el perfil debe persistir también el campo "sobre mí" (bio).
-	if ("bio" in body) updates.bio = typeof body.bio === "string" ? body.bio : null;
+	if ("bio" in body)
+		updates.bio = typeof body.bio === "string" ? body.bio : null;
 	if (hasMinRole(currentUser.role, "admin")) {
-		if (typeof body.role === "string" && body.role in ROLE_LEVELS) updates.role = body.role;
+		if (typeof body.role === "string" && body.role in ROLE_LEVELS)
+			updates.role = body.role;
 		if (typeof body.isActive === "boolean") updates.isActive = body.isActive;
 	}
 

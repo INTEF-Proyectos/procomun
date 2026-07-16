@@ -1,14 +1,23 @@
-export { extractTextFromFile, isSupportedForExtraction, normalizeText, stripHtml } from "./extract.ts";
 export {
-	searchResources,
-	updateSearchVector,
-	reindexResource,
-	reindexAllResources,
-	saveExtractionResult,
-	markExtractionPending,
-	markExtractionProcessing,
-	resetUnaccentCache,
+	extractTextFromFile,
+	isSupportedForExtraction,
+	normalizeText,
+	stripHtml,
+} from "./extract.ts";
+export {
 	type FtsSearchOptions,
 	type FtsSearchResult,
+	markExtractionPending,
+	markExtractionProcessing,
+	reindexAllResources,
+	reindexResource,
+	resetUnaccentCache,
+	saveExtractionResult,
+	searchResources,
+	updateSearchVector,
 } from "./search.ts";
-export { enqueueExtraction, processExtraction, reExtractResource } from "./worker.ts";
+export {
+	enqueueExtraction,
+	processExtraction,
+	reExtractResource,
+} from "./worker.ts";

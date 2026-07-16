@@ -1,13 +1,13 @@
-import { describe, test, expect, beforeEach, mock } from "bun:test";
+import { beforeEach, describe, expect, mock, test } from "bun:test";
 import {
+	createAssetManager,
+	createDocumentAdapter,
+	createResourceFetcher,
+	type ElpxExportFormat,
 	EXPORT_FORMATS,
 	isValidExportFormat,
 	parseContentXmlForExport,
-	createDocumentAdapter,
-	createResourceFetcher,
-	createAssetManager,
 	resetBundleLoader,
-	type ElpxExportFormat,
 } from "./elpx-export.ts";
 
 describe("EXPORT_FORMATS", () => {
@@ -86,7 +86,11 @@ describe("parseContentXmlForExport", () => {
 		const { navigation } = parseContentXmlForExport(sampleXml);
 		expect(navigation.pageCount).toBe(3);
 		expect(navigation.structure).toBe("linear");
-		const pages = navigation.pages as Array<{ id: string; title: string; index: number }>;
+		const pages = navigation.pages as Array<{
+			id: string;
+			title: string;
+			index: number;
+		}>;
 		expect(pages).toHaveLength(3);
 		expect(pages[0]).toEqual({ id: "page1", title: "Introducción", index: 0 });
 		expect(pages[1]).toEqual({ id: "page2", title: "Desarrollo", index: 1 });
@@ -94,7 +98,9 @@ describe("parseContentXmlForExport", () => {
 	});
 
 	test("maneja XML sin metadatos con valores por defecto", () => {
-		const { metadata, navigation } = parseContentXmlForExport("<project></project>");
+		const { metadata, navigation } = parseContentXmlForExport(
+			"<project></project>",
+		);
 		expect(metadata.title).toBe("Sin título");
 		expect(metadata.description).toBe("");
 		expect(metadata.author).toBe("");
@@ -187,7 +193,9 @@ describe("createAssetManager", () => {
 		files.set("libs/jquery.js", new Uint8Array([7, 8, 9])); // not an asset
 
 		const manager = createAssetManager(files) as {
-			getProjectAssets: () => Promise<Array<{ id: string; path: string; size: number }>>;
+			getProjectAssets: () => Promise<
+				Array<{ id: string; path: string; size: number }>
+			>;
 			getAsset: (id: string) => Promise<{ id: string } | null>;
 		};
 

@@ -54,7 +54,9 @@ export function AdminReportsSection() {
 	const [page, setPage] = useState(1);
 	const [statusFilter, setStatusFilter] = useState("");
 	const [loading, setLoading] = useState(true);
-	const [selectedReport, setSelectedReport] = useState<ReportRecord | null>(null);
+	const [selectedReport, setSelectedReport] = useState<ReportRecord | null>(
+		null,
+	);
 	const [resolution, setResolution] = useState("");
 	const [actionTaken, setActionTaken] = useState("");
 	const [busy, setBusy] = useState(false);
@@ -140,7 +142,9 @@ export function AdminReportsSection() {
 			label: "Estado",
 			render: (r) => {
 				const s = STATUS_MAP[r.status] || { label: r.status, className: "" };
-				return <span className={`admin-status-badge ${s.className}`}>{s.label}</span>;
+				return (
+					<span className={`admin-status-badge ${s.className}`}>{s.label}</span>
+				);
 			},
 		},
 		{
@@ -210,26 +214,58 @@ export function AdminReportsSection() {
 
 			{/* Resolve modal */}
 			{selectedReport && (
-				<div className="admin-modal-overlay" onMouseDown={(e) => { if (e.target === e.currentTarget) setSelectedReport(null); }}>
-					<div className="admin-confirm-dialog" role="dialog" aria-modal="true" aria-labelledby="resolve-report-title">
-						<form onSubmit={(e) => { e.preventDefault(); void handleResolve(); }}>
-							<h2 id="resolve-report-title" style={{ margin: "0 0 1rem", fontSize: "1.25rem" }}>
+				<div
+					className="admin-modal-overlay"
+					onMouseDown={(e) => {
+						if (e.target === e.currentTarget) setSelectedReport(null);
+					}}
+				>
+					<div
+						className="admin-confirm-dialog"
+						role="dialog"
+						aria-modal="true"
+						aria-labelledby="resolve-report-title"
+					>
+						<form
+							onSubmit={(e) => {
+								e.preventDefault();
+								void handleResolve();
+							}}
+						>
+							<h2
+								id="resolve-report-title"
+								style={{ margin: "0 0 1rem", fontSize: "1.25rem" }}
+							>
 								Resolver denuncia
 							</h2>
 							<p style={{ marginBottom: "0.5rem" }}>
 								<strong>Recurso:</strong> {selectedReport.resourceTitle}
 							</p>
 							<p style={{ marginBottom: "1rem" }}>
-								<strong>Motivo:</strong> {REASON_LABELS[selectedReport.reason] || selectedReport.reason}
+								<strong>Motivo:</strong>{" "}
+								{REASON_LABELS[selectedReport.reason] || selectedReport.reason}
 								{selectedReport.description && (
-									<span style={{ display: "block", marginTop: "0.25rem", color: "var(--color-on-surface-variant)" }}>
+									<span
+										style={{
+											display: "block",
+											marginTop: "0.25rem",
+											color: "var(--color-on-surface-variant)",
+										}}
+									>
 										{selectedReport.description}
 									</span>
 								)}
 							</p>
 
 							<div style={{ marginBottom: "1rem" }}>
-								<label htmlFor="resolve-action" style={{ display: "block", marginBottom: "0.5rem", fontWeight: 500 }}>
+								<label
+									htmlFor="resolve-action"
+									style={{
+										display: "block",
+										marginBottom: "0.5rem",
+										fontWeight: 500,
+									}}
+								>
 									Accion a tomar *
 								</label>
 								<select
@@ -237,16 +273,30 @@ export function AdminReportsSection() {
 									value={actionTaken}
 									onChange={(e) => setActionTaken(e.target.value)}
 									required
-									style={{ width: "100%", padding: "0.5rem", borderRadius: "6px", border: "1px solid var(--color-outline)" }}
+									style={{
+										width: "100%",
+										padding: "0.5rem",
+										borderRadius: "6px",
+										border: "1px solid var(--color-outline)",
+									}}
 								>
 									{ACTION_OPTIONS.map((o) => (
-										<option key={o.value} value={o.value}>{o.label}</option>
+										<option key={o.value} value={o.value}>
+											{o.label}
+										</option>
 									))}
 								</select>
 							</div>
 
 							<div style={{ marginBottom: "1rem" }}>
-								<label htmlFor="resolve-resolution" style={{ display: "block", marginBottom: "0.5rem", fontWeight: 500 }}>
+								<label
+									htmlFor="resolve-resolution"
+									style={{
+										display: "block",
+										marginBottom: "0.5rem",
+										fontWeight: 500,
+									}}
+								>
 									Notas de resolucion (opcional)
 								</label>
 								<textarea
@@ -254,16 +304,31 @@ export function AdminReportsSection() {
 									value={resolution}
 									onChange={(e) => setResolution(e.target.value)}
 									rows={3}
-									style={{ width: "100%", padding: "0.5rem", borderRadius: "6px", border: "1px solid var(--color-outline)", resize: "vertical" }}
+									style={{
+										width: "100%",
+										padding: "0.5rem",
+										borderRadius: "6px",
+										border: "1px solid var(--color-outline)",
+										resize: "vertical",
+									}}
 									placeholder="Describe la resolucion..."
 								/>
 							</div>
 
 							<div className="admin-dialog-actions">
-								<button type="button" className="admin-btn" onClick={() => setSelectedReport(null)} disabled={busy}>
+								<button
+									type="button"
+									className="admin-btn"
+									onClick={() => setSelectedReport(null)}
+									disabled={busy}
+								>
 									Cancelar
 								</button>
-								<button type="submit" className="admin-btn admin-btn--danger" disabled={busy || !actionTaken}>
+								<button
+									type="submit"
+									className="admin-btn admin-btn--danger"
+									disabled={busy || !actionTaken}
+								>
 									{busy ? "Procesando..." : "Confirmar resolucion"}
 								</button>
 							</div>

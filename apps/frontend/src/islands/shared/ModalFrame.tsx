@@ -1,4 +1,4 @@
-import { useEffect, type ReactNode } from "react";
+import { type ReactNode, useEffect } from "react";
 
 interface ModalFrameProps {
 	open: boolean;
@@ -46,7 +46,12 @@ export function ModalFrame({
 				}
 			}}
 		>
-			<div className={className} role="dialog" aria-modal="true" aria-labelledby={titleId}>
+			<div
+				className={className}
+				role="dialog"
+				aria-modal="true"
+				aria-labelledby={titleId}
+			>
 				{children}
 			</div>
 		</div>

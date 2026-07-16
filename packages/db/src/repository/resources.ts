@@ -1,13 +1,13 @@
 import { and, asc, desc, eq, isNull, or, sql } from "drizzle-orm";
-import { ratings, favorites } from "../schema/social.ts";
+import { user } from "../schema/auth.ts";
 import {
 	mediaItems,
 	resourceLevels,
-	resources,
 	resourceSubjects,
+	resources,
 } from "../schema/resources.ts";
+import { favorites, ratings } from "../schema/social.ts";
 import { uploadSessions } from "../schema/uploads.ts";
-import { user } from "../schema/auth.ts";
 import {
 	andWhere,
 	buildSearchTerm,
@@ -82,10 +82,7 @@ const resourceDetailSelection = {
 	curatedAt: resources.curatedAt,
 };
 
-async function listResourceTaxonomyValues(
-	db: DrizzleDB,
-	resourceId: string,
-) {
+async function listResourceTaxonomyValues(db: DrizzleDB, resourceId: string) {
 	const [subjects, levels] = await Promise.all([
 		db
 			.select({ subject: resourceSubjects.subject })
@@ -131,7 +128,8 @@ export async function listResources(db: DrizzleDB, opts: ResourceListOptions) {
 		);
 	}
 	if (opts.status) conditions.push(eq(resources.editorialStatus, opts.status));
-	if (opts.resourceType) conditions.push(eq(resources.resourceType, opts.resourceType));
+	if (opts.resourceType)
+		conditions.push(eq(resources.resourceType, opts.resourceType));
 	if (opts.language) conditions.push(eq(resources.language, opts.language));
 	if (opts.license) conditions.push(eq(resources.license, opts.license));
 	if (opts.createdBy) conditions.push(eq(resources.createdBy, opts.createdBy));
@@ -162,7 +160,12 @@ export async function listResources(db: DrizzleDB, opts: ResourceListOptions) {
 		.leftJoin(user, eq(resources.createdBy, user.id))
 		.where(where);
 
-	return { data: rows, total: Number(countResult[0]?.count ?? 0), limit, offset };
+	return {
+		data: rows,
+		total: Number(countResult[0]?.count ?? 0),
+		limit,
+		offset,
+	};
 }
 
 export async function getResourceById(db: DrizzleDB, id: string) {
@@ -196,7 +199,10 @@ export async function getResourceBySlug(db: DrizzleDB, slug: string) {
 	};
 }
 
-export async function createResource(db: DrizzleDB, data: ResourceMutationInput) {
+export async function createResource(
+	db: DrizzleDB,
+	data: ResourceMutationInput,
+) {
 	const id = crypto.randomUUID();
 	const slug = `${buildSlug(data.title)}-${id.slice(0, 8)}`;
 	const now = new Date();
@@ -281,7 +287,10 @@ export async function updateEditorialStatus(
 		.where(and(eq(resources.id, id), isNull(resources.deletedAt)));
 }
 
-export async function listMediaItemsForResource(db: DrizzleDB, resourceId: string) {
+export async function listMediaItemsForResource(
+	db: DrizzleDB,
+	resourceId: string,
+) {
 	const rows = await db
 		.select({
 			id: mediaItems.id,

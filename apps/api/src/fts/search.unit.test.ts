@@ -1,29 +1,29 @@
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
+import { mkdtemp, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { PGlite } from "@electric-sql/pglite";
-import { drizzle } from "drizzle-orm/pglite";
-import { sql } from "drizzle-orm";
+import { createResource, updateResource } from "@procomun/db/repository";
 import * as schema from "@procomun/db/schema";
 import { createTables } from "@procomun/db/setup";
-import { createResource, updateResource } from "@procomun/db/repository";
-import {
-	updateSearchVector,
-	saveExtractionResult,
-	reindexResource,
-	reindexAllResources,
-	searchResources,
-	markExtractionPending,
-	markExtractionProcessing,
-	resetUnaccentCache,
-} from "./search.ts";
+import { sql } from "drizzle-orm";
+import { drizzle } from "drizzle-orm/pglite";
 import {
 	extractTextFromFile,
 	isSupportedForExtraction,
 	normalizeText,
 	stripHtml,
 } from "./extract.ts";
-import { writeFile, mkdtemp, rm } from "node:fs/promises";
-import { join } from "node:path";
-import { tmpdir } from "node:os";
+import {
+	markExtractionPending,
+	markExtractionProcessing,
+	reindexAllResources,
+	reindexResource,
+	resetUnaccentCache,
+	saveExtractionResult,
+	searchResources,
+	updateSearchVector,
+} from "./search.ts";
 
 describe("Text Extraction", () => {
 	let tempDir: string;
@@ -147,9 +147,7 @@ describe("Text Extraction", () => {
 	test("normalizeText truncates to max size", () => {
 		const largeText = "a".repeat(600 * 1024);
 		const result = normalizeText(largeText);
-		expect(Buffer.byteLength(result, "utf-8")).toBeLessThanOrEqual(
-			500 * 1024,
-		);
+		expect(Buffer.byteLength(result, "utf-8")).toBeLessThanOrEqual(500 * 1024);
 	});
 
 	test("stripHtml removes script and style elements", () => {
@@ -201,10 +199,10 @@ describe("FTS Search & Indexing", () => {
 		});
 
 		// Publish all resources for searching
-		const rawResources = await db.execute(
-			sql`SELECT id FROM resources`,
-		);
-		const allResources = (rawResources.rows ?? rawResources) as unknown as { id: string }[];
+		const rawResources = await db.execute(sql`SELECT id FROM resources`);
+		const allResources = (rawResources.rows ?? rawResources) as unknown as {
+			id: string;
+		}[];
 		for (const r of allResources) {
 			await db.execute(
 				sql`UPDATE resources SET editorial_status = 'published' WHERE id = ${r.id}`,
@@ -275,9 +273,7 @@ describe("FTS Search & Indexing", () => {
 		expect(result.data.length).toBeGreaterThan(0);
 		// "Educación física" has the term in title (weight A)
 		// "Educación primaria" is in description of the same resource
-		const titleMatch = result.data.find(
-			(r) => r.title === "Educación física",
-		);
+		const titleMatch = result.data.find((r) => r.title === "Educación física");
 		expect(titleMatch).toBeDefined();
 		if (result.data.length > 1 && result.data[0]) {
 			// If multiple results, title match should be first
@@ -417,7 +413,9 @@ describe("FTS Search & Indexing", () => {
 		const rows = await db.execute(
 			sql`SELECT extraction_status FROM resources WHERE id = ${id}`,
 		);
-		const result = (rows.rows ?? rows) as unknown as { extraction_status: string }[];
+		const result = (rows.rows ?? rows) as unknown as {
+			extraction_status: string;
+		}[];
 		expect(result[0]?.extraction_status).toBe("pending");
 	});
 
@@ -435,7 +433,9 @@ describe("FTS Search & Indexing", () => {
 		const rows = await db.execute(
 			sql`SELECT extraction_status FROM resources WHERE id = ${id}`,
 		);
-		const result = (rows.rows ?? rows) as unknown as { extraction_status: string }[];
+		const result = (rows.rows ?? rows) as unknown as {
+			extraction_status: string;
+		}[];
 		expect(result[0]?.extraction_status).toBe("processing");
 	});
 
@@ -472,7 +472,10 @@ describe("FTS Search & Indexing", () => {
 		const rows = await db.execute(
 			sql`SELECT extraction_status, extraction_error FROM resources WHERE id = ${id}`,
 		);
-		const result = (rows.rows ?? rows) as unknown as { extraction_status: string; extraction_error: string }[];
+		const result = (rows.rows ?? rows) as unknown as {
+			extraction_status: string;
+			extraction_error: string;
+		}[];
 		expect(result[0]?.extraction_status).toBe("error");
 		expect(result[0]?.extraction_error).toBe("File corrupted");
 	});
@@ -494,7 +497,10 @@ describe("FTS Search & Indexing", () => {
 		const rows = await db.execute(
 			sql`SELECT extraction_status, extracted_at FROM resources WHERE id = ${id}`,
 		);
-		const result = (rows.rows ?? rows) as unknown as { extraction_status: string; extracted_at: string | null }[];
+		const result = (rows.rows ?? rows) as unknown as {
+			extraction_status: string;
+			extracted_at: string | null;
+		}[];
 		expect(result[0]?.extraction_status).toBe("skipped");
 		expect(result[0]?.extracted_at).toBeNull();
 	});

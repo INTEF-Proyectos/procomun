@@ -57,7 +57,9 @@ export const resources = pgTable("resources", {
 	// Full Text Search
 	extractedText: text("extracted_text"),
 	searchVector: tsvector("search_vector"),
-	extractionStatus: varchar("extraction_status", { length: 20 }).notNull().default("pending"),
+	extractionStatus: varchar("extraction_status", { length: 20 })
+		.notNull()
+		.default("pending"),
 	extractedAt: timestamp("extracted_at"),
 	extractionError: text("extraction_error"),
 
@@ -124,12 +126,9 @@ export const resourceSubjectsRelations = relations(
 	}),
 );
 
-export const resourceLevelsRelations = relations(
-	resourceLevels,
-	({ one }) => ({
-		resource: one(resources, {
-			fields: [resourceLevels.resourceId],
-			references: [resources.id],
-		}),
+export const resourceLevelsRelations = relations(resourceLevels, ({ one }) => ({
+	resource: one(resources, {
+		fields: [resourceLevels.resourceId],
+		references: [resources.id],
 	}),
-);
+}));

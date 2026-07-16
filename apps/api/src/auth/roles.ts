@@ -1,12 +1,20 @@
+import { ROLE_LEVELS } from "@procomun/db/validation";
 import type { Context } from "hono";
 import type { AuthEnv } from "./middleware.ts";
-import { ROLE_LEVELS } from "@procomun/db/validation";
 
 export function getCurrentUser(c: Context<AuthEnv>) {
-	return c.get("user") as { id: string; role?: string; name?: string; email?: string };
+	return c.get("user") as {
+		id: string;
+		role?: string;
+		name?: string;
+		email?: string;
+	};
 }
 
-export function hasMinRole(role: string | undefined, minRole: keyof typeof ROLE_LEVELS) {
+export function hasMinRole(
+	role: string | undefined,
+	minRole: keyof typeof ROLE_LEVELS,
+) {
 	return (ROLE_LEVELS[role ?? "reader"] ?? 0) >= ROLE_LEVELS[minRole];
 }
 
@@ -30,7 +38,10 @@ export function canManageResource(
 	// por lo que debe conservar el acceso aunque el recurso ya no esté en revisión
 	// (DEF-009 / #205: antes pasaba a "recurso no encontrado" tras publicarlo/devolverlo a borrador).
 	if (hasMinRole(user.role, "curator")) {
-		return resource.editorialStatus === "review" || resource.assignedCuratorId === user.id;
+		return (
+			resource.editorialStatus === "review" ||
+			resource.assignedCuratorId === user.id
+		);
 	}
 	return false;
 }

@@ -188,8 +188,7 @@ export function AdminCategoriesSection() {
 			const api = await getApiClient();
 			await api.deleteTaxonomy(deleteTarget.id);
 			setDeleteTarget(null);
-			const nextPage =
-				rows.length === 1 && page > 1 ? page - 1 : page;
+			const nextPage = rows.length === 1 && page > 1 ? page - 1 : page;
 			void loadTaxonomies(nextPage, search.trim(), typeFilter);
 		} catch {
 			/* ignore */
@@ -218,9 +217,7 @@ export function AdminCategoriesSection() {
 			key: "type",
 			label: "Tipo",
 			render: (t) => (
-				<span
-					className={`taxonomy-type-badge ${typeBadgeClass(t.type)}`}
-				>
+				<span className={`taxonomy-type-badge ${typeBadgeClass(t.type)}`}>
 					{typeLabel(t.type)}
 				</span>
 			),
@@ -251,7 +248,8 @@ export function AdminCategoriesSection() {
 					}}
 				>
 					{t.parentId
-						? allTaxonomies.find((p) => p.id === t.parentId)?.name ?? t.parentId.slice(0, 12) + "..."
+						? (allTaxonomies.find((p) => p.id === t.parentId)?.name ??
+							t.parentId.slice(0, 12) + "...")
 						: "-"}
 				</span>
 			),
@@ -260,9 +258,7 @@ export function AdminCategoriesSection() {
 			key: "updatedAt",
 			label: "Actualizado",
 			render: (t) => (
-				<span className="admin-date-cell">
-					{formatDate(t.updatedAt)}
-				</span>
+				<span className="admin-date-cell">{formatDate(t.updatedAt)}</span>
 			),
 		},
 		{
@@ -277,9 +273,7 @@ export function AdminCategoriesSection() {
 						onClick={() => openEdit(t)}
 						aria-label={`Editar ${t.name}`}
 					>
-						<span className="material-symbols-outlined">
-							edit
-						</span>
+						<span className="material-symbols-outlined">edit</span>
 					</button>
 					<button
 						type="button"
@@ -288,9 +282,7 @@ export function AdminCategoriesSection() {
 						onClick={() => setDeleteTarget(t)}
 						aria-label={`Eliminar ${t.name}`}
 					>
-						<span className="material-symbols-outlined">
-							delete
-						</span>
+						<span className="material-symbols-outlined">delete</span>
 					</button>
 				</div>
 			),
@@ -301,18 +293,14 @@ export function AdminCategoriesSection() {
 		<>
 			<div className="admin-section-header">
 				<h1>Categorias y Taxonomias</h1>
-				<p>
-					Gestion de materias, niveles educativos y etiquetas
-				</p>
+				<p>Gestion de materias, niveles educativos y etiquetas</p>
 			</div>
 
 			{/* Filter bar */}
 			<div className="admin-filter-bar">
 				<div className="admin-filter-bar-inner">
 					<div className="admin-filter-search">
-						<span className="admin-filter-label">
-							Buscar taxonomia
-						</span>
+						<span className="admin-filter-label">Buscar taxonomia</span>
 						<div className="admin-search-wrap">
 							<input
 								type="search"
@@ -336,18 +324,14 @@ export function AdminCategoriesSection() {
 						</div>
 					</div>
 					<div className="admin-status-pills">
-						<span className="admin-filter-label">
-							Tipo
-						</span>
+						<span className="admin-filter-label">Tipo</span>
 						<div className="admin-status-pills-inner">
 							{TYPE_OPTIONS.map((f) => (
 								<button
 									key={f.value}
 									type="button"
 									className={`admin-status-pill${typeFilter === f.value ? " admin-status-pill-active" : ""}`}
-									onClick={() =>
-										applyTypeFilter(f.value)
-									}
+									onClick={() => applyTypeFilter(f.value)}
 								>
 									{f.label}
 								</button>
@@ -361,9 +345,7 @@ export function AdminCategoriesSection() {
 							style={{ height: "3.5rem", whiteSpace: "nowrap" }}
 							onClick={() => setShowCreate(true)}
 						>
-							<span className="material-symbols-outlined">
-								add
-							</span>
+							<span className="material-symbols-outlined">add</span>
 							Nueva Taxonomia
 						</button>
 					</div>
@@ -378,9 +360,7 @@ export function AdminCategoriesSection() {
 				total={total}
 				page={page}
 				pageSize={PAGE_SIZE}
-				onPageChange={(p) =>
-					void loadTaxonomies(p, search.trim(), typeFilter)
-				}
+				onPageChange={(p) => void loadTaxonomies(p, search.trim(), typeFilter)}
 				emptyMessage="No hay taxonomias para los filtros actuales."
 			/>
 
@@ -393,14 +373,10 @@ export function AdminCategoriesSection() {
 					onClose={() => setShowCreate(false)}
 				>
 					<form onSubmit={handleCreate}>
-						<h2 id="create-taxonomy-title">
-							Crear nueva taxonomia
-						</h2>
+						<h2 id="create-taxonomy-title">Crear nueva taxonomia</h2>
 						<div className="admin-form-row">
 							<div className="admin-form-field">
-								<label htmlFor="tax-create-name">
-									Nombre
-								</label>
+								<label htmlFor="tax-create-name">Nombre</label>
 								<input
 									id="tax-create-name"
 									type="text"
@@ -415,9 +391,7 @@ export function AdminCategoriesSection() {
 								/>
 							</div>
 							<div className="admin-form-field">
-								<label htmlFor="tax-create-type">
-									Tipo
-								</label>
+								<label htmlFor="tax-create-type">Tipo</label>
 								<select
 									id="tax-create-type"
 									value={createForm.type}
@@ -459,9 +433,7 @@ export function AdminCategoriesSection() {
 							</div>
 						</div>
 						{createError && (
-							<div className="admin-form-error">
-								{createError}
-							</div>
+							<div className="admin-form-error">{createError}</div>
 						)}
 						<div className="admin-dialog-actions">
 							<button
@@ -493,14 +465,10 @@ export function AdminCategoriesSection() {
 					onClose={() => setEditTarget(null)}
 				>
 					<form onSubmit={handleEdit}>
-						<h2 id="edit-taxonomy-title">
-							Editar taxonomia
-						</h2>
+						<h2 id="edit-taxonomy-title">Editar taxonomia</h2>
 						<div className="admin-form-row">
 							<div className="admin-form-field">
-								<label htmlFor="tax-edit-name">
-									Nombre
-								</label>
+								<label htmlFor="tax-edit-name">Nombre</label>
 								<input
 									id="tax-edit-name"
 									type="text"
@@ -515,9 +483,7 @@ export function AdminCategoriesSection() {
 								/>
 							</div>
 							<div className="admin-form-field">
-								<label htmlFor="tax-edit-type">
-									Tipo
-								</label>
+								<label htmlFor="tax-edit-type">Tipo</label>
 								<select
 									id="tax-edit-type"
 									value={editForm.type}
@@ -560,11 +526,7 @@ export function AdminCategoriesSection() {
 								</select>
 							</div>
 						</div>
-						{editError && (
-							<div className="admin-form-error">
-								{editError}
-							</div>
-						)}
+						{editError && <div className="admin-form-error">{editError}</div>}
 						<div className="admin-dialog-actions">
 							<button
 								type="button"

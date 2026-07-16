@@ -26,12 +26,18 @@ describe("favorites-service", () => {
 			createdBy: userId,
 		});
 
-		const toggledOn = await toggleResourceFavorite({ resourceId: resource.id, userId });
+		const toggledOn = await toggleResourceFavorite({
+			resourceId: resource.id,
+			userId,
+		});
 		expect(toggledOn.favorited).toBe(true);
 		expect(await getFavoriteCount(resource.id)).toBe(1);
 		expect(await getUserFavoriteState(resource.id, userId)).toBe(true);
 
-		const toggledOff = await toggleResourceFavorite({ resourceId: resource.id, userId });
+		const toggledOff = await toggleResourceFavorite({
+			resourceId: resource.id,
+			userId,
+		});
 		expect(toggledOff.favorited).toBe(false);
 		expect(await getFavoriteCount(resource.id)).toBe(0);
 		expect(await getUserFavoriteState(resource.id, userId)).toBe(false);

@@ -1,9 +1,9 @@
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import { PGlite } from "@electric-sql/pglite";
 import { drizzle } from "drizzle-orm/pglite";
+import { createResource, listResources } from "./repository.ts";
 import * as schema from "./schema/resources.ts";
 import { createTables } from "./setup.ts";
-import { listResources, createResource } from "./repository.ts";
 
 describe("Search Case and Accent Insensitivity", () => {
 	let db: any;

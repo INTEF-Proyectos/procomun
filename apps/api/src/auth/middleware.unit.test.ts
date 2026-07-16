@@ -1,6 +1,11 @@
-import { expect, test, describe } from "bun:test";
+import { describe, expect, test } from "bun:test";
 import { Hono } from "hono";
-import { type AuthEnv, requireAuth, requireRole, sessionMiddleware } from "./middleware.ts";
+import {
+	type AuthEnv,
+	requireAuth,
+	requireRole,
+	sessionMiddleware,
+} from "./middleware.ts";
 
 /** Helper: crea una app Hono con un usuario mock inyectado en el contexto. */
 function createTestApp(mockUser: Record<string, unknown> | null = null) {
@@ -9,7 +14,12 @@ function createTestApp(mockUser: Record<string, unknown> | null = null) {
 	// Inyecta usuario mock en vez de llamar a Better Auth
 	app.use("*", async (c, next) => {
 		c.set("user", mockUser as AuthEnv["Variables"]["user"]);
-		c.set("session", mockUser ? { id: "test-session" } as AuthEnv["Variables"]["session"] : null);
+		c.set(
+			"session",
+			mockUser
+				? ({ id: "test-session" } as AuthEnv["Variables"]["session"])
+				: null,
+		);
 		await next();
 	});
 

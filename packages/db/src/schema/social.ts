@@ -26,7 +26,9 @@ export const ratings = pgTable(
 		createdAt: timestamp("created_at").notNull().defaultNow(),
 		updatedAt: timestamp("updated_at").notNull().defaultNow(),
 	},
-	(table) => [unique("ratings_user_resource").on(table.resourceId, table.userId)],
+	(table) => [
+		unique("ratings_user_resource").on(table.resourceId, table.userId),
+	],
 );
 
 // Favorites: one favorite per user per resource
@@ -42,7 +44,9 @@ export const favorites = pgTable(
 			.references(() => user.id, { onDelete: "cascade" }),
 		createdAt: timestamp("created_at").notNull().defaultNow(),
 	},
-	(table) => [unique("favorites_user_resource").on(table.resourceId, table.userId)],
+	(table) => [
+		unique("favorites_user_resource").on(table.resourceId, table.userId),
+	],
 );
 
 // Downloads: tracks resource download events
@@ -51,8 +55,7 @@ export const downloads = pgTable("downloads", {
 	resourceId: text("resource_id")
 		.notNull()
 		.references(() => resources.id, { onDelete: "cascade" }),
-	userId: text("user_id")
-		.references(() => user.id, { onDelete: "set null" }),
+	userId: text("user_id").references(() => user.id, { onDelete: "set null" }),
 	format: varchar("format", { length: 20 }).notNull().default("direct"),
 	createdAt: timestamp("created_at").notNull().defaultNow(),
 });
@@ -64,8 +67,9 @@ export const activityEvents = pgTable("activity_events", {
 		.notNull()
 		.references(() => user.id, { onDelete: "cascade" }),
 	type: varchar("type", { length: 50 }).notNull(),
-	resourceId: text("resource_id")
-		.references(() => resources.id, { onDelete: "set null" }),
+	resourceId: text("resource_id").references(() => resources.id, {
+		onDelete: "set null",
+	}),
 	resourceTitle: text("resource_title"),
 	resourceSlug: varchar("resource_slug", { length: 512 }),
 	description: text("description").notNull(),
@@ -76,8 +80,7 @@ export const activityEvents = pgTable("activity_events", {
 // API access logs for ENS audit compliance
 export const apiAccessLogs = pgTable("api_access_logs", {
 	id: text("id").primaryKey(),
-	userId: text("user_id")
-		.references(() => user.id, { onDelete: "set null" }),
+	userId: text("user_id").references(() => user.id, { onDelete: "set null" }),
 	method: varchar("method", { length: 10 }).notNull(),
 	path: text("path").notNull(),
 	status: integer("status").notNull(),

@@ -1,6 +1,10 @@
 import Uppy from "@uppy/core";
 import Tus from "@uppy/tus";
-import type { ApiClient, MediaItemRecord, UploadSessionRecord } from "./api-client.ts";
+import type {
+	ApiClient,
+	MediaItemRecord,
+	UploadSessionRecord,
+} from "./api-client.ts";
 import { escapeHtml, formatBytes } from "./resource-display.ts";
 
 export { escapeHtml, formatBytes };
@@ -67,12 +71,27 @@ export async function initResourceUploader(args: {
 	const dropzone = root.querySelector<HTMLElement>("[data-upload-dropzone]");
 	const queue = root.querySelector<HTMLElement>("[data-upload-queue]");
 	const mediaList = root.querySelector<HTMLElement>("[data-media-list]");
-	const persistedList = root.querySelector<HTMLElement>("[data-persisted-uploads]");
-	const globalProgress = root.querySelector<HTMLProgressElement>("[data-global-progress]");
-	const globalLabel = root.querySelector<HTMLElement>("[data-global-progress-label]");
+	const persistedList = root.querySelector<HTMLElement>(
+		"[data-persisted-uploads]",
+	);
+	const globalProgress = root.querySelector<HTMLProgressElement>(
+		"[data-global-progress]",
+	);
+	const globalLabel = root.querySelector<HTMLElement>(
+		"[data-global-progress-label]",
+	);
 	const feedback = root.querySelector<HTMLElement>("[data-upload-feedback]");
 
-	if (!picker || !dropzone || !queue || !mediaList || !persistedList || !globalProgress || !globalLabel || !feedback) {
+	if (
+		!picker ||
+		!dropzone ||
+		!queue ||
+		!mediaList ||
+		!persistedList ||
+		!globalProgress ||
+		!globalLabel ||
+		!feedback
+	) {
 		return null;
 	}
 
@@ -81,7 +100,10 @@ export async function initResourceUploader(args: {
 		restrictions: {
 			maxFileSize: config.maxFileSizeBytes,
 			maxNumberOfFiles: config.maxFilesPerBatch,
-			allowedFileTypes: [...config.allowedExtensions, ...config.allowedMimeTypes],
+			allowedFileTypes: [
+				...config.allowedExtensions,
+				...config.allowedMimeTypes,
+			],
 		},
 	});
 
@@ -100,25 +122,21 @@ export async function initResourceUploader(args: {
 		]);
 
 		persistedList.innerHTML = uploads.length
-			? uploads
-				.map((upload) => renderPersistedUploadItem(upload))
-				.join("")
+			? uploads.map((upload) => renderPersistedUploadItem(upload)).join("")
 			: "<li>No hay uploads recientes.</li>";
 
-		const displayItems = mediaItems.filter((item) => item.filename !== "recurso-generado.elpx");
+		const displayItems = mediaItems.filter(
+			(item) => item.filename !== "recurso-generado.elpx",
+		);
 		mediaList.innerHTML = displayItems.length
-			? displayItems
-				.map((item) => renderMediaItem(item))
-				.join("")
+			? displayItems.map((item) => renderMediaItem(item)).join("")
 			: "<li>No hay archivos adjuntos todavía.</li>";
 	}
 
 	function renderLocalQueue() {
 		const files = uppy.getFiles();
 		queue.innerHTML = files.length
-			? files
-				.map((file) => renderQueueItem(file))
-				.join("")
+			? files.map((file) => renderQueueItem(file)).join("")
 			: "<li>No hay archivos en cola.</li>";
 
 		const totalBytes = files.reduce((sum, file) => sum + (file.size ?? 0), 0);
@@ -126,11 +144,13 @@ export async function initResourceUploader(args: {
 			const percentage = (file.progress?.percentage ?? 0) / 100;
 			return sum + Math.round((file.size ?? 0) * percentage);
 		}, 0);
-		const globalPercentage = totalBytes > 0 ? Math.round((uploadedBytes / totalBytes) * 100) : 0;
+		const globalPercentage =
+			totalBytes > 0 ? Math.round((uploadedBytes / totalBytes) * 100) : 0;
 		globalProgress.value = globalPercentage;
-		globalLabel.textContent = totalBytes > 0
-			? `${globalPercentage}% subido (${formatBytes(uploadedBytes)} / ${formatBytes(totalBytes)})`
-			: "Sin subidas activas";
+		globalLabel.textContent =
+			totalBytes > 0
+				? `${globalPercentage}% subido (${formatBytes(uploadedBytes)} / ${formatBytes(totalBytes)})`
+				: "Sin subidas activas";
 	}
 
 	async function addFiles(files: FileList | File[]) {
@@ -159,7 +179,10 @@ export async function initResourceUploader(args: {
 					},
 				});
 			} catch (error) {
-				feedback.textContent = error instanceof Error ? error.message : "No se pudo añadir el archivo";
+				feedback.textContent =
+					error instanceof Error
+						? error.message
+						: "No se pudo añadir el archivo";
 				feedback.className = "upload-feedback error";
 			}
 		}
@@ -177,7 +200,9 @@ export async function initResourceUploader(args: {
 		event.preventDefault();
 		dropzone.classList.add("is-dragover");
 	});
-	dropzone.addEventListener("dragleave", () => dropzone.classList.remove("is-dragover"));
+	dropzone.addEventListener("dragleave", () =>
+		dropzone.classList.remove("is-dragover"),
+	);
 	dropzone.addEventListener("drop", async (event) => {
 		event.preventDefault();
 		dropzone.classList.remove("is-dragover");
@@ -217,7 +242,8 @@ export async function initResourceUploader(args: {
 			await refreshPersisted();
 			if (args.onUploadComplete) await args.onUploadComplete(0);
 		} catch (err) {
-			feedback.textContent = err instanceof Error ? err.message : "Error al eliminar el archivo";
+			feedback.textContent =
+				err instanceof Error ? err.message : "Error al eliminar el archivo";
 			feedback.className = "upload-feedback error";
 		}
 	});
@@ -244,7 +270,9 @@ export async function initResourceUploader(args: {
 	});
 
 	window.addEventListener("beforeunload", (event) => {
-		const hasActiveUploads = uppy.getFiles().some((file) => (file.progress?.uploadComplete ?? false) === false);
+		const hasActiveUploads = uppy
+			.getFiles()
+			.some((file) => (file.progress?.uploadComplete ?? false) === false);
 		if (!hasActiveUploads) return;
 		event.preventDefault();
 		event.returnValue = "";

@@ -21,9 +21,13 @@ export function isElpxFilename(filename?: string | null): boolean {
 	return normalized.endsWith(".elpx") || normalized.endsWith(".elp");
 }
 
-export function getElpxMediaItem(mediaItems?: MediaItemRecord[] | null): MediaItemRecord | null {
+export function getElpxMediaItem(
+	mediaItems?: MediaItemRecord[] | null,
+): MediaItemRecord | null {
 	if (!mediaItems?.length) return null;
-	return mediaItems.find((mediaItem) => isElpxFilename(mediaItem.filename)) ?? null;
+	return (
+		mediaItems.find((mediaItem) => isElpxFilename(mediaItem.filename)) ?? null
+	);
 }
 
 export function getResourceElpxFileUrl(
@@ -33,13 +37,17 @@ export function getResourceElpxFileUrl(
 	return getElpxMediaItem(resource.mediaItems)?.url ?? null;
 }
 
-export function buildExportFilename(title: string, format: ResourceExportKind): string {
-	const slug = title
-		.toLowerCase()
-		.normalize("NFD")
-		.replaceAll(/[\u0300-\u036f]/g, "")
-		.replaceAll(/[^a-z0-9]+/g, "-")
-		.replaceAll(/(^-|-$)/g, "") || "recurso";
+export function buildExportFilename(
+	title: string,
+	format: ResourceExportKind,
+): string {
+	const slug =
+		title
+			.toLowerCase()
+			.normalize("NFD")
+			.replaceAll(/[\u0300-\u036f]/g, "")
+			.replaceAll(/[^a-z0-9]+/g, "-")
+			.replaceAll(/(^-|-$)/g, "") || "recurso";
 	const suffixes: Record<ResourceExportKind, string> = {
 		scorm: "_scorm.zip",
 		ims: "_ims.zip",

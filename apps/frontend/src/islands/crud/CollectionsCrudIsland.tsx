@@ -1,10 +1,14 @@
-import { startTransition, useEffect, useState, type FormEvent } from "react";
-import type { CollectionRecord, CollectionResourceRecord, Resource } from "../../lib/api-client.ts";
+import { type FormEvent, startTransition, useEffect, useState } from "react";
+import type {
+	CollectionRecord,
+	CollectionResourceRecord,
+	Resource,
+} from "../../lib/api-client.ts";
 import { getApiClient } from "../../lib/get-api-client.ts";
 import { AccessibleFeedback } from "../shared/AccessibleFeedback.tsx";
 import { ConfirmDialog } from "../shared/ConfirmDialog.tsx";
 import { ModalFrame } from "../shared/ModalFrame.tsx";
-import { CrudTable, type CrudColumn } from "./CrudTable.tsx";
+import { type CrudColumn, CrudTable } from "./CrudTable.tsx";
 
 const PAGE_SIZE = 20;
 const RESOURCE_SEARCH_LIMIT = 8;
@@ -74,20 +78,41 @@ export function CollectionsCrudIsland() {
 	const [total, setTotal] = useState(0);
 	const [statusMessage, setStatusMessage] = useState("Cargando colecciones...");
 	const [createForm, setCreateForm] = useState(EMPTY_FORM);
-	const [createFeedback, setCreateFeedback] = useState({ message: "", variant: "neutral" as const });
+	const [createFeedback, setCreateFeedback] = useState({
+		message: "",
+		variant: "neutral" as const,
+	});
 	const [editing, setEditing] = useState<CollectionRecord | null>(null);
 	const [editForm, setEditForm] = useState(EMPTY_FORM);
 	const [editError, setEditError] = useState("");
-	const [deleteTarget, setDeleteTarget] = useState<CollectionRecord | null>(null);
-	const [collectionResources, setCollectionResources] = useState<CollectionResourceRecord[]>([]);
+	const [deleteTarget, setDeleteTarget] = useState<CollectionRecord | null>(
+		null,
+	);
+	const [collectionResources, setCollectionResources] = useState<
+		CollectionResourceRecord[]
+	>([]);
 	const [resourceSearch, setResourceSearch] = useState("");
 	const [resourceResults, setResourceResults] = useState<Resource[]>([]);
-	const [resourceFeedback, setResourceFeedback] = useState({ message: "", variant: "neutral" as const });
+	const [resourceFeedback, setResourceFeedback] = useState({
+		message: "",
+		variant: "neutral" as const,
+	});
 	const [busyAction, setBusyAction] = useState<
-		"create" | "edit" | "delete" | "load-edit" | "resource-search" | "resource-add" | "resource-remove" | "resource-reorder" | null
+		| "create"
+		| "edit"
+		| "delete"
+		| "load-edit"
+		| "resource-search"
+		| "resource-add"
+		| "resource-remove"
+		| "resource-reorder"
+		| null
 	>(null);
 
-	async function loadCollections(nextOffset = offset, nextSearch = appliedSearch) {
+	async function loadCollections(
+		nextOffset = offset,
+		nextSearch = appliedSearch,
+	) {
 		setStatusMessage("Cargando colecciones...");
 
 		try {
@@ -127,11 +152,20 @@ export function CollectionsCrudIsland() {
 				limit: RESOURCE_SEARCH_LIMIT,
 				offset: 0,
 			});
-			const currentIds = new Set(collectionResources.map((item) => item.resourceId));
-			setResourceResults(result.data.filter((item) => item.id !== collectionId && !currentIds.has(item.id)));
+			const currentIds = new Set(
+				collectionResources.map((item) => item.resourceId),
+			);
+			setResourceResults(
+				result.data.filter(
+					(item) => item.id !== collectionId && !currentIds.has(item.id),
+				),
+			);
 		} catch {
 			setResourceResults([]);
-			setResourceFeedback({ message: "No se pudo buscar recursos.", variant: "error" });
+			setResourceFeedback({
+				message: "No se pudo buscar recursos.",
+				variant: "error",
+			});
 		} finally {
 			setBusyAction(null);
 		}
@@ -159,7 +193,9 @@ export function CollectionsCrudIsland() {
 			id: "status",
 			header: "Estado",
 			cell: (row) => (
-				<span className={`admin-badge ${statusBadgeClass(row.editorialStatus)}`.trim()}>
+				<span
+					className={`admin-badge ${statusBadgeClass(row.editorialStatus)}`.trim()}
+				>
 					{statusLabel(row.editorialStatus)}
 				</span>
 			),
@@ -265,7 +301,10 @@ export function CollectionsCrudIsland() {
 			setCreateFeedback({ message: "Coleccion creada.", variant: "success" });
 			await loadCollections(0, appliedSearch);
 		} catch {
-			setCreateFeedback({ message: "Error al crear la coleccion.", variant: "error" });
+			setCreateFeedback({
+				message: "Error al crear la coleccion.",
+				variant: "error",
+			});
 		} finally {
 			setBusyAction(null);
 		}
@@ -310,7 +349,10 @@ export function CollectionsCrudIsland() {
 		try {
 			const api = await getApiClient();
 			await api.deleteCollection(deleteTarget.id);
-			const nextOffset = rows.length === 1 && offset > 0 ? Math.max(0, offset - PAGE_SIZE) : offset;
+			const nextOffset =
+				rows.length === 1 && offset > 0
+					? Math.max(0, offset - PAGE_SIZE)
+					: offset;
 			setDeleteTarget(null);
 			await loadCollections(nextOffset, appliedSearch);
 		} catch {
@@ -329,9 +371,15 @@ export function CollectionsCrudIsland() {
 			await api.addResourceToCollection(editing.id, resourceId);
 			await loadCollectionResources(editing.id);
 			await searchResources(editing.id, resourceSearch.trim());
-			setResourceFeedback({ message: "Recurso añadido a la colección.", variant: "success" });
+			setResourceFeedback({
+				message: "Recurso añadido a la colección.",
+				variant: "success",
+			});
 		} catch {
-			setResourceFeedback({ message: "No se pudo añadir el recurso.", variant: "error" });
+			setResourceFeedback({
+				message: "No se pudo añadir el recurso.",
+				variant: "error",
+			});
 		} finally {
 			setBusyAction(null);
 		}
@@ -346,9 +394,15 @@ export function CollectionsCrudIsland() {
 			await api.removeResourceFromCollection(editing.id, resourceId);
 			await loadCollectionResources(editing.id);
 			await searchResources(editing.id, resourceSearch.trim());
-			setResourceFeedback({ message: "Recurso eliminado de la colección.", variant: "success" });
+			setResourceFeedback({
+				message: "Recurso eliminado de la colección.",
+				variant: "success",
+			});
 		} catch {
-			setResourceFeedback({ message: "No se pudo eliminar el recurso.", variant: "error" });
+			setResourceFeedback({
+				message: "No se pudo eliminar el recurso.",
+				variant: "error",
+			});
 		} finally {
 			setBusyAction(null);
 		}
@@ -360,9 +414,16 @@ export function CollectionsCrudIsland() {
 		setResourceFeedback({ message: "", variant: "neutral" });
 		try {
 			const api = await getApiClient();
-			const result = await api.reorderCollectionResource(editing.id, resourceId, direction);
+			const result = await api.reorderCollectionResource(
+				editing.id,
+				resourceId,
+				direction,
+			);
 			if (!result.ok) {
-				setResourceFeedback({ message: result.error ?? "No se pudo reordenar.", variant: "error" });
+				setResourceFeedback({
+					message: result.error ?? "No se pudo reordenar.",
+					variant: "error",
+				});
 				return;
 			}
 			await loadCollectionResources(editing.id);
@@ -398,7 +459,10 @@ export function CollectionsCrudIsland() {
 								value={createForm.coverImageUrl}
 								onChange={(event) => {
 									const value = event.currentTarget.value;
-									setCreateForm((current) => ({ ...current, coverImageUrl: value }));
+									setCreateForm((current) => ({
+										...current,
+										coverImageUrl: value,
+									}));
 								}}
 							/>
 						</div>
@@ -412,28 +476,41 @@ export function CollectionsCrudIsland() {
 								value={createForm.description}
 								onChange={(event) => {
 									const value = event.currentTarget.value;
-									setCreateForm((current) => ({ ...current, description: value }));
+									setCreateForm((current) => ({
+										...current,
+										description: value,
+									}));
 								}}
 								required
 							/>
 						</div>
 					</div>
 					<div className="admin-form-row admin-form-row--full">
-						<label className="admin-form-check" htmlFor="collection-create-ordered">
+						<label
+							className="admin-form-check"
+							htmlFor="collection-create-ordered"
+						>
 							<input
 								id="collection-create-ordered"
 								type="checkbox"
 								checked={createForm.isOrdered}
 								onChange={(event) => {
 									const checked = event.currentTarget.checked;
-									setCreateForm((current) => ({ ...current, isOrdered: checked }));
+									setCreateForm((current) => ({
+										...current,
+										isOrdered: checked,
+									}));
 								}}
 							/>
 							Orden fija
 						</label>
 					</div>
 					<div className="admin-form-actions">
-						<button type="submit" className="admin-form-btn admin-form-btn--primary" disabled={busyAction === "create"}>
+						<button
+							type="submit"
+							className="admin-form-btn admin-form-btn--primary"
+							disabled={busyAction === "create"}
+						>
 							{busyAction === "create" ? "Creando..." : "Crear coleccion"}
 						</button>
 					</div>
@@ -461,7 +538,11 @@ export function CollectionsCrudIsland() {
 						}}
 					/>
 				</label>
-				<button type="button" className="admin-btn" onClick={() => void applyFilters()}>
+				<button
+					type="button"
+					className="admin-btn"
+					onClick={() => void applyFilters()}
+				>
 					Aplicar
 				</button>
 			</section>
@@ -480,7 +561,9 @@ export function CollectionsCrudIsland() {
 			<div className="admin-pager" hidden={total <= PAGE_SIZE}>
 				<button
 					type="button"
-					onClick={() => void loadCollections(Math.max(0, offset - PAGE_SIZE), appliedSearch)}
+					onClick={() =>
+						void loadCollections(Math.max(0, offset - PAGE_SIZE), appliedSearch)
+					}
 					disabled={offset === 0}
 				>
 					Anterior
@@ -490,7 +573,9 @@ export function CollectionsCrudIsland() {
 				</span>
 				<button
 					type="button"
-					onClick={() => void loadCollections(offset + PAGE_SIZE, appliedSearch)}
+					onClick={() =>
+						void loadCollections(offset + PAGE_SIZE, appliedSearch)
+					}
 					disabled={offset + PAGE_SIZE >= total}
 				>
 					Siguiente
@@ -534,7 +619,10 @@ export function CollectionsCrudIsland() {
 									value={editForm.coverImageUrl}
 									onChange={(event) => {
 										const value = event.currentTarget.value;
-										setEditForm((current) => ({ ...current, coverImageUrl: value }));
+										setEditForm((current) => ({
+											...current,
+											coverImageUrl: value,
+										}));
 									}}
 								/>
 							</div>
@@ -548,7 +636,10 @@ export function CollectionsCrudIsland() {
 									value={editForm.description}
 									onChange={(event) => {
 										const value = event.currentTarget.value;
-										setEditForm((current) => ({ ...current, description: value }));
+										setEditForm((current) => ({
+											...current,
+											description: value,
+										}));
 									}}
 									required
 								/>
@@ -560,7 +651,10 @@ export function CollectionsCrudIsland() {
 									value={editForm.editorialStatus}
 									onChange={(event) => {
 										const value = event.currentTarget.value;
-										setEditForm((current) => ({ ...current, editorialStatus: value }));
+										setEditForm((current) => ({
+											...current,
+											editorialStatus: value,
+										}));
 									}}
 								>
 									<option value="draft">Borrador</option>
@@ -571,22 +665,34 @@ export function CollectionsCrudIsland() {
 							</div>
 						</div>
 						<div className="admin-form-row admin-form-row--full">
-							<label className="admin-form-check" htmlFor="collection-edit-ordered">
+							<label
+								className="admin-form-check"
+								htmlFor="collection-edit-ordered"
+							>
 								<input
 									id="collection-edit-ordered"
 									type="checkbox"
 									checked={editForm.isOrdered}
 									onChange={(event) => {
 										const checked = event.currentTarget.checked;
-										setEditForm((current) => ({ ...current, isOrdered: checked }));
+										setEditForm((current) => ({
+											...current,
+											isOrdered: checked,
+										}));
 									}}
 								/>
 								Orden fija
 							</label>
 						</div>
 
-						<section className="collection-resource-section" aria-labelledby="collection-resources-title">
-							<h3 id="collection-resources-title" className="collection-resource-section-title">
+						<section
+							className="collection-resource-section"
+							aria-labelledby="collection-resources-title"
+						>
+							<h3
+								id="collection-resources-title"
+								className="collection-resource-section-title"
+							>
 								Recursos de la colección
 							</h3>
 							<p className="collection-resource-section-copy">
@@ -600,7 +706,9 @@ export function CollectionsCrudIsland() {
 										type="search"
 										placeholder="Titulo del recurso"
 										value={resourceSearch}
-										onChange={(event) => setResourceSearch(event.currentTarget.value)}
+										onChange={(event) =>
+											setResourceSearch(event.currentTarget.value)
+										}
 										onKeyDown={(event) => {
 											if (event.key === "Enter") {
 												event.preventDefault();
@@ -612,7 +720,9 @@ export function CollectionsCrudIsland() {
 								<button
 									type="button"
 									className="admin-btn"
-									onClick={() => void searchResources(editing.id, resourceSearch.trim())}
+									onClick={() =>
+										void searchResources(editing.id, resourceSearch.trim())
+									}
 									disabled={busyAction === "resource-search"}
 								>
 									Buscar
@@ -622,41 +732,72 @@ export function CollectionsCrudIsland() {
 							<div className="admin-table-wrap collection-resource-table-wrap">
 								<div className="admin-table-overflow">
 									<table className="admin-table">
-									<thead>
-										<tr>
-											<th>Pos.</th>
-											<th>Titulo</th>
-											<th>Estado</th>
-											<th>Acciones</th>
-										</tr>
-									</thead>
-									<tbody>
-										{collectionResources.length === 0 ? (
-											<tr className="admin-empty-row">
-												<td colSpan={4}>La colección todavía no tiene recursos asociados.</td>
+										<thead>
+											<tr>
+												<th>Pos.</th>
+												<th>Titulo</th>
+												<th>Estado</th>
+												<th>Acciones</th>
 											</tr>
-										) : collectionResources.map((item, index) => (
-											<tr key={item.resourceId}>
-												<td>{index + 1}</td>
-												<td>
-													<strong>{item.title}</strong>
-													<div>{truncate(item.description ?? "", 72)}</div>
-												</td>
-												<td>{statusLabel(item.editorialStatus)}</td>
-												<td className="admin-actions-cell">
-													<button type="button" className="admin-btn admin-btn--sm" disabled={index === 0 || busyAction === "resource-reorder"} onClick={() => void handleReorder(item.resourceId, "up")}>
-														Subir
-													</button>
-													<button type="button" className="admin-btn admin-btn--sm" disabled={index === collectionResources.length - 1 || busyAction === "resource-reorder"} onClick={() => void handleReorder(item.resourceId, "down")}>
-														Bajar
-													</button>
-													<button type="button" className="admin-btn admin-btn--sm admin-btn--danger" disabled={busyAction === "resource-remove"} onClick={() => void handleRemoveResource(item.resourceId)}>
-														Quitar
-													</button>
-												</td>
-											</tr>
-										))}
-									</tbody>
+										</thead>
+										<tbody>
+											{collectionResources.length === 0 ? (
+												<tr className="admin-empty-row">
+													<td colSpan={4}>
+														La colección todavía no tiene recursos asociados.
+													</td>
+												</tr>
+											) : (
+												collectionResources.map((item, index) => (
+													<tr key={item.resourceId}>
+														<td>{index + 1}</td>
+														<td>
+															<strong>{item.title}</strong>
+															<div>{truncate(item.description ?? "", 72)}</div>
+														</td>
+														<td>{statusLabel(item.editorialStatus)}</td>
+														<td className="admin-actions-cell">
+															<button
+																type="button"
+																className="admin-btn admin-btn--sm"
+																disabled={
+																	index === 0 ||
+																	busyAction === "resource-reorder"
+																}
+																onClick={() =>
+																	void handleReorder(item.resourceId, "up")
+																}
+															>
+																Subir
+															</button>
+															<button
+																type="button"
+																className="admin-btn admin-btn--sm"
+																disabled={
+																	index === collectionResources.length - 1 ||
+																	busyAction === "resource-reorder"
+																}
+																onClick={() =>
+																	void handleReorder(item.resourceId, "down")
+																}
+															>
+																Bajar
+															</button>
+															<button
+																type="button"
+																className="admin-btn admin-btn--sm admin-btn--danger"
+																disabled={busyAction === "resource-remove"}
+																onClick={() =>
+																	void handleRemoveResource(item.resourceId)
+																}
+															>
+																Quitar
+															</button>
+														</td>
+													</tr>
+												))
+											)}
+										</tbody>
 									</table>
 								</div>
 							</div>
@@ -664,40 +805,56 @@ export function CollectionsCrudIsland() {
 							<div className="admin-table-wrap">
 								<div className="admin-table-overflow">
 									<table className="admin-table">
-									<thead>
-										<tr>
-											<th>Resultado</th>
-											<th>Tipo</th>
-											<th>Acción</th>
-										</tr>
-									</thead>
-									<tbody>
-										{resourceResults.length === 0 ? (
-											<tr className="admin-empty-row">
-												<td colSpan={3}>Busca recursos para añadirlos a la colección.</td>
+										<thead>
+											<tr>
+												<th>Resultado</th>
+												<th>Tipo</th>
+												<th>Acción</th>
 											</tr>
-										) : resourceResults.map((item) => (
-											<tr key={item.id}>
-												<td>
-													<strong>{item.title}</strong>
-													<div>{truncate(item.description ?? "", 72)}</div>
-												</td>
-												<td>{item.resourceType}</td>
-												<td className="admin-actions-cell">
-													<button type="button" className="admin-btn admin-btn--sm admin-btn--primary" disabled={busyAction === "resource-add"} onClick={() => void handleAddResource(item.id)}>
-														Añadir
-													</button>
-												</td>
-											</tr>
-										))}
-									</tbody>
+										</thead>
+										<tbody>
+											{resourceResults.length === 0 ? (
+												<tr className="admin-empty-row">
+													<td colSpan={3}>
+														Busca recursos para añadirlos a la colección.
+													</td>
+												</tr>
+											) : (
+												resourceResults.map((item) => (
+													<tr key={item.id}>
+														<td>
+															<strong>{item.title}</strong>
+															<div>{truncate(item.description ?? "", 72)}</div>
+														</td>
+														<td>{item.resourceType}</td>
+														<td className="admin-actions-cell">
+															<button
+																type="button"
+																className="admin-btn admin-btn--sm admin-btn--primary"
+																disabled={busyAction === "resource-add"}
+																onClick={() => void handleAddResource(item.id)}
+															>
+																Añadir
+															</button>
+														</td>
+													</tr>
+												))
+											)}
+										</tbody>
 									</table>
 								</div>
 							</div>
 						</section>
 
-						<AccessibleFeedback message={editError} variant="error" polite={false} />
-						<AccessibleFeedback message={resourceFeedback.message} variant={resourceFeedback.variant} />
+						<AccessibleFeedback
+							message={editError}
+							variant="error"
+							polite={false}
+						/>
+						<AccessibleFeedback
+							message={resourceFeedback.message}
+							variant={resourceFeedback.variant}
+						/>
 
 						<div className="admin-dialog-actions">
 							<button
@@ -714,7 +871,11 @@ export function CollectionsCrudIsland() {
 							>
 								Cancelar
 							</button>
-							<button type="submit" className="admin-btn admin-btn--primary" disabled={busyAction === "edit"}>
+							<button
+								type="submit"
+								className="admin-btn admin-btn--primary"
+								disabled={busyAction === "edit"}
+							>
 								{busyAction === "edit" ? "Guardando..." : "Guardar"}
 							</button>
 						</div>

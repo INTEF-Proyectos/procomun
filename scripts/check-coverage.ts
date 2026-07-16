@@ -25,7 +25,9 @@ async function runCoverage() {
 	}
 
 	const env = { ...process.env, FORCE_COLOR: "0", NO_COLOR: "1" };
-	const proc = spawn("bun", buildBunTestArgs(files, { coverage: true }), { env });
+	const proc = spawn("bun", buildBunTestArgs(files, { coverage: true }), {
+		env,
+	});
 
 	let output = "";
 

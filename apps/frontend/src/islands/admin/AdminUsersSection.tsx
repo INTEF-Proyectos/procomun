@@ -13,14 +13,15 @@ const ROLE_OPTIONS = [
 	{ value: "admin", label: "Administrador" },
 ];
 
-const ROLE_FILTER_OPTIONS = [
-	{ value: "", label: "Todos" },
-	...ROLE_OPTIONS,
-];
+const ROLE_FILTER_OPTIONS = [{ value: "", label: "Todos" }, ...ROLE_OPTIONS];
 
 function formatDate(d: UserRecord["createdAt"]): string {
 	if (!d) return "-";
-	return new Date(d as string | number).toLocaleDateString("es-ES", { day: "numeric", month: "short", year: "numeric" });
+	return new Date(d as string | number).toLocaleDateString("es-ES", {
+		day: "numeric",
+		month: "short",
+		year: "numeric",
+	});
 }
 
 interface UserDialogProps {
@@ -51,7 +52,12 @@ function UserDialog({ user, onClose, onSaved }: UserDialogProps) {
 			} else {
 				// Alta desde administración (DEF-019): crea el usuario sin tocar la
 				// sesión del administrador (no usa el registro público de Better Auth).
-				const result = await api.createUser({ name: name.trim(), email: email.trim(), password, role });
+				const result = await api.createUser({
+					name: name.trim(),
+					email: email.trim(),
+					password,
+					role,
+				});
 				if (!result.ok) {
 					throw new Error(result.error || "Error al crear usuario");
 				}
@@ -66,11 +72,26 @@ function UserDialog({ user, onClose, onSaved }: UserDialogProps) {
 	}
 
 	return (
-		<div className="admin-dialog-overlay" onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}>
-			<div className="admin-dialog" role="dialog" aria-modal="true" aria-label={isEdit ? "Editar usuario" : "Crear usuario"}>
+		<div
+			className="admin-dialog-overlay"
+			onMouseDown={(e) => {
+				if (e.target === e.currentTarget) onClose();
+			}}
+		>
+			<div
+				className="admin-dialog"
+				role="dialog"
+				aria-modal="true"
+				aria-label={isEdit ? "Editar usuario" : "Crear usuario"}
+			>
 				<div className="admin-dialog-header">
 					<h2>{isEdit ? "Editar usuario" : "Crear usuario"}</h2>
-					<button type="button" className="admin-dialog-close" onClick={onClose} aria-label="Cerrar">
+					<button
+						type="button"
+						className="admin-dialog-close"
+						onClick={onClose}
+						aria-label="Cerrar"
+					>
 						<span className="material-symbols-outlined">close</span>
 					</button>
 				</div>
@@ -80,33 +101,77 @@ function UserDialog({ user, onClose, onSaved }: UserDialogProps) {
 				<form onSubmit={handleSubmit} className="admin-dialog-form">
 					<div className="admin-dialog-field">
 						<label htmlFor="user-name">Nombre</label>
-						<input id="user-name" type="text" value={name} onChange={(e) => setName(e.target.value)} placeholder="Nombre completo" required />
+						<input
+							id="user-name"
+							type="text"
+							value={name}
+							onChange={(e) => setName(e.target.value)}
+							placeholder="Nombre completo"
+							required
+						/>
 					</div>
 
 					{!isEdit && (
 						<>
 							<div className="admin-dialog-field">
 								<label htmlFor="user-email">Correo electrónico</label>
-								<input id="user-email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="email@ejemplo.com" required />
+								<input
+									id="user-email"
+									type="email"
+									value={email}
+									onChange={(e) => setEmail(e.target.value)}
+									placeholder="email@ejemplo.com"
+									required
+								/>
 							</div>
 							<div className="admin-dialog-field">
 								<label htmlFor="user-password">Contraseña</label>
-								<input id="user-password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Mínimo 8 caracteres" required minLength={8} />
+								<input
+									id="user-password"
+									type="password"
+									value={password}
+									onChange={(e) => setPassword(e.target.value)}
+									placeholder="Mínimo 8 caracteres"
+									required
+									minLength={8}
+								/>
 							</div>
 						</>
 					)}
 
 					<div className="admin-dialog-field">
 						<label htmlFor="user-role">Rol</label>
-						<select id="user-role" value={role} onChange={(e) => setRole(e.target.value)}>
-							{ROLE_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+						<select
+							id="user-role"
+							value={role}
+							onChange={(e) => setRole(e.target.value)}
+						>
+							{ROLE_OPTIONS.map((o) => (
+								<option key={o.value} value={o.value}>
+									{o.label}
+								</option>
+							))}
 						</select>
 					</div>
 
 					<div className="admin-dialog-actions">
-						<button type="button" className="admin-dialog-cancel" onClick={onClose}>Cancelar</button>
-						<button type="submit" className="admin-dialog-submit" disabled={saving}>
-							{saving ? "Guardando..." : isEdit ? "Guardar cambios" : "Crear usuario"}
+						<button
+							type="button"
+							className="admin-dialog-cancel"
+							onClick={onClose}
+						>
+							Cancelar
+						</button>
+						<button
+							type="submit"
+							className="admin-dialog-submit"
+							disabled={saving}
+						>
+							{saving
+								? "Guardando..."
+								: isEdit
+									? "Guardar cambios"
+									: "Crear usuario"}
 						</button>
 					</div>
 				</form>
@@ -123,9 +188,15 @@ export function AdminUsersSection() {
 	const [total, setTotal] = useState(0);
 	const [loading, setLoading] = useState(true);
 	const [busyId, setBusyId] = useState<string | null>(null);
-	const [dialogUser, setDialogUser] = useState<UserRecord | null | "create">(null);
+	const [dialogUser, setDialogUser] = useState<UserRecord | null | "create">(
+		null,
+	);
 
-	async function loadUsers(nextPage = page, nextSearch = search, nextRole = roleFilter) {
+	async function loadUsers(
+		nextPage = page,
+		nextSearch = search,
+		nextRole = roleFilter,
+	) {
 		setLoading(true);
 		try {
 			const api = await getApiClient();
@@ -135,32 +206,53 @@ export function AdminUsersSection() {
 				limit: PAGE_SIZE,
 				offset: (nextPage - 1) * PAGE_SIZE,
 			});
-			startTransition(() => { setRows(result.data); setTotal(result.total); setPage(nextPage); });
+			startTransition(() => {
+				setRows(result.data);
+				setTotal(result.total);
+				setPage(nextPage);
+			});
 		} catch {
-			setRows([]); setTotal(0);
+			setRows([]);
+			setTotal(0);
 		} finally {
 			setLoading(false);
 		}
 	}
 
-	useEffect(() => { void loadUsers(1, "", ""); }, []);
+	useEffect(() => {
+		void loadUsers(1, "", "");
+	}, []);
 
-	function applySearch() { void loadUsers(1, search.trim(), roleFilter); }
-	function applyRoleFilter(role: string) { setRoleFilter(role); void loadUsers(1, search.trim(), role); }
+	function applySearch() {
+		void loadUsers(1, search.trim(), roleFilter);
+	}
+	function applyRoleFilter(role: string) {
+		setRoleFilter(role);
+		void loadUsers(1, search.trim(), role);
+	}
 
 	async function toggleActive(user: UserRecord) {
 		setBusyId(user.id);
 		try {
 			const api = await getApiClient();
 			await api.updateUser(user.id, { isActive: !user.isActive });
-			setRows((prev) => prev.map((u) => u.id === user.id ? { ...u, isActive: !u.isActive } : u));
+			setRows((prev) =>
+				prev.map((u) =>
+					u.id === user.id ? { ...u, isActive: !u.isActive } : u,
+				),
+			);
 		} finally {
 			setBusyId(null);
 		}
 	}
 
 	async function deleteUser(user: UserRecord) {
-		if (!confirm(`¿Eliminar el usuario "${user.name || user.email}"? Esta acción no se puede deshacer.`)) return;
+		if (
+			!confirm(
+				`¿Eliminar el usuario "${user.name || user.email}"? Esta acción no se puede deshacer.`,
+			)
+		)
+			return;
 		setBusyId(user.id);
 		try {
 			const api = await getApiClient();
@@ -176,53 +268,104 @@ export function AdminUsersSection() {
 
 	const columns: Column<UserRecord>[] = [
 		{
-			key: "name", label: "Nombre",
+			key: "name",
+			label: "Nombre",
 			render: (u) => (
 				<div className="admin-author-cell">
 					<div className="admin-author-avatar">
-						{(u.name || u.email).split(/\s+/).map((w) => w[0] ?? "").slice(0, 2).join("").toUpperCase()}
+						{(u.name || u.email)
+							.split(/\s+/)
+							.map((w) => w[0] ?? "")
+							.slice(0, 2)
+							.join("")
+							.toUpperCase()}
 					</div>
 					<div>
 						<span className="admin-author-name">{u.name || u.email}</span>
-						<div style={{ fontSize: "0.75rem", color: "var(--color-on-surface-variant)" }}>{u.email}</div>
+						<div
+							style={{
+								fontSize: "0.75rem",
+								color: "var(--color-on-surface-variant)",
+							}}
+						>
+							{u.email}
+						</div>
 					</div>
 				</div>
 			),
 		},
 		{
-			key: "role", label: "Rol",
+			key: "role",
+			label: "Rol",
 			render: (u) => {
-				const label = ROLE_OPTIONS.find((o) => o.value === u.role)?.label ?? u.role;
-				const color = u.role === "admin" ? "status-published" : u.role === "curator" ? "status-review" : (u.role === "editor" || u.role === "author") ? "status-draft" : "";
-				return <span className={`status-badge ${color}`}><span className="status-badge-dot" />{label}</span>;
+				const label =
+					ROLE_OPTIONS.find((o) => o.value === u.role)?.label ?? u.role;
+				const color =
+					u.role === "admin"
+						? "status-published"
+						: u.role === "curator"
+							? "status-review"
+							: u.role === "editor" || u.role === "author"
+								? "status-draft"
+								: "";
+				return (
+					<span className={`status-badge ${color}`}>
+						<span className="status-badge-dot" />
+						{label}
+					</span>
+				);
 			},
 		},
 		{
-			key: "status", label: "Estado",
+			key: "status",
+			label: "Estado",
 			render: (u) => (
-				<span className={`admin-active-badge ${u.isActive ? "admin-active-badge--active" : "admin-active-badge--inactive"}`}>
+				<span
+					className={`admin-active-badge ${u.isActive ? "admin-active-badge--active" : "admin-active-badge--inactive"}`}
+				>
 					{u.isActive ? "Activo" : "Inactivo"}
 				</span>
 			),
 		},
 		{
-			key: "createdAt", label: "Registro",
-			render: (u) => <span className="admin-date-cell">{formatDate(u.createdAt)}</span>,
+			key: "createdAt",
+			label: "Registro",
+			render: (u) => (
+				<span className="admin-date-cell">{formatDate(u.createdAt)}</span>
+			),
 		},
 		{
-			key: "actions", label: "Acciones",
+			key: "actions",
+			label: "Acciones",
 			headerClassName: "admin-table-th-right",
 			render: (u) => (
 				<div className="admin-actions-cell">
-					<button type="button" className="admin-action-btn admin-action-btn--primary" onClick={() => setDialogUser(u)} disabled={busyId === u.id} aria-label="Editar">
+					<button
+						type="button"
+						className="admin-action-btn admin-action-btn--primary"
+						onClick={() => setDialogUser(u)}
+						disabled={busyId === u.id}
+						aria-label="Editar"
+					>
 						<span className="material-symbols-outlined">edit</span>
 					</button>
 					{u.role !== "admin" && (
 						<>
-							<button type="button" className="admin-toggle-btn" disabled={busyId === u.id} onClick={() => void toggleActive(u)}>
+							<button
+								type="button"
+								className="admin-toggle-btn"
+								disabled={busyId === u.id}
+								onClick={() => void toggleActive(u)}
+							>
 								{u.isActive ? "Desactivar" : "Activar"}
 							</button>
-							<button type="button" className="admin-action-btn admin-action-btn--danger" onClick={() => void deleteUser(u)} disabled={busyId === u.id} aria-label="Eliminar">
+							<button
+								type="button"
+								className="admin-action-btn admin-action-btn--danger"
+								onClick={() => void deleteUser(u)}
+								disabled={busyId === u.id}
+								aria-label="Eliminar"
+							>
 								<span className="material-symbols-outlined">delete</span>
 							</button>
 						</>
@@ -244,27 +387,54 @@ export function AdminUsersSection() {
 					<div className="admin-filter-search">
 						<span className="admin-filter-label">Buscar usuario</span>
 						<div className="admin-search-wrap">
-							<input type="search" className="admin-search-input" placeholder="Nombre o email..." value={search}
+							<input
+								type="search"
+								className="admin-search-input"
+								placeholder="Nombre o email..."
+								value={search}
 								onChange={(e) => setSearch(e.target.value)}
-								onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); applySearch(); } }}
+								onKeyDown={(e) => {
+									if (e.key === "Enter") {
+										e.preventDefault();
+										applySearch();
+									}
+								}}
 							/>
-							<span className="material-symbols-outlined admin-search-icon" aria-hidden="true">search</span>
+							<span
+								className="material-symbols-outlined admin-search-icon"
+								aria-hidden="true"
+							>
+								search
+							</span>
 						</div>
 					</div>
 					<div className="admin-status-pills">
 						<span className="admin-filter-label">Filtrar por rol</span>
 						<div className="admin-status-pills-inner">
 							{ROLE_FILTER_OPTIONS.map((f) => (
-								<button key={f.value} type="button"
+								<button
+									key={f.value}
+									type="button"
 									className={`admin-status-pill${roleFilter === f.value ? " admin-status-pill-active" : ""}`}
 									onClick={() => applyRoleFilter(f.value)}
-								>{f.label}</button>
+								>
+									{f.label}
+								</button>
 							))}
 						</div>
 					</div>
 					<div style={{ alignSelf: "flex-end" }}>
-						<button type="button" className="admin-create-submit" onClick={() => setDialogUser("create")}>
-							<span className="material-symbols-outlined" style={{ fontSize: "18px" }}>person_add</span>
+						<button
+							type="button"
+							className="admin-create-submit"
+							onClick={() => setDialogUser("create")}
+						>
+							<span
+								className="material-symbols-outlined"
+								style={{ fontSize: "18px" }}
+							>
+								person_add
+							</span>
 							Crear usuario
 						</button>
 					</div>

@@ -3,7 +3,7 @@ import type { Resource } from "../../lib/api-client.ts";
 import { getApiClient } from "../../lib/get-api-client.ts";
 import { url } from "../../lib/paths.ts";
 import { ConfirmDialog } from "../shared/ConfirmDialog.tsx";
-import { CrudTable, type CrudColumn } from "./CrudTable.tsx";
+import { type CrudColumn, CrudTable } from "./CrudTable.tsx";
 
 const PAGE_SIZE = 10;
 
@@ -46,7 +46,11 @@ export function ResourcesTableIsland() {
 	const [deleteTarget, setDeleteTarget] = useState<Resource | null>(null);
 	const [busyAction, setBusyAction] = useState<"delete" | null>(null);
 
-	async function loadResources(nextOffset = offset, nextSearch = appliedSearch, nextStatus = appliedStatus) {
+	async function loadResources(
+		nextOffset = offset,
+		nextSearch = appliedSearch,
+		nextStatus = appliedStatus,
+	) {
 		setStatusMessage("Cargando recursos...");
 
 		try {
@@ -98,7 +102,9 @@ export function ResourcesTableIsland() {
 			id: "status",
 			header: "Estado",
 			cell: (row) => (
-				<span className={`admin-badge ${statusBadgeClass(row.editorialStatus)}`.trim()}>
+				<span
+					className={`admin-badge ${statusBadgeClass(row.editorialStatus)}`.trim()}
+				>
 					{statusLabel(row.editorialStatus)}
 				</span>
 			),
@@ -119,7 +125,10 @@ export function ResourcesTableIsland() {
 			className: "actions-cell",
 			cell: (row) => (
 				<>
-					<a href={url(`admin/recursos/editar?id=${row.id}`)} className="admin-btn admin-btn--sm">
+					<a
+						href={url(`admin/recursos/editar?id=${row.id}`)}
+						className="admin-btn admin-btn--sm"
+					>
 						Editar
 					</a>
 					<button
@@ -150,7 +159,10 @@ export function ResourcesTableIsland() {
 		try {
 			const api = await getApiClient();
 			await api.deleteResource(deleteTarget.id);
-			const nextOffset = rows.length === 1 && offset > 0 ? Math.max(0, offset - PAGE_SIZE) : offset;
+			const nextOffset =
+				rows.length === 1 && offset > 0
+					? Math.max(0, offset - PAGE_SIZE)
+					: offset;
 			setDeleteTarget(null);
 			await loadResources(nextOffset, appliedSearch, appliedStatus);
 		} catch {
@@ -180,7 +192,10 @@ export function ResourcesTableIsland() {
 				</label>
 				<label>
 					Estado
-					<select value={statusFilter} onChange={(event) => setStatusFilter(event.currentTarget.value)}>
+					<select
+						value={statusFilter}
+						onChange={(event) => setStatusFilter(event.currentTarget.value)}
+					>
 						<option value="">Todos</option>
 						<option value="draft">Borrador</option>
 						<option value="review">En revision</option>
@@ -188,7 +203,11 @@ export function ResourcesTableIsland() {
 						<option value="archived">Archivado</option>
 					</select>
 				</label>
-				<button type="button" className="admin-btn" onClick={() => void applyFilters()}>
+				<button
+					type="button"
+					className="admin-btn"
+					onClick={() => void applyFilters()}
+				>
 					Aplicar
 				</button>
 			</section>
@@ -202,12 +221,18 @@ export function ResourcesTableIsland() {
 				rows={rows}
 				getRowKey={(row) => row.id}
 				emptyMessage="No hay recursos para los filtros actuales."
-			 />
+			/>
 
 			<div className="admin-pager" hidden={total <= PAGE_SIZE}>
 				<button
 					type="button"
-					onClick={() => void loadResources(Math.max(0, offset - PAGE_SIZE), appliedSearch, appliedStatus)}
+					onClick={() =>
+						void loadResources(
+							Math.max(0, offset - PAGE_SIZE),
+							appliedSearch,
+							appliedStatus,
+						)
+					}
 					disabled={offset === 0}
 				>
 					Anterior
@@ -215,7 +240,9 @@ export function ResourcesTableIsland() {
 				<span className="admin-pager-label">{`Pagina ${currentPage} de ${totalPages}`}</span>
 				<button
 					type="button"
-					onClick={() => void loadResources(offset + PAGE_SIZE, appliedSearch, appliedStatus)}
+					onClick={() =>
+						void loadResources(offset + PAGE_SIZE, appliedSearch, appliedStatus)
+					}
 					disabled={offset + PAGE_SIZE >= total}
 				>
 					Siguiente

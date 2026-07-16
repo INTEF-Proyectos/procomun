@@ -1,14 +1,18 @@
 import { Hono } from "hono";
-import { type AuthEnv, requireAuth, requireRole } from "../../auth/middleware.ts";
-import { resourceRoutes, adminUploadRoutes } from "./resources.ts";
-import { userRoutes } from "./users.ts";
-import { collectionRoutes } from "./collections.ts";
-import { taxonomyRoutes } from "./taxonomies.ts";
-import { elpxAdminRoutes } from "./elpx.ts";
-import { settingsRoutes } from "./settings.ts";
-import { reportRoutes } from "./reports.ts";
+import {
+	type AuthEnv,
+	requireAuth,
+	requireRole,
+} from "../../auth/middleware.ts";
 import { adminApiTokensRoutes } from "./api-tokens.ts";
+import { collectionRoutes } from "./collections.ts";
+import { elpxAdminRoutes } from "./elpx.ts";
 import { ftsRoutes } from "./fts.ts";
+import { reportRoutes } from "./reports.ts";
+import { adminUploadRoutes, resourceRoutes } from "./resources.ts";
+import { settingsRoutes } from "./settings.ts";
+import { taxonomyRoutes } from "./taxonomies.ts";
+import { userRoutes } from "./users.ts";
 
 const adminRoutes = new Hono<AuthEnv>();
 

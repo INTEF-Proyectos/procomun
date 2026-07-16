@@ -1,19 +1,19 @@
 import { faker } from "@faker-js/faker/locale/es";
-import {
-	resources,
-	resourceSubjects,
-	resourceLevels,
-	mediaItems,
-} from "./schema/resources.ts";
-import { elpxProjects } from "./schema/elpx.ts";
-import { uploadSessions } from "./schema/uploads.ts";
+import { eq, inArray, sql } from "drizzle-orm";
 import { user } from "./schema/auth.ts";
+import { elpxProjects } from "./schema/elpx.ts";
+import {
+	mediaItems,
+	resourceLevels,
+	resourceSubjects,
+	resources,
+} from "./schema/resources.ts";
+import { uploadSessions } from "./schema/uploads.ts";
 import {
 	VALID_LANGUAGES,
 	VALID_LICENSES,
 	VALID_STATUSES,
 } from "./validation.ts";
-import { eq, inArray, sql } from "drizzle-orm";
 
 const RESOURCE_TYPES = [
 	"secuencia-didactica",
@@ -55,7 +55,10 @@ export interface ElpxSeedConfig {
 	/** Base storage dir (e.g. local-data/uploads) */
 	storageDir: string;
 	/** Function to process an .elpx file; returns hash, extractPath, hasPreview, metadata */
-	processElpx: (filePath: string, storageDir: string) => Promise<{
+	processElpx: (
+		filePath: string,
+		storageDir: string,
+	) => Promise<{
 		hash: string;
 		extractPath: string;
 		hasPreview: boolean;
@@ -83,9 +86,15 @@ export async function seedRandomResources(
 		const ids = seedResourceIds.map((r: { id: string }) => r.id);
 
 		if (ids.length > 0) {
-			await db.delete(elpxProjects).where(inArray(elpxProjects.resourceId, ids));
-			await db.delete(resourceSubjects).where(inArray(resourceSubjects.resourceId, ids));
-			await db.delete(resourceLevels).where(inArray(resourceLevels.resourceId, ids));
+			await db
+				.delete(elpxProjects)
+				.where(inArray(elpxProjects.resourceId, ids));
+			await db
+				.delete(resourceSubjects)
+				.where(inArray(resourceSubjects.resourceId, ids));
+			await db
+				.delete(resourceLevels)
+				.where(inArray(resourceLevels.resourceId, ids));
 			await db.delete(resources).where(inArray(resources.id, ids));
 		}
 	}
@@ -171,7 +180,10 @@ export async function seedRandomResources(
 			for (const res of candidates) {
 				try {
 					const fixture = faker.helpers.arrayElement(options.elpx.fixtures);
-					const result = await options.elpx.processElpx(fixture, options.elpx.storageDir);
+					const result = await options.elpx.processElpx(
+						fixture,
+						options.elpx.storageDir,
+					);
 
 					const uploadId = crypto.randomUUID();
 					const filename = fixture.split("/").pop() ?? "resource.elpx";

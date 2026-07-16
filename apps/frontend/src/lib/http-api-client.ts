@@ -1,24 +1,24 @@
 import type {
 	ApiClient,
+	ApiTokenRecord,
+	ApiTokenStats,
+	AppConfig,
+	CollectionDetailRecord,
+	CollectionRecord,
+	CollectionResourceRecord,
+	CreateResourceInput,
+	MediaItemRecord,
+	PaginatedResult,
+	ReportRecord,
 	Resource,
 	ResourceListResult,
 	SessionData,
-	AppConfig,
 	SignInResult,
-	CreateResourceInput,
-	UpdateResourceInput,
-	PaginatedResult,
-	UserRecord,
-	CollectionRecord,
-	CollectionDetailRecord,
-	CollectionResourceRecord,
 	TaxonomyRecord,
-	MediaItemRecord,
-	UploadSessionRecord,
+	UpdateResourceInput,
 	UploadConfig,
-	ReportRecord,
-	ApiTokenRecord,
-	ApiTokenStats,
+	UploadSessionRecord,
+	UserRecord,
 } from "./api-client.ts";
 
 /**
@@ -52,7 +52,11 @@ export class HttpApiClient implements ApiClient {
 		return res.json();
 	}
 
-	async listPublicCollections(opts?: { q?: string; limit?: number; offset?: number }): Promise<PaginatedResult<CollectionRecord>> {
+	async listPublicCollections(opts?: {
+		q?: string;
+		limit?: number;
+		offset?: number;
+	}): Promise<PaginatedResult<CollectionRecord>> {
 		const params = new URLSearchParams();
 		if (opts?.q) params.set("q", opts.q);
 		if (opts?.limit) params.set("limit", String(opts.limit));
@@ -62,7 +66,9 @@ export class HttpApiClient implements ApiClient {
 		return res.json();
 	}
 
-	async getPublicCollectionBySlug(slug: string): Promise<CollectionDetailRecord | null> {
+	async getPublicCollectionBySlug(
+		slug: string,
+	): Promise<CollectionDetailRecord | null> {
 		const res = await fetch(`/api/v1/collections/${slug}`);
 		if (!res.ok) return null;
 		return res.json();
@@ -80,7 +86,9 @@ export class HttpApiClient implements ApiClient {
 
 	async getSession(): Promise<SessionData | null> {
 		try {
-			const res = await fetch("/api/auth/get-session", { credentials: "include" });
+			const res = await fetch("/api/auth/get-session", {
+				credentials: "include",
+			});
 			if (!res.ok) return null;
 			const data = await res.json();
 			if (!data?.user) return null;
@@ -90,7 +98,11 @@ export class HttpApiClient implements ApiClient {
 		}
 	}
 
-	async signUp(name: string, email: string, password: string): Promise<SignInResult> {
+	async signUp(
+		name: string,
+		email: string,
+		password: string,
+	): Promise<SignInResult> {
 		const res = await fetch("/api/auth/sign-up/email", {
 			method: "POST",
 			headers: { "Content-Type": "application/json" },
@@ -132,49 +144,72 @@ export class HttpApiClient implements ApiClient {
 	}
 
 	async signOut(): Promise<void> {
-		await fetch("/api/auth/sign-out", { method: "POST", credentials: "include" });
+		await fetch("/api/auth/sign-out", {
+			method: "POST",
+			credentials: "include",
+		});
 	}
 
-	async listAdminResources(opts?: { q?: string; limit?: number; offset?: number; status?: string }): Promise<ResourceListResult> {
+	async listAdminResources(opts?: {
+		q?: string;
+		limit?: number;
+		offset?: number;
+		status?: string;
+	}): Promise<ResourceListResult> {
 		const params = new URLSearchParams();
 		if (opts?.q) params.set("q", opts.q);
 		if (opts?.limit != null) params.set("limit", String(opts.limit));
 		if (opts?.offset != null) params.set("offset", String(opts.offset));
 		if (opts?.status) params.set("status", opts.status);
 		const qs = params.toString();
-		const res = await fetch(`/api/admin/resources${qs ? `?${qs}` : ""}`, { credentials: "include" });
+		const res = await fetch(`/api/admin/resources${qs ? `?${qs}` : ""}`, {
+			credentials: "include",
+		});
 		if (!res.ok) throw new Error(`listAdminResources failed: ${res.status}`);
 		return res.json();
 	}
 
 	async getResourceById(id: string): Promise<Resource | null> {
-		const res = await fetch(`/api/admin/resources/${id}`, { credentials: "include" });
+		const res = await fetch(`/api/admin/resources/${id}`, {
+			credentials: "include",
+		});
 		if (!res.ok) return null;
 		return res.json();
 	}
 
 	async listResourceMediaItems(id: string): Promise<MediaItemRecord[]> {
-		const res = await fetch(`/api/admin/resources/${id}/media`, { credentials: "include" });
+		const res = await fetch(`/api/admin/resources/${id}/media`, {
+			credentials: "include",
+		});
 		if (!res.ok) return [];
 		return res.json();
 	}
 
 	async listResourceUploads(id: string): Promise<UploadSessionRecord[]> {
-		const res = await fetch(`/api/admin/resources/${id}/uploads`, { credentials: "include" });
+		const res = await fetch(`/api/admin/resources/${id}/uploads`, {
+			credentials: "include",
+		});
 		if (!res.ok) return [];
 		return res.json();
 	}
 
 	async createDraftResource(): Promise<{ id: string; slug: string }> {
-		const res = await fetch("/api/admin/resources/draft", { method: "POST", credentials: "include" });
+		const res = await fetch("/api/admin/resources/draft", {
+			method: "POST",
+			credentials: "include",
+		});
 		if (!res.ok) {
 			const err = await res.json().catch(() => ({}));
-			throw new Error((err as Record<string, string>).error ?? "Error al crear el borrador");
+			throw new Error(
+				(err as Record<string, string>).error ?? "Error al crear el borrador",
+			);
 		}
 		return res.json();
 	}
 
-	async createResource(data: CreateResourceInput): Promise<{ id: string; slug: string }> {
+	async createResource(
+		data: CreateResourceInput,
+	): Promise<{ id: string; slug: string }> {
 		const res = await fetch("/api/admin/resources", {
 			method: "POST",
 			headers: { "Content-Type": "application/json" },
@@ -202,7 +237,10 @@ export class HttpApiClient implements ApiClient {
 		return { ok: true };
 	}
 
-	async updateResourceStatus(id: string, status: string): Promise<{ id: string; status: string }> {
+	async updateResourceStatus(
+		id: string,
+		status: string,
+	): Promise<{ id: string; status: string }> {
 		const res = await fetch(`/api/admin/resources/${id}/status`, {
 			method: "PATCH",
 			headers: { "Content-Type": "application/json" },
@@ -224,7 +262,9 @@ export class HttpApiClient implements ApiClient {
 	}
 
 	async getUploadConfig(): Promise<UploadConfig> {
-		const res = await fetch("/api/admin/uploads/config", { credentials: "include" });
+		const res = await fetch("/api/admin/uploads/config", {
+			credentials: "include",
+		});
 		return res.json();
 	}
 
@@ -240,20 +280,32 @@ export class HttpApiClient implements ApiClient {
 		return res.json();
 	}
 
-	async deleteMediaItem(resourceId: string, mediaItemId: string): Promise<{ id: string; deleted: boolean }> {
-		const res = await fetch(`/api/admin/resources/${resourceId}/media/${mediaItemId}`, {
-			method: "DELETE",
-			credentials: "include",
-		});
+	async deleteMediaItem(
+		resourceId: string,
+		mediaItemId: string,
+	): Promise<{ id: string; deleted: boolean }> {
+		const res = await fetch(
+			`/api/admin/resources/${resourceId}/media/${mediaItemId}`,
+			{
+				method: "DELETE",
+				credentials: "include",
+			},
+		);
 		if (!res.ok) {
 			const err = await res.json().catch(() => ({}));
-			throw new Error((err as Record<string, string>).error ?? "Error al eliminar el archivo");
+			throw new Error(
+				(err as Record<string, string>).error ?? "Error al eliminar el archivo",
+			);
 		}
 		return res.json();
 	}
 
-	async getElpxProject(resourceId: string): Promise<import("./api-client.ts").ElpxProjectInfo | null> {
-		const res = await fetch(`/api/admin/resources/${resourceId}/elpx`, { credentials: "include" });
+	async getElpxProject(
+		resourceId: string,
+	): Promise<import("./api-client.ts").ElpxProjectInfo | null> {
+		const res = await fetch(`/api/admin/resources/${resourceId}/elpx`, {
+			credentials: "include",
+		});
 		if (!res.ok) return null;
 		return res.json();
 	}
@@ -265,29 +317,45 @@ export class HttpApiClient implements ApiClient {
 		});
 		if (!res.ok) {
 			const err = await res.json().catch(() => ({}));
-			throw new Error((err as Record<string, string>).error ?? "Error al generar el .elpx");
+			throw new Error(
+				(err as Record<string, string>).error ?? "Error al generar el .elpx",
+			);
 		}
 		return res.json();
 	}
 
-	async listUsers(opts?: { q?: string; role?: string; limit?: number; offset?: number }): Promise<PaginatedResult<UserRecord>> {
+	async listUsers(opts?: {
+		q?: string;
+		role?: string;
+		limit?: number;
+		offset?: number;
+	}): Promise<PaginatedResult<UserRecord>> {
 		const params = new URLSearchParams();
 		if (opts?.q) params.set("q", opts.q);
 		if (opts?.role) params.set("role", opts.role);
 		if (opts?.limit) params.set("limit", String(opts.limit));
 		if (opts?.offset) params.set("offset", String(opts.offset));
 		const qs = params.toString();
-		const res = await fetch(`/api/admin/users${qs ? `?${qs}` : ""}`, { credentials: "include" });
+		const res = await fetch(`/api/admin/users${qs ? `?${qs}` : ""}`, {
+			credentials: "include",
+		});
 		return res.json();
 	}
 
 	async getUserById(id: string): Promise<UserRecord | null> {
-		const res = await fetch(`/api/admin/users/${id}`, { credentials: "include" });
+		const res = await fetch(`/api/admin/users/${id}`, {
+			credentials: "include",
+		});
 		if (!res.ok) return null;
 		return res.json();
 	}
 
-	async createUser(data: { name?: string; email: string; password: string; role?: string }) {
+	async createUser(data: {
+		name?: string;
+		email: string;
+		password: string;
+		role?: string;
+	}) {
 		const res = await fetch("/api/admin/users", {
 			method: "POST",
 			headers: { "Content-Type": "application/json" },
@@ -296,13 +364,20 @@ export class HttpApiClient implements ApiClient {
 		});
 		if (!res.ok) {
 			const err = await res.json().catch(() => ({}));
-			return { ok: false as const, error: err.error ?? "Error al crear usuario", details: err.details };
+			return {
+				ok: false as const,
+				error: err.error ?? "Error al crear usuario",
+				details: err.details,
+			};
 		}
 		const body = await res.json();
 		return { ok: true as const, id: body.id };
 	}
 
-	async updateUser(id: string, data: Partial<Pick<UserRecord, "name" | "bio" | "role" | "isActive">>) {
+	async updateUser(
+		id: string,
+		data: Partial<Pick<UserRecord, "name" | "bio" | "role" | "isActive">>,
+	) {
 		const res = await fetch(`/api/admin/users/${id}`, {
 			method: "PATCH",
 			headers: { "Content-Type": "application/json" },
@@ -323,34 +398,56 @@ export class HttpApiClient implements ApiClient {
 		});
 		if (!res.ok) {
 			const err = await res.json().catch(() => ({}));
-			return { ok: false as const, error: err.error ?? "Error al eliminar usuario" };
+			return {
+				ok: false as const,
+				error: err.error ?? "Error al eliminar usuario",
+			};
 		}
 		return { ok: true as const };
 	}
 
-	async listCollections(opts?: { q?: string; limit?: number; offset?: number }): Promise<PaginatedResult<CollectionRecord>> {
+	async listCollections(opts?: {
+		q?: string;
+		limit?: number;
+		offset?: number;
+	}): Promise<PaginatedResult<CollectionRecord>> {
 		const params = new URLSearchParams();
 		if (opts?.q) params.set("q", opts.q);
 		if (opts?.limit) params.set("limit", String(opts.limit));
 		if (opts?.offset) params.set("offset", String(opts.offset));
 		const qs = params.toString();
-		const res = await fetch(`/api/admin/collections${qs ? `?${qs}` : ""}`, { credentials: "include" });
+		const res = await fetch(`/api/admin/collections${qs ? `?${qs}` : ""}`, {
+			credentials: "include",
+		});
 		return res.json();
 	}
 
 	async getCollectionById(id: string): Promise<CollectionRecord | null> {
-		const res = await fetch(`/api/admin/collections/${id}`, { credentials: "include" });
+		const res = await fetch(`/api/admin/collections/${id}`, {
+			credentials: "include",
+		});
 		if (!res.ok) return null;
 		return res.json();
 	}
 
-	async listCollectionResources(collectionId: string): Promise<CollectionResourceRecord[]> {
-		const res = await fetch(`/api/admin/collections/${collectionId}/resources`, { credentials: "include" });
+	async listCollectionResources(
+		collectionId: string,
+	): Promise<CollectionResourceRecord[]> {
+		const res = await fetch(
+			`/api/admin/collections/${collectionId}/resources`,
+			{ credentials: "include" },
+		);
 		if (!res.ok) return [];
 		return res.json();
 	}
 
-	async createCollection(data: { title: string; description: string; coverImageUrl?: string | null; editorialStatus?: string; isOrdered?: boolean }) {
+	async createCollection(data: {
+		title: string;
+		description: string;
+		coverImageUrl?: string | null;
+		editorialStatus?: string;
+		isOrdered?: boolean;
+	}) {
 		const res = await fetch("/api/admin/collections", {
 			method: "POST",
 			headers: { "Content-Type": "application/json" },
@@ -364,7 +461,16 @@ export class HttpApiClient implements ApiClient {
 		return res.json();
 	}
 
-	async updateCollection(id: string, data: Partial<{ title: string; description: string; coverImageUrl: string | null; editorialStatus: string; isOrdered: boolean }>) {
+	async updateCollection(
+		id: string,
+		data: Partial<{
+			title: string;
+			description: string;
+			coverImageUrl: string | null;
+			editorialStatus: string;
+			isOrdered: boolean;
+		}>,
+	) {
 		const res = await fetch(`/api/admin/collections/${id}`, {
 			method: "PATCH",
 			headers: { "Content-Type": "application/json" },
@@ -385,13 +491,19 @@ export class HttpApiClient implements ApiClient {
 		});
 	}
 
-	async addResourceToCollection(collectionId: string, resourceId: string): Promise<{ ok: boolean }> {
-		const res = await fetch(`/api/admin/collections/${collectionId}/resources`, {
-			method: "POST",
-			headers: { "Content-Type": "application/json" },
-			credentials: "include",
-			body: JSON.stringify({ resourceId }),
-		});
+	async addResourceToCollection(
+		collectionId: string,
+		resourceId: string,
+	): Promise<{ ok: boolean }> {
+		const res = await fetch(
+			`/api/admin/collections/${collectionId}/resources`,
+			{
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				credentials: "include",
+				body: JSON.stringify({ resourceId }),
+			},
+		);
 		if (!res.ok) {
 			const err = await res.json().catch(() => ({}));
 			throw err;
@@ -399,11 +511,17 @@ export class HttpApiClient implements ApiClient {
 		return res.json();
 	}
 
-	async removeResourceFromCollection(collectionId: string, resourceId: string): Promise<{ ok: boolean }> {
-		const res = await fetch(`/api/admin/collections/${collectionId}/resources/${resourceId}`, {
-			method: "DELETE",
-			credentials: "include",
-		});
+	async removeResourceFromCollection(
+		collectionId: string,
+		resourceId: string,
+	): Promise<{ ok: boolean }> {
+		const res = await fetch(
+			`/api/admin/collections/${collectionId}/resources/${resourceId}`,
+			{
+				method: "DELETE",
+				credentials: "include",
+			},
+		);
 		if (!res.ok) {
 			const err = await res.json().catch(() => ({}));
 			throw err;
@@ -411,38 +529,62 @@ export class HttpApiClient implements ApiClient {
 		return res.json();
 	}
 
-	async reorderCollectionResource(collectionId: string, resourceId: string, direction: "up" | "down"): Promise<{ ok: boolean; error?: string }> {
-		const res = await fetch(`/api/admin/collections/${collectionId}/resources/reorder`, {
-			method: "PATCH",
-			headers: { "Content-Type": "application/json" },
-			credentials: "include",
-			body: JSON.stringify({ resourceId, direction }),
-		});
+	async reorderCollectionResource(
+		collectionId: string,
+		resourceId: string,
+		direction: "up" | "down",
+	): Promise<{ ok: boolean; error?: string }> {
+		const res = await fetch(
+			`/api/admin/collections/${collectionId}/resources/reorder`,
+			{
+				method: "PATCH",
+				headers: { "Content-Type": "application/json" },
+				credentials: "include",
+				body: JSON.stringify({ resourceId, direction }),
+			},
+		);
 		if (!res.ok) {
 			const err = await res.json().catch(() => ({}));
-			return { ok: false, error: err.error ?? "No se pudo reordenar el recurso" };
+			return {
+				ok: false,
+				error: err.error ?? "No se pudo reordenar el recurso",
+			};
 		}
 		return res.json();
 	}
 
-	async listTaxonomies(opts?: { q?: string; type?: string; limit?: number; offset?: number }): Promise<PaginatedResult<TaxonomyRecord>> {
+	async listTaxonomies(opts?: {
+		q?: string;
+		type?: string;
+		limit?: number;
+		offset?: number;
+	}): Promise<PaginatedResult<TaxonomyRecord>> {
 		const params = new URLSearchParams();
 		if (opts?.q) params.set("q", opts.q);
 		if (opts?.type) params.set("type", opts.type);
 		if (opts?.limit) params.set("limit", String(opts.limit));
 		if (opts?.offset) params.set("offset", String(opts.offset));
 		const qs = params.toString();
-		const res = await fetch(`/api/admin/taxonomies${qs ? `?${qs}` : ""}`, { credentials: "include" });
+		const res = await fetch(`/api/admin/taxonomies${qs ? `?${qs}` : ""}`, {
+			credentials: "include",
+		});
 		return res.json();
 	}
 
 	async getTaxonomyById(id: string): Promise<TaxonomyRecord | null> {
-		const res = await fetch(`/api/admin/taxonomies/${id}`, { credentials: "include" });
+		const res = await fetch(`/api/admin/taxonomies/${id}`, {
+			credentials: "include",
+		});
 		if (!res.ok) return null;
 		return res.json();
 	}
 
-	async createTaxonomy(data: { name: string; slug?: string; type?: string; parentId?: string | null }) {
+	async createTaxonomy(data: {
+		name: string;
+		slug?: string;
+		type?: string;
+		parentId?: string | null;
+	}) {
 		const res = await fetch("/api/admin/taxonomies", {
 			method: "POST",
 			headers: { "Content-Type": "application/json" },
@@ -456,7 +598,15 @@ export class HttpApiClient implements ApiClient {
 		return res.json();
 	}
 
-	async updateTaxonomy(id: string, data: Partial<{ name: string; slug: string; type: string; parentId: string | null }>) {
+	async updateTaxonomy(
+		id: string,
+		data: Partial<{
+			name: string;
+			slug: string;
+			type: string;
+			parentId: string | null;
+		}>,
+	) {
 		const res = await fetch(`/api/admin/taxonomies/${id}`, {
 			method: "PATCH",
 			headers: { "Content-Type": "application/json" },
@@ -506,31 +656,53 @@ export class HttpApiClient implements ApiClient {
 		return res.json();
 	}
 
-	async getUserFavorites(opts?: { limit?: number; offset?: number }): Promise<import("./api-client.ts").PaginatedResult<import("./api-client.ts").Resource>> {
+	async getUserFavorites(opts?: {
+		limit?: number;
+		offset?: number;
+	}): Promise<
+		import("./api-client.ts").PaginatedResult<
+			import("./api-client.ts").Resource
+		>
+	> {
 		const params = new URLSearchParams();
 		if (opts?.limit) params.set("limit", String(opts.limit));
 		if (opts?.offset) params.set("offset", String(opts.offset));
 		const qs = params.toString();
-		const res = await fetch(`/api/v1/users/me/favorites${qs ? `?${qs}` : ""}`, { credentials: "include" });
+		const res = await fetch(`/api/v1/users/me/favorites${qs ? `?${qs}` : ""}`, {
+			credentials: "include",
+		});
 		return res.json();
 	}
 
-	async getUserRatings(opts?: { limit?: number; offset?: number }): Promise<import("./api-client.ts").PaginatedResult<import("./api-client.ts").Resource>> {
+	async getUserRatings(opts?: {
+		limit?: number;
+		offset?: number;
+	}): Promise<
+		import("./api-client.ts").PaginatedResult<
+			import("./api-client.ts").Resource
+		>
+	> {
 		const params = new URLSearchParams();
 		if (opts?.limit) params.set("limit", String(opts.limit));
 		if (opts?.offset) params.set("offset", String(opts.offset));
 		const qs = params.toString();
-		const res = await fetch(`/api/v1/users/me/ratings${qs ? `?${qs}` : ""}`, { credentials: "include" });
+		const res = await fetch(`/api/v1/users/me/ratings${qs ? `?${qs}` : ""}`, {
+			credentials: "include",
+		});
 		return res.json();
 	}
 
 	async getUserDashboard() {
-		const res = await fetch("/api/v1/users/me/dashboard", { credentials: "include" });
+		const res = await fetch("/api/v1/users/me/dashboard", {
+			credentials: "include",
+		});
 		return res.json();
 	}
 
 	async getMyProfile(): Promise<UserRecord | null> {
-		const res = await fetch("/api/v1/users/me/profile", { credentials: "include" });
+		const res = await fetch("/api/v1/users/me/profile", {
+			credentials: "include",
+		});
 		if (!res.ok) return null;
 		return res.json();
 	}
@@ -549,16 +721,28 @@ export class HttpApiClient implements ApiClient {
 		return { ok: true };
 	}
 
-	async getUserActivity(opts?: { limit?: number; offset?: number }): Promise<import("./api-client.ts").PaginatedResult<import("./types/user-extended.ts").ActivityItem>> {
+	async getUserActivity(opts?: {
+		limit?: number;
+		offset?: number;
+	}): Promise<
+		import("./api-client.ts").PaginatedResult<
+			import("./types/user-extended.ts").ActivityItem
+		>
+	> {
 		const params = new URLSearchParams();
 		if (opts?.limit) params.set("limit", String(opts.limit));
 		if (opts?.offset) params.set("offset", String(opts.offset));
 		const qs = params.toString();
-		const res = await fetch(`/api/v1/users/me/activity${qs ? `?${qs}` : ""}`, { credentials: "include" });
+		const res = await fetch(`/api/v1/users/me/activity${qs ? `?${qs}` : ""}`, {
+			credentials: "include",
+		});
 		return res.json();
 	}
 
-	async trackDownload(slug: string, format?: string): Promise<{ count: number }> {
+	async trackDownload(
+		slug: string,
+		format?: string,
+	): Promise<{ count: number }> {
 		const res = await fetch(`/api/v1/resources/${slug}/download`, {
 			method: "POST",
 			headers: { "Content-Type": "application/json" },
@@ -568,12 +752,23 @@ export class HttpApiClient implements ApiClient {
 		return res.json();
 	}
 
-	async getResourceStats(slug: string): Promise<{ downloadCount: number; exportCounts: { scorm: number; ims: number; web: number; epub: number }; favoriteCount: number; ratingAvg: number; ratingCount: number; userFavorited: boolean }> {
+	async getResourceStats(slug: string): Promise<{
+		downloadCount: number;
+		exportCounts: { scorm: number; ims: number; web: number; epub: number };
+		favoriteCount: number;
+		ratingAvg: number;
+		ratingCount: number;
+		userFavorited: boolean;
+	}> {
 		const res = await fetch(`/api/v1/resources/${slug}/stats`);
 		return res.json();
 	}
 
-	async reportResource(slug: string, reason: string, description?: string): Promise<{ id: string }> {
+	async reportResource(
+		slug: string,
+		reason: string,
+		description?: string,
+	): Promise<{ id: string }> {
 		const res = await fetch(`/api/v1/resources/${slug}/report`, {
 			method: "POST",
 			headers: { "Content-Type": "application/json" },
@@ -587,24 +782,37 @@ export class HttpApiClient implements ApiClient {
 		return res.json();
 	}
 
-	async listReports(opts?: { status?: string; reason?: string; resourceId?: string; limit?: number; offset?: number }): Promise<PaginatedResult<ReportRecord>> {
+	async listReports(opts?: {
+		status?: string;
+		reason?: string;
+		resourceId?: string;
+		limit?: number;
+		offset?: number;
+	}): Promise<PaginatedResult<ReportRecord>> {
 		const params = new URLSearchParams();
 		if (opts?.status) params.set("status", opts.status);
 		if (opts?.reason) params.set("reason", opts.reason);
 		if (opts?.resourceId) params.set("resourceId", opts.resourceId);
 		if (opts?.limit) params.set("limit", String(opts.limit));
 		if (opts?.offset) params.set("offset", String(opts.offset));
-		const res = await fetch(`/api/admin/reports?${params}`, { credentials: "include" });
+		const res = await fetch(`/api/admin/reports?${params}`, {
+			credentials: "include",
+		});
 		return res.json();
 	}
 
 	async getReportById(id: string): Promise<ReportRecord | null> {
-		const res = await fetch(`/api/admin/reports/${id}`, { credentials: "include" });
+		const res = await fetch(`/api/admin/reports/${id}`, {
+			credentials: "include",
+		});
 		if (!res.ok) return null;
 		return res.json();
 	}
 
-	async updateReport(id: string, data: { status?: string; resolution?: string; actionTaken?: string }): Promise<ReportRecord> {
+	async updateReport(
+		id: string,
+		data: { status?: string; resolution?: string; actionTaken?: string },
+	): Promise<ReportRecord> {
 		const res = await fetch(`/api/admin/reports/${id}`, {
 			method: "PATCH",
 			headers: { "Content-Type": "application/json" },
@@ -624,7 +832,9 @@ export class HttpApiClient implements ApiClient {
 		return res.json();
 	}
 
-	async updateSettings(settings: Record<string, string>): Promise<Record<string, string>> {
+	async updateSettings(
+		settings: Record<string, string>,
+	): Promise<Record<string, string>> {
 		const res = await fetch("/api/admin/settings", {
 			method: "PUT",
 			headers: { "Content-Type": "application/json" },
@@ -634,7 +844,10 @@ export class HttpApiClient implements ApiClient {
 		return res.json();
 	}
 
-	async seedResources(count: number, clean?: boolean): Promise<{ count: number; durationMs: number }> {
+	async seedResources(
+		count: number,
+		clean?: boolean,
+	): Promise<{ count: number; durationMs: number }> {
 		const res = await fetch("/api/dev/seed-resources", {
 			method: "POST",
 			headers: { "Content-Type": "application/json" },
@@ -655,7 +868,10 @@ export class HttpApiClient implements ApiClient {
 		return body.data || [];
 	}
 
-	async createApiToken(name: string, expiresAt?: string): Promise<ApiTokenRecord> {
+	async createApiToken(
+		name: string,
+		expiresAt?: string,
+	): Promise<ApiTokenRecord> {
 		const res = await fetch("/api/v1/tokens", {
 			method: "POST",
 			headers: { "Content-Type": "application/json" },
@@ -681,12 +897,17 @@ export class HttpApiClient implements ApiClient {
 	}
 
 	// API Tokens (Admin)
-	async listAllApiTokens(filters?: { userId?: string; status?: "active" | "revoked" | "expired" }): Promise<ApiTokenRecord[]> {
+	async listAllApiTokens(filters?: {
+		userId?: string;
+		status?: "active" | "revoked" | "expired";
+	}): Promise<ApiTokenRecord[]> {
 		const params = new URLSearchParams();
 		if (filters?.userId) params.set("userId", filters.userId);
 		if (filters?.status) params.set("status", filters.status);
 		const qs = params.toString();
-		const res = await fetch(`/api/admin/api-tokens${qs ? `?${qs}` : ""}`, { credentials: "include" });
+		const res = await fetch(`/api/admin/api-tokens${qs ? `?${qs}` : ""}`, {
+			credentials: "include",
+		});
 		if (!res.ok) {
 			const err = await res.json().catch(() => ({}));
 			throw new Error(err.error || "Error al obtener tokens de API");
@@ -706,7 +927,9 @@ export class HttpApiClient implements ApiClient {
 	}
 
 	async getGlobalApiTokenStats(): Promise<ApiTokenStats> {
-		const res = await fetch("/api/admin/api-tokens/stats", { credentials: "include" });
+		const res = await fetch("/api/admin/api-tokens/stats", {
+			credentials: "include",
+		});
 		if (!res.ok) {
 			const err = await res.json().catch(() => ({}));
 			throw new Error(err.error || "Error al obtener estadísticas globales");

@@ -335,7 +335,9 @@ INSERT INTO platform_settings (key, value, updated_at) VALUES
 ON CONFLICT (key) DO NOTHING
 `;
 
-export async function createTables(executor: { exec: (sql: string) => Promise<unknown> }) {
+export async function createTables(executor: {
+	exec: (sql: string) => Promise<unknown>;
+}) {
 	for (const statement of SCHEMA_STATEMENTS) {
 		await executor.exec(statement);
 	}
