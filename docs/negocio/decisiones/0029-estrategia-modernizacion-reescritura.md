@@ -81,7 +81,7 @@ Big bang concentra el riesgo en el corte final y exige oráculo previo completo;
 
 Materialización: programa por lotes 0–5 (opción B, que incluye A y las dos sustituciones justificadas de C) descrito en `alternatives.md` y en `implementation-agent-prompt.md`: (0) reparar lint/format y vestigios; (1) typecheck 635→0 con ratchet y gate; (2) suite de caracterización — des-fixmear los 17 E2E de escritura, contract tests black-box con login real, integración poblada, job PostgreSQL 17; (3) fuente única de esquema con migraciones versionadas, upgrade path y backup; (4) puertos y gates de arquitectura; (5) división de módulos mixtos. El piloto comparativo de `pilot-plan.md` (vertical Colecciones, dos brazos) queda diseñado para producir el único dato que podría reabrir esta decisión.
 
-**Nivel de confianza: Alto** en rechazar E/F y D (fundado en 12 de los 14 gates del encargo incumplidos o en contra, matriz robusta, cuatro fuentes externas alineadas y precedente interno). **Medio** en el dimensionamiento exacto de los lotes (rangos de calendario con base de estimación limitada — sin histórico de velocidad del equipo).
+**Nivel de confianza: Alto** en rechazar E/F y D (fundado en 10 de los 14 gates del encargo sin cumplirse plenamente — 6 incumplidos, 2 parciales, 1 dudoso, 1 pendiente de esta revisión —, matriz robusta, cuatro fuentes externas alineadas y precedente interno). **Medio** en el dimensionamiento exacto de los lotes (rangos de calendario con base de estimación limitada — sin histórico de velocidad del equipo).
 
 ## Ventajas medibles
 
@@ -101,7 +101,7 @@ Documental en `pilot-plan.md`: vertical Colecciones, oráculo primero (36–45 c
 
 ## Gates de decisión
 
-Los 14 gates del encargo para recomendar reescritura completa están verificados uno a uno en `validation.md` §3: **hoy se cumplen 2 de 14** (alternativas evaluadas; inventario funcional). Bloqueantes: sin problema estructural no resoluble incrementalmente (1, 3), sin suite de caracterización (5), sin contratos documentados (6), sin piloto ejecutado (8), sin criterios de aceptación ENS/a11y escritos (12).
+Los 14 gates del encargo para recomendar reescritura completa están verificados uno a uno en `validation.md` §3: **hoy se cumplen 4 de 14** (alternativas evaluadas seriamente; inventario funcional; piloto diseñado; costes de transición identificados). Se incumplen de plano seis: sin problema estructural no resoluble incrementalmente (1, 3), sin suite de caracterización (5), sin contratos documentados (6), sin piloto ejecutado (8), sin criterios de aceptación ENS/a11y escritos (12); dos son parciales (9, 10), una dudosa (11) y una se resuelve en la revisión de esta PR (14).
 
 ## Estrategia de migración y de rollback
 

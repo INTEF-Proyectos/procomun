@@ -50,7 +50,7 @@ Formato exigido: hipótesis → línea base → objetivo → método → gate �
 
 ## 3. Gates para recomendar una reescritura completa (estado actual)
 
-Verificación de las 14 condiciones del encargo — **hoy se cumplen 2 de 14**:
+Verificación de las 14 condiciones del encargo — **hoy se cumplen 4 de 14** (las nº 2, 4, 7 y 13); seis se incumplen de plano, dos son parciales, una es dudosa y una se resuelve con esta PR:
 
 | # | Condición | ¿Se cumple hoy? |
 | --- | --- | --- |
