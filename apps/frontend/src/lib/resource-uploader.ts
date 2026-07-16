@@ -9,6 +9,13 @@ import { escapeHtml, formatBytes } from "./resource-display.ts";
 
 export { escapeHtml, formatBytes };
 
+type UploaderController = {
+	destroy(): void;
+};
+
+const activeUploaders = new WeakMap<HTMLElement, UploaderController>();
+const uploaderInitializations = new WeakMap<HTMLElement, object>();
+
 export function extractUploadId(uploadUrl?: string | null) {
 	if (!uploadUrl) return null;
 	return uploadUrl.split("/").pop() ?? null;
@@ -66,7 +73,16 @@ export async function initResourceUploader(args: {
 	onUploadComplete?: (successCount: number) => Promise<void>;
 }) {
 	const { resourceId, root, api } = args;
+	const initToken = {};
+	uploaderInitializations.set(root, initToken);
+
 	const config = await api.getUploadConfig();
+	if (uploaderInitializations.get(root) !== initToken) return null;
+
+	// A route/search-param transition can initialize the same panel again without
+	// unmounting it. Tear down the previous instance before adding new listeners.
+	activeUploaders.get(root)?.destroy();
+
 	const picker = root.querySelector<HTMLInputElement>("[data-upload-input]");
 	const dropzone = root.querySelector<HTMLElement>("[data-upload-dropzone]");
 	const queue = root.querySelector<HTMLElement>("[data-upload-queue]");
@@ -92,9 +108,16 @@ export async function initResourceUploader(args: {
 		!globalLabel ||
 		!feedback
 	) {
+		if (uploaderInitializations.get(root) === initToken) {
+			uploaderInitializations.delete(root);
+		}
 		return null;
 	}
 
+	const abortController = new AbortController();
+	const listenerOptions: AddEventListenerOptions = {
+		signal: abortController.signal,
+	};
 	const uppy = new Uppy({
 		autoProceed: true,
 		restrictions: {
@@ -189,64 +212,90 @@ export async function initResourceUploader(args: {
 		renderLocalQueue();
 	}
 
-	picker.addEventListener("change", async () => {
-		if (picker.files?.length) {
-			await addFiles(picker.files);
-			picker.value = "";
-		}
-	});
-
-	dropzone.addEventListener("dragover", (event) => {
-		event.preventDefault();
-		dropzone.classList.add("is-dragover");
-	});
-	dropzone.addEventListener("dragleave", () =>
-		dropzone.classList.remove("is-dragover"),
+	picker.addEventListener(
+		"change",
+		async () => {
+			if (picker.files?.length) {
+				await addFiles(picker.files);
+				picker.value = "";
+			}
+		},
+		listenerOptions,
 	);
-	dropzone.addEventListener("drop", async (event) => {
-		event.preventDefault();
-		dropzone.classList.remove("is-dragover");
-		if (event.dataTransfer?.files?.length) {
-			await addFiles(event.dataTransfer.files);
-		}
-	});
 
-	queue.addEventListener("click", async (event) => {
-		const target = event.target as HTMLElement | null;
-		const fileId = target?.getAttribute("data-remove-local");
-		if (!fileId) return;
-		const uploadId = target.getAttribute("data-upload-id");
-		uppy.removeFile(fileId);
-		if (uploadId) {
-			await api.cancelUpload(uploadId).catch(() => {});
+	dropzone.addEventListener(
+		"dragover",
+		(event) => {
+			event.preventDefault();
+			dropzone.classList.add("is-dragover");
+		},
+		listenerOptions,
+	);
+	dropzone.addEventListener(
+		"dragleave",
+		() => dropzone.classList.remove("is-dragover"),
+		listenerOptions,
+	);
+	dropzone.addEventListener(
+		"drop",
+		async (event) => {
+			event.preventDefault();
+			dropzone.classList.remove("is-dragover");
+			if (event.dataTransfer?.files?.length) {
+				await addFiles(event.dataTransfer.files);
+			}
+		},
+		listenerOptions,
+	);
+
+	queue.addEventListener(
+		"click",
+		async (event) => {
+			const target = event.target as HTMLElement | null;
+			const fileId = target?.getAttribute("data-remove-local");
+			if (!fileId) return;
+			const uploadId = target.getAttribute("data-upload-id");
+			uppy.removeFile(fileId);
+			if (uploadId) {
+				await api.cancelUpload(uploadId).catch(() => {});
+				await refreshPersisted();
+			}
+			renderLocalQueue();
+		},
+		listenerOptions,
+	);
+
+	persistedList.addEventListener(
+		"click",
+		async (event) => {
+			const target = event.target as HTMLElement | null;
+			const uploadId = target?.getAttribute("data-cancel-upload");
+			if (!uploadId) return;
+			await api.cancelUpload(uploadId);
 			await refreshPersisted();
-		}
-		renderLocalQueue();
-	});
+		},
+		listenerOptions,
+	);
 
-	persistedList.addEventListener("click", async (event) => {
-		const target = event.target as HTMLElement | null;
-		const uploadId = target?.getAttribute("data-cancel-upload");
-		if (!uploadId) return;
-		await api.cancelUpload(uploadId);
-		await refreshPersisted();
-	});
-
-	mediaList.addEventListener("click", async (event) => {
-		const target = event.target as HTMLElement | null;
-		const mediaItemId = target?.getAttribute("data-delete-media");
-		if (!mediaItemId) return;
-		if (!window.confirm("¿Eliminar este archivo del recurso?")) return;
-		try {
-			await api.deleteMediaItem(resourceId, mediaItemId);
-			await refreshPersisted();
-			if (args.onUploadComplete) await args.onUploadComplete(0);
-		} catch (err) {
-			feedback.textContent =
-				err instanceof Error ? err.message : "Error al eliminar el archivo";
-			feedback.className = "upload-feedback error";
-		}
-	});
+	mediaList.addEventListener(
+		"click",
+		async (event) => {
+			const target = event.target as HTMLElement | null;
+			const mediaItemId = target?.getAttribute("data-delete-media");
+			if (!mediaItemId) return;
+			if (!window.confirm("¿Eliminar este archivo del recurso?")) return;
+			try {
+				await api.deleteMediaItem(resourceId, mediaItemId);
+				await refreshPersisted();
+				if (args.onUploadComplete) await args.onUploadComplete(0);
+			} catch (err) {
+				feedback.textContent =
+					err instanceof Error ? err.message : "Error al eliminar el archivo";
+				feedback.className = "upload-feedback error";
+			}
+		},
+		listenerOptions,
+	);
 
 	uppy.on("file-added", renderLocalQueue);
 	uppy.on("upload-progress", renderLocalQueue);
@@ -269,21 +318,43 @@ export async function initResourceUploader(args: {
 		}
 	});
 
-	window.addEventListener("beforeunload", (event) => {
+	function handleBeforeUnload(event: BeforeUnloadEvent) {
 		const hasActiveUploads = uppy
 			.getFiles()
 			.some((file) => (file.progress?.uploadComplete ?? false) === false);
 		if (!hasActiveUploads) return;
 		event.preventDefault();
 		event.returnValue = "";
-	});
+	}
 
-	await refreshPersisted();
-	renderLocalQueue();
+	window.addEventListener("beforeunload", handleBeforeUnload, listenerOptions);
 
-	return {
+	let destroyed = false;
+	const controller: UploaderController = {
 		destroy() {
-			uppy.destroy();
+			if (destroyed) return;
+			destroyed = true;
+			abortController.abort();
+			try {
+				uppy.destroy();
+			} finally {
+				if (activeUploaders.get(root) === controller) {
+					activeUploaders.delete(root);
+				}
+				if (uploaderInitializations.get(root) === initToken) {
+					uploaderInitializations.delete(root);
+				}
+			}
 		},
 	};
+	activeUploaders.set(root, controller);
+
+	try {
+		await refreshPersisted();
+		renderLocalQueue();
+		return controller;
+	} catch (error) {
+		controller.destroy();
+		throw error;
+	}
 }
