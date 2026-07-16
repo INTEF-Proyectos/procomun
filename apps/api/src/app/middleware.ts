@@ -3,6 +3,7 @@ import type { Hono } from "hono";
 import { auditMiddleware } from "../auth/audit.ts";
 import { auth } from "../auth/config.ts";
 import { type AuthEnv, sessionMiddleware } from "../auth/middleware.ts";
+import { getAuthBaseUrl } from "../auth/urls.ts";
 
 const sessionProtectedApiPatterns = [
 	"/api/admin/*",
@@ -31,7 +32,7 @@ interface PreviewManagementRequestMetadata {
 	path: string;
 	origin?: string;
 	secFetchSite?: string;
-	frontendUrl: string;
+	managementUrl: string;
 }
 
 function isPreviewManagementPath(path: string): boolean {
@@ -41,21 +42,17 @@ function isPreviewManagementPath(path: string): boolean {
 /**
  * Validate the browser-level CSRF boundary for preview-session mutations.
  *
- * SameSite=Lax remains useful defense in depth, but it is not the application
- * boundary: sibling subdomains are same-site while still being foreign origins.
- * Every unsafe preview-management request must therefore originate from the
- * exact configured frontend origin and, when Fetch Metadata is present, report
- * `same-origin`. The authless capability serving route is intentionally outside
- * this check.
- *
- * @returns An error message when the request must be rejected, otherwise null.
+ * The editor document is served by the API origin, which can differ from the
+ * parent frontend origin in split deployments. Management requests must
+ * therefore originate from the configured public API/editor origin, not from
+ * FRONTEND_URL. Fetch Metadata remains a second exact same-origin check.
  */
 export function validatePreviewManagementRequest({
 	method,
 	path,
 	origin,
 	secFetchSite,
-	frontendUrl,
+	managementUrl,
 }: PreviewManagementRequestMetadata): string | null {
 	if (!isPreviewManagementPath(path) || SAFE_METHODS.has(method.toUpperCase())) {
 		return null;
@@ -63,13 +60,13 @@ export function validatePreviewManagementRequest({
 
 	let expectedOrigin: string;
 	try {
-		expectedOrigin = new URL(frontendUrl).origin;
+		expectedOrigin = new URL(managementUrl).origin;
 	} catch {
-		return "Preview management is unavailable because FRONTEND_URL is invalid";
+		return "Preview management is unavailable because its public API origin is invalid";
 	}
 
 	if (!origin || origin !== expectedOrigin) {
-		return "Preview management requires the configured same-origin frontend";
+		return "Preview management requires the configured same-origin API editor";
 	}
 	if (secFetchSite && secFetchSite !== "same-origin") {
 		return "Preview management requires Sec-Fetch-Site: same-origin";
@@ -79,15 +76,16 @@ export function validatePreviewManagementRequest({
 
 export function registerGlobalMiddleware(app: Hono<AuthEnv>) {
 	const frontendUrl = process.env.FRONTEND_URL ?? "http://localhost:5173";
+	// BETTER_AUTH_URL is the public API/auth origin in split deployments and
+	// falls back to FRONTEND_URL in the unified topology. An explicit override is
+	// available for reverse proxies that expose preview management elsewhere.
+	const previewManagementUrl =
+		process.env.PREVIEW_MANAGEMENT_ORIGIN ?? getAuthBaseUrl(process.env);
+
 	// The app-wide CORS policy is credentialed and pinned to the frontend origin.
 	// The authless preview SERVING route (`/api/v1/preview/{previewId}/*`) is
 	// fetched by the opaque preview iframe with `Origin: null` and no credentials,
-	// and sets its own `Access-Control-Allow-Origin: *` (never paired with
-	// credentials). Running the credentialed policy over it would overwrite that
-	// with the frontend origin and block those cross-origin subresource fetches
-	// (fonts/media/range) from the null origin. So skip global CORS for the
-	// serving route only — NOT for `/api/v1/preview-session/*` (management is
-	// frontend-origin, credentialed).
+	// and sets its own `Access-Control-Allow-Origin: *`.
 	const corsMiddleware = cors({
 		origin: frontendUrl,
 		credentials: true,
@@ -102,7 +100,7 @@ export function registerGlobalMiddleware(app: Hono<AuthEnv>) {
 			path: c.req.path,
 			origin: c.req.header("Origin"),
 			secFetchSite: c.req.header("Sec-Fetch-Site"),
-			frontendUrl,
+			managementUrl: previewManagementUrl,
 		});
 		if (error) {
 			return c.json({ success: false, error }, 403);
