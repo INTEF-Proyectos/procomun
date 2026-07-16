@@ -56,7 +56,7 @@ apps/cli/src/commands/import-legacy-procomun.ts   (orquestador CLI)
 Normaliza código ISO 639, valida contra `VALID_LANGUAGES`; si falla, fallback `"es"` con `guessed: true`.
 
 ### `mapResourceType()`
-Diccionario de equivalencias conocidas (LOM-ES → vocabulario informal ya usado en `procomun-ng`, ver `packages/db/src/seed-data.ts`); sin match → slug del valor LOM crudo, marcado `mapped: false`.
+Diccionario de equivalencias conocidas (LOM-ES/inglés → vocabulario informal ya usado en `procomun-ng`); sin match → slug del valor LOM crudo, marcado `mapped: false`. El vocabulario destino es `RESOURCE_TYPES` (`packages/db/src/resource-types.ts`, exportado como `@procomun/db/resource-types`) — única fuente de verdad, también usada por `apps/frontend/src/lib/resource-filters.ts` (filtro público) y validada contra `packages/db/src/seed-data.ts` (ver ADR-0029, actualización 2026-07-16 (3): antes cada uno mantenía su propia lista desincronizada).
 
 ## Idempotencia y deduplicación
 

@@ -76,8 +76,11 @@ describe("mapLegacyRecord", () => {
 		expect(result.blocking).toBe(false);
 		expect(result.resource.language).toBe("ca");
 		expect(result.resource.license).toBe("cc-by-nc-sa");
-		// "Mapa conceptual" no está en el diccionario -> warning tolerable, no bloqueante.
-		expect(result.warnings.some((w) => w.field === "resourceType")).toBe(true);
+		// "Mapa conceptual" tiene ahora equivalencia propia en el diccionario
+		// (ver ADR-0029, actualización 2026-07-16): ya no cae a slug de
+		// fallback ni genera warning de resourceType.
+		expect(result.resource.resourceType).toBe("mapa-conceptual");
+		expect(result.warnings.some((w) => w.field === "resourceType")).toBe(false);
 	});
 
 	it("flags a missing description as blocking", () => {

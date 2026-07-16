@@ -1,20 +1,17 @@
+import { RESOURCE_TYPES } from "@procomun/db/resource-types";
+
 export interface FilterOption {
 	label: string;
 	value: string;
 }
 
+// Derivado de RESOURCE_TYPES (packages/db/src/resource-types.ts), única
+// fuente de verdad: antes esta lista se mantenía a mano aquí, desincronizada
+// del diccionario del importador legacy y de los datos semilla (dos tipos
+// reales, "guia-docente" e "infografia", no eran filtrables).
 export const RESOURCE_TYPE_OPTIONS: FilterOption[] = [
 	{ value: "", label: "Todos los tipos" },
-	{ value: "documento", label: "Documento" },
-	{ value: "presentacion", label: "Presentacion" },
-	{ value: "video", label: "Video" },
-	{ value: "audio", label: "Audio" },
-	{ value: "imagen", label: "Imagen" },
-	{ value: "actividad-interactiva", label: "Actividad interactiva" },
-	{ value: "secuencia-didactica", label: "Secuencia didactica" },
-	{ value: "ejercicio", label: "Ejercicio" },
-	{ value: "evaluacion", label: "Evaluacion" },
-	{ value: "proyecto", label: "Proyecto" },
+	...RESOURCE_TYPES,
 ];
 
 export const LANGUAGE_OPTIONS: FilterOption[] = [
