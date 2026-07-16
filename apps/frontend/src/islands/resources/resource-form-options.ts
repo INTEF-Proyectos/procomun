@@ -14,15 +14,11 @@ export const LICENSE_OPTIONS = [
 	{ value: "cc0", label: "CC0 (Dominio público)" },
 ] as const;
 
-export const RESOURCE_TYPE_OPTIONS = [
-	{ value: "documento", label: "Documento" },
-	{ value: "presentacion", label: "Presentación" },
-	{ value: "video", label: "Vídeo" },
-	{ value: "audio", label: "Audio" },
-	{ value: "imagen", label: "Imagen" },
-	{ value: "actividad-interactiva", label: "Actividad interactiva" },
-	{ value: "secuencia-didactica", label: "Secuencia didáctica" },
-	{ value: "ejercicio", label: "Ejercicio" },
-	{ value: "evaluacion", label: "Evaluación" },
-	{ value: "proyecto", label: "Proyecto" },
-] as const;
+// Derivado de RESOURCE_TYPES (packages/db/src/resource-types.ts), única
+// fuente de verdad. Antes esta lista se mantenía a mano aquí, con solo 10 de
+// los 13 tipos reales (sin guia-docente, infografia ni mapa-conceptual):
+// editar un recurso con uno de esos tipos no mostraba ninguna opción
+// seleccionada en el <select>, arriesgando que se guardase con el tipo
+// equivocado (fallback del navegador) en vez de conservar el original — ver
+// revisión del PR #274.
+export { RESOURCE_TYPES as RESOURCE_TYPE_OPTIONS } from "@procomun/db/resource-types";
