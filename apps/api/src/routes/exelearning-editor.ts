@@ -8,6 +8,50 @@ import path from "node:path";
 
 const EDITOR_STATIC_DIR = path.resolve(import.meta.dir, "../../static/exelearning-editor/static");
 
+/**
+ * Serialize a value as JSON that is safe inside an inline script element.
+ * JSON.stringify alone leaves literal `</script>` sequences untouched.
+ */
+export function toInlineScriptJson(value: unknown): string {
+	return JSON.stringify(value ?? null)
+		.replace(/</g, "\\u003c")
+		.replace(/>/g, "\\u003e")
+		.replace(/&/g, "\\u0026")
+		.replace(/\u2028/g, "\\u2028")
+		.replace(/\u2029/g, "\\u2029");
+}
+
+/** Build the dynamic bootstrap block using script-safe JSON for every value. */
+export function buildEditorConfigScript(
+	elpxUrl: string,
+	resourceId: string,
+	editorBaseUrl: string,
+): string {
+	return `
+<script>
+window.__EXE_EMBEDDING_CONFIG__ = {
+	basePath: ${toInlineScriptJson(editorBaseUrl)},
+	initialProjectUrl: ${toInlineScriptJson(elpxUrl || null)},
+	parentOrigin: window.location.origin,
+	trustedOrigins: [window.location.origin],
+	previewHttp: {
+		protocolVersion: 2,
+		managementBaseUrl: "/api/v1/preview-session",
+		servingBaseUrl: "/api/v1/preview",
+	},
+	hideUI: {
+		fileMenu: true,
+		saveButton: true,
+		userMenu: true,
+	},
+};
+window.__PROCOMUN_CONFIG__ = {
+	resourceId: ${toInlineScriptJson(resourceId)},
+	editorBaseUrl: ${toInlineScriptJson(editorBaseUrl)},
+};
+</script>`;
+}
+
 export const exelearningEditorRoutes = new Hono();
 
 /**
@@ -37,40 +81,9 @@ exelearningEditorRoutes.get("/index.html", async (c) => {
 		`<head>\n<base href="${editorBaseUrl}/">\n${SW_NEUTRALIZE_SCRIPT}`,
 	);
 
-	// Inject Procomun embedding config before </head> (like editor-bootstrap.php)
-	//
-	// `previewHttp` activates the HTTP preview transport (serving contract v2):
-	// the editor's HttpPreviewProvider creates a session on the owner-gated
-	// management API, uploads assets/revisions, and points the opaque preview
-	// iframe at the authless serving base. Auth is the same-origin better-auth
-	// cookie — the core client sends `credentials: 'same-origin'` on management —
-	// so no managementHeaders/managementQuery are needed for Procomun. Both URLs
-	// are root-relative (leading slash), so the injected <base> does not rewrite
-	// them and they resolve against the site origin.
-	const configScript = `
-<script>
-window.__EXE_EMBEDDING_CONFIG__ = {
-	basePath: "${editorBaseUrl}",
-	initialProjectUrl: ${JSON.stringify(elpxUrl || null)},
-	parentOrigin: window.location.origin,
-	trustedOrigins: [window.location.origin],
-	previewHttp: {
-		protocolVersion: 2,
-		managementBaseUrl: "/api/v1/preview-session",
-		servingBaseUrl: "/api/v1/preview",
-	},
-	hideUI: {
-		fileMenu: true,
-		saveButton: true,
-		userMenu: true,
-	},
-};
-window.__PROCOMUN_CONFIG__ = {
-	resourceId: ${JSON.stringify(resourceId)},
-	editorBaseUrl: "${editorBaseUrl}",
-};
-</script>`;
-
+	// Inject Procomun embedding config before </head>. User-controlled query
+	// values are encoded as script-safe JSON to prevent `</script>` breakout.
+	const configScript = buildEditorConfigScript(elpxUrl, resourceId, editorBaseUrl);
 	html = html.replace("</head>", `${configScript}\n</head>`);
 
 	// Inject the bridge script before </body> — handles postMessage communication
@@ -81,6 +94,8 @@ window.__PROCOMUN_CONFIG__ = {
 		headers: {
 			"Content-Type": "text/html; charset=utf-8",
 			"Cache-Control": "no-cache",
+			"Content-Security-Policy":
+				"object-src 'none'; base-uri 'self'; frame-ancestors 'self'",
 		},
 	});
 });
@@ -93,10 +108,9 @@ window.__PROCOMUN_CONFIG__ = {
  * SAME-ORIGIN Service Worker preview. On the Procomun origin that would run
  * untrusted author content same-origin — exactly what the opaque HTTP preview
  * (serving contract v2) exists to prevent. Until the HTTP-preview-v2 editor
- * build ships (see ADR-0030) and this stub becomes unnecessary, neutralize SW
+ * build ships (see ADR-0032) and this stub becomes unnecessary, neutralize SW
  * registration so no preview SW can be installed on this origin; the supported
- * transport is the injected `previewHttp` config. Mirrors the same-purpose stub
- * in mod_exelearning / nextcloud-exelearning / omeka-s-exelearning.
+ * transport is the injected `previewHttp` config.
  *
  * The dummy returned from `register()` is a full ServiceWorkerRegistration-like
  * object (not a bare `{}`) because the v4 editor calls `reg.addEventListener`
@@ -260,60 +274,6 @@ const BRIDGE_SCRIPT = `<script>
 		});
 	}
 
-	if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
-	else init();
+	init();
 })();
 <\/script>`;
-
-/**
- * Serve all static editor assets (JS, CSS, images, fonts, etc.)
- */
-exelearningEditorRoutes.get("/*", async (c) => {
-	const urlPath = new URL(c.req.url).pathname;
-	// Strip the route prefix to get the relative file path
-	const prefix = "/api/v1/exelearning-editor/";
-	const relativePath = urlPath.startsWith(prefix)
-		? urlPath.slice(prefix.length)
-		: urlPath.replace(/^\/+/, "");
-
-	if (!relativePath || relativePath.includes("..")) {
-		return c.text("Not found", 404);
-	}
-
-	// Defense in depth (see ADR-0030 and the SW_NEUTRALIZE_SCRIPT above): never
-	// serve the legacy preview Service Worker from this origin. The bundled pre-v2
-	// editor could otherwise register `preview-sw.js` and run untrusted author
-	// content SAME-ORIGIN as the authenticated user. The register() stub blocks
-	// installation; refusing to serve the script blocks it a second way. Both go
-	// away once an HTTP-preview-v2 editor is bundled.
-	if (path.basename(relativePath) === "preview-sw.js") {
-		return c.text("Not found", 404);
-	}
-
-	const filePath = path.join(EDITOR_STATIC_DIR, relativePath);
-	const file = Bun.file(filePath);
-
-	if (!(await file.exists())) {
-		return c.text("Not found", 404);
-	}
-
-	// Determine MIME type from extension
-	const ext = path.extname(relativePath).slice(1).toLowerCase();
-	const mimeTypes: Record<string, string> = {
-		html: "text/html", js: "application/javascript", mjs: "application/javascript",
-		css: "text/css", json: "application/json", xml: "application/xml",
-		png: "image/png", jpg: "image/jpeg", jpeg: "image/jpeg", gif: "image/gif",
-		svg: "image/svg+xml", webp: "image/webp", ico: "image/x-icon",
-		woff: "font/woff", woff2: "font/woff2", ttf: "font/ttf", otf: "font/otf",
-		mp3: "audio/mpeg", mp4: "video/mp4", webm: "video/webm", wav: "audio/wav",
-		pdf: "application/pdf", zip: "application/zip", txt: "text/plain",
-	};
-	const contentType = mimeTypes[ext] || "application/octet-stream";
-
-	return new Response(file, {
-		headers: {
-			"Content-Type": contentType,
-			"Cache-Control": "public, max-age=3600",
-		},
-	});
-});
