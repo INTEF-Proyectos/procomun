@@ -3,8 +3,10 @@ import { copyFile, mkdtemp, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { eq } from "drizzle-orm";
+import { Hono } from "hono";
 import { resources } from "@procomun/db/schema";
 import { computeFileSha256 } from "../../../api/src/uploads/config.ts";
+import { elpxContentRoutes } from "../../../api/src/routes/elpx-content.ts";
 import {
 	loadImportLegacyProcomunDependencies,
 	runImportLegacyProcomun,
@@ -116,6 +118,31 @@ describe("import:legacy-procomun (integración, PGlite en memoria vía test-setu
 		// El recurso debe quedar indexado para búsqueda de inmediato, sin
 		// depender de una ejecución manual posterior de fts:reindex.
 		expect(resourceRow?.searchVector).not.toBeNull();
+	});
+
+	test("la URL pública de preview del recurso importado resuelve 200, no 404 (regresión hallazgo P1 revisión #268)", async () => {
+		// No basta con comprobar `extractPath/content.xml` en disco: el bug
+		// reportado era justo que el directorio físico de extracción y el
+		// identificador público de la preview podían desalinearse (extractPath
+		// por uploadId vs. URL pública por checksum). Este test pasa por la
+		// ruta HTTP real (elpxContentRoutes, montada como en apps/api/src/app.ts)
+		// para verificar el contrato completo, no solo un campo de BD.
+		const imported = await deps.repo.findLegacyResourceByExternalId(
+			deps.getDb().db,
+			"legacy-procomun",
+			"1615293421477",
+		);
+		const elpxProject = await deps.repo.getElpxProjectByResourceId(deps.getDb().db, imported!.id);
+		expect(elpxProject?.hasPreview).toBe(true);
+
+		const app = new Hono();
+		app.route("/api/v1/elpx", elpxContentRoutes);
+
+		// La URL pública real tal y como la construye buildElpxPreview() a partir
+		// de elpx.hash (ver apps/api/src/elpx/preview.ts).
+		const res = await app.request(`/api/v1/elpx/${elpxProject!.hash}/index.html`);
+		expect(res.status).toBe(200);
+		expect(res.headers.get("Content-Type")).toBe("text/html");
 	});
 
 	test("re-ejecutar sobre el mismo directorio es idempotente: 0 nuevos, 2 omitidos", async () => {
