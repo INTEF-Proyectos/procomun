@@ -74,7 +74,9 @@ export function extractFrontMatter(markdown: string) {
 	return normalized.slice(4, endIndex);
 }
 
-export function parseSimpleDesignFrontMatter(frontMatter: string): DesignContract {
+export function parseSimpleDesignFrontMatter(
+	frontMatter: string,
+): DesignContract {
 	const root: Record<string, unknown> = {};
 	const stack: Array<{ indent: number; object: Record<string, unknown> }> = [
 		{ indent: -1, object: root },
@@ -125,6 +127,7 @@ export function extractCssCustomProperties(css: string) {
 	const tokenPattern = /(--[a-z0-9-]+)\s*:\s*([^;]+);/gi;
 	let match: RegExpExecArray | null;
 
+	// biome-ignore lint/suspicious/noAssignInExpressions: patrón idiomático de iteración con RegExp.exec
 	while ((match = tokenPattern.exec(css))) {
 		tokens[match[1]] = match[2].trim();
 	}
@@ -132,7 +135,10 @@ export function extractCssCustomProperties(css: string) {
 	return tokens;
 }
 
-export function checkDesignContract(design: DesignContract, cssTokens: Record<string, string>): CheckResult {
+export function checkDesignContract(
+	design: DesignContract,
+	cssTokens: Record<string, string>,
+): CheckResult {
 	const errors: string[] = [];
 
 	for (const field of REQUIRED_TOP_LEVEL_FIELDS) {
@@ -172,7 +178,9 @@ export function checkDesignContract(design: DesignContract, cssTokens: Record<st
 		}
 
 		if (designValue.toLowerCase() !== cssValue.toLowerCase()) {
-			errors.push(`${designPath} (${designValue}) does not match ${cssToken} (${cssValue}).`);
+			errors.push(
+				`${designPath} (${designValue}) does not match ${cssToken} (${cssValue}).`,
+			);
 		}
 	}
 
@@ -181,15 +189,22 @@ export function checkDesignContract(design: DesignContract, cssTokens: Record<st
 
 function getDesignValue(design: DesignContract, path: string) {
 	const [group, token] = path.split(".");
-	const value = (design as unknown as Record<string, Record<string, string> | undefined>)[group]?.[token];
+	const value = (
+		design as unknown as Record<string, Record<string, string> | undefined>
+	)[group]?.[token];
 	return typeof value === "string" ? value : undefined;
 }
 
 async function main() {
 	const rootDir = process.cwd();
 	const designMarkdown = await readFile(join(rootDir, "DESIGN.md"), "utf8");
-	const css = await readFile(join(rootDir, "apps/frontend/src/styles/design-tokens.css"), "utf8");
-	const design = parseSimpleDesignFrontMatter(extractFrontMatter(designMarkdown));
+	const css = await readFile(
+		join(rootDir, "apps/frontend/src/styles/design-tokens.css"),
+		"utf8",
+	);
+	const design = parseSimpleDesignFrontMatter(
+		extractFrontMatter(designMarkdown),
+	);
 	const result = checkDesignContract(design, extractCssCustomProperties(css));
 
 	if (result.errors.length === 0) {

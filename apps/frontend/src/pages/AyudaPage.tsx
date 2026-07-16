@@ -9,12 +9,17 @@ export default function AyudaPage() {
 					<p className="help-eyebrow">Centro de ayuda</p>
 					<h1>Manual de uso de Procomun</h1>
 					<p className="help-lead">
-						Esta guia resume como descubrir recursos, publicar materiales, organizar colecciones y entender el flujo editorial
-						de la plataforma.
+						Esta guia resume como descubrir recursos, publicar materiales,
+						organizar colecciones y entender el flujo editorial de la
+						plataforma.
 					</p>
 					<div className="help-hero-actions">
-						<a href="#indice-ayuda" className="help-primary-link">Ir al indice</a>
-						<a href="#contacto" className="help-secondary-link">Solicitar soporte</a>
+						<a href="#indice-ayuda" className="help-primary-link">
+							Ir al indice
+						</a>
+						<a href="#contacto" className="help-secondary-link">
+							Solicitar soporte
+						</a>
 					</div>
 				</div>
 				<aside className="help-hero-card" aria-label="Accesos rapidos de ayuda">
@@ -30,7 +35,11 @@ export default function AyudaPage() {
 			</section>
 
 			<section className="help-shell">
-				<nav id="indice-ayuda" className="help-index" aria-label="Indice de ayuda">
+				<nav
+					id="indice-ayuda"
+					className="help-index"
+					aria-label="Indice de ayuda"
+				>
 					<h2>Indice</h2>
 					<ol>
 						{HELP_SECTIONS.map((section) => (
@@ -43,9 +52,16 @@ export default function AyudaPage() {
 
 				<div className="help-sections">
 					{HELP_SECTIONS.map((section) => (
-						<article key={section.id} id={section.id} className="help-section" aria-labelledby={`${section.id}-title`}>
+						<article
+							key={section.id}
+							id={section.id}
+							className="help-section"
+							aria-labelledby={`${section.id}-title`}
+						>
 							<div className="help-section-head">
-								<span className="material-symbols-outlined" aria-hidden="true">{section.icon}</span>
+								<span className="material-symbols-outlined" aria-hidden="true">
+									{section.icon}
+								</span>
 								<div>
 									<p className="help-section-eyebrow">{section.eyebrow}</p>
 									<h2 id={`${section.id}-title`}>{section.title}</h2>
@@ -54,6 +70,7 @@ export default function AyudaPage() {
 							<p className="help-section-description">{section.description}</p>
 							<ul className="help-section-list">
 								{section.items.map((item, i) => (
+									// biome-ignore lint/suspicious/noArrayIndexKey: contenido estático de ayuda sin reordenación
 									<li key={i}>{item}</li>
 								))}
 							</ul>

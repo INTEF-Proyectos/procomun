@@ -2,15 +2,16 @@
  * Async text extraction worker.
  * Processes extraction jobs without blocking uploads.
  */
+
+import * as repo from "@procomun/db/repository";
 import { getDb } from "../db.ts";
+import { getUploadConfig, resolveStoredFilePath } from "../uploads/config.ts";
 import { extractTextFromFile, isSupportedForExtraction } from "./extract.ts";
 import {
 	markExtractionPending,
 	markExtractionProcessing,
 	saveExtractionResult,
 } from "./search.ts";
-import { resolveStoredFilePath, getUploadConfig } from "../uploads/config.ts";
-import * as repo from "@procomun/db/repository";
 
 /**
  * Neutraliza caracteres de control (incluidos CR/LF, NUL y secuencias ANSI)
@@ -18,6 +19,7 @@ import * as repo from "@procomun/db/repository";
  * logs, para evitar inyección/envenenamiento de logs (CWE-117).
  */
 export function sanitizeForLog(value: string): string {
+	// biome-ignore lint/suspicious/noControlCharactersInRegex: sanitizador deliberado para evitar inyeccion de logs (CWE-117)
 	return value.replace(/[\u0000-\u001f\u007f]/g, "?");
 }
 

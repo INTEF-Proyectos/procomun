@@ -1,11 +1,12 @@
-import { describe, test, expect, beforeAll, afterAll } from "bun:test";
-import { mkdtemp, rm, readdir, readFile } from "node:fs/promises";
-import path from "node:path";
+import { afterAll, beforeAll, describe, expect, test } from "bun:test";
+import { mkdtemp, readdir, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { classifyEmbed, canonicalizeProvider } from "./elpx-embed-policy.ts";
+import path from "node:path";
+import { canonicalizeProvider, classifyEmbed } from "./elpx-embed-policy.ts";
 
 const PAGE_ORIGIN = "https://procomun.example";
-const CONTENT_BASE = "https://api.procomun.example/api/v1/elpx/abc123/index.html";
+const CONTENT_BASE =
+	"https://api.procomun.example/api/v1/elpx/abc123/index.html";
 
 // ---------------------------------------------------------------------------
 // classifyEmbed — casos unitarios (incluye invariantes de seguridad)
@@ -67,16 +68,21 @@ describe("classifyEmbed", () => {
 
 	test("NO promociona vídeo same-origin al contenido", () => {
 		expect(
-			classifyEmbed("https://api.procomun.example/api/v1/elpx/abc123/inner.html", {
-				pageOrigin: PAGE_ORIGIN,
-				contentBaseUrl: CONTENT_BASE,
-			}),
+			classifyEmbed(
+				"https://api.procomun.example/api/v1/elpx/abc123/inner.html",
+				{
+					pageOrigin: PAGE_ORIGIN,
+					contentBaseUrl: CONTENT_BASE,
+				},
+			),
 		).toBeNull();
 	});
 
 	test("rechaza http (no https)", () => {
 		expect(
-			classifyEmbed("http://www.youtube.com/embed/x", { pageOrigin: PAGE_ORIGIN }),
+			classifyEmbed("http://www.youtube.com/embed/x", {
+				pageOrigin: PAGE_ORIGIN,
+			}),
 		).toBeNull();
 	});
 
@@ -89,7 +95,9 @@ describe("classifyEmbed", () => {
 	});
 
 	test("rechaza URL no parseable / relativa", () => {
-		expect(classifyEmbed("/local/video", { pageOrigin: PAGE_ORIGIN })).toBeNull();
+		expect(
+			classifyEmbed("/local/video", { pageOrigin: PAGE_ORIGIN }),
+		).toBeNull();
 		expect(classifyEmbed("not a url", { pageOrigin: PAGE_ORIGIN })).toBeNull();
 	});
 });
@@ -134,6 +142,7 @@ describe("classifyEmbed sobre remote-embeds.elpx (fixture real)", () => {
 					const html = await readFile(full, "utf-8");
 					const re = /<iframe[^>]*\ssrc="([^"]+)"/gi;
 					let m: RegExpExecArray | null;
+					// biome-ignore lint/suspicious/noAssignInExpressions: patrón idiomático de iteración con RegExp.exec
 					while ((m = re.exec(html)) !== null) {
 						if (m[1]) found.add(m[1].replace(/&amp;/g, "&"));
 					}
@@ -151,7 +160,9 @@ describe("classifyEmbed sobre remote-embeds.elpx (fixture real)", () => {
 	test("el fixture contiene los 4 embeds esperados", () => {
 		expect(srcs.some((s) => s.includes("youtube.com/embed/"))).toBe(true);
 		expect(srcs.some((s) => s.includes("player.vimeo.com/video/"))).toBe(true);
-		expect(srcs.some((s) => s.includes("mediateca.educa.madrid.org/video/"))).toBe(true);
+		expect(
+			srcs.some((s) => s.includes("mediateca.educa.madrid.org/video/")),
+		).toBe(true);
 		expect(srcs.some((s) => /\.pdf(\?|$)/i.test(s))).toBe(true);
 	});
 
