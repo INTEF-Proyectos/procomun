@@ -1,187 +1,109 @@
-# Operación del preview HTTP del editor (sesiones en memoria)
+# Operación del preview HTTP del editor
 
-Guía operativa del **preview HTTP del editor** (serving contract v2). Cubre qué
-ocurre al desplegar/reiniciar, cómo se recupera el cliente, qué límites aplican y
-cómo enrutar en un despliegue multi-réplica. La decisión de topología está en
-[ADR-0030](../negocio/decisiones/0030-topologia-store-preview-http.md); el
-contrato de servido, en [`docs/preview-serving-contract.md`](../preview-serving-contract.md).
+Guía operativa del Preview Serving Contract v2. La decisión de topología está en [ADR-0032](../negocio/decisiones/0032-topologia-store-preview-http.md) y el contrato técnico en [`preview-serving-contract.md`](../preview-serving-contract.md).
 
-> **No confundir** con el preview de contenido **publicado** `.elpx`
-> (`/api/v1/elpx/:hash/*`, ADR-0026), que sí es persistente. Esta guía es solo
-> del preview **del editor**, que es efímero.
+No debe confundirse con el contenido `.elpx` publicado en `/api/v1/elpx/:hash/*`: el preview del editor es efímero y vive en memoria.
 
 ## Modelo de almacenamiento
 
-Cada sesión de preview vive en la **memoria del proceso `app`**
-(`apps/api/src/services/preview-session-store.ts`). No se persiste en base de
-datos ni en disco. Una sesión agrupa tres capas:
+Cada sesión vive en la memoria de un proceso `app` y contiene:
 
-- **documentos generados** (HTML de páginas, CSS/JS generados), que cambian en
-  cada edición mediante revisiones atómicas;
-- **assets del proyecto** (imágenes/audio/vídeo/PDF del autor), inmutables por
-  clave durante la vida de la sesión;
-- **referencias a recursos fijos** de la instalación (librerías, runtimes de
-  iDevices…), que no transfieren bytes.
+- documentos generados, publicados mediante revisiones atómicas;
+- assets del proyecto, inmutables por clave durante la sesión;
+- referencias a recursos fijos de la instalación.
 
-La sesión es efímera: caduca por inactividad (TTL, 30 min por defecto) y la barre
-un *sweeper*, o se borra explícitamente al cerrar el editor.
+Caduca por inactividad o se elimina explícitamente. No se persiste en PostgreSQL ni en disco.
 
-## Qué ocurre en un despliegue o reinicio
+## Reinicios y recuperación
 
-Al reiniciar el proceso `app` **todas las sesiones de preview desaparecen** (eran
-solo memoria). Esto **no** provoca pérdida de datos del documento: la fuente de
-verdad del proyecto es el `Y.Doc` del editor (y el guardado explícito/autosave),
-no el preview.
+Al reiniciar el proceso se pierden las sesiones, no el documento editable. Ante un `404`, el cliente:
 
-El cliente se **recupera de forma transparente**: cualquier `404` de la API de
-gestión (`/api/v1/preview-session/...`) o de la ruta de servido
-(`/api/v1/preview/{previewId}/...`) le indica que la sesión ya no existe, y en el
-siguiente refresco de preview la **vuelve a preparar** desde cero:
+1. crea una sesión nueva;
+2. vuelve a subir los assets necesarios;
+3. publica la revisión actual;
+4. recarga el iframe con el nuevo `previewId`.
 
-1. `POST /api/v1/preview-session` → nueva sesión (`201` con nuevo `previewId`).
-2. `POST /api/v1/preview-session/{id}/assets` → resube los assets necesarios.
-3. `POST /api/v1/preview-session/{id}/revisions` → publica la revisión actual.
-4. El iframe recarga apuntando al nuevo `previewId`.
+Conviene drenar o anunciar reinicios en horas de uso para reducir resincronizaciones visibles.
 
-Para el usuario, el peor caso es un refresco de preview que se rehace solo. Aun
-así, conviene **anunciar/drenar** los reinicios en horas de uso para no
-interrumpir previews en vuelo.
+## Límites por proceso
 
-## Límites: son POR PROCESO
+| Variable | Defecto | Significado |
+|---|---:|---|
+| `PREVIEW_SESSION_TTL_MINUTES` | `30` | TTL de inactividad |
+| `PREVIEW_MAX_SESSIONS_PER_USER` | `4` | sesiones por usuario |
+| `PREVIEW_MAX_FILES_PER_SESSION` | `5000` | rutas activas |
+| `PREVIEW_MAX_BYTES_PER_SESSION_MB` | `200` | bytes totales por sesión |
+| `PREVIEW_MAX_ASSET_BYTES_MB` | `128` | bytes por asset |
+| `PREVIEW_GLOBAL_MAX_BYTES_MB` | `2048` | presupuesto global por proceso |
+| `API_MAX_REQUEST_BODY_BYTES` | `268435456` | techo de cuerpo aplicado por Bun antes de Hono |
 
-Todas las cuotas del preview se cuentan **por réplica**, no de forma agregada en
-el clúster. Con *N* réplicas, el consumo agregado de memoria puede acercarse a
-*N* × tope. Dimensiona la RAM del contenedor en consecuencia. Valores por defecto
-(todos sobreescribibles):
+Las rutas multipart añaden una comprobación previa de `Content-Length`: máximo de sesión más un overhead acotado para metadatos y fronteras multipart. El techo de Bun protege peticiones sin longitud conocida y debe ser al menos igual al máximo funcional permitido.
 
-| Variable | Significado | Defecto |
-|---|---|---|
-| `PREVIEW_SESSION_TTL_MINUTES` | TTL de inactividad por sesión | `30` |
-| `PREVIEW_MAX_SESSIONS_PER_USER` | Sesiones simultáneas por usuario | `4` |
-| `PREVIEW_MAX_FILES_PER_SESSION` | Ficheros por sesión | `5000` |
-| `PREVIEW_MAX_BYTES_PER_SESSION_MB` | Bytes por sesión | `200` |
-| `PREVIEW_MAX_ASSET_BYTES_MB` | Bytes por asset | `128` |
-| `PREVIEW_GLOBAL_MAX_BYTES_MB` | Tope global (con evicción LRU) | `2048` |
+No eleves estos valores sin medir RSS, memoria externa de `ArrayBuffer`, concurrencia y tiempo de recolección.
 
-## Despliegue actual: réplica única
+## Origen público del editor/API
 
-Producción es **una sola réplica** (`docker-compose.yml`: un servicio `app`;
-`nginx.conf`: un único `proxy_pass http://api:3000` sin `upstream` ni afinidad).
-En esta topología el *store* en memoria es correcto: toda petición de una sesión
-cae por definición en el proceso que la posee. **No hay que configurar nada
-adicional.**
+Las mutaciones de preview deben proceder del origen que sirve el documento editor y la API de gestión:
 
-## Escalado horizontal: enrutado *sticky* por `previewId`
+- `PREVIEW_MANAGEMENT_ORIGIN`, cuando está definido;
+- en caso contrario, el origen de `BETTER_AUTH_URL`;
+- si tampoco existe, el fallback unificado de `FRONTEND_URL`.
 
-Si se despliegan **varias réplicas**, el balanceador **debe** enrutar de forma
-afín (*sticky*/*consistent-hash*) por el **segmento de ruta `previewId`** —un UUID
-v4 estable durante toda la vida de la sesión— **tanto en gestión como en
-servido**, para que todas las peticiones de una misma sesión lleguen a la réplica
-propietaria. Si no, una sesión viva rebota entre réplicas y el cliente entra en un
-bucle de recreación (404 → re-preparar → 404…).
+En una topología separada, por ejemplo frontend en `app.example` y API/editor en `api.example`, el navegador envía `Origin: https://api.example`; ese es el origen que debe validarse. `FRONTEND_URL` sigue siendo el origen CORS del padre, pero no sustituye al origen del editor para CSRF.
 
-### El caso del `CREATE`
+## Despliegue de una réplica
 
-`POST /api/v1/preview-session` **aún no tiene `previewId`** (lo acuña el servidor
-en la respuesta `201`). Ese `POST` debe aterrizar en la réplica que **poseerá** la
-sesión, y esa misma réplica debe recibir después las peticiones `:id`. Dos formas
-de lograrlo:
+Es la topología soportada por defecto. Todas las peticiones de una sesión llegan al mismo proceso y no requiere afinidad adicional.
 
-- **Afinidad por cookie en el `CREATE`** (better-auth ya emite cookie
-  mismo-origen): fija la réplica para el `POST` sin id y reutiliza esa afinidad
-  para las peticiones `:id` del mismo cliente.
-- **Create-then-pin**: la réplica que crea la sesión fija su `previewId` en el
-  *hash ring* del balanceador.
+## Escalado horizontal
 
-### Ejemplo nginx (multi-réplica)
+Con varias réplicas, creación, gestión y servido deben mantener afinidad coherente:
+
+- las rutas con `previewId` se distribuyen por hash consistente del id;
+- `POST /api/v1/preview-session`, que todavía no tiene id, necesita afinidad de cookie o un mecanismo create-then-pin;
+- la misma decisión debe cubrir `/preview-session/:id/*` y `/preview/:id/*`.
+
+Ejemplo conceptual de nginx:
 
 ```nginx
-# Varias instancias de la API. La afinidad se basa en el segmento previewId
-# de la ruta, presente por igual en gestión y en servido.
 upstream procomun_api {
-    # Requiere el módulo ngx_http_upstream_hash: distribución consistente por
-    # clave, con rebalanceo mínimo al añadir/quitar réplicas.
     hash $preview_affinity consistent;
-
     server api1:3000;
     server api2:3000;
-    server api3:3000;
 }
 
-server {
-    listen 80;
+set $preview_affinity $cookie_better_auth_session;
 
-    # Captura el previewId de AMBAS familias de ruta:
-    #   /api/v1/preview-session/{id}/...   (gestión)
-    #   /api/v1/preview/{id}/...           (servido)
-    # Para el POST de creación (sin id todavía) recae en la cookie de sesión,
-    # de modo que el CREATE y sus peticiones :id caen en la misma réplica.
-    set $preview_affinity $cookie_better_auth_session;
-    location ~ ^/api/v1/preview-session/([0-9a-f-]{36})(/|$) {
-        set $preview_affinity $1;
-        proxy_pass http://procomun_api;
-        proxy_set_header Host $host;
-        client_max_body_size 10G;
-        proxy_request_buffering off;
-    }
-    location ~ ^/api/v1/preview/([0-9a-f-]{36})(/|$) {
-        set $preview_affinity $1;
-        proxy_pass http://procomun_api;
-        proxy_set_header Host $host;
-    }
+location ~ ^/api/v1/preview-session/([0-9a-f-]{36})(/|$) {
+    set $preview_affinity $1;
+    proxy_pass http://procomun_api;
+}
 
-    # Resto de la API: sin afinidad especial.
-    location /api/ {
-        proxy_pass http://procomun_api;
-        proxy_set_header Host $host;
-        client_max_body_size 10G;
-        proxy_request_buffering off;
-    }
+location ~ ^/api/v1/preview/([0-9a-f-]{36})(/|$) {
+    set $preview_affinity $1;
+    proxy_pass http://procomun_api;
 }
 ```
 
-> Ajusta el nombre de la cookie (`$cookie_better_auth_session`) al que emita tu
-> configuración de better-auth. El objetivo es que **el `CREATE` y las peticiones
-> `:id` de un mismo cliente compartan réplica**.
+Adapta el nombre de la cookie y el mecanismo del `CREATE` al balanceador real.
 
-## Salvaguarda de configuración
+## Acuse de configuración
 
-El servidor **no** detecta el clúster (no es fiable desde un proceso). En su
-lugar hay un **acuse de recibo del operador**:
-
-- Si declaras multi-réplica con `PREVIEW_MULTI_REPLICA=1` pero **no** confirmas el
-  enrutado *sticky* con `PREVIEW_STICKY_ROUTING_CONFIRMED=1`, el servidor emite un
-  `console.warn` prominente al arrancar (`apps/api/src/index.ts` →
-  `evaluatePreviewReplicaConfig`).
-- Tras configurar la afinidad como arriba, pon `PREVIEW_STICKY_ROUTING_CONFIRMED=1`
-  para silenciar el aviso.
-- En réplica única, deja ambas variables sin definir.
+- `PREVIEW_MULTI_REPLICA=1` declara que hay varias réplicas.
+- `PREVIEW_STICKY_ROUTING_CONFIRMED=1` confirma que creación, gestión y servido mantienen afinidad.
+- Si la primera está activa y la segunda no, el servidor emite un aviso de arranque.
 
 ## Monitorización
 
-Al ser un store en memoria por proceso, lo relevante de vigilar es:
+Vigila:
 
-- **Memoria del contenedor por réplica.** Es el recurso que consumen las sesiones
-  (hasta el tope global, 2 GiB por defecto, **por proceso**). Vigila el RSS del
-  contenedor `app` con `docker stats` o el sistema de métricas; un consumo
-  sostenido cerca del tope indica que conviene subir réplicas (con enrutado
-  *sticky*) o bajar `PREVIEW_GLOBAL_MAX_BYTES_MB`.
-- **Aviso de arranque.** Un `[preview] PREVIEW_MULTI_REPLICA is set but …` en los
-  logs de arranque es una configuración multi-réplica sin afinidad confirmada:
-  trátalo como alerta.
-- **Tasa de 404 en las rutas de preview.** Un pico de 404 en
-  `/api/v1/preview/{id}/...` o `/api/v1/preview-session/{id}/...` **sin** un
-  reinicio reciente es la firma de un enrutado *sticky* mal configurado (las
-  peticiones caen en una réplica que no posee la sesión). Con réplica única, los
-  404 solo deberían aparecer tras un reinicio (y el cliente se recupera solo).
-- **Health check.** El endpoint `GET /health` sigue reflejando la vitalidad del
-  proceso (ver [operaciones.md](operaciones.md)); no distingue el estado del
-  preview, que es efímero por diseño.
+- RSS y memoria externa por réplica;
+- sesiones y bytes activos;
+- respuestas `413` por límites de ruta o transporte;
+- picos de `404` sin reinicio reciente, indicio de afinidad incorrecta;
+- advertencias de configuración multi-réplica;
+- tiempo de resincronización tras despliegue.
 
-## Almacén compartido: descartado por ahora
+## Store compartido
 
-Un *store* compartido/persistente (Redis/Postgres/S3) se descartó (ADR-0030): la
-sesión mueve hasta 2 GiB de blobs y exige reproducir la garantía de **revisión
-atómica** sobre el almacén externo. Se reevaluará junto al **origen separado sin
-cookies** (ADR-0026/0027/0029), que es el horizonte de infraestructura donde esa
-pregunta se reabre.
+Redis, PostgreSQL u object storage no se adoptan en esta fase: el estado es voluminoso, efímero y requiere swap atómico de revisión. Se reevaluará cuando la plataforma necesite escalado horizontal sin afinidad o un origen separado dedicado al contenido.
