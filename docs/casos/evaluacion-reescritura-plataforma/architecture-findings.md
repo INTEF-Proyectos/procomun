@@ -7,7 +7,7 @@
 
 ## 1. Estado del corpus de decisiones
 
-[H] En el commit analizado (`eea2fe7d`) existen **32 archivos ADR** en `docs/negocio/decisiones/` para **28 entradas** en `decision-log.yaml` (numeración 0001–0028 con el desdoble 0015a/0015b y sin entrada para 0025). Esta evaluación añade la ADR-0029 a ambos lados, dejando 33 archivos / 29 entradas; el delta de 4 archivos sin indexar se mantiene igual.
+[H] En el commit analizado (`eea2fe7d`) existen **32 archivos ADR** en `docs/negocio/decisiones/` para **28 entradas** en `decision-log.yaml` (numeración 0001–0028 con el desdoble 0015a/0015b y sin entrada para 0025). Esta evaluación añade la ADR-0030 a ambos lados, dejando 33 archivos / 29 entradas; el delta de 4 archivos sin indexar se mantiene igual.
 
 [H] **Colisiones de numeración** (tres pares además del 0015a/0015b ya regularizado):
 
@@ -86,4 +86,4 @@ Eje datos/preview: SQLite sql.js (ADR-0002) → PGlite (ADR-0010, eliminó ~250 
 
 ## 6. Acciones documentales que esta evaluación NO ejecuta
 
-Las siguientes correcciones se identifican pero se dejan como tareas propuestas (tocarían decisiones vigentes y exceden el alcance de este caso): renumerar/regularizar los ADR duplicados 0023/0024/0026, pasar ADR-0026-FTS a «Aceptado», sincronizar el estado «Supersedido» en los archivos 0004/0010/0012/0013, corregir los años 2024 erróneos y actualizar `modelo-de-dominio.md`. Se listan como consecuencia en la ADR-0029 propuesta.
+Las siguientes correcciones se identifican pero se dejan como tareas propuestas (tocarían decisiones vigentes y exceden el alcance de este caso): renumerar/regularizar los ADR duplicados 0023/0024/0026, pasar ADR-0026-FTS a «Aceptado», sincronizar el estado «Supersedido» en los archivos 0004/0010/0012/0013, corregir los años 2024 erróneos y actualizar `modelo-de-dominio.md`. Se listan como consecuencia en la ADR-0030 propuesta.

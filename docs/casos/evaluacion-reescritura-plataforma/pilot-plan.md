@@ -49,7 +49,7 @@ Justificación: es la vertical más pequeña que atraviesa todas las capas exigi
 
 **Éxito del piloto (brazo 1):** oráculo de la vertical al 100 % en verde en PGlite y PostgreSQL; 0 regresiones E2E; tipos de la vertical a 0 errores; esfuerzo dentro del rango previsto (§7). → Generalizar el programa incremental al resto de verticales.
 
-**Señal de replanteamiento (condición del defensor):** si el brazo 2 alcanzara paridad total con un esfuerzo claramente inferior al brazo 1 (orientativamente, menos de la mitad, umbral a ratificar por la persona decisora antes de empezar) **y** con menos defectos residuales, la ADR-0029 debería reabrirse para reevaluar la opción E con este dato. Este umbral se justifica porque la reescritura completa añade costes que el piloto no captura (coexistencia, re-validación ENS, congelación de Fase 2): una ventaja pequeña del brazo 2 no bastaría.
+**Señal de replanteamiento (condición del defensor):** si el brazo 2 alcanzara paridad total con un esfuerzo claramente inferior al brazo 1 (orientativamente, menos de la mitad, umbral a ratificar por la persona decisora antes de empezar) **y** con menos defectos residuales, la ADR-0030 debería reabrirse para reevaluar la opción E con este dato. Este umbral se justifica porque la reescritura completa añade costes que el piloto no captura (coexistencia, re-validación ENS, congelación de Fase 2): una ventaja pequeña del brazo 2 no bastaría.
 
 **Abandono del piloto:** si la Fase 0 (oráculo) supera el doble de su rango estimado, detener y reportar — significaría que el coste de caracterización global está mal estimado y toda la planificación (de cualquier estrategia) debe revisarse.
 

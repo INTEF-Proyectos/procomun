@@ -5,7 +5,7 @@
 
 ## 1. Riesgos de la opción recomendada (simplificación incremental, A→B con C selectiva)
 
-Estos son los riesgos de lo que la ADR-0029 recomienda; se listan primero y sin atenuar:
+Estos son los riesgos de lo que la ADR-0030 recomienda; se listan primero y sin atenuar:
 
 | # | Riesgo | Prob. | Impacto | Señal temprana | Mitigación |
 | --- | --- | --- | --- | --- | --- |
@@ -16,7 +16,7 @@ Estos son los riesgos de lo que la ADR-0029 recomienda; se listan primero y sin 
 | R5 | **La regla de paridad archivo-test y el umbral de cobertura crean tests de relleno** que inflan la señal de calidad sin capturar comportamiento (ya hay señales: tests de shell estático en frontend) | Media | Medio | Cobertura estable pero DEF de QA manual no bajan | Medir también DEF por ronda de QA manual; privilegiar contract tests y E2E sobre unit de relleno |
 | R6 | **El workaround del exit-code 99/100 del runner enmascara un fallo real** algún día (cierres sucios, corrupción de PGlite) | Baja | Alto | Flakiness creciente en CI | Deuda vigilada documentada; re-evaluar con cada upgrade de Bun/PGlite |
 | R7 | **Deriva de esquema adicional antes de consolidar la fuente única** (alguien añade una migración muerta más o un ALTER solo en setup.ts) | Media | Alto | Nuevo archivo en `migrations/` sin journal | Priorizar el lote 3 (esquema) inmediatamente tras la caracterización mínima; test de paridad `pg_dump` como gate permanente |
-| R8 | **ENS queda otra vez pospuesta** (la épica ens sigue con 0/12 tareas y fuera de status.yaml) | Media | Alto (legal) | La épica sigue sin entrada en status.yaml al cierre del lote 2 | La ADR-0029 la lista como pregunta pendiente que requiere decisión humana explícita |
+| R8 | **ENS queda otra vez pospuesta** (la épica ens sigue con 0/12 tareas y fuera de status.yaml) | Media | Alto (legal) | La épica sigue sin entrada en status.yaml al cierre del lote 2 | La ADR-0030 la lista como pregunta pendiente que requiere decisión humana explícita |
 
 ## 2. Riesgos comunes a cualquier estrategia
 

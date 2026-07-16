@@ -3,7 +3,7 @@
 * Fecha: 2026-07-16
 * Commit analizado: `eea2fe7d1e26d2c614bf245491956e805416e251` (`main`)
 * Tipo de trabajo: **Caso** (análisis sin implementación) + **ADR propuesta**
-* ADR resultante: [ADR-0029 — Estrategia de modernización y reescritura](../../negocio/decisiones/0029-estrategia-modernizacion-reescritura.md) (estado: Propuesto)
+* ADR resultante: [ADR-0030 — Estrategia de modernización y reescritura](../../negocio/decisiones/0030-estrategia-modernizacion-reescritura.md) (estado: Propuesto)
 
 ## Pregunta que responde este caso
 
@@ -39,4 +39,4 @@ Fuentes externas consultadas el 2026-07-16 (detalle y citas en `alternatives.md`
 
 ## Resultado
 
-La recomendación exacta, su nivel de confianza, la matriz que la sustenta y las condiciones que podrían cambiarla están en la [ADR-0029](../../negocio/decisiones/0029-estrategia-modernizacion-reescritura.md). Este caso es exclusivamente documental: no se modificó código productivo, dependencias ni lockfiles.
+La recomendación exacta, su nivel de confianza, la matriz que la sustenta y las condiciones que podrían cambiarla están en la [ADR-0030](../../negocio/decisiones/0030-estrategia-modernizacion-reescritura.md). Este caso es exclusivamente documental: no se modificó código productivo, dependencias ni lockfiles.

@@ -1,10 +1,10 @@
 # Prompt de ejecución posterior — Simplificación incremental de Procomún NG
 
-> **NO ejecutar durante la evaluación.** Este prompt es autónomo y está pensado para una segunda ejecución, únicamente después de que una persona revise y acepte la ADR-0029. Si la ADR-0029 no está en estado `Aceptado`, detente y repórtalo.
+> **NO ejecutar durante la evaluación.** Este prompt es autónomo y está pensado para una segunda ejecución, únicamente después de que una persona revise y acepte la ADR-0030. Si la ADR-0030 no está en estado `Aceptado`, detente y repórtalo.
 
 ---
 
-Actúa como un equipo de ejecución multiagente sobre el repositorio `INTEF-Proyectos/procomun`. Tu misión es ejecutar el programa de **simplificación incremental** aprobado en la ADR-0029 (opción B: monolito modular evolutivo, que incluye la opción A como primer tramo y dos sustituciones selectivas justificadas). No es una reescritura: el sistema sigue entregando durante todo el programa.
+Actúa como un equipo de ejecución multiagente sobre el repositorio `INTEF-Proyectos/procomun`. Tu misión es ejecutar el programa de **simplificación incremental** aprobado en la ADR-0030 (opción B: monolito modular evolutivo, que incluye la opción A como primer tramo y dos sustituciones selectivas justificadas). No es una reescritura: el sistema sigue entregando durante todo el programa.
 
 ## Objetivo
 
@@ -84,7 +84,7 @@ Cada lote se cierra solo si: `bun run test` en verde con cobertura ≥90 %; `bun
 
 * Cada lote es un conjunto de commits revertibles; si un gate se rompe tras fusionar, revert antes de investigar.
 * **Detente y repórtalo** si: un lote excede 2× su rango de calendario; el lint real destapa >1 semana de diagnósticos; la conversión a login real destapa >3 defectos de composición de gates (se re-prioriza como trabajo de seguridad); aparece cualquier necesidad de tocar tecnologías no aprobadas; alguien propone «aprovechar» para rediseñar producto.
-* Si el piloto comparativo (brazo 2 de `pilot-plan.md`) se ordena ejecutar y muestra ventaja clara de regeneración, no continúes: reporta para reabrir la ADR-0029.
+* Si el piloto comparativo (brazo 2 de `pilot-plan.md`) se ordena ejecutar y muestra ventaja clara de regeneración, no continúes: reporta para reabrir la ADR-0030.
 
 ## Actualización documental al cierre de cada lote
 

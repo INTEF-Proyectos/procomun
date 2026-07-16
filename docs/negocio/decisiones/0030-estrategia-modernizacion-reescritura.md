@@ -1,4 +1,4 @@
-# ADR-0029 Estrategia de modernización: rechazar la reescritura completa y ejecutar simplificación incremental
+# ADR-0030 Estrategia de modernización: rechazar la reescritura completa y ejecutar simplificación incremental
 
 * Estado: **Propuesto**
 * Fecha: 2026-07-16

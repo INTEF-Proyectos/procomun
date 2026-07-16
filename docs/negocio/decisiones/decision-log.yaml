@@ -176,11 +176,11 @@ ADR-0028:
   date: 2026-06-24
   file: 0028-versionado-recursos-educativos.md
 
-ADR-0029:
+ADR-0030:
   title: "Estrategia de modernización: rechazar la reescritura completa y ejecutar simplificación incremental"
   status: Propuesto
   date: 2026-07-16
-  file: 0029-estrategia-modernizacion-reescritura.md
+  file: 0030-estrategia-modernizacion-reescritura.md
   notes: >
     Evaluación multiagente con línea base medida (commit eea2fe7d) en
     docs/casos/evaluacion-reescritura-plataforma/. Detectadas durante la evaluación

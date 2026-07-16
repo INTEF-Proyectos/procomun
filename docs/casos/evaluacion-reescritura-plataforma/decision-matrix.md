@@ -89,4 +89,4 @@ Suma de pesos: 54. Máximo posible: 270.
 
 ## 6. Correspondencia con la recomendación
 
-La matriz ordena: **B (monolito modular evolutivo) primero, con A como su primer tramo y las dos sustituciones justificadas de C incorporadas**. Esto se traduce en la recomendación de la ADR-0029: «Rechazar la reescritura completa y ejecutar simplificación incremental», materializada como el programa por lotes 0–5 descrito en `alternatives.md` y en el plan piloto.
+La matriz ordena: **B (monolito modular evolutivo) primero, con A como su primer tramo y las dos sustituciones justificadas de C incorporadas**. Esto se traduce en la recomendación de la ADR-0030: «Rechazar la reescritura completa y ejecutar simplificación incremental», materializada como el programa por lotes 0–5 descrito en `alternatives.md` y en el plan piloto.
