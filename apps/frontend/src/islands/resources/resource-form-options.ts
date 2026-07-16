@@ -1,3 +1,5 @@
+import { RESOURCE_TYPES } from "@procomun/db/resource-types";
+
 export const LANGUAGE_OPTIONS = [
 	{ value: "es", label: "Español" },
 	{ value: "en", label: "Inglés" },
@@ -14,11 +16,34 @@ export const LICENSE_OPTIONS = [
 	{ value: "cc0", label: "CC0 (Dominio público)" },
 ] as const;
 
-// Derivado de RESOURCE_TYPES (packages/db/src/resource-types.ts), única
-// fuente de verdad. Antes esta lista se mantenía a mano aquí, con solo 10 de
-// los 13 tipos reales (sin guia-docente, infografia ni mapa-conceptual):
-// editar un recurso con uno de esos tipos no mostraba ninguna opción
-// seleccionada en el <select>, arriesgando que se guardase con el tipo
-// equivocado (fallback del navegador) en vez de conservar el original — ver
-// revisión del PR #274.
-export { RESOURCE_TYPES as RESOURCE_TYPE_OPTIONS } from "@procomun/db/resource-types";
+// Derived from RESOURCE_TYPES (packages/db/src/resource-types.ts), the single
+// source of truth for canonical resource types.
+export const RESOURCE_TYPE_OPTIONS = RESOURCE_TYPES;
+
+export interface ResourceTypeOption {
+	readonly value: string;
+	readonly label: string;
+}
+
+/**
+ * Returns the canonical resource types plus the current stored value when it
+ * is non-empty and not canonical. This prevents an edit form from silently
+ * replacing a legacy/imported value when another field is saved.
+ *
+ * @param currentValue Current resource type stored for the resource.
+ * @return Options that preserve the current value when necessary.
+ */
+export function getResourceTypeOptions(currentValue?: string | null): readonly ResourceTypeOption[] {
+	if (!currentValue?.trim()) {
+		return RESOURCE_TYPE_OPTIONS;
+	}
+
+	if (RESOURCE_TYPE_OPTIONS.some((option) => option.value === currentValue)) {
+		return RESOURCE_TYPE_OPTIONS;
+	}
+
+	return [
+		{ value: currentValue, label: `${currentValue} (valor existente)` },
+		...RESOURCE_TYPE_OPTIONS,
+	];
+}
