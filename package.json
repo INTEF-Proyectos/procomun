@@ -8,7 +8,7 @@
 		"dev": "bun run --filter '@procomun/*' dev",
 		"dev:api": "bun run --filter '@procomun/api' dev",
 		"dev:frontend": "bun run --filter '@procomun/frontend' dev",
-		"lint": "biome lint .",
+		"lint": "biome check .",
 		"format": "biome format --write .",
 		"design:lint": "bun run scripts/check-design-md.ts",
 		"test": "bun run check-test-files && bun run test:standard && bun run check-coverage",
