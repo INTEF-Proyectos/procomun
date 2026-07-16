@@ -1211,25 +1211,37 @@ tasks:
       entorno), no el linter: bun run lint y el format-check de CI salían 0 sin analizar nada desde
       el inicio del repo (hallazgo de la evaluación ADR-0029). Se sustituye por @biomejs/biome 2.4.8
       (coincide con el schema declarado en biome.json). Primera ejecución real: 111 errores de lint,
-      275 warnings y 311 archivos sin formatear. Acciones: biome check --write (formato + fixes
-      seguros, ~330 archivos); exclusión de assets servidos (apps/frontend/public/**,
-      apps/api/static/**) del análisis; corrección de [^] por [\s\S] en generate-elpx.ts; supresiones
-      justificadas lugar a lugar (sanitizadores de caracteres de control en fts/uploads, patrón
-      while((m=re.exec())), claves por índice en listas posicionales estáticas); type="button" en 5
-      botones (PublicNavIsland, Tabs); font-family con genérico en catalog.css. Reglas rebajadas
-      temporalmente a warn con burn-down pendiente: useExhaustiveDependencies (23 avisos en hooks
-      React, arreglo requiere criterio y no hay tests de interacción) y 6 reglas a11y
-      (useValidAnchor por href="#" placeholder del footer, useSemanticElements,
-      noStaticElementInteractions, useAriaPropsSupportedByRole, noNoninteractiveTabindex,
-      noAutofocus) = 288 warnings visibles para lote a11y dedicado.
+      275 warnings y 311 archivos sin formatear.
+      Acciones (todo arreglos reales de código; biome.json queda con las reglas recomendadas
+      completas, sin exclusiones ni rebajas de severidad, y sin supresiones nuevas):
+      formato y fixes seguros con biome check --write (~330 archivos);
+      useExhaustiveDependencies (23) resuelto con useCallback preservando las condiciones de
+      disparo de cada efecto; a11y (32) resuelto con elementos semánticos reales (search,
+      fieldset, button), overlays con listener de document en vez de div clicable, dropzones sin
+      tabIndex no interactivo, radios nativos en StarRating, foco programático en vez de
+      autoFocus, y saneado del footer (legales y email a ayuda#contacto, icono web a intef.es,
+      eliminados los enlaces href="#" a comunidades/usuarios/compartir por no existir la
+      funcionalidad); sanitizadores de caracteres de control reimplementados por code point
+      (fts/extract, fts/worker, uploads/config, scripts/check-coverage) con semántica idéntica;
+      bucles while((m=re.exec())) reescritos con matchAll; claves por índice sustituidas por
+      claves de contenido; [^] por [\s\S] en generate-elpx.ts; type="button" y títulos/aria en
+      SVG e iframes del dashboard /dev/ y del loader de eXeLearning — cuyo HTML era además
+      genuinamente inválido (la secuencia </script> dentro de una cadena JS cerraba el script
+      según la especificación HTML; bug latente corregido); embed-shim.js con const/let en vez
+      de var en bloques (6 noInnerDeclarations, semántica intacta).
       Limpieza adicional: retiradas dependencias sin uso del frontend (@electric-sql/pglite,
       drizzle-orm, @testing-library/dom, @testing-library/react) y movidas typescript/@types/* a
       devDependencies; retirada la exclusión vestigial de optimizeDeps en vite.config.ts con su
       aserción de test; corregido el comentario obsoleto de api-client.ts que citaba
-      PreviewApiClient; eliminado test-regex.ts suelto en la raíz (regla 15).
-      Validación: bun run lint exit 0 real (verificado que falla con error inyectado);
-      bunx @biomejs/biome format . exit 0; bun run test verde con coverage >= 90%;
-      bunx tsc --noEmit se mantiene en 635 errores (sin regresión; su burn-down es el Lote 1 de
-      ADR-0029); build de frontend OK; design:lint OK.
-      Riesgo: los 288 warnings son deuda visible que no bloquea; requieren lotes dedicados
-      (hooks y a11y) antes de subir las reglas a error.
+      PreviewApiClient; eliminado test-regex.ts suelto en la raíz (regla 15); formateado
+      project.inlang/settings.json (biome local lo ignoraba por un .gitignore no versionado que
+      genera inlang y cuya negación biome no honra — causa del primer fallo de CI de la PR).
+      Quedan 3 biome-ignore históricos previos a esta tarea (noExplicitAny "generic drizzle db
+      type" en fts/search.ts, seed-random.ts y repository/shared/db.ts, nivel warning): su
+      arreglo real es el tipado del Lote 1 de ADR-0029.
+      Validación: biome lint con 0 errores en todo el repo (warnings restantes = niveles por
+      defecto de las reglas recomendadas, mayoría noExplicitAny/noNonNullAssertion solapados con
+      el Lote 1); verificado que el gate falla con error inyectado; format-check exit 0;
+      bun run test verde con coverage >= 90%; tsc sin errores nuevos respecto a la línea base
+      de 635; build de frontend OK; design:lint OK; dashboard /dev/ servido con HTTP 200 tras
+      los cambios.
