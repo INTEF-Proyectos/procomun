@@ -1199,6 +1199,202 @@ tasks:
       como backend de historial, object storage versionado y un modelo híbrido PostgreSQL snapshots + storage
       versionado. No hay cambios de código. Validación documental: status.yaml y decision-log.yaml parsean
       correctamente con Ruby YAML.
+  T-2026-07-10-001:
+    date: 2026-07-10
+    agent: "ingestas-y-migraciones + backend-api-servicios + documentacion-y-roadmap"
+    task: "Apertura de la épica de importación de recursos legacy Procomún (.elpx) y corrección de bug bloqueante en el parser de metadatos .elpx"
+    status: Done
+    related: ["ADR-0029", "epic-004-migracion-legacy-procomun"]
+    notes: >
+      Se analizan 9 pares .json+.elpx de ode-export/ (export real de la plataforma legacy Procomún) para
+      diseñar un importador automático. Se detecta y corrige un bug real en packages/db/src/elpx-metadata.ts:
+      METADATA_KEYS esperaba las claves "license"/"lom_general_language" pero los content.xml reales (9
+      ejemplos legacy + 8 fixtures de test ya existentes) usan "pp_license"/"pp_lang", por lo que language
+      nunca se extraía y license solo por casualidad. Se añaden ambas claves sin retirar las antiguas y se
+      endurece apps/api/src/services/elpx-fixtures.unit.test.ts para exigir license/language no vacíos en
+      todos los fixtures (antes solo exigía "al menos uno"). Se añade índice único parcial
+      resources_import_source_external_id_idx sobre (import_source, external_id) en packages/db/src/schema/resources.ts
+      + packages/db/src/setup.ts + migración packages/db/migrations/0004_resources_import_dedup_index.sql,
+      para garantizar idempotencia del importador a nivel de BD. Se documenta la decisión en ADR-0029 y se
+      abre la épica epic-004-migracion-legacy-procomun con requirements/design/tasks/validation. Pendiente:
+      implementar packages/db/src/legacy-import/* (mapeo/normalización), packages/db/src/repository/legacy-import.ts
+      y el comando apps/cli/src/commands/import-legacy-procomun.ts, y ejecutar el piloto sobre los 9 ejemplos.
+      Validación hasta ahora: bun test apps/api/src/services/elpx-fixtures.unit.test.ts (26 pass, 0 fail),
+      bun test packages/db/src/repository.unit.test.ts packages/db/src/search.test.ts (18 pass, 0 fail).
+  T-2026-07-10-002:
+    date: 2026-07-10
+    agent: "ingestas-y-migraciones + backend-api-servicios + qa-validacion"
+    task: "Implementación completa del importador legacy Procomún (.elpx) y piloto sobre los 9 ejemplos de ode-export/"
+    status: Done
+    related: ["ADR-0029", "epic-004-migracion-legacy-procomun", "T-2026-07-10-001"]
+    notes: >
+      Completa el trabajo abierto en T-2026-07-10-001: módulos packages/db/src/legacy-import/
+      (types, normalize-license, normalize-language, resource-type-map, field-mapper, system-user, index)
+      con tests unitarios; packages/db/src/repository/legacy-import.ts (findLegacyResourceByExternalId,
+      importLegacyResourceWithElpx con transacción por registro); comando
+      apps/cli/src/commands/import-legacy-procomun.ts (import:legacy-procomun, flags --source-dir/--dry-run/
+      --limit/--only/--report-dir) registrado en apps/cli/src/index.ts. Fixtures versionadas creadas en
+      packages/db/src/test-fixtures/legacy-procomun/, apps/api/src/test-fixtures/elpx/ y
+      apps/cli/src/test-fixtures/legacy-procomun/ — ANONIMIZADAS con autorización explícita del usuario
+      (nombres/emails reales de docentes de ode-export/ sustituidos por valores sintéticos, incluido el
+      pp_author embebido en el ZIP de 1615293421477.elpx, re-empaquetado y verificado contra el pipeline
+      real antes de sustituir el fixture).
+      Piloto ejecutado sobre los 9 ejemplos reales de ode-export/ (no versionado): dry-run y ejecución real
+      coinciden exactamente — importados=8, bloqueados=1 (es_2025101012_9102834, combinación de licencia CC
+      inexistente "non derived"+"share alike"), errores=0. La ejecución real se hizo únicamente en un
+      entorno PGlite/storage temporal aislado bajo /tmp (autorizado explícitamente por el usuario) y se
+      eliminó por completo tras verificar por consulta directa a BD que los 8 recursos tienen metadatos,
+      hasPreview=true y tamaños de adjunto correctos; nunca se escribió en local-data/ del repo ni se
+      comprometió a git. Detectado (no bloqueante) durante el piloto: PGlite en modo disco puede colgarse
+      indefinidamente al reabrir un directorio de datos ya inicializado por un proceso anterior sin cierre
+      limpio (pglite.close() no se llama en el CLI) — mitigado en el piloto usando un directorio nuevo por
+      ejecución; queda como riesgo a vigilar si se automatiza la Fase 3 con procesos de larga duración.
+      Validación: bun test apps/ packages/ scripts/ → 783 pass, 0 fail. bun run scripts/check-test-files.ts
+      → sin incidencias. Pendiente para siguiente iteración: ampliar RESOURCE_TYPE_DICTIONARY con los 3
+      tipos sin mapeo detectados en el piloto (mapa-conceptual, leccion-magistral, cuestionario) y
+      verificación visual en el backoffice admin.
+  T-2026-07-10-003:
+    date: 2026-07-10
+    agent: "backend-api-servicios + qa-validacion"
+    task: "Fix de dos bugs de proceso encontrados al probar import:legacy-procomun manualmente contra local-data/"
+    status: Done
+    related: ["epic-004-migracion-legacy-procomun", "ADR-0026"]
+    notes: >
+      El usuario probó el comando contra su entorno de desarrollo local (make cli) y reportó que el proceso
+      se quedaba colgado tras completar la importación (no devolvía el control a la shell) y que no veía
+      los recursos en la aplicación. Diagnóstico reproducido de forma aislada:
+      (1) apps/api/src/services/elpx-safe-extract.ts (código preexistente, ADR-0026a) lanza `unzip` vía
+      Bun.spawn con stdout/stderr "pipe" pero nunca lee esos streams; unzip -o es verboso (una línea por
+      fichero extraído) y con .elpx de decenas/cientos de entradas el buffer del pipe se llena, el proceso
+      hijo se bloquea escribiendo y `proc.exited` nunca se resuelve — invisible en el servidor API (nunca
+      necesita salir) y en `bun test` (el test runner fuerza su propia salida), solo visible en un script de
+      vida corta como este CLI. Fix: stdout/stderr a "ignore" (mismo patrón ya usado en el otro Bun.spawn de
+      elpx-processor.ts). (2) Tras corregir (1), el proceso salía con código 99 en vez de 0: PGlite (Postgres
+      compilado a WASM/Emscripten) fija process.exitCode=99 como red de seguridad (función interna quit_())
+      cuando el proceso Node/Bun va a terminar sin haber cerrado explícitamente la conexión — reproducible
+      incluso llamando a process.exit(0) a mano. Fix: apps/cli/src/commands/import-legacy-procomun.ts cierra
+      db.$client (si expone .close()) antes de process.exit(), y calcula el código de salida en una variable
+      local en vez de leer process.exitCode (mutable de forma asíncrona por PGlite).
+      Ambos bugs eran preexistentes en infraestructura reutilizada (no introducidos por el importador) pero
+      solo se manifiestan en procesos de vida corta, por lo que no habían aparecido hasta esta prueba manual
+      del usuario. Validación: bun test apps/ packages/ scripts/ → 783 pass, 0 fail. Reproducción manual:
+      importación completa de los 9 ejemplos de ode-export/ en un entorno temporal aislado, EXIT_CODE=0,
+      ~2.3s de duración total (antes: cuelgue indefinido). Pendiente: que el usuario reintente contra su
+      local-data/ real y confirme visualmente en el backoffice admin.
+  T-2026-07-10-004:
+    date: 2026-07-10
+    agent: "metadatos-y-curacion + backend-api-servicios"
+    task: "Confirmación visual del usuario en backoffice admin + decisión de negocio: recursos legacy se importan como published, no draft"
+    status: Done
+    related: ["epic-004-migracion-legacy-procomun", "ADR-0029"]
+    notes: >
+      El usuario confirma visualmente en el backoffice admin (local-data/ real) que los recursos importados
+      en T-2026-07-10-003 son correctos tras los dos fixes de proceso. A continuación pide explícitamente
+      que los recursos legacy queden publicados en vez de en borrador. Se revisa ADR-0029 (Actualización
+      2026-07-10): editorialStatus pasa de "draft" fijo a "published" fijo en
+      packages/db/src/repository/legacy-import.ts, sin fijar curatedAt/assignedCuratorId (mismo patrón que
+      packages/db/src/seed-data.ts). Se añade assertion de regresión en packages/db/src/repository.unit.test.ts
+      y se actualiza design.md de la épica. Validación: bun test packages/db/src/repository.unit.test.ts
+      apps/cli/ → 40 pass, 0 fail.
+  T-2026-07-10-005:
+    date: 2026-07-10
+    agent: "qa-validacion + backend-api-servicios + metadatos-y-curacion"
+    task: "Corrección de 8 hallazgos de la revisión del PR #268 (importador legacy Procomún)"
+    status: Done
+    related: ["epic-004-migracion-legacy-procomun", "ADR-0029"]
+    notes: >
+      Se revisan los comentarios del PR #268 en GitHub (revisor erseco, CHANGES_REQUESTED, + bot Codex) y se
+      corrigen 8 problemas reales: (1) [P1] createdAt usaba el instante de ejecución del import en vez de la
+      fecha de publicación original, desplazando el orden del catálogo público (listResources ORDER BY
+      createdAt DESC) — fix: createdAt = importedAt ?? now en repository/legacy-import.ts. (2) [P2] un .json
+      malformado abortaba todo el lote — fix: nueva función resolvePairs() en import-legacy-procomun.ts que
+      lee/parsea cada .json con try/catch por par, reportado como outcome "error" sin detener el resto.
+      (3) [P2] los recursos importados no quedaban indexados para búsqueda (search_vector nunca se
+      actualizaba) — fix: llamada best-effort a updateSearchVector() tras cada persistencia exitosa.
+      (4) [P2] elpx_projects.hash era un UUID aleatorio en vez del checksum SHA-256 real, por lo que la
+      deduplicación por contenido documentada en ADR-0029 no funcionaba — fix: se pasa { hash: checksum } a
+      processElpxUpload(). (5) [P2] si la persistencia fallaba tras una extracción exitosa, el directorio
+      extraído quedaba huérfano — fix: limpieza con removeElpxExtraction() solo si ningún otro elpx_project
+      ya referencia ese hash (getElpxProjectByHash), para no romper una deduplicación legítima. (6) [P2] los
+      fallbacks de campos (idODE??id, rutaAccesoContenidos??technicalLocationStr) no cubrían cadenas vacías
+      — fix: ambos usan firstNonEmpty(), exportado también como resolveLegacyExternalId() para reutilizar en
+      el CLI. (7) [P2] --only filtraba por nombre de fichero en vez del externalId real documentado — fix:
+      resolvePairs() resuelve el externalId real leyendo cada .json antes de filtrar. (8) [P2] los valores
+      mapeados no respetaban los límites de columna del destino (resourceType varchar(100), materias
+      varchar(255), niveles varchar(100), keywords límite de aplicación 1000) — fix: truncado explícito con
+      warning en field-mapper.ts. Se añade sección de actualización en ADR-0029 (sin reescribir la decisión
+      original) y se actualiza design.md de la épica. Validación: bun test apps/ packages/ scripts/ → 794
+      pass, 0 fail (11 tests nuevos); bun run scripts/check-test-files.ts sin incidencias; re-ejecución del
+      piloto sobre los 9 ejemplos reales de ode-export/ en entorno temporal aislado — mismos resultados que
+      el piloto original (importados=8, bloqueados=1, errores=0), con createdAt reflejando ahora la fecha de
+      publicación original de cada recurso (verificado por consulta directa a BD) y search_vector poblado en
+      los 8 recursos importados.
+  T-2026-07-11-001:
+    date: 2026-07-11
+    agent: "backend-api-servicios + qa-validacion"
+    task: "Fix de regresión en previsualización .elpx + segunda ronda de revisión del PR #268 (3 hallazgos más)"
+    status: Done
+    related: ["epic-004-migracion-legacy-procomun", "ADR-0029"]
+    notes: >
+      El usuario reporta que la previsualización de recursos importados muestra {"error":"Identificador no
+      válido"}. Causa: apps/api/src/routes/elpx-content.ts validaba el hash con HASH_PATTERN /^[a-f0-9-]{8,40}$/i
+      (pensado para UUID de 36 caracteres o SHA-1 de 40), pero T-2026-07-10-005 hizo que el importador legacy
+      use el checksum SHA-256 (64 caracteres) como elpx_projects.hash, que ese patrón rechazaba con 404. Fix:
+      se amplía el límite superior a 64 caracteres (coincide con elpx_projects.hash varchar(64)); test de
+      regresión añadido que sirve contenido real bajo un hash de 64 caracteres (commit c114c42b).
+      A continuación, el revisor del PR #268 (erseco) mantiene CHANGES_REQUESTED sobre la implementación de
+      T-2026-07-10-005, señalando 3 problemas nuevos: (1) [P1] resolvePairs() leía y retenía en memoria todos
+      los JSON antes de aplicar --only/--limit, sin escalar al volumen real (~78.800 recursos) — --limit 1
+      igualmente parseaba el lote completo. Fix: sustituida por iterateResolvedPairs(), un generador async
+      consumido con for await...of + break en runImportLegacyProcomun, que por semántica de generadores deja
+      de leer ficheros en cuanto se alcanza el límite u objetivo; test de regresión que cuenta invocaciones
+      del resolver de externalId tras pedir solo 2 de 3 elementos. (2) [P1] la extracción del .elpx ocurría
+      sobre storageDir/elpx/<checksum> ANTES de comprobar si ese hash ya existía en BD; como safeExtractElpx()
+      hace rollback destructivo de extractPath si la extracción falla a mitad de camino, un contenido
+      duplicado podía borrar la preview de un recurso ya persistido. Fix: getElpxProjectByHash() se comprueba
+      antes de processElpxUpload(); si el hash ya existe, se lanza un error explícito sin extraer nada — la
+      limpieza en el catch ya no necesita volver a comprobar el hash (ver test de integración actualizado que
+      verifica el mensaje "no se vuelve a extraer"). (3) [P2] la documentación de rollback en design.md seguía
+      proponiendo filtrar por createdAt tras el cambio de semántica del punto (1) de T-2026-07-10-005 (createdAt
+      ahora es la fecha histórica, no el instante de ejecución) — fix documental: usar los resourceId de los
+      registros "imported" del informe de ejecución como fuente de verdad para el rollback, con
+      upload_sessions.createdAt como alternativa de último recurso. Se añade sección de actualización en
+      ADR-0029 (2026-07-11) y se actualiza design.md. Validación: bun test apps/ packages/ scripts/ → 796
+      pass, 0 fail; bun run scripts/check-test-files.ts sin incidencias.
+  T-2026-07-13-001:
+    date: 2026-07-13
+    agent: "backend-api-servicios + qa-validacion"
+    task: "Fix de condición de carrera (TOCTOU) en deduplicación por hash — tercera ronda de revisión del PR #268"
+    status: Done
+    related: ["epic-004-migracion-legacy-procomun", "ADR-0029"]
+    notes: >
+      El revisor (erseco) mantiene CHANGES_REQUESTED sobre el commit 976e0ff6, señalando que
+      getElpxProjectByHash() comprobado antes de extraer (fix de T-2026-07-11-001) no es atómico: dos
+      ejecuciones concurrentes podrían ambas ver que el hash no existe, ambas extraer sobre
+      storageDir/elpx/<checksum> (misma ruta física, por estar basada en el checksum), y cuando una
+      inserción gane la restricción única y la otra falle, el catch (que tras el fix anterior limpiaba sin
+      comprobación adicional) borraría el directorio compartido, incluida la preview del recurso que sí se
+      persistió. Fix: se desacopla la ruta física de extracción del valor de deduplicación —
+      processElpxUpload(storagePath, config.storageDir, { hash: uploadId }) usa el uploadId (único por
+      intento, crypto.randomUUID() en cada llamada) para construir extractPath, nunca el checksum; al
+      persistir, elpx_projects.hash sigue guardando el checksum real (no processed.hash), así que la
+      deduplicación en BD sigue intacta y ahora es genuinamente atómica (la garantiza la restricción UNIQUE
+      del motor, no una comprobación en aplicación). La limpieza en el catch vuelve a ser incondicional y es
+      siempre segura, porque cada ruta es exclusiva de su propio intento. getElpxProjectByHash() antes de
+      extraer se conserva como optimización para el caso común no concurrente.
+      Se añaden dos tests de regresión pedidos explícitamente por el revisor: (1) unitario con mocks —
+      simula la carrera forzando que getElpxProjectByHash() devuelva null en dos llamadas paralelas a
+      runImportLegacyProcomun vía Promise.all, verificando que la ruta limpiada es siempre la del intento
+      perdedor; verificado manualmente que este test falla si se revierte el fix (se comprobó revirtiendo
+      temporalmente hash: uploadId -> hash: checksum y confirmando el fallo esperado, luego restaurado).
+      (2) integración con concurrencia real (PGlite + storage real, sin mocks) — dos llamadas a
+      runImportLegacyProcomun con Promise.all sobre un .elpx sintético idéntico bajo dos externalId
+      distintos; el log confirma que la carrera ocurre de verdad (el perdedor falla por la restricción única
+      real de BD, no por el pre-check) y que la preview del ganador permanece íntegra. Se añade sección de
+      actualización en ADR-0029 (2026-07-13) y se actualiza design.md (nueva sección "Rutas de extracción
+      únicas por intento", sustituye a "Comprobación de duplicados antes de extraer"). Validación: bun test
+      apps/ packages/ scripts/ → 798 pass, 0 fail (+2 tests nuevos); bun run scripts/check-test-files.ts sin
+      incidencias.
 
   T-2026-07-16-001:
     date: 2026-07-16
@@ -1254,3 +1450,29 @@ tasks:
       Validación: parseo YAML de status.yaml y decision-log.yaml; el campo file: de ADR-0030
       apunta a un fichero existente; los enlaces relativos de docs/casos/.../README.md resuelven;
       bun run design:lint; sin referencias ADR-0029 ni 0029-estrategia restantes en el árbol.
+
+  T-2026-07-16-006:
+    date: 2026-07-16
+    agent: "documentacion-y-roadmap + qa-validacion"
+    task: "Integración de main (PR #268, importador legacy .elpx) en la rama del caso de evaluación de modernización (PR #271)"
+    status: Done
+    related: ["ADR-0029", "ADR-0030", "T-2026-07-16-001", "T-2026-07-16-005"]
+    notes: >
+      La rama estaba 12 commits por detrás de main y en conflicto desde que entró la PR #268.
+      Se integra main con merge. Solo dos ficheros en conflicto, ambos por adición adyacente al
+      final del fichero y resueltos como unión, sin perder historial (reglas 11 y 12):
+      decision-log.yaml (main añade la clave ADR-0029 del importador; esta rama añade ADR-0030,
+      ya renumerada en T-2026-07-16-005) y status.yaml (main añade 7 entradas T-2026-07-10-001..
+      T-2026-07-13-001; esta rama aporta T-2026-07-16-001 y -005). En ambos se respeta el orden
+      del fichero: decision-log va por número de ADR (0029 antes de 0030) y status.yaml por fecha
+      (las de main primero).
+      La renumeración previa a ADR-0030 es lo que convierte este merge en mecánico: antes, las dos
+      ramas definían la misma clave ADR-0029 y el conflicto era una colisión real de identidad;
+      ahora las dos ADR conviven con números distintos y ficheros propios.
+      No se toca el contenido de la evaluación. Sus mediciones siguen ancladas al commit eea2fe7d
+      declarado en el propio caso, así que el merge no las invalida. La rama sigue con biome@0.3.3
+      (el paquete equivocado): su sustitución es el objeto de la PR #272 y no corresponde a esta.
+      Validación: parseo YAML de status.yaml y decision-log.yaml; sin claves duplicadas; los campos
+      file: de ADR-0029 y ADR-0030 apuntan a ficheros existentes; bun run design:lint;
+      bun run check-test-files; bun run test 773 pass / 0 fail (+7 de integración) con coverage
+      90,72%.
