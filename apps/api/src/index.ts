@@ -11,15 +11,26 @@ const app = createApp();
 startPreviewSessionSweeper();
 
 // Warn loudly if a multi-replica deployment has not acknowledged sticky routing
-// for the process-local preview store (see ADR-0030).
+// for the process-local preview store (see ADR-0032).
 const previewReplicaWarning = evaluatePreviewReplicaConfig();
 if (previewReplicaWarning) {
 	console.warn(`[preview] ${previewReplicaWarning}`);
 }
 
+export function resolveMaxRequestBodySize(
+	env: NodeJS.ProcessEnv = process.env,
+): number {
+	const fallback = 256 * 1024 * 1024;
+	const parsed = Number(env.API_MAX_REQUEST_BODY_BYTES ?? fallback);
+	return Number.isSafeInteger(parsed) && parsed > 0 ? parsed : fallback;
+}
+
 export default {
 	port: Number(process.env.PORT ?? 3000),
 	fetch: app.fetch,
+	// This is enforced by Bun before Hono/formData materializes a request body.
+	// Preview routes add a tighter Content-Length guard based on session limits.
+	maxRequestBodySize: resolveMaxRequestBodySize(),
 };
 
 export { app };
