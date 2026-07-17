@@ -18,7 +18,7 @@
  * ratchet: solo gira en un sentido.
  */
 
-export const TYPE_ERROR_BASELINE = 665;
+export const TYPE_ERROR_BASELINE = 617;
 
 /** Cuenta los diagnósticos de tsc en su salida. */
 export function countTypeErrors(output: string): number {

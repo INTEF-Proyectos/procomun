@@ -25,5 +25,15 @@
 		"noUnusedLocals": false,
 		"noUnusedParameters": false,
 		"noPropertyAccessFromIndexSignature": false
-	}
+	},
+	// El editor de eXeLearning es código de terceros que descarga
+	// `make download-exelearning-editor` y que no está versionado (.gitignore:32).
+	// Sin esta exclusión tsc lo analizaba en local pero no en CI, así que la
+	// cuenta de errores dependía de si habías ejecutado la descarga: 665 en local
+	// contra 617 en CI. Con la línea base de scripts/check-types.ts eso importa,
+	// porque una puerta calibrada con un número que cambia según tu máquina no
+	// mide nada.
+	// node_modules se lista explícitamente: declarar `exclude` anula el valor por
+	// defecto de TypeScript.
+	"exclude": ["node_modules", "apps/api/static/exelearning-editor"]
 }
