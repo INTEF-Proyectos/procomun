@@ -1,4 +1,4 @@
-# ADR-0031 Migración al bridge de medios externos compartido de eXeLearning
+# ADR-0033 Migración al bridge de medios externos compartido de eXeLearning
 
 * Estado: Aceptado
 * Fecha: 2026-06-29
@@ -26,7 +26,7 @@ Se sustituye el mecanismo propio de ADR-0027 por el bridge compartido de eXeLear
 4. `apps/frontend/public/elpx/exe_media_host.js` soporta vídeo interactivo mediante `postMessage`, sin cargar SDK externos en la página padre.
 5. El frontend carga estas piezas en orden y desmonta relay/host al destruir la vista.
 
-ADR-0027 queda supersedida por ADR-0031.
+ADR-0027 queda supersedida por ADR-0033.
 
 ## Invariantes de Seguridad
 

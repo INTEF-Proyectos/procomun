@@ -1,6 +1,6 @@
 # HTTP editor preview — Procomún adapter
 
-Procomún implements eXeLearning **Preview Serving Contract v2** for the embedded editor. eXeLearning core is canonical for the protocol, CSP, scriptable MIME set, bridge files, and conformance vectors. This document records the adapter mapping and constraints defined by ADR-0032.
+Procomún implements eXeLearning **Preview Serving Contract v2** for the embedded editor. eXeLearning core is canonical for the protocol, CSP, scriptable MIME set, bridge files, and conformance vectors. This document records the adapter mapping and constraints defined by ADR-0034.
 
 The authored preview runs in an iframe without `allow-same-origin`. Scriptable responses receive the sandbox-first CSP, so opening a capability URL directly does not restore a trusted origin.
 
@@ -120,7 +120,7 @@ Preview ids are redacted from durable audit paths.
 
 ## External media
 
-The preview uses the synchronized eXeLearning shim, relay, media policy, and media host described by ADR-0031. The untrusted child reports maintained-provider identifiers and geometry; the trusted parent reconstructs canonical URLs and clamps overlays to the content rectangle.
+The preview uses the synchronized eXeLearning shim, relay, media policy, and media host described by ADR-0033. The untrusted child reports maintained-provider identifiers and geometry; the trusted parent reconstructs canonical URLs and clamps overlays to the content rectangle.
 
 ## Activation status
 

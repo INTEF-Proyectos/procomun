@@ -1681,7 +1681,7 @@ tasks:
     agent: "devops-sre + backend-api-servicios + frontend-ux-accesibilidad"
     task: "Integrar origin/main (post PR #272 biome) en feat/align-embed-bridge-with-mod (PR #260)"
     status: Done
-    related: ["ADR-0031", "ADR-0032", "PR-260", "PR-272"]
+    related: ["ADR-0033", "ADR-0034", "PR-260", "PR-272"]
     notes: >
       Merge de origin/main en la rama del bridge de medios / preview HTTP opaco.
       Resolución de conflictos: se conservan los cambios funcionales de la PR #260
@@ -1690,6 +1690,22 @@ tasks:
       unen con el formateo/estilo de main cuando el conflicto era solo estilo.
       Ficheros frontend del sistema bespoke (use-elpx-embed-relay, EmbedModal,
       elpx-embed-policy) permanecen eliminados (mod/delete a favor de la PR).
-      decision-log: unión de ADR-0029 (main) + ADR-0031/0032 (rama).
+      decision-log: unión de ADR-0029 (main) + ADR-0033/0032 (rama).
       En exelearning-editor.ts se restaura el catch-all de estáticos con bloqueo
       de preview-sw.js (se había perdido en un fix previo de escape de scripts).
+
+  T-2026-07-17-003:
+    date: 2026-07-17
+    agent: "documentacion-y-roadmap"
+    task: "Renumeración de ADRs del bridge/preview en PR #260: ADR-0031→0033 y ADR-0032→0034 por colisión con PRs abiertas #235 y #236"
+    status: Done
+    related: ["ADR-0033", "ADR-0034", "PR-260", "PR-235", "PR-236"]
+    notes: >
+      Tras integrar main post-#272, las ADRs del bridge compartido y de la topología del preview
+      HTTP de esta rama usaban ADR-0031 y ADR-0032. En paralelo, la PR #235 (verificación de
+      email) reclamó ADR-0031 y la PR #236 (modelo de versionado) reclamó ADR-0032. Para evitar
+      colisiones de numeración al mergear, esta rama renumera a ADR-0033 (bridge de medios
+      externos compartido de eXeLearning) y ADR-0034 (topología del preview HTTP). Se renombran
+      los ficheros, decision-log, superseded_by de ADR-0027 y referencias en docs operativos.
+      Sin cambios de código productivo. Validación: parseo YAML de decision-log y status;
+      ficheros 0033/0034 existen; sin referencias residuales a 0031-migracion ni 0032-topologia.

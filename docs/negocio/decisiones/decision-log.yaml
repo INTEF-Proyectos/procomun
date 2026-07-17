@@ -168,7 +168,7 @@ ADR-0027:
   title: "Reproducción segura de vídeos/PDF embebidos en .elpx (promote-to-parent con player en modal)"
   status: Supersedido
   date: 2026-06-14
-  superseded_by: ADR-0031
+  superseded_by: ADR-0033
   file: 0027-reproduccion-segura-embeds-elpx.md
 
 ADR-0028:
@@ -183,14 +183,14 @@ ADR-0029:
   date: 2026-07-10
   file: 0029-importador-legacy-procomun-elpx.md
 
-ADR-0031:
+ADR-0033:
   title: "Migración al bridge de medios externos compartido de eXeLearning"
   status: Aceptado
   date: 2026-06-29
-  file: 0031-migracion-bridge-medios-compartido-exelearning.md
+  file: 0033-migracion-bridge-medios-compartido-exelearning.md
 
-ADR-0032:
+ADR-0034:
   title: "Topología del preview HTTP y cableado del editor embebido"
   status: Aceptado
   date: 2026-07-11
-  file: 0032-topologia-store-preview-http.md
+  file: 0034-topologia-store-preview-http.md

@@ -1,6 +1,6 @@
 # Operación del preview HTTP del editor
 
-Guía operativa del Preview Serving Contract v2. La decisión de topología está en [ADR-0032](../negocio/decisiones/0032-topologia-store-preview-http.md) y el contrato técnico en [`preview-serving-contract.md`](../preview-serving-contract.md).
+Guía operativa del Preview Serving Contract v2. La decisión de topología está en [ADR-0034](../negocio/decisiones/0034-topologia-store-preview-http.md) y el contrato técnico en [`preview-serving-contract.md`](../preview-serving-contract.md).
 
 No debe confundirse con el contenido `.elpx` publicado en `/api/v1/elpx/:hash/*`: el preview del editor es efímero y vive en memoria.
 
