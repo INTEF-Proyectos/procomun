@@ -1503,7 +1503,10 @@ describe("Seguridad — mass assignment / bypass del flujo editorial (recursos)"
 	};
 
 	test("POST /api/admin/resources ignora editorialStatus/featuredAt del cuerpo (un author no autopublica)", async () => {
-		const app = createAdminApp({ id: `sec-create-${crypto.randomUUID()}`, role: "author" });
+		const app = createAdminApp({
+			id: `sec-create-${crypto.randomUUID()}`,
+			role: "author",
+		});
 		const res = await app.request("/api/admin/resources", {
 			method: "POST",
 			headers: { "Content-Type": "application/json" },
@@ -1536,7 +1539,10 @@ describe("Seguridad — mass assignment / bypass del flujo editorial (recursos)"
 		const patchRes = await app.request(`/api/admin/resources/${created.id}`, {
 			method: "PATCH",
 			headers: { "Content-Type": "application/json" },
-			body: JSON.stringify({ title: "Título legítimo", editorialStatus: "published" }),
+			body: JSON.stringify({
+				title: "Título legítimo",
+				editorialStatus: "published",
+			}),
 		});
 		expect(patchRes.status).toBe(200);
 
