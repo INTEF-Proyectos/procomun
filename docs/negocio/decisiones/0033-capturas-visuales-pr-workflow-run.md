@@ -64,6 +64,22 @@ Los PNG se almacenan como assets de la prerelease `pr-visual-previews`. Antes de
 
 No se incorporan acciones de terceros para capturar o comentar. El workflow privilegiado usa únicamente acciones oficiales de GitHub y `gh`, disponible en el runner alojado.
 
+### Enmienda 2026-07-17 — publicación sin checkout y sin git local
+
+El job de publicación **no hace checkout** (R1). La primera ejecución real falló en
+`Publish latest assets` con `failed to run git: fatal: not a git repository`:
+`gh release create --target main` y `gh release upload` intentan resolver el
+repositorio / la rama con git local.
+
+Mitigación en `.github/workflows/visual-preview-publish.yml`:
+
+* `GH_REPO=${{ github.repository }}` para que `gh` no dependa de `.git`
+* creación de la prerelease `pr-visual-previews` solo con `gh api` POST
+  (`target_commitish=main`, sin `git rev-parse`)
+* subida de assets con el endpoint REST de release assets (`--input` binario)
+
+Se mantiene el invariante de seguridad: ningún checkout ni ejecución de código del PR.
+
 ## Riesgos identificados
 
 | ID | Descripción | Severidad | Control |
