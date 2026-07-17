@@ -1804,3 +1804,184 @@ tasks:
       ADR-0031 para verificación de email (#235). Fichero 0029-versionado-recursos.md →
       0032-versionado-recursos.md; referencias actualizadas en epic-004-versionado-recursos
       y en T-2026-06-23-007. Se unen todos los T-* de main; no se borra historial.
+
+  T-2026-07-17-007:
+    date: 2026-07-17
+    agent: "devops-sre + qa-validacion + documentacion-y-roadmap"
+    task: "Validador de los ficheros de tracking (ADR-0019) y cableado en CI de tres puertas que existían pero no se ejecutaban"
+    status: Done
+    related: ["ADR-0019", "ADR-0022", "T-2026-07-17-003", "T-2026-07-17-004", "T-2026-07-17-005"]
+    notes: >
+      Problema: el esquema map-keyed de ADR-0019 se adoptó para evitar conflictos de merge en
+      trabajo paralelo, pero el contador es secuencial por día, así que dos ramas abiertas a la vez
+      eligen el mismo número sin enterarse. El fallo es peor que un conflicto textual: git no ve
+      nada raro (son dos ramas añadiendo texto al final) y el parser YAML, ante dos claves iguales,
+      se queda con la última sin avisar. Una entrada de historial desaparece en silencio, contra la
+      regla 11. Ocurrió de verdad: T-2026-07-17-002 llegó a estar reclamada por tres tareas
+      distintas (main, #235 y #260) y T-2026-07-17-003 por dos (#236 y #260), y nadie lo detectó
+      hasta auditarlo a mano.
+      Se añade scripts/check-tracking.ts, que valida status.yaml y decision-log.yaml. Detecta las
+      claves duplicadas sobre el TEXTO CRUDO, no sobre el objeto parseado: mirar el objeto no
+      serviría de nada, porque para entonces el parser ya ha descartado la repetida — hay un test
+      que fija justo ese comportamiento para que nadie "simplifique" el script. Errores (salida 1):
+      claves T-* o ADR-* duplicadas, y entradas de decision-log cuyo file: no existe. Avisos (no
+      bloquean): referencias de related: a claves que aún no existen, que entre PRs abiertas en
+      paralelo son legítimas y se resuelven solas al mergear la otra rama.
+      Se cablean además en CI dos puertas que ya existían como script y nunca se ejecutaban:
+      check-test-files (regla 16, paridad archivo-test) y design:lint (ADR-0022, DESIGN.md como
+      contrato). CI llamaba a make check-coverage, no a make test, así que la regla 16 solo se
+      comprobaba en local. Se añaden los targets check-tracking, check-test-files y design-lint al
+      Makefile para que local y CI ejecuten lo mismo.
+      Hallazgo del propio validador al estrenarlo: ADR-0025 se referencia desde T-2026-06-24-002
+      pero no está indexada en decision-log.yaml. Coincide con lo que ya detectó la evaluación de
+      ADR-0030 (cuatro ADR sin indexar: 0023-feeds, 0024-api-tokens, 0025-jsonb, 0026-fts). Sale
+      como aviso, no como error, y su regularización sigue requiriendo decisión humana.
+      Queda fuera de esta PR: el paso Type Check de CI sigue con continue-on-error, así que emite
+      617 errores y se reporta en verde — misma clase de puerta falsa que el paquete biome
+      equivocado que arregló la #272. Su arreglo real es el Lote 1 de ADR-0030.
+      Validación: bun test scripts/check-tracking.unit.test.ts → 12 pass / 0 fail; comprobado que
+      el gate falla de verdad con error inyectado (clave duplicada → exit 1; file: inexistente →
+      exit 1) y vuelve a 0 al restaurar; make lint, check-test-files, design-lint y check-tracking
+      en verde; bun run test 800 pass / 0 fail con coverage 90,4%.
+
+  T-2026-07-17-008:
+    date: 2026-07-17
+    agent: "qa-validacion + frontend-ux-accesibilidad"
+    task: "Cierre del issue #276: tests de compactación de normalizeText, claves i18n huérfanas y warnings de Biome no relacionados con el tipado"
+    status: Done
+    related: ["#276", "ADR-0030", "T-2026-07-16-002"]
+    notes: >
+      Deuda que dejó la revisión de la PR #272. Al revisarla se comprueba que estaba en parte
+      desactualizada: decía que normalizeText solo tenía 2 tests, pero el commit 9c1091d2 ya había
+      cubierto el truncado por bytes y el corte de caracteres multibyte. Lo que seguía sin ningún
+      test era la compactación, así que el issue se reescribe con el estado real antes de tocar
+      nada.
+      normalizeText (apps/api/src/fts/extract.ts): se añaden 6 tests que fijan la compactación de
+      espacios múltiples, los tabuladores a espacio simple, las mezclas de espacio y tab, el
+      colapso de 3+ saltos de línea a 2, el recorte inicial/final y el filtrado de caracteres de
+      control (NUL/SOH/DEL, conservando tab, LF y CR). El comportamiento se fijó midiéndolo contra
+      la implementación real, no suponiéndolo. Para no repetir el problema que denuncia el propio
+      issue —tests que no guardan nada— se comprobó por mutación que fallan de verdad: romper la
+      compactación de espacios tumba 4 tests, romper el colapso de saltos 1, y quitar el filtro de
+      controles 1; al restaurar, 18 pass y el fichero queda byte-idéntico.
+      i18n: se eliminan footer_communities, footer_users y footer_share de los 5 idiomas (15
+      entradas), huérfanas desde que la #272 quitó del footer los enlaces a href="#". Confirmado
+      cero referencias en todo el repo. Los ficheros se editan por línea, no re-serializando el
+      JSON, para no reordenar claves que nadie ha tocado. paraglide/ es generado y está en
+      .gitignore, así que se regenera solo.
+      Warnings de Biome (190 -> 179), todos con arreglo real y sin supresiones:
+      noConfusingVoidType en FavoriteButton (el valor devuelto no se usa, así que el tipo honesto
+      es () => void; TypeScript sigue admitiendo handlers async);
+      noImportantStyles en ResourceCard.css (el !important estaba porque
+      .rc-stat .material-symbols-outlined (0,2,0) le ganaba a .rc-stat-star (0,1,0); se sube el
+      selector a .rc-stat .rc-stat-star para empatar y ganar por orden, mismo resultado sin
+      !important — verificado que ninguna otra regla del repo pinta la estrella: la única
+      .material-symbols-outlined global no toca color);
+      noDescendingSpecificity x9 (SearchBar.css, HomeDataIsland.css, catalog.css y el dashboard
+      /dev): puras reordenaciones, porque la especificidad mayor gana sea cual sea el orden, así
+      que el resultado computado no cambia; solo deja la cascada de general a específico.
+      No se toca noConfusingVoidType en ResourceCard: ahí el valor devuelto SÍ se usa
+      (if (result && typeof result.favorited === "boolean")), así que la unión con void es el tipo
+      correcto y forzarlo rompería a quien lo llama o exigiría una supresión.
+      Fuera de alcance por decisión explícita: los 167 warnings de tipado restantes
+      (noNonNullAssertion 134 + noExplicitAny 33) son el Lote 1 de ADR-0030 y van en PR aparte,
+      para no repetir el hallazgo 3 de la propia revisión (364 ficheros no se pueden revisar de
+      una sentada). Los 11 restantes son falsos positivos del loader de eXeLearning que no deben
+      "arreglarse".
+      Validación: bun test de extract.unit.test.ts 18 pass / 0 fail; make lint (biome check .)
+      exit 0; build del frontend OK; bun run test 800 pass / 0 fail con coverage 90,75%; los 5
+      JSON de mensajes parsean con 284 claves cada uno.
+
+  T-2026-07-17-009:
+    date: 2026-07-17
+    agent: "backend-api-servicios + frontend-ux-accesibilidad + qa-validacion"
+    task: "Lote 1 de ADR-0030: eliminar los 167 warnings de tipado (noNonNullAssertion y noExplicitAny) con narrowing real"
+    status: Done
+    related: ["ADR-0030", "T-2026-07-16-002", "T-2026-07-17-008"]
+    notes: >
+      Segunda parte del reparto acordado: la PR anterior cerró el #276 y los warnings no
+      relacionados con el tipado; esta se queda con los 167 de tipado (134 noNonNullAssertion +
+      33 noExplicitAny) repartidos en 34 ficheros, que la #272 dejó anotados como Lote 1. Van en
+      PR aparte para que cada una sea revisable, que es justo el hallazgo 3 de la revisión de la
+      #272 (364 ficheros no se revisan de una sentada). Resultado: 167 -> 0, sin una sola
+      supresión nueva, y los warnings totales del repo bajan de 190 a 21.
+      Patrones aplicados, todos con arreglo real:
+      seed.ts (32): helper demoResource(i) con guarda en vez de DEMO_RESOURCES[N]!; el Map de
+      .elpx se lee una vez (get) en vez de has()+get()!; DATABASE_URL con guarda explícita que
+      documenta el invariante de resolveSeedMode.
+      social.ts (9): nuevo requireUser(c) en auth/middleware.ts, con guarda y test propio, en vez
+      de c.get("user")! en cada ruta. AuthEnv tipa user como AuthUser|null porque
+      sessionMiddleware lo pone a null; tras requireAuth ya no lo es, pero TypeScript no puede
+      correlacionarlo.
+      crud-builder.ts (3): se captura config.create/update/remove dentro del if, donde TypeScript
+      ya los ha estrechado — dentro del closure del handler el narrowing no aplica.
+      EditarPage.tsx (10), ResourceDetailIsland (5), CatalogIsland, ResourceCard: se derivan los
+      VALORES (previewUrl, firstFileUrl, mediaItems) en vez de booleanos tipo hasPreview: un
+      booleano no permite a TypeScript estrechar el objeto del que sale.
+      generate-elpx.ts (4): crc32 pasa a for..of (el índice sobraba) y los accesos a plantillas
+      llevan guarda con mensaje útil.
+      Tests (87): expect(x).not.toBeNull() antes de usar x?.foo, o narrowing con guarda cuando el
+      valor se pasa como argumento. No solo no se debilita ningún test: se refuerzan, porque
+      antes un null reventaba con un TypeError opaco y ahora falla la aserción con mensaje claro
+      (+8 aserciones netas).
+      Supresiones en blanco: había 4 `biome-ignore lint:` SIN regla, que silencian TODAS las de
+      su línea. Una estaba muerta (biome la marcaba como suppressions/unused) y se elimina; las
+      otras 3 son el "generic drizzle db type" que la #272 dejó anotado. Se acotan a
+      lint/suspicious/noExplicitAny: siguen ahí, pero ya no silencian de más.
+      Hallazgo relevante: el tipo compartido DrizzleDB NO es usable como tipo real — sus métodos
+      devuelven unknown. Se intentó sustituir los `any` de fts/search.ts y seed-random.ts por él
+      (y por un tipo mínimo { execute }) y dispara ~41 errores de tsc, así que se revirtió. Tiparlo
+      de verdad exige la fuente única de esquema (Lote 3), y por eso ese `any` sigue siendo el
+      núcleo pendiente del Lote 1.
+      Dos arreglos propios salieron mal y se detectaron comparando tsc contra main: tipar
+      catalog-controller con un índice [key:string]: unknown rompía el acceso a campos (el tipo
+      correcto ya existía y era Resource, que ambos lados estaban falseando: el parámetro con
+      Record<string,any> y la llamada con Record<string,string>), y quitar la anotación de
+      rows.map en resources.ts dejaba row implícitamente any, porque `db` es DrizzleDB y rows
+      acaba siendo any[] (se declara MediaItemRow).
+      Validación: biome lint 0 errores y 0 warnings de las dos reglas; tsc 660 frente a los 665 de
+      main, es decir 5 errores preexistentes MENOS y ninguno nuevo (el único que cambia de texto
+      es el mismo TS2352 del mock, que ya existía 6 veces en ambos lados); bun run test 812 pass /
+      0 fail con coverage 90,38%; build del frontend OK; y el seed se ejecuta de verdad
+      (exit 0), que es lo que ejercita demoResource y los índices de la semilla; crc32 comprobado
+      idéntico en 7 casos y contra el vector canónico 0x414FA339.
+
+  T-2026-07-17-010:
+    date: 2026-07-17
+    agent: "devops-sre + qa-validacion"
+    task: "Endurecer los pipelines: puerta de tipos con línea base y resto de hallazgos de la revisión de CI"
+    status: Done
+    related: ["ADR-0030", "T-2026-07-17-007", "T-2026-07-17-009"]
+    notes: >
+      Cierra los hallazgos de la revisión de los workflows que quedaban sin arreglar.
+      El principal: el paso "Type Check" corría bunx tsc --noEmit con continue-on-error: true, así
+      que GitHub reescribía su conclusión a success aunque tsc emitiera 617 errores y saliera con
+      código 1. Una marca verde para una puerta que no comprobaba nada — la misma clase de mentira
+      que el paquete biome equivocado que arregló la #272, y la última que quedaba. Ponerla en
+      estricto hoy no es viable (la deuda es el Lote 1), pero dejarla en verde mientras crece
+      tampoco: pasó de 635 a 665 en una sola jornada (#268, #273, #274, #275) sin que nadie se
+      enterara. Se añade scripts/check-types.ts: tolera los errores existentes contra una línea
+      base (665) y falla si crecen; si bajan, avisa para apretarla. Solo gira en un sentido.
+      Comprobado que rompe de verdad: con un error inyectado sale 1 y lista los ficheros
+      culpables; al retirarlo, 0.
+      E2E sobre el merge: e2e.yml solo se disparaba en pull_request, así que la imagen de main se
+      publicaba sin que nadie hubiera probado el resultado ya fusionado — dos PRs verdes por
+      separado pueden romper main al juntarse, y hoy entran varias al día. Se expone e2e.yml como
+      workflow_call y el job docker pasa a needs: [build, e2e].
+      Resto: bun fijado a 1.3.14 en los tres workflows (con `latest`, una release de bun cambia CI
+      sin tocar el repo y los runs no son reproducibles); packages: write baja del nivel de
+      workflow al job docker, que es el único que publica (antes lo tenía también build, que
+      ejecuta código de PRs); concurrency groups en ci y e2e, sin cancelar en main para no abortar
+      una publicación a medias; se sustituye `npx wait-on` por un bucle con curl (se bajaba de la
+      red en cada run, sin versión fijada y sin estar declarado); se documenta el riesgo de
+      pull_request_target en el workflow de dependabot (corre con secretos del repo base y
+      contents: write y hace checkout del head de la PR; la guarda de actor es la mitigación que
+      documenta GitHub, y bun no ejecuta scripts de ciclo de vida por defecto); y se corrige un
+      comentario que prometía un trigger `schedule` para Firefox/WebKit que no existe.
+      De paso, un efecto secundario que conviene anotar: al añadir check-types.ts el coverage bajó
+      a 89,7% y tumbó su propia puerta, porque toda la lógica de reporte vivía dentro de main() y
+      no era testeable (2% de líneas cubiertas). Se extrae formatVerdict() y se prueba: 15 tests,
+      el fichero pasa a 72% y el coverage global vuelve a 90,25%.
+      Validación: los 3 workflows parsean; e2e.yml expone workflow_call y ci.yml lo invoca; las
+      seis puertas en verde en local (lint, check-test-files, design-lint, check-tracking,
+      check-types, check-coverage); bun run test 821 pass / 0 fail con coverage 90,25%.

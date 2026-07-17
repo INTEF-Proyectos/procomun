@@ -90,7 +90,8 @@ function ResourceCard({
 	const description = resource.description || "";
 	const clipped =
 		description.length > 140 ? `${description.slice(0, 140)}...` : description;
-	const hasPreview = !!resource.elpxPreview?.previewUrl;
+	const previewUrl = resource.elpxPreview?.previewUrl;
+	const hasPreview = !!previewUrl;
 	const previewRef = useIframeScale<HTMLDivElement>({
 		iframeWidth: 1200,
 		iframeHeight: 675,
@@ -167,7 +168,7 @@ function ResourceCard({
 			{hasPreview ? (
 				<div className="card-preview" ref={previewRef}>
 					<iframe
-						src={resource.elpxPreview!.previewUrl}
+						src={previewUrl}
 						loading="lazy"
 						tabIndex={-1}
 						sandbox="allow-scripts"

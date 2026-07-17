@@ -11,6 +11,8 @@
 		"lint": "biome check .",
 		"format": "biome format --write .",
 		"design:lint": "bun run scripts/check-design-md.ts",
+		"check-tracking": "bun run scripts/check-tracking.ts",
+		"check-types": "bun run scripts/check-types.ts",
 		"test": "bun run check-test-files && bun run test:standard && bun run check-coverage",
 		"check-test-files": "bun run scripts/check-test-files.ts",
 		"test:standard": "bun run test:unit && bun run test:integration",

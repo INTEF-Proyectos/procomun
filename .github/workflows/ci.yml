@@ -6,9 +6,17 @@ on:
   pull_request:
     branches: [ "main", "develop" ]
 
+# Un push nuevo cancela el run anterior de la misma rama. En main NO se cancela:
+# cada commit de main publica imagen y no queremos abortar una publicación a
+# medias ni dejar el registro en un estado indeterminado.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+
+# Por defecto solo lectura: el job `build` ejecuta código de la PR y no necesita
+# más. `packages: write` se concede solo al job que publica.
 permissions:
   contents: read
-  packages: write
 
 jobs:
   build:
@@ -21,7 +29,9 @@ jobs:
     - name: Setup Bun
       uses: oven-sh/setup-bun@v2
       with:
-        bun-version: latest
+        # Fijado a propósito: con `latest`, una release de bun cambia CI sin que
+        # nadie toque el repo y los runs dejan de ser reproducibles.
+        bun-version: 1.3.14
 
     - name: Install dependencies
       run: make deps
@@ -29,19 +39,52 @@ jobs:
     - name: Biome Check
       run: make lint
 
+    # Regla 16 de AGENTS.md: todo .ts productivo nuevo va con su test. Existía
+    # como script pero solo corría en local, vía `bun run test`; CI llama a
+    # check-coverage y se la saltaba.
+    - name: Test Files Check
+      run: make check-test-files
+
+    # ADR-0022: DESIGN.md es un contrato. Mismo caso: el script existía y CI no
+    # lo ejecutaba.
+    - name: Design Check
+      run: make design-lint
+
+    # ADR-0019: las claves map-keyed de status.yaml y decision-log.yaml deben
+    # ser únicas. Una clave duplicada no la detecta ni git ni el parser: se
+    # pierde una entrada de historial en silencio.
+    - name: Tracking Check
+      run: make check-tracking
+
+    # Antes esto era `bunx tsc --noEmit` con `continue-on-error: true`: GitHub
+    # reescribía la conclusión a success y el paso salía en verde emitiendo 617
+    # errores. Ahora se compara contra una línea base: la deuda existente se
+    # tolera, pero no puede crecer (ver scripts/check-types.ts).
     - name: Type Check
-      run: bunx tsc --noEmit
-      continue-on-error: true
+      run: make check-types
 
     - name: Run Tests & Coverage
       run: make check-coverage
 
   # De momento solo se publica en push a main con tags main y latest.
   # Cuando haya releases se añadirán tags semánticos (vX.Y.Z).
-  docker:
+  # E2E sobre el resultado ya fusionado. Antes solo corrían en pull_request, así
+  # que la imagen de main se publicaba sin que nadie hubiera probado el merge:
+  # dos PRs verdes por separado pueden romper main al juntarse.
+  e2e:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     needs: build
+    uses: ./.github/workflows/e2e.yml
+
+  docker:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: [build, e2e]
     runs-on: ubuntu-latest
+
+    # Solo este job publica en el registro.
+    permissions:
+      contents: read
+      packages: write
 
     env:
       IMAGE_NAME: ghcr.io/${{ github.repository }}

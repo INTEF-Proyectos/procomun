@@ -8,6 +8,9 @@ import { getApiClient } from "../../lib/get-api-client.ts";
 import * as m from "../../paraglide/messages.js";
 import { ApiKeyRevokeDialog } from "../dashboard/ApiKeyRevokeDialog.tsx";
 
+/** Valores del <select> de estado; "" es "todos". */
+type ApiTokenStatusFilter = "" | "active" | "revoked" | "expired";
+
 export function AdminApiTokensSection() {
 	const [keys, setKeys] = useState<ApiTokenRecord[]>([]);
 	const [stats, setStats] = useState<ApiTokenStats | null>(null);
@@ -16,9 +19,8 @@ export function AdminApiTokensSection() {
 
 	// Filters
 	const [selectedUserId, setSelectedUserId] = useState("");
-	const [selectedStatus, setSelectedStatus] = useState<
-		"" | "active" | "revoked" | "expired"
-	>("");
+	const [selectedStatus, setSelectedStatus] =
+		useState<ApiTokenStatusFilter>("");
 
 	// Revoke dialog state
 	const [revokeId, setRevokeId] = useState<string | null>(null);
@@ -323,7 +325,9 @@ export function AdminApiTokensSection() {
 					<select
 						id="filter-status"
 						value={selectedStatus}
-						onChange={(e) => setSelectedStatus(e.target.value as any)}
+						onChange={(e) =>
+							setSelectedStatus(e.target.value as ApiTokenStatusFilter)
+						}
 						style={{
 							padding: "0.5rem",
 							borderRadius: "0.375rem",
