@@ -1676,7 +1676,7 @@ tasks:
       Validación: bun run lint exit 0 (0 errors; warnings no fallan el gate); bun test sobre
       extract.unit.test.ts en verde; check-test-files OK.
 
-  T-2026-07-17-002:
+  T-2026-07-17-005:
     date: 2026-07-17
     agent: "devops-sre + backend-api-servicios + frontend-ux-accesibilidad"
     task: "Integrar origin/main (post PR #272 biome) en feat/align-embed-bridge-with-mod (PR #260)"
@@ -1694,7 +1694,7 @@ tasks:
       En exelearning-editor.ts se restaura el catch-all de estáticos con bloqueo
       de preview-sw.js (se había perdido en un fix previo de escape de scripts).
 
-  T-2026-07-17-003:
+  T-2026-07-17-006:
     date: 2026-07-17
     agent: "documentacion-y-roadmap"
     task: "Renumeración de ADRs del bridge/preview en PR #260: ADR-0031→0033 y ADR-0032→0034 por colisión con PRs abiertas #235 y #236"
