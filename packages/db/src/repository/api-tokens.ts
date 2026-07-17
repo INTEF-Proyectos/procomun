@@ -70,7 +70,10 @@ export async function createApiToken(
  * Cuenta los tokens activos (no revocados y no expirados) de un usuario.
  * Se usa para imponer un tope de tokens activos por usuario.
  */
-export async function countActiveApiTokens(db: DrizzleDB, userId: string): Promise<number> {
+export async function countActiveApiTokens(
+	db: DrizzleDB,
+	userId: string,
+): Promise<number> {
 	const now = new Date();
 	const rows = await db
 		.select({ count: sql<number>`count(*)` })

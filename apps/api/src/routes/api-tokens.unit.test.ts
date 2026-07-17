@@ -113,7 +113,12 @@ describe("Token management — tope de tokens activos", () => {
 	// Usuario aislado (id único) para que el recuento de tokens activos empiece en 0
 	// y no se contamine con los tokens creados por otros tests del fichero.
 	const capUserId = `cap-${crypto.randomUUID()}`;
-	const app = createTokenApp({ id: capUserId, role: "author", email: `${capUserId}@example.com`, name: "Cap" });
+	const app = createTokenApp({
+		id: capUserId,
+		role: "author",
+		email: `${capUserId}@example.com`,
+		name: "Cap",
+	});
 
 	test("POST /api/v1/tokens → 201 hasta el tope (10) y 429 en el 11º", async () => {
 		// Los 10 primeros tokens deben crearse correctamente.
@@ -165,7 +170,9 @@ describe("Token management — tope de tokens activos", () => {
 			),
 		);
 
-		expect(responses.map((response) => response.status).sort()).toEqual([201, 429]);
+		expect(responses.map((response) => response.status).sort()).toEqual([
+			201, 429,
+		]);
 
 		const listResponse = await raceApp.request("/api/v1/tokens");
 		const listBody = await listResponse.json();

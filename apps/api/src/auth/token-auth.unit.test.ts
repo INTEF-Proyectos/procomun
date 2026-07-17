@@ -1,9 +1,9 @@
 import { describe, expect, test } from "bun:test";
-import { Hono } from "hono";
 import * as repo from "@procomun/db/repository";
+import { Hono } from "hono";
+import { getDb, waitForDb } from "../db.ts";
 import type { AuthEnv } from "./middleware.ts";
 import { tokenAuthMiddleware } from "./token-auth.ts";
-import { getDb, waitForDb } from "../db.ts";
 
 describe("tokenAuthMiddleware", () => {
 	function createTestApp() {
@@ -63,9 +63,20 @@ describe("tokenAuthMiddleware", () => {
 		await waitForDb();
 		const db = getDb().db;
 		const userId = `rl-${crypto.randomUUID()}`;
-		await repo.ensureUser(db, { id: userId, email: `${userId}@example.com`, name: "RL", role: "author" });
-		const token1 = await repo.createApiToken(db, { userId, name: "rl-token-1" });
-		const token2 = await repo.createApiToken(db, { userId, name: "rl-token-2" });
+		await repo.ensureUser(db, {
+			id: userId,
+			email: `${userId}@example.com`,
+			name: "RL",
+			role: "author",
+		});
+		const token1 = await repo.createApiToken(db, {
+			userId,
+			name: "rl-token-1",
+		});
+		const token2 = await repo.createApiToken(db, {
+			userId,
+			name: "rl-token-2",
+		});
 
 		const app = createTestApp();
 
