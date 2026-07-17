@@ -1956,10 +1956,10 @@ tasks:
       check-types, check-coverage); bun run test 821 pass / 0 fail con coverage 90,25%.
   T-2026-07-17-011:
     date: 2026-07-17
-    agent: "devops-sre + qa-validacion"
+    agent: "devops-sre + qa-validacion + seguridad-privacidad-legal + arquitectura-solucion"
     task: "Publicar capturas visuales de la aplicación en cada pull request tras superar E2E"
     status: In Progress
-    related: ["#283", "#284"]
+    related: ["#283", "#284", "ADR-0033"]
     notes: >
       Se evalúan las opciones existentes antes de desarrollar: Auto PR Screenshots cubre URLs,
       pasos autenticados y comentario actualizable, pero su configuración documentada concede
@@ -1974,7 +1974,9 @@ tasks:
       Validación: los dos YAML parsean, Biome 2.4.8 acepta los dos ficheros TypeScript nuevos,
       las puertas de lint, tracking, tipos, tests y coverage pasan, los 54 E2E Chromium están en
       verde y las cinco capturas se generan en 11,1 segundos y se suben como artefacto de 1,50 MB.
-      El diff remoto contiene solo los seis ficheros previstos. Queda In Progress porque GitHub no
-      activa un workflow_run nuevo hasta que exista en la rama
-      por defecto; la publicación completa debe verificarse con una PR posterior a la fusión.
+      El diff remoto contiene solo los ocho ficheros previstos. Queda In Progress porque GitHub no
+      activa un workflow_run nuevo hasta que exista en la rama por defecto; la publicación completa
+      debe verificarse con una PR posterior a la fusión. La decisión queda registrada como ADR-0033
+      e indexada en decision-log.yaml; se salta 0031 y 0032 porque están reservadas por los PR
+      abiertos #235 y #236.
 
