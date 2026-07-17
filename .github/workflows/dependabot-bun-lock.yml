@@ -1,5 +1,11 @@
 name: Sync bun.lock on Dependabot PRs
 
+# OJO con `pull_request_target`: corre con los secretos del repo base y con
+# contents: write, y este workflow hace checkout del head de la PR y ejecuta
+# `bun install` sobre él. La guarda `github.actor == 'dependabot[bot]'` de abajo
+# es la mitigación que documenta GitHub para este patrón, y bun no ejecuta
+# scripts de ciclo de vida por defecto (trustedDependencies). No añadir aquí
+# pasos que ejecuten código de la PR (build, tests) sin repensar esto.
 on:
   pull_request_target:
     branches: [ "main", "develop" ]
@@ -25,7 +31,7 @@ jobs:
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2
         with:
-          bun-version: latest
+          bun-version: 1.3.14
 
       - name: Regenerate bun.lock
         run: bun install

@@ -169,6 +169,14 @@
     }
     @keyframes spin { to { transform: rotate(360deg); } }
 
+    /* Code: la base va antes de `.alert code`, que la especializa con mayor
+       especificidad. El orden no altera el resultado computado; solo deja la
+       cascada de general a específico. */
+    code {
+      background: var(--gray-light); padding: .1rem .35rem;
+      border-radius: 4px; font-size: .82em;
+    }
+
     /* Alert */
     .alert {
       padding: 1rem 1.25rem; border-radius: 8px;
@@ -333,11 +341,6 @@
     /* Links */
     a { color: var(--primary); text-decoration: none; }
     a:hover { text-decoration: underline; }
-
-    code {
-      background: var(--gray-light); padding: .1rem .35rem;
-      border-radius: 4px; font-size: .82em;
-    }
 
     /* Filter bar */
     .filter-bar {
