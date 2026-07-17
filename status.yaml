@@ -1773,3 +1773,51 @@ tasks:
       Sin cambios de código productivo propios de esta PR documental. Validación: parseo YAML de
       status.yaml y decision-log.yaml; sin claves duplicadas; campos file: de ADR-0029 y ADR-0030
       apuntan a ficheros existentes.
+
+  T-2026-07-17-008:
+    date: 2026-07-17
+    agent: "qa-validacion + frontend-ux-accesibilidad"
+    task: "Cierre del issue #276: tests de compactación de normalizeText, claves i18n huérfanas y warnings de Biome no relacionados con el tipado"
+    status: Done
+    related: ["#276", "ADR-0030", "T-2026-07-16-002"]
+    notes: >
+      Deuda que dejó la revisión de la PR #272. Al revisarla se comprueba que estaba en parte
+      desactualizada: decía que normalizeText solo tenía 2 tests, pero el commit 9c1091d2 ya había
+      cubierto el truncado por bytes y el corte de caracteres multibyte. Lo que seguía sin ningún
+      test era la compactación, así que el issue se reescribe con el estado real antes de tocar
+      nada.
+      normalizeText (apps/api/src/fts/extract.ts): se añaden 6 tests que fijan la compactación de
+      espacios múltiples, los tabuladores a espacio simple, las mezclas de espacio y tab, el
+      colapso de 3+ saltos de línea a 2, el recorte inicial/final y el filtrado de caracteres de
+      control (NUL/SOH/DEL, conservando tab, LF y CR). El comportamiento se fijó midiéndolo contra
+      la implementación real, no suponiéndolo. Para no repetir el problema que denuncia el propio
+      issue —tests que no guardan nada— se comprobó por mutación que fallan de verdad: romper la
+      compactación de espacios tumba 4 tests, romper el colapso de saltos 1, y quitar el filtro de
+      controles 1; al restaurar, 18 pass y el fichero queda byte-idéntico.
+      i18n: se eliminan footer_communities, footer_users y footer_share de los 5 idiomas (15
+      entradas), huérfanas desde que la #272 quitó del footer los enlaces a href="#". Confirmado
+      cero referencias en todo el repo. Los ficheros se editan por línea, no re-serializando el
+      JSON, para no reordenar claves que nadie ha tocado. paraglide/ es generado y está en
+      .gitignore, así que se regenera solo.
+      Warnings de Biome (190 -> 179), todos con arreglo real y sin supresiones:
+      noConfusingVoidType en FavoriteButton (el valor devuelto no se usa, así que el tipo honesto
+      es () => void; TypeScript sigue admitiendo handlers async);
+      noImportantStyles en ResourceCard.css (el !important estaba porque
+      .rc-stat .material-symbols-outlined (0,2,0) le ganaba a .rc-stat-star (0,1,0); se sube el
+      selector a .rc-stat .rc-stat-star para empatar y ganar por orden, mismo resultado sin
+      !important — verificado que ninguna otra regla del repo pinta la estrella: la única
+      .material-symbols-outlined global no toca color);
+      noDescendingSpecificity x9 (SearchBar.css, HomeDataIsland.css, catalog.css y el dashboard
+      /dev): puras reordenaciones, porque la especificidad mayor gana sea cual sea el orden, así
+      que el resultado computado no cambia; solo deja la cascada de general a específico.
+      No se toca noConfusingVoidType en ResourceCard: ahí el valor devuelto SÍ se usa
+      (if (result && typeof result.favorited === "boolean")), así que la unión con void es el tipo
+      correcto y forzarlo rompería a quien lo llama o exigiría una supresión.
+      Fuera de alcance por decisión explícita: los 167 warnings de tipado restantes
+      (noNonNullAssertion 134 + noExplicitAny 33) son el Lote 1 de ADR-0030 y van en PR aparte,
+      para no repetir el hallazgo 3 de la propia revisión (364 ficheros no se pueden revisar de
+      una sentada). Los 11 restantes son falsos positivos del loader de eXeLearning que no deben
+      "arreglarse".
+      Validación: bun test de extract.unit.test.ts 18 pass / 0 fail; make lint (biome check .)
+      exit 0; build del frontend OK; bun run test 800 pass / 0 fail con coverage 90,75%; los 5
+      JSON de mensajes parsean con 284 claves cada uno.
