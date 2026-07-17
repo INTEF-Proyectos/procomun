@@ -29,6 +29,23 @@ jobs:
     - name: Biome Check
       run: make lint
 
+    # Regla 16 de AGENTS.md: todo .ts productivo nuevo va con su test. Existía
+    # como script pero solo corría en local, vía `bun run test`; CI llama a
+    # check-coverage y se la saltaba.
+    - name: Test Files Check
+      run: make check-test-files
+
+    # ADR-0022: DESIGN.md es un contrato. Mismo caso: el script existía y CI no
+    # lo ejecutaba.
+    - name: Design Check
+      run: make design-lint
+
+    # ADR-0019: las claves map-keyed de status.yaml y decision-log.yaml deben
+    # ser únicas. Una clave duplicada no la detecta ni git ni el parser: se
+    # pierde una entrada de historial en silencio.
+    - name: Tracking Check
+      run: make check-tracking
+
     - name: Type Check
       run: bunx tsc --noEmit
       continue-on-error: true
