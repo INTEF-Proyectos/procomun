@@ -11,7 +11,8 @@ test.describe("Visual previews", () => {
 	test.use({
 		colorScheme: "light",
 		deviceScaleFactor: 1,
-		reducedMotion: "reduce",
+		// reducedMotion no está en PlaywrightTestOptions de @playwright/test 1.61
+		// (TS2353). La estabilización visual ya se hace con el styleTag de abajo.
 		viewport: { width: 1440, height: 900 },
 	});
 
