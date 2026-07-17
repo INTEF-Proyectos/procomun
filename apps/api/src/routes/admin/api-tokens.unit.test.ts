@@ -1,8 +1,8 @@
-import { expect, test, describe, beforeEach, mock } from "bun:test";
+import { beforeEach, describe, expect, mock, test } from "bun:test";
 import { PGlite } from "@electric-sql/pglite";
-import { drizzle } from "drizzle-orm/pglite";
 import * as pgSchema from "@procomun/db/schema";
 import { createTables } from "@procomun/db/setup";
+import { drizzle } from "drizzle-orm/pglite";
 
 const pglite = new PGlite("memory://");
 await createTables(pglite);
@@ -15,18 +15,26 @@ mock.module("../../db.ts", () => {
 	};
 });
 
+import {
+	createApiToken,
+	ensureUser,
+	listAllApiTokens,
+} from "@procomun/db/repository";
 // Import Hono and routes after mocking
 import { Hono } from "hono";
 import type { AuthEnv } from "../../auth/middleware.ts";
 import { adminApiTokensRoutes } from "./api-tokens.ts";
-import { ensureUser } from "@procomun/db/repository";
-import { createApiToken, listAllApiTokens } from "@procomun/db/repository";
 
-function createAdminApiTokensApp(mockUser: Record<string, unknown> | null = null) {
+function createAdminApiTokensApp(
+	mockUser: Record<string, unknown> | null = null,
+) {
 	const app = new Hono<AuthEnv>();
 	app.use("*", async (c, next) => {
 		c.set("user", mockUser as AuthEnv["Variables"]["user"]);
-		c.set("session", mockUser ? { id: "s" } as AuthEnv["Variables"]["session"] : null);
+		c.set(
+			"session",
+			mockUser ? ({ id: "s" } as AuthEnv["Variables"]["session"]) : null,
+		);
 		await next();
 	});
 	app.route("/api/admin/api-tokens", adminApiTokensRoutes);
@@ -36,15 +44,28 @@ function createAdminApiTokensApp(mockUser: Record<string, unknown> | null = null
 describe("Admin API Tokens routes", () => {
 	beforeEach(async () => {
 		// Create mock users in the isolated database
-		await ensureUser(isolatedDb, { id: "admin-1", email: "admin@example.com", name: "Admin User", role: "admin" });
-		await ensureUser(isolatedDb, { id: "user-2", email: "author@example.com", name: "Author User", role: "author" });
+		await ensureUser(isolatedDb, {
+			id: "admin-1",
+			email: "admin@example.com",
+			name: "Admin User",
+			role: "admin",
+		});
+		await ensureUser(isolatedDb, {
+			id: "user-2",
+			email: "author@example.com",
+			name: "Author User",
+			role: "author",
+		});
 	});
 
 	test("GET /api/admin/api-tokens lists all tokens for admin", async () => {
 		const app = createAdminApiTokensApp({ id: "admin-1", role: "admin" });
 
 		// Create some tokens
-		const token1 = await createApiToken(isolatedDb, { userId: "user-2", name: "Token A" });
+		const token1 = await createApiToken(isolatedDb, {
+			userId: "user-2",
+			name: "Token A",
+		});
 
 		const res = await app.request("/api/admin/api-tokens");
 		expect(res.status).toBe(200);
@@ -65,7 +86,10 @@ describe("Admin API Tokens routes", () => {
 
 	test("DELETE /api/admin/api-tokens/:id revokes token", async () => {
 		const app = createAdminApiTokensApp({ id: "admin-1", role: "admin" });
-		const token1 = await createApiToken(isolatedDb, { userId: "user-2", name: "Token to Revoke" });
+		const token1 = await createApiToken(isolatedDb, {
+			userId: "user-2",
+			name: "Token to Revoke",
+		});
 
 		const res = await app.request(`/api/admin/api-tokens/${token1.id}`, {
 			method: "DELETE",
@@ -76,7 +100,7 @@ describe("Admin API Tokens routes", () => {
 
 		// Verify revoked in database
 		const all = await listAllApiTokens(isolatedDb, { userId: "user-2" });
-		const found = all.find(t => t.id === token1.id);
+		const found = all.find((t) => t.id === token1.id);
 		expect(found?.revokedAt).not.toBeNull();
 	});
 

@@ -1,5 +1,5 @@
-import { and, eq, sql } from "drizzle-orm";
 import { ratings } from "@procomun/db/schema";
+import { and, eq, sql } from "drizzle-orm";
 import { getDb } from "../db.ts";
 import { roundRatingAverage } from "./resource-card.ts";
 
@@ -32,13 +32,19 @@ export async function getResourceRatingsSummary(
 		const userRating = await db
 			.select({ score: ratings.score })
 			.from(ratings)
-			.where(and(eq(ratings.resourceId, resourceId), eq(ratings.userId, currentUserId)))
+			.where(
+				and(
+					eq(ratings.resourceId, resourceId),
+					eq(ratings.userId, currentUserId),
+				),
+			)
 			.limit(1);
 		userScore = userRating[0]?.score ?? null;
 	}
 
 	return {
-		averageScore: totalRatings > 0 ? roundRatingAverage(totalScore / totalRatings) : 0,
+		averageScore:
+			totalRatings > 0 ? roundRatingAverage(totalScore / totalRatings) : 0,
 		totalRatings,
 		distribution,
 		userScore,
@@ -55,7 +61,12 @@ export async function upsertResourceRating(input: {
 	const existing = await db
 		.select({ id: ratings.id })
 		.from(ratings)
-		.where(and(eq(ratings.resourceId, input.resourceId), eq(ratings.userId, input.userId)))
+		.where(
+			and(
+				eq(ratings.resourceId, input.resourceId),
+				eq(ratings.userId, input.userId),
+			),
+		)
 		.limit(1);
 
 	if (existing[0]) {

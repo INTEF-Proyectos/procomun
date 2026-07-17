@@ -1,7 +1,9 @@
 import { platformSettings } from "../schema/settings.ts";
 import type { DrizzleDB } from "./shared.ts";
 
-export async function getAllSettings(db: DrizzleDB): Promise<Record<string, string>> {
+export async function getAllSettings(
+	db: DrizzleDB,
+): Promise<Record<string, string>> {
 	const rows = await db.select().from(platformSettings);
 	const result: Record<string, string> = {};
 	for (const row of rows) {

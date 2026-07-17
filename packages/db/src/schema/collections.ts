@@ -7,8 +7,8 @@ import {
 	timestamp,
 	varchar,
 } from "drizzle-orm/pg-core";
-import { resources } from "./resources.ts";
 import { user } from "./auth.ts";
+import { resources } from "./resources.ts";
 
 export const collections = pgTable("collections", {
 	id: text("id").primaryKey(),

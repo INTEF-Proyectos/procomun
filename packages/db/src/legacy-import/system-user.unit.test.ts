@@ -1,14 +1,14 @@
-import { describe, expect, it, afterAll } from "bun:test";
+import { afterAll, describe, expect, it } from "bun:test";
 import { PGlite } from "@electric-sql/pglite";
-import { drizzle } from "drizzle-orm/pglite";
 import { eq } from "drizzle-orm";
-import { createTables } from "../setup.ts";
-import * as schema from "../schema/index.ts";
+import { drizzle } from "drizzle-orm/pglite";
 import { user } from "../schema/auth.ts";
+import * as schema from "../schema/index.ts";
+import { createTables } from "../setup.ts";
 import {
+	ensureLegacyImportSystemUser,
 	LEGACY_IMPORT_SYSTEM_USER_EMAIL,
 	LEGACY_IMPORT_SYSTEM_USER_ID,
-	ensureLegacyImportSystemUser,
 } from "./system-user.ts";
 
 describe("ensureLegacyImportSystemUser", () => {
@@ -30,7 +30,10 @@ describe("ensureLegacyImportSystemUser", () => {
 		const second = await ensureLegacyImportSystemUser(db);
 		expect(second?.id).toBe(LEGACY_IMPORT_SYSTEM_USER_ID);
 
-		const rows = await db.select().from(user).where(eq(user.id, LEGACY_IMPORT_SYSTEM_USER_ID));
+		const rows = await db
+			.select()
+			.from(user)
+			.where(eq(user.id, LEGACY_IMPORT_SYSTEM_USER_ID));
 		expect(rows.length).toBe(1);
 		expect(rows[0]?.role).toBe("admin");
 	});

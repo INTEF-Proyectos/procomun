@@ -1,13 +1,21 @@
 import { describe, expect, test } from "bun:test";
 import { Hono } from "hono";
 import type { AuthEnv } from "./middleware.ts";
-import { canManageCollection, canManageResource, getCurrentUser, hasMinRole } from "./roles.ts";
+import {
+	canManageCollection,
+	canManageResource,
+	getCurrentUser,
+	hasMinRole,
+} from "./roles.ts";
 
 describe("auth roles helpers", () => {
 	test("getCurrentUser reads the user from context", async () => {
 		const app = new Hono<AuthEnv>();
 		app.use("*", async (c, next) => {
-			c.set("user", { id: "user-1", role: "author" } as AuthEnv["Variables"]["user"]);
+			c.set("user", {
+				id: "user-1",
+				role: "author",
+			} as AuthEnv["Variables"]["user"]);
 			c.set("session", null);
 			await next();
 		});
@@ -27,32 +35,52 @@ describe("auth roles helpers", () => {
 		expect(
 			canManageResource(
 				{ id: "author-1", role: "author" },
-				{ createdBy: "author-1", assignedCuratorId: null, editorialStatus: "draft" },
+				{
+					createdBy: "author-1",
+					assignedCuratorId: null,
+					editorialStatus: "draft",
+				},
 			),
 		).toBe(true);
 		// DEF-009 (#205): el curator asignado conserva el acceso tras publicar el recurso.
 		expect(
 			canManageResource(
 				{ id: "curator-1", role: "curator" },
-				{ createdBy: "author-1", assignedCuratorId: "curator-1", editorialStatus: "published" },
+				{
+					createdBy: "author-1",
+					assignedCuratorId: "curator-1",
+					editorialStatus: "published",
+				},
 			),
 		).toBe(true);
 		expect(
 			canManageResource(
 				{ id: "curator-1", role: "curator" },
-				{ createdBy: "author-1", assignedCuratorId: "curator-1", editorialStatus: "review" },
+				{
+					createdBy: "author-1",
+					assignedCuratorId: "curator-1",
+					editorialStatus: "review",
+				},
 			),
 		).toBe(true);
 		expect(
 			canManageResource(
 				{ id: "curator-2", role: "curator" },
-				{ createdBy: "author-1", assignedCuratorId: "author-1", editorialStatus: "review" },
+				{
+					createdBy: "author-1",
+					assignedCuratorId: "author-1",
+					editorialStatus: "review",
+				},
 			),
 		).toBe(true);
 		expect(
 			canManageResource(
 				{ id: "reader-1", role: "reader" },
-				{ createdBy: "author-1", assignedCuratorId: "curator-1", editorialStatus: "review" },
+				{
+					createdBy: "author-1",
+					assignedCuratorId: "curator-1",
+					editorialStatus: "review",
+				},
 			),
 		).toBe(false);
 	});
@@ -87,14 +115,22 @@ describe("auth roles helpers", () => {
 		expect(
 			canManageResource(
 				{ id: "curator-2", role: "curator" },
-				{ createdBy: "author-1", assignedCuratorId: "curator-1", editorialStatus: "published" },
+				{
+					createdBy: "author-1",
+					assignedCuratorId: "curator-1",
+					editorialStatus: "published",
+				},
 			),
 		).toBe(false);
 		// Sigue pudiendo trabajar cualquier recurso de la cola de revisión.
 		expect(
 			canManageResource(
 				{ id: "curator-3", role: "curator" },
-				{ createdBy: "author-1", assignedCuratorId: null, editorialStatus: "review" },
+				{
+					createdBy: "author-1",
+					assignedCuratorId: null,
+					editorialStatus: "review",
+				},
 			),
 		).toBe(true);
 	});

@@ -21,7 +21,13 @@ const USER_COLUMNS = {
 
 export async function listUsers(
 	db: DrizzleDB,
-	opts: { limit?: number; offset?: number; search?: string; role?: string; id?: string } = {},
+	opts: {
+		limit?: number;
+		offset?: number;
+		search?: string;
+		role?: string;
+		id?: string;
+	} = {},
 ) {
 	const { limit, offset } = normalizePagination(opts.limit, opts.offset);
 	// Excluir usuarios dados de baja lógica (DEF-020).
@@ -98,7 +104,12 @@ export async function ensureUser(
 export async function updateUser(
 	db: DrizzleDB,
 	id: string,
-	data: Partial<{ name: string | null; bio: string | null; role: string; isActive: boolean }>,
+	data: Partial<{
+		name: string | null;
+		bio: string | null;
+		role: string;
+		isActive: boolean;
+	}>,
 ) {
 	await db
 		.update(user)
@@ -113,7 +124,12 @@ export async function updateUser(
  */
 export async function createUserWithCredentials(
 	db: DrizzleDB,
-	data: { email: string; name?: string | null; role?: string; passwordHash: string },
+	data: {
+		email: string;
+		name?: string | null;
+		role?: string;
+		passwordHash: string;
+	},
 ) {
 	const id = crypto.randomUUID();
 	const now = new Date();

@@ -10,7 +10,10 @@ describe("mapResourceType", () => {
 	});
 
 	it("maps a known LOM English value", () => {
-		expect(mapResourceType(["real project"])).toEqual({ resourceType: "proyecto", mapped: true });
+		expect(mapResourceType(["real project"])).toEqual({
+			resourceType: "proyecto",
+			mapped: true,
+		});
 	});
 
 	it("is case/accent insensitive and tolerant to trailing whitespace", () => {
@@ -37,7 +40,10 @@ describe("mapResourceType", () => {
 	});
 
 	it("tries later candidates when the first has no dictionary match", () => {
-		const result = mapResourceType(["valor-lom-sin-equivalencia", "Basado en proyectos"]);
+		const result = mapResourceType([
+			"valor-lom-sin-equivalencia",
+			"Basado en proyectos",
+		]);
 		expect(result).toEqual({ resourceType: "proyecto", mapped: true });
 	});
 
@@ -67,19 +73,37 @@ describe("mapResourceType", () => {
 		it("prefers the Spanish resourceType over the LOM English fallback when both are present (1418693406141 style)", () => {
 			// resourceType: ["Presentación multimedia", "Juego didáctico"] -- el
 			// primer candidato con match gana, nunca llega al segundo.
-			const result = mapResourceType(["Presentación multimedia", "Juego didáctico"]);
+			const result = mapResourceType([
+				"Presentación multimedia",
+				"Juego didáctico",
+			]);
 			expect(result).toEqual({ resourceType: "presentacion", mapped: true });
 		});
 
 		it("also recognizes the LOM English term when the Spanish value is absent", () => {
-			expect(mapResourceType(["conceptual map"])).toEqual({ resourceType: "mapa-conceptual", mapped: true });
-			expect(mapResourceType(["narrative text"])).toEqual({ resourceType: "documento", mapped: true });
+			expect(mapResourceType(["conceptual map"])).toEqual({
+				resourceType: "mapa-conceptual",
+				mapped: true,
+			});
+			expect(mapResourceType(["narrative text"])).toEqual({
+				resourceType: "documento",
+				mapped: true,
+			});
 		});
 	});
 
 	it("defaults to documento when there are no non-empty candidates", () => {
-		expect(mapResourceType(null)).toEqual({ resourceType: "documento", mapped: false });
-		expect(mapResourceType([])).toEqual({ resourceType: "documento", mapped: false });
-		expect(mapResourceType([""])).toEqual({ resourceType: "documento", mapped: false });
+		expect(mapResourceType(null)).toEqual({
+			resourceType: "documento",
+			mapped: false,
+		});
+		expect(mapResourceType([])).toEqual({
+			resourceType: "documento",
+			mapped: false,
+		});
+		expect(mapResourceType([""])).toEqual({
+			resourceType: "documento",
+			mapped: false,
+		});
 	});
 });

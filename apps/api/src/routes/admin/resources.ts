@@ -1,26 +1,34 @@
-import { Hono } from "hono";
-import { type AuthEnv, requireRole } from "../../auth/middleware.ts";
-import { getCurrentUser, hasMinRole, canManageResource } from "../../auth/roles.ts";
-import { logActivity } from "../../activity/log.ts";
-import { ensureCurrentUser } from "../../auth/user-sync.ts";
-import { buildCrudRoutes } from "../crud-builder.ts";
+import { unlink } from "node:fs/promises";
+import * as repo from "@procomun/db/repository";
 import {
 	validateCreateResource,
-	validateUpdateResource,
 	validateStatus,
 	validateTransition,
+	validateUpdateResource,
 } from "@procomun/db/validation";
+import { Hono } from "hono";
+import { logActivity } from "../../activity/log.ts";
+import { type AuthEnv, requireRole } from "../../auth/middleware.ts";
+import {
+	canManageResource,
+	getCurrentUser,
+	hasMinRole,
+} from "../../auth/roles.ts";
+import { ensureCurrentUser } from "../../auth/user-sync.ts";
 import { getDb } from "../../db.ts";
-import * as repo from "@procomun/db/repository";
-import { getUploadConfig, contentDisposition, resolveStoredFilePath } from "../../uploads/config.ts";
+import { updateSearchVector } from "../../fts/search.ts";
+import {
+	contentDisposition,
+	getUploadConfig,
+	resolveStoredFilePath,
+} from "../../uploads/config.ts";
+import { buildCrudRoutes } from "../crud-builder.ts";
 import { readUploadContent, terminateUpload } from "../uploads.ts";
-import { unlink } from "node:fs/promises";
 import {
 	parseJsonBodyOrNull,
 	requireManageableResource,
 	requireUploadSessionForManagedResource,
 } from "./guards.ts";
-import { updateSearchVector } from "../../fts/search.ts";
 
 const db = () => getDb().db;
 
@@ -54,7 +62,10 @@ adminUploadRoutes.get("/:id/content", async (c) => {
 	const body = await readUploadContent(id);
 	return c.body(body, 200, {
 		"Content-Type": check.data.session.mimeType ?? "application/octet-stream",
-		"Content-Disposition": contentDisposition("inline", check.data.session.originalFilename),
+		"Content-Disposition": contentDisposition(
+			"inline",
+			check.data.session.originalFilename,
+		),
 	});
 });
 
@@ -62,10 +73,17 @@ adminUploadRoutes.get("/:id/content", async (c) => {
 
 const resourceRoutes = buildCrudRoutes({
 	baseRole: "author",
-	list: (db, opts) => repo.listResources(db, opts as Parameters<typeof repo.listResources>[1]),
+	list: (db, opts) =>
+		repo.listResources(db, opts as Parameters<typeof repo.listResources>[1]),
 	getById: repo.getResourceById,
-	create: (db, data) => repo.createResource(db, data as Parameters<typeof repo.createResource>[1]),
-	update: (db, id, data) => repo.updateResource(db, id, data as Parameters<typeof repo.updateResource>[2]),
+	create: (db, data) =>
+		repo.createResource(db, data as Parameters<typeof repo.createResource>[1]),
+	update: (db, id, data) =>
+		repo.updateResource(
+			db,
+			id,
+			data as Parameters<typeof repo.updateResource>[2],
+		),
 	remove: repo.deleteResource,
 	validateCreate: validateCreateResource,
 	validateUpdate: validateUpdateResource,
@@ -74,7 +92,8 @@ const resourceRoutes = buildCrudRoutes({
 		const isAdmin = hasMinRole(user.role, "admin");
 		return {
 			status: params.status,
-			createdBy: isAdmin || hasMinRole(user.role, "curator") ? undefined : user.id,
+			createdBy:
+				isAdmin || hasMinRole(user.role, "curator") ? undefined : user.id,
 		};
 	},
 	prepareCreate: async (body, user) => {
@@ -186,7 +205,11 @@ resourceRoutes.get("/:id/elpx", async (c) => {
 	if ("response" in check) return check.response;
 
 	const elpx = await repo.getElpxProjectByResourceId(db(), id);
-	if (!elpx) return c.json({ error: "Este recurso no tiene un proyecto eXeLearning asociado" }, 404);
+	if (!elpx)
+		return c.json(
+			{ error: "Este recurso no tiene un proyecto eXeLearning asociado" },
+			404,
+		);
 
 	// Find the raw .elpx download URL from the upload session or media item
 	let elpxFileUrl: string | null = null;
@@ -195,8 +218,10 @@ resourceRoutes.get("/:id/elpx", async (c) => {
 	} else {
 		// Fallback: find the media item for this resource with .elpx filename
 		const mediaItems = await repo.listMediaItemsForResource(db(), id);
-		const elpxMedia = mediaItems.find((m: { filename?: string | null }) =>
-			m.filename?.endsWith(".elpx") || m.filename?.endsWith(".elp"));
+		const elpxMedia = mediaItems.find(
+			(m: { filename?: string | null }) =>
+				m.filename?.endsWith(".elpx") || m.filename?.endsWith(".elp"),
+		);
 		if (elpxMedia) elpxFileUrl = elpxMedia.url;
 	}
 
@@ -220,24 +245,42 @@ resourceRoutes.patch("/:id/status", async (c) => {
 	const body = await parseJsonBodyOrNull<{ status?: string }>(c);
 
 	const validation = validateStatus(body.status);
-	if (!validation.valid) return c.json({ error: "Validación fallida", details: validation.errors }, 400);
+	if (!validation.valid)
+		return c.json(
+			{ error: "Validación fallida", details: validation.errors },
+			400,
+		);
 
 	const check = await requireManageableResource(c, id);
 	if ("response" in check) return check.response;
 	const existing = check.data;
 
 	const userRole = user.role ?? "reader";
-	const transitionCheck = validateTransition(existing.editorialStatus, body.status, userRole);
-	if (!transitionCheck.valid) return c.json({ error: "Transición no permitida", details: transitionCheck.errors }, 403);
+	const transitionCheck = validateTransition(
+		existing.editorialStatus,
+		body.status,
+		userRole,
+	);
+	if (!transitionCheck.valid)
+		return c.json(
+			{ error: "Transición no permitida", details: transitionCheck.errors },
+			403,
+		);
 
 	await repo.updateEditorialStatus(db(), id, body.status, user.id);
 
 	const statusLabels: Record<string, string> = {
-		draft: "borrador", review: "revisión", published: "publicado", archived: "archivado",
+		draft: "borrador",
+		review: "revisión",
+		published: "publicado",
+		archived: "archivado",
 	};
-	const activityType = body.status === "published" ? "resource_published"
-		: body.status === "draft" ? "resource_drafted"
-		: "resource_status_changed";
+	const activityType =
+		body.status === "published"
+			? "resource_published"
+			: body.status === "draft"
+				? "resource_drafted"
+				: "resource_status_changed";
 	await logActivity({
 		userId: user.id,
 		type: activityType,
@@ -251,4 +294,4 @@ resourceRoutes.patch("/:id/status", async (c) => {
 	return c.json({ id, status: body.status });
 });
 
-export { resourceRoutes, adminUploadRoutes };
+export { adminUploadRoutes, resourceRoutes };

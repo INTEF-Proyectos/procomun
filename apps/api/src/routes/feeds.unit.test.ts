@@ -1,4 +1,4 @@
-import { describe, expect, test, mock, beforeEach } from "bun:test";
+import { beforeEach, describe, expect, mock, test } from "bun:test";
 import { Hono } from "hono";
 
 // Mock the feed service to avoid DB dependency
@@ -47,7 +47,9 @@ describe("feed routes", () => {
 		const res = await app.request("/feeds/atom/resources");
 
 		expect(res.status).toBe(200);
-		expect(res.headers.get("content-type")).toBe("application/atom+xml; charset=utf-8");
+		expect(res.headers.get("content-type")).toBe(
+			"application/atom+xml; charset=utf-8",
+		);
 		expect(res.headers.get("cache-control")).toBe("public, max-age=3600");
 
 		const body = await res.text();
@@ -59,7 +61,9 @@ describe("feed routes", () => {
 		const res = await app.request("/feeds/rss/resources");
 
 		expect(res.status).toBe(200);
-		expect(res.headers.get("content-type")).toBe("application/rss+xml; charset=utf-8");
+		expect(res.headers.get("content-type")).toBe(
+			"application/rss+xml; charset=utf-8",
+		);
 
 		const body = await res.text();
 		expect(body).toContain("<rss");
@@ -82,10 +86,15 @@ describe("feed routes", () => {
 	});
 
 	test("GET /feeds/atom/resources passes query params", async () => {
-		await app.request("/feeds/atom/resources?limit=10&offset=5&q=math&resourceType=documento");
+		await app.request(
+			"/feeds/atom/resources?limit=10&offset=5&q=math&resourceType=documento",
+		);
 
 		expect(mockBuildGeneralFeed).toHaveBeenCalledTimes(1);
-		const args = mockBuildGeneralFeed.mock.calls[0][0] as Record<string, unknown>;
+		const args = mockBuildGeneralFeed.mock.calls[0][0] as Record<
+			string,
+			unknown
+		>;
 		expect(args.limit).toBe(10);
 		expect(args.offset).toBe(5);
 		expect(args.search).toBe("math");

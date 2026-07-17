@@ -18,7 +18,12 @@ export class DuplicateTaxonomyError extends Error {
 
 export async function listTaxonomies(
 	db: DrizzleDB,
-	opts: { limit?: number; offset?: number; search?: string; type?: string } = {},
+	opts: {
+		limit?: number;
+		offset?: number;
+		search?: string;
+		type?: string;
+	} = {},
 ) {
 	const { limit, offset } = normalizePagination(opts.limit, opts.offset);
 	const conditions = [];
@@ -48,7 +53,9 @@ export async function listTaxonomies(
 		.orderBy(asc(taxonomies.type), asc(taxonomies.name));
 	const rows = where ? await query.where(where) : await query;
 
-	const countQuery = db.select({ count: sql<number>`count(*)` }).from(taxonomies);
+	const countQuery = db
+		.select({ count: sql<number>`count(*)` })
+		.from(taxonomies);
 	const countRows = where ? await countQuery.where(where) : await countQuery;
 
 	return { data: rows, total: Number(countRows[0]?.count ?? 0), limit, offset };
@@ -74,7 +81,12 @@ export async function getTaxonomyById(db: DrizzleDB, id: string) {
 
 export async function createTaxonomy(
 	db: DrizzleDB,
-	data: { name: string; slug?: string; type?: string; parentId?: string | null },
+	data: {
+		name: string;
+		slug?: string;
+		type?: string;
+		parentId?: string | null;
+	},
 ) {
 	const type = data.type ?? "category";
 
@@ -108,7 +120,12 @@ export async function createTaxonomy(
 export async function updateTaxonomy(
 	db: DrizzleDB,
 	id: string,
-	data: Partial<{ name: string; slug: string; type: string; parentId: string | null }>,
+	data: Partial<{
+		name: string;
+		slug: string;
+		type: string;
+		parentId: string | null;
+	}>,
 ) {
 	await db
 		.update(taxonomies)

@@ -202,8 +202,10 @@ export const DEMO_RESOURCES: SeedResource[] = [
 	{
 		id: "res-01",
 		slug: "sistemas-ia-etica-aplicaciones-aula",
-		title: "Sistemas de Inteligencia Artificial: Ética y Aplicaciones en el Aula",
-		description: "Secuencia didáctica que explora los fundamentos éticos de la inteligencia artificial y sus aplicaciones prácticas en contextos educativos de bachillerato. Incluye debates, casos de estudio y actividades de evaluación crítica.",
+		title:
+			"Sistemas de Inteligencia Artificial: Ética y Aplicaciones en el Aula",
+		description:
+			"Secuencia didáctica que explora los fundamentos éticos de la inteligencia artificial y sus aplicaciones prácticas en contextos educativos de bachillerato. Incluye debates, casos de estudio y actividades de evaluación crítica.",
 		language: "es",
 		license: "cc-by-nc-sa",
 		resourceType: "secuencia-didactica",
@@ -221,7 +223,8 @@ export const DEMO_RESOURCES: SeedResource[] = [
 		id: "res-02",
 		slug: "introduccion-ia-aula-etica-herramientas",
 		title: "Introducción a la IA en el Aula: Ética y Herramientas",
-		description: "Guía práctica para docentes que desean integrar herramientas de inteligencia artificial en su práctica pedagógica, con énfasis en el uso ético y responsable de estas tecnologías.",
+		description:
+			"Guía práctica para docentes que desean integrar herramientas de inteligencia artificial en su práctica pedagógica, con énfasis en el uso ético y responsable de estas tecnologías.",
 		language: "es",
 		license: "cc-by-sa",
 		resourceType: "secuencia-didactica",
@@ -239,7 +242,8 @@ export const DEMO_RESOURCES: SeedResource[] = [
 		id: "res-03",
 		slug: "como-funciona-bot-taller-robotica",
 		title: "¿Cómo funciona un Bot? Taller Práctico de Robótica",
-		description: "Actividad interactiva donde el alumnado de secundaria construye y programa un bot sencillo, comprendiendo los principios básicos de la robótica y la automatización.",
+		description:
+			"Actividad interactiva donde el alumnado de secundaria construye y programa un bot sencillo, comprendiendo los principios básicos de la robótica y la automatización.",
 		language: "es",
 		license: "cc-by",
 		resourceType: "actividad-interactiva",
@@ -257,7 +261,8 @@ export const DEMO_RESOURCES: SeedResource[] = [
 		id: "res-04",
 		slug: "ia-investigacion-academica",
 		title: "La IA en la Investigación Académica",
-		description: "Guía docente sobre el uso de herramientas de IA en la investigación universitaria: búsqueda bibliográfica automatizada, análisis de datos, generación de hipótesis y consideraciones éticas.",
+		description:
+			"Guía docente sobre el uso de herramientas de IA en la investigación universitaria: búsqueda bibliográfica automatizada, análisis de datos, generación de hipótesis y consideraciones éticas.",
 		language: "es",
 		license: "cc-by-nc",
 		resourceType: "guia-docente",
@@ -275,7 +280,8 @@ export const DEMO_RESOURCES: SeedResource[] = [
 		id: "res-05",
 		slug: "desarrollo-agil-asistentes-codigo",
 		title: "Desarrollo Ágil con Asistentes de Código",
-		description: "Proyecto de formación profesional que enseña metodologías ágiles combinadas con el uso de asistentes de código basados en IA para el desarrollo de software.",
+		description:
+			"Proyecto de formación profesional que enseña metodologías ágiles combinadas con el uso de asistentes de código basados en IA para el desarrollo de software.",
 		language: "es",
 		license: "cc-by-sa",
 		resourceType: "proyecto",
@@ -293,7 +299,8 @@ export const DEMO_RESOURCES: SeedResource[] = [
 		id: "res-06",
 		slug: "primeros-pasos-robots-amigos",
 		title: "Mis Primeros Pasos con los Robots Amigos",
-		description: "Actividad interactiva para educación infantil donde los más pequeños descubren qué es un robot, cómo se mueve y cómo podemos darle instrucciones sencillas a través del juego.",
+		description:
+			"Actividad interactiva para educación infantil donde los más pequeños descubren qué es un robot, cómo se mueve y cómo podemos darle instrucciones sencillas a través del juego.",
 		language: "es",
 		license: "cc-by",
 		resourceType: "actividad-interactiva",
@@ -313,7 +320,8 @@ export const DEMO_RESOURCES: SeedResource[] = [
 		id: "res-07",
 		slug: "matematicas-divertidas-algoritmos-visuales",
 		title: "Matemáticas Divertidas con Algoritmos Visuales",
-		description: "Colección de actividades interactivas que utilizan representaciones visuales de algoritmos para enseñar conceptos matemáticos fundamentales en educación primaria de forma lúdica.",
+		description:
+			"Colección de actividades interactivas que utilizan representaciones visuales de algoritmos para enseñar conceptos matemáticos fundamentales en educación primaria de forma lúdica.",
 		language: "es",
 		license: "cc-by-nc-sa",
 		resourceType: "actividad-interactiva",
@@ -331,7 +339,8 @@ export const DEMO_RESOURCES: SeedResource[] = [
 		id: "res-08",
 		slug: "fracciones-proporciones-cocina-matematica",
 		title: "Fracciones y Proporciones: Cocina Matemática",
-		description: "Secuencia didáctica que conecta las fracciones y proporciones con recetas de cocina reales, permitiendo al alumnado de primaria manipular cantidades y comprender conceptos abstractos.",
+		description:
+			"Secuencia didáctica que conecta las fracciones y proporciones con recetas de cocina reales, permitiendo al alumnado de primaria manipular cantidades y comprender conceptos abstractos.",
 		language: "es",
 		license: "cc-by-sa",
 		resourceType: "secuencia-didactica",
@@ -349,7 +358,8 @@ export const DEMO_RESOURCES: SeedResource[] = [
 		id: "res-09",
 		slug: "cambio-climatico-explicado-datos",
 		title: "El Cambio Climático Explicado con Datos",
-		description: "Infografía interactiva que presenta datos reales sobre el cambio climático, sus causas y consecuencias, con gráficos dinámicos y actividades de análisis para bachillerato.",
+		description:
+			"Infografía interactiva que presenta datos reales sobre el cambio climático, sus causas y consecuencias, con gráficos dinámicos y actividades de análisis para bachillerato.",
 		language: "es",
 		license: "cc-by",
 		resourceType: "infografia",
@@ -367,7 +377,8 @@ export const DEMO_RESOURCES: SeedResource[] = [
 		id: "res-10",
 		slug: "laboratorio-virtual-fisica-movimiento",
 		title: "Laboratorio Virtual de Física: Movimiento",
-		description: "Actividad interactiva que simula un laboratorio de física donde el alumnado experimenta con velocidad, aceleración y fuerzas mediante simulaciones dinámicas.",
+		description:
+			"Actividad interactiva que simula un laboratorio de física donde el alumnado experimenta con velocidad, aceleración y fuerzas mediante simulaciones dinámicas.",
 		language: "es",
 		license: "cc-by-nc",
 		resourceType: "actividad-interactiva",
@@ -385,7 +396,8 @@ export const DEMO_RESOURCES: SeedResource[] = [
 		id: "res-11",
 		slug: "geometria-arquitectura-ciudad",
 		title: "Geometría en la Arquitectura de tu Ciudad",
-		description: "Proyecto interdisciplinar donde el alumnado de secundaria identifica y analiza figuras geométricas en edificios de su entorno, combinando matemáticas, arte y tecnología.",
+		description:
+			"Proyecto interdisciplinar donde el alumnado de secundaria identifica y analiza figuras geométricas en edificios de su entorno, combinando matemáticas, arte y tecnología.",
 		language: "es",
 		license: "cc-by-sa",
 		resourceType: "proyecto",
@@ -403,7 +415,8 @@ export const DEMO_RESOURCES: SeedResource[] = [
 		id: "res-12",
 		slug: "estadistica-ciudadanos-criticos",
 		title: "Estadística para Ciudadanos Críticos",
-		description: "Guía docente que enseña estadística aplicada a la vida real: encuestas, sesgos, visualización de datos y pensamiento crítico para alumnado de formación profesional.",
+		description:
+			"Guía docente que enseña estadística aplicada a la vida real: encuestas, sesgos, visualización de datos y pensamiento crítico para alumnado de formación profesional.",
 		language: "es",
 		license: "cc-by-nc-sa",
 		resourceType: "guia-docente",
@@ -423,7 +436,8 @@ export const DEMO_RESOURCES: SeedResource[] = [
 		id: "res-13",
 		slug: "seguridad-internet-identidad-digital",
 		title: "Seguridad en Internet: Protege tu Identidad Digital",
-		description: "Secuencia didáctica sobre navegación segura, protección de datos personales, contraseñas robustas y prevención del ciberacoso dirigida a alumnado de secundaria.",
+		description:
+			"Secuencia didáctica sobre navegación segura, protección de datos personales, contraseñas robustas y prevención del ciberacoso dirigida a alumnado de secundaria.",
 		language: "es",
 		license: "cc-by",
 		resourceType: "secuencia-didactica",
@@ -441,11 +455,13 @@ export const DEMO_RESOURCES: SeedResource[] = [
 		id: "res-14",
 		slug: "pensamiento-computacional-sin-ordenador",
 		title: "Pensamiento Computacional sin Ordenador",
-		description: "Actividad interactiva de educación infantil que desarrolla el pensamiento computacional mediante juegos de secuenciación, patrones y resolución de problemas sin necesidad de dispositivos.",
+		description:
+			"Actividad interactiva de educación infantil que desarrolla el pensamiento computacional mediante juegos de secuenciación, patrones y resolución de problemas sin necesidad de dispositivos.",
 		language: "es",
 		license: "cc-by-nc",
 		resourceType: "actividad-interactiva",
-		keywords: "pensamiento computacional,unplugged,infantil,patrones,secuencias",
+		keywords:
+			"pensamiento computacional,unplugged,infantil,patrones,secuencias",
 		author: "Sofía García",
 		publisher: null,
 		createdBy: U.yanira,
@@ -459,7 +475,8 @@ export const DEMO_RESOURCES: SeedResource[] = [
 		id: "res-15",
 		slug: "creacion-podcast-educativo",
 		title: "Creación de Podcast Educativo Paso a Paso",
-		description: "Proyecto práctico de formación profesional que guía al alumnado en la planificación, grabación, edición y publicación de un podcast educativo.",
+		description:
+			"Proyecto práctico de formación profesional que guía al alumnado en la planificación, grabación, edición y publicación de un podcast educativo.",
 		language: "es",
 		license: "cc-by-sa",
 		resourceType: "proyecto",
@@ -477,7 +494,8 @@ export const DEMO_RESOURCES: SeedResource[] = [
 		id: "res-16",
 		slug: "evaluacion-rubricas-digitales",
 		title: "Evaluación con Rúbricas Digitales",
-		description: "Guía docente universitaria sobre diseño, implementación y uso de rúbricas digitales para la evaluación formativa y sumativa en educación superior.",
+		description:
+			"Guía docente universitaria sobre diseño, implementación y uso de rúbricas digitales para la evaluación formativa y sumativa en educación superior.",
 		language: "es",
 		license: "cc-by-nc-sa",
 		resourceType: "guia-docente",
@@ -495,7 +513,8 @@ export const DEMO_RESOURCES: SeedResource[] = [
 		id: "res-17",
 		slug: "aprendizaje-basado-proyectos-guia",
 		title: "Aprendizaje Basado en Proyectos: Guía Completa",
-		description: "Guía docente exhaustiva sobre la metodología ABP: planificación, implementación, evaluación y ejemplos prácticos para todas las etapas educativas.",
+		description:
+			"Guía docente exhaustiva sobre la metodología ABP: planificación, implementación, evaluación y ejemplos prácticos para todas las etapas educativas.",
 		language: "es",
 		license: "cc-by",
 		resourceType: "guia-docente",
@@ -513,7 +532,8 @@ export const DEMO_RESOURCES: SeedResource[] = [
 		id: "res-18",
 		slug: "storytelling-digital-aula",
 		title: "Storytelling Digital en el Aula",
-		description: "Secuencia didáctica que enseña a crear historias digitales combinando texto, imagen y audio, fomentando la creatividad y la competencia lingüística en primaria.",
+		description:
+			"Secuencia didáctica que enseña a crear historias digitales combinando texto, imagen y audio, fomentando la creatividad y la competencia lingüística en primaria.",
 		language: "es",
 		license: "cc-by-nc",
 		resourceType: "secuencia-didactica",
@@ -531,7 +551,8 @@ export const DEMO_RESOURCES: SeedResource[] = [
 		id: "res-19",
 		slug: "introduccion-programacion-scratch",
 		title: "Introducción a la Programación con Scratch",
-		description: "Actividad interactiva que introduce los conceptos básicos de programación con Scratch 3.0: secuencias, bucles, condicionales y variables para alumnado de primaria.",
+		description:
+			"Actividad interactiva que introduce los conceptos básicos de programación con Scratch 3.0: secuencias, bucles, condicionales y variables para alumnado de primaria.",
 		language: "es",
 		license: "cc-by-sa",
 		resourceType: "actividad-interactiva",
@@ -549,7 +570,8 @@ export const DEMO_RESOURCES: SeedResource[] = [
 		id: "res-20",
 		slug: "diseno-web-responsive-principiantes",
 		title: "Diseño Web Responsive para Principiantes",
-		description: "Ejercicio práctico de formación profesional que enseña los fundamentos del diseño web responsive: HTML, CSS, media queries y buenas prácticas de accesibilidad.",
+		description:
+			"Ejercicio práctico de formación profesional que enseña los fundamentos del diseño web responsive: HTML, CSS, media queries y buenas prácticas de accesibilidad.",
 		language: "es",
 		license: "cc-by",
 		resourceType: "ejercicio",
@@ -569,7 +591,8 @@ export const DEMO_RESOURCES: SeedResource[] = [
 		id: "res-21",
 		slug: "machine-learning-profes-borrador",
 		title: "Machine Learning para Profes (borrador)",
-		description: "Material en desarrollo sobre conceptos de aprendizaje automático orientados a docentes sin formación técnica previa.",
+		description:
+			"Material en desarrollo sobre conceptos de aprendizaje automático orientados a docentes sin formación técnica previa.",
 		language: "es",
 		license: "cc-by-nc-sa",
 		resourceType: "guia-docente",
@@ -587,7 +610,8 @@ export const DEMO_RESOURCES: SeedResource[] = [
 		id: "res-22",
 		slug: "huerto-escolar-conectado",
 		title: "Huerto Escolar Conectado (en revisión)",
-		description: "Proyecto que combina ciencias naturales y tecnología: sensores IoT para monitorizar un huerto escolar, con actividades de recogida y análisis de datos.",
+		description:
+			"Proyecto que combina ciencias naturales y tecnología: sensores IoT para monitorizar un huerto escolar, con actividades de recogida y análisis de datos.",
 		language: "es",
 		license: "cc-by-sa",
 		resourceType: "proyecto",
@@ -612,7 +636,8 @@ export const DEMO_COLLECTIONS: SeedCollection[] = [
 		id: "col-01",
 		slug: "inteligencia-artificial-educacion",
 		title: "Inteligencia Artificial en Educación",
-		description: "Selección de recursos para integrar la inteligencia artificial en la práctica docente, desde infantil hasta universidad.",
+		description:
+			"Selección de recursos para integrar la inteligencia artificial en la práctica docente, desde infantil hasta universidad.",
 		curatorId: U.humberto,
 		resourceIds: ["res-01", "res-02", "res-03", "res-04", "res-05"],
 	},
@@ -620,7 +645,8 @@ export const DEMO_COLLECTIONS: SeedCollection[] = [
 		id: "col-02",
 		slug: "matematicas-creativas",
 		title: "Matemáticas Creativas",
-		description: "Recursos innovadores para enseñar matemáticas de forma visual, manipulativa y conectada con la vida real.",
+		description:
+			"Recursos innovadores para enseñar matemáticas de forma visual, manipulativa y conectada con la vida real.",
 		curatorId: U.fran,
 		resourceIds: ["res-07", "res-08", "res-11", "res-12"],
 	},
@@ -628,7 +654,8 @@ export const DEMO_COLLECTIONS: SeedCollection[] = [
 		id: "col-03",
 		slug: "competencia-digital-docente",
 		title: "Competencia Digital Docente",
-		description: "Colección de recursos para desarrollar la competencia digital del profesorado en seguridad, evaluación y metodologías activas.",
+		description:
+			"Colección de recursos para desarrollar la competencia digital del profesorado en seguridad, evaluación y metodologías activas.",
 		curatorId: U.admin,
 		resourceIds: ["res-13", "res-15", "res-16", "res-17"],
 	},
@@ -636,7 +663,8 @@ export const DEMO_COLLECTIONS: SeedCollection[] = [
 		id: "col-04",
 		slug: "primeros-pasos-programacion",
 		title: "Primeros Pasos en Programación",
-		description: "Itinerario de recursos para iniciarse en el pensamiento computacional y la programación, desde infantil hasta FP.",
+		description:
+			"Itinerario de recursos para iniciarse en el pensamiento computacional y la programación, desde infantil hasta FP.",
 		curatorId: U.carlos,
 		resourceIds: ["res-06", "res-14", "res-19", "res-20"],
 	},
@@ -644,7 +672,8 @@ export const DEMO_COLLECTIONS: SeedCollection[] = [
 		id: "col-05",
 		slug: "steam-para-primaria",
 		title: "STEAM para Primaria",
-		description: "Propuestas interdisciplinares que integran ciencia, tecnología, ingeniería, arte y matemáticas para la etapa de primaria.",
+		description:
+			"Propuestas interdisciplinares que integran ciencia, tecnología, ingeniería, arte y matemáticas para la etapa de primaria.",
 		curatorId: U.yanira,
 		resourceIds: ["res-06", "res-07", "res-08", "res-14"],
 	},
@@ -652,7 +681,8 @@ export const DEMO_COLLECTIONS: SeedCollection[] = [
 		id: "col-06",
 		slug: "ciencias-medio-ambiente",
 		title: "Ciencias y Medio Ambiente",
-		description: "Recursos para enseñar ciencias naturales y conciencia medioambiental con datos reales y experimentos.",
+		description:
+			"Recursos para enseñar ciencias naturales y conciencia medioambiental con datos reales y experimentos.",
 		curatorId: U.carlos2,
 		resourceIds: ["res-09", "res-10", "res-22"],
 	},
@@ -660,7 +690,8 @@ export const DEMO_COLLECTIONS: SeedCollection[] = [
 		id: "col-07",
 		slug: "formacion-profesional-digital",
 		title: "Formación Profesional Digital",
-		description: "Materiales orientados a ciclos formativos de informática, comunicaciones y desarrollo de software.",
+		description:
+			"Materiales orientados a ciclos formativos de informática, comunicaciones y desarrollo de software.",
 		curatorId: U.humberto2,
 		resourceIds: ["res-05", "res-12", "res-15", "res-20"],
 	},
@@ -668,7 +699,8 @@ export const DEMO_COLLECTIONS: SeedCollection[] = [
 		id: "col-08",
 		slug: "innovacion-metodologica",
 		title: "Innovación Metodológica",
-		description: "Guías y herramientas para implementar metodologías activas: ABP, rúbricas digitales y storytelling.",
+		description:
+			"Guías y herramientas para implementar metodologías activas: ABP, rúbricas digitales y storytelling.",
 		curatorId: U.humberto,
 		resourceIds: ["res-16", "res-17", "res-18"],
 	},

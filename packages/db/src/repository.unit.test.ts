@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import { PGlite } from "@electric-sql/pglite";
 import { eq } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/pglite";
-import * as schema from "./schema/index.ts";
+import { ensureLegacyImportSystemUser } from "./legacy-import/system-user.ts";
 import {
 	addResourceToCollection,
 	createCollection,
@@ -12,10 +12,8 @@ import {
 	createUserWithCredentials,
 	deleteCollection,
 	deleteElpxProject,
-	deleteMediaItem,
 	deleteTaxonomy,
 	ensureUser,
-	failUploadSession,
 	findLegacyResourceByExternalId,
 	getCollectionById,
 	getCollectionBySlug,
@@ -37,7 +35,7 @@ import {
 	updateTaxonomy,
 	updateUser,
 } from "./repository.ts";
-import { ensureLegacyImportSystemUser } from "./legacy-import/system-user.ts";
+import * as schema from "./schema/index.ts";
 import { createTables } from "./setup.ts";
 
 describe("repository admin helpers", () => {
@@ -79,13 +77,20 @@ describe("repository admin helpers", () => {
 			name: "Editor",
 			role: "editor",
 		});
-		await updateUser(db, "user-editor", { name: "Editor Jefe", isActive: false });
+		await updateUser(db, "user-editor", {
+			name: "Editor Jefe",
+			isActive: false,
+		});
 
 		const updated = await getUserById(db, "user-editor");
 		expect(updated?.name).toBe("Editor Jefe");
 		expect(updated?.isActive).toBe(false);
 
-		const list = await listUsers(db, { search: "editor", role: "editor", isActive: false });
+		const list = await listUsers(db, {
+			search: "editor",
+			role: "editor",
+			isActive: false,
+		});
 		expect(list.total).toBe(1);
 		expect(list.data[0]?.id).toBe("user-editor");
 	});
@@ -124,7 +129,9 @@ describe("repository admin helpers", () => {
 		});
 		expect(filtered.total).toBe(1);
 		expect(filtered.data[0]?.slug).toContain("algebra-visual-");
-		expect(filtered.data[0]?.coverImageUrl).toBe("https://img.example/algebra.png");
+		expect(filtered.data[0]?.coverImageUrl).toBe(
+			"https://img.example/algebra.png",
+		);
 
 		await updateCollection(db, first.id, {
 			title: "Álgebra visual avanzada",
@@ -139,7 +146,9 @@ describe("repository admin helpers", () => {
 		expect(updated?.editorialStatus).toBe("published");
 		expect(updated?.isOrdered).toBe(true);
 
-		const bySlug = await getCollectionBySlug(db, updated!.slug, { status: "published" });
+		const bySlug = await getCollectionBySlug(db, updated!.slug, {
+			status: "published",
+		});
 		expect(bySlug?.id).toBe(first.id);
 
 		await deleteCollection(db, first.id);
@@ -157,7 +166,10 @@ describe("repository admin helpers", () => {
 			parentId: parent.id,
 		});
 
-		const levels = await listTaxonomies(db, { search: "educacion", type: "level" });
+		const levels = await listTaxonomies(db, {
+			search: "educacion",
+			type: "level",
+		});
 		expect(levels.total).toBe(1);
 		expect(levels.data[0]?.slug).toContain("educacion-primaria-");
 
@@ -183,7 +195,9 @@ describe("repository admin helpers", () => {
 
 		await expect(
 			createTaxonomy(db, { name: "Ciencias", type: "subject" }),
-		).rejects.toThrow("Ya existe una taxonomía con el nombre «Ciencias» y tipo «subject»");
+		).rejects.toThrow(
+			"Ya existe una taxonomía con el nombre «Ciencias» y tipo «subject»",
+		);
 	});
 
 	test("permite crear taxonomías con mismo nombre pero distinto tipo", async () => {
@@ -203,7 +217,12 @@ describe("repository elpx projects", () => {
 		pglite = new PGlite();
 		await createTables(pglite);
 		db = drizzle(pglite, { schema });
-		await ensureUser(db, { id: "u1", email: "a@b.com", name: "A", role: "admin" });
+		await ensureUser(db, {
+			id: "u1",
+			email: "a@b.com",
+			name: "A",
+			role: "admin",
+		});
 		const res = await createResource(db, {
 			title: "Recurso",
 			description: "Desc",
@@ -220,7 +239,6 @@ describe("repository elpx projects", () => {
 	});
 
 	test("crea, consulta por resource y por hash, y borra", async () => {
-
 		const result = await createElpxProject(db, {
 			resourceId,
 			hash: "abc123",
@@ -259,9 +277,18 @@ describe("repository collection-resources", () => {
 		pglite = new PGlite();
 		await createTables(pglite);
 		db = drizzle(pglite, { schema });
-		await ensureUser(db, { id: "u1", email: "a@b.com", name: "A", role: "admin" });
+		await ensureUser(db, {
+			id: "u1",
+			email: "a@b.com",
+			name: "A",
+			role: "admin",
+		});
 
-		const col = await createCollection(db, { title: "Col", description: "D", curatorId: "u1" });
+		const col = await createCollection(db, {
+			title: "Col",
+			description: "D",
+			curatorId: "u1",
+		});
 		collectionId = col.id;
 
 		const res = await createResource(db, {
@@ -313,7 +340,12 @@ describe("repository collection-resources", () => {
 		await addResourceToCollection(db, collectionId, resourceId, 0);
 		await addResourceToCollection(db, collectionId, secondResourceId, 1);
 
-		const reordered = await reorderCollectionResource(db, collectionId, secondResourceId, "up");
+		const reordered = await reorderCollectionResource(
+			db,
+			collectionId,
+			secondResourceId,
+			"up",
+		);
 		expect(reordered).toBe(true);
 
 		const items = await listCollectionResources(db, collectionId);
@@ -337,7 +369,12 @@ describe("repository — gestión de usuarios (alta y baja)", () => {
 	});
 
 	test("getUserByEmail localiza por correo o devuelve null", async () => {
-		await ensureUser(db, { id: "u-email", email: "find@example.com", name: "Find", role: "author" });
+		await ensureUser(db, {
+			id: "u-email",
+			email: "find@example.com",
+			name: "Find",
+			role: "author",
+		});
 
 		const found = await getUserByEmail(db, "find@example.com");
 		expect(found?.id).toBe("u-email");
@@ -347,9 +384,17 @@ describe("repository — gestión de usuarios (alta y baja)", () => {
 	});
 
 	test("updateUser persiste el campo bio y getUserById lo devuelve (DEF-004 / #201)", async () => {
-		await ensureUser(db, { id: "u-bio", email: "bio@example.com", name: "Bio User", role: "author" });
+		await ensureUser(db, {
+			id: "u-bio",
+			email: "bio@example.com",
+			name: "Bio User",
+			role: "author",
+		});
 
-		await updateUser(db, "u-bio", { name: "Bio Editada", bio: "Profesora de matemáticas" });
+		await updateUser(db, "u-bio", {
+			name: "Bio Editada",
+			bio: "Profesora de matemáticas",
+		});
 
 		const updated = await getUserById(db, "u-bio");
 		expect(updated?.name).toBe("Bio Editada");
@@ -377,14 +422,21 @@ describe("repository — gestión de usuarios (alta y baja)", () => {
 		expect(list.data.some((u) => u.email === "nuevo@example.com")).toBe(true);
 
 		// Se guarda una cuenta "credential" con el hash de contraseña
-		const accounts = (await db.select().from(schema.account)).filter((a) => a.userId === created!.id);
+		const accounts = (await db.select().from(schema.account)).filter(
+			(a) => a.userId === created!.id,
+		);
 		expect(accounts).toHaveLength(1);
 		expect(accounts[0].providerId).toBe("credential");
 		expect(accounts[0].password).toBe("salt:deadbeef");
 	});
 
 	test("softDeleteUser elimina al usuario del listado y revoca sus sesiones", async () => {
-		await ensureUser(db, { id: "u-del", email: "del@example.com", name: "Del", role: "author" });
+		await ensureUser(db, {
+			id: "u-del",
+			email: "del@example.com",
+			name: "Del",
+			role: "author",
+		});
 		// Sesión activa que debe revocarse al dar de baja (DEF-020)
 		await db.insert(schema.session).values({
 			id: "sess-del",
@@ -409,7 +461,9 @@ describe("repository — gestión de usuarios (alta y baja)", () => {
 		expect(stillThere).toBeNull();
 
 		// Las sesiones activas quedan revocadas
-		const sessions = (await db.select().from(schema.session)).filter((s) => s.userId === "u-del");
+		const sessions = (await db.select().from(schema.session)).filter(
+			(s) => s.userId === "u-del",
+		);
 		expect(sessions).toHaveLength(0);
 	});
 });
@@ -471,7 +525,11 @@ describe("legacy import repository (epic-004-migracion-legacy-procomun)", () => 
 	});
 
 	test("findLegacyResourceByExternalId devuelve null cuando no existe", async () => {
-		const found = await findLegacyResourceByExternalId(db, "legacy-procomun", "no-existe");
+		const found = await findLegacyResourceByExternalId(
+			db,
+			"legacy-procomun",
+			"no-existe",
+		);
 		expect(found).toBeNull();
 	});
 
@@ -486,7 +544,11 @@ describe("legacy import repository (epic-004-migracion-legacy-procomun)", () => 
 		expect(result.resourceId).toBeTruthy();
 		expect(result.slug).toContain("recurso-de-prueba-legacy");
 
-		const found = await findLegacyResourceByExternalId(db, "legacy-procomun", baseResourceInput.externalId);
+		const found = await findLegacyResourceByExternalId(
+			db,
+			"legacy-procomun",
+			baseResourceInput.externalId,
+		);
 		expect(found?.id).toBe(result.resourceId);
 
 		// Los recursos legacy ya estaban publicados en origen: se importan
@@ -495,11 +557,16 @@ describe("legacy import repository (epic-004-migracion-legacy-procomun)", () => 
 		// ejecución del import, para no desplazar el orden del catálogo público
 		// (listResources ordena por createdAt DESC).
 		const [resourceRow] = await db
-			.select({ editorialStatus: schema.resources.editorialStatus, createdAt: schema.resources.createdAt })
+			.select({
+				editorialStatus: schema.resources.editorialStatus,
+				createdAt: schema.resources.createdAt,
+			})
 			.from(schema.resources)
 			.where(eq(schema.resources.id, result.resourceId));
 		expect(resourceRow?.editorialStatus).toBe("published");
-		expect(resourceRow?.createdAt?.toISOString()).toBe(baseResourceInput.importedAt.toISOString());
+		expect(resourceRow?.createdAt?.toISOString()).toBe(
+			baseResourceInput.importedAt.toISOString(),
+		);
 
 		const elpxProject = await getElpxProjectByResourceId(db, result.resourceId);
 		expect(elpxProject?.hash).toBe(elpxInput.hash);
@@ -588,7 +655,11 @@ describe("legacy import repository (epic-004-migracion-legacy-procomun)", () => 
 	test("createdAt cae al instante de ejecución cuando no se pudo resolver una fecha de origen", async () => {
 		const before = new Date();
 		const result = await importLegacyResourceWithElpx(db, {
-			resource: { ...baseResourceInput, externalId: "es_test_sin_fecha", importedAt: null },
+			resource: {
+				...baseResourceInput,
+				externalId: "es_test_sin_fecha",
+				importedAt: null,
+			},
 			elpx: { ...elpxInput, hash: "hash-legacy-test-sin-fecha" },
 			media: buildMediaInput(crypto.randomUUID()),
 		});
@@ -598,6 +669,8 @@ describe("legacy import repository (epic-004-migracion-legacy-procomun)", () => 
 			.from(schema.resources)
 			.where(eq(schema.resources.id, result.resourceId));
 		expect(resourceRow?.createdAt).not.toBeNull();
-		expect(resourceRow!.createdAt.getTime()).toBeGreaterThanOrEqual(before.getTime());
+		expect(resourceRow!.createdAt.getTime()).toBeGreaterThanOrEqual(
+			before.getTime(),
+		);
 	});
 });

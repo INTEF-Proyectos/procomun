@@ -29,35 +29,63 @@ function stripAccents(value: string): string {
  * (p.ej. "non derived" + "share alike", mutuamente excluyentes) se consideran
  * no reconocidas, igual que cualquier texto que no mencione Creative Commons.
  */
-export function normalizeLicense(raw: string | null | undefined): LicenseNormalizationResult {
+export function normalizeLicense(
+	raw: string | null | undefined,
+): LicenseNormalizationResult {
 	const rawInput = raw ?? "";
 	if (!rawInput.trim()) {
-		return { license: null, matched: false, rawInput, ndSaConflictResolved: false };
+		return {
+			license: null,
+			matched: false,
+			rawInput,
+			ndSaConflictResolved: false,
+		};
 	}
 
-	const normalized = stripAccents(rawInput.toLowerCase()).replace(/\s+/g, " ").trim();
+	const normalized = stripAccents(rawInput.toLowerCase())
+		.replace(/\s+/g, " ")
+		.trim();
 
 	if (
 		normalized.includes("cc0") ||
 		normalized.includes("dominio publico") ||
 		normalized.includes("public domain")
 	) {
-		return { license: "cc0", matched: true, rawInput, ndSaConflictResolved: false };
+		return {
+			license: "cc0",
+			matched: true,
+			rawInput,
+			ndSaConflictResolved: false,
+		};
 	}
 
 	const isCreativeCommons =
-		normalized.includes("creative commons") || /(^|[^a-z])cc([^a-z]|$)/.test(normalized);
+		normalized.includes("creative commons") ||
+		/(^|[^a-z])cc([^a-z]|$)/.test(normalized);
 	if (!isCreativeCommons) {
-		return { license: null, matched: false, rawInput, ndSaConflictResolved: false };
+		return {
+			license: null,
+			matched: false,
+			rawInput,
+			ndSaConflictResolved: false,
+		};
 	}
 
 	if (!normalized.includes("attribution")) {
 		// Sin "attribution" no hay licencia CC estándar soportada por VALID_LICENSES.
-		return { license: null, matched: false, rawInput, ndSaConflictResolved: false };
+		return {
+			license: null,
+			matched: false,
+			rawInput,
+			ndSaConflictResolved: false,
+		};
 	}
 
-	const nc = normalized.includes("non commercial") || normalized.includes("noncommercial");
-	const sa = normalized.includes("share alike") || normalized.includes("sharealike");
+	const nc =
+		normalized.includes("non commercial") ||
+		normalized.includes("noncommercial");
+	const sa =
+		normalized.includes("share alike") || normalized.includes("sharealike");
 	let nd =
 		normalized.includes("non derived") ||
 		normalized.includes("no derivs") ||
@@ -80,8 +108,18 @@ export function normalizeLicense(raw: string | null | undefined): LicenseNormali
 	else code = "cc-by";
 
 	if (!(VALID_LICENSES as readonly string[]).includes(code)) {
-		return { license: null, matched: false, rawInput, ndSaConflictResolved: false };
+		return {
+			license: null,
+			matched: false,
+			rawInput,
+			ndSaConflictResolved: false,
+		};
 	}
 
-	return { license: code as LicenseCode, matched: true, rawInput, ndSaConflictResolved };
+	return {
+		license: code as LicenseCode,
+		matched: true,
+		rawInput,
+		ndSaConflictResolved,
+	};
 }

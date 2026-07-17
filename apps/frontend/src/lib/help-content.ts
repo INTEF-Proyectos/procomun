@@ -59,7 +59,7 @@ export const HELP_SECTIONS: HelpSection[] = [
 			"Las personas con rol autor o superior pueden crear borradores, completarlos y enviarlos a revisión editorial.",
 		icon: "upload_file",
 		items: [
-			"Entra en \"Publicar\" para abrir el formulario de alta y completa al menos título, descripción, tipo, licencia e idioma.",
+			'Entra en "Publicar" para abrir el formulario de alta y completa al menos título, descripción, tipo, licencia e idioma.',
 			"Añade ficheros o enlaces y revisa la calidad de los metadatos para facilitar el descubrimiento posterior.",
 			"Cuando el borrador esté listo, envíalo a revisión para que curación o administración lo validen antes de publicarlo.",
 		],

@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
-import { eq } from "drizzle-orm";
 import * as repo from "@procomun/db/repository";
 import { activityEvents } from "@procomun/db/schema";
+import { eq } from "drizzle-orm";
 import { getDb } from "../db.ts";
 import { logActivity } from "./log.ts";
 
@@ -22,8 +22,8 @@ describe("logActivity", () => {
 			metadata: { origin: "unit-test" },
 		});
 
-		const rows = await getDb().db
-			.select({
+		const rows = await getDb()
+			.db.select({
 				type: activityEvents.type,
 				description: activityEvents.description,
 				metadata: activityEvents.metadata,
@@ -32,6 +32,8 @@ describe("logActivity", () => {
 			.where(eq(activityEvents.userId, userId));
 
 		expect(rows.some((row) => row.type === "test_activity")).toBe(true);
-		expect(rows.some((row) => row.description === "Actividad de prueba")).toBe(true);
+		expect(rows.some((row) => row.description === "Actividad de prueba")).toBe(
+			true,
+		);
 	});
 });

@@ -1,4 +1,14 @@
-import { and, eq, isNull, isNotNull, gt, lte, or, desc, sql } from "drizzle-orm";
+import {
+	and,
+	desc,
+	eq,
+	gt,
+	isNotNull,
+	isNull,
+	lte,
+	or,
+	sql,
+} from "drizzle-orm";
 import { apiTokens } from "../schema/api-tokens.ts";
 import { user } from "../schema/auth.ts";
 import type { DrizzleDB } from "./shared.ts";
@@ -30,7 +40,13 @@ export function generateToken(): string {
 export async function createApiToken(
 	db: DrizzleDB,
 	data: { userId: string; name: string; expiresAt?: Date },
-): Promise<{ id: string; rawToken: string; name: string; tokenPrefix: string; createdAt: Date }> {
+): Promise<{
+	id: string;
+	rawToken: string;
+	name: string;
+	tokenPrefix: string;
+	createdAt: Date;
+}> {
 	const id = crypto.randomUUID();
 	const rawToken = generateToken();
 	const tokenHash = await hashToken(rawToken);
@@ -88,7 +104,7 @@ export async function revokeApiToken(
 	tokenId: string,
 	userId: string,
 ): Promise<boolean> {
-	const result = await db
+	await db
 		.update(apiTokens)
 		.set({ revokedAt: new Date() })
 		.where(
@@ -227,9 +243,11 @@ export async function revokeApiTokenAdmin(
 	return true;
 }
 
-export async function getGlobalApiTokenStats(
-	db: DrizzleDB,
-): Promise<{ activeCount: number; revokedCount: number; totalRequests: number }> {
+export async function getGlobalApiTokenStats(db: DrizzleDB): Promise<{
+	activeCount: number;
+	revokedCount: number;
+	totalRequests: number;
+}> {
 	const now = new Date();
 
 	const activeRows = await db

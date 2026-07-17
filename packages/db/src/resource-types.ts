@@ -34,4 +34,5 @@ export const RESOURCE_TYPES = [
 
 export type ResourceTypeValue = (typeof RESOURCE_TYPES)[number]["value"];
 
-export const RESOURCE_TYPE_VALUES: readonly ResourceTypeValue[] = RESOURCE_TYPES.map((type) => type.value);
+export const RESOURCE_TYPE_VALUES: readonly ResourceTypeValue[] =
+	RESOURCE_TYPES.map((type) => type.value);

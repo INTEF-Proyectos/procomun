@@ -1,5 +1,5 @@
-import { ensureUser } from "../repository/users.ts";
 import type { DrizzleDB } from "../repository/shared.ts";
+import { ensureUser } from "../repository/users.ts";
 
 /**
  * UUID fijo (no aleatorio) para el usuario de sistema usado como `ownerId` de
@@ -7,8 +7,10 @@ import type { DrizzleDB } from "../repository/shared.ts";
  * (ensureUser solo inserta la fila `user`), por lo que no puede autenticarse:
  * es una referencia de propiedad, no una cuenta operativa (ADR-0029).
  */
-export const LEGACY_IMPORT_SYSTEM_USER_ID = "00000000-0000-0000-0000-00000000e1c1";
-export const LEGACY_IMPORT_SYSTEM_USER_EMAIL = "legacy-procomun-import@system.local";
+export const LEGACY_IMPORT_SYSTEM_USER_ID =
+	"00000000-0000-0000-0000-00000000e1c1";
+export const LEGACY_IMPORT_SYSTEM_USER_EMAIL =
+	"legacy-procomun-import@system.local";
 
 export async function ensureLegacyImportSystemUser(db: DrizzleDB) {
 	return ensureUser(db, {

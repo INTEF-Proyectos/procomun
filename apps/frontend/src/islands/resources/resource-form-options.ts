@@ -33,7 +33,9 @@ export interface ResourceTypeOption {
  * @param currentValue Current resource type stored for the resource.
  * @return Options that preserve the current value when necessary.
  */
-export function getResourceTypeOptions(currentValue?: string | null): readonly ResourceTypeOption[] {
+export function getResourceTypeOptions(
+	currentValue?: string | null,
+): readonly ResourceTypeOption[] {
 	if (!currentValue?.trim()) {
 		return RESOURCE_TYPE_OPTIONS;
 	}

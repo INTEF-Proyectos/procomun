@@ -29,9 +29,7 @@ describe("suppress-extension-errors", () => {
 		});
 
 		test("does not match unrelated errors", () => {
-			expect(isExtensionError(new Error("Network request failed"))).toBe(
-				false,
-			);
+			expect(isExtensionError(new Error("Network request failed"))).toBe(false);
 			expect(isExtensionError(new TypeError("Cannot read property 'x'"))).toBe(
 				false,
 			);
