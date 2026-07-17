@@ -8,25 +8,19 @@
  * clase de mentira que el paquete `biome` equivocado que arregló la PR #272, y
  * la última que quedaba.
  *
- * Poner la puerta en estricto hoy no es viable: hay una deuda de tipado real
- * (el Lote 1 de ADR-0030) que no se arregla en un día. Pero dejarla en verde
- * mientras crece tampoco: la línea base pasó de 635 a 665 en una sola jornada
- * (#268, #273, #274, #275) sin que nadie se enterara.
+ * Historia (issue #282): la línea base partió de ~612 y se quemó a 0 con
+ * arreglos reales (tipado de DrizzleDB, css.d.ts, paraglide en CI, narrowing).
+ * Con baseline 0 el ratchet es un typecheck estricto: cualquier error nuevo
+ * rompe CI.
  *
- * El trato de este script: los errores que ya había se toleran, pero NO pueden
- * crecer. Si bajan, avisa para que se apriete la línea base — de ahí lo de
- * ratchet: solo gira en un sentido.
+ * Paraglide se genera en el script npm `check-types` (package.json) ANTES de
+ * invocar este fichero: `apps/frontend/src/paraglide` es generado y no
+ * versionado; sin él CI inventaba ~16 errores de "Cannot find module".
  */
 
-// 612, medido en CI. OJO si lo tocas: en un árbol de desarrollo con
-// `apps/frontend/src/paraglide` ya generado, tsc da 596. Los 16 de diferencia
-// son errores de "módulo no encontrado" de ese directorio, que es generado y no
-// está versionado, y CI no lo genera antes de tipar (el Type Check va antes de
-// cualquier build). Comprobado: apartando paraglide en local salen exactamente
-// los 612 de CI. Es decir, esta línea base incluye ~16 errores que no existen en
-// un árbol bien montado; generar paraglide en CI antes del Type Check los
-// eliminaría y permitiría bajarla a 596.
-export const TYPE_ERROR_BASELINE = 612;
+// 0 = typecheck limpio (issue #282). Si alguna PR reintroduce errores, o los
+// arregla o sube esta constante documentando por qué (no debería hacer falta).
+export const TYPE_ERROR_BASELINE = 0;
 
 /** Cuenta los diagnósticos de tsc en su salida. */
 export function countTypeErrors(output: string): number {
@@ -102,7 +96,10 @@ export function formatVerdict(
 
 	return {
 		exitCode: 0,
-		message: `✅ Errores de tipos: ${verdict.count}, igual que la línea base.`,
+		message:
+			TYPE_ERROR_BASELINE === 0
+				? "✅ Errores de tipos: 0 (typecheck limpio)."
+				: `✅ Errores de tipos: ${verdict.count}, igual que la línea base.`,
 	};
 }
 

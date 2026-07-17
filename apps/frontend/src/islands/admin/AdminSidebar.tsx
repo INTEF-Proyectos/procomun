@@ -1,6 +1,6 @@
 import { buildHelpHref } from "../../lib/help-content.ts";
 import { url } from "../../lib/paths.ts";
-import { ROLE_LEVELS } from "../../lib/shared-utils.ts";
+import { ROLE_LEVELS, roleLevelOf } from "../../lib/shared-utils.ts";
 import type { AdminSection } from "./AdminPageIsland.tsx";
 
 interface NavItem {
@@ -64,7 +64,7 @@ export function AdminSidebar({
 	onSectionChange,
 	userRole,
 }: AdminSidebarProps) {
-	const userLevel = ROLE_LEVELS[userRole] ?? 0;
+	const userLevel = roleLevelOf(userRole);
 
 	return (
 		<aside className="admin-sidebar" aria-label="Menu de administracion">

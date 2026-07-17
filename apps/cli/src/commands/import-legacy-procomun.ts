@@ -49,7 +49,14 @@ export async function loadImportLegacyProcomunDependencies() {
 		mapLegacyRecord: legacyImport.mapLegacyRecord,
 		resolveLegacyExternalId: legacyImport.resolveLegacyExternalId,
 		ensureLegacyImportSystemUser: legacyImport.ensureLegacyImportSystemUser,
-		repo,
+		// Solo las operaciones de repositorio que usa este comando. Exponer el
+		// módulo completo forzaría a los mocks de unit test a implementar ~60
+		// exports irrelevantes y haría frágil el contrato de dependencias.
+		repo: {
+			findLegacyResourceByExternalId: repo.findLegacyResourceByExternalId,
+			getElpxProjectByHash: repo.getElpxProjectByHash,
+			importLegacyResourceWithElpx: repo.importLegacyResourceWithElpx,
+		},
 	};
 }
 
@@ -238,9 +245,13 @@ export async function importLegacyProcomun(args: string[]) {
 	// seguridad (ver quit_() en @electric-sql/pglite) — reproducible incluso
 	// llamando a process.exit(0) explícitamente. Cerrar el cliente antes de
 	// salir evita esa ruta y deja el código de salida real (0/1).
-	const client = deps.getDb().db.$client as
-		| { close?: () => unknown }
-		| undefined;
+	// DrizzleDB (PgDatabase) no expone `$client` en el tipo; en runtime PGlite
+	// sí lo tiene. Se comprueba con `in` para no acoplar el tipo a un driver.
+	const dbHandle = deps.getDb().db;
+	const client =
+		"$client" in dbHandle
+			? (dbHandle.$client as { close?: () => unknown } | undefined)
+			: undefined;
 	if (typeof client?.close === "function") {
 		try {
 			await client.close();

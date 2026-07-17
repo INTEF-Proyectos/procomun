@@ -27,6 +27,7 @@ export async function listUsers(
 		search?: string;
 		role?: string;
 		id?: string;
+		isActive?: boolean;
 	} = {},
 ) {
 	const { limit, offset } = normalizePagination(opts.limit, opts.offset);
@@ -41,6 +42,8 @@ export async function listUsers(
 	}
 	if (opts.role) conditions.push(eq(user.role, opts.role));
 	if (opts.id) conditions.push(eq(user.id, opts.id));
+	if (opts.isActive !== undefined)
+		conditions.push(eq(user.isActive, opts.isActive));
 
 	const where = andWhere(conditions);
 

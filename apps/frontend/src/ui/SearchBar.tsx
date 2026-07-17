@@ -29,7 +29,9 @@ export function SearchBar({
 	className = "",
 }: SearchBarProps) {
 	const [internalValue, setInternalValue] = useState(controlledValue ?? "");
-	const debounceRef = useRef<ReturnType<typeof setTimeout>>();
+	const debounceRef = useRef<ReturnType<typeof setTimeout> | undefined>(
+		undefined,
+	);
 	const inputRef = useRef<HTMLInputElement>(null);
 
 	useEffect(() => {

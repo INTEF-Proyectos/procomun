@@ -116,10 +116,16 @@ function buildMockDeps(
 				importedAt: null,
 			},
 		})) as Deps["mapLegacyRecord"],
-		ensureLegacyImportSystemUser: (async () => ({
+		ensureLegacyImportSystemUser: async () => ({
 			id: "system-user",
 			email: "x@x.test",
-		})) as Deps["ensureLegacyImportSystemUser"],
+			name: "Importador legacy Procomún",
+			bio: null,
+			role: "admin",
+			isActive: true,
+			createdAt: new Date(0),
+			updatedAt: new Date(0),
+		}),
 		repo: {
 			findLegacyResourceByExternalId: async () => null,
 			importLegacyResourceWithElpx: async () => ({
@@ -129,7 +135,7 @@ function buildMockDeps(
 				elpxProjectId: "mock-elpx-id",
 			}),
 			getElpxProjectByHash: async () => null,
-		} as Deps["repo"],
+		},
 	};
 
 	return { ...base, ...overrides };
@@ -305,11 +311,12 @@ describe("runImportLegacyProcomun (deps mockeadas)", () => {
 			}) as Deps["processElpxUpload"],
 			repo: {
 				findLegacyResourceByExternalId: async () => null,
+				getElpxProjectByHash: async () => null,
 				importLegacyResourceWithElpx: async () => {
 					importCalled = true;
 					throw new Error("no debería llamarse");
 				},
-			} as Deps["repo"],
+			},
 		});
 
 		const report = await runImportLegacyProcomun(
@@ -332,11 +339,12 @@ describe("runImportLegacyProcomun (deps mockeadas)", () => {
 					id: "existing-id",
 					slug: "existing",
 				}),
+				getElpxProjectByHash: async () => null,
 				importLegacyResourceWithElpx: async () => {
 					importCalled = true;
 					throw new Error("no debería llamarse");
 				},
-			} as Deps["repo"],
+			},
 		});
 
 		const report = await runImportLegacyProcomun(
@@ -359,11 +367,12 @@ describe("runImportLegacyProcomun (deps mockeadas)", () => {
 			}) as Deps["processElpxUpload"],
 			repo: {
 				findLegacyResourceByExternalId: async () => null,
+				getElpxProjectByHash: async () => null,
 				importLegacyResourceWithElpx: async () => {
 					importCalled = true;
 					throw new Error("no debería llamarse en dry-run");
 				},
-			} as Deps["repo"],
+			},
 		});
 
 		const report = await runImportLegacyProcomun(
@@ -434,7 +443,7 @@ describe("runImportLegacyProcomun (deps mockeadas)", () => {
 					};
 				},
 				getElpxProjectByHash: async () => null,
-			} as Deps["repo"],
+			},
 		});
 
 		const report = await runImportLegacyProcomun(
@@ -503,7 +512,7 @@ describe("runImportLegacyProcomun (deps mockeadas)", () => {
 				// Ambas ejecuciones ven "no existe" — la carrera pasa el pre-check.
 				getElpxProjectByHash: async () => null,
 				importLegacyResourceWithElpx: async (
-					_db: unknown,
+					_db: Parameters<Deps["repo"]["importLegacyResourceWithElpx"]>[0],
 					input: Parameters<Deps["repo"]["importLegacyResourceWithElpx"]>[1],
 				) => {
 					insertCalls++;
@@ -520,7 +529,7 @@ describe("runImportLegacyProcomun (deps mockeadas)", () => {
 						'duplicate key value violates unique constraint "elpx_projects_hash_idx"',
 					);
 				},
-			} as Deps["repo"],
+			},
 		});
 
 		const [reportA, reportB] = await Promise.all([
