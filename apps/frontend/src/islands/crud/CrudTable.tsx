@@ -34,13 +34,14 @@ export function CrudTable<T>({
 						</tr>
 					</thead>
 					<tbody>
-						{rows.length === 0
-							? (
-								<tr>
-									<td colSpan={colSpan} className="admin-table-empty">{emptyMessage}</td>
-								</tr>
-							)
-							: rows.map((row) => (
+						{rows.length === 0 ? (
+							<tr>
+								<td colSpan={colSpan} className="admin-table-empty">
+									{emptyMessage}
+								</td>
+							</tr>
+						) : (
+							rows.map((row) => (
 								<tr key={getRowKey(row)}>
 									{columns.map((column) => (
 										<td key={column.id} className={column.className}>
@@ -48,7 +49,8 @@ export function CrudTable<T>({
 										</td>
 									))}
 								</tr>
-							))}
+							))
+						)}
 					</tbody>
 				</table>
 			</div>

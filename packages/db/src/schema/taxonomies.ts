@@ -6,7 +6,9 @@ export const taxonomies = pgTable("taxonomies", {
 	slug: varchar("slug", { length: 255 }).notNull().unique(),
 	name: text("name").notNull(),
 	type: varchar("type", { length: 100 }).notNull().default("category"),
-	parentId: text("parent_id").references((): AnyPgColumn => taxonomies.id, { onDelete: "set null" }),
+	parentId: text("parent_id").references((): AnyPgColumn => taxonomies.id, {
+		onDelete: "set null",
+	}),
 	createdAt: timestamp("created_at").notNull().defaultNow(),
 	updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });

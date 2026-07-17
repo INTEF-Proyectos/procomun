@@ -6,6 +6,7 @@ import { readFile } from "node:fs/promises";
 
 /** Maximum extracted text size in bytes (~500 KB) */
 const MAX_EXTRACTED_TEXT_BYTES = 500 * 1024;
+const WHITESPACE = /\s/u;
 
 export type ExtractionResult = {
 	text: string;
@@ -112,24 +113,103 @@ async function extractDocx(filePath: string): Promise<string> {
 
 /**
  * Normalize extracted text: compact whitespace, trim, and truncate.
+ *
+ * The output is built incrementally and never grows beyond the configured
+ * limit. This avoids the full-size Array.from/filter/join copies that made the
+ * peak memory usage proportional to several copies of a large extracted file.
  */
 export function normalizeText(text: string): string {
-	// Remove null bytes and control characters (except newlines/tabs)
-	let cleaned = text.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, "");
-	// Compact multiple whitespace into single space
-	cleaned = cleaned.replace(/[ \t]+/g, " ");
-	// Compact multiple newlines
-	cleaned = cleaned.replace(/\n{3,}/g, "\n\n");
-	cleaned = cleaned.trim();
+	let cleaned = "";
+	let cleanedBytes = 0;
+	let pendingWhitespace = "";
+	let pendingBytes = 0;
+	let pendingExceedsLimit = false;
+	let lastPendingChar = "";
+	let consecutiveNewlines = 0;
+	let truncated = false;
 
-	// Truncate to max size
-	if (Buffer.byteLength(cleaned, "utf-8") > MAX_EXTRACTED_TEXT_BYTES) {
-		const buf = Buffer.from(cleaned, "utf-8");
-		cleaned = buf.subarray(0, MAX_EXTRACTED_TEXT_BYTES).toString("utf-8");
-		// Avoid cutting in the middle of a multi-byte char
-		const lastValid = cleaned.lastIndexOf(" ");
-		if (lastValid > MAX_EXTRACTED_TEXT_BYTES * 0.9) {
-			cleaned = cleaned.slice(0, lastValid);
+	function resetPendingWhitespace() {
+		pendingWhitespace = "";
+		pendingBytes = 0;
+		pendingExceedsLimit = false;
+		lastPendingChar = "";
+		consecutiveNewlines = 0;
+	}
+
+	function appendPendingWhitespace(value: string) {
+		const valueBytes = Buffer.byteLength(value, "utf-8");
+		if (
+			pendingExceedsLimit ||
+			cleanedBytes + pendingBytes + valueBytes > MAX_EXTRACTED_TEXT_BYTES
+		) {
+			// Keep scanning: this whitespace may be trailing and therefore trimmed.
+			pendingExceedsLimit = true;
+		} else {
+			pendingWhitespace += value;
+			pendingBytes += valueBytes;
+		}
+
+		lastPendingChar = value;
+		consecutiveNewlines = value === "\n" ? consecutiveNewlines + 1 : 0;
+	}
+
+	for (const ch of text) {
+		const code = ch.codePointAt(0) ?? 0;
+		const isControl =
+			(code <= 0x1f && code !== 0x09 && code !== 0x0a && code !== 0x0d) ||
+			code === 0x7f;
+		if (isControl) continue;
+
+		if (WHITESPACE.test(ch)) {
+			// String.trim() removed leading whitespace in the previous implementation.
+			if (cleaned.length === 0) continue;
+
+			if (ch === " " || ch === "\t") {
+				if (lastPendingChar === " ") continue;
+				appendPendingWhitespace(" ");
+				continue;
+			}
+
+			if (ch === "\n") {
+				if (consecutiveNewlines >= 2) continue;
+				appendPendingWhitespace(ch);
+				continue;
+			}
+
+			appendPendingWhitespace(ch);
+			continue;
+		}
+
+		if (pendingExceedsLimit) {
+			truncated = true;
+			break;
+		}
+
+		if (pendingWhitespace) {
+			cleaned += pendingWhitespace;
+			cleanedBytes += pendingBytes;
+			resetPendingWhitespace();
+		}
+
+		const charBytes = Buffer.byteLength(ch, "utf-8");
+		if (cleanedBytes + charBytes > MAX_EXTRACTED_TEXT_BYTES) {
+			truncated = true;
+			break;
+		}
+
+		cleaned += ch;
+		cleanedBytes += charBytes;
+	}
+
+	// Pending whitespace is deliberately not flushed, matching String.trim().
+	if (truncated) {
+		const lastSpace = cleaned.lastIndexOf(" ");
+		if (
+			lastSpace > 0 &&
+			Buffer.byteLength(cleaned.slice(0, lastSpace), "utf-8") >
+				MAX_EXTRACTED_TEXT_BYTES * 0.9
+		) {
+			cleaned = cleaned.slice(0, lastSpace);
 		}
 	}
 

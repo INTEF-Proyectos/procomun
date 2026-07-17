@@ -1,76 +1,97 @@
 import "./Pagination.css";
 
 export interface PaginationProps {
-  currentPage: number;
-  totalPages: number;
-  onPageChange: (page: number) => void;
-  className?: string;
+	currentPage: number;
+	totalPages: number;
+	onPageChange: (page: number) => void;
+	className?: string;
 }
 
-function getVisiblePages(current: number, total: number): Array<number | "..."> {
-  const pages: Array<number | "..."> = [];
-  for (let page = 1; page <= total; page++) {
-    if (page === 1 || page === total || (page >= current - 1 && page <= current + 1)) {
-      pages.push(page);
-    } else if (pages[pages.length - 1] !== "...") {
-      pages.push("...");
-    }
-  }
-  return pages;
+function getVisiblePages(
+	current: number,
+	total: number,
+): Array<number | "..."> {
+	const pages: Array<number | "..."> = [];
+	for (let page = 1; page <= total; page++) {
+		if (
+			page === 1 ||
+			page === total ||
+			(page >= current - 1 && page <= current + 1)
+		) {
+			pages.push(page);
+		} else if (pages[pages.length - 1] !== "...") {
+			pages.push("...");
+		}
+	}
+	return pages;
 }
 
 export function Pagination({
-  currentPage,
-  totalPages,
-  onPageChange,
-  className = "",
+	currentPage,
+	totalPages,
+	onPageChange,
+	className = "",
 }: PaginationProps) {
-  if (totalPages <= 1) return null;
+	if (totalPages <= 1) return null;
 
-  const pages = getVisiblePages(currentPage, totalPages);
+	const pages = getVisiblePages(currentPage, totalPages);
+	let previousPage = 0;
+	const pageItems = pages.map((page) => {
+		if (page === "...") {
+			return { key: `ellipsis-after-${previousPage}`, value: page };
+		}
+		previousPage = page;
+		return { key: `page-${page}`, value: page };
+	});
 
-  return (
-    <nav className={`pagination ${className}`.trim()} aria-label="Paginación">
-      <button
-        type="button"
-        className="pagination-btn pagination-prev"
-        disabled={currentPage <= 1}
-        onClick={() => onPageChange(currentPage - 1)}
-        aria-label="Página anterior"
-      >
-        <span className="material-symbols-outlined" aria-hidden="true">chevron_left</span>
-        <span className="pagination-btn-text">Anterior</span>
-      </button>
+	return (
+		<nav className={`pagination ${className}`.trim()} aria-label="Paginación">
+			<button
+				type="button"
+				className="pagination-btn pagination-prev"
+				disabled={currentPage <= 1}
+				onClick={() => onPageChange(currentPage - 1)}
+				aria-label="Página anterior"
+			>
+				<span className="material-symbols-outlined" aria-hidden="true">
+					chevron_left
+				</span>
+				<span className="pagination-btn-text">Anterior</span>
+			</button>
 
-      <div className="pagination-pages">
-        {pages.map((page, index) =>
-          page === "..." ? (
-            <span key={`ellipsis-${index}`} className="pagination-ellipsis">...</span>
-          ) : (
-            <button
-              key={page}
-              type="button"
-              className={`pagination-page${page === currentPage ? " pagination-page-active" : ""}`}
-              onClick={() => onPageChange(page)}
-              aria-label={`Página ${page}`}
-              aria-current={page === currentPage ? "page" : undefined}
-            >
-              {page}
-            </button>
-          ),
-        )}
-      </div>
+			<div className="pagination-pages">
+				{pageItems.map((item) =>
+					item.value === "..." ? (
+						<span key={item.key} className="pagination-ellipsis">
+							...
+						</span>
+					) : (
+						<button
+							key={item.key}
+							type="button"
+							className={`pagination-page${item.value === currentPage ? " pagination-page-active" : ""}`}
+							onClick={() => onPageChange(item.value as number)}
+							aria-label={`Página ${item.value}`}
+							aria-current={item.value === currentPage ? "page" : undefined}
+						>
+							{item.value}
+						</button>
+					),
+				)}
+			</div>
 
-      <button
-        type="button"
-        className="pagination-btn pagination-next"
-        disabled={currentPage >= totalPages}
-        onClick={() => onPageChange(currentPage + 1)}
-        aria-label="Página siguiente"
-      >
-        <span className="pagination-btn-text">Siguiente</span>
-        <span className="material-symbols-outlined" aria-hidden="true">chevron_right</span>
-      </button>
-    </nav>
-  );
+			<button
+				type="button"
+				className="pagination-btn pagination-next"
+				disabled={currentPage >= totalPages}
+				onClick={() => onPageChange(currentPage + 1)}
+				aria-label="Página siguiente"
+			>
+				<span className="pagination-btn-text">Siguiente</span>
+				<span className="material-symbols-outlined" aria-hidden="true">
+					chevron_right
+				</span>
+			</button>
+		</nav>
+	);
 }

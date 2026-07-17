@@ -4,21 +4,28 @@ import { EmbedModal } from "./EmbedModal.tsx";
 
 describe("EmbedModal", () => {
 	test("no renderiza nada cuando no hay embed", () => {
-		const html = renderToStaticMarkup(<EmbedModal embed={null} onClose={() => {}} />);
+		const html = renderToStaticMarkup(
+			<EmbedModal embed={null} onClose={() => {}} />,
+		);
 		expect(html).toBe("");
 	});
 
 	test("renderiza un player de vídeo con sandbox de proveedor (sin tocar Procomún)", () => {
 		const html = renderToStaticMarkup(
 			<EmbedModal
-				embed={{ kind: "video", url: "https://www.youtube-nocookie.com/embed/abc123" }}
+				embed={{
+					kind: "video",
+					url: "https://www.youtube-nocookie.com/embed/abc123",
+				}}
 				onClose={() => {}}
 			/>,
 		);
 		expect(html).toContain("https://www.youtube-nocookie.com/embed/abc123");
 		// El player lleva sandbox con allow-same-origin (su PROPIO origen, aislado por SOP).
 		expect(html).toContain("allow-same-origin");
-		expect(html).toContain('allow="autoplay; encrypted-media; fullscreen; picture-in-picture"');
+		expect(html).toContain(
+			'allow="autoplay; encrypted-media; fullscreen; picture-in-picture"',
+		);
 		expect(html).toContain("Vídeo");
 	});
 

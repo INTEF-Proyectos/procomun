@@ -1,10 +1,10 @@
-import { Hono } from "hono";
+import type { ValidationResult } from "@procomun/db/validation";
 import type { Context } from "hono";
+import { Hono } from "hono";
 import { type AuthEnv, requireRole } from "../auth/middleware.ts";
 import { getCurrentUser } from "../auth/roles.ts";
-import { parsePagination } from "../http/pagination.ts";
 import { getDb } from "../db.ts";
-import type { ValidationResult } from "@procomun/db/validation";
+import { parsePagination } from "../http/pagination.ts";
 
 type DbFn = ReturnType<typeof getDb>["db"];
 type User = { id: string; role?: string; name?: string; email?: string };
@@ -12,12 +12,21 @@ type User = { id: string; role?: string; name?: string; email?: string };
 function jsonErrorFromCrudException(err: unknown) {
 	const msg = err instanceof Error ? err.message : "";
 	if (msg === "PARENT_NOT_FOUND") {
-		return { error: "La categoría padre indicada no existe", status: 400 as const };
+		return {
+			error: "La categoría padre indicada no existe",
+			status: 400 as const,
+		};
 	}
 	if (msg === "PARENT_SELF_REFERENCE") {
-		return { error: "Una categoría no puede ser padre de sí misma", status: 400 as const };
+		return {
+			error: "Una categoría no puede ser padre de sí misma",
+			status: 400 as const,
+		};
 	}
-	const status = typeof err === "object" && err !== null ? (err as { status?: number }).status : undefined;
+	const status =
+		typeof err === "object" && err !== null
+			? (err as { status?: number }).status
+			: undefined;
 	if (status && status >= 400 && status < 600) {
 		return { error: err instanceof Error ? err.message : "Error", status };
 	}
@@ -30,7 +39,11 @@ export interface CrudRouteConfig<TEntity> {
 	list: (db: DbFn, opts: Record<string, unknown>) => Promise<unknown>;
 	getById: (db: DbFn, id: string) => Promise<TEntity | null>;
 	create?: (db: DbFn, data: Record<string, unknown>) => Promise<unknown>;
-	update?: (db: DbFn, id: string, data: Record<string, unknown>) => Promise<void>;
+	update?: (
+		db: DbFn,
+		id: string,
+		data: Record<string, unknown>,
+	) => Promise<void>;
 	remove?: (db: DbFn, id: string) => Promise<void>;
 
 	validateCreate?: (body: unknown) => ValidationResult;
@@ -39,18 +52,35 @@ export interface CrudRouteConfig<TEntity> {
 
 	canManage?: (user: User, entity: TEntity) => boolean;
 
-	listFilters?: (user: User, params: Record<string, string | undefined>) => Record<string, unknown>;
-	prepareCreate?: (body: Record<string, unknown>, user: User) => Record<string, unknown> | Promise<Record<string, unknown>>;
+	listFilters?: (
+		user: User,
+		params: Record<string, string | undefined>,
+	) => Record<string, unknown>;
+	prepareCreate?: (
+		body: Record<string, unknown>,
+		user: User,
+	) => Record<string, unknown> | Promise<Record<string, unknown>>;
 
-	afterCreate?: (user: User, result: unknown, data: Record<string, unknown>) => Promise<void>;
-	afterUpdate?: (user: User, id: string, entity: TEntity, data: Record<string, unknown>) => Promise<void>;
+	afterCreate?: (
+		user: User,
+		result: unknown,
+		data: Record<string, unknown>,
+	) => Promise<void>;
+	afterUpdate?: (
+		user: User,
+		id: string,
+		entity: TEntity,
+		data: Record<string, unknown>,
+	) => Promise<void>;
 	afterDelete?: (user: User, id: string, entity: TEntity) => Promise<void>;
 
 	roles?: { create?: string; update?: string; remove?: string };
 	notFoundMessage?: string;
 }
 
-export function buildCrudRoutes<TEntity>(config: CrudRouteConfig<TEntity>): Hono<AuthEnv> {
+export function buildCrudRoutes<TEntity>(
+	config: CrudRouteConfig<TEntity>,
+): Hono<AuthEnv> {
 	const routes = new Hono<AuthEnv>();
 	const db = () => getDb().db;
 	const notFound = config.notFoundMessage ?? "No encontrado";
@@ -66,7 +96,9 @@ export function buildCrudRoutes<TEntity>(config: CrudRouteConfig<TEntity>): Hono
 			params[k] = v;
 		}
 		const filters = config.listFilters?.(user, params) ?? {};
-		return c.json(await config.list(db(), { limit, offset, search, ...filters }));
+		return c.json(
+			await config.list(db(), { limit, offset, search, ...filters }),
+		);
 	});
 
 	// GET /:id — detail
@@ -88,13 +120,23 @@ export function buildCrudRoutes<TEntity>(config: CrudRouteConfig<TEntity>): Hono
 			const body = await c.req.json();
 			if (config.validateCreate) {
 				const v = config.validateCreate(body);
-				if (!v.valid) return c.json({ error: "Validación fallida", details: v.errors }, 400);
+				if (!v.valid)
+					return c.json(
+						{ error: "Validación fallida", details: v.errors },
+						400,
+					);
 			}
-			const data = config.prepareCreate ? await config.prepareCreate(body, user) : body;
+			const data = config.prepareCreate
+				? await config.prepareCreate(body, user)
+				: body;
 			try {
 				const result = await config.create!(db(), data);
 				if (config.afterCreate) {
-					try { await config.afterCreate(user, result, data); } catch { /* fire-and-forget */ }
+					try {
+						await config.afterCreate(user, result, data);
+					} catch {
+						/* fire-and-forget */
+					}
 				}
 				return c.json(result, 201);
 			} catch (err: unknown) {
@@ -124,14 +166,24 @@ export function buildCrudRoutes<TEntity>(config: CrudRouteConfig<TEntity>): Hono
 			}
 			const body = await c.req.json();
 			if (config.validateUpdate) {
-				const toValidate = config.mergeOnUpdate ? { ...(entity as Record<string, unknown>), ...body } : body;
+				const toValidate = config.mergeOnUpdate
+					? { ...(entity as Record<string, unknown>), ...body }
+					: body;
 				const v = config.validateUpdate(toValidate);
-				if (!v.valid) return c.json({ error: "Validación fallida", details: v.errors }, 400);
+				if (!v.valid)
+					return c.json(
+						{ error: "Validación fallida", details: v.errors },
+						400,
+					);
 			}
 			try {
 				await config.update!(db(), id, body);
 				if (config.afterUpdate) {
-					try { await config.afterUpdate(user, id, entity, body); } catch { /* fire-and-forget */ }
+					try {
+						await config.afterUpdate(user, id, entity, body);
+					} catch {
+						/* fire-and-forget */
+					}
 				}
 				return c.json({ id, updated: true });
 			} catch (err: unknown) {
@@ -161,7 +213,11 @@ export function buildCrudRoutes<TEntity>(config: CrudRouteConfig<TEntity>): Hono
 			}
 			await config.remove!(db(), id);
 			if (config.afterDelete) {
-				try { await config.afterDelete(user, id, entity); } catch { /* fire-and-forget */ }
+				try {
+					await config.afterDelete(user, id, entity);
+				} catch {
+					/* fire-and-forget */
+				}
 			}
 			return c.json({ id, deleted: true });
 		};

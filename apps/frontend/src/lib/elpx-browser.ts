@@ -4,8 +4,8 @@
  * Uses the ZIP central directory for robust parsing (handles data descriptors, etc.).
  */
 
-import { parseContentXml } from "@procomun/db/elpx-metadata";
 import type { ElpxMetadata } from "@procomun/db/elpx-metadata";
+import { parseContentXml } from "@procomun/db/elpx-metadata";
 
 export type { ElpxMetadata };
 
@@ -30,7 +30,10 @@ interface CentralDirEntry {
 const utf8 = new TextDecoder();
 
 /** Parse central directory entries */
-function parseCentralDirectory(buf: Uint8Array, eocdOffset: number): CentralDirEntry[] {
+function parseCentralDirectory(
+	buf: Uint8Array,
+	eocdOffset: number,
+): CentralDirEntry[] {
 	const view = new DataView(buf.buffer, buf.byteOffset, buf.byteLength);
 	const cdOffset = view.getUint32(eocdOffset + 16, true);
 	const cdCount = view.getUint16(eocdOffset + 10, true);
@@ -47,14 +50,23 @@ function parseCentralDirectory(buf: Uint8Array, eocdOffset: number): CentralDirE
 		const commentLen = view.getUint16(pos + 32, true);
 		const localHeaderOffset = view.getUint32(pos + 42, true);
 		const name = utf8.decode(buf.slice(pos + 46, pos + 46 + nameLen));
-		entries.push({ name, method, compressedSize, uncompressedSize, localHeaderOffset });
+		entries.push({
+			name,
+			method,
+			compressedSize,
+			uncompressedSize,
+			localHeaderOffset,
+		});
 		pos += 46 + nameLen + extraLen + commentLen;
 	}
 	return entries;
 }
 
 /** Extract raw file data from a local file header */
-function extractLocalFileData(buf: Uint8Array, entry: CentralDirEntry): Uint8Array {
+function extractLocalFileData(
+	buf: Uint8Array,
+	entry: CentralDirEntry,
+): Uint8Array {
 	const view = new DataView(buf.buffer, buf.byteOffset, buf.byteLength);
 	const nameLen = view.getUint16(entry.localHeaderOffset + 26, true);
 	const extraLen = view.getUint16(entry.localHeaderOffset + 28, true);
@@ -86,7 +98,10 @@ async function inflateRaw(data: Uint8Array): Promise<Uint8Array> {
 }
 
 /** Extract a single file from a ZIP buffer by name */
-async function extractFileFromZip(buf: Uint8Array, targetName: string): Promise<Uint8Array | null> {
+async function extractFileFromZip(
+	buf: Uint8Array,
+	targetName: string,
+): Promise<Uint8Array | null> {
 	const eocd = findEOCD(buf);
 	if (eocd < 0) throw new Error("Archivo ZIP inválido (no se encontró EOCD)");
 
@@ -103,7 +118,8 @@ async function extractFileFromZip(buf: Uint8Array, targetName: string): Promise<
 /** Parse metadata from a pre-read buffer */
 async function parseMetadataFromBuffer(buf: Uint8Array): Promise<ElpxMetadata> {
 	const contentXml = await extractFileFromZip(buf, "content.xml");
-	if (!contentXml) throw new Error("No se encontró content.xml en el archivo .elpx");
+	if (!contentXml)
+		throw new Error("No se encontró content.xml en el archivo .elpx");
 	return parseContentXml(new TextDecoder().decode(contentXml));
 }
 
@@ -136,13 +152,33 @@ export async function extractPreviewHtml(file: File): Promise<string | null> {
 // --- Full extraction for preview generation ---
 
 const MIME_TYPES: Record<string, string> = {
-	html: "text/html", htm: "text/html", js: "application/javascript", mjs: "application/javascript",
-	css: "text/css", json: "application/json", xml: "application/xml", dtd: "application/xml-dtd",
-	png: "image/png", jpg: "image/jpeg", jpeg: "image/jpeg", gif: "image/gif",
-	svg: "image/svg+xml", webp: "image/webp", ico: "image/x-icon",
-	woff: "font/woff", woff2: "font/woff2", ttf: "font/ttf", otf: "font/otf",
-	mp3: "audio/mpeg", mp4: "video/mp4", webm: "video/webm", wav: "audio/wav",
-	pdf: "application/pdf", zip: "application/zip", txt: "text/plain", map: "application/json",
+	html: "text/html",
+	htm: "text/html",
+	js: "application/javascript",
+	mjs: "application/javascript",
+	css: "text/css",
+	json: "application/json",
+	xml: "application/xml",
+	dtd: "application/xml-dtd",
+	png: "image/png",
+	jpg: "image/jpeg",
+	jpeg: "image/jpeg",
+	gif: "image/gif",
+	svg: "image/svg+xml",
+	webp: "image/webp",
+	ico: "image/x-icon",
+	woff: "font/woff",
+	woff2: "font/woff2",
+	ttf: "font/ttf",
+	otf: "font/otf",
+	mp3: "audio/mpeg",
+	mp4: "video/mp4",
+	webm: "video/webm",
+	wav: "audio/wav",
+	pdf: "application/pdf",
+	zip: "application/zip",
+	txt: "text/plain",
+	map: "application/json",
 };
 
 function guessMime(filepath: string): string {
@@ -164,7 +200,9 @@ function resolvePath(base: string, relative: string): string {
  * Extract ALL files from a .elpx ZIP buffer.
  * Skips directories and path traversal entries.
  */
-async function extractAllFromBuffer(buf: Uint8Array): Promise<Map<string, Uint8Array>> {
+async function extractAllFromBuffer(
+	buf: Uint8Array,
+): Promise<Map<string, Uint8Array>> {
 	const eocd = findEOCD(buf);
 	if (eocd < 0) throw new Error("Archivo ZIP inválido");
 
@@ -183,19 +221,27 @@ async function extractAllFromBuffer(buf: Uint8Array): Promise<Map<string, Uint8A
 }
 
 /** Public wrapper that reads the file first */
-export async function extractAllFiles(file: File): Promise<Map<string, Uint8Array>> {
+export async function extractAllFiles(
+	file: File,
+): Promise<Map<string, Uint8Array>> {
 	return extractAllFromBuffer(new Uint8Array(await file.arrayBuffer()));
 }
 
 /** Tracks all blob URLs created for a preview so they can be revoked together */
 const previewBlobRegistry = new Map<string, string[]>();
 
-function rewriteCssUrls(css: string, dir: string, blobUrls: Map<string, string>): string {
+function rewriteCssUrls(
+	css: string,
+	dir: string,
+	blobUrls: Map<string, string>,
+): string {
 	return css.replace(
 		/url\(\s*["']?(?!data:|https?:|\/\/|#)([^"')]+)["']?\s*\)/gi,
 		(_match, relUrl: string) => {
 			const resolved = resolvePath(dir, relUrl.split("?")[0].split("#")[0]);
-			return blobUrls.has(resolved) ? `url("${blobUrls.get(resolved)}")` : _match;
+			return blobUrls.has(resolved)
+				? `url("${blobUrls.get(resolved)}")`
+				: _match;
 		},
 	);
 }
@@ -206,7 +252,9 @@ function rewriteCssUrls(css: string, dir: string, blobUrls: Map<string, string>)
  * Call `revokePreview(url)` when the preview is no longer needed to free memory.
  */
 export async function createPreviewBlobUrl(file: File): Promise<string | null> {
-	const allFiles = await extractAllFromBuffer(new Uint8Array(await file.arrayBuffer()));
+	const allFiles = await extractAllFromBuffer(
+		new Uint8Array(await file.arrayBuffer()),
+	);
 	const indexData = allFiles.get("index.html");
 	if (!indexData) return null;
 
@@ -231,7 +279,10 @@ export async function createPreviewBlobUrl(file: File): Promise<string | null> {
 	for (const [fp, data] of allFiles) {
 		if (guessMime(fp) !== "text/css") continue;
 		const dir = fp.includes("/") ? fp.slice(0, fp.lastIndexOf("/")) : "";
-		blobUrls.set(fp, createBlob(rewriteCssUrls(dec.decode(data), dir, blobUrls), "text/css"));
+		blobUrls.set(
+			fp,
+			createBlob(rewriteCssUrls(dec.decode(data), dir, blobUrls), "text/css"),
+		);
 	}
 
 	// Rewrite index.html
@@ -255,7 +306,9 @@ export async function createPreviewBlobUrl(file: File): Promise<string | null> {
  */
 export function revokePreview(htmlBlobUrl: string): void {
 	const urls = previewBlobRegistry.get(htmlBlobUrl);
-	if (urls) { for (const u of urls) URL.revokeObjectURL(u); }
+	if (urls) {
+		for (const u of urls) URL.revokeObjectURL(u);
+	}
 	URL.revokeObjectURL(htmlBlobUrl);
 	previewBlobRegistry.delete(htmlBlobUrl);
 }
@@ -263,7 +316,9 @@ export function revokePreview(htmlBlobUrl: string): void {
 /**
  * Parse metadata + generate preview in a single pass (avoids reading the file twice).
  */
-export async function parseAndPreview(file: File): Promise<{ metadata: ElpxMetadata; previewUrl: string | null }> {
+export async function parseAndPreview(
+	file: File,
+): Promise<{ metadata: ElpxMetadata; previewUrl: string | null }> {
 	const buf = new Uint8Array(await file.arrayBuffer());
 	const metadata = await parseMetadataFromBuffer(buf);
 	const allFiles = await extractAllFromBuffer(buf);
@@ -287,7 +342,10 @@ export async function parseAndPreview(file: File): Promise<{ metadata: ElpxMetad
 	for (const [fp, data] of allFiles) {
 		if (guessMime(fp) !== "text/css") continue;
 		const dir = fp.includes("/") ? fp.slice(0, fp.lastIndexOf("/")) : "";
-		blobUrls.set(fp, createBlob(rewriteCssUrls(dec.decode(data), dir, blobUrls), "text/css"));
+		blobUrls.set(
+			fp,
+			createBlob(rewriteCssUrls(dec.decode(data), dir, blobUrls), "text/css"),
+		);
 	}
 	let html = dec.decode(indexData);
 	html = html.replace(

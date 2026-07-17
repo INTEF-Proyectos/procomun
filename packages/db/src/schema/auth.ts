@@ -1,4 +1,10 @@
-import { pgTable, text, timestamp, varchar, boolean } from "drizzle-orm/pg-core";
+import {
+	boolean,
+	pgTable,
+	text,
+	timestamp,
+	varchar,
+} from "drizzle-orm/pg-core";
 
 /**
  * Tablas de autenticación alineadas con Better Auth.

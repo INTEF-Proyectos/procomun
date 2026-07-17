@@ -24,7 +24,12 @@ export function ConfirmDialog({
 	if (!open) return null;
 
 	return (
-		<ModalFrame open={open} className="admin-confirm-dialog" titleId="confirm-dialog-title" onClose={onCancel}>
+		<ModalFrame
+			open={open}
+			className="admin-confirm-dialog"
+			titleId="confirm-dialog-title"
+			onClose={onCancel}
+		>
 			<form
 				method="dialog"
 				onSubmit={(event) => {
@@ -37,10 +42,19 @@ export function ConfirmDialog({
 				</h2>
 				<p>{message}</p>
 				<div className="admin-dialog-actions">
-					<button type="button" className="admin-btn" onClick={onCancel} disabled={busy}>
+					<button
+						type="button"
+						className="admin-btn"
+						onClick={onCancel}
+						disabled={busy}
+					>
 						{cancelLabel}
 					</button>
-					<button type="submit" className="admin-btn admin-btn--danger" disabled={busy}>
+					<button
+						type="submit"
+						className="admin-btn admin-btn--danger"
+						disabled={busy}
+					>
 						{busy ? "Eliminando..." : confirmLabel}
 					</button>
 				</div>

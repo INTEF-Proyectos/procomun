@@ -1,12 +1,13 @@
-import { buildCrudRoutes } from "../crud-builder.ts";
-import { validateTaxonomy } from "@procomun/db/validation";
-import { logActivity } from "../../activity/log.ts";
 import * as repo from "@procomun/db/repository";
 import { DuplicateTaxonomyError } from "@procomun/db/repository";
+import { validateTaxonomy } from "@procomun/db/validation";
+import { logActivity } from "../../activity/log.ts";
+import { buildCrudRoutes } from "../crud-builder.ts";
 
 const taxonomyRoutes = buildCrudRoutes({
 	baseRole: "curator",
-	list: (db, opts) => repo.listTaxonomies(db, opts as Parameters<typeof repo.listTaxonomies>[1]),
+	list: (db, opts) =>
+		repo.listTaxonomies(db, opts as Parameters<typeof repo.listTaxonomies>[1]),
 	getById: repo.getTaxonomyById,
 	create: async (db, data) => {
 		const d = data as Parameters<typeof repo.createTaxonomy>[1];

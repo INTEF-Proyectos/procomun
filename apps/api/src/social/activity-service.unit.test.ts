@@ -22,7 +22,9 @@ describe("activity-service", () => {
 
 		const result = await listUserActivity({ userId, limit: 10, offset: 0 });
 		expect(result.total).toBeGreaterThanOrEqual(1);
-		const activity = result.data.find((item) => item.type === "activity_service_test");
+		const activity = result.data.find(
+			(item) => item.type === "activity_service_test",
+		);
 		expect(activity).toBeDefined();
 		expect(activity?.metadata).toEqual({ source: "unit-test" });
 		expect(typeof activity?.createdAt).toBe("string");

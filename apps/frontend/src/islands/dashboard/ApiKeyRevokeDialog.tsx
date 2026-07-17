@@ -1,7 +1,7 @@
 import { useState } from "react";
-import { Dialog } from "../../ui/Dialog.tsx";
-import * as m from "../../paraglide/messages.js";
 import { getApiClient } from "../../lib/get-api-client.ts";
+import * as m from "../../paraglide/messages.js";
+import { Dialog } from "../../ui/Dialog.tsx";
 
 interface ApiKeyRevokeDialogProps {
 	open: boolean;
@@ -54,16 +54,37 @@ export function ApiKeyRevokeDialog({
 		>
 			<div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
 				{error && (
-					<div style={{ color: "var(--color-error)", fontSize: "0.875rem", padding: "0.5rem", background: "var(--color-error-container)", borderRadius: "0.5rem" }}>
+					<div
+						style={{
+							color: "var(--color-error)",
+							fontSize: "0.875rem",
+							padding: "0.5rem",
+							background: "var(--color-error-container)",
+							borderRadius: "0.5rem",
+						}}
+					>
 						{error}
 					</div>
 				)}
 
-				<p style={{ fontSize: "0.875rem", color: "var(--color-on-surface-variant)", lineHeight: 1.5 }}>
+				<p
+					style={{
+						fontSize: "0.875rem",
+						color: "var(--color-on-surface-variant)",
+						lineHeight: 1.5,
+					}}
+				>
 					{m.api_keys_revoke_dialog_desc({ name: tokenName })}
 				</p>
 
-				<div style={{ display: "flex", justifyContent: "flex-end", gap: "0.75rem", marginTop: "1rem" }}>
+				<div
+					style={{
+						display: "flex",
+						justifyContent: "flex-end",
+						gap: "0.75rem",
+						marginTop: "1rem",
+					}}
+				>
 					<button
 						type="button"
 						onClick={onClose}

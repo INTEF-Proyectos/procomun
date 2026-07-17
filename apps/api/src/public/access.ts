@@ -1,6 +1,6 @@
 import type { Context } from "hono";
-import type { AuthEnv } from "../auth/middleware.ts";
 import { auth } from "../auth/config.ts";
+import type { AuthEnv } from "../auth/middleware.ts";
 
 type ResourceVisibilityContext = {
 	createdBy?: string | null;
@@ -11,7 +11,9 @@ type SessionUser = { id: string; role?: string } | null;
 
 const HIGH_ROLES = new Set(["curator", "admin"]);
 
-export async function getSessionUser(c: Context<AuthEnv>): Promise<SessionUser> {
+export async function getSessionUser(
+	c: Context<AuthEnv>,
+): Promise<SessionUser> {
 	try {
 		const session = await auth.api.getSession({ headers: c.req.raw.headers });
 		return session ? (session.user as { id: string; role?: string }) : null;
@@ -20,7 +22,10 @@ export async function getSessionUser(c: Context<AuthEnv>): Promise<SessionUser> 
 	}
 }
 
-export function canViewResource(user: SessionUser, resource: ResourceVisibilityContext) {
+export function canViewResource(
+	user: SessionUser,
+	resource: ResourceVisibilityContext,
+) {
 	if (resource.editorialStatus === "published") return true;
 	if (!user) return false;
 	if (resource.createdBy === user.id) return true;

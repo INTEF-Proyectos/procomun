@@ -17,7 +17,10 @@ interface ReportButtonProps {
 	currentUserId?: string | null;
 }
 
-export function ReportButton({ resourceSlug, currentUserId }: ReportButtonProps) {
+export function ReportButton({
+	resourceSlug,
+	currentUserId,
+}: ReportButtonProps) {
 	const [open, setOpen] = useState(false);
 	const [reason, setReason] = useState("");
 	const [description, setDescription] = useState("");
@@ -50,7 +53,9 @@ export function ReportButton({ resourceSlug, currentUserId }: ReportButtonProps)
 				setDescription("");
 			}, 2000);
 		} catch (err) {
-			setError(err instanceof Error ? err.message : "Error al enviar la denuncia");
+			setError(
+				err instanceof Error ? err.message : "Error al enviar la denuncia",
+			);
 		} finally {
 			setBusy(false);
 		}
@@ -64,13 +69,23 @@ export function ReportButton({ resourceSlug, currentUserId }: ReportButtonProps)
 				onClick={handleOpen}
 				aria-label="Reportar recurso"
 			>
-				<span className="material-symbols-outlined" aria-hidden="true">flag</span>
+				<span className="material-symbols-outlined" aria-hidden="true">
+					flag
+				</span>
 				Reportar
 			</button>
 
-			<ModalFrame open={open} className="admin-confirm-dialog" titleId="report-dialog-title" onClose={() => setOpen(false)}>
+			<ModalFrame
+				open={open}
+				className="admin-confirm-dialog"
+				titleId="report-dialog-title"
+				onClose={() => setOpen(false)}
+			>
 				<form onSubmit={handleSubmit}>
-					<h2 id="report-dialog-title" style={{ margin: "0 0 1rem", fontSize: "1.25rem" }}>
+					<h2
+						id="report-dialog-title"
+						style={{ margin: "0 0 1rem", fontSize: "1.25rem" }}
+					>
 						Reportar recurso
 					</h2>
 
@@ -81,7 +96,14 @@ export function ReportButton({ resourceSlug, currentUserId }: ReportButtonProps)
 					) : (
 						<>
 							<div style={{ marginBottom: "1rem" }}>
-								<label htmlFor="report-reason" style={{ display: "block", marginBottom: "0.5rem", fontWeight: 500 }}>
+								<label
+									htmlFor="report-reason"
+									style={{
+										display: "block",
+										marginBottom: "0.5rem",
+										fontWeight: 500,
+									}}
+								>
 									Motivo *
 								</label>
 								<select
@@ -89,17 +111,31 @@ export function ReportButton({ resourceSlug, currentUserId }: ReportButtonProps)
 									value={reason}
 									onChange={(e) => setReason(e.target.value)}
 									required
-									style={{ width: "100%", padding: "0.5rem", borderRadius: "6px", border: "1px solid var(--color-outline)" }}
+									style={{
+										width: "100%",
+										padding: "0.5rem",
+										borderRadius: "6px",
+										border: "1px solid var(--color-outline)",
+									}}
 								>
 									<option value="">Selecciona un motivo</option>
 									{REPORT_REASONS.map((r) => (
-										<option key={r.value} value={r.value}>{r.label}</option>
+										<option key={r.value} value={r.value}>
+											{r.label}
+										</option>
 									))}
 								</select>
 							</div>
 
 							<div style={{ marginBottom: "1rem" }}>
-								<label htmlFor="report-description" style={{ display: "block", marginBottom: "0.5rem", fontWeight: 500 }}>
+								<label
+									htmlFor="report-description"
+									style={{
+										display: "block",
+										marginBottom: "0.5rem",
+										fontWeight: 500,
+									}}
+								>
 									Descripcion (opcional)
 								</label>
 								<textarea
@@ -108,18 +144,42 @@ export function ReportButton({ resourceSlug, currentUserId }: ReportButtonProps)
 									onChange={(e) => setDescription(e.target.value)}
 									maxLength={2000}
 									rows={4}
-									style={{ width: "100%", padding: "0.5rem", borderRadius: "6px", border: "1px solid var(--color-outline)", resize: "vertical" }}
+									style={{
+										width: "100%",
+										padding: "0.5rem",
+										borderRadius: "6px",
+										border: "1px solid var(--color-outline)",
+										resize: "vertical",
+									}}
 									placeholder="Describe el problema con mas detalle..."
 								/>
 							</div>
 
-							{error ? <p style={{ color: "var(--color-error)", marginBottom: "0.5rem" }}>{error}</p> : null}
+							{error ? (
+								<p
+									style={{
+										color: "var(--color-error)",
+										marginBottom: "0.5rem",
+									}}
+								>
+									{error}
+								</p>
+							) : null}
 
 							<div className="admin-dialog-actions">
-								<button type="button" className="admin-btn" onClick={() => setOpen(false)} disabled={busy}>
+								<button
+									type="button"
+									className="admin-btn"
+									onClick={() => setOpen(false)}
+									disabled={busy}
+								>
 									Cancelar
 								</button>
-								<button type="submit" className="admin-btn admin-btn--danger" disabled={busy || !reason}>
+								<button
+									type="submit"
+									className="admin-btn admin-btn--danger"
+									disabled={busy || !reason}
+								>
 									{busy ? "Enviando..." : "Enviar denuncia"}
 								</button>
 							</div>

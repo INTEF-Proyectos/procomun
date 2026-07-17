@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { renderToStaticMarkup } from "react-dom/server";
-import { PublicNavIsland } from "./PublicNavIsland.tsx";
 import { BaseNavIsland } from "./BaseNavIsland.tsx";
+import { PublicNavIsland } from "./PublicNavIsland.tsx";
 
 describe("Layout islands", () => {
 	test("BaseNavIsland renderiza el shell de navegación pública", () => {
