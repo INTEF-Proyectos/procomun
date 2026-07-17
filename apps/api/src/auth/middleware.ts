@@ -38,6 +38,26 @@ export async function requireAuth(c: Context<AuthEnv>, next: Next) {
 }
 
 /**
+ * Devuelve el usuario autenticado en una ruta montada tras `requireAuth`.
+ *
+ * `AuthEnv` tipa `user` como `AuthUser | null` porque `sessionMiddleware` lo
+ * pone a null cuando no hay sesión, así que TypeScript no puede saber que tras
+ * `requireAuth` ya no es null. En vez de afirmarlo con `!` en cada ruta, se
+ * comprueba una vez aquí: si alguna vez se monta una ruta que llama a esto sin
+ * `requireAuth` delante, el error dice exactamente qué pasa, en vez de reventar
+ * más abajo al leer `.id` de null.
+ */
+export function requireUser(c: Context<AuthEnv>): AuthUser {
+	const user = c.get("user");
+	if (!user) {
+		throw new Error(
+			"requireUser() sin usuario en contexto: la ruta debe montarse tras requireAuth",
+		);
+	}
+	return user;
+}
+
+/**
  * Valida roles al construir el middleware (falla al arrancar, no en runtime).
  * Usa jerarquía: requireRole("curator") permite curator y admin.
  */

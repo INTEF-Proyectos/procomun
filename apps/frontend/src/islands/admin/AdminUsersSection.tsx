@@ -53,8 +53,8 @@ function UserDialog({ user, onClose, onSaved }: UserDialogProps) {
 
 		try {
 			const api = await getApiClient();
-			if (isEdit) {
-				await api.updateUser(user!.id, { name: name.trim(), role });
+			if (user) {
+				await api.updateUser(user.id, { name: name.trim(), role });
 			} else {
 				// Alta desde administración (DEF-019): crea el usuario sin tocar la
 				// sesión del administrador (no usa el registro público de Better Auth).

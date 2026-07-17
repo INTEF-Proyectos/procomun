@@ -66,7 +66,7 @@ export interface ElpxSeedConfig {
 }
 
 export async function seedRandomResources(
-	// biome-ignore lint: generic drizzle db type
+	// biome-ignore lint/suspicious/noExplicitAny: tipo genérico de la base drizzle, ver Lote 1 de ADR-0030
 	db: any,
 	count: number,
 	options: { clean?: boolean; elpx?: ElpxSeedConfig } = {},

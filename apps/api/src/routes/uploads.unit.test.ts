@@ -88,8 +88,9 @@ describe("Rutas uploads — tus resumable", () => {
 		expect(createRes.status).toBe(201);
 		const location = createRes.headers.get("location");
 		expect(location).toBeTruthy();
+		if (!location) return; // la aserción previa ya ha fallado el test; solo estrecha el tipo
 
-		const patchRes = await app.request(location!, {
+		const patchRes = await app.request(location, {
 			method: "PATCH",
 			headers: {
 				"Tus-Resumable": "1.0.0",
@@ -155,8 +156,9 @@ describe("Rutas uploads — tus resumable", () => {
 		});
 		const location = createRes.headers.get("location");
 		expect(location).toBeTruthy();
+		if (!location) return; // la aserción previa ya ha fallado el test; solo estrecha el tipo
 
-		const deleteRes = await app.request(location!, {
+		const deleteRes = await app.request(location, {
 			method: "DELETE",
 			headers: {
 				"Tus-Resumable": "1.0.0",

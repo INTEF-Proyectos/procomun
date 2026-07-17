@@ -38,8 +38,12 @@ export function ApiKeyRevokeDialog({
 			}
 			onRevoked();
 			onClose();
-		} catch (err: any) {
-			setError(err.message || "Error al revocar la clave de API");
+		} catch (err) {
+			setError(
+				err instanceof Error
+					? err.message
+					: String(err) || "Error al revocar la clave de API",
+			);
 		} finally {
 			setLoading(false);
 		}

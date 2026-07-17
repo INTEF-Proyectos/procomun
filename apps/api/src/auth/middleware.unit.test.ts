@@ -1,6 +1,11 @@
 import { describe, expect, test } from "bun:test";
 import { Hono } from "hono";
-import { type AuthEnv, requireAuth, requireRole } from "./middleware.ts";
+import {
+	type AuthEnv,
+	requireAuth,
+	requireRole,
+	requireUser,
+} from "./middleware.ts";
 
 /** Helper: crea una app Hono con un usuario mock inyectado en el contexto. */
 function createTestApp(mockUser: Record<string, unknown> | null = null) {
@@ -98,5 +103,26 @@ describe("requireRole", () => {
 
 		const res = await app.request("/test");
 		expect(res.status).toBe(403);
+	});
+});
+
+describe("requireUser", () => {
+	test("devuelve el usuario cuando la ruta va tras requireAuth", async () => {
+		const app = createTestApp({ id: "user-1", email: "a@b.com" });
+		app.get("/test", requireAuth, (c) => c.json({ id: requireUser(c).id }));
+
+		const res = await app.request("/test");
+		expect(res.status).toBe(200);
+		expect(await res.json()).toEqual({ id: "user-1" });
+	});
+
+	test("lanza si se usa en una ruta sin requireAuth y sin sesión", async () => {
+		// Es un error de programación (ruta mal montada), no un caso de cliente:
+		// por eso lanza en vez de responder 401 — de eso ya se encarga requireAuth.
+		const app = createTestApp(null);
+		app.get("/test", (c) => c.json({ id: requireUser(c).id }));
+
+		const res = await app.request("/test");
+		expect(res.status).toBe(500);
 	});
 });

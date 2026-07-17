@@ -48,17 +48,17 @@ describe("Repository — CRUD completo", () => {
 
 		const resource = await getResourceById(result.id);
 		expect(resource).not.toBeNull();
-		expect(resource!.subjects).toContain("matematicas");
-		expect(resource!.subjects).toContain("informatica");
-		expect(resource!.levels).toContain("educacion-primaria");
+		expect(resource?.subjects).toContain("matematicas");
+		expect(resource?.subjects).toContain("informatica");
+		expect(resource?.levels).toContain("educacion-primaria");
 	});
 
 	test("getResourceById → recurso existente", async () => {
 		const resource = await getResourceById(createdId);
 		expect(resource).not.toBeNull();
-		expect(resource!.title).toBe(baseResource.title);
-		expect(resource!.subjects).toEqual([]);
-		expect(resource!.levels).toEqual([]);
+		expect(resource?.title).toBe(baseResource.title);
+		expect(resource?.subjects).toEqual([]);
+		expect(resource?.levels).toEqual([]);
 	});
 
 	test("getResourceById → null para id inexistente", async () => {
@@ -69,9 +69,9 @@ describe("Repository — CRUD completo", () => {
 	test("getResourceBySlug → recurso existente", async () => {
 		const resource = await getResourceBySlug(createdSlug);
 		expect(resource).not.toBeNull();
-		expect(resource!.id).toBe(createdId);
-		expect(resource!.subjects).toEqual([]);
-		expect(resource!.mediaItems).toEqual([]);
+		expect(resource?.id).toBe(createdId);
+		expect(resource?.subjects).toEqual([]);
+		expect(resource?.mediaItems).toEqual([]);
 	});
 
 	test("getResourceBySlug → incluye media items asociados", async () => {
@@ -86,9 +86,9 @@ describe("Repository — CRUD completo", () => {
 
 		const resource = await getResourceBySlug(createdSlug);
 		expect(resource).not.toBeNull();
-		expect(resource!.mediaItems).toHaveLength(1);
-		expect(resource!.mediaItems?.[0]?.filename).toBe("guia.pdf");
-		expect(resource!.mediaItems?.[0]?.url).toBe(
+		expect(resource?.mediaItems).toHaveLength(1);
+		expect(resource?.mediaItems?.[0]?.filename).toBe("guia.pdf");
+		expect(resource?.mediaItems?.[0]?.url).toBe(
 			"/api/v1/uploads/upload-public/content",
 		);
 	});
@@ -205,13 +205,15 @@ describe("Repository — CRUD completo", () => {
 	test("updateResource → actualiza campos", async () => {
 		await updateResource(createdId, { title: "Título actualizado repo" });
 		const resource = await getResourceById(createdId);
-		expect(resource!.title).toBe("Título actualizado repo");
+		expect(resource).not.toBeNull();
+		expect(resource?.title).toBe("Título actualizado repo");
 	});
 
 	test("updateEditorialStatus → cambia estado", async () => {
 		await updateEditorialStatus(createdId, "published", "1");
 		const resource = await getResourceById(createdId);
-		expect(resource!.editorialStatus).toBe("published");
+		expect(resource).not.toBeNull();
+		expect(resource?.editorialStatus).toBe("published");
 	});
 
 	test("deleteResource → soft delete", async () => {
