@@ -20,12 +20,18 @@ export function registerFrontendServing(
 	// El dashboard de desarrollo y la documentación interna se copian en `dist/dev`
 	// dentro del despliegue all-in-one. Sólo deben servirse en modo desarrollo para
 	// no exponer información interna (status, decisiones, roles) sin autenticación.
-	app.use("/dev", async (c, next) =>
-		isDevelopmentMode() ? next() : c.notFound(),
-	);
-	app.use("/dev/*", async (c, next) =>
-		isDevelopmentMode() ? next() : c.notFound(),
-	);
+	// Comparación case-insensitive: en FS case-insensitive (p. ej. macOS por defecto)
+	// `/Dev/...` serviría el mismo archivo que `/dev/...` si solo bloqueáramos la
+	// variante en minúsculas.
+	app.use("*", async (c, next) => {
+		if (isDevelopmentMode()) return next();
+		const pathname = new URL(c.req.url).pathname;
+		const normalized = pathname.toLowerCase().replace(/\/{2,}/g, "/");
+		if (normalized === "/dev" || normalized.startsWith("/dev/")) {
+			return c.notFound();
+		}
+		return next();
+	});
 
 	app.use(
 		"*",

@@ -77,6 +77,32 @@ describe("registerFrontendServing", () => {
 			expect(response.status).toBe(404);
 		});
 
+		test("blocks /dev exactly and case variants outside development", async () => {
+			process.env.NODE_ENV = "production";
+			frontendDir = await buildDevDir();
+			await writeFile(
+				path.join(frontendDir, "dev", "index.html"),
+				"<html><body>dev dash</body></html>",
+			);
+
+			const app = new Hono<AuthEnv>();
+			registerFrontendServing(app, frontendDir);
+
+			for (const p of [
+				"/dev",
+				"/dev/",
+				"/dev/index.html",
+				"/Dev/data/status.yaml",
+				"/DEV/data/status.yaml",
+			]) {
+				const response = await app.request(p);
+				expect(response.status).toBe(404);
+				const body = await response.text();
+				expect(body).not.toContain("internal: secret");
+				expect(body).not.toContain("dev dash");
+			}
+		});
+
 		test("serves /dev internal data only in development", async () => {
 			process.env.NODE_ENV = "development";
 			frontendDir = await buildDevDir();
