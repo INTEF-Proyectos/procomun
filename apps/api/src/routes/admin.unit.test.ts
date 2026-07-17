@@ -1,15 +1,18 @@
-import { expect, test, describe } from "bun:test";
+import { describe, expect, test } from "bun:test";
+import * as repo from "@procomun/db/repository";
 import { Hono } from "hono";
 import type { AuthEnv } from "../auth/middleware.ts";
-import { adminRoutes } from "./admin/index.ts";
-import * as repo from "@procomun/db/repository";
 import { getDb } from "../db.ts";
+import { adminRoutes } from "./admin/index.ts";
 
 function createAdminApp(mockUser: Record<string, unknown> | null = null) {
 	const app = new Hono<AuthEnv>();
 	app.use("*", async (c, next) => {
 		c.set("user", mockUser as AuthEnv["Variables"]["user"]);
-		c.set("session", mockUser ? { id: "s" } as AuthEnv["Variables"]["session"] : null);
+		c.set(
+			"session",
+			mockUser ? ({ id: "s" } as AuthEnv["Variables"]["session"]) : null,
+		);
 		await next();
 	});
 	app.route("/api/admin", adminRoutes);
@@ -64,7 +67,9 @@ describe("Rutas admin — con sesión de admin", () => {
 	});
 
 	test("GET /api/admin/resources?status=published → total numérico", async () => {
-		const res = await app.request("/api/admin/resources?limit=1&status=published");
+		const res = await app.request(
+			"/api/admin/resources?limit=1&status=published",
+		);
 		expect(res.status).toBe(200);
 		const body = await res.json();
 		expect(typeof body.total).toBe("number");
@@ -180,7 +185,9 @@ describe("Rutas admin — con sesión de admin", () => {
 		});
 		const created = await createRes.json();
 
-		const res = await app.request(`/api/admin/resources/${created.id}`, { method: "DELETE" });
+		const res = await app.request(`/api/admin/resources/${created.id}`, {
+			method: "DELETE",
+		});
 		expect(res.status).toBe(200);
 		const body = await res.json();
 		expect(body.deleted).toBe(true);
@@ -273,7 +280,10 @@ describe("Rutas admin — con sesión de admin", () => {
 		const createRes = await app.request("/api/admin/collections", {
 			method: "POST",
 			headers: { "Content-Type": "application/json" },
-			body: JSON.stringify({ title: "Colección demo", description: "Descripción de colección" }),
+			body: JSON.stringify({
+				title: "Colección demo",
+				description: "Descripción de colección",
+			}),
 		});
 		expect(createRes.status).toBe(201);
 
@@ -343,7 +353,7 @@ describe("Rutas admin — flujo editorial visible para curator", () => {
 			}),
 		});
 		expect(reviewCreateRes.status).toBe(201);
-		const reviewCreated = await reviewCreateRes.json() as { id: string };
+		const reviewCreated = (await reviewCreateRes.json()) as { id: string };
 
 		const draftCreateRes = await adminApp.request("/api/admin/resources", {
 			method: "POST",
@@ -354,54 +364,75 @@ describe("Rutas admin — flujo editorial visible para curator", () => {
 			}),
 		});
 		expect(draftCreateRes.status).toBe(201);
-		const draftCreated = await draftCreateRes.json() as { id: string };
+		const draftCreated = (await draftCreateRes.json()) as { id: string };
 
-		const reviewRes = await adminApp.request(`/api/admin/resources/${reviewCreated.id}/status`, {
-			method: "PATCH",
-			headers: { "Content-Type": "application/json" },
-			body: JSON.stringify({ status: "review" }),
-		});
+		const reviewRes = await adminApp.request(
+			`/api/admin/resources/${reviewCreated.id}/status`,
+			{
+				method: "PATCH",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify({ status: "review" }),
+			},
+		);
 		expect(reviewRes.status).toBe(200);
 
 		const listAllRes = await curatorApp.request("/api/admin/resources");
 		expect(listAllRes.status).toBe(200);
-		const listAllBody = await listAllRes.json() as {
+		const listAllBody = (await listAllRes.json()) as {
 			total: number;
 			data: Array<{ id: string }>;
 		};
 		expect(listAllBody.total).toBeGreaterThanOrEqual(2);
-		expect(listAllBody.data.some((resource) => resource.id === reviewCreated.id)).toBe(true);
-		expect(listAllBody.data.some((resource) => resource.id === draftCreated.id)).toBe(true);
+		expect(
+			listAllBody.data.some((resource) => resource.id === reviewCreated.id),
+		).toBe(true);
+		expect(
+			listAllBody.data.some((resource) => resource.id === draftCreated.id),
+		).toBe(true);
 
-		const listRes = await curatorApp.request("/api/admin/resources?status=review");
+		const listRes = await curatorApp.request(
+			"/api/admin/resources?status=review",
+		);
 		expect(listRes.status).toBe(200);
-		const listBody = await listRes.json() as {
+		const listBody = (await listRes.json()) as {
 			total: number;
 			data: Array<{ id: string }>;
 		};
 		expect(listBody.total).toBeGreaterThan(0);
-		expect(listBody.data.some((resource) => resource.id === reviewCreated.id)).toBe(true);
+		expect(
+			listBody.data.some((resource) => resource.id === reviewCreated.id),
+		).toBe(true);
 
-		const getRes = await curatorApp.request(`/api/admin/resources/${reviewCreated.id}`);
+		const getRes = await curatorApp.request(
+			`/api/admin/resources/${reviewCreated.id}`,
+		);
 		expect(getRes.status).toBe(200);
 
-		const draftGetRes = await curatorApp.request(`/api/admin/resources/${draftCreated.id}`);
+		const draftGetRes = await curatorApp.request(
+			`/api/admin/resources/${draftCreated.id}`,
+		);
 		expect(draftGetRes.status).toBe(403);
 
-		const draftPatchRes = await curatorApp.request(`/api/admin/resources/${draftCreated.id}`, {
-			method: "PATCH",
-			headers: { "Content-Type": "application/json" },
-			body: JSON.stringify({ title: "No deberia editar" }),
-		});
+		const draftPatchRes = await curatorApp.request(
+			`/api/admin/resources/${draftCreated.id}`,
+			{
+				method: "PATCH",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify({ title: "No deberia editar" }),
+			},
+		);
 		expect(draftPatchRes.status).toBe(403);
 
-		const publishRes = await curatorApp.request(`/api/admin/resources/${reviewCreated.id}/status`, {
-			method: "PATCH",
-			headers: { "Content-Type": "application/json" },
-			body: JSON.stringify({ status: "published" }),
-		});
+		const publishRes = await curatorApp.request(
+			`/api/admin/resources/${reviewCreated.id}/status`,
+			{
+				method: "PATCH",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify({ status: "published" }),
+			},
+		);
 		expect(publishRes.status).toBe(200);
-		const publishBody = await publishRes.json() as { status: string };
+		const publishBody = (await publishRes.json()) as { status: string };
 		expect(publishBody.status).toBe("published");
 	});
 
@@ -422,31 +453,45 @@ describe("Rutas admin — flujo editorial visible para curator", () => {
 		const createRes = await adminApp.request("/api/admin/resources", {
 			method: "POST",
 			headers: { "Content-Type": "application/json" },
-			body: JSON.stringify({ ...validResource, title: `DEF-009 draft ${crypto.randomUUID()}` }),
+			body: JSON.stringify({
+				...validResource,
+				title: `DEF-009 draft ${crypto.randomUUID()}`,
+			}),
 		});
 		expect(createRes.status).toBe(201);
-		const created = await createRes.json() as { id: string };
+		const created = (await createRes.json()) as { id: string };
 
 		// El recurso entra en la cola de revisión.
-		const reviewRes = await adminApp.request(`/api/admin/resources/${created.id}/status`, {
-			method: "PATCH",
-			headers: { "Content-Type": "application/json" },
-			body: JSON.stringify({ status: "review" }),
-		});
+		const reviewRes = await adminApp.request(
+			`/api/admin/resources/${created.id}/status`,
+			{
+				method: "PATCH",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify({ status: "review" }),
+			},
+		);
 		expect(reviewRes.status).toBe(200);
 
 		// El curator lo rechaza devolviéndolo a borrador.
-		const draftRes = await curatorApp.request(`/api/admin/resources/${created.id}/status`, {
-			method: "PATCH",
-			headers: { "Content-Type": "application/json" },
-			body: JSON.stringify({ status: "draft" }),
-		});
+		const draftRes = await curatorApp.request(
+			`/api/admin/resources/${created.id}/status`,
+			{
+				method: "PATCH",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify({ status: "draft" }),
+			},
+		);
 		expect(draftRes.status).toBe(200);
 
 		// Regresión DEF-009: el curator que actuó debe seguir viendo el recurso.
-		const getRes = await curatorApp.request(`/api/admin/resources/${created.id}`);
+		const getRes = await curatorApp.request(
+			`/api/admin/resources/${created.id}`,
+		);
 		expect(getRes.status).toBe(200);
-		const body = await getRes.json() as { id: string; editorialStatus: string };
+		const body = (await getRes.json()) as {
+			id: string;
+			editorialStatus: string;
+		};
 		expect(body.id).toBe(created.id);
 		expect(body.editorialStatus).toBe("draft");
 	});
@@ -468,10 +513,13 @@ describe("Rutas admin — flujo editorial visible para curator", () => {
 		const createRes = await adminApp.request("/api/admin/resources", {
 			method: "POST",
 			headers: { "Content-Type": "application/json" },
-			body: JSON.stringify({ ...validResource, title: `DEF-009 pub ${crypto.randomUUID()}` }),
+			body: JSON.stringify({
+				...validResource,
+				title: `DEF-009 pub ${crypto.randomUUID()}`,
+			}),
 		});
 		expect(createRes.status).toBe(201);
-		const created = await createRes.json() as { id: string };
+		const created = (await createRes.json()) as { id: string };
 
 		await adminApp.request(`/api/admin/resources/${created.id}/status`, {
 			method: "PATCH",
@@ -479,17 +527,25 @@ describe("Rutas admin — flujo editorial visible para curator", () => {
 			body: JSON.stringify({ status: "review" }),
 		});
 
-		const publishRes = await curatorApp.request(`/api/admin/resources/${created.id}/status`, {
-			method: "PATCH",
-			headers: { "Content-Type": "application/json" },
-			body: JSON.stringify({ status: "published" }),
-		});
+		const publishRes = await curatorApp.request(
+			`/api/admin/resources/${created.id}/status`,
+			{
+				method: "PATCH",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify({ status: "published" }),
+			},
+		);
 		expect(publishRes.status).toBe(200);
 
 		// Regresión DEF-009: el curator que publica debe seguir viendo el recurso.
-		const getRes = await curatorApp.request(`/api/admin/resources/${created.id}`);
+		const getRes = await curatorApp.request(
+			`/api/admin/resources/${created.id}`,
+		);
 		expect(getRes.status).toBe(200);
-		const body = await getRes.json() as { id: string; editorialStatus: string };
+		const body = (await getRes.json()) as {
+			id: string;
+			editorialStatus: string;
+		};
 		expect(body.editorialStatus).toBe("published");
 	});
 });
@@ -557,11 +613,14 @@ describe("Rutas admin — RBAC por rol", () => {
 		});
 
 		// Ahora aprobar como curator
-		const res = await curatorApp.request(`/api/admin/resources/${created.id}/status`, {
-			method: "PATCH",
-			headers: { "Content-Type": "application/json" },
-			body: JSON.stringify({ status: "published" }),
-		});
+		const res = await curatorApp.request(
+			`/api/admin/resources/${created.id}/status`,
+			{
+				method: "PATCH",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify({ status: "published" }),
+			},
+		);
 		expect(res.status).toBe(200);
 	});
 
@@ -587,7 +646,10 @@ describe("Rutas admin — RBAC por rol", () => {
 	});
 
 	test("author no puede acceder a colecciones", async () => {
-		const authorApp = createAdminApp({ id: "author-collections", role: "author" });
+		const authorApp = createAdminApp({
+			id: "author-collections",
+			role: "author",
+		});
 		const res = await authorApp.request("/api/admin/collections");
 		expect(res.status).toBe(403);
 	});
@@ -595,8 +657,18 @@ describe("Rutas admin — RBAC por rol", () => {
 
 describe("Rutas admin — subida de recursos por author/editor/curator (DEF-221)", () => {
 	async function setupUser(id: string, role: string) {
-		await repo.ensureUser(getDb().db, { id, email: `${id}@local.invalid`, name: `User ${id}`, role });
-		return createAdminApp({ id, role, email: `${id}@local.invalid`, name: `User ${id}` });
+		await repo.ensureUser(getDb().db, {
+			id,
+			email: `${id}@local.invalid`,
+			name: `User ${id}`,
+			role,
+		});
+		return createAdminApp({
+			id,
+			role,
+			email: `${id}@local.invalid`,
+			name: `User ${id}`,
+		});
 	}
 
 	test("author puede crear un recurso (no 'Permisos insuficientes')", async () => {
@@ -611,7 +683,9 @@ describe("Rutas admin — subida de recursos por author/editor/curator (DEF-221)
 
 	test("author puede crear un borrador", async () => {
 		const app = await setupUser(`author-d-${crypto.randomUUID()}`, "author");
-		const res = await app.request("/api/admin/resources/draft", { method: "POST" });
+		const res = await app.request("/api/admin/resources/draft", {
+			method: "POST",
+		});
 		expect(res.status).toBe(201);
 	});
 
@@ -660,7 +734,10 @@ describe("Rutas admin — subida de recursos por author/editor/curator (DEF-221)
 	});
 
 	test("un author que NO es el creador no puede subir/guardar elpx en un recurso ajeno (IDOR)", async () => {
-		const ownerApp = await setupUser(`elpx-owner-${crypto.randomUUID()}`, "author");
+		const ownerApp = await setupUser(
+			`elpx-owner-${crypto.randomUUID()}`,
+			"author",
+		);
 		const createRes = await ownerApp.request("/api/admin/resources", {
 			method: "POST",
 			headers: { "Content-Type": "application/json" },
@@ -668,12 +745,30 @@ describe("Rutas admin — subida de recursos por author/editor/curator (DEF-221)
 		});
 		const { id: resourceId } = await createRes.json();
 
-		const intruderApp = await setupUser(`elpx-intruder-${crypto.randomUUID()}`, "author");
-		expect((await intruderApp.request(`/api/admin/elpx/upload/${resourceId}`, { method: "POST" })).status).toBe(403);
-		expect((await intruderApp.request(`/api/admin/elpx/save/${resourceId}`, { method: "POST" })).status).toBe(403);
+		const intruderApp = await setupUser(
+			`elpx-intruder-${crypto.randomUUID()}`,
+			"author",
+		);
+		expect(
+			(
+				await intruderApp.request(`/api/admin/elpx/upload/${resourceId}`, {
+					method: "POST",
+				})
+			).status,
+		).toBe(403);
+		expect(
+			(
+				await intruderApp.request(`/api/admin/elpx/save/${resourceId}`, {
+					method: "POST",
+				})
+			).status,
+		).toBe(403);
 
 		// El creador sí pasa el control de propiedad (no 403; 400 por faltar el fichero).
-		const ownerUpload = await ownerApp.request(`/api/admin/elpx/upload/${resourceId}`, { method: "POST" });
+		const ownerUpload = await ownerApp.request(
+			`/api/admin/elpx/upload/${resourceId}`,
+			{ method: "POST" },
+		);
 		expect(ownerUpload.status).not.toBe(403);
 	});
 });
@@ -688,12 +783,19 @@ describe("Rutas admin — uploads/config", () => {
 		expect(typeof body.maxFileSizeBytes).toBe("number");
 
 		const readerApp = createAdminApp({ id: "cfg-reader", role: "reader" });
-		expect((await readerApp.request("/api/admin/uploads/config")).status).toBe(403);
+		expect((await readerApp.request("/api/admin/uploads/config")).status).toBe(
+			403,
+		);
 	});
 });
 
 describe("Rutas admin — usuarios", () => {
-	const app = createAdminApp({ id: "1", role: "admin", email: "admin@test.com", name: "Admin" });
+	const app = createAdminApp({
+		id: "1",
+		role: "admin",
+		email: "admin@test.com",
+		name: "Admin",
+	});
 
 	test("GET /api/admin/users → 200 lista usuarios", async () => {
 		const res = await app.request("/api/admin/users");
@@ -714,7 +816,12 @@ describe("Rutas admin — usuarios", () => {
 	});
 
 	test("non-admin (author) no puede acceder a /admin/users", async () => {
-		const authorApp = createAdminApp({ id: "author-u", role: "author", email: "author-u@test.com", name: "Author" });
+		const authorApp = createAdminApp({
+			id: "author-u",
+			role: "author",
+			email: "author-u@test.com",
+			name: "Author",
+		});
 		const res = await authorApp.request("/api/admin/users");
 		expect(res.status).toBe(403);
 	});
@@ -727,7 +834,12 @@ describe("Rutas admin — usuarios", () => {
 });
 
 describe("Rutas admin — colecciones", () => {
-	const app = createAdminApp({ id: "1", role: "admin", email: "admin@test.com", name: "Admin" });
+	const app = createAdminApp({
+		id: "1",
+		role: "admin",
+		email: "admin@test.com",
+		name: "Admin",
+	});
 
 	test("GET /api/admin/collections → 200 lista colecciones", async () => {
 		const res = await app.request("/api/admin/collections");
@@ -764,7 +876,10 @@ describe("Rutas admin — colecciones", () => {
 		const resourceRes = await app.request("/api/admin/resources", {
 			method: "POST",
 			headers: { "Content-Type": "application/json" },
-			body: JSON.stringify({ ...validResource, title: "Recurso para colección" }),
+			body: JSON.stringify({
+				...validResource,
+				title: "Recurso para colección",
+			}),
 		});
 		expect(resourceRes.status).toBe(201);
 		const resource = await resourceRes.json();
@@ -804,39 +919,55 @@ describe("Rutas admin — colecciones", () => {
 		expect(updated.isOrdered).toBe(true);
 		expect(updated.coverImageUrl).toBe("https://example.com/actualizada.jpg");
 
-		const addResourceRes = await app.request(`/api/admin/collections/${id}/resources`, {
-			method: "POST",
-			headers: { "Content-Type": "application/json" },
-			body: JSON.stringify({ resourceId: resource.id }),
-		});
+		const addResourceRes = await app.request(
+			`/api/admin/collections/${id}/resources`,
+			{
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify({ resourceId: resource.id }),
+			},
+		);
 		expect(addResourceRes.status).toBe(201);
 
-		const duplicateAddResourceRes = await app.request(`/api/admin/collections/${id}/resources`, {
-			method: "POST",
-			headers: { "Content-Type": "application/json" },
-			body: JSON.stringify({ resourceId: resource.id }),
-		});
+		const duplicateAddResourceRes = await app.request(
+			`/api/admin/collections/${id}/resources`,
+			{
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify({ resourceId: resource.id }),
+			},
+		);
 		expect(duplicateAddResourceRes.status).toBe(409);
 
-		const listResourcesRes = await app.request(`/api/admin/collections/${id}/resources`);
+		const listResourcesRes = await app.request(
+			`/api/admin/collections/${id}/resources`,
+		);
 		expect(listResourcesRes.status).toBe(200);
 		const collectionResources = await listResourcesRes.json();
 		expect(collectionResources).toHaveLength(1);
 		expect(collectionResources[0].resourceId).toBe(resource.id);
 
-		const reorderRes = await app.request(`/api/admin/collections/${id}/resources/reorder`, {
-			method: "PATCH",
-			headers: { "Content-Type": "application/json" },
-			body: JSON.stringify({ resourceId: resource.id, direction: "up" }),
-		});
+		const reorderRes = await app.request(
+			`/api/admin/collections/${id}/resources/reorder`,
+			{
+				method: "PATCH",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify({ resourceId: resource.id, direction: "up" }),
+			},
+		);
 		expect([200, 400]).toContain(reorderRes.status);
 
-		const removeResourceRes = await app.request(`/api/admin/collections/${id}/resources/${resource.id}`, {
-			method: "DELETE",
-		});
+		const removeResourceRes = await app.request(
+			`/api/admin/collections/${id}/resources/${resource.id}`,
+			{
+				method: "DELETE",
+			},
+		);
 		expect(removeResourceRes.status).toBe(200);
 
-		const deleteRes = await app.request(`/api/admin/collections/${id}`, { method: "DELETE" });
+		const deleteRes = await app.request(`/api/admin/collections/${id}`, {
+			method: "DELETE",
+		});
 		expect(deleteRes.status).toBe(200);
 	});
 
@@ -858,25 +989,44 @@ describe("Rutas admin — colecciones", () => {
 		expect(adminCreateRes.status).toBe(201);
 		const adminCollection = await adminCreateRes.json();
 
-		const curatorApp = createAdminApp({ id: "curator-1", role: "curator", email: "curator@test.com", name: "Curator" });
+		const curatorApp = createAdminApp({
+			id: "curator-1",
+			role: "curator",
+			email: "curator@test.com",
+			name: "Curator",
+		});
 		const createRes = await curatorApp.request("/api/admin/collections", {
 			method: "POST",
 			headers: { "Content-Type": "application/json" },
-			body: JSON.stringify({ title: "Colección curada", description: "Descripción curada" }),
+			body: JSON.stringify({
+				title: "Colección curada",
+				description: "Descripción curada",
+			}),
 		});
 		expect(createRes.status).toBe(201);
 
 		const listRes = await curatorApp.request("/api/admin/collections");
 		expect(listRes.status).toBe(200);
 		const listBody = await listRes.json();
-		expect(listBody.data.some((item: { id: string }) => item.id === adminCollection.id)).toBe(true);
-		expect(listBody.data.some((item: { curatorId: string }) => item.curatorId === "curator-1")).toBe(true);
+		expect(
+			listBody.data.some(
+				(item: { id: string }) => item.id === adminCollection.id,
+			),
+		).toBe(true);
+		expect(
+			listBody.data.some(
+				(item: { curatorId: string }) => item.curatorId === "curator-1",
+			),
+		).toBe(true);
 
-		const patchRes = await curatorApp.request(`/api/admin/collections/${adminCollection.id}`, {
-			method: "PATCH",
-			headers: { "Content-Type": "application/json" },
-			body: JSON.stringify({ description: "Actualizada por curator" }),
-		});
+		const patchRes = await curatorApp.request(
+			`/api/admin/collections/${adminCollection.id}`,
+			{
+				method: "PATCH",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify({ description: "Actualizada por curator" }),
+			},
+		);
 		expect(patchRes.status).toBe(200);
 	});
 });
@@ -941,7 +1091,9 @@ describe("Rutas admin — taxonomías", () => {
 		});
 		expect(patchRes.status).toBe(200);
 
-		const deleteRes = await app.request(`/api/admin/taxonomies/${id}`, { method: "DELETE" });
+		const deleteRes = await app.request(`/api/admin/taxonomies/${id}`, {
+			method: "DELETE",
+		});
 		expect(deleteRes.status).toBe(200);
 	});
 
@@ -959,7 +1111,12 @@ describe("Rutas admin — taxonomías", () => {
 });
 
 describe("Rutas admin — alta de usuarios (DEF-019)", () => {
-	const adminApp = createAdminApp({ id: "1", role: "admin", email: "admin@test.com", name: "Admin" });
+	const adminApp = createAdminApp({
+		id: "1",
+		role: "admin",
+		email: "admin@test.com",
+		name: "Admin",
+	});
 
 	test("POST /api/admin/users → 201 crea el usuario SIN cambiar la sesión activa", async () => {
 		const email = `nuevo-${crypto.randomUUID()}@test.com`;
@@ -977,16 +1134,24 @@ describe("Rutas admin — alta de usuarios (DEF-019)", () => {
 		expect(res.headers.get("set-cookie")).toBeNull();
 
 		// El nuevo usuario aparece en el listado
-		const listRes = await adminApp.request(`/api/admin/users?q=${encodeURIComponent(email)}`);
+		const listRes = await adminApp.request(
+			`/api/admin/users?q=${encodeURIComponent(email)}`,
+		);
 		const list = await listRes.json();
-		expect(list.data.some((u: { email: string }) => u.email === email)).toBe(true);
+		expect(list.data.some((u: { email: string }) => u.email === email)).toBe(
+			true,
+		);
 	});
 
 	test("POST /api/admin/users → 400 con email inválido o contraseña corta", async () => {
 		const bad = await adminApp.request("/api/admin/users", {
 			method: "POST",
 			headers: { "Content-Type": "application/json" },
-			body: JSON.stringify({ name: "X", email: "no-es-email", password: "123" }),
+			body: JSON.stringify({
+				name: "X",
+				email: "no-es-email",
+				password: "123",
+			}),
 		});
 		expect(bad.status).toBe(400);
 		const body = await bad.json();
@@ -1016,48 +1181,71 @@ describe("Rutas admin — alta de usuarios (DEF-019)", () => {
 		const res = await curatorApp.request("/api/admin/users", {
 			method: "POST",
 			headers: { "Content-Type": "application/json" },
-			body: JSON.stringify({ name: "X", email: `c-${crypto.randomUUID()}@test.com`, password: "supersecret8" }),
+			body: JSON.stringify({
+				name: "X",
+				email: `c-${crypto.randomUUID()}@test.com`,
+				password: "supersecret8",
+			}),
 		});
 		expect(res.status).toBe(403);
 	});
 });
 
 describe("Rutas admin — baja de usuarios (DEF-020)", () => {
-	const adminApp = createAdminApp({ id: "1", role: "admin", email: "admin@test.com", name: "Admin" });
+	const adminApp = createAdminApp({
+		id: "1",
+		role: "admin",
+		email: "admin@test.com",
+		name: "Admin",
+	});
 
 	test("DELETE /api/admin/users/:id → 200 y el usuario desaparece del listado", async () => {
 		const email = `borrar-${crypto.randomUUID()}@test.com`;
 		const createRes = await adminApp.request("/api/admin/users", {
 			method: "POST",
 			headers: { "Content-Type": "application/json" },
-			body: JSON.stringify({ name: "Para borrar", email, password: "supersecret8" }),
+			body: JSON.stringify({
+				name: "Para borrar",
+				email,
+				password: "supersecret8",
+			}),
 		});
 		const { id } = await createRes.json();
 
-		const delRes = await adminApp.request(`/api/admin/users/${id}`, { method: "DELETE" });
+		const delRes = await adminApp.request(`/api/admin/users/${id}`, {
+			method: "DELETE",
+		});
 		expect(delRes.status).toBe(200);
 		const delBody = await delRes.json();
 		expect(delBody.deleted).toBe(true);
 
 		// Regresión DEF-020: ya no aparece en el listado
-		const listRes = await adminApp.request(`/api/admin/users?q=${encodeURIComponent(email)}`);
+		const listRes = await adminApp.request(
+			`/api/admin/users?q=${encodeURIComponent(email)}`,
+		);
 		const list = await listRes.json();
 		expect(list.data.some((u: { id: string }) => u.id === id)).toBe(false);
 	});
 
 	test("DELETE /api/admin/users/:id → 404 para id inexistente", async () => {
-		const res = await adminApp.request("/api/admin/users/no-existe-xyz", { method: "DELETE" });
+		const res = await adminApp.request("/api/admin/users/no-existe-xyz", {
+			method: "DELETE",
+		});
 		expect(res.status).toBe(404);
 	});
 
 	test("DELETE /api/admin/users/:id → 400 al intentar borrarse a sí mismo", async () => {
-		const res = await adminApp.request("/api/admin/users/1", { method: "DELETE" });
+		const res = await adminApp.request("/api/admin/users/1", {
+			method: "DELETE",
+		});
 		expect(res.status).toBe(400);
 	});
 
 	test("DELETE /api/admin/users/:id → 403 para roles no administradores", async () => {
 		const curatorApp = createAdminApp({ id: "cur-del", role: "curator" });
-		const res = await curatorApp.request("/api/admin/users/whoever", { method: "DELETE" });
+		const res = await curatorApp.request("/api/admin/users/whoever", {
+			method: "DELETE",
+		});
 		expect(res.status).toBe(403);
 	});
 
@@ -1070,11 +1258,15 @@ describe("Rutas admin — baja de usuarios (DEF-020)", () => {
 		});
 		const { id } = await createRes.json();
 
-		const firstDelete = await adminApp.request(`/api/admin/users/${id}`, { method: "DELETE" });
+		const firstDelete = await adminApp.request(`/api/admin/users/${id}`, {
+			method: "DELETE",
+		});
 		expect(firstDelete.status).toBe(200);
 
 		// Segunda baja: ya no existe para la administración → 404 (no vuelve a "borrar")
-		const secondDelete = await adminApp.request(`/api/admin/users/${id}`, { method: "DELETE" });
+		const secondDelete = await adminApp.request(`/api/admin/users/${id}`, {
+			method: "DELETE",
+		});
 		expect(secondDelete.status).toBe(404);
 
 		// Tampoco se puede reactivar por PATCH un usuario dado de baja
@@ -1089,7 +1281,12 @@ describe("Rutas admin — baja de usuarios (DEF-020)", () => {
 
 describe("Rutas admin — usuarios: autoservicio, auditoría y validación", () => {
 	test("GET /api/admin/users devuelve ficha sintética propia para curator sin registro en BD", async () => {
-		const ghostApp = createAdminApp({ id: "ghost-self", role: "curator", email: "ghost@test.com", name: "Ghost" });
+		const ghostApp = createAdminApp({
+			id: "ghost-self",
+			role: "curator",
+			email: "ghost@test.com",
+			name: "Ghost",
+		});
 		const res = await ghostApp.request("/api/admin/users");
 		expect(res.status).toBe(200);
 		const body = await res.json();
@@ -1098,7 +1295,12 @@ describe("Rutas admin — usuarios: autoservicio, auditoría y validación", () 
 	});
 
 	test("GET /api/admin/users/:id propio devuelve ficha sintética si no existe en BD", async () => {
-		const ghostApp = createAdminApp({ id: "ghost-self-2", role: "curator", email: "ghost2@test.com", name: "Ghost2" });
+		const ghostApp = createAdminApp({
+			id: "ghost-self-2",
+			role: "curator",
+			email: "ghost2@test.com",
+			name: "Ghost2",
+		});
 		const res = await ghostApp.request("/api/admin/users/ghost-self-2");
 		expect(res.status).toBe(200);
 		const body = await res.json();
@@ -1163,13 +1365,26 @@ describe("Rutas admin — actualización de usuarios", () => {
 		// propio perfil reproduce el caso real del defecto (el nombre se guardaba, la bio no).
 		const id = `self-bio-${crypto.randomUUID()}`;
 		const email = `${id}@test.com`;
-		await repo.ensureUser(getDb().db, { id, email, name: "Self Bio", role: "curator" });
-		const selfApp = createAdminApp({ id, role: "curator", email, name: "Self Bio" });
+		await repo.ensureUser(getDb().db, {
+			id,
+			email,
+			name: "Self Bio",
+			role: "curator",
+		});
+		const selfApp = createAdminApp({
+			id,
+			role: "curator",
+			email,
+			name: "Self Bio",
+		});
 
 		const patchRes = await selfApp.request(`/api/admin/users/${id}`, {
 			method: "PATCH",
 			headers: { "Content-Type": "application/json" },
-			body: JSON.stringify({ name: "Self Bio Editado", bio: "Mi biografía actualizada" }),
+			body: JSON.stringify({
+				name: "Self Bio Editado",
+				bio: "Mi biografía actualizada",
+			}),
 		});
 		expect(patchRes.status).toBe(200);
 
@@ -1187,7 +1402,11 @@ describe("Rutas admin — actualización de usuarios", () => {
 		const createRes = await adminApp.request("/api/admin/users", {
 			method: "POST",
 			headers: { "Content-Type": "application/json" },
-			body: JSON.stringify({ name: "Con Bio", email, password: "supersecret8" }),
+			body: JSON.stringify({
+				name: "Con Bio",
+				email,
+				password: "supersecret8",
+			}),
 		});
 		const { id } = await createRes.json();
 

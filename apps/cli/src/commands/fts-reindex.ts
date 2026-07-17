@@ -13,7 +13,8 @@ export async function loadFtsReindexDependencies() {
 }
 
 export async function ftsReindex() {
-	const { getDb, waitForDb, reindexAllResources } = await loadFtsReindexDependencies();
+	const { getDb, waitForDb, reindexAllResources } =
+		await loadFtsReindexDependencies();
 
 	await waitForDb();
 	const db = getDb().db;

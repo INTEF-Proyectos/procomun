@@ -1,9 +1,12 @@
+import * as repo from "@procomun/db/repository";
+import {
+	validateCreateResource,
+	validateUpdateResource,
+} from "@procomun/db/validation";
 import { Hono } from "hono";
+import { logActivity } from "../activity/log.ts";
 import type { AuthEnv } from "../auth/middleware.ts";
 import { getDb } from "../db.ts";
-import * as repo from "@procomun/db/repository";
-import { validateCreateResource, validateUpdateResource } from "@procomun/db/validation";
-import { logActivity } from "../activity/log.ts";
 
 const apiResourceRoutes = new Hono<AuthEnv>();
 
@@ -21,16 +24,24 @@ apiResourceRoutes.post("/", async (c) => {
 
 	const validation = validateCreateResource(body);
 	if (!validation.valid) {
-		return c.json({ error: "Errores de validación", details: validation.errors }, 400);
+		return c.json(
+			{ error: "Errores de validación", details: validation.errors },
+			400,
+		);
 	}
 
 	const data = body as Record<string, unknown>;
 	const db = getDb().db;
 
 	// Ensure user exists in DB
-	await repo.ensureUser(db, { id: user.id, email: user.email ?? "", name: user.name ?? null });
+	await repo.ensureUser(db, {
+		id: user.id,
+		email: user.email ?? "",
+		name: user.name ?? null,
+	});
 
-	const editorialStatus = data.editorialStatus === "review" ? "review" : "draft";
+	const editorialStatus =
+		data.editorialStatus === "review" ? "review" : "draft";
 
 	const result = await repo.createResource(db, {
 		title: data.title as string,
@@ -73,7 +84,10 @@ apiResourceRoutes.get("/:id", async (c) => {
 	}
 
 	// Only own resources or admin/curator
-	if (resource.createdBy !== user.id && !["admin", "curator"].includes(user.role ?? "")) {
+	if (
+		resource.createdBy !== user.id &&
+		!["admin", "curator"].includes(user.role ?? "")
+	) {
 		return c.json({ error: "Recurso no encontrado" }, 404);
 	}
 
@@ -107,8 +121,14 @@ apiResourceRoutes.put("/:id", async (c) => {
 		return c.json({ error: "Recurso no encontrado" }, 404);
 	}
 
-	if (resource.createdBy !== user.id && !["admin", "curator"].includes(user.role ?? "")) {
-		return c.json({ error: "No tienes permisos para modificar este recurso" }, 403);
+	if (
+		resource.createdBy !== user.id &&
+		!["admin", "curator"].includes(user.role ?? "")
+	) {
+		return c.json(
+			{ error: "No tienes permisos para modificar este recurso" },
+			403,
+		);
 	}
 
 	let body: unknown;
@@ -120,12 +140,24 @@ apiResourceRoutes.put("/:id", async (c) => {
 
 	const validation = validateUpdateResource(body);
 	if (!validation.valid) {
-		return c.json({ error: "Errores de validación", details: validation.errors }, 400);
+		return c.json(
+			{ error: "Errores de validación", details: validation.errors },
+			400,
+		);
 	}
 
 	const data = body as Record<string, unknown>;
 	const updateData: Record<string, string> = {};
-	for (const field of ["title", "description", "language", "license", "resourceType", "keywords", "author", "publisher"]) {
+	for (const field of [
+		"title",
+		"description",
+		"language",
+		"license",
+		"resourceType",
+		"keywords",
+		"author",
+		"publisher",
+	]) {
 		if (data[field] !== undefined) {
 			updateData[field] = data[field] as string;
 		}
@@ -158,8 +190,14 @@ apiResourceRoutes.delete("/:id", async (c) => {
 		return c.json({ error: "Recurso no encontrado" }, 404);
 	}
 
-	if (resource.createdBy !== user.id && !["admin", "curator"].includes(user.role ?? "")) {
-		return c.json({ error: "No tienes permisos para eliminar este recurso" }, 403);
+	if (
+		resource.createdBy !== user.id &&
+		!["admin", "curator"].includes(user.role ?? "")
+	) {
+		return c.json(
+			{ error: "No tienes permisos para eliminar este recurso" },
+			403,
+		);
 	}
 
 	await repo.deleteResource(db, id);

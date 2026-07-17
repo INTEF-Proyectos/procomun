@@ -1,5 +1,5 @@
-import { Routes, Route, Navigate, useParams } from "react-router-dom";
-import { useEffect, lazy, Suspense } from "react";
+import { lazy, Suspense, useEffect } from "react";
+import { Navigate, Route, Routes, useParams } from "react-router-dom";
 import { PublicLayout } from "./layouts/PublicLayout.tsx";
 
 const HomePage = lazy(() => import("./pages/HomePage.tsx"));
@@ -57,12 +57,27 @@ export function App() {
 		<Suspense fallback={null}>
 			<Routes>
 				{/* Default locale (es) — no prefix */}
-				<Route element={<><LocaleSync /><PublicLayout /></>}>
+				<Route
+					element={
+						<>
+							<LocaleSync />
+							<PublicLayout />
+						</>
+					}
+				>
 					{AppRoutes()}
 				</Route>
 
 				{/* Non-default locales — /en/*, /ca/*, /gl/*, /eu/* */}
-				<Route path=":locale" element={<><LocaleSync /><PublicLayout /></>}>
+				<Route
+					path=":locale"
+					element={
+						<>
+							<LocaleSync />
+							<PublicLayout />
+						</>
+					}
+				>
 					{AppRoutes()}
 				</Route>
 			</Routes>

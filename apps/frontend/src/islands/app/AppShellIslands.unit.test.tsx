@@ -1,10 +1,10 @@
 import { describe, expect, test } from "bun:test";
 import { renderToStaticMarkup } from "react-dom/server";
-import { LoginIsland } from "../auth/LoginIsland.tsx";
 import {
 	buildCatalogSearchResetUrl,
 	getCatalogSearchQuery,
 } from "../../layouts/PublicLayout.tsx";
+import { LoginIsland } from "../auth/LoginIsland.tsx";
 
 describe("App shell islands", () => {
 	test("LoginIsland renderiza el shell inicial del formulario", () => {
@@ -16,7 +16,9 @@ describe("App shell islands", () => {
 	});
 
 	test("detecta la búsqueda activa del catálogo desde la URL", () => {
-		expect(getCatalogSearchQuery("/explorar", "?q=docente&page=2")).toBe("docente");
+		expect(getCatalogSearchQuery("/explorar", "?q=docente&page=2")).toBe(
+			"docente",
+		);
 		expect(getCatalogSearchQuery("/colecciones", "?q=docente")).toBe("");
 		expect(getCatalogSearchQuery("/en/explorar", "?q=stem")).toBe("stem");
 	});
@@ -30,6 +32,8 @@ describe("App shell islands", () => {
 			),
 		).toBe("/explorar?resourceType=guide&language=es");
 
-		expect(buildCatalogSearchResetUrl("/en/explorar", "?q=docente", "/en/explorar")).toBe("/en/explorar");
+		expect(
+			buildCatalogSearchResetUrl("/en/explorar", "?q=docente", "/en/explorar"),
+		).toBe("/en/explorar");
 	});
 });

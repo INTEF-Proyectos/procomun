@@ -1,5 +1,5 @@
-import { desc, eq, sql } from "drizzle-orm";
 import { activityEvents } from "@procomun/db/schema";
+import { desc, eq, sql } from "drizzle-orm";
 import { getDb } from "../db.ts";
 
 export async function listUserActivity(input: {
@@ -35,7 +35,10 @@ export async function listUserActivity(input: {
 		data: rows.map((row) => ({
 			...row,
 			metadata: row.metadata ?? null,
-			createdAt: row.createdAt instanceof Date ? row.createdAt.toISOString() : row.createdAt,
+			createdAt:
+				row.createdAt instanceof Date
+					? row.createdAt.toISOString()
+					: row.createdAt,
 		})),
 		total: Number(countResult[0]?.count ?? 0),
 		limit: input.limit,
