@@ -108,8 +108,10 @@ exelearningEditorRoutes.get("/index.html", async (c) => {
 		headers: {
 			"Content-Type": "text/html; charset=utf-8",
 			"Cache-Control": "no-cache",
-			// Defense-in-depth: limit script sources for the bootstrap page.
-			// The escaping in buildEditorConfigScript is the primary XSS fix.
+			// Evita que el navegador reinterpretar el bootstrap como otro MIME.
+			"X-Content-Type-Options": "nosniff",
+			// Defense-in-depth: el escape de buildEditorConfigScript es el fix
+			// principal de XSS; esta CSP limita plugins y el ancestro del frame.
 			"Content-Security-Policy":
 				"object-src 'none'; base-uri 'self'; frame-ancestors 'self'",
 		},

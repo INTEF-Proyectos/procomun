@@ -86,6 +86,30 @@ describe("GET /api/v1/exelearning-editor/index.html", () => {
 		const html = await res.text();
 		expect(html).toContain("initialProjectUrl: null");
 	});
+
+	test("escapa payload XSS reflejado en la respuesta HTTP del bootstrap", async () => {
+		const payload = "</script><img src=x onerror=alert(1)>";
+		const qs = new URLSearchParams({
+			elpxUrl: payload,
+			resourceId: payload,
+		});
+		const res = await app.request(
+			`/api/v1/exelearning-editor/index.html?${qs.toString()}`,
+		);
+		expect(res.status).toBe(200);
+		const html = await res.text();
+		// El markup inyectado no debe aparecer crudo en el HTML.
+		expect(html).not.toContain("<img src=x onerror");
+		expect(html).not.toContain("<img src=x");
+		// El cierre de script del atacante queda como escape unicode JSON.
+		expect(html).toContain("\\u003c/script\\u003e");
+		// Defensa en profundidad: CSP + nosniff del bootstrap presentes.
+		const csp = res.headers.get("content-security-policy");
+		expect(csp).not.toBeNull();
+		expect(csp).toContain("frame-ancestors");
+		expect(csp).toContain("object-src 'none'");
+		expect(res.headers.get("x-content-type-options")).toBe("nosniff");
+	});
 });
 
 describe("GET /api/v1/exelearning-editor/* — static assets", () => {
