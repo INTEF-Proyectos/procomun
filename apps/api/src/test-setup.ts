@@ -4,7 +4,7 @@
  */
 process.env.PGLITE_DIR = "memory://";
 
-import { waitForDb, getDb } from "./db.ts";
+import { getDb, waitForDb } from "./db.ts";
 
 await waitForDb();
 

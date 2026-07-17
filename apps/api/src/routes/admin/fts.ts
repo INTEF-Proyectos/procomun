@@ -1,10 +1,7 @@
 import { Hono } from "hono";
 import { type AuthEnv, requireRole } from "../../auth/middleware.ts";
 import { getDb } from "../../db.ts";
-import {
-	reindexResource,
-	reindexAllResources,
-} from "../../fts/search.ts";
+import { reindexAllResources, reindexResource } from "../../fts/search.ts";
 import { reExtractResource } from "../../fts/worker.ts";
 
 const ftsRoutes = new Hono<AuthEnv>();

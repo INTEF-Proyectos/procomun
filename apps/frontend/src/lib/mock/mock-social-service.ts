@@ -1,18 +1,15 @@
-import {
-  MOCK_RESOURCES,
-  MOCK_RATING,
-  MOCK_DASHBOARD,
-  MOCK_COLLECTIONS,
-  MOCK_STATS,
-} from "./mock-data.ts";
-import type { ResourceSummary } from "../types/resource-extended.ts";
-import type {
-  RatingSummary,
-  UserRating,
-} from "../types/social.ts";
-import type { DashboardSummary } from "../types/user-extended.ts";
-import type { SearchResult } from "../types/search.ts";
 import type { Collection } from "../types/collection-extended.ts";
+import type { ResourceSummary } from "../types/resource-extended.ts";
+import type { SearchResult } from "../types/search.ts";
+import type { RatingSummary, UserRating } from "../types/social.ts";
+import type { DashboardSummary } from "../types/user-extended.ts";
+import {
+	MOCK_COLLECTIONS,
+	MOCK_DASHBOARD,
+	MOCK_RATING,
+	MOCK_RESOURCES,
+	MOCK_STATS,
+} from "./mock-data.ts";
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -20,8 +17,8 @@ import type { Collection } from "../types/collection-extended.ts";
 
 /** Simulate network latency (50-150 ms) */
 function delay(ms?: number): Promise<void> {
-  const wait = ms ?? 50 + Math.random() * 100;
-  return new Promise((resolve) => setTimeout(resolve, wait));
+	const wait = ms ?? 50 + Math.random() * 100;
+	return new Promise((resolve) => setTimeout(resolve, wait));
 }
 
 /** In-memory state for toggles that persist during the session */
@@ -34,94 +31,110 @@ const userRatings = new Map<string, number>();
 // ---------------------------------------------------------------------------
 
 export async function searchResources(opts?: {
-  q?: string;
-  resourceType?: string;
-  language?: string;
-  license?: string;
-  page?: number;
-  pageSize?: number;
+	q?: string;
+	resourceType?: string;
+	language?: string;
+	license?: string;
+	page?: number;
+	pageSize?: number;
 }): Promise<SearchResult<ResourceSummary>> {
-  await delay();
+	await delay();
 
-  const {
-    q,
-    resourceType,
-    language,
-    license,
-    page = 1,
-    pageSize = 12,
-  } = opts ?? {};
+	const {
+		q,
+		resourceType,
+		language,
+		license,
+		page = 1,
+		pageSize = 12,
+	} = opts ?? {};
 
-  let filtered = [...MOCK_RESOURCES];
+	let filtered = [...MOCK_RESOURCES];
 
-  if (q) {
-    const lower = q.toLowerCase();
-    filtered = filtered.filter(
-      (r) =>
-        r.title.toLowerCase().includes(lower) ||
-        r.description.toLowerCase().includes(lower),
-    );
-  }
+	if (q) {
+		const lower = q.toLowerCase();
+		filtered = filtered.filter(
+			(r) =>
+				r.title.toLowerCase().includes(lower) ||
+				r.description.toLowerCase().includes(lower),
+		);
+	}
 
-  if (resourceType) {
-    filtered = filtered.filter(
-      (r) => r.resourceType.toLowerCase() === resourceType.toLowerCase(),
-    );
-  }
+	if (resourceType) {
+		filtered = filtered.filter(
+			(r) => r.resourceType.toLowerCase() === resourceType.toLowerCase(),
+		);
+	}
 
-  if (language) {
-    filtered = filtered.filter((r) => r.language === language);
-  }
+	if (language) {
+		filtered = filtered.filter((r) => r.language === language);
+	}
 
-  if (license) {
-    filtered = filtered.filter((r) => r.license === license);
-  }
+	if (license) {
+		filtered = filtered.filter((r) => r.license === license);
+	}
 
-  const total = filtered.length;
-  const totalPages = Math.max(1, Math.ceil(total / pageSize));
-  const start = (page - 1) * pageSize;
-  const data = filtered.slice(start, start + pageSize);
+	const total = filtered.length;
+	const totalPages = Math.max(1, Math.ceil(total / pageSize));
+	const start = (page - 1) * pageSize;
+	const data = filtered.slice(start, start + pageSize);
 
-  return {
-    data,
-    total,
-    page,
-    pageSize,
-    totalPages,
-    facets: [
-      {
-        key: "resourceType",
-        label: "Tipo de recurso",
-        items: [
-          { value: "Secuencia Didactica", label: "Secuencia Didactica", count: 2 },
-          { value: "Ejercicio Interactivo", label: "Ejercicio Interactivo", count: 1 },
-          { value: "Video Educativo", label: "Video Educativo", count: 1 },
-          { value: "Proyecto de Innovacion", label: "Proyecto de Innovacion", count: 2 },
-          { value: "Guia Didactica", label: "Guia Didactica", count: 3 },
-          { value: "Presentacion", label: "Presentacion", count: 1 },
-          { value: "Objeto de Aprendizaje", label: "Objeto de Aprendizaje", count: 2 },
-        ],
-      },
-      {
-        key: "language",
-        label: "Idioma",
-        items: [
-          { value: "es", label: "Espanol", count: 11 },
-          { value: "en", label: "Ingles", count: 1 },
-        ],
-      },
-      {
-        key: "license",
-        label: "Licencia",
-        items: [
-          { value: "cc-by", label: "CC BY", count: 2 },
-          { value: "cc-by-sa", label: "CC BY-SA", count: 3 },
-          { value: "cc-by-nc", label: "CC BY-NC", count: 3 },
-          { value: "cc-by-nc-sa", label: "CC BY-NC-SA", count: 4 },
-        ],
-      },
-    ],
-  };
+	return {
+		data,
+		total,
+		page,
+		pageSize,
+		totalPages,
+		facets: [
+			{
+				key: "resourceType",
+				label: "Tipo de recurso",
+				items: [
+					{
+						value: "Secuencia Didactica",
+						label: "Secuencia Didactica",
+						count: 2,
+					},
+					{
+						value: "Ejercicio Interactivo",
+						label: "Ejercicio Interactivo",
+						count: 1,
+					},
+					{ value: "Video Educativo", label: "Video Educativo", count: 1 },
+					{
+						value: "Proyecto de Innovacion",
+						label: "Proyecto de Innovacion",
+						count: 2,
+					},
+					{ value: "Guia Didactica", label: "Guia Didactica", count: 3 },
+					{ value: "Presentacion", label: "Presentacion", count: 1 },
+					{
+						value: "Objeto de Aprendizaje",
+						label: "Objeto de Aprendizaje",
+						count: 2,
+					},
+				],
+			},
+			{
+				key: "language",
+				label: "Idioma",
+				items: [
+					{ value: "es", label: "Espanol", count: 11 },
+					{ value: "en", label: "Ingles", count: 1 },
+				],
+			},
+			{
+				key: "license",
+				label: "Licencia",
+				items: [
+					{ value: "cc-by", label: "CC BY", count: 2 },
+					{ value: "cc-by-sa", label: "CC BY-SA", count: 3 },
+					{ value: "cc-by-nc", label: "CC BY-NC", count: 3 },
+					{ value: "cc-by-nc-sa", label: "CC BY-NC-SA", count: 4 },
+				],
+			},
+		],
+	};
 }
 
 // ---------------------------------------------------------------------------
@@ -129,23 +142,21 @@ export async function searchResources(opts?: {
 // ---------------------------------------------------------------------------
 
 export async function getResourceDetail(slug: string) {
-  await delay();
+	await delay();
 
-  const resource = MOCK_RESOURCES.find((r) => r.slug === slug);
-  if (!resource) return null;
+	const resource = MOCK_RESOURCES.find((r) => r.slug === slug);
+	if (!resource) return null;
 
-  const related = MOCK_RESOURCES.filter(
-    (r) => r.slug !== slug,
-  ).slice(0, 3);
+	const related = MOCK_RESOURCES.filter((r) => r.slug !== slug).slice(0, 3);
 
-  return {
-    ...resource,
-    rating: MOCK_RATING,
-    favoriteCount: resource.favoriteCount ?? 0,
-    userFavorited: favoritedSlugs.has(slug),
-    userRating: userRatings.get(slug) ?? null,
-    relatedResources: related,
-  };
+	return {
+		...resource,
+		rating: MOCK_RATING,
+		favoriteCount: resource.favoriteCount ?? 0,
+		userFavorited: favoritedSlugs.has(slug),
+		userRating: userRatings.get(slug) ?? null,
+		relatedResources: related,
+	};
 }
 
 // ---------------------------------------------------------------------------
@@ -153,20 +164,20 @@ export async function getResourceDetail(slug: string) {
 // ---------------------------------------------------------------------------
 
 export async function toggleFavorite(
-  slug: string,
+	slug: string,
 ): Promise<{ favorited: boolean; count: number }> {
-  await delay();
+	await delay();
 
-  const resource = MOCK_RESOURCES.find((r) => r.slug === slug);
-  const baseCount = resource?.favoriteCount ?? 0;
+	const resource = MOCK_RESOURCES.find((r) => r.slug === slug);
+	const baseCount = resource?.favoriteCount ?? 0;
 
-  if (favoritedSlugs.has(slug)) {
-    favoritedSlugs.delete(slug);
-    return { favorited: false, count: baseCount };
-  }
+	if (favoritedSlugs.has(slug)) {
+		favoritedSlugs.delete(slug);
+		return { favorited: false, count: baseCount };
+	}
 
-  favoritedSlugs.add(slug);
-  return { favorited: true, count: baseCount + 1 };
+	favoritedSlugs.add(slug);
+	return { favorited: true, count: baseCount + 1 };
 }
 
 // ---------------------------------------------------------------------------
@@ -174,47 +185,45 @@ export async function toggleFavorite(
 // ---------------------------------------------------------------------------
 
 export async function submitRating(
-  slug: string,
-  score: number,
+	slug: string,
+	score: number,
 ): Promise<UserRating> {
-  await delay();
+	await delay();
 
-  const resource = MOCK_RESOURCES.find((r) => r.slug === slug);
-  if (!resource) throw new Error(`Resource not found: ${slug}`);
+	const resource = MOCK_RESOURCES.find((r) => r.slug === slug);
+	if (!resource) throw new Error(`Resource not found: ${slug}`);
 
-  userRatings.set(slug, score);
+	userRatings.set(slug, score);
 
-  return {
-    resourceId: resource.id,
-    userId: "user-001",
-    score,
-    createdAt: new Date().toISOString(),
-  };
+	return {
+		resourceId: resource.id,
+		userId: "user-001",
+		score,
+		createdAt: new Date().toISOString(),
+	};
 }
 
 // ---------------------------------------------------------------------------
 // Get rating summary
 // ---------------------------------------------------------------------------
 
-export async function getResourceRatings(
-  slug: string,
-): Promise<RatingSummary> {
-  await delay();
+export async function getResourceRatings(slug: string): Promise<RatingSummary> {
+	await delay();
 
-  const resource = MOCK_RESOURCES.find((r) => r.slug === slug);
-  if (!resource) {
-    return {
-      resourceId: slug,
-      averageScore: 0,
-      totalRatings: 0,
-      distribution: { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 },
-    };
-  }
+	const resource = MOCK_RESOURCES.find((r) => r.slug === slug);
+	if (!resource) {
+		return {
+			resourceId: slug,
+			averageScore: 0,
+			totalRatings: 0,
+			distribution: { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 },
+		};
+	}
 
-  return {
-    ...MOCK_RATING,
-    resourceId: resource.id,
-  };
+	return {
+		...MOCK_RATING,
+		resourceId: resource.id,
+	};
 }
 
 // ---------------------------------------------------------------------------
@@ -222,11 +231,11 @@ export async function getResourceRatings(
 // ---------------------------------------------------------------------------
 
 export async function getDashboardSummary(): Promise<DashboardSummary> {
-  await delay();
-  return {
-    ...MOCK_DASHBOARD,
-    recentResources: MOCK_RESOURCES.slice(0, 4),
-  };
+	await delay();
+	return {
+		...MOCK_DASHBOARD,
+		recentResources: MOCK_RESOURCES.slice(0, 4),
+	};
 }
 
 // ---------------------------------------------------------------------------
@@ -234,19 +243,19 @@ export async function getDashboardSummary(): Promise<DashboardSummary> {
 // ---------------------------------------------------------------------------
 
 export async function saveDraft(
-  data: Partial<ResourceSummary>,
+	data: Partial<ResourceSummary>,
 ): Promise<{ id: string; slug: string }> {
-  await delay(100);
+	await delay(100);
 
-  const id = `res-draft-${Date.now()}`;
-  const slug =
-    data.slug ??
-    (data.title ?? "borrador")
-      .toLowerCase()
-      .replace(/[^a-z0-9]+/g, "-")
-      .replace(/(^-|-$)/g, "");
+	const id = `res-draft-${Date.now()}`;
+	const slug =
+		data.slug ??
+		(data.title ?? "borrador")
+			.toLowerCase()
+			.replace(/[^a-z0-9]+/g, "-")
+			.replace(/(^-|-$)/g, "");
 
-  return { id, slug };
+	return { id, slug };
 }
 
 // ---------------------------------------------------------------------------
@@ -254,10 +263,10 @@ export async function saveDraft(
 // ---------------------------------------------------------------------------
 
 export async function submitForReview(
-  _id: string,
+	_id: string,
 ): Promise<{ status: string }> {
-  await delay(100);
-  return { status: "pending_review" };
+	await delay(100);
+	return { status: "pending_review" };
 }
 
 // ---------------------------------------------------------------------------
@@ -265,11 +274,11 @@ export async function submitForReview(
 // ---------------------------------------------------------------------------
 
 export async function getFeaturedResources(): Promise<ResourceSummary[]> {
-  await delay();
-  // Return the top-rated resources as "featured"
-  return [...MOCK_RESOURCES]
-    .sort((a, b) => (b.rating?.average ?? 0) - (a.rating?.average ?? 0))
-    .slice(0, 6);
+	await delay();
+	// Return the top-rated resources as "featured"
+	return [...MOCK_RESOURCES]
+		.sort((a, b) => (b.rating?.average ?? 0) - (a.rating?.average ?? 0))
+		.slice(0, 6);
 }
 
 // ---------------------------------------------------------------------------
@@ -277,8 +286,8 @@ export async function getFeaturedResources(): Promise<ResourceSummary[]> {
 // ---------------------------------------------------------------------------
 
 export async function getCollections(): Promise<Collection[]> {
-  await delay();
-  return MOCK_COLLECTIONS;
+	await delay();
+	return MOCK_COLLECTIONS;
 }
 
 // ---------------------------------------------------------------------------
@@ -286,41 +295,52 @@ export async function getCollections(): Promise<Collection[]> {
 // ---------------------------------------------------------------------------
 
 export async function getStats(): Promise<typeof MOCK_STATS> {
-  await delay();
-  return MOCK_STATS;
+	await delay();
+	return MOCK_STATS;
 }
 
 // ---------------------------------------------------------------------------
 // Track download
 // ---------------------------------------------------------------------------
 
-export async function trackDownload(slug: string, _format?: string): Promise<{ count: number }> {
-  await delay();
-  // In-memory counter
-  const key = `dl-${slug}`;
-  const count = (downloadCounts.get(key) ?? Math.floor(Math.random() * 200)) + 1;
-  downloadCounts.set(key, count);
-  return { count };
+export async function trackDownload(
+	slug: string,
+	_format?: string,
+): Promise<{ count: number }> {
+	await delay();
+	// In-memory counter
+	const key = `dl-${slug}`;
+	const count =
+		(downloadCounts.get(key) ?? Math.floor(Math.random() * 200)) + 1;
+	downloadCounts.set(key, count);
+	return { count };
 }
 
 // ---------------------------------------------------------------------------
 // Get resource stats (aggregated)
 // ---------------------------------------------------------------------------
 
-export async function getResourceStats(slug: string): Promise<{ downloadCount: number; exportCounts: { scorm: number; ims: number; web: number; epub: number }; favoriteCount: number; ratingAvg: number; ratingCount: number; userFavorited: boolean }> {
-  await delay();
-  const resource = MOCK_RESOURCES.find(r => r.slug === slug);
-  return {
-    downloadCount: Math.floor(Math.random() * 500) + 10,
-    exportCounts: {
-      scorm: Math.floor(Math.random() * 20),
-      ims: Math.floor(Math.random() * 20),
-      web: Math.floor(Math.random() * 20),
-      epub: Math.floor(Math.random() * 20),
-    },
-    favoriteCount: resource?.favoriteCount ?? 0,
-    ratingAvg: resource?.rating?.average ?? 0,
-    ratingCount: resource?.rating?.count ?? 0,
-    userFavorited: favoritedSlugs.has(slug),
-  };
+export async function getResourceStats(slug: string): Promise<{
+	downloadCount: number;
+	exportCounts: { scorm: number; ims: number; web: number; epub: number };
+	favoriteCount: number;
+	ratingAvg: number;
+	ratingCount: number;
+	userFavorited: boolean;
+}> {
+	await delay();
+	const resource = MOCK_RESOURCES.find((r) => r.slug === slug);
+	return {
+		downloadCount: Math.floor(Math.random() * 500) + 10,
+		exportCounts: {
+			scorm: Math.floor(Math.random() * 20),
+			ims: Math.floor(Math.random() * 20),
+			web: Math.floor(Math.random() * 20),
+			epub: Math.floor(Math.random() * 20),
+		},
+		favoriteCount: resource?.favoriteCount ?? 0,
+		ratingAvg: resource?.rating?.average ?? 0,
+		ratingCount: resource?.rating?.count ?? 0,
+		userFavorited: favoritedSlugs.has(slug),
+	};
 }

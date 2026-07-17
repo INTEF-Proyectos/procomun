@@ -2,11 +2,16 @@ import { describe, expect, test } from "bun:test";
 import { renderToStaticMarkup } from "react-dom/server";
 import { CatalogIsland } from "./CatalogIsland.tsx";
 import { CatalogSearchIsland } from "./CatalogSearchIsland.tsx";
-import { ResourceDetailIsland, updateStatsAfterDownload } from "./ResourceDetailIsland.tsx";
+import {
+	ResourceDetailIsland,
+	updateStatsAfterDownload,
+} from "./ResourceDetailIsland.tsx";
 
 describe("Catalog islands", () => {
 	test("CatalogSearchIsland renderiza el buscador de cabecera", () => {
-		const html = renderToStaticMarkup(<CatalogSearchIsland initialQuery="matematicas" />);
+		const html = renderToStaticMarkup(
+			<CatalogSearchIsland initialQuery="matematicas" />,
+		);
 
 		expect(html).toContain("Buscar recursos...");
 		expect(html).toContain("matematicas");

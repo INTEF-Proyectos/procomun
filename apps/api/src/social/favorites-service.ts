@@ -1,5 +1,5 @@
-import { and, eq, sql } from "drizzle-orm";
 import { favorites } from "@procomun/db/schema";
+import { and, eq, sql } from "drizzle-orm";
 import { getDb } from "../db.ts";
 
 export async function toggleResourceFavorite(input: {
@@ -10,7 +10,12 @@ export async function toggleResourceFavorite(input: {
 	const existing = await db
 		.select({ id: favorites.id })
 		.from(favorites)
-		.where(and(eq(favorites.resourceId, input.resourceId), eq(favorites.userId, input.userId)))
+		.where(
+			and(
+				eq(favorites.resourceId, input.resourceId),
+				eq(favorites.userId, input.userId),
+			),
+		)
 		.limit(1);
 
 	let favorited: boolean;
@@ -43,14 +48,19 @@ export async function getFavoriteCount(resourceId: string) {
 	return Number(countResult[0]?.count ?? 0);
 }
 
-export async function getUserFavoriteState(resourceId: string, userId?: string) {
+export async function getUserFavoriteState(
+	resourceId: string,
+	userId?: string,
+) {
 	if (!userId) return false;
 
 	const db = getDb().db;
 	const favoriteRows = await db
 		.select({ id: favorites.id })
 		.from(favorites)
-		.where(and(eq(favorites.resourceId, resourceId), eq(favorites.userId, userId)))
+		.where(
+			and(eq(favorites.resourceId, resourceId), eq(favorites.userId, userId)),
+		)
 		.limit(1);
 
 	return favoriteRows.length > 0;

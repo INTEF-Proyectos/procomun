@@ -1,15 +1,17 @@
 import { useEffect, useRef, useState } from "react";
 import {
 	CATALOG_QUERY_SYNC_EVENT,
-	dispatchCatalogQueryChange,
 	type CatalogQueryDetail,
+	dispatchCatalogQueryChange,
 } from "../../lib/catalog-events.ts";
 
 interface CatalogSearchIslandProps {
 	initialQuery?: string;
 }
 
-export function CatalogSearchIsland({ initialQuery = "" }: CatalogSearchIslandProps) {
+export function CatalogSearchIsland({
+	initialQuery = "",
+}: CatalogSearchIslandProps) {
 	const [query, setQuery] = useState(initialQuery);
 	const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 	const inputRef = useRef<HTMLInputElement | null>(null);
@@ -25,9 +27,15 @@ export function CatalogSearchIsland({ initialQuery = "" }: CatalogSearchIslandPr
 			setQuery(nextQuery);
 		}
 
-		window.addEventListener(CATALOG_QUERY_SYNC_EVENT, handleSync as EventListener);
+		window.addEventListener(
+			CATALOG_QUERY_SYNC_EVENT,
+			handleSync as EventListener,
+		);
 		return () => {
-			window.removeEventListener(CATALOG_QUERY_SYNC_EVENT, handleSync as EventListener);
+			window.removeEventListener(
+				CATALOG_QUERY_SYNC_EVENT,
+				handleSync as EventListener,
+			);
 			if (debounceRef.current) {
 				clearTimeout(debounceRef.current);
 			}
@@ -85,7 +93,9 @@ export function CatalogSearchIsland({ initialQuery = "" }: CatalogSearchIslandPr
 					aria-label="Limpiar búsqueda"
 					onClick={clearQuery}
 				>
-					<span className="material-symbols-outlined" aria-hidden="true">close</span>
+					<span className="material-symbols-outlined" aria-hidden="true">
+						close
+					</span>
 				</button>
 			) : null}
 		</div>

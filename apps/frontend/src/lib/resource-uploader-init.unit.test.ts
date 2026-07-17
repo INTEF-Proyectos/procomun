@@ -181,25 +181,29 @@ describe("resource uploader init", () => {
 		const globalLabel = new FakeElement();
 		const feedback = new FakeElement();
 		const cancelCalls: string[] = [];
-		let uploads = [{
-			id: "upload-1",
-			resourceId: "res-1",
-			ownerId: "user-1",
-			status: "uploading",
-			originalFilename: "guia.pdf",
-			storageKey: "resource/res-1/upload-1/guia.pdf",
-			receivedBytes: 50,
-			declaredSize: 100,
-		}];
-		let mediaItems = [{
-			id: "media-1",
-			resourceId: "res-1",
-			type: "file",
-			url: "/api/v1/uploads/upload-1/content",
-			filename: "guia.pdf",
-			fileSize: 100,
-			isPrimary: false,
-		}];
+		let uploads = [
+			{
+				id: "upload-1",
+				resourceId: "res-1",
+				ownerId: "user-1",
+				status: "uploading",
+				originalFilename: "guia.pdf",
+				storageKey: "resource/res-1/upload-1/guia.pdf",
+				receivedBytes: 50,
+				declaredSize: 100,
+			},
+		];
+		const mediaItems = [
+			{
+				id: "media-1",
+				resourceId: "res-1",
+				type: "file",
+				url: "/api/v1/uploads/upload-1/content",
+				filename: "guia.pdf",
+				fileSize: 100,
+				isPrimary: false,
+			},
+		];
 		const api = {
 			getUploadConfig: async () => ({
 				maxFileSizeBytes: 4096,
@@ -254,7 +258,10 @@ describe("resource uploader init", () => {
 			},
 			returnValue: undefined as string | undefined,
 		};
-		await ((globalThis as any).window as FakeWindow).dispatch("beforeunload", beforeUnloadWhileActive);
+		await ((globalThis as any).window as FakeWindow).dispatch(
+			"beforeunload",
+			beforeUnloadWhileActive,
+		);
 		expect(beforeUnloadWhileActive.defaultPrevented).toBe(true);
 		expect(beforeUnloadWhileActive.returnValue).toBe("");
 
@@ -299,7 +306,10 @@ describe("resource uploader init", () => {
 			},
 			returnValue: undefined as string | undefined,
 		};
-		await ((globalThis as any).window as FakeWindow).dispatch("beforeunload", beforeUnloadEvent);
+		await ((globalThis as any).window as FakeWindow).dispatch(
+			"beforeunload",
+			beforeUnloadEvent,
+		);
 		expect(beforeUnloadEvent.defaultPrevented).toBe(false);
 		expect(beforeUnloadEvent.returnValue).toBeUndefined();
 

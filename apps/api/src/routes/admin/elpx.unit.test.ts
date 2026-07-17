@@ -1,10 +1,15 @@
-import { expect, test, describe } from "bun:test";
+import { describe, expect, test } from "bun:test";
+import {
+	existsSync,
+	readFileSync,
+	unlinkSync,
+	writeFileSync,
+} from "node:fs";
+import os from "node:os";
+import path from "node:path";
 import { Hono } from "hono";
 import type { AuthEnv } from "../../auth/middleware.ts";
 import { elpxAdminRoutes } from "./elpx.ts";
-import path from "node:path";
-import os from "node:os";
-import { readFileSync, writeFileSync, existsSync, unlinkSync } from "node:fs";
 
 const FIXTURES_DIR = path.resolve(import.meta.dir, "../../test-fixtures/elpx");
 
@@ -12,7 +17,10 @@ function createElpxApp(mockUser: Record<string, unknown> | null = null) {
 	const app = new Hono<AuthEnv>();
 	app.use("*", async (c, next) => {
 		c.set("user", mockUser as AuthEnv["Variables"]["user"]);
-		c.set("session", mockUser ? { id: "s" } as AuthEnv["Variables"]["session"] : null);
+		c.set(
+			"session",
+			mockUser ? ({ id: "s" } as AuthEnv["Variables"]["session"]) : null,
+		);
 		await next();
 	});
 	app.route("/api/admin/elpx", elpxAdminRoutes);
@@ -25,7 +33,9 @@ describe("POST /api/admin/elpx/analyze", () => {
 	test("analiza un .elpx válido y extrae metadatos", async () => {
 		const fixture = path.join(FIXTURES_DIR, "really-simple-test-project.elpx");
 		const buf = readFileSync(fixture);
-		const file = new File([buf], "really-simple-test-project.elpx", { type: "application/zip" });
+		const file = new File([buf], "really-simple-test-project.elpx", {
+			type: "application/zip",
+		});
 
 		const form = new FormData();
 		form.append("file", file);
@@ -70,7 +80,9 @@ describe("POST /api/admin/elpx/analyze", () => {
 
 	test("rechaza archivo ZIP inválido (sin content.xml)", async () => {
 		// Create a minimal ZIP with no content.xml
-		const file = new File([new Uint8Array(100)], "broken.elpx", { type: "application/zip" });
+		const file = new File([new Uint8Array(100)], "broken.elpx", {
+			type: "application/zip",
+		});
 		const form = new FormData();
 		form.append("file", file);
 

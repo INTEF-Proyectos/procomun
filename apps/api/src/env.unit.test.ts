@@ -4,10 +4,7 @@ import { isDevelopmentMode, resolveNodeEnv } from "./env.ts";
 describe("runtime env helpers", () => {
 	test("prioriza NODE_ENV de process.env", () => {
 		expect(
-			resolveNodeEnv(
-				{ NODE_ENV: "development" },
-				{ NODE_ENV: "production" },
-			),
+			resolveNodeEnv({ NODE_ENV: "development" }, { NODE_ENV: "production" }),
 		).toBe("development");
 		expect(isDevelopmentMode({ NODE_ENV: "development" })).toBe(true);
 	});

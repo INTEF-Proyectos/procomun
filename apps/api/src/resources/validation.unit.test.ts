@@ -1,11 +1,11 @@
-import { expect, test, describe } from "bun:test";
+import { describe, expect, test } from "bun:test";
 import {
-	validateCreateResource,
-	validateUpdateResource,
-	validateStatus,
 	validateCollection,
+	validateCreateResource,
+	validateStatus,
 	validateTaxonomy,
 	validateTransition,
+	validateUpdateResource,
 } from "@procomun/db/validation";
 
 const validPayload = {
@@ -71,15 +71,23 @@ describe("validateCreateResource", () => {
 	});
 
 	test("title excede 500 caracteres", () => {
-		const r = validateCreateResource({ ...validPayload, title: "x".repeat(501) });
+		const r = validateCreateResource({
+			...validPayload,
+			title: "x".repeat(501),
+		});
 		expect(r.valid).toBe(false);
 		expect(r.errors.find((e) => e.field === "title")?.message).toContain("500");
 	});
 
 	test("description excede 5000 caracteres", () => {
-		const r = validateCreateResource({ ...validPayload, description: "x".repeat(5001) });
+		const r = validateCreateResource({
+			...validPayload,
+			description: "x".repeat(5001),
+		});
 		expect(r.valid).toBe(false);
-		expect(r.errors.find((e) => e.field === "description")?.message).toContain("5000");
+		expect(r.errors.find((e) => e.field === "description")?.message).toContain(
+			"5000",
+		);
 	});
 
 	test("language inválido rechazado", () => {
@@ -145,7 +153,9 @@ describe("validateUpdateResource", () => {
 	test("description excede 5000 en update falla", () => {
 		const r = validateUpdateResource({ description: "x".repeat(5001) });
 		expect(r.valid).toBe(false);
-		expect(r.errors.find((e) => e.field === "description")?.message).toContain("5000");
+		expect(r.errors.find((e) => e.field === "description")?.message).toContain(
+			"5000",
+		);
 	});
 
 	test("language inválido en update falla", () => {
@@ -180,7 +190,12 @@ describe("validateUpdateResource", () => {
 	});
 
 	test("update con múltiples campos válidos pasa", () => {
-		const r = validateUpdateResource({ title: "T", description: "D", language: "es", license: "cc-by" });
+		const r = validateUpdateResource({
+			title: "T",
+			description: "D",
+			language: "es",
+			license: "cc-by",
+		});
 		expect(r.valid).toBe(true);
 	});
 });
@@ -223,9 +238,14 @@ describe("validateCreateResource — campos opcionales", () => {
 	});
 
 	test("author excede 500 caracteres rechazado", () => {
-		const r = validateCreateResource({ ...validPayload, author: "x".repeat(501) });
+		const r = validateCreateResource({
+			...validPayload,
+			author: "x".repeat(501),
+		});
 		expect(r.valid).toBe(false);
-		expect(r.errors.find((e) => e.field === "author")?.message).toContain("500");
+		expect(r.errors.find((e) => e.field === "author")?.message).toContain(
+			"500",
+		);
 	});
 
 	test("keywords no string rechazado", () => {
@@ -235,9 +255,14 @@ describe("validateCreateResource — campos opcionales", () => {
 	});
 
 	test("keywords excede 1000 caracteres rechazado", () => {
-		const r = validateCreateResource({ ...validPayload, keywords: "x".repeat(1001) });
+		const r = validateCreateResource({
+			...validPayload,
+			keywords: "x".repeat(1001),
+		});
 		expect(r.valid).toBe(false);
-		expect(r.errors.find((e) => e.field === "keywords")?.message).toContain("1000");
+		expect(r.errors.find((e) => e.field === "keywords")?.message).toContain(
+			"1000",
+		);
 	});
 
 	test("publisher no string rechazado", () => {
@@ -255,7 +280,10 @@ describe("validateCreateResource — campos opcionales", () => {
 
 describe("validateCollection", () => {
 	test("colección válida pasa", () => {
-		const r = validateCollection({ title: "Mi colección", description: "Desc" });
+		const r = validateCollection({
+			title: "Mi colección",
+			description: "Desc",
+		});
 		expect(r.valid).toBe(true);
 	});
 
@@ -311,12 +339,20 @@ describe("validateTaxonomy", () => {
 	});
 
 	test("parentId UUID válido pasa", () => {
-		const r = validateTaxonomy({ name: "Mat", type: "subject", parentId: "a1b2c3d4-e5f6-7890-abcd-ef1234567890" });
+		const r = validateTaxonomy({
+			name: "Mat",
+			type: "subject",
+			parentId: "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+		});
 		expect(r.valid).toBe(true);
 	});
 
 	test("parentId null pasa (sin padre)", () => {
-		const r = validateTaxonomy({ name: "Mat", type: "subject", parentId: null });
+		const r = validateTaxonomy({
+			name: "Mat",
+			type: "subject",
+			parentId: null,
+		});
 		expect(r.valid).toBe(true);
 	});
 
@@ -326,13 +362,21 @@ describe("validateTaxonomy", () => {
 	});
 
 	test("parentId no UUID falla", () => {
-		const r = validateTaxonomy({ name: "Mat", type: "subject", parentId: "no-es-un-uuid" });
+		const r = validateTaxonomy({
+			name: "Mat",
+			type: "subject",
+			parentId: "no-es-un-uuid",
+		});
 		expect(r.valid).toBe(false);
 		expect(r.errors.find((e) => e.field === "parentId")).toBeTruthy();
 	});
 
 	test("parentId con slug falla", () => {
-		const r = validateTaxonomy({ name: "Mat", type: "subject", parentId: "matematicas-basicas" });
+		const r = validateTaxonomy({
+			name: "Mat",
+			type: "subject",
+			parentId: "matematicas-basicas",
+		});
 		expect(r.valid).toBe(false);
 		expect(r.errors.find((e) => e.field === "parentId")).toBeTruthy();
 	});
@@ -357,6 +401,8 @@ describe("validateStatusTransition", () => {
 	test("rol insuficiente falla", () => {
 		const r = validateTransition("review", "published", "author");
 		expect(r.valid).toBe(false);
-		expect(r.errors.find((e) => e.field === "status")?.message).toContain("Rol insuficiente");
+		expect(r.errors.find((e) => e.field === "status")?.message).toContain(
+			"Rol insuficiente",
+		);
 	});
 });

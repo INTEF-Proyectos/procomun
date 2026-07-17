@@ -1,8 +1,8 @@
-import { defineConfig } from "vite";
-import react from "@vitejs/plugin-react";
-import { paraglideVitePlugin } from "@inlang/paraglide-js";
 import { existsSync, readFileSync } from "node:fs";
 import { join, resolve } from "node:path";
+import { paraglideVitePlugin } from "@inlang/paraglide-js";
+import react from "@vitejs/plugin-react";
+import { defineConfig } from "vite";
 
 export default defineConfig({
 	plugins: [
@@ -61,8 +61,5 @@ export default defineConfig({
 				changeOrigin: true,
 			},
 		},
-	},
-	optimizeDeps: {
-		exclude: ["@electric-sql/pglite"],
 	},
 });
