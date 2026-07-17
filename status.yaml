@@ -1860,3 +1860,97 @@ tasks:
       Validación: bun test de extract.unit.test.ts 18 pass / 0 fail; make lint (biome check .)
       exit 0; build del frontend OK; bun run test 800 pass / 0 fail con coverage 90,75%; los 5
       JSON de mensajes parsean con 284 claves cada uno.
+
+  T-2026-07-17-009:
+    date: 2026-07-17
+    agent: "backend-api-servicios + frontend-ux-accesibilidad + qa-validacion"
+    task: "Lote 1 de ADR-0030: eliminar los 167 warnings de tipado (noNonNullAssertion y noExplicitAny) con narrowing real"
+    status: Done
+    related: ["ADR-0030", "T-2026-07-16-002", "T-2026-07-17-008"]
+    notes: >
+      Segunda parte del reparto acordado: la PR anterior cerró el #276 y los warnings no
+      relacionados con el tipado; esta se queda con los 167 de tipado (134 noNonNullAssertion +
+      33 noExplicitAny) repartidos en 34 ficheros, que la #272 dejó anotados como Lote 1. Van en
+      PR aparte para que cada una sea revisable, que es justo el hallazgo 3 de la revisión de la
+      #272 (364 ficheros no se revisan de una sentada). Resultado: 167 -> 0, sin una sola
+      supresión nueva, y los warnings totales del repo bajan de 190 a 21.
+      Patrones aplicados, todos con arreglo real:
+      seed.ts (32): helper demoResource(i) con guarda en vez de DEMO_RESOURCES[N]!; el Map de
+      .elpx se lee una vez (get) en vez de has()+get()!; DATABASE_URL con guarda explícita que
+      documenta el invariante de resolveSeedMode.
+      social.ts (9): nuevo requireUser(c) en auth/middleware.ts, con guarda y test propio, en vez
+      de c.get("user")! en cada ruta. AuthEnv tipa user como AuthUser|null porque
+      sessionMiddleware lo pone a null; tras requireAuth ya no lo es, pero TypeScript no puede
+      correlacionarlo.
+      crud-builder.ts (3): se captura config.create/update/remove dentro del if, donde TypeScript
+      ya los ha estrechado — dentro del closure del handler el narrowing no aplica.
+      EditarPage.tsx (10), ResourceDetailIsland (5), CatalogIsland, ResourceCard: se derivan los
+      VALORES (previewUrl, firstFileUrl, mediaItems) en vez de booleanos tipo hasPreview: un
+      booleano no permite a TypeScript estrechar el objeto del que sale.
+      generate-elpx.ts (4): crc32 pasa a for..of (el índice sobraba) y los accesos a plantillas
+      llevan guarda con mensaje útil.
+      Tests (87): expect(x).not.toBeNull() antes de usar x?.foo, o narrowing con guarda cuando el
+      valor se pasa como argumento. No solo no se debilita ningún test: se refuerzan, porque
+      antes un null reventaba con un TypeError opaco y ahora falla la aserción con mensaje claro
+      (+8 aserciones netas).
+      Supresiones en blanco: había 4 `biome-ignore lint:` SIN regla, que silencian TODAS las de
+      su línea. Una estaba muerta (biome la marcaba como suppressions/unused) y se elimina; las
+      otras 3 son el "generic drizzle db type" que la #272 dejó anotado. Se acotan a
+      lint/suspicious/noExplicitAny: siguen ahí, pero ya no silencian de más.
+      Hallazgo relevante: el tipo compartido DrizzleDB NO es usable como tipo real — sus métodos
+      devuelven unknown. Se intentó sustituir los `any` de fts/search.ts y seed-random.ts por él
+      (y por un tipo mínimo { execute }) y dispara ~41 errores de tsc, así que se revirtió. Tiparlo
+      de verdad exige la fuente única de esquema (Lote 3), y por eso ese `any` sigue siendo el
+      núcleo pendiente del Lote 1.
+      Dos arreglos propios salieron mal y se detectaron comparando tsc contra main: tipar
+      catalog-controller con un índice [key:string]: unknown rompía el acceso a campos (el tipo
+      correcto ya existía y era Resource, que ambos lados estaban falseando: el parámetro con
+      Record<string,any> y la llamada con Record<string,string>), y quitar la anotación de
+      rows.map en resources.ts dejaba row implícitamente any, porque `db` es DrizzleDB y rows
+      acaba siendo any[] (se declara MediaItemRow).
+      Validación: biome lint 0 errores y 0 warnings de las dos reglas; tsc 660 frente a los 665 de
+      main, es decir 5 errores preexistentes MENOS y ninguno nuevo (el único que cambia de texto
+      es el mismo TS2352 del mock, que ya existía 6 veces en ambos lados); bun run test 812 pass /
+      0 fail con coverage 90,38%; build del frontend OK; y el seed se ejecuta de verdad
+      (exit 0), que es lo que ejercita demoResource y los índices de la semilla; crc32 comprobado
+      idéntico en 7 casos y contra el vector canónico 0x414FA339.
+
+  T-2026-07-17-010:
+    date: 2026-07-17
+    agent: "devops-sre + qa-validacion"
+    task: "Endurecer los pipelines: puerta de tipos con línea base y resto de hallazgos de la revisión de CI"
+    status: Done
+    related: ["ADR-0030", "T-2026-07-17-007", "T-2026-07-17-009"]
+    notes: >
+      Cierra los hallazgos de la revisión de los workflows que quedaban sin arreglar.
+      El principal: el paso "Type Check" corría bunx tsc --noEmit con continue-on-error: true, así
+      que GitHub reescribía su conclusión a success aunque tsc emitiera 617 errores y saliera con
+      código 1. Una marca verde para una puerta que no comprobaba nada — la misma clase de mentira
+      que el paquete biome equivocado que arregló la #272, y la última que quedaba. Ponerla en
+      estricto hoy no es viable (la deuda es el Lote 1), pero dejarla en verde mientras crece
+      tampoco: pasó de 635 a 665 en una sola jornada (#268, #273, #274, #275) sin que nadie se
+      enterara. Se añade scripts/check-types.ts: tolera los errores existentes contra una línea
+      base (665) y falla si crecen; si bajan, avisa para apretarla. Solo gira en un sentido.
+      Comprobado que rompe de verdad: con un error inyectado sale 1 y lista los ficheros
+      culpables; al retirarlo, 0.
+      E2E sobre el merge: e2e.yml solo se disparaba en pull_request, así que la imagen de main se
+      publicaba sin que nadie hubiera probado el resultado ya fusionado — dos PRs verdes por
+      separado pueden romper main al juntarse, y hoy entran varias al día. Se expone e2e.yml como
+      workflow_call y el job docker pasa a needs: [build, e2e].
+      Resto: bun fijado a 1.3.14 en los tres workflows (con `latest`, una release de bun cambia CI
+      sin tocar el repo y los runs no son reproducibles); packages: write baja del nivel de
+      workflow al job docker, que es el único que publica (antes lo tenía también build, que
+      ejecuta código de PRs); concurrency groups en ci y e2e, sin cancelar en main para no abortar
+      una publicación a medias; se sustituye `npx wait-on` por un bucle con curl (se bajaba de la
+      red en cada run, sin versión fijada y sin estar declarado); se documenta el riesgo de
+      pull_request_target en el workflow de dependabot (corre con secretos del repo base y
+      contents: write y hace checkout del head de la PR; la guarda de actor es la mitigación que
+      documenta GitHub, y bun no ejecuta scripts de ciclo de vida por defecto); y se corrige un
+      comentario que prometía un trigger `schedule` para Firefox/WebKit que no existe.
+      De paso, un efecto secundario que conviene anotar: al añadir check-types.ts el coverage bajó
+      a 89,7% y tumbó su propia puerta, porque toda la lógica de reporte vivía dentro de main() y
+      no era testeable (2% de líneas cubiertas). Se extrae formatVerdict() y se prueba: 15 tests,
+      el fichero pasa a 72% y el coverage global vuelve a 90,25%.
+      Validación: los 3 workflows parsean; e2e.yml expone workflow_call y ci.yml lo invoca; las
+      seis puertas en verde en local (lint, check-test-files, design-lint, check-tracking,
+      check-types, check-coverage); bun run test 821 pass / 0 fail con coverage 90,25%.

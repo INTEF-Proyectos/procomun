@@ -21,6 +21,17 @@ function fixtureFile(name: string): File {
 	return new File([buf], name, { type: "application/zip" });
 }
 
+/**
+ * Narrows a nullable value, failing with a clear message instead of a TypeError
+ * when the value is missing.
+ */
+function requireValue<T>(value: T | null | undefined, label: string): T {
+	if (value === null || value === undefined) {
+		throw new Error(`Se esperaba un valor no nulo: ${label}`);
+	}
+	return value;
+}
+
 describe("parseElpxMetadata", () => {
 	test("extrae metadatos de really-simple-test-project.elpx", async () => {
 		const file = fixtureFile("really-simple-test-project.elpx");
@@ -81,7 +92,7 @@ describe("extractPreviewHtml", () => {
 		const html = await extractPreviewHtml(file);
 
 		expect(html).not.toBeNull();
-		expect(html!).toContain("<html");
+		expect(html).toContain("<html");
 	});
 
 	test("retorna null para archivo sin index.html", async () => {
@@ -110,7 +121,7 @@ describe("extractAllFiles", () => {
 		// Check that files have actual content
 		const indexHtml = files.get("index.html");
 		expect(indexHtml).toBeDefined();
-		expect(indexHtml!.length).toBeGreaterThan(100);
+		expect(indexHtml?.length).toBeGreaterThan(100);
 	});
 
 	test("incluye CSS, JS y assets del tema", async () => {
@@ -142,16 +153,18 @@ describe("createPreviewBlobUrl", () => {
 		const blobUrl = await createPreviewBlobUrl(file);
 
 		expect(blobUrl).not.toBeNull();
-		expect(blobUrl!).toMatch(/^blob:/);
+		expect(blobUrl).toMatch(/^blob:/);
+
+		const previewUrl = requireValue(blobUrl, "createPreviewBlobUrl");
 
 		// Fetch the blob URL and verify it's valid HTML with rewritten URLs
-		const res = await fetch(blobUrl!);
+		const res = await fetch(previewUrl);
 		const html = await res.text();
 		expect(html).toContain("<html");
 		// CSS/JS references should be rewritten to blob: URLs
 		expect(html).toContain("blob:");
 
-		URL.revokeObjectURL(blobUrl!);
+		URL.revokeObjectURL(previewUrl);
 	});
 
 	test("retorna null para .elpx sin index.html", async () => {
@@ -167,9 +180,12 @@ describe("createPreviewBlobUrl", () => {
 
 	test("reescribe rutas relativas de CSS a blob URLs", async () => {
 		const file = fixtureFile("really-simple-test-project.elpx");
-		const blobUrl = await createPreviewBlobUrl(file);
+		const blobUrl = requireValue(
+			await createPreviewBlobUrl(file),
+			"createPreviewBlobUrl",
+		);
 
-		const res = await fetch(blobUrl!);
+		const res = await fetch(blobUrl);
 		const html = await res.text();
 
 		// The original index.html has relative paths like libs/bootstrap/bootstrap.min.css
@@ -177,7 +193,7 @@ describe("createPreviewBlobUrl", () => {
 		expect(html).not.toContain('href="libs/');
 		expect(html).not.toContain('src="libs/');
 
-		URL.revokeObjectURL(blobUrl!);
+		URL.revokeObjectURL(blobUrl);
 	});
 });
 
@@ -192,9 +208,11 @@ describe("parseAndPreview", () => {
 		expect(result.metadata).toBeDefined();
 		expect(typeof result.metadata.title).toBe("string");
 		expect(result.previewUrl).not.toBeNull();
-		expect(result.previewUrl!).toMatch(/^blob:/);
+		expect(result.previewUrl).toMatch(/^blob:/);
 
-		revokePreview(result.previewUrl!);
+		revokePreview(
+			requireValue(result.previewUrl, "parseAndPreview previewUrl"),
+		);
 	});
 
 	test("returns null previewUrl when no index.html", async () => {
@@ -217,10 +235,11 @@ describe("revokePreview", () => {
 		const file = fixtureFile("really-simple-test-project.elpx");
 		const url = await createPreviewBlobUrl(file);
 		expect(url).not.toBeNull();
+		const previewUrl = requireValue(url, "createPreviewBlobUrl");
 		// Should not throw
-		revokePreview(url!);
+		revokePreview(previewUrl);
 		// Calling again on already-revoked URL should not throw
-		revokePreview(url!);
+		revokePreview(previewUrl);
 	});
 });
 
