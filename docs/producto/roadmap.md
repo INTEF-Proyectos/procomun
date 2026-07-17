@@ -394,3 +394,11 @@ La tabla historica de Fase 2 sigue siendo valida como fotografia previa, pero la
 4. `Decision y MVP de Banco Multimedia`.
 5. `Itinerarios sobre colecciones ordenadas`.
 6. `Decision sobre comunidades y articulos`.
+
+## Actualización 2026-07-16 — Evaluación de estrategia de modernización (ADR-0030 propuesta)
+
+Se completa el caso documental `docs/casos/evaluacion-reescritura-plataforma/`, que evalúa con línea base medida (commit `eea2fe7d`) si la plataforma debe refactorizarse, modularizarse, sustituir tecnologías, reescribirse incrementalmente o reescribirse por completo.
+
+Resultado: **ADR-0030 en estado Propuesto** — «Rechazar la reescritura completa y ejecutar simplificación incremental» (programa por lotes 0–5: reparar puertas de calidad, typecheck a cero, suite de caracterización, fuente única de esquema, puertos y límites, división de módulos mixtos), con plan piloto documental sobre la vertical Colecciones y prompt de ejecución posterior.
+
+Hallazgos que condicionan el roadmap: el lint y el format-check son no-op (paquete `biome` equivocado), el typecheck de CI ignora 635 errores, la suite de integración está vacía, los 17 E2E saltados cubren el flujo editorial de escritura, y el esquema de datos carece de migraciones aplicadas y de camino de upgrade — este último punto es bloqueante a resolver **antes** de la épica de migración legacy (~79k ODEs). No se modifica código en esta tarea; la implementación queda condicionada a la aceptación humana de la ADR-0030.
