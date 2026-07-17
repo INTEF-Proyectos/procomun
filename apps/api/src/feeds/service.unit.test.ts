@@ -121,9 +121,12 @@ describe("buildFeed", () => {
 		// de xml-js (String.replace solo cambia la primera aparición) y cerraba
 		// la sección CDATA, inyectando `<img onerror>` como marcado vivo.
 		const payload = "x]]>]]><img src=x onerror=alert(1)>";
+		const first = sampleResources[0];
+		expect(first).toBeDefined();
+		if (!first) throw new Error("missing sample resource");
 		const maliciousResources = [
 			{
-				...sampleResources[0],
+				...first,
 				title: payload,
 				description: payload,
 			},
