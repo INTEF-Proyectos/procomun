@@ -155,11 +155,18 @@ function ResourceDetailContent({
 	const authorName =
 		resource.createdByName || resource.author || m.detail_unknown_author();
 	const authorInitial = authorName.charAt(0).toUpperCase();
-	const hasPreview = !!resource.elpxPreview?.previewUrl;
-	const hasFiles = !!resource.mediaItems?.length;
-	const totalFileSize =
-		resource.mediaItems?.reduce((sum, item) => sum + (item.fileSize ?? 0), 0) ??
-		0;
+	// Se derivan los valores, no solo los booleanos: un `hasPreview: boolean` no
+	// permite a TypeScript estrechar `resource.elpxPreview` en los usos, y menos
+	// dentro de un closure. Con el valor ya extraído, el narrowing es real.
+	const previewUrl = resource.elpxPreview?.previewUrl;
+	const hasPreview = !!previewUrl;
+	const mediaItems = resource.mediaItems ?? [];
+	const hasFiles = mediaItems.length > 0;
+	const firstFileUrl = mediaItems[0]?.url;
+	const totalFileSize = mediaItems.reduce(
+		(sum, item) => sum + (item.fileSize ?? 0),
+		0,
+	);
 	const exportSourceUrl = getResourceElpxFileUrl(resource);
 	const iframeRef = useRef<HTMLIFrameElement | null>(null);
 	// Relay de embeds del preview: vídeos/PDF promocionados a un player de
@@ -340,7 +347,7 @@ function ResourceDetailContent({
 					<div className="detail-actions-bar">
 						{hasPreview ? (
 							<a
-								href={resource.elpxPreview!.previewUrl}
+								href={previewUrl}
 								target="_blank"
 								rel="noopener noreferrer"
 								className="detail-action-primary"
@@ -349,14 +356,14 @@ function ResourceDetailContent({
 								{m.detail_view_online()}
 							</a>
 						) : null}
-						{hasFiles && resource.mediaItems?.[0]?.url ? (
+						{hasFiles && firstFileUrl ? (
 							<a
-								href={resource.mediaItems[0].url}
+								href={firstFileUrl}
 								download
 								className="detail-action-outline"
 								onClick={(e) => {
 									e.preventDefault();
-									const href = resource.mediaItems![0].url;
+									const href = firstFileUrl;
 									getApiClient()
 										.then((api) => api.trackDownload(resource.slug, "direct"))
 										.then((result) => {
@@ -444,7 +451,7 @@ function ResourceDetailContent({
 							<div className="elpx-preview-wrapper">
 								<iframe
 									ref={previewIframeRef}
-									src={resource.elpxPreview!.previewUrl}
+									src={previewUrl}
 									className="elpx-preview-iframe"
 									sandbox="allow-scripts allow-popups allow-popups-to-escape-sandbox"
 									referrerPolicy="no-referrer"
@@ -460,7 +467,7 @@ function ResourceDetailContent({
 					{hasPreview ? (
 						<EmbedSection
 							title={resource.title}
-							previewUrl={resource.elpxPreview!.previewUrl}
+							previewUrl={previewUrl}
 							slug={resource.slug}
 						/>
 					) : null}
@@ -478,7 +485,7 @@ function ResourceDetailContent({
 						<section className="files-section">
 							<h2>{m.detail_files()}</h2>
 							<div className="files-grid">
-								{resource.mediaItems!.map((mediaItem) => {
+								{mediaItems.map((mediaItem) => {
 									const fileIcon = FILE_ICONS[mediaItem.mimeType || ""] ?? "📁";
 									const size = mediaItem.fileSize
 										? formatBytes(mediaItem.fileSize)

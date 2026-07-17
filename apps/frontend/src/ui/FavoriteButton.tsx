@@ -4,7 +4,11 @@ import "./FavoriteButton.css";
 export interface FavoriteButtonProps {
 	favorited?: boolean;
 	count?: number;
-	onToggle?: () => Promise<{ favorited: boolean; count: number }> | void;
+	// El valor devuelto no se usa: el componente solo hace `await onToggle()`
+	// para saber cuándo quitar el estado de carga. Tiparlo como `void` permite
+	// pasar tanto un handler síncrono como uno async (TypeScript admite asignar
+	// `() => Promise<T>` donde se espera `() => void`).
+	onToggle?: () => void;
 	disabled?: boolean;
 	className?: string;
 }
