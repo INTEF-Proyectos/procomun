@@ -2002,3 +2002,16 @@ tasks:
       Validación: bun test scripts/new-status-key.unit.test.ts; make check-tracking; paridad
       archivo-test del generador.
 
+  T-2026-07-17-16250001:
+    date: 2026-07-17
+    agent: "devops-sre + seguridad-privacidad-legal"
+    task: "Hotfix: visual-preview-publish sin git local (GH_REPO + API REST)"
+    status: Done
+    related: ["#284", "ADR-0033", "T-2026-07-17-011"]
+    notes: >
+      El workflow Publish Visual Previews fallaba en "Publish latest assets" con
+      "fatal: not a git repository": gh release create --target main y gh release
+      upload requieren .git, y el job a propósito no hace checkout (ADR-0033 R1).
+      Se publica solo vía API REST (crear release, borrar assets previos, upload
+      binario) y se fija GH_REPO. Enmienda en ADR-0033. Validación: YAML del
+      workflow parseable; el run real se verifica en la siguiente PR con E2E OK.

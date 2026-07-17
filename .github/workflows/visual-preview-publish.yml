@@ -79,6 +79,9 @@ jobs:
     - name: Publish latest assets
       env:
         GH_TOKEN: ${{ github.token }}
+        # Sin checkout: gh no puede inferir el repo desde .git. GH_REPO evita
+        # "fatal: not a git repository" en release view/create/upload.
+        GH_REPO: ${{ github.repository }}
         PR_NUMBER: ${{ github.event.workflow_run.pull_requests[0].number }}
         ASSET_DIR: ${{ runner.temp }}/visual-preview-assets
         PREVIEW_TAG: pr-visual-previews
@@ -86,12 +89,16 @@ jobs:
       run: |
         set -euo pipefail
 
-        if ! gh release view "$PREVIEW_TAG" >/dev/null 2>&1; then
-          gh release create "$PREVIEW_TAG" \
-            --target main \
-            --title "Pull request visual previews" \
-            --notes "Latest automated desktop screenshots for open pull requests." \
-            --prerelease
+        # Crear la prerelease solo por API REST (target_commitish=main).
+        # `gh release create --target main` resuelve la rama con git local y
+        # falla en este job, que a propósito no hace checkout.
+        if ! gh api "repos/${GITHUB_REPOSITORY}/releases/tags/${PREVIEW_TAG}" >/dev/null 2>&1; then
+          gh api --method POST "repos/${GITHUB_REPOSITORY}/releases" \
+            -f tag_name="$PREVIEW_TAG" \
+            -f target_commitish=main \
+            -f name="Pull request visual previews" \
+            -f body="Latest automated desktop screenshots for open pull requests." \
+            -F prerelease=true
         fi
 
         release_id="$(
@@ -111,7 +118,8 @@ jobs:
         )
 
         for asset in "$ASSET_DIR"/*.png; do
-          gh release upload "$PREVIEW_TAG" "$asset"
+          # GH_REPO evita el fallo de git local; --clobber por si reintenta el mismo SHA
+          gh release upload "$PREVIEW_TAG" "$asset" --clobber
         done
 
     - name: Create or update pull-request comment
