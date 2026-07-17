@@ -64,6 +64,24 @@ jobs:
         E2E_BASE_URL: http://localhost:5173
         CI: true
 
+    - name: Capture desktop visual previews
+      if: github.event_name == 'pull_request'
+      run: bunx playwright test e2e/visual-preview.e2e.ts --project=chromium --workers=1
+      env:
+        CAPTURE_VISUAL_PREVIEWS: true
+        E2E_BASE_URL: http://localhost:5173
+        VISUAL_PREVIEW_DIR: visual-previews
+        CI: true
+
+    - name: Upload visual previews
+      if: github.event_name == 'pull_request'
+      uses: actions/upload-artifact@v7
+      with:
+        name: visual-previews-pr-${{ github.event.pull_request.number }}-attempt-${{ github.run_attempt }}
+        path: visual-previews/
+        if-no-files-found: error
+        retention-days: 1
+
     - name: Upload test results
       if: failure()
       uses: actions/upload-artifact@v7
