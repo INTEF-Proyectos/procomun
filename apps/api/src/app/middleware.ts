@@ -39,7 +39,10 @@ interface PreviewManagementRequestMetadata {
 }
 
 function isPreviewManagementPath(path: string): boolean {
-	return path === "/api/v1/preview-session" || path.startsWith("/api/v1/preview-session/");
+	return (
+		path === "/api/v1/preview-session" ||
+		path.startsWith("/api/v1/preview-session/")
+	);
 }
 
 /**
@@ -59,7 +62,10 @@ export function validatePreviewManagementRequest({
 	managementUrl,
 	frontendUrl,
 }: PreviewManagementRequestMetadata): string | null {
-	if (!isPreviewManagementPath(path) || SAFE_METHODS.has(method.toUpperCase())) {
+	if (
+		!isPreviewManagementPath(path) ||
+		SAFE_METHODS.has(method.toUpperCase())
+	) {
 		return null;
 	}
 

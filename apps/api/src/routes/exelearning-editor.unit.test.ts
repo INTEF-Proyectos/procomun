@@ -1,17 +1,20 @@
-import { expect, test, describe, beforeAll, afterAll } from "bun:test";
+import { afterAll, beforeAll, describe, expect, test } from "bun:test";
+import { existsSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
+import path from "node:path";
+import { Hono } from "hono";
 import {
 	buildEditorConfigScript,
 	exelearningEditorRoutes,
 	toInlineScriptJson,
 } from "./exelearning-editor.ts";
-import { Hono } from "hono";
-import { existsSync, mkdirSync, writeFileSync, rmSync } from "node:fs";
-import path from "node:path";
 
 const app = new Hono();
 app.route("/api/v1/exelearning-editor", exelearningEditorRoutes);
 
-const editorDir = path.resolve(import.meta.dir, "../../static/exelearning-editor/static");
+const editorDir = path.resolve(
+	import.meta.dir,
+	"../../static/exelearning-editor/static",
+);
 const editorAlreadyExists = existsSync(path.join(editorDir, "index.html"));
 let createdMockDir = false;
 
@@ -19,9 +22,15 @@ let createdMockDir = false;
 beforeAll(() => {
 	if (!editorAlreadyExists) {
 		mkdirSync(path.join(editorDir, "app"), { recursive: true });
-		writeFileSync(path.join(editorDir, "index.html"), "<html><head></head><body>mock editor</body></html>");
+		writeFileSync(
+			path.join(editorDir, "index.html"),
+			"<html><head></head><body>mock editor</body></html>",
+		);
 		writeFileSync(path.join(editorDir, "app", "app.bundle.js"), "// mock");
-		writeFileSync(path.join(editorDir, "preview-sw.js"), "// mock preview service worker");
+		writeFileSync(
+			path.join(editorDir, "preview-sw.js"),
+			"// mock preview service worker",
+		);
 		createdMockDir = true;
 	}
 });
@@ -46,7 +55,9 @@ describe("GET /api/v1/exelearning-editor/index.html", () => {
 		expect(html).toContain("__PROCOMUN_CONFIG__");
 		expect(res.headers.get("content-type")).toContain("text/html");
 		expect(res.headers.get("cache-control")).toBe("no-cache");
-		expect(res.headers.get("content-security-policy")).toContain("object-src 'none'");
+		expect(res.headers.get("content-security-policy")).toContain(
+			"object-src 'none'",
+		);
 	});
 
 	test("neutraliza el registro de Service Worker (protección interina)", async () => {
@@ -54,8 +65,12 @@ describe("GET /api/v1/exelearning-editor/index.html", () => {
 		expect(res.status).toBe(200);
 		const html = await res.text();
 		expect(html).toContain("navigator.serviceWorker.register = function");
-		expect(html).toContain("navigator.serviceWorker.getRegistration = function");
-		expect(html).toContain("navigator.serviceWorker.getRegistrations = function");
+		expect(html).toContain(
+			"navigator.serviceWorker.getRegistration = function",
+		);
+		expect(html).toContain(
+			"navigator.serviceWorker.getRegistrations = function",
+		);
 		const swIdx = html.indexOf("navigator.serviceWorker.register");
 		const bodyIdx = html.indexOf("<body");
 		expect(swIdx).toBeGreaterThan(-1);
@@ -86,7 +101,9 @@ describe("GET /api/v1/exelearning-editor/index.html", () => {
 	test("bridge script declara WP_REQUEST_EXPORT en capabilities", async () => {
 		const res = await app.request("/api/v1/exelearning-editor/index.html");
 		const html = await res.text();
-		expect(html).toContain("'WP_REQUEST_SAVE', 'WP_REQUEST_EXPORT', 'CONFIGURE'");
+		expect(html).toContain(
+			"'WP_REQUEST_SAVE', 'WP_REQUEST_EXPORT', 'CONFIGURE'",
+		);
 	});
 
 	test("bridge script valida formatos de exportación", async () => {
@@ -108,8 +125,13 @@ describe("GET /api/v1/exelearning-editor/index.html", () => {
 
 	test("escapa elpxUrl y resourceId para impedir cerrar el script", async () => {
 		const payload = "</script><img src=x onerror=alert(1)>";
-		const query = new URLSearchParams({ elpxUrl: payload, resourceId: payload });
-		const res = await app.request(`/api/v1/exelearning-editor/index.html?${query}`);
+		const query = new URLSearchParams({
+			elpxUrl: payload,
+			resourceId: payload,
+		});
+		const res = await app.request(
+			`/api/v1/exelearning-editor/index.html?${query}`,
+		);
 		const html = await res.text();
 		expect(res.status).toBe(200);
 		expect(html).not.toContain("<img src=x onerror");
@@ -142,14 +164,18 @@ describe("inline editor configuration encoding", () => {
 
 describe("GET /api/v1/exelearning-editor/* — static assets", () => {
 	test("sirve archivo JS con MIME correcto", async () => {
-		const res = await app.request("/api/v1/exelearning-editor/app/app.bundle.js");
+		const res = await app.request(
+			"/api/v1/exelearning-editor/app/app.bundle.js",
+		);
 		expect(res.status).toBe(200);
 		expect(res.headers.get("content-type")).toBe("application/javascript");
 		expect(res.headers.get("cache-control")).toContain("public");
 	});
 
 	test("devuelve 404 para path traversal", async () => {
-		const res = await app.request("/api/v1/exelearning-editor/../../../etc/passwd");
+		const res = await app.request(
+			"/api/v1/exelearning-editor/../../../etc/passwd",
+		);
 		expect(res.status).toBe(404);
 	});
 

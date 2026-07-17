@@ -117,10 +117,11 @@ describe("import:legacy-procomun (integración, PGlite en memoria vía test-setu
 			"1615293421477",
 		);
 		expect(imported).not.toBeNull();
+		if (!imported) return; // la aserción previa ya ha fallado el test; solo estrecha el tipo
 
 		const elpxProject = await deps.repo.getElpxProjectByResourceId(
 			deps.getDb().db,
-			imported!.id,
+			imported.id,
 		);
 		expect(elpxProject?.hasPreview).toBe(true);
 		// El hash debe ser el checksum SHA-256 real del .elpx (no un UUID
@@ -133,7 +134,7 @@ describe("import:legacy-procomun (integración, PGlite en memoria vía test-setu
 
 		const media = await deps.repo.listMediaItemsForResource(
 			deps.getDb().db,
-			imported!.id,
+			imported.id,
 		);
 		expect(media).toHaveLength(1);
 		expect(media[0]?.filename).toBe("1615293421477.elpx");
@@ -145,7 +146,7 @@ describe("import:legacy-procomun (integración, PGlite en memoria vía test-setu
 				searchVector: resources.searchVector,
 			})
 			.from(resources)
-			.where(eq(resources.id, imported!.id));
+			.where(eq(resources.id, imported.id));
 		// createdAt debe reflejar la fecha de publicación original (1615293421477.json
 		// -> publicationDate "2021-05-29T13:48:27.339Z"), no el instante de la
 		// importación, para no alterar el orden del catálogo público.
@@ -175,11 +176,13 @@ describe("import:legacy-procomun (integración, PGlite en memoria vía test-setu
 			"legacy-procomun",
 			"es_2025101012_9102834",
 		);
+		expect(ndSaResource).not.toBeNull();
+		if (!ndSaResource) return;
 		const [ndSaRow] = await deps
 			.getDb()
 			.db.select({ license: resources.license })
 			.from(resources)
-			.where(eq(resources.id, ndSaResource!.id));
+			.where(eq(resources.id, ndSaResource.id));
 		expect(ndSaRow?.license).toBe("cc-by-nc-sa");
 	});
 
@@ -195,11 +198,15 @@ describe("import:legacy-procomun (integración, PGlite en memoria vía test-setu
 			"legacy-procomun",
 			"1615293421477",
 		);
+		expect(imported).not.toBeNull();
+		if (!imported) return;
 		const elpxProject = await deps.repo.getElpxProjectByResourceId(
 			deps.getDb().db,
-			imported!.id,
+			imported.id,
 		);
-		expect(elpxProject?.hasPreview).toBe(true);
+		expect(elpxProject).not.toBeNull();
+		if (!elpxProject) return;
+		expect(elpxProject.hasPreview).toBe(true);
 
 		const app = new Hono();
 		app.route("/api/v1/elpx", elpxContentRoutes);
@@ -207,7 +214,7 @@ describe("import:legacy-procomun (integración, PGlite en memoria vía test-setu
 		// La URL pública real tal y como la construye buildElpxPreview() a partir
 		// de elpx.hash (ver apps/api/src/elpx/preview.ts).
 		const res = await app.request(
-			`/api/v1/elpx/${elpxProject!.hash}/index.html`,
+			`/api/v1/elpx/${elpxProject.hash}/index.html`,
 		);
 		expect(res.status).toBe(200);
 		expect(res.headers.get("Content-Type")).toBe("text/html");
@@ -307,18 +314,20 @@ describe("import:legacy-procomun — deduplicación por contenido y limpieza de 
 			"es_dup_a",
 		);
 		expect(firstResource).not.toBeNull();
+		if (!firstResource) return;
 
 		const elpxProject = await deps.repo.getElpxProjectByResourceId(
 			deps.getDb().db,
-			firstResource!.id,
+			firstResource.id,
 		);
 		expect(elpxProject).not.toBeNull();
+		if (!elpxProject) return;
 
 		// El extractPath del primer recurso debe seguir intacto: el intento
 		// fallido del segundo NO debe haberlo borrado, o rompería la preview del
 		// primero, que sigue legítimamente en uso.
 		const contentXmlExists = await Bun.file(
-			path.join(elpxProject!.extractPath, "content.xml"),
+			path.join(elpxProject.extractPath, "content.xml"),
 		).exists();
 		expect(contentXmlExists).toBe(true);
 
@@ -414,12 +423,14 @@ describe("import:legacy-procomun — carrera real entre dos ejecuciones concurre
 			winnerExternalId,
 		);
 		expect(winner).not.toBeNull();
+		if (!winner) return;
 
 		const elpxProject = await deps.repo.getElpxProjectByResourceId(
 			deps.getDb().db,
-			winner!.id,
+			winner.id,
 		);
 		expect(elpxProject).not.toBeNull();
+		if (!elpxProject) return;
 
 		// La preview del recurso que sí ganó la carrera debe seguir intacta: el
 		// intento perdedor, al fallar su inserción por la restricción única de
@@ -427,7 +438,7 @@ describe("import:legacy-procomun — carrera real entre dos ejecuciones concurre
 		// (la garantía de fondo es que, tras el fix, cada intento extrae en su
 		// propia ruta única por uploadId, así que no hay nada que compartir).
 		const contentXmlExists = await Bun.file(
-			path.join(elpxProject!.extractPath, "content.xml"),
+			path.join(elpxProject.extractPath, "content.xml"),
 		).exists();
 		expect(contentXmlExists).toBe(true);
 	});

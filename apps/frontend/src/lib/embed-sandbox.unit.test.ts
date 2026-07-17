@@ -18,6 +18,10 @@ describe("CONTENT_IFRAME_SANDBOX", () => {
 	});
 
 	test("matches the canonical secure token set of the other hosts", () => {
-		expect([...tokens].sort()).toEqual(["allow-forms", "allow-popups", "allow-scripts"]);
+		expect([...tokens].sort()).toEqual([
+			"allow-forms",
+			"allow-popups",
+			"allow-scripts",
+		]);
 	});
 });

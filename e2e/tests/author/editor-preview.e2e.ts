@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { expect, test } from "@playwright/test";
 
 /**
  * Editor bootstrap → HTTP preview activation.
@@ -16,23 +16,25 @@ import { expect, test } from '@playwright/test';
  * release), the route 404s and the test skips with a clear reason rather than
  * failing on an infra dependency.
  */
-test.describe('Embedded editor bootstrap — HTTP preview wiring', () => {
-	test('injects the previewHttp config (protocol v2) into the bootstrap HTML', async ({ request }) => {
-		const res = await request.get('/api/v1/exelearning-editor/index.html');
+test.describe("Embedded editor bootstrap — HTTP preview wiring", () => {
+	test("injects the previewHttp config (protocol v2) into the bootstrap HTML", async ({
+		request,
+	}) => {
+		const res = await request.get("/api/v1/exelearning-editor/index.html");
 
 		test.skip(
 			res.status() === 404,
-			'Static eXeLearning editor not present in this environment (Docker build downloads it).',
+			"Static eXeLearning editor not present in this environment (Docker build downloads it).",
 		);
 		expect(res.status()).toBe(200);
 
 		const html = await res.text();
-		expect(html).toContain('__EXE_EMBEDDING_CONFIG__');
+		expect(html).toContain("__EXE_EMBEDDING_CONFIG__");
 		// The HTTP preview transport (serving contract v2): protocol version + the
 		// owner-gated management base and the authless serving base. No CSRF header
 		// or query — auth is the same-origin better-auth cookie.
-		expect(html).toContain('previewHttp');
-		expect(html).toContain('protocolVersion: 2');
+		expect(html).toContain("previewHttp");
+		expect(html).toContain("protocolVersion: 2");
 		expect(html).toContain('managementBaseUrl: "/api/v1/preview-session"');
 		expect(html).toContain('servingBaseUrl: "/api/v1/preview"');
 	});

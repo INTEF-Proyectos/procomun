@@ -1,9 +1,10 @@
+import type { AnyColumn } from "drizzle-orm";
 import { sql } from "drizzle-orm";
 
 const ACCENTED_CHARACTERS = "áéíóúÁÉÍÓÚäëïöüÄËÏÖÜñÑ";
 const NORMALIZED_CHARACTERS = "aeiouAEIOUaeiouAEIOUnN";
 
-export function normalizeSearch(column: any) {
+export function normalizeSearch(column: AnyColumn) {
 	return sql`lower(translate(${column}, ${ACCENTED_CHARACTERS}, ${NORMALIZED_CHARACTERS}))`;
 }
 

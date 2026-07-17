@@ -15,7 +15,8 @@ import {
 } from "./middleware.ts";
 
 const FRONTEND_URL = "https://procomun.example.org";
-const MANAGEMENT_PATH = "/api/v1/preview-session/756f4e31-18e6-4f16-b868-516c5b945d8b/assets";
+const MANAGEMENT_PATH =
+	"/api/v1/preview-session/756f4e31-18e6-4f16-b868-516c5b945d8b/assets";
 
 describe("validatePreviewManagementRequest", () => {
 	test("accepts an unsafe request from the exact frontend origin", () => {

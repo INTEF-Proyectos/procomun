@@ -76,8 +76,8 @@ describe("api-tokens repository", () => {
 		});
 		const result = await validateApiToken(db, created.rawToken);
 		expect(result).not.toBeNull();
-		expect(result!.userId).toBe("user-1");
-		expect(result!.tokenId).toBe(created.id);
+		expect(result?.userId).toBe("user-1");
+		expect(result?.tokenId).toBe(created.id);
 	});
 
 	test("validateApiToken fails with invalid token", async () => {

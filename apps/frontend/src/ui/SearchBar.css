@@ -19,6 +19,15 @@
 	position: relative;
 }
 
+/* Base del icono: va antes que las variantes md/lg, que lo especializan con
+   mayor especificidad. El orden no cambia el resultado (gana la especificidad
+   mayor), pero deja la cascada legible de general a específico. */
+.search-bar-icon {
+	color: var(--color-primary);
+	font-size: 24px;
+	flex-shrink: 0;
+}
+
 .search-bar-md .search-bar-icon {
 	position: absolute;
 	left: 1rem;
@@ -34,12 +43,6 @@
 .search-bar-lg .search-bar-icon {
 	padding-left: 1.5rem;
 	font-size: 30px;
-}
-
-.search-bar-icon {
-	color: var(--color-primary);
-	font-size: 24px;
-	flex-shrink: 0;
 }
 
 .search-bar-input {

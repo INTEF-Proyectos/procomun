@@ -2,9 +2,9 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { getResourceTypeOptions } from "../islands/resources/resource-form-options.ts";
 import type { Resource } from "../lib/api-client.ts";
+import { CONTENT_IFRAME_SANDBOX } from "../lib/embed-sandbox.ts";
 import { getApiClient } from "../lib/get-api-client.ts";
 import { url } from "../lib/paths.ts";
-import { CONTENT_IFRAME_SANDBOX } from "../lib/embed-sandbox.ts";
 import "../styles/editar.css";
 
 const STATUS_LABELS: Record<string, { label: string; cssClass: string }> = {
@@ -302,13 +302,16 @@ export default function EditarPage() {
 			setState("notfound");
 			return;
 		}
+		// Capturado tras la guarda: dentro de `init` (un closure) el narrowing
+		// del `if` de arriba ya no aplica.
+		const id = resourceId;
 
 		async function init() {
 			try {
 				const api = await getApiClient();
 				const [session, resourceData] = await Promise.all([
 					api.getSession().catch(() => null),
-					api.getResourceById(resourceId!).catch(() => null),
+					api.getResourceById(id).catch(() => null),
 				]);
 
 				if (!session?.user) {
@@ -327,9 +330,7 @@ export default function EditarPage() {
 					return;
 				}
 
-				const elpxData = await api
-					.getElpxProject(resourceId!)
-					.catch(() => null);
+				const elpxData = await api.getElpxProject(id).catch(() => null);
 				if (elpxData?.hasPreview && elpxData.previewUrl) {
 					(resourceData as Record<string, unknown>).elpxPreview = {
 						hash: elpxData.hash,
@@ -350,7 +351,7 @@ export default function EditarPage() {
 							"../lib/resource-uploader.ts"
 						);
 						await initResourceUploader({
-							resourceId: resourceId!,
+							resourceId: id,
 							root: uploadPanel,
 							api,
 							onUploadComplete: isNew
@@ -364,7 +365,7 @@ export default function EditarPage() {
 											"edit-upload-status edit-upload-loading";
 										statusEl.style.display = "block";
 										try {
-											const result = await api.generateElpx(resourceId!);
+											const result = await api.generateElpx(id);
 											statusEl.textContent =
 												count > 0
 													? `${count} archivo${count !== 1 ? "s" : ""} subido${count !== 1 ? "s" : ""}. Paquete .elpx actualizado.`
@@ -408,6 +409,9 @@ export default function EditarPage() {
 
 	async function handleFormSubmit(e: React.FormEvent) {
 		e.preventDefault();
+		// El formulario solo se renderiza con state === "ready", que implica
+		// resource != null, pero TypeScript no puede correlacionar ambos estados.
+		if (!resource) return;
 		setErrorMsg("");
 		setSuccessMsg("");
 		setFieldErrors({});
@@ -416,7 +420,7 @@ export default function EditarPage() {
 
 		try {
 			const api = await getApiClient();
-			const result = await api.updateResource(resource!.id, {
+			const result = await api.updateResource(resource.id, {
 				title: titleRef.current?.value ?? "",
 				description: descriptionRef.current?.value ?? "",
 				language: languageRef.current?.value ?? "es",
@@ -440,9 +444,9 @@ export default function EditarPage() {
 
 			if (isNew) {
 				setSaveBtnText("Generando .elpx...");
-				await api.generateElpx(resource!.id);
+				await api.generateElpx(resource.id);
 				navigate(
-					url(`editar?id=${resource!.id}`).replace(window.location.origin, ""),
+					url(`editar?id=${resource.id}`).replace(window.location.origin, ""),
 				);
 				return;
 			}
@@ -458,11 +462,12 @@ export default function EditarPage() {
 	}
 
 	async function handleWorkflowBtn(newStatus: string) {
+		if (!resource) return;
 		setErrorMsg("");
 		setSuccessMsg("");
 		try {
 			const api = await getApiClient();
-			await api.updateResourceStatus(resource!.id, newStatus);
+			await api.updateResourceStatus(resource.id, newStatus);
 			setSuccessMsg(
 				`Estado actualizado a "${STATUS_LABELS[newStatus]?.label ?? newStatus}"`,
 			);
@@ -529,6 +534,7 @@ export default function EditarPage() {
 	}
 
 	async function handleFileUpload(file: File) {
+		if (!resource) return;
 		const statusEl = uploadStatusRef.current;
 		if (!statusEl) return;
 		statusEl.textContent = "Subiendo archivo...";
@@ -537,7 +543,7 @@ export default function EditarPage() {
 		try {
 			const formData = new FormData();
 			formData.append("file", file);
-			const res = await fetch(url(`api/admin/elpx/upload/${resource!.id}`), {
+			const res = await fetch(url(`api/admin/elpx/upload/${resource.id}`), {
 				method: "POST",
 				credentials: "include",
 				body: formData,
@@ -597,7 +603,10 @@ export default function EditarPage() {
 	}
 
 	// state === "ready"
-	const res = resource!;
+	// state solo pasa a "ready" después de setResource(), pero eso TypeScript no
+	// lo sabe: la guarda lo hace explícito en vez de afirmarlo con `!`.
+	if (!resource) return null;
+	const res = resource;
 	const resourceTypeOptions = getResourceTypeOptions(
 		isNew ? null : res.resourceType,
 	);

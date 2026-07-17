@@ -2,11 +2,15 @@
  * Serves the eXeLearning static editor with Procomun bootstrap config injected.
  * Equivalent to editor-bootstrap.php in wp-exelearning.
  */
-import { Hono } from "hono";
+
 import { readFile } from "node:fs/promises";
 import path from "node:path";
+import { Hono } from "hono";
 
-const EDITOR_STATIC_DIR = path.resolve(import.meta.dir, "../../static/exelearning-editor/static");
+const EDITOR_STATIC_DIR = path.resolve(
+	import.meta.dir,
+	"../../static/exelearning-editor/static",
+);
 
 /**
  * Serialize a value as JSON that is safe inside an inline script element.
@@ -67,7 +71,10 @@ exelearningEditorRoutes.get("/index.html", async (c) => {
 	try {
 		html = await readFile(indexPath, "utf-8");
 	} catch {
-		return c.text("Editor no disponible. Ejecuta: make download-exelearning-editor", 404);
+		return c.text(
+			"Editor no disponible. Ejecuta: make download-exelearning-editor",
+			404,
+		);
 	}
 
 	// Determine editor base URL for asset resolution
@@ -83,7 +90,11 @@ exelearningEditorRoutes.get("/index.html", async (c) => {
 
 	// Inject Procomun embedding config before </head>. User-controlled query
 	// values are encoded as script-safe JSON to prevent `</script>` breakout.
-	const configScript = buildEditorConfigScript(elpxUrl, resourceId, editorBaseUrl);
+	const configScript = buildEditorConfigScript(
+		elpxUrl,
+		resourceId,
+		editorBaseUrl,
+	);
 	html = html.replace("</head>", `${configScript}\n</head>`);
 
 	// Inject the bridge script before </body> — handles postMessage communication
@@ -132,7 +143,7 @@ const SW_NEUTRALIZE_SCRIPT = `<script>
 		navigator.serviceWorker.getRegistrations = function () { return Promise.resolve([]); };
 	} catch (e) { void e; }
 })();
-<\/script>`;
+</script>`;
 
 /**
  * Bridge script injected into the editor iframe.
@@ -276,8 +287,7 @@ const BRIDGE_SCRIPT = `<script>
 
 	init();
 })();
-<\/script>`;
-
+</script>`;
 
 /**
  * Serve all static editor assets (JS, CSS, images, fonts, etc.)

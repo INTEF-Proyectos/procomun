@@ -80,7 +80,9 @@ export const auth = betterAuth({
 								discoveryUrl: process.env.OIDC_ISSUER
 									? `${process.env.OIDC_ISSUER}/.well-known/openid-configuration`
 									: "",
-								scopes: (process.env.OIDC_SCOPE ?? "openid email profile").split(" "),
+								scopes: (
+									process.env.OIDC_SCOPE ?? "openid email profile"
+								).split(" "),
 								pkce: true,
 							},
 						],

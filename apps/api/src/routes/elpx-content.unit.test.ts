@@ -3,7 +3,9 @@ import { CONTENT_ASSET_CSP, CONTENT_HTML_CSP } from "./elpx-content.ts";
 
 describe("elpx-content CSP (audit H-1)", () => {
 	test("HTML CSP keeps the content sandboxed without a same-origin escape", () => {
-		expect(CONTENT_HTML_CSP).toContain("sandbox allow-scripts allow-popups allow-forms");
+		expect(CONTENT_HTML_CSP).toContain(
+			"sandbox allow-scripts allow-popups allow-forms",
+		);
 		// The escape token would let an author popup run at the platform origin.
 		expect(CONTENT_HTML_CSP).not.toContain("allow-popups-to-escape-sandbox");
 		expect(CONTENT_HTML_CSP).not.toContain("allow-same-origin");

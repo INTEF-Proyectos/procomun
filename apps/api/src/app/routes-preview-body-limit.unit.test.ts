@@ -28,7 +28,8 @@ describe("preview multipart raw body limit", () => {
 		expect(validatePreviewMultipartContentLength("1024", 1024)).toBeNull();
 		expect(validatePreviewMultipartContentLength("1025", 1024)).toEqual({
 			status: 413,
-			error: "La petición de previsualización supera el tamaño máximo (1024 bytes)",
+			error:
+				"La petición de previsualización supera el tamaño máximo (1024 bytes)",
 		});
 	});
 });
