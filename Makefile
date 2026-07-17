@@ -49,6 +49,15 @@ format:
 lint:
 	$(BUN) run lint
 
+check-tracking:
+	$(BUN) run check-tracking
+
+check-test-files:
+	$(BUN) run check-test-files
+
+design-lint:
+	$(BUN) run design:lint
+
 test:
 	$(BUN) run test
 
