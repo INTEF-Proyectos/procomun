@@ -32,7 +32,10 @@ export async function createElpxProject(
 	return { id };
 }
 
-export async function getElpxProjectByResourceId(db: DrizzleDB, resourceId: string) {
+export async function getElpxProjectByResourceId(
+	db: DrizzleDB,
+	resourceId: string,
+) {
 	const rows = await db
 		.select()
 		.from(elpxProjects)
@@ -54,7 +57,10 @@ export async function deleteElpxProject(db: DrizzleDB, id: string) {
 	await db.delete(elpxProjects).where(eq(elpxProjects.id, id));
 }
 
-export async function listElpxProjectsByResourceIds(db: DrizzleDB, resourceIds: string[]) {
+export async function listElpxProjectsByResourceIds(
+	db: DrizzleDB,
+	resourceIds: string[],
+) {
 	if (!resourceIds.length) return [];
 	return db
 		.select({
@@ -63,5 +69,10 @@ export async function listElpxProjectsByResourceIds(db: DrizzleDB, resourceIds: 
 			hasPreview: elpxProjects.hasPreview,
 		})
 		.from(elpxProjects)
-		.where(sql`${elpxProjects.resourceId} IN (${sql.join(resourceIds.map((id) => sql`${id}`), sql`, `)})`);
+		.where(
+			sql`${elpxProjects.resourceId} IN (${sql.join(
+				resourceIds.map((id) => sql`${id}`),
+				sql`, `,
+			)})`,
+		);
 }

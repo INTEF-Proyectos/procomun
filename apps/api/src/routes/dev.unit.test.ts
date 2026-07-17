@@ -1,4 +1,4 @@
-import { expect, test, describe } from "bun:test";
+import { describe, expect, test } from "bun:test";
 import { Hono } from "hono";
 import type { AuthEnv } from "../auth/middleware.ts";
 import { devRoutes } from "./dev.ts";
@@ -11,7 +11,10 @@ function createDevApp(
 	const app = new Hono<AuthEnv>();
 	app.use("*", async (c, next) => {
 		c.set("user", mockUser as AuthEnv["Variables"]["user"]);
-		c.set("session", mockUser ? { id: "s" } as AuthEnv["Variables"]["session"] : null);
+		c.set(
+			"session",
+			mockUser ? ({ id: "s" } as AuthEnv["Variables"]["session"]) : null,
+		);
 		if (nodeEnv === undefined) {
 			delete process.env.NODE_ENV;
 		} else {
@@ -33,7 +36,9 @@ function createDevApp(
 describe("Rutas dev — modo desarrollo", { timeout: 60_000 }, () => {
 	const app = createDevApp({ id: "1", role: "admin" });
 
-	test("POST /api/dev/seed-resources → 200 con count válido", { timeout: 30_000 }, async () => {
+	test("POST /api/dev/seed-resources → 200 con count válido", {
+		timeout: 30_000,
+	}, async () => {
 		const res = await app.request("/api/dev/seed-resources", {
 			method: "POST",
 			headers: { "Content-Type": "application/json" },
@@ -45,7 +50,9 @@ describe("Rutas dev — modo desarrollo", { timeout: 60_000 }, () => {
 		expect(body.durationMs).toBeDefined();
 	});
 
-	test("POST /api/dev/seed-resources → 200 con clean=true", { timeout: 60_000 }, async () => {
+	test("POST /api/dev/seed-resources → 200 con clean=true", {
+		timeout: 60_000,
+	}, async () => {
 		// Primero generamos algunos
 		await app.request("/api/dev/seed-resources", {
 			method: "POST",
@@ -107,8 +114,14 @@ describe("Rutas dev — modo producción", { timeout: 60_000 }, () => {
 		expect(body.error).toBe("Solo disponible en modo desarrollo");
 	});
 
-	test("POST /api/dev/seed-resources → 200 si Bun.env.NODE_ENV=development", { timeout: 60_000 }, async () => {
-		const app = createDevApp({ id: "1", role: "admin" }, undefined, "development");
+	test("POST /api/dev/seed-resources → 200 si Bun.env.NODE_ENV=development", {
+		timeout: 60_000,
+	}, async () => {
+		const app = createDevApp(
+			{ id: "1", role: "admin" },
+			undefined,
+			"development",
+		);
 		const res = await app.request("/api/dev/seed-resources", {
 			method: "POST",
 			headers: { "Content-Type": "application/json" },

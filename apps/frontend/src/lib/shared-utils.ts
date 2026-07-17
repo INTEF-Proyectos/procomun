@@ -11,9 +11,16 @@ function hashPair(str: string): string {
 		h1 = Math.imul(h1 ^ ch, 2654435761);
 		h2 = Math.imul(h2 ^ ch, 1597334677);
 	}
-	h1 = Math.imul(h1 ^ (h1 >>> 16), 2246822507) ^ Math.imul(h2 ^ (h2 >>> 13), 3266489909);
-	h2 = Math.imul(h2 ^ (h2 >>> 16), 2246822507) ^ Math.imul(h1 ^ (h1 >>> 13), 3266489909);
-	return (h2 >>> 0).toString(16).padStart(8, "0") + (h1 >>> 0).toString(16).padStart(8, "0");
+	h1 =
+		Math.imul(h1 ^ (h1 >>> 16), 2246822507) ^
+		Math.imul(h2 ^ (h2 >>> 13), 3266489909);
+	h2 =
+		Math.imul(h2 ^ (h2 >>> 16), 2246822507) ^
+		Math.imul(h1 ^ (h1 >>> 13), 3266489909);
+	return (
+		(h2 >>> 0).toString(16).padStart(8, "0") +
+		(h1 >>> 0).toString(16).padStart(8, "0")
+	);
 }
 
 /** Generate a Gravatar URL for an email. Uses `d=mp` fallback (mystery person). */
@@ -23,7 +30,9 @@ export function gravatarUrl(email: string, size = 80): string {
 }
 
 /** Format a date value for display in Spanish locale. */
-export function formatDate(value: string | number | Date | null | undefined): string {
+export function formatDate(
+	value: string | number | Date | null | undefined,
+): string {
 	if (!value) return "";
 	return new Date(value).toLocaleDateString("es-ES", {
 		year: "numeric",
@@ -33,7 +42,9 @@ export function formatDate(value: string | number | Date | null | undefined): st
 }
 
 /** Format a date value with long month for display. */
-export function formatDateLong(value: string | number | Date | null | undefined): string {
+export function formatDateLong(
+	value: string | number | Date | null | undefined,
+): string {
 	if (!value) return "";
 	return new Date(value).toLocaleDateString("es-ES", {
 		year: "numeric",
@@ -60,7 +71,9 @@ export function computeResourceBadges(
 
 	const createdAt = resource.createdAt ? new Date(resource.createdAt) : null;
 	if (createdAt) {
-		const daysSinceCreation = Math.floor((Date.now() - createdAt.getTime()) / 86400000);
+		const daysSinceCreation = Math.floor(
+			(Date.now() - createdAt.getTime()) / 86400000,
+		);
 		if (daysSinceCreation <= config.novedadDays) {
 			badges.push({ text: "Novedad", variant: "primary" });
 		}

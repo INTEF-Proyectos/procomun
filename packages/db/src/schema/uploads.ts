@@ -1,6 +1,6 @@
-import { pgTable, text, timestamp, varchar, bigint } from "drizzle-orm/pg-core";
-import { resources, mediaItems } from "./resources.ts";
+import { bigint, pgTable, text, timestamp, varchar } from "drizzle-orm/pg-core";
 import { user } from "./auth.ts";
+import { mediaItems, resources } from "./resources.ts";
 
 export const uploadSessions = pgTable("upload_sessions", {
 	id: text("id").primaryKey(),
@@ -10,7 +10,9 @@ export const uploadSessions = pgTable("upload_sessions", {
 	ownerId: text("owner_id")
 		.notNull()
 		.references(() => user.id, { onDelete: "cascade" }),
-	mediaItemId: text("media_item_id").references(() => mediaItems.id, { onDelete: "set null" }),
+	mediaItemId: text("media_item_id").references(() => mediaItems.id, {
+		onDelete: "set null",
+	}),
 	status: varchar("status", { length: 50 }).notNull().default("created"),
 	originalFilename: text("original_filename").notNull(),
 	mimeType: varchar("mime_type", { length: 255 }),
@@ -21,7 +23,9 @@ export const uploadSessions = pgTable("upload_sessions", {
 	errorCode: varchar("error_code", { length: 100 }),
 	errorMessage: text("error_message"),
 	declaredSize: bigint("declared_size", { mode: "number" }),
-	receivedBytes: bigint("received_bytes", { mode: "number" }).notNull().default(0),
+	receivedBytes: bigint("received_bytes", { mode: "number" })
+		.notNull()
+		.default(0),
 	expiresAt: timestamp("expires_at"),
 	completedAt: timestamp("completed_at"),
 	cancelledAt: timestamp("cancelled_at"),

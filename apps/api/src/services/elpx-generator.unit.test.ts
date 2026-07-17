@@ -1,7 +1,7 @@
-import { describe, it, expect, afterAll } from "bun:test";
+import { afterAll, describe, expect, it } from "bun:test";
 import { mkdir, rm, writeFile } from "node:fs/promises";
-import path from "node:path";
 import os from "node:os";
+import path from "node:path";
 import { generateElpxFromFiles } from "./elpx-generator.ts";
 import { parseElpxMetadata, processElpxUpload } from "./elpx-processor.ts";
 
@@ -11,7 +11,11 @@ afterAll(async () => {
 	await rm(TEMP_DIR, { recursive: true, force: true });
 });
 
-async function makeTempFile(subdir: string, filename: string, content: string): Promise<string> {
+async function makeTempFile(
+	subdir: string,
+	filename: string,
+	content: string,
+): Promise<string> {
 	const dir = path.join(TEMP_DIR, subdir);
 	await mkdir(dir, { recursive: true });
 	const filePath = path.join(dir, filename);
@@ -21,7 +25,11 @@ async function makeTempFile(subdir: string, filename: string, content: string): 
 
 describe("generateElpxFromFiles", { timeout: 30_000 }, () => {
 	it("genera un .elpx válido con content.xml e index.html", async () => {
-		const pdfPath = await makeTempFile("test1", "documento.pdf", "%PDF-1.4 fake content");
+		const pdfPath = await makeTempFile(
+			"test1",
+			"documento.pdf",
+			"%PDF-1.4 fake content",
+		);
 		const outputPath = path.join(TEMP_DIR, "test1-output.elpx");
 
 		await generateElpxFromFiles({
@@ -50,7 +58,11 @@ describe("generateElpxFromFiles", { timeout: 30_000 }, () => {
 	});
 
 	it("el .elpx generado puede ser parseado por parseElpxMetadata", async () => {
-		const filePath = await makeTempFile("test2", "apuntes.txt", "contenido de apuntes");
+		const filePath = await makeTempFile(
+			"test2",
+			"apuntes.txt",
+			"contenido de apuntes",
+		);
 		const outputPath = path.join(TEMP_DIR, "test2-output.elpx");
 
 		await generateElpxFromFiles({
@@ -85,13 +97,19 @@ describe("generateElpxFromFiles", { timeout: 30_000 }, () => {
 		expect(typeof result.hash).toBe("string");
 		expect(result.hasPreview).toBe(true); // index.html is always generated
 
-		const indexExists = await Bun.file(path.join(result.extractPath, "index.html")).exists();
+		const indexExists = await Bun.file(
+			path.join(result.extractPath, "index.html"),
+		).exists();
 		expect(indexExists).toBe(true);
 
-		const contentExists = await Bun.file(path.join(result.extractPath, "content.xml")).exists();
+		const contentExists = await Bun.file(
+			path.join(result.extractPath, "content.xml"),
+		).exists();
 		expect(contentExists).toBe(true);
 
-		const videoExists = await Bun.file(path.join(result.extractPath, "video.mp4")).exists();
+		const videoExists = await Bun.file(
+			path.join(result.extractPath, "video.mp4"),
+		).exists();
 		expect(videoExists).toBe(true);
 	});
 
@@ -112,7 +130,9 @@ describe("generateElpxFromFiles", { timeout: 30_000 }, () => {
 		});
 
 		const result = await processElpxUpload(outputPath, baseDir);
-		const indexHtml = await Bun.file(path.join(result.extractPath, "index.html")).text();
+		const indexHtml = await Bun.file(
+			path.join(result.extractPath, "index.html"),
+		).text();
 
 		expect(indexHtml).toContain('href="doc.pdf"');
 		expect(indexHtml).toContain('href="imagen.png"');
@@ -177,14 +197,30 @@ describe("generateElpxFromFiles", { timeout: 30_000 }, () => {
 
 		// El paquete contiene los archivos con nombres saneados (solo basename).
 		const result = await processElpxUpload(outputPath, baseDir);
-		expect(await Bun.file(path.join(result.extractPath, "procomun-cand001-proof.txt")).exists()).toBe(true);
-		expect(await Bun.file(path.join(result.extractPath, "evil.pdf")).exists()).toBe(true);
-		expect(await Bun.file(path.join(result.extractPath, "windows.pdf")).exists()).toBe(true);
+		expect(
+			await Bun.file(
+				path.join(result.extractPath, "procomun-cand001-proof.txt"),
+			).exists(),
+		).toBe(true);
+		expect(
+			await Bun.file(path.join(result.extractPath, "evil.pdf")).exists(),
+		).toBe(true);
+		expect(
+			await Bun.file(path.join(result.extractPath, "windows.pdf")).exists(),
+		).toBe(true);
 	});
 
 	it("evita que un archivo subido sobrescriba content.xml o index.html (CAND-001)", async () => {
-		const evilXml = await makeTempFile("collide", "evil-content", "<malicioso/>");
-		const evilHtml = await makeTempFile("collide", "evil-index", "<h1>hijack</h1>");
+		const evilXml = await makeTempFile(
+			"collide",
+			"evil-content",
+			"<malicioso/>",
+		);
+		const evilHtml = await makeTempFile(
+			"collide",
+			"evil-index",
+			"<h1>hijack</h1>",
+		);
 		const outputPath = path.join(TEMP_DIR, "collide-output.elpx");
 		const baseDir = path.join(TEMP_DIR, "collide-base");
 		await mkdir(baseDir, { recursive: true });
@@ -206,15 +242,23 @@ describe("generateElpxFromFiles", { timeout: 30_000 }, () => {
 
 		// El archivo subido se conserva bajo un nombre renombrado.
 		const result = await processElpxUpload(outputPath, baseDir);
-		expect(await Bun.file(path.join(result.extractPath, "content-adjunto.xml")).exists()).toBe(true);
-		expect(await Bun.file(path.join(result.extractPath, "index-adjunto.html")).exists()).toBe(true);
+		expect(
+			await Bun.file(
+				path.join(result.extractPath, "content-adjunto.xml"),
+			).exists(),
+		).toBe(true);
+		expect(
+			await Bun.file(
+				path.join(result.extractPath, "index-adjunto.html"),
+			).exists(),
+		).toBe(true);
 	});
 
 	it("los caracteres especiales en el título se escapan en el XML generado", async () => {
 		const outputPath = path.join(TEMP_DIR, "test7-output.elpx");
 
 		await generateElpxFromFiles({
-			title: "Título <especial> & \"comillas\"",
+			title: 'Título <especial> & "comillas"',
 			files: [],
 			outputPath,
 		});
@@ -222,9 +266,13 @@ describe("generateElpxFromFiles", { timeout: 30_000 }, () => {
 		// Extract content.xml from the ZIP and check XML is well-formed
 		const tempExtract = path.join(TEMP_DIR, "test7-extract");
 		await mkdir(tempExtract, { recursive: true });
-		const proc = Bun.spawn(["unzip", "-o", "-q", outputPath, "content.xml", "-d", tempExtract], {
-			stdout: "ignore", stderr: "ignore",
-		});
+		const proc = Bun.spawn(
+			["unzip", "-o", "-q", outputPath, "content.xml", "-d", tempExtract],
+			{
+				stdout: "ignore",
+				stderr: "ignore",
+			},
+		);
 		await proc.exited;
 		const xml = await Bun.file(path.join(tempExtract, "content.xml")).text();
 

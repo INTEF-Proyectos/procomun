@@ -62,7 +62,7 @@ describe("buildFeed", () => {
 
 		expect(rss).toContain('<?xml version="1.0" encoding="utf-8"?>');
 		expect(rss).toContain("<rss");
-		expect(rss).toContain('<channel>');
+		expect(rss).toContain("<channel>");
 		expect(rss).toContain("<title>Test Feed</title>");
 		expect(rss).toContain("Recurso de Matemáticas");
 		expect(rss).toContain("http://localhost/recursos/recurso-de-matematicas");
@@ -102,10 +102,12 @@ describe("buildFeed", () => {
 	});
 
 	test("falls back to id when slug is null", () => {
-		const resourceWithoutSlug = [
-			{ ...sampleResources[0], slug: null },
-		];
-		const feed = buildFeed({ ...baseOpts, resources: resourceWithoutSlug, total: 1 });
+		const resourceWithoutSlug = [{ ...sampleResources[0], slug: null }];
+		const feed = buildFeed({
+			...baseOpts,
+			resources: resourceWithoutSlug,
+			total: 1,
+		});
 		const atom = feed.atom1();
 
 		expect(atom).toContain("http://localhost/recursos/res-1");

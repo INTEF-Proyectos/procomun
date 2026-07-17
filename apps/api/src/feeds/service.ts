@@ -1,5 +1,5 @@
-import { Feed } from "feed";
 import * as repo from "@procomun/db/repository";
+import { Feed } from "feed";
 import { getDb } from "../db.ts";
 
 const DEFAULT_PAGE_SIZE = 20;
@@ -60,8 +60,18 @@ export function buildFeed(opts: {
 	limit: number;
 	offset: number;
 }): Feed {
-	const { title, description, feedId, feedUrl, siteUrl, resources, baseUrl, total, limit, offset } =
-		opts;
+	const {
+		title,
+		description,
+		feedId,
+		feedUrl,
+		siteUrl,
+		resources,
+		baseUrl,
+		total,
+		limit,
+		offset,
+	} = opts;
 
 	const feed = new Feed({
 		title: neutralizeCdata(title),
@@ -102,7 +112,10 @@ export function buildFeed(opts: {
 			});
 		}
 		if (resource.keywords) {
-			for (const kw of resource.keywords.split(",").map((k) => k.trim()).filter(Boolean)) {
+			for (const kw of resource.keywords
+				.split(",")
+				.map((k) => k.trim())
+				.filter(Boolean)) {
 				categories.push({ name: neutralizeCdata(kw) });
 			}
 		}
@@ -113,9 +126,16 @@ export function buildFeed(opts: {
 			link: resourceUrl,
 			description: neutralizeCdata(resource.description ?? ""),
 			date: toDate(resource.createdAt),
-			author: resource.author || resource.createdByName
-				? [{ name: neutralizeCdata(resource.author ?? resource.createdByName ?? "Anónimo") }]
-				: [{ name: "Anónimo" }],
+			author:
+				resource.author || resource.createdByName
+					? [
+							{
+								name: neutralizeCdata(
+									resource.author ?? resource.createdByName ?? "Anónimo",
+								),
+							},
+						]
+					: [{ name: "Anónimo" }],
 			category: categories,
 			extensions: resource.license
 				? [{ name: "dc:rights", objects: resource.license }]
@@ -160,7 +180,9 @@ export async function buildGeneralFeed(opts: FeedOptions) {
 	});
 }
 
-export async function buildCollectionFeed(opts: FeedOptions & { collectionSlug: string }) {
+export async function buildCollectionFeed(
+	opts: FeedOptions & { collectionSlug: string },
+) {
 	const db = getDb().db;
 	const limit = normalizeLimit(opts.limit);
 	const offset = opts.offset ?? 0;
@@ -184,7 +206,9 @@ export async function buildCollectionFeed(opts: FeedOptions & { collectionSlug: 
 
 	return buildFeed({
 		title: `Procomún - ${collection.title}`,
-		description: collection.description ?? `Recursos de la colección "${collection.title}"`,
+		description:
+			collection.description ??
+			`Recursos de la colección "${collection.title}"`,
 		feedId: feedUrl,
 		feedUrl,
 		siteUrl: `${opts.baseUrl}/colecciones/${opts.collectionSlug}`,

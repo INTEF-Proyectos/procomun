@@ -1,9 +1,16 @@
 import { describe, expect, test } from "bun:test";
-import { escapeHtml, renderMediaItem, renderPersistedUploadItem, renderQueueItem } from "./resource-uploader.ts";
+import {
+	escapeHtml,
+	renderMediaItem,
+	renderPersistedUploadItem,
+	renderQueueItem,
+} from "./resource-uploader.ts";
 
 describe("resource uploader rendering", () => {
 	test("escapeHtml codifica caracteres peligrosos", () => {
-		expect(escapeHtml(`"><img src=x onerror=alert(1)>`)).toBe("&quot;&gt;&lt;img src=x onerror=alert(1)&gt;");
+		expect(escapeHtml(`"><img src=x onerror=alert(1)>`)).toBe(
+			"&quot;&gt;&lt;img src=x onerror=alert(1)&gt;",
+		);
 	});
 
 	test("renderPersistedUploadItem escapa nombres y mensajes de error", () => {
@@ -50,6 +57,8 @@ describe("resource uploader rendering", () => {
 		expect(html).not.toContain("<svg");
 		expect(html).toContain("&lt;img src=x onerror=alert(1)&gt;");
 		expect(html).toContain("&lt;b&gt;fallo&lt;/b&gt;");
-		expect(html).toContain('data-remove-local="file&quot;&gt;&lt;svg onload=alert(1)&gt;"');
+		expect(html).toContain(
+			'data-remove-local="file&quot;&gt;&lt;svg onload=alert(1)&gt;"',
+		);
 	});
 });

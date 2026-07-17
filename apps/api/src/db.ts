@@ -20,7 +20,10 @@ if (envFile === rootEnv || (await envFile.exists())) {
 		const eqIdx = trimmed.indexOf("=");
 		if (eqIdx === -1) continue;
 		const key = trimmed.slice(0, eqIdx).trim();
-		const val = trimmed.slice(eqIdx + 1).trim().replace(/^["']|["']$/g, "");
+		const val = trimmed
+			.slice(eqIdx + 1)
+			.trim()
+			.replace(/^["']|["']$/g, "");
 		if (!process.env[key]) process.env[key] = val;
 	}
 }
@@ -33,12 +36,16 @@ let _initPromise: Promise<void> | null = null;
 function createDb() {
 	if (process.env.DATABASE_URL) {
 		const { drizzle } = require("drizzle-orm/bun-sql");
-		return { db: drizzle(process.env.DATABASE_URL, { schema: pgSchema }), provider: "pg" as const };
+		return {
+			db: drizzle(process.env.DATABASE_URL, { schema: pgSchema }),
+			provider: "pg" as const,
+		};
 	}
 
 	const { PGlite } = require("@electric-sql/pglite");
 	const { drizzle } = require("drizzle-orm/pglite");
-	const dataDir = process.env.PGLITE_DIR ?? `${import.meta.dir}/../../../local-data`;
+	const dataDir =
+		process.env.PGLITE_DIR ?? `${import.meta.dir}/../../../local-data`;
 	const pglite = new PGlite(dataDir);
 
 	_initPromise = (async () => {
