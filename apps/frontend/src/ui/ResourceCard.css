@@ -169,8 +169,11 @@
 	font-size: 14px;
 	color: var(--color-outline);
 }
-.rc-stat-star {
-	color: var(--color-tertiary) !important;
+/* La estrella también casa con `.rc-stat .material-symbols-outlined` de arriba,
+   que la pintaría de --color-outline. En vez de forzar con !important, se sube
+   la especificidad a (0,2,0) para empatar y ganar por orden de aparición. */
+.rc-stat .rc-stat-star {
+	color: var(--color-tertiary);
 }
 .rc-stat-count {
 	font-weight: 400;
