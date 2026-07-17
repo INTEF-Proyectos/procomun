@@ -261,6 +261,9 @@ export type EditableResourceFields = Partial<
  * Defensa contra mass assignment: aunque la capa de ruta entregue el cuerpo
  * crudo, aquí nunca se escriben columnas sensibles (editorialStatus, createdBy,
  * slug, …) que llegarían como claves extra. Ver ADR de control de acceso.
+ *
+ * Solo acepta valores string: un número/objeto en un campo editable se ignora
+ * (la validación de ruta debería rechazarlo antes; esto es defensa en profundidad).
  */
 export function pickEditableResourceFields(
 	data: Record<string, unknown>,
@@ -268,8 +271,8 @@ export function pickEditableResourceFields(
 	const safe: EditableResourceFields = {};
 	for (const field of EDITABLE_RESOURCE_FIELDS) {
 		const value = data[field];
-		if (value !== undefined) {
-			safe[field] = value as string;
+		if (typeof value === "string") {
+			safe[field] = value;
 		}
 	}
 	return safe;
@@ -278,12 +281,17 @@ export function pickEditableResourceFields(
 export async function updateResource(
 	db: DrizzleDB,
 	id: string,
-	data: Record<string, unknown>,
+	data: EditableResourceFields | Record<string, unknown>,
 ) {
 	// Whitelist explícito: solo persistimos campos descriptivos. Cualquier otra
 	// clave del cuerpo (editorialStatus, createdBy, slug, assignedCuratorId,
 	// featuredAt, deletedAt, …) se descarta para evitar mass assignment.
-	const safe = pickEditableResourceFields(data);
+	const safe = pickEditableResourceFields(data as Record<string, unknown>);
+
+	// Evita un UPDATE vacío si el cuerpo solo traía claves sensibles filtradas.
+	if (Object.keys(safe).length === 0) {
+		return;
+	}
 
 	await db
 		.update(resources)

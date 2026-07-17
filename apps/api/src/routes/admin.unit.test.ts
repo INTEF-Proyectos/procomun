@@ -1524,6 +1524,8 @@ describe("Seguridad — mass assignment / bypass del flujo editorial (recursos)"
 		const body = await getRes.json();
 		// El recurso nace como borrador pese a pedir "published" en el cuerpo.
 		expect(body.editorialStatus).toBe("draft");
+		// featuredAt del cuerpo también se ignora (no se destaca vía mass assignment).
+		expect(body.featuredAt ?? null).toBeNull();
 	});
 
 	test("PATCH /api/admin/resources/:id ignora editorialStatus (no se salta validateTransition)", async () => {
