@@ -4,7 +4,19 @@ import { describe, expect, test } from "bun:test";
 // URL rebuilder and is pure (no window), so it can be exercised directly here. The full
 // validate() adversarial suite (userinfo / non-https / same-origin / IP / lookalike host)
 // runs against the identical relay in mod_exelearning / wp-exelearning / omeka-s-exelearning.
-import relay from "../../public/elpx/exe_embed_relay.js";
+import relayModule from "../../public/elpx/exe_embed_relay.js";
+
+/** Superficie del mirror CJS de exe_embed_relay.js usada por estos tests. */
+type RelayInstance = {
+	checkDrift: () => number;
+	dispose: () => void;
+	init?: (config?: { mode: string }) => unknown;
+};
+type RelayModule = {
+	reconstructProvider: (provider: string, id: string) => string | null;
+	createRelay: (config: { mode: string }) => RelayInstance;
+};
+const relay = relayModule as unknown as RelayModule;
 
 describe("exe_embed_relay strict-mode provider reconstruction (adversarial)", () => {
 	test("rebuilds the canonical privacy-friendly URL for a valid provider id", () => {

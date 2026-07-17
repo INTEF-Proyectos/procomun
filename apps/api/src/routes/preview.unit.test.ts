@@ -43,8 +43,12 @@ const EXPECTED_PREVIEW_CSP =
 	"child-src 'self' https://www.youtube-nocookie.com https://player.vimeo.com; " +
 	"object-src 'none'; base-uri 'none'; form-action 'self'; frame-ancestors 'self'";
 
-function bytesOf(text: string): Uint8Array {
-	return new TextEncoder().encode(text);
+function bytesOf(text: string): Uint8Array<ArrayBuffer> {
+	// Copia a ArrayBuffer propio: BlobPart/BodyInit no aceptan Uint8Array<ArrayBufferLike>.
+	const encoded = new TextEncoder().encode(text);
+	const copy = new Uint8Array(encoded.byteLength);
+	copy.set(encoded);
+	return copy;
 }
 
 /**

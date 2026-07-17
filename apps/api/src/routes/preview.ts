@@ -174,6 +174,17 @@ export function ifNoneMatchMatches(
 }
 
 /**
+ * Copia el buffer a un `Uint8Array` con ArrayBuffer propio para que
+ * `Response` / `BodyInit` lo acepten (TS 5.7+ tipa `Uint8Array` genérico
+ * con `ArrayBufferLike`, incompatible con `BodyInit`).
+ */
+function bodyFromBytes(bytes: Uint8Array): Uint8Array<ArrayBuffer> {
+	const copy = new Uint8Array(bytes.byteLength);
+	copy.set(bytes);
+	return copy;
+}
+
+/**
  * The contract's reference serving logic: UUID gate → session lookup (touches
  * the idle-TTL clock) → three-layer `getFile` → tiered headers.
  *
@@ -207,12 +218,12 @@ function servePreviewFile(
 
 	if (file.kind === "document") {
 		headers["Cache-Control"] = "no-store";
-		return new Response(file.bytes, { headers });
+		return new Response(bodyFromBytes(file.bytes), { headers });
 	}
 
 	if (file.kind === "fixed") {
 		headers["Cache-Control"] = "private, max-age=31536000";
-		return new Response(file.bytes, { headers });
+		return new Response(bodyFromBytes(file.bytes), { headers });
 	}
 
 	// Session asset: revalidating cache tier with ETag + single-range support
@@ -235,9 +246,9 @@ function servePreviewFile(
 		const body = file.bytes.slice(range.start, range.end + 1);
 		headers["Content-Range"] = `bytes ${range.start}-${range.end}/${total}`;
 		headers["Content-Length"] = String(body.length);
-		return new Response(body, { status: 206, headers });
+		return new Response(bodyFromBytes(body), { status: 206, headers });
 	}
-	return new Response(file.bytes, { headers });
+	return new Response(bodyFromBytes(file.bytes), { headers });
 }
 
 export const previewRoutes = new Hono();
