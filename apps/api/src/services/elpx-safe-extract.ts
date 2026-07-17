@@ -98,7 +98,9 @@ export function readZipCentralDirectory(buf: Buffer): ZipEntryInfo[] {
 
 	const eocd = findEocdOffset(buf);
 	if (eocd < 0) {
-		throw new Error("El archivo no es un .elpx válido (ZIP sin directorio central)");
+		throw new Error(
+			"El archivo no es un .elpx válido (ZIP sin directorio central)",
+		);
 	}
 
 	const totalEntries = buf.readUInt16LE(eocd + 10);
@@ -109,7 +111,10 @@ export function readZipCentralDirectory(buf: Buffer): ZipEntryInfo[] {
 
 	const entries: ZipEntryInfo[] = [];
 	for (let i = 0; i < totalEntries; i++) {
-		if (offset + 46 > buf.length || buf.readUInt32LE(offset) !== CDFH_SIGNATURE) {
+		if (
+			offset + 46 > buf.length ||
+			buf.readUInt32LE(offset) !== CDFH_SIGNATURE
+		) {
 			throw new Error("Directorio central del ZIP corrupto");
 		}
 
@@ -189,15 +194,21 @@ export function inspectZipEntries(
 			throw new Error(`El .elpx contiene un enlace simbólico: ${entry.name}`);
 		}
 		if ((entry.flags & ZIP_FLAG_ENCRYPTED) !== 0) {
-			throw new Error(`El .elpx contiene una entrada cifrada no soportada: ${entry.name}`);
+			throw new Error(
+				`El .elpx contiene una entrada cifrada no soportada: ${entry.name}`,
+			);
 		}
-		if (![ZIP_METHOD_STORE, ZIP_METHOD_DEFLATE].includes(entry.compressionMethod)) {
+		if (
+			![ZIP_METHOD_STORE, ZIP_METHOD_DEFLATE].includes(entry.compressionMethod)
+		) {
 			throw new Error(`Método de compresión ZIP no soportado en ${entry.name}`);
 		}
 
 		const canonical = path.posix.normalize(entry.name).replace(/\/$/, "");
 		if (canonical === "." || canonicalNames.has(canonical)) {
-			throw new Error(`El .elpx contiene una ruta duplicada o ambigua: ${entry.name}`);
+			throw new Error(
+				`El .elpx contiene una ruta duplicada o ambigua: ${entry.name}`,
+			);
 		}
 		canonicalNames.add(canonical);
 
@@ -250,7 +261,9 @@ export async function assertExtractionContained(
 			const real = await realpath(full);
 			const contained = real === root || real.startsWith(root + path.sep);
 			if (!contained) {
-				throw new Error(`Extracción insegura: ruta fuera del destino en ${full}`);
+				throw new Error(
+					`Extracción insegura: ruta fuera del destino en ${full}`,
+				);
 			}
 
 			if (stats.isDirectory()) {
@@ -289,11 +302,19 @@ function entryCompressedBytes(buf: Buffer, entry: ZipEntryInfo): Uint8Array {
 		throw new Error(`Datos comprimidos fuera del ZIP para ${entry.name}`);
 	}
 	const localName = buf.toString("utf8", nameStart, nameStart + nameLen);
-	if (localName !== entry.name || localFlags !== entry.flags || localMethod !== entry.compressionMethod) {
+	if (
+		localName !== entry.name ||
+		localFlags !== entry.flags ||
+		localMethod !== entry.compressionMethod
+	) {
 		throw new Error(`Cabecera local ZIP inconsistente para ${entry.name}`);
 	}
 
-	return new Uint8Array(buf.buffer, buf.byteOffset + dataStart, entry.compressedSize);
+	return new Uint8Array(
+		buf.buffer,
+		buf.byteOffset + dataStart,
+		entry.compressedSize,
+	);
 }
 
 async function extractFileEntry(
@@ -374,7 +395,13 @@ export async function safeExtractElpx(
 			}
 
 			await mkdir(path.dirname(target), { recursive: true });
-			await extractFileEntry(buf, entry, target, counter, limits.maxTotalUncompressed);
+			await extractFileEntry(
+				buf,
+				entry,
+				target,
+				counter,
+				limits.maxTotalUncompressed,
+			);
 		}
 
 		await assertExtractionContained(extractPath, limits.maxTotalUncompressed);

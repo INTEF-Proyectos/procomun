@@ -18,7 +18,10 @@ async function pathExists(target: string): Promise<boolean> {
 	}
 }
 
-async function createCompressedZip(zipPath: string, size: number): Promise<void> {
+async function createCompressedZip(
+	zipPath: string,
+	size: number,
+): Promise<void> {
 	const script = `
 import sys, zipfile
 with zipfile.ZipFile(sys.argv[1], "w", zipfile.ZIP_DEFLATED) as z:
