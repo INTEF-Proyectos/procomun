@@ -3,8 +3,8 @@ import { mkdtemp, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { Hono } from "hono";
-import { registerFrontendServing } from "./frontend.ts";
 import type { AuthEnv } from "../auth/middleware.ts";
+import { registerFrontendServing } from "./frontend.ts";
 
 describe("registerFrontendServing", () => {
 	test("returns API metadata when no frontend directory is configured", async () => {
@@ -20,8 +20,13 @@ describe("registerFrontendServing", () => {
 	});
 
 	test("serves the frontend index when a static directory is provided", async () => {
-		const frontendDir = await mkdtemp(path.join(tmpdir(), "procomun-frontend-"));
-		await writeFile(path.join(frontendDir, "index.html"), "<html><body>frontend ok</body></html>");
+		const frontendDir = await mkdtemp(
+			path.join(tmpdir(), "procomun-frontend-"),
+		);
+		await writeFile(
+			path.join(frontendDir, "index.html"),
+			"<html><body>frontend ok</body></html>",
+		);
 
 		const app = new Hono<AuthEnv>();
 		registerFrontendServing(app, frontendDir);

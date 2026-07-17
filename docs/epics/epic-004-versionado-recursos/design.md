@@ -6,7 +6,7 @@
 ## Referencias
 - Requisitos: [requirements.md](./requirements.md)
 - Estudio de alternativas: [ADR-0028](../../negocio/decisiones/0028-versionado-recursos-educativos.md)
-- Decisión concreta: [ADR-0029](../../negocio/decisiones/0029-versionado-recursos.md)
+- Decisión concreta: [ADR-0032](../../negocio/decisiones/0032-versionado-recursos.md)
 - Esquema actual: `packages/db/src/schema/resources.ts` (`resources`, `media_items`, `resource_subjects`, `resource_levels`), `packages/db/src/schema/elpx.ts`.
 
 ## Principio rector
@@ -139,4 +139,4 @@ No se usa un `ref_count` leído y actualizado fuera de transacción como fuente 
 - Estrategia de outbox si la auditoría no puede escribirse en la misma transacción.
 
 ## Estado
-Diseño propuesto (F1–F3). La implementación queda condicionada a aceptar ADR-0029 y a convertir estas garantías en tests de integración.
+Diseño propuesto (F1–F3). La implementación queda condicionada a aceptar ADR-0032 y a convertir estas garantías en tests de integración.

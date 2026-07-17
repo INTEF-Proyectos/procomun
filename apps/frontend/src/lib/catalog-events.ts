@@ -7,7 +7,9 @@ export interface CatalogQueryDetail {
 
 function dispatchCatalogEvent(name: string, query: string) {
 	if (typeof window === "undefined") return;
-	window.dispatchEvent(new CustomEvent<CatalogQueryDetail>(name, { detail: { query } }));
+	window.dispatchEvent(
+		new CustomEvent<CatalogQueryDetail>(name, { detail: { query } }),
+	);
 }
 
 export function dispatchCatalogQueryChange(query: string) {

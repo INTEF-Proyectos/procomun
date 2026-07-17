@@ -1,4 +1,4 @@
-import { expect, test, describe } from "bun:test";
+import { describe, expect, test } from "bun:test";
 import { Hono } from "hono";
 import type { AuthEnv } from "../auth/middleware.ts";
 import { apiResourceRoutes } from "./api-resources.ts";
@@ -51,7 +51,12 @@ describe("API Resources — sin autenticación", () => {
 });
 
 describe("API Resources — con autenticación", () => {
-	const app = createApiApp({ id: "user-1", role: "author", email: "test@example.com", name: "Test" });
+	const app = createApiApp({
+		id: "user-1",
+		role: "author",
+		email: "test@example.com",
+		name: "Test",
+	});
 
 	test("POST /api/v1/publish/resources → 201 con body válido", async () => {
 		const res = await app.request("/api/v1/publish/resources", {
@@ -148,7 +153,12 @@ describe("API Resources — con autenticación", () => {
 describe("API Resources — permisos", () => {
 	test("PUT → 404 si recurso no pertenece al usuario", async () => {
 		// Create resource as user-1
-		const appUser1 = createApiApp({ id: "user-1", role: "author", email: "u1@test.com", name: "U1" });
+		const appUser1 = createApiApp({
+			id: "user-1",
+			role: "author",
+			email: "u1@test.com",
+			name: "U1",
+		});
 		const createRes = await appUser1.request("/api/v1/publish/resources", {
 			method: "POST",
 			headers: { "Content-Type": "application/json" },
@@ -157,12 +167,20 @@ describe("API Resources — permisos", () => {
 		const { id } = await createRes.json();
 
 		// Try to update as user-2
-		const appUser2 = createApiApp({ id: "user-2", role: "author", email: "u2@test.com", name: "U2" });
-		const updateRes = await appUser2.request(`/api/v1/publish/resources/${id}`, {
-			method: "PUT",
-			headers: { "Content-Type": "application/json" },
-			body: JSON.stringify({ title: "Hack attempt" }),
+		const appUser2 = createApiApp({
+			id: "user-2",
+			role: "author",
+			email: "u2@test.com",
+			name: "U2",
 		});
+		const updateRes = await appUser2.request(
+			`/api/v1/publish/resources/${id}`,
+			{
+				method: "PUT",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify({ title: "Hack attempt" }),
+			},
+		);
 		expect(updateRes.status).toBe(403);
 	});
 });

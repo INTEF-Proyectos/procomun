@@ -25,14 +25,17 @@ export async function userCreate(args: string[]) {
 
 	const role = values.role ?? "author";
 	if (!VALID_ROLES.includes(role)) {
-		console.error(`Rol inválido: ${role}. Roles válidos: ${VALID_ROLES.join(", ")}`);
+		console.error(
+			`Rol inválido: ${role}. Roles válidos: ${VALID_ROLES.join(", ")}`,
+		);
 		process.exit(1);
 	}
 
 	const { PGlite } = await import("@electric-sql/pglite");
 	const { createTables } = await import("@procomun/db/setup");
 
-	const dataDir = process.env.PGLITE_DIR ?? `${import.meta.dir}/../../../../local-data`;
+	const dataDir =
+		process.env.PGLITE_DIR ?? `${import.meta.dir}/../../../../local-data`;
 	const pglite = new PGlite(dataDir);
 	await createTables(pglite);
 

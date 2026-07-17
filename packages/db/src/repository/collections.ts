@@ -35,7 +35,10 @@ const collectionSelection = (resourceStatus?: string) => ({
 	updatedAt: collections.updatedAt,
 });
 
-export async function listCollections(db: DrizzleDB, opts: CollectionFilters = {}) {
+export async function listCollections(
+	db: DrizzleDB,
+	opts: CollectionFilters = {},
+) {
 	const { limit, offset } = normalizePagination(opts.limit, opts.offset);
 	const conditions = [];
 
@@ -45,8 +48,10 @@ export async function listCollections(db: DrizzleDB, opts: CollectionFilters = {
 			sql`(${normalizeSearch(collections.title)} LIKE ${term} OR ${normalizeSearch(collections.description)} LIKE ${term})`,
 		);
 	}
-	if (opts.curatorId) conditions.push(eq(collections.curatorId, opts.curatorId));
-	if (opts.status) conditions.push(eq(collections.editorialStatus, opts.status));
+	if (opts.curatorId)
+		conditions.push(eq(collections.curatorId, opts.curatorId));
+	if (opts.status)
+		conditions.push(eq(collections.editorialStatus, opts.status));
 
 	const where = conditions.length ? andWhere(conditions) : undefined;
 	const query = db
@@ -58,7 +63,9 @@ export async function listCollections(db: DrizzleDB, opts: CollectionFilters = {
 		.orderBy(desc(collections.updatedAt));
 	const rows = where ? await query.where(where) : await query;
 
-	const countQuery = db.select({ count: sql<number>`count(*)` }).from(collections);
+	const countQuery = db
+		.select({ count: sql<number>`count(*)` })
+		.from(collections);
 	const countRows = where ? await countQuery.where(where) : await countQuery;
 
 	return { data: rows, total: Number(countRows[0]?.count ?? 0), limit, offset };
@@ -81,7 +88,8 @@ export async function getCollectionBySlug(
 	opts: { status?: string; resourceStatus?: string } = {},
 ) {
 	const conditions = [eq(collections.slug, slug)];
-	if (opts.status) conditions.push(eq(collections.editorialStatus, opts.status));
+	if (opts.status)
+		conditions.push(eq(collections.editorialStatus, opts.status));
 
 	const rows = await db
 		.select(collectionSelection(opts.resourceStatus))

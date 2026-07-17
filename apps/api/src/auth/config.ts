@@ -1,19 +1,11 @@
+import * as pgSchema from "@procomun/db/schema";
 import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
-import { admin as adminPlugin } from "better-auth/plugins";
-import { genericOAuth } from "better-auth/plugins";
-import {
-	ac,
-	admin,
-	author,
-	curator,
-	editor,
-	reader,
-} from "./permissions.ts";
-import * as pgSchema from "@procomun/db/schema";
-import { getDb } from "../db.ts";
-import { getAuthBaseUrl, getFrontendUrl } from "./urls.ts";
+import { admin as adminPlugin, genericOAuth } from "better-auth/plugins";
 import { logActivity } from "../activity/log.ts";
+import { getDb } from "../db.ts";
+import { ac, admin, author, curator, editor, reader } from "./permissions.ts";
+import { getAuthBaseUrl, getFrontendUrl } from "./urls.ts";
 
 const frontendUrl = getFrontendUrl();
 const oidcEnabled = process.env.OIDC_ENABLED === "true";
@@ -84,7 +76,9 @@ export const auth = betterAuth({
 								discoveryUrl: process.env.OIDC_ISSUER
 									? `${process.env.OIDC_ISSUER}/.well-known/openid-configuration`
 									: "",
-								scopes: (process.env.OIDC_SCOPE ?? "openid email profile").split(" "),
+								scopes: (
+									process.env.OIDC_SCOPE ?? "openid email profile"
+								).split(" "),
 								pkce: true,
 							},
 						],

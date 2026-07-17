@@ -5,7 +5,7 @@
 
 ## Fuente
 - Requisito: <https://github.com/INTEF-Proyectos/procomun/issues/31>
-- Decisión arquitectónica asociada: [ADR-0029](../../negocio/decisiones/0029-versionado-recursos.md).
+- Decisión arquitectónica asociada: [ADR-0032](../../negocio/decisiones/0032-versionado-recursos.md).
 
 ## Problema público/educativo
 Los recursos educativos evolucionan: se corrigen erratas, se actualizan contenidos, se adaptan a nuevos currículos. Hoy editar un recurso **sobrescribe** el estado anterior sin historial: no hay forma de saber qué cambió, recuperar una versión previa ni publicar una actualización conservando la anterior. Esto resta confianza editorial y trazabilidad a una plataforma de OER.

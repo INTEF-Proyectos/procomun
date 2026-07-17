@@ -1,6 +1,6 @@
+import { ROLE_LEVELS } from "@procomun/db/validation";
 import type { Context, Next } from "hono";
 import { auth } from "./config.ts";
-import { ROLE_LEVELS } from "@procomun/db/validation";
 
 type AuthUser = typeof auth.$Infer.Session.user;
 type AuthSession = typeof auth.$Infer.Session.session;
@@ -46,7 +46,9 @@ export function requireRole(...roles: string[]) {
 		...roles.map((r) => {
 			const level = ROLE_LEVELS[r];
 			if (level === undefined) {
-				throw new Error(`requireRole: rol desconocido "${r}". Válidos: ${Object.keys(ROLE_LEVELS).join(", ")}`);
+				throw new Error(
+					`requireRole: rol desconocido "${r}". Válidos: ${Object.keys(ROLE_LEVELS).join(", ")}`,
+				);
 			}
 			return level;
 		}),

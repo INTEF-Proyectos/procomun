@@ -145,6 +145,25 @@ Cómo abrirlo:
 
 En desarrollo con Vite, el soporte para `/dev/` y `/dev/docs/*` está cableado en `apps/frontend/vite.config.ts`. En la imagen de Docker, el build copia `docs/`, `.agents/`, `README.md`, `AGENTS.md` y los YAML necesarios para que el panel siga funcionando.
 
+## Importador de recursos legacy Procomún
+
+La empresa que mantiene la plataforma Procomún actual (legacy) dispone de una herramienta propia que exporta todos los tipos de recursos de su repositorio y los convierte a paquete eXeLearning. Cada recurso exportado genera dos ficheros con el mismo nombre base: un `.elpx` (el paquete eXeLearning) y un `.json` con los metadatos del recurso (título, descripción, autoría, licencia, materia, etapa educativa, etc.).
+
+`import:legacy-procomun` toma un directorio con esos pares `<id>.json` + `<id>.elpx`, mapea los metadatos al perfil mínimo de procomun-ng (ADR-0009) y persiste cada recurso como `published`. Reutiliza el pipeline de subida/extracción `.elpx` ya existente y es idempotente: reejecutarlo sobre el mismo directorio no duplica nada.
+
+```bash
+make cli ARGS="import:legacy-procomun --source-dir <ruta-a-los-pares .json+.elpx> --dry-run"
+make cli ARGS="import:legacy-procomun --source-dir <ruta>"
+```
+
+Flags disponibles: `--source-dir <ruta>` (obligatorio), `--dry-run` (valida y mapea sin escribir en BD), `--limit <n>`, `--only <externalId>` (reintenta un único registro), `--report-dir <ruta>` (por defecto `local-data/legacy-import-reports/`).
+
+Al terminar escribe un `informe_ingesta-<runId>.json` con el desglose (importados, omitidos por ya existir, bloqueados por licencia no reconocida u otros motivos, y warnings tolerables).
+
+**Con PGlite (por defecto, sin `DATABASE_URL`)**: detén el servidor de desarrollo (`make up` / `make up-api`) antes de lanzar el import — PGlite es una base de datos embebida de un solo proceso y no soporta que dos procesos abran el mismo directorio de datos a la vez. Con PostgreSQL real (`make up-postgres` o `DATABASE_URL` configurada) no hace falta parar nada, ya que Postgres sí admite conexiones concurrentes de varios procesos.
+
+Documentación completa: [ADR-0029](docs/negocio/decisiones/0029-importador-legacy-procomun-elpx.md) y [`docs/epics/epic-004-migracion-legacy-procomun/`](docs/epics/epic-004-migracion-legacy-procomun/) (requisitos, diseño, mapeo de campos, resultados del piloto).
+
 ## Testing y calidad
 
 El flujo estándar del repo es:

@@ -1,4 +1,4 @@
-# ADR-0029 Modelo de versionado de recursos (snapshots inmutables + proyección vigente)
+# ADR-0032 Modelo de versionado de recursos (snapshots inmutables + proyección vigente)
 
 * Estado: Propuesto
 * Fecha: 2026-06-23
