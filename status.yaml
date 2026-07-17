@@ -2015,3 +2015,18 @@ tasks:
       Se publica solo vía API REST (crear release, borrar assets previos, upload
       binario) y se fija GH_REPO. Enmienda en ADR-0033. Validación: YAML del
       workflow parseable; el run real se verifica en la siguiente PR con E2E OK.
+
+  T-2026-07-17-16420011:
+    date: 2026-07-17
+    agent: "devops-sre + seguridad-privacidad-legal"
+    task: "Hotfix: pull-requests: write en visual-preview-publish (403 al comentar PR)"
+    status: Done
+    related: ["ADR-0033", "#284", "T-2026-07-17-16250001"]
+    notes: >
+      Tras arreglar la publicación de assets sin git local, el job fallaba en
+      "Create or update pull-request comment" con 403 Resource not accessible by
+      integration al listar comentarios de issues/285. El token solo tenía
+      issues=read; pull_requests=read. La API de comentarios sobre un PR exige
+      pull-requests: write además de issues: write. Se añade al workflow y se
+      documenta en ADR-0033. Validación: el siguiente E2E verde de una PR debe
+      publicar assets y dejar/actualizar el comentario marcado.

@@ -49,7 +49,7 @@ Las vistas se definen exclusivamente en `e2e/visual-preview-pages.ts`. Cada entr
 
 * `actions: read` para descargar el artifact;
 * `contents: write` para gestionar assets de una prerelease;
-* `issues: write` para crear o actualizar el comentario del PR.
+* `issues: write` y **`pull-requests: write`** para listar, crear y actualizar el comentario del PR (la API de issue comments sobre un número de PR exige el scope `pull-requests`; solo `issues: write` produce 403 *Resource not accessible by integration*).
 
 No hace checkout ni ejecuta archivos, scripts o comandos procedentes del PR. Trata el artifact como entrada no confiable y aplica antes de publicarlo:
 
