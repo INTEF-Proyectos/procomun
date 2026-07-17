@@ -24,8 +24,12 @@ function buildMockDeps(
 	overrides: Partial<Deps> = {},
 ): Deps {
 	const base: Deps = {
-		// biome-ignore lint: mock de DrizzleDB, no se usa realmente en estos tests
-		getDb: () => ({ db: {} as any }),
+		// Mock de DrizzleDB: estos tests no llegan a usar la conexión real, pero se
+		// tipa contra el tipo concreto en vez de `any`.
+		getDb: () =>
+			({ db: {} as unknown as ReturnType<Deps["getDb"]>["db"] }) as ReturnType<
+				Deps["getDb"]
+			>,
 		waitForDb: async () => {},
 		// Réplica fiel (mismo baseDir/elpx/<hash> que buildElpxPath real) que crea
 		// un directorio real con contenido: necesario para que el rename() real
@@ -125,7 +129,6 @@ function buildMockDeps(
 				elpxProjectId: "mock-elpx-id",
 			}),
 			getElpxProjectByHash: async () => null,
-			// biome-ignore lint: mock parcial del barrel de repositorio, solo se usan las anteriores
 		} as Deps["repo"],
 	};
 
@@ -290,7 +293,11 @@ describe("runImportLegacyProcomun (deps mockeadas)", () => {
 				blocking: true,
 				blockingErrors: ["licencia no reconocida"],
 				warnings: [],
-				resource: {} as any,
+				// Deliberadamente vacío: con blocking:true el flujo corta antes de
+				// leer `resource`, y este test comprueba justamente eso.
+				resource: {} as unknown as ReturnType<
+					Deps["mapLegacyRecord"]
+				>["resource"],
 			})) as Deps["mapLegacyRecord"],
 			processElpxUpload: (async () => {
 				processCalled = true;
@@ -495,7 +502,10 @@ describe("runImportLegacyProcomun (deps mockeadas)", () => {
 				findLegacyResourceByExternalId: async () => null,
 				// Ambas ejecuciones ven "no existe" — la carrera pasa el pre-check.
 				getElpxProjectByHash: async () => null,
-				importLegacyResourceWithElpx: async (_db: unknown, input: any) => {
+				importLegacyResourceWithElpx: async (
+					_db: unknown,
+					input: Parameters<Deps["repo"]["importLegacyResourceWithElpx"]>[1],
+				) => {
 					insertCalls++;
 					extractPathsAtInsert.push(input.elpx.extractPath);
 					if (insertCalls === 1) {

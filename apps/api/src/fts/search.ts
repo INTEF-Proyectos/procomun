@@ -6,7 +6,12 @@
 import { resources } from "@procomun/db/schema";
 import { eq, isNull, sql } from "drizzle-orm";
 
-// biome-ignore lint: generic drizzle db type
+// Tipar esto de verdad depende de tipar la base de drizzle, que es el núcleo
+// del Lote 1 de ADR-0030 (probado: sustituirlo por `{ execute }` o por el
+// DrizzleDB compartido dispara decenas de errores de tsc, porque sus métodos
+// devuelven `unknown`). La supresión se acota a la regla concreta; antes era un
+// `biome-ignore lint:` en blanco, que silenciaba todas.
+// biome-ignore lint/suspicious/noExplicitAny: tipo genérico de la base drizzle, ver Lote 1 de ADR-0030
 type DrizzleDB = any;
 
 /** FTS dictionary configuration by language code */

@@ -1812,3 +1812,57 @@ tasks:
       el gate falla de verdad con error inyectado (clave duplicada → exit 1; file: inexistente →
       exit 1) y vuelve a 0 al restaurar; make lint, check-test-files, design-lint y check-tracking
       en verde; bun run test 800 pass / 0 fail con coverage 90,4%.
+
+  T-2026-07-17-009:
+    date: 2026-07-17
+    agent: "backend-api-servicios + frontend-ux-accesibilidad + qa-validacion"
+    task: "Lote 1 de ADR-0030: eliminar los 167 warnings de tipado (noNonNullAssertion y noExplicitAny) con narrowing real"
+    status: Done
+    related: ["ADR-0030", "T-2026-07-16-002", "T-2026-07-17-008"]
+    notes: >
+      Segunda parte del reparto acordado: la PR anterior cerró el #276 y los warnings no
+      relacionados con el tipado; esta se queda con los 167 de tipado (134 noNonNullAssertion +
+      33 noExplicitAny) repartidos en 34 ficheros, que la #272 dejó anotados como Lote 1. Van en
+      PR aparte para que cada una sea revisable, que es justo el hallazgo 3 de la revisión de la
+      #272 (364 ficheros no se revisan de una sentada). Resultado: 167 -> 0, sin una sola
+      supresión nueva, y los warnings totales del repo bajan de 190 a 21.
+      Patrones aplicados, todos con arreglo real:
+      seed.ts (32): helper demoResource(i) con guarda en vez de DEMO_RESOURCES[N]!; el Map de
+      .elpx se lee una vez (get) en vez de has()+get()!; DATABASE_URL con guarda explícita que
+      documenta el invariante de resolveSeedMode.
+      social.ts (9): nuevo requireUser(c) en auth/middleware.ts, con guarda y test propio, en vez
+      de c.get("user")! en cada ruta. AuthEnv tipa user como AuthUser|null porque
+      sessionMiddleware lo pone a null; tras requireAuth ya no lo es, pero TypeScript no puede
+      correlacionarlo.
+      crud-builder.ts (3): se captura config.create/update/remove dentro del if, donde TypeScript
+      ya los ha estrechado — dentro del closure del handler el narrowing no aplica.
+      EditarPage.tsx (10), ResourceDetailIsland (5), CatalogIsland, ResourceCard: se derivan los
+      VALORES (previewUrl, firstFileUrl, mediaItems) en vez de booleanos tipo hasPreview: un
+      booleano no permite a TypeScript estrechar el objeto del que sale.
+      generate-elpx.ts (4): crc32 pasa a for..of (el índice sobraba) y los accesos a plantillas
+      llevan guarda con mensaje útil.
+      Tests (87): expect(x).not.toBeNull() antes de usar x?.foo, o narrowing con guarda cuando el
+      valor se pasa como argumento. No solo no se debilita ningún test: se refuerzan, porque
+      antes un null reventaba con un TypeError opaco y ahora falla la aserción con mensaje claro
+      (+8 aserciones netas).
+      Supresiones en blanco: había 4 `biome-ignore lint:` SIN regla, que silencian TODAS las de
+      su línea. Una estaba muerta (biome la marcaba como suppressions/unused) y se elimina; las
+      otras 3 son el "generic drizzle db type" que la #272 dejó anotado. Se acotan a
+      lint/suspicious/noExplicitAny: siguen ahí, pero ya no silencian de más.
+      Hallazgo relevante: el tipo compartido DrizzleDB NO es usable como tipo real — sus métodos
+      devuelven unknown. Se intentó sustituir los `any` de fts/search.ts y seed-random.ts por él
+      (y por un tipo mínimo { execute }) y dispara ~41 errores de tsc, así que se revirtió. Tiparlo
+      de verdad exige la fuente única de esquema (Lote 3), y por eso ese `any` sigue siendo el
+      núcleo pendiente del Lote 1.
+      Dos arreglos propios salieron mal y se detectaron comparando tsc contra main: tipar
+      catalog-controller con un índice [key:string]: unknown rompía el acceso a campos (el tipo
+      correcto ya existía y era Resource, que ambos lados estaban falseando: el parámetro con
+      Record<string,any> y la llamada con Record<string,string>), y quitar la anotación de
+      rows.map en resources.ts dejaba row implícitamente any, porque `db` es DrizzleDB y rows
+      acaba siendo any[] (se declara MediaItemRow).
+      Validación: biome lint 0 errores y 0 warnings de las dos reglas; tsc 660 frente a los 665 de
+      main, es decir 5 errores preexistentes MENOS y ninguno nuevo (el único que cambia de texto
+      es el mismo TS2352 del mock, que ya existía 6 veces en ambos lados); bun run test 812 pass /
+      0 fail con coverage 90,38%; build del frontend OK; y el seed se ejecuta de verdad
+      (exit 0), que es lo que ejercita demoResource y los índices de la semilla; crc32 comprobado
+      idéntico en 7 casos y contra el vector canónico 0x414FA339.

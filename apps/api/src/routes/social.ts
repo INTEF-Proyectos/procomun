@@ -3,7 +3,7 @@ import { favorites, ratings, resources } from "@procomun/db/schema";
 import { and, desc, eq, isNull, sql } from "drizzle-orm";
 import { Hono } from "hono";
 import { logActivity } from "../activity/log.ts";
-import { type AuthEnv, requireAuth } from "../auth/middleware.ts";
+import { type AuthEnv, requireAuth, requireUser } from "../auth/middleware.ts";
 import { getDb } from "../db.ts";
 import { parsePagination } from "../http/pagination.ts";
 import { listUserActivity } from "../social/activity-service.ts";
@@ -47,7 +47,7 @@ socialRoutes.get("/resources/:slug/ratings", async (c) => {
 // ---------------------------------------------------------------------------
 socialRoutes.post("/resources/:slug/ratings", requireAuth, async (c) => {
 	const { slug } = c.req.param();
-	const currentUser = c.get("user")!;
+	const currentUser = requireUser(c);
 	const body = await c.req.json<{ score: number }>();
 
 	if (
@@ -91,7 +91,7 @@ socialRoutes.post("/resources/:slug/ratings", requireAuth, async (c) => {
 // ---------------------------------------------------------------------------
 socialRoutes.post("/resources/:slug/favorite", requireAuth, async (c) => {
 	const { slug } = c.req.param();
-	const currentUser = c.get("user")!;
+	const currentUser = requireUser(c);
 
 	const resource = await resolveResourceBySlug(slug);
 	if (!resource) {
@@ -122,7 +122,7 @@ socialRoutes.post("/resources/:slug/favorite", requireAuth, async (c) => {
 // ---------------------------------------------------------------------------
 socialRoutes.get("/users/me/favorites", requireAuth, async (c) => {
 	const { limit, offset } = parsePagination(c);
-	const currentUser = c.get("user")!;
+	const currentUser = requireUser(c);
 	const db = getDb().db;
 
 	const rows = await db
@@ -174,7 +174,7 @@ socialRoutes.get("/users/me/favorites", requireAuth, async (c) => {
 // ---------------------------------------------------------------------------
 socialRoutes.get("/users/me/ratings", requireAuth, async (c) => {
 	const { limit, offset } = parsePagination(c);
-	const currentUser = c.get("user")!;
+	const currentUser = requireUser(c);
 	const db = getDb().db;
 
 	const rows = await db
@@ -220,7 +220,7 @@ socialRoutes.get("/users/me/ratings", requireAuth, async (c) => {
 // GET /users/me/dashboard (auth required)
 // ---------------------------------------------------------------------------
 socialRoutes.get("/users/me/dashboard", requireAuth, async (c) => {
-	const currentUser = c.get("user")!;
+	const currentUser = requireUser(c);
 	return c.json(await getUserDashboardSummary(currentUser.id));
 });
 
@@ -228,7 +228,7 @@ socialRoutes.get("/users/me/dashboard", requireAuth, async (c) => {
 // GET /users/me/profile (auth required)
 // ---------------------------------------------------------------------------
 socialRoutes.get("/users/me/profile", requireAuth, async (c) => {
-	const currentUser = c.get("user")!;
+	const currentUser = requireUser(c);
 	const found = await repo.getUserById(getDb().db, currentUser.id);
 
 	if (found) return c.json(found);
@@ -247,7 +247,7 @@ socialRoutes.get("/users/me/profile", requireAuth, async (c) => {
 // PATCH /users/me/profile (auth required)
 // ---------------------------------------------------------------------------
 socialRoutes.patch("/users/me/profile", requireAuth, async (c) => {
-	const currentUser = c.get("user")!;
+	const currentUser = requireUser(c);
 	await repo.ensureUser(getDb().db, {
 		id: currentUser.id,
 		email: currentUser.email ?? `${currentUser.id}@local.invalid`,
@@ -275,7 +275,7 @@ socialRoutes.patch("/users/me/profile", requireAuth, async (c) => {
 // ---------------------------------------------------------------------------
 socialRoutes.get("/users/me/activity", requireAuth, async (c) => {
 	const { limit, offset } = parsePagination(c);
-	const currentUser = c.get("user")!;
+	const currentUser = requireUser(c);
 	return c.json(
 		await listUserActivity({
 			userId: currentUser.id,
@@ -346,7 +346,7 @@ socialRoutes.get("/resources/:slug/stats", async (c) => {
 // ---------------------------------------------------------------------------
 socialRoutes.post("/resources/:slug/report", requireAuth, async (c) => {
 	const { slug } = c.req.param();
-	const currentUser = c.get("user")!;
+	const currentUser = requireUser(c);
 
 	const resource = await resolveResourceBySlug(slug);
 	if (!resource) {
