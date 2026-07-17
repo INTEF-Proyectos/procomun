@@ -1690,7 +1690,7 @@ tasks:
       unen con el formateo/estilo de main cuando el conflicto era solo estilo.
       Ficheros frontend del sistema bespoke (use-elpx-embed-relay, EmbedModal,
       elpx-embed-policy) permanecen eliminados (mod/delete a favor de la PR).
-      decision-log: unión de ADR-0029 (main) + ADR-0033/0032 (rama).
+      decision-log: unión de ADR-0029 (main) + ADR-0033/0034 (rama).
       En exelearning-editor.ts se restaura el catch-all de estáticos con bloqueo
       de preview-sw.js (se había perdido en un fix previo de escape de scripts).
 
