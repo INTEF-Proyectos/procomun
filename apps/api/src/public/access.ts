@@ -12,7 +12,7 @@ type SessionUser = { id: string; role?: string } | null;
 const HIGH_ROLES = new Set(["curator", "admin"]);
 
 export async function getSessionUser(
-	c: Context<AuthEnv>,
+	c: Context | Context<AuthEnv>,
 ): Promise<SessionUser> {
 	try {
 		const session = await auth.api.getSession({ headers: c.req.raw.headers });

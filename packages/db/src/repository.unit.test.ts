@@ -3,6 +3,7 @@ import { PGlite } from "@electric-sql/pglite";
 import { eq } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/pglite";
 import { ensureLegacyImportSystemUser } from "./legacy-import/system-user.ts";
+import type { DrizzleDB } from "./repository/shared.ts";
 import {
 	addResourceToCollection,
 	createCollection,
@@ -39,7 +40,7 @@ import * as schema from "./schema/index.ts";
 import { createTables } from "./setup.ts";
 
 describe("repository admin helpers", () => {
-	let db: ReturnType<typeof drizzle>;
+	let db: DrizzleDB;
 	let pglite: PGlite;
 
 	beforeEach(async () => {
@@ -210,7 +211,7 @@ describe("repository admin helpers", () => {
 });
 
 describe("repository elpx projects", () => {
-	let db: ReturnType<typeof drizzle>;
+	let db: DrizzleDB;
 	let pglite: PGlite;
 
 	let resourceId: string;
@@ -247,7 +248,7 @@ describe("repository elpx projects", () => {
 			extractPath: "/tmp/test",
 			originalFilename: "test.elpx",
 			hasPreview: true,
-			elpxMetadata: JSON.stringify({ title: "Test" }),
+			elpxMetadata: { title: "Test" },
 		});
 		expect(result.id).toBeTruthy();
 
@@ -269,7 +270,7 @@ describe("repository elpx projects", () => {
 });
 
 describe("repository collection-resources", () => {
-	let db: ReturnType<typeof drizzle>;
+	let db: DrizzleDB;
 	let pglite: PGlite;
 	let collectionId: string;
 	let resourceId: string;
@@ -323,8 +324,11 @@ describe("repository collection-resources", () => {
 
 		const items = await listCollectionResources(db, collectionId);
 		expect(items).toHaveLength(1);
-		expect(items[0].resourceId).toBe(resourceId);
-		expect(items[0].position).toBe(1);
+		const item = items[0];
+		expect(item).toBeDefined();
+		if (!item) throw new Error("expected collection item");
+		expect(item.resourceId).toBe(resourceId);
+		expect(item.position).toBe(1);
 
 		await removeResourceFromCollection(db, collectionId, resourceId);
 		const after = await listCollectionResources(db, collectionId);
@@ -335,7 +339,10 @@ describe("repository collection-resources", () => {
 		await addResourceToCollection(db, collectionId, resourceId);
 		const items = await listCollectionResources(db, collectionId);
 		expect(items).toHaveLength(1);
-		expect(items[0].position).toBe(0);
+		const item = items[0];
+		expect(item).toBeDefined();
+		if (!item) throw new Error("expected collection item");
+		expect(item.position).toBe(0);
 	});
 
 	test("reordena recursos intercambiando posiciones", async () => {
@@ -351,13 +358,18 @@ describe("repository collection-resources", () => {
 		expect(reordered).toBe(true);
 
 		const items = await listCollectionResources(db, collectionId);
-		expect(items[0].resourceId).toBe(secondResourceId);
-		expect(items[1].resourceId).toBe(resourceId);
+		const first = items[0];
+		const second = items[1];
+		expect(first).toBeDefined();
+		expect(second).toBeDefined();
+		if (!first || !second) throw new Error("expected reordered items");
+		expect(first.resourceId).toBe(secondResourceId);
+		expect(second.resourceId).toBe(resourceId);
 	});
 });
 
 describe("repository — gestión de usuarios (alta y baja)", () => {
-	let db: ReturnType<typeof drizzle>;
+	let db: DrizzleDB;
 	let pglite: PGlite;
 
 	beforeEach(async () => {
@@ -430,8 +442,11 @@ describe("repository — gestión de usuarios (alta y baja)", () => {
 			(a) => a.userId === created.id,
 		);
 		expect(accounts).toHaveLength(1);
-		expect(accounts[0].providerId).toBe("credential");
-		expect(accounts[0].password).toBe("salt:deadbeef");
+		const account = accounts[0];
+		expect(account).toBeDefined();
+		if (!account) throw new Error("expected credential account");
+		expect(account.providerId).toBe("credential");
+		expect(account.password).toBe("salt:deadbeef");
 	});
 
 	test("softDeleteUser elimina al usuario del listado y revoca sus sesiones", async () => {
@@ -473,7 +488,7 @@ describe("repository — gestión de usuarios (alta y baja)", () => {
 });
 
 describe("legacy import repository (epic-004-migracion-legacy-procomun)", () => {
-	let db: ReturnType<typeof drizzle>;
+	let db: DrizzleDB;
 	let pglite: PGlite;
 
 	const baseResourceInput = {
