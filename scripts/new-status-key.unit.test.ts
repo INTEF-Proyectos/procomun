@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { STATUS_TASK_KEY_RE, newStatusKey } from "./new-status-key.ts";
+import { newStatusKey, STATUS_TASK_KEY_RE } from "./new-status-key.ts";
 
 describe("newStatusKey", () => {
 	test("genera T-YYYY-MM-DD-HHMMSSrr en UTC", () => {
