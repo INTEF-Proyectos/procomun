@@ -13,3 +13,13 @@
  * sandbox; it is orthogonal to `allow-same-origin` and does not weaken isolation.
  */
 export const CONTENT_IFRAME_SANDBOX = "allow-scripts allow-popups allow-forms";
+
+/**
+ * Public "embed on your site" iframe snippet. Reuses the same sandbox token set as the
+ * in-platform preview so third-party hosts that paste the snippet get opaque isolation
+ * by default (no same-origin escape, no popup-to-escape).
+ */
+export function buildPublicEmbedIframeCode(title: string, src: string): string {
+	const safeTitle = title.replace(/"/g, "&quot;");
+	return `<iframe title="${safeTitle}" src="${src}" width="1100" height="540" frameborder="0" allowfullscreen sandbox="${CONTENT_IFRAME_SANDBOX}" referrerpolicy="no-referrer"></iframe>`;
+}

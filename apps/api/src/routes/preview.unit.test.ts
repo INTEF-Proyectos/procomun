@@ -257,6 +257,22 @@ describe("POST /api/v1/preview-session/:previewId/assets", () => {
 				})
 			).status,
 		).toBe(400);
+
+		// Negative / non-integer sizes must not under-report the declared budget.
+		for (const size of [-1, 1.5, Number.NaN, Number.POSITIVE_INFINITY]) {
+			const badSize = new FormData();
+			badSize.append("assets", JSON.stringify([{ key: KEY_A, size }]));
+			badSize.append("files", new Blob([bytesOf("x")]));
+			expect(
+				(
+					await ownerApp.request(
+						`/api/v1/preview-session/${previewId}/assets`,
+						{ method: "POST", body: badSize },
+					)
+				).status,
+				`size=${String(size)}`,
+			).toBe(400);
+		}
 	});
 
 	test("rejects the batch on the declared-size budget before buffering (413)", async () => {

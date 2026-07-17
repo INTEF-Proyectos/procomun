@@ -18,7 +18,10 @@ import { RatingIsland } from "../social/RatingIsland.tsx";
 import { ReportButton } from "../social/ReportButton.tsx";
 import "../../lib/paraglide-client.ts";
 import { configuredEmbedMode } from "../../lib/embed-mode.ts";
-import { CONTENT_IFRAME_SANDBOX } from "../../lib/embed-sandbox.ts";
+import {
+	buildPublicEmbedIframeCode,
+	CONTENT_IFRAME_SANDBOX,
+} from "../../lib/embed-sandbox.ts";
 import { hasMinRole } from "../../lib/shared-utils.ts";
 import * as m from "../../paraglide/messages.js";
 import { getLocale } from "../../paraglide/runtime.js";
@@ -85,14 +88,20 @@ function loadScriptOnce(src: string): Promise<void> {
 
 // El ORDEN importa: exe_media_host.js lee window.exeMediaPolicy en tiempo de
 // carga, así que la policy debe cargarse antes que el relay y el host. Se cachea
-// la promesa para que múltiples montajes reutilicen la misma carga.
+// la promesa para que múltiples montajes reutilicen la misma carga. Si la carga
+// falla, se limpia la promesa cacheada para que un remount pueda reintentar
+// (p. ej. tras un glitch de red o un 404 temporal del estático).
 function loadElpxBridge(): Promise<void> {
 	const w = window as unknown as ExeBridgeWindow;
 	if (!w.__exeBridgeLoader) {
 		const base = getBaseUrl();
 		w.__exeBridgeLoader = loadScriptOnce(`${base}elpx/exe_media_policy.js`)
 			.then(() => loadScriptOnce(`${base}elpx/exe_embed_relay.js`))
-			.then(() => loadScriptOnce(`${base}elpx/exe_media_host.js`));
+			.then(() => loadScriptOnce(`${base}elpx/exe_media_host.js`))
+			.catch((err: unknown) => {
+				w.__exeBridgeLoader = undefined;
+				throw err;
+			});
 	}
 	return w.__exeBridgeLoader;
 }
@@ -125,18 +134,16 @@ function ShareButton() {
 function EmbedSection({
 	title,
 	previewUrl,
-	slug,
 }: {
 	title: string;
 	previewUrl: string;
-	slug: string;
 }) {
 	const [copiedEmbed, setCopiedEmbed] = useState(false);
 	const fullUrl =
 		typeof window !== "undefined"
 			? new URL(previewUrl, window.location.origin).href
 			: previewUrl;
-	const iframeCode = `<iframe title="${title.replace(/"/g, "&quot;")}" src="${fullUrl}" width="1100" height="540" frameborder="0" allowfullscreen></iframe>`;
+	const iframeCode = buildPublicEmbedIframeCode(title, fullUrl);
 
 	function handleCopy() {
 		navigator.clipboard.writeText(iframeCode).then(() => {
@@ -578,11 +585,7 @@ function ResourceDetailContent({
 
 					{/* Embed / Ponlo en tu web */}
 					{hasPreview ? (
-						<EmbedSection
-							title={resource.title}
-							previewUrl={previewUrl}
-							slug={resource.slug}
-						/>
+						<EmbedSection title={resource.title} previewUrl={previewUrl} />
 					) : null}
 
 					{/* Description */}

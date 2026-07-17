@@ -39,7 +39,7 @@ describe("validatePreviewManagementRequest", () => {
 				secFetchSite: "same-origin",
 				frontendUrl: FRONTEND_URL,
 			}),
-		).toMatch(/same-origin frontend/);
+		).toMatch(/same-origin management origin/);
 	});
 
 	test("rejects foreign and sibling-subdomain origins", () => {
@@ -55,7 +55,7 @@ describe("validatePreviewManagementRequest", () => {
 					secFetchSite: "same-origin",
 					frontendUrl: FRONTEND_URL,
 				}),
-			).toMatch(/same-origin frontend/);
+			).toMatch(/same-origin management origin/);
 		}
 	});
 
@@ -90,7 +90,7 @@ describe("validatePreviewManagementRequest", () => {
 		).toBeNull();
 	});
 
-	test("fails closed when FRONTEND_URL is invalid", () => {
+	test("fails closed when the management origin URL is invalid", () => {
 		expect(
 			validatePreviewManagementRequest({
 				method: "POST",
@@ -98,7 +98,7 @@ describe("validatePreviewManagementRequest", () => {
 				origin: FRONTEND_URL,
 				frontendUrl: "not a URL",
 			}),
-		).toMatch(/FRONTEND_URL is invalid/);
+		).toMatch(/management origin is invalid/);
 	});
 });
 
@@ -137,7 +137,8 @@ describe("registerGlobalMiddleware", () => {
 		expect(response.status).toBe(403);
 		expect(await response.json()).toEqual({
 			success: false,
-			error: "Preview management requires the configured same-origin frontend",
+			error:
+				"Preview management requires the configured same-origin management origin",
 		});
 	});
 

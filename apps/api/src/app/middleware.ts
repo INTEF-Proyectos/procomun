@@ -73,11 +73,13 @@ export function validatePreviewManagementRequest({
 	try {
 		expectedOrigin = new URL(managementUrl ?? frontendUrl ?? "").origin;
 	} catch {
-		return "Preview management is unavailable because FRONTEND_URL is invalid";
+		// managementUrl is PREVIEW_MANAGEMENT_ORIGIN / BETTER_AUTH_URL in production;
+		// frontendUrl is only a legacy test alias. Message names the real boundary.
+		return "Preview management is unavailable because the management origin is invalid";
 	}
 
 	if (!origin || origin !== expectedOrigin) {
-		return "Preview management requires the configured same-origin frontend";
+		return "Preview management requires the configured same-origin management origin";
 	}
 	if (secFetchSite && secFetchSite !== "same-origin") {
 		return "Preview management requires Sec-Fetch-Site: same-origin";

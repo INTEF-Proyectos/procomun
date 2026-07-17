@@ -1,5 +1,8 @@
 import { describe, expect, test } from "bun:test";
-import { CONTENT_IFRAME_SANDBOX } from "./embed-sandbox.ts";
+import {
+	buildPublicEmbedIframeCode,
+	CONTENT_IFRAME_SANDBOX,
+} from "./embed-sandbox.ts";
 
 describe("CONTENT_IFRAME_SANDBOX", () => {
 	const tokens = CONTENT_IFRAME_SANDBOX.split(" ").filter(Boolean);
@@ -23,5 +26,20 @@ describe("CONTENT_IFRAME_SANDBOX", () => {
 			"allow-popups",
 			"allow-scripts",
 		]);
+	});
+});
+
+describe("buildPublicEmbedIframeCode", () => {
+	test("escapes title quotes and ships the secure sandbox + referrer policy", () => {
+		const code = buildPublicEmbedIframeCode(
+			'Recurso "demo"',
+			"https://example.org/preview",
+		);
+		expect(code).toContain('title="Recurso &quot;demo&quot;"');
+		expect(code).toContain('src="https://example.org/preview"');
+		expect(code).toContain(`sandbox="${CONTENT_IFRAME_SANDBOX}"`);
+		expect(code).toContain('referrerpolicy="no-referrer"');
+		expect(code).not.toContain("allow-same-origin");
+		expect(code).not.toContain("allow-popups-to-escape-sandbox");
 	});
 });

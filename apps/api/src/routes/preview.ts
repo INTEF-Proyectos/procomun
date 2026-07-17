@@ -174,11 +174,20 @@ export function ifNoneMatchMatches(
 }
 
 /**
- * Copia el buffer a un `Uint8Array` con ArrayBuffer propio para que
- * `Response` / `BodyInit` lo acepten (TS 5.7+ tipa `Uint8Array` genérico
- * con `ArrayBufferLike`, incompatible con `BodyInit`).
+ * Adapta un `Uint8Array` a `BodyInit` (TS 5.7+ tipa `Uint8Array` genérico con
+ * `ArrayBufferLike`, incompatible con `Response`). Reutiliza el buffer cuando
+ * ya es un `ArrayBuffer` completo; copia solo vistas parciales (p. ej. Range).
  */
 function bodyFromBytes(bytes: Uint8Array): Uint8Array<ArrayBuffer> {
+	// Avoid copying large session assets on every full response when the view
+	// already owns a complete ArrayBuffer (TS 5.7+ BodyInit needs ArrayBuffer).
+	if (
+		bytes.buffer instanceof ArrayBuffer &&
+		bytes.byteOffset === 0 &&
+		bytes.byteLength === bytes.buffer.byteLength
+	) {
+		return bytes as Uint8Array<ArrayBuffer>;
+	}
 	const copy = new Uint8Array(bytes.byteLength);
 	copy.set(bytes);
 	return copy;
@@ -404,13 +413,16 @@ previewSessionRoutes.post("/:previewId/assets", async (c) => {
 	const parsed = parseJsonField(form.get("assets"));
 	if (!parsed.ok) return c.json({ error: "assets JSON no válido" }, 400);
 	const entries = parsed.value;
+	// size must be a non-negative integer: negatives could under-report the
+	// declared batch budget; non-integers never match a byte length.
 	if (
 		!Array.isArray(entries) ||
 		entries.some(
 			(e) =>
 				typeof e?.key !== "string" ||
 				typeof e?.size !== "number" ||
-				!Number.isFinite(e.size),
+				!Number.isInteger(e.size) ||
+				e.size < 0,
 		)
 	) {
 		return c.json(
