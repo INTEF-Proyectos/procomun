@@ -92,7 +92,11 @@ exelearningEditorRoutes.get("/index.html", async (c) => {
 
 	// Inject Procomun embedding config before </head> (like editor-bootstrap.php).
 	// Values are encoded with toInlineScriptJson to prevent reflected XSS.
-	const configScript = buildEditorConfigScript(elpxUrl, resourceId, editorBaseUrl);
+	const configScript = buildEditorConfigScript(
+		elpxUrl,
+		resourceId,
+		editorBaseUrl,
+	);
 
 	html = html.replace("</head>", `${configScript}\n</head>`);
 
