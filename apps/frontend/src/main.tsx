@@ -12,7 +12,14 @@ import { installExtensionErrorSuppressor } from "./lib/suppress-extension-errors
 
 installExtensionErrorSuppressor();
 
-createRoot(document.getElementById("root")!).render(
+const rootElement = document.getElementById("root");
+if (!rootElement) {
+	throw new Error(
+		"No se encontró el elemento #root donde montar la aplicación",
+	);
+}
+
+createRoot(rootElement).render(
 	<StrictMode>
 		<BrowserRouter>
 			<App />

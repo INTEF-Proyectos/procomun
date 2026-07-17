@@ -145,8 +145,10 @@ describe("repository admin helpers", () => {
 		expect(updated?.coverImageUrl).toBe("https://img.example/algebra-2.png");
 		expect(updated?.editorialStatus).toBe("published");
 		expect(updated?.isOrdered).toBe(true);
+		expect(updated).not.toBeNull();
+		if (!updated) return; // la aserción previa ya ha fallado el test; solo estrecha el tipo
 
-		const bySlug = await getCollectionBySlug(db, updated!.slug, {
+		const bySlug = await getCollectionBySlug(db, updated.slug, {
 			status: "published",
 		});
 		expect(bySlug?.id).toBe(first.id);
@@ -251,12 +253,12 @@ describe("repository elpx projects", () => {
 
 		const byResource = await getElpxProjectByResourceId(db, resourceId);
 		expect(byResource).not.toBeNull();
-		expect(byResource!.hash).toBe("abc123");
-		expect(byResource!.originalFilename).toBe("test.elpx");
+		expect(byResource?.hash).toBe("abc123");
+		expect(byResource?.originalFilename).toBe("test.elpx");
 
 		const byHash = await getElpxProjectByHash(db, "abc123");
 		expect(byHash).not.toBeNull();
-		expect(byHash!.resourceId).toBe(resourceId);
+		expect(byHash?.resourceId).toBe(resourceId);
 
 		const notFound = await getElpxProjectByHash(db, "nonexistent");
 		expect(notFound).toBeNull();
@@ -416,6 +418,8 @@ describe("repository — gestión de usuarios (alta y baja)", () => {
 		expect(created?.email).toBe("nuevo@example.com");
 		expect(created?.role).toBe("editor");
 		expect(created?.id).toBeTruthy();
+		expect(created).not.toBeNull();
+		if (!created) return; // la aserción previa ya ha fallado el test; solo estrecha el tipo
 
 		// Aparece en el listado de administración
 		const list = await listUsers(db, {});
@@ -423,7 +427,7 @@ describe("repository — gestión de usuarios (alta y baja)", () => {
 
 		// Se guarda una cuenta "credential" con el hash de contraseña
 		const accounts = (await db.select().from(schema.account)).filter(
-			(a) => a.userId === created!.id,
+			(a) => a.userId === created.id,
 		);
 		expect(accounts).toHaveLength(1);
 		expect(accounts[0].providerId).toBe("credential");
@@ -636,19 +640,21 @@ describe("legacy import repository (epic-004-migracion-legacy-procomun)", () => 
 	test("ensureLegacyImportSystemUser puede usarse como ownerId real de upload_sessions", async () => {
 		const systemUser = await ensureLegacyImportSystemUser(db);
 		expect(systemUser?.id).toBeTruthy();
+		expect(systemUser).not.toBeNull();
+		if (!systemUser) return; // la aserción previa ya ha fallado el test; solo estrecha el tipo
 
 		const uploadId = crypto.randomUUID();
 		const result = await importLegacyResourceWithElpx(db, {
 			resource: { ...baseResourceInput, externalId: "es_test_system_user" },
 			elpx: { ...elpxInput, hash: "hash-legacy-test-system-user" },
-			media: { ...buildMediaInput(uploadId), ownerId: systemUser!.id },
+			media: { ...buildMediaInput(uploadId), ownerId: systemUser.id },
 		});
 
 		const sessions = await db
 			.select()
 			.from(schema.uploadSessions)
 			.where(eq(schema.uploadSessions.resourceId, result.resourceId));
-		expect(sessions[0]?.ownerId).toBe(systemUser!.id);
+		expect(sessions[0]?.ownerId).toBe(systemUser.id);
 		expect(sessions[0]?.status).toBe("completed");
 	});
 
@@ -669,7 +675,7 @@ describe("legacy import repository (epic-004-migracion-legacy-procomun)", () => 
 			.from(schema.resources)
 			.where(eq(schema.resources.id, result.resourceId));
 		expect(resourceRow?.createdAt).not.toBeNull();
-		expect(resourceRow!.createdAt.getTime()).toBeGreaterThanOrEqual(
+		expect(resourceRow?.createdAt.getTime()).toBeGreaterThanOrEqual(
 			before.getTime(),
 		);
 	});

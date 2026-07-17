@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, mock, test } from "bun:test";
+import type { ApiClient } from "./api-client.ts";
 
-type Listener = (event?: any) => any;
+type Listener = (event?: unknown) => unknown;
 
 class FakeElement {
 	innerHTML = "";
@@ -8,6 +9,7 @@ class FakeElement {
 	className = "";
 	value = "";
 	files: File[] | null = null;
+	attributes = new Map<string, string>();
 	listeners = new Map<string, Listener[]>();
 	classList = {
 		add: (...names: string[]) => {
@@ -28,22 +30,22 @@ class FakeElement {
 		this.listeners.set(type, current);
 	}
 
-	async dispatch(type: string, event: any = {}) {
+	async dispatch(type: string, event: unknown = {}) {
 		for (const listener of this.listeners.get(type) ?? []) {
 			await listener(event);
 		}
 	}
 
-	querySelector() {
+	querySelector(_selector: string): FakeElement | null {
 		return null;
 	}
 
-	getAttribute(name: string) {
-		return (this as any)[`attr:${name}`] ?? null;
+	getAttribute(name: string): string | null {
+		return this.attributes.get(name) ?? null;
 	}
 
 	setAttribute(name: string, value: string) {
-		(this as any)[`attr:${name}`] = value;
+		this.attributes.set(name, value);
 	}
 }
 
@@ -66,18 +68,40 @@ class FakeWindow {
 		this.listeners.set(type, current);
 	}
 
-	async dispatch(type: string, event: any = {}) {
+	async dispatch(type: string, event: unknown = {}) {
 		for (const listener of this.listeners.get(type) ?? []) {
 			await listener(event);
 		}
 	}
 }
 
+/** Minimal view of the global object for swapping in a fake `window`. */
+const globalWithWindow = globalThis as unknown as { window?: FakeWindow };
+
+/** Shape the uploader passes to `uppy.addFile()`. */
+type FakeUppyFileInput = {
+	name: string;
+	type?: string;
+	data?: Blob;
+	meta?: Record<string, unknown>;
+};
+
+/** Shape FakeUppy keeps for each queued file. */
+type FakeUppyFile = {
+	id: string;
+	name: string;
+	size: number;
+	progress: { percentage: number; uploadComplete: boolean };
+	response: { uploadURL: string };
+};
+
+type UppyListener = (...args: unknown[]) => unknown;
+
 let lastUppy: FakeUppy | null = null;
 
 class FakeUppy {
-	files: any[] = [];
-	listeners = new Map<string, Listener[]>();
+	files: FakeUppyFile[] = [];
+	listeners = new Map<string, UppyListener[]>();
 	pluginOptions: unknown[] = [];
 	destroyed = false;
 
@@ -90,8 +114,8 @@ class FakeUppy {
 		return this;
 	}
 
-	addFile(file: any) {
-		const entry = {
+	addFile(file: FakeUppyFileInput) {
+		const entry: FakeUppyFile = {
 			id: `file-${this.files.length + 1}`,
 			name: file.name,
 			size: file.data?.size ?? 0,
@@ -112,13 +136,13 @@ class FakeUppy {
 		return this.files;
 	}
 
-	on(event: string, listener: Listener) {
+	on(event: string, listener: UppyListener) {
 		const current = this.listeners.get(event) ?? [];
 		current.push(listener);
 		this.listeners.set(event, current);
 	}
 
-	async emit(event: string, ...args: any[]) {
+	async emit(event: string, ...args: unknown[]) {
 		for (const listener of this.listeners.get(event) ?? []) {
 			await listener(...args);
 		}
@@ -134,16 +158,26 @@ mock.module("@uppy/tus", () => ({ default: class FakeTus {} }));
 
 const uploaderModule = import("./resource-uploader.ts");
 
+/** Fails loudly instead of silently skipping assertions when Uppy was never built. */
+function requireLastUppy(): FakeUppy {
+	if (lastUppy === null) {
+		throw new Error("Se esperaba que el uploader instanciara Uppy");
+	}
+	return lastUppy;
+}
+
 describe("resource uploader init", () => {
-	const originalWindow = (globalThis as any).window;
+	const originalWindow = globalWithWindow.window;
+	let fakeWindow: FakeWindow;
 
 	beforeEach(() => {
 		lastUppy = null;
-		(globalThis as any).window = new FakeWindow();
+		fakeWindow = new FakeWindow();
+		globalWithWindow.window = fakeWindow;
 	});
 
 	afterEach(() => {
-		(globalThis as any).window = originalWindow;
+		globalWithWindow.window = originalWindow;
 	});
 
 	test("devuelve null si faltan nodos requeridos", async () => {
@@ -159,11 +193,12 @@ describe("resource uploader init", () => {
 				allowedExtensions: [".pdf"],
 				storageDir: "/tmp/uploads",
 			}),
-		} as any;
+			// Partial mock: only the calls this test path exercises.
+		} as unknown as ApiClient;
 
 		const result = await initResourceUploader({
 			resourceId: "res-1",
-			root: new FakeRoot({}),
+			root: new FakeRoot({}) as unknown as HTMLElement,
 			api,
 		});
 
@@ -177,7 +212,7 @@ describe("resource uploader init", () => {
 		const queue = new FakeElement();
 		const mediaList = new FakeElement();
 		const persistedList = new FakeElement();
-		const globalProgress = new FakeElement() as any;
+		const globalProgress = new FakeElement();
 		const globalLabel = new FakeElement();
 		const feedback = new FakeElement();
 		const cancelCalls: string[] = [];
@@ -222,7 +257,8 @@ describe("resource uploader init", () => {
 				uploads = [];
 				return { id, cancelled: true };
 			},
-		} as any;
+			// Partial mock: only the calls this test path exercises.
+		} as unknown as ApiClient;
 
 		const uploader = await initResourceUploader({
 			resourceId: "res-1",
@@ -235,12 +271,13 @@ describe("resource uploader init", () => {
 				"[data-global-progress]": globalProgress,
 				"[data-global-progress-label]": globalLabel,
 				"[data-upload-feedback]": feedback,
-			}) as any,
+			}) as unknown as HTMLElement,
 			api,
 		});
 
 		expect(uploader).not.toBeNull();
 		expect(lastUppy).not.toBeNull();
+		const uppy = requireLastUppy();
 		expect(persistedList.innerHTML).toContain("guia.pdf");
 		expect(mediaList.innerHTML).toContain("/api/v1/uploads/upload-1/content");
 		expect(queue.innerHTML).toContain("No hay archivos en cola.");
@@ -258,10 +295,7 @@ describe("resource uploader init", () => {
 			},
 			returnValue: undefined as string | undefined,
 		};
-		await ((globalThis as any).window as FakeWindow).dispatch(
-			"beforeunload",
-			beforeUnloadWhileActive,
-		);
+		await fakeWindow.dispatch("beforeunload", beforeUnloadWhileActive);
 		expect(beforeUnloadWhileActive.defaultPrevented).toBe(true);
 		expect(beforeUnloadWhileActive.returnValue).toBe("");
 
@@ -291,11 +325,11 @@ describe("resource uploader init", () => {
 		});
 		expect(cancelCalls).toEqual(["upload-1", "upload-1"]);
 
-		await lastUppy!.emit("upload-success");
+		await uppy.emit("upload-success");
 		expect(feedback.textContent).toBe("Archivo subido correctamente.");
 		expect(feedback.className).toBe("upload-feedback success");
 
-		await lastUppy!.emit("upload-error", null, new Error("fallo upload"));
+		await uppy.emit("upload-error", null, new Error("fallo upload"));
 		expect(feedback.textContent).toBe("fallo upload");
 		expect(feedback.className).toBe("upload-feedback error");
 
@@ -306,14 +340,11 @@ describe("resource uploader init", () => {
 			},
 			returnValue: undefined as string | undefined,
 		};
-		await ((globalThis as any).window as FakeWindow).dispatch(
-			"beforeunload",
-			beforeUnloadEvent,
-		);
+		await fakeWindow.dispatch("beforeunload", beforeUnloadEvent);
 		expect(beforeUnloadEvent.defaultPrevented).toBe(false);
 		expect(beforeUnloadEvent.returnValue).toBeUndefined();
 
-		uploader!.destroy();
-		expect(lastUppy!.destroyed).toBe(true);
+		uploader?.destroy();
+		expect(uppy.destroyed).toBe(true);
 	});
 });

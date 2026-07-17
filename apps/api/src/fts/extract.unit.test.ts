@@ -37,6 +37,36 @@ describe("Extract module — unit helpers", () => {
 		expect(normalizeText("   \n\n   ")).toBe("");
 	});
 
+	test("normalizeText collapses runs of spaces into a single one", () => {
+		expect(normalizeText("a   b")).toBe("a b");
+	});
+
+	test("normalizeText turns tabs into a single space", () => {
+		expect(normalizeText("a\t\t\tb")).toBe("a b");
+	});
+
+	test("normalizeText collapses mixed runs of spaces and tabs", () => {
+		expect(normalizeText("a \t \t b")).toBe("a b");
+	});
+
+	test("normalizeText keeps two blank lines but collapses longer runs", () => {
+		// Two newlines are a paragraph break and survive; anything beyond is noise.
+		expect(normalizeText("a\n\nb")).toBe("a\n\nb");
+		expect(normalizeText("a\n\n\nb")).toBe("a\n\nb");
+		expect(normalizeText("a\n\n\n\n\n\nb")).toBe("a\n\nb");
+	});
+
+	test("normalizeText trims leading and trailing whitespace", () => {
+		expect(normalizeText("   a   ")).toBe("a");
+		expect(normalizeText("\n\n  a\t\t")).toBe("a");
+	});
+
+	test("normalizeText drops control characters but keeps tab, LF and CR", () => {
+		// NUL, SOH and DEL are stripped outright; \t is still compacted to a space.
+		expect(normalizeText("a\u0000\u0001b\u007fc")).toBe("abc");
+		expect(normalizeText("a\tb\nc\rd")).toBe("a b\nc\rd");
+	});
+
 	test("normalizeText preserves CR between content tokens", () => {
 		// \r is kept (not a control drop) and is not compacted like spaces/tabs.
 		expect(normalizeText("a\rb\r\nc")).toBe("a\rb\r\nc");

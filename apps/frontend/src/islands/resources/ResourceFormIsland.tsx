@@ -175,8 +175,11 @@ export function ResourceFormIsland({
 				return;
 			}
 
+			// En modo edición siempre hay resourceId, pero TypeScript no puede
+			// correlacionarlo con `mode`.
+			if (!resourceId) return;
 			const result = await api.updateResource(
-				resourceId!,
+				resourceId,
 				toPayload(form) as UpdateResourceInput,
 			);
 			if (!result.ok) {
