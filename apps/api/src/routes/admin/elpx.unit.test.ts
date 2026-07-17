@@ -134,6 +134,29 @@ describe("POST /api/admin/elpx/analyze — seguridad (path traversal, issue #249
 			if (existsSync(sentinelPath)) unlinkSync(sentinelPath);
 		}
 	});
+
+	test("devuelve solo el basename del filename (no refleja path traversal)", async () => {
+		const fixture = path.join(FIXTURES_DIR, "really-simple-test-project.elpx");
+		const buf = readFileSync(fixture);
+		const form = new FormData();
+		form.append(
+			"file",
+			new File([buf], "../../evil/really-simple-test-project.elpx", {
+				type: "application/zip",
+			}),
+		);
+
+		const res = await app.request("/api/admin/elpx/analyze", {
+			method: "POST",
+			body: form,
+		});
+
+		expect(res.status).toBe(200);
+		const body = await res.json();
+		expect(body.filename).toBe("really-simple-test-project.elpx");
+		expect(body.filename).not.toContain("..");
+		expect(body.filename).not.toContain("/");
+	});
 });
 
 describe("POST /api/admin/elpx/analyze — sin auth", () => {

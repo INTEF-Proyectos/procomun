@@ -20,7 +20,8 @@ import {
 } from "../../uploads/config.ts";
 
 function isElpxFile(name: string): boolean {
-	const ext = path.extname(name).toLowerCase();
+	// Solo el basename: un file.name con segmentos path no debe influir en la extensión.
+	const ext = path.extname(path.basename(name)).toLowerCase();
 	return ext === ".elpx" || ext === ".elp";
 }
 
@@ -40,6 +41,8 @@ elpxAdminRoutes.post("/analyze", requireRole("author"), async (c) => {
 
 	// No derivar la ruta temporal de file.name (path traversal, issue #249).
 	// Se genera un nombre único en servidor; la extensión .elpx ya quedó validada arriba.
+	// El nombre original se devuelve solo como basename (sin segmentos de ruta).
+	const safeFilename = path.basename(file.name);
 	const tempPath = path.join(
 		tmpdir(),
 		`procomun-elpx-${crypto.randomUUID()}.elpx`,
@@ -49,7 +52,7 @@ elpxAdminRoutes.post("/analyze", requireRole("author"), async (c) => {
 		await writeFile(tempPath, Buffer.from(buffer));
 
 		const metadata = await parseElpxMetadata(tempPath);
-		return c.json({ ok: true, metadata, filename: file.name });
+		return c.json({ ok: true, metadata, filename: safeFilename });
 	} catch (err: unknown) {
 		const message =
 			err instanceof Error ? err.message : "Error al analizar el archivo";
