@@ -18,7 +18,15 @@
  * ratchet: solo gira en un sentido.
  */
 
-export const TYPE_ERROR_BASELINE = 617;
+// 612, medido en CI. OJO si lo tocas: en un árbol de desarrollo con
+// `apps/frontend/src/paraglide` ya generado, tsc da 596. Los 16 de diferencia
+// son errores de "módulo no encontrado" de ese directorio, que es generado y no
+// está versionado, y CI no lo genera antes de tipar (el Type Check va antes de
+// cualquier build). Comprobado: apartando paraglide en local salen exactamente
+// los 612 de CI. Es decir, esta línea base incluye ~16 errores que no existen en
+// un árbol bien montado; generar paraglide en CI antes del Type Check los
+// eliminaría y permitiría bajarla a 596.
+export const TYPE_ERROR_BASELINE = 612;
 
 /** Cuenta los diagnósticos de tsc en su salida. */
 export function countTypeErrors(output: string): number {
