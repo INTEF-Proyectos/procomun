@@ -367,7 +367,11 @@ export function PublicDashboardIsland() {
 				setDashboard({
 					user: {
 						id: user.id,
-						name: profile?.name || user.name || user.email.split("@")[0],
+						name:
+							profile?.name ||
+							user.name ||
+							user.email.split("@")[0] ||
+							user.email,
 						avatarUrl: null,
 						bio: profile?.bio ?? null,
 						role: user.role,

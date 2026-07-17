@@ -55,6 +55,7 @@ export function Tabs({
 		if (nextIndex !== null) {
 			e.preventDefault();
 			const nextTab = tabs[nextIndex];
+			if (!nextTab) return;
 			selectTab(nextTab.id);
 			tabRefs.current.get(nextTab.id)?.focus();
 		}

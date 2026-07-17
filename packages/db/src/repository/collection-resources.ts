@@ -110,6 +110,7 @@ export async function reorderCollectionResource(
 
 	const current = items[currentIndex];
 	const swap = items[swapIndex];
+	if (!current || !swap) return false;
 
 	await db
 		.update(collectionResources)

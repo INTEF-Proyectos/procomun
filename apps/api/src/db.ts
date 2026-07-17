@@ -28,22 +28,38 @@ if (envFile === rootEnv || (await envFile.exists())) {
 	}
 }
 
+import type { DrizzleDB } from "@procomun/db/repository";
 import * as pgSchema from "@procomun/db/schema";
 
-let _db: ReturnType<typeof createDb> | null = null;
+type AppDb = {
+	db: DrizzleDB;
+	provider: "pg";
+};
+
+let _db: AppDb | null = null;
 let _initPromise: Promise<void> | null = null;
 
-function createDb() {
+function createDb(): AppDb {
 	if (process.env.DATABASE_URL) {
-		const { drizzle } = require("drizzle-orm/bun-sql");
+		const { drizzle } = require("drizzle-orm/bun-sql") as {
+			drizzle: (url: string, opts: { schema: typeof pgSchema }) => DrizzleDB;
+		};
 		return {
 			db: drizzle(process.env.DATABASE_URL, { schema: pgSchema }),
-			provider: "pg" as const,
+			provider: "pg",
 		};
 	}
 
-	const { PGlite } = require("@electric-sql/pglite");
-	const { drizzle } = require("drizzle-orm/pglite");
+	const { PGlite } = require("@electric-sql/pglite") as {
+		PGlite: new (
+			dataDir: string,
+		) => {
+			exec: (sql: string) => Promise<unknown>;
+		};
+	};
+	const { drizzle } = require("drizzle-orm/pglite") as {
+		drizzle: (client: unknown, opts: { schema: typeof pgSchema }) => DrizzleDB;
+	};
 	const dataDir =
 		process.env.PGLITE_DIR ?? `${import.meta.dir}/../../../local-data`;
 	const pglite = new PGlite(dataDir);
@@ -64,10 +80,10 @@ function createDb() {
 		await createTables(pglite);
 	})();
 
-	return { db: drizzle(pglite, { schema: pgSchema }), provider: "pg" as const };
+	return { db: drizzle(pglite, { schema: pgSchema }), provider: "pg" };
 }
 
-export function getDb() {
+export function getDb(): AppDb {
 	if (!_db) _db = createDb();
 	return _db;
 }

@@ -1,5 +1,5 @@
 export { collectionResourceCountSql } from "./shared/collections.ts";
-export type { DrizzleDB } from "./shared/db.ts";
+export type { AppSchema, DrizzleDB, DrizzleTX } from "./shared/db.ts";
 export {
 	buildSearchTerm,
 	normalizePagination,

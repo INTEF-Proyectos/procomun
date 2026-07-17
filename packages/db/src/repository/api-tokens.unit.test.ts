@@ -15,10 +15,11 @@ import {
 	revokeApiTokenAdmin,
 	validateApiToken,
 } from "./api-tokens.ts";
+import type { DrizzleDB } from "./shared.ts";
 import { ensureUser } from "./users.ts";
 
 describe("api-tokens repository", () => {
-	let db: ReturnType<typeof drizzle>;
+	let db: DrizzleDB;
 	let pglite: PGlite;
 
 	beforeEach(async () => {
@@ -64,9 +65,12 @@ describe("api-tokens repository", () => {
 
 		const tokens = await listApiTokens(db, "user-1");
 		expect(tokens.length).toBe(2);
-		expect(tokens[0].name).toBeDefined();
-		expect(tokens[0].tokenPrefix).toBeDefined();
-		expect(tokens[0].requestCount).toBe(0);
+		const token = tokens[0];
+		expect(token).toBeDefined();
+		if (!token) throw new Error("expected api token");
+		expect(token.name).toBeDefined();
+		expect(token.tokenPrefix).toBeDefined();
+		expect(token.requestCount).toBe(0);
 	});
 
 	test("validateApiToken succeeds with valid token", async () => {
@@ -132,7 +136,10 @@ describe("api-tokens repository", () => {
 
 		const tokens = await listApiTokens(db, "user-1");
 		expect(tokens.length).toBe(1);
-		expect(tokens[0].name).toBe("Mine");
+		const mine = tokens[0];
+		expect(mine).toBeDefined();
+		if (!mine) throw new Error("expected user token");
+		expect(mine.name).toBe("Mine");
 	});
 
 	test("listAllApiTokens supports admin filtering", async () => {
@@ -162,17 +169,26 @@ describe("api-tokens repository", () => {
 		// Filter by user
 		const byUser = await listAllApiTokens(db, { userId: "user-2" });
 		expect(byUser.length).toBe(1);
-		expect(byUser[0].id).toBe(token2.id);
+		const byUserRow = byUser[0];
+		expect(byUserRow).toBeDefined();
+		if (!byUserRow) throw new Error("expected token filtered by user");
+		expect(byUserRow.id).toBe(token2.id);
 
 		// Filter by active
 		const active = await listAllApiTokens(db, { status: "active" });
 		expect(active.length).toBe(1);
-		expect(active[0].id).toBe(token2.id);
+		const activeRow = active[0];
+		expect(activeRow).toBeDefined();
+		if (!activeRow) throw new Error("expected active token");
+		expect(activeRow.id).toBe(token2.id);
 
 		// Filter by revoked
 		const revoked = await listAllApiTokens(db, { status: "revoked" });
 		expect(revoked.length).toBe(1);
-		expect(revoked[0].id).toBe(token1.id);
+		const revokedRow = revoked[0];
+		expect(revokedRow).toBeDefined();
+		if (!revokedRow) throw new Error("expected revoked token");
+		expect(revokedRow.id).toBe(token1.id);
 	});
 
 	test("revokeApiTokenAdmin revokes any user's token", async () => {

@@ -1,5 +1,6 @@
 import { faker } from "@faker-js/faker/locale/es";
 import { inArray, sql } from "drizzle-orm";
+import type { DrizzleDB } from "./repository/shared.ts";
 import { user } from "./schema/auth.ts";
 import { elpxProjects } from "./schema/elpx.ts";
 import {
@@ -66,8 +67,7 @@ export interface ElpxSeedConfig {
 }
 
 export async function seedRandomResources(
-	// biome-ignore lint/suspicious/noExplicitAny: tipo genérico de la base drizzle, ver Lote 1 de ADR-0030
-	db: any,
+	db: DrizzleDB,
 	count: number,
 	options: { clean?: boolean; elpx?: ElpxSeedConfig } = {},
 ) {

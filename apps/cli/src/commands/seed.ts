@@ -14,8 +14,13 @@ import { hashPassword } from "better-auth/crypto";
 
 type SeedLog = Pick<typeof console, "log">;
 type SeedQueryResult = { rows?: unknown[] } | unknown[];
+/** Parámetros SQL admitidos por el seeder (postgres/PGlite). */
+type SeedSqlParam = string | number | boolean | null;
 type SeedClient = {
-	query: (statement: string, params?: unknown[]) => Promise<SeedQueryResult>;
+	query: (
+		statement: string,
+		params?: SeedSqlParam[],
+	) => Promise<SeedQueryResult>;
 	close: () => Promise<void>;
 };
 
@@ -355,9 +360,11 @@ export async function seedWithClient(
 			);
 
 			for (let i = 0; i < col.resourceIds.length; i++) {
+				const resourceId = col.resourceIds[i];
+				if (!resourceId) continue;
 				await client.query(
 					`INSERT INTO "collection_resources" (collection_id, resource_id, position) VALUES ($1, $2, $3)`,
-					[col.id, col.resourceIds[i], i],
+					[col.id, resourceId, i],
 				);
 			}
 
@@ -403,7 +410,7 @@ export async function seedWithClient(
 			for (let i = 0; i < count; i += batchSize) {
 				const batch = Math.min(batchSize, count - i);
 				const values: string[] = [];
-				const params: unknown[] = [];
+				const params: SeedSqlParam[] = [];
 				let paramIdx = 1;
 
 				for (let j = 0; j < batch; j++) {
@@ -413,10 +420,12 @@ export async function seedWithClient(
 						Date.now() - daysAgo * 86400000,
 					).toISOString();
 					// 70% anonymous, 30% authenticated
+					const pickedUser =
+						userIds.length > 0
+							? userIds[Math.floor(Math.random() * userIds.length)]
+							: undefined;
 					const userId =
-						Math.random() > 0.3
-							? null
-							: userIds[Math.floor(Math.random() * userIds.length)];
+						Math.random() > 0.3 || pickedUser === undefined ? null : pickedUser;
 
 					values.push(
 						`($${paramIdx}, $${paramIdx + 1}, $${paramIdx + 2}, $${paramIdx + 3})`,
