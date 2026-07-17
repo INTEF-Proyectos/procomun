@@ -325,7 +325,15 @@ async function extractFileEntry(
 	maxBytes: number,
 ): Promise<void> {
 	const compressed = entryCompressedBytes(buf, entry);
-	let stream: ReadableStream<Uint8Array> = new Blob([compressed]).stream();
+	// Se copia a un Uint8Array respaldado por un ArrayBuffer propio: los tipos de
+	// BlobPart y de DecompressionStream exigen Uint8Array<ArrayBuffer>, y lo que
+	// devuelve entryCompressedBytes es Uint8Array<ArrayBufferLike> (puede venir de
+	// un SharedArrayBuffer). La copia hace explícito el requisito en vez de
+	// afirmarlo con un cast.
+	const compressedBytes = new Uint8Array(compressed);
+	let stream: ReadableStream<Uint8Array<ArrayBuffer>> = new Blob([
+		compressedBytes,
+	]).stream() as ReadableStream<Uint8Array<ArrayBuffer>>;
 	if (entry.compressionMethod === ZIP_METHOD_DEFLATE) {
 		stream = stream.pipeThrough(new DecompressionStream("deflate-raw"));
 	}
