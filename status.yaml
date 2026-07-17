@@ -1647,3 +1647,31 @@ tasks:
       Validación: biome lint 0 errores; format exit 0; bun run test 793 pass / 0 fail con
       coverage 90,75%; build del frontend OK; design:lint y check-test-files OK; embed-shim.js y
       los dos HTML públicos parsean sin errores.
+
+  T-2026-07-17-001:
+    date: 2026-07-17
+    agent: "devops-sre + qa-validacion + documentacion-y-roadmap"
+    task: "Cierre de review de la PR #272: ignore de tooling local, tests de borde de normalizeText, conteo real de biome-ignore y gate documentado"
+    status: Done
+    related: ["ADR-0030", "T-2026-07-16-002", "T-2026-07-16-010"]
+    notes: >
+      Follow-up de la review de fix/quality-gates-biome (PR #272).
+      1) .gitignore y biome.json (files.includes con !!) ignoran tooling local de agentes
+      (.claude/, .cursor/, .grok/, .omc/) para que make lint / bun run lint en local coincida
+      con CI. Antes, .claude/settings.local.json solo estaba en el gitignore global del
+      usuario y Biome lo formateaba como error aunque no estuviera versionado.
+      2) apps/api/src/fts/extract.unit.test.ts: cinco tests de borde de normalizeText (CR,
+      NBSP, trailing whitespace al límite, pending whitespace que supera el techo y luego más
+      contenido, carácter multi-byte que no cabe en el presupuesto de bytes).
+      3) Conteo real de biome-ignore en el árbol (no borrar el histórico de T-2026-07-16-002,
+      que decía 3): hay 7 supresiones justificadas —
+      (a) 3× generic drizzle db type: apps/api/src/fts/search.ts, packages/db/src/seed-random.ts,
+      packages/db/src/repository/shared/db.ts;
+      (b) 2× mocks en apps/cli/src/commands/import-legacy-procomun.unit.test.ts;
+      (c) 2× noNonNullAssertion justificados en apps/cli/src/commands/import-legacy-procomun.ts.
+      Las de (b)/(c) entraron con el importador legacy (#268) y no son nuevas de esta tarea.
+      4) Descripción de la PR #272 actualizada en inglés: el gate falla solo con errores
+      (0 errors); ~190 warnings esperados (mayoría noNonNullAssertion/noExplicitAny); el
+      burn-down de tipado es el Lote 1 de ADR-0030, fuera de alcance de esta PR.
+      Validación: bun run lint exit 0 (0 errors; warnings no fallan el gate); bun test sobre
+      extract.unit.test.ts en verde; check-test-files OK.
