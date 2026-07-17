@@ -1,6 +1,6 @@
 import { realpath } from "node:fs/promises";
 import path from "node:path";
-import { Hono } from "hono";
+import { type Context, Hono } from "hono";
 import { getUploadConfig } from "../uploads/config.ts";
 
 const MIME_TYPES: Record<string, string> = {
@@ -167,7 +167,7 @@ function rewriteCssUrls(
 
 export const elpxContentRoutes = new Hono();
 
-async function handleContent(c: any) {
+async function handleContent(c: Context) {
 	const hash = c.req.param("hash");
 	if (!hash || !HASH_PATTERN.test(hash)) {
 		return c.json({ error: "Identificador no válido" }, 404);

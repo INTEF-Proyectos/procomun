@@ -115,6 +115,9 @@ export function buildCrudRoutes<TEntity>(
 
 	// POST / — create
 	if (config.create) {
+		// Se captura aquí, donde TypeScript ya sabe que existe: dentro del
+		// handler el narrowing del `if` ya no aplica, porque se ejecuta después.
+		const create = config.create;
 		const handler = async (c: Context<AuthEnv>) => {
 			const user = getCurrentUser(c);
 			const body = await c.req.json();
@@ -130,7 +133,7 @@ export function buildCrudRoutes<TEntity>(
 				? await config.prepareCreate(body, user)
 				: body;
 			try {
-				const result = await config.create!(db(), data);
+				const result = await create(db(), data);
 				if (config.afterCreate) {
 					try {
 						await config.afterCreate(user, result, data);
@@ -156,6 +159,7 @@ export function buildCrudRoutes<TEntity>(
 
 	// PATCH /:id — update
 	if (config.update) {
+		const update = config.update;
 		const handler = async (c: Context<AuthEnv>) => {
 			const user = getCurrentUser(c);
 			const { id } = c.req.param();
@@ -177,7 +181,7 @@ export function buildCrudRoutes<TEntity>(
 					);
 			}
 			try {
-				await config.update!(db(), id, body);
+				await update(db(), id, body);
 				if (config.afterUpdate) {
 					try {
 						await config.afterUpdate(user, id, entity, body);
@@ -203,6 +207,7 @@ export function buildCrudRoutes<TEntity>(
 
 	// DELETE /:id — remove
 	if (config.remove) {
+		const remove = config.remove;
 		const handler = async (c: Context<AuthEnv>) => {
 			const user = getCurrentUser(c);
 			const { id } = c.req.param();
@@ -211,7 +216,7 @@ export function buildCrudRoutes<TEntity>(
 			if (config.canManage && !config.canManage(user, entity)) {
 				return c.json({ error: "Permisos insuficientes" }, 403);
 			}
-			await config.remove!(db(), id);
+			await remove(db(), id);
 			if (config.afterDelete) {
 				try {
 					await config.afterDelete(user, id, entity);
