@@ -5,9 +5,11 @@ $id: "https://procomun.intef.es/schemas/status.schema.yaml"
 title: "Procomún Project Status"
 description: >
   Schema for the global project state board (status.yaml).
-  Uses map-keyed task entries (T-YYYY-MM-DD-NNN format) to allow parallel agent
-  work without merge conflicts. A single `tasks` map replaces the old
-  active_tasks/completed_tasks split; each task carries its own status field.
+  Uses map-keyed task entries to allow parallel agent work without merge
+  conflicts. New keys: T-YYYY-MM-DD-HHMMSSrr (UTC time + 2 random digits;
+  generate with `bun run new-status-key`). Legacy keys T-YYYY-MM-DD-NNN remain
+  valid. A single `tasks` map replaces the old active_tasks/completed_tasks
+  split; each task carries its own status field.
 type: object
 required:
   - metadata
@@ -44,7 +46,7 @@ properties:
 
   tasks:
     type: object
-    description: "Map of task keys (T-YYYY-MM-DD-NNN) to task entries. Status field distinguishes active from completed."
+    description: "Map of task keys (T-YYYY-MM-DD-HHMMSSrr or legacy T-YYYY-MM-DD-NNN) to task entries. Status field distinguishes active from completed."
     additionalProperties:
       $ref: "#/definitions/task_entry"
 

@@ -1,5 +1,5 @@
-import type { AnyColumn } from "drizzle-orm";
-import { sql } from "drizzle-orm";
+import type { AnyColumn, SQL, SQLWrapper } from "drizzle-orm";
+import { and, sql } from "drizzle-orm";
 
 const ACCENTED_CHARACTERS = "áéíóúÁÉÍÓÚäëïöüÄËÏÖÜñÑ";
 const NORMALIZED_CHARACTERS = "aeiouAEIOUaeiouAEIOUnN";
@@ -26,7 +26,16 @@ export function normalizePagination(
 	};
 }
 
-export function optionalAndWhere<T>(conditions: T[]) {
-	if (conditions.length === 0) return undefined;
-	return conditions.reduce((left, right) => sql`${left} AND ${right}`);
+/**
+ * Combina condiciones SQL con AND. Devuelve `undefined` si no hay ninguna
+ * (para que `.where(undefined)` no aplique filtro).
+ */
+export function optionalAndWhere(
+	conditions: (SQLWrapper | undefined)[],
+): SQL | undefined {
+	const defined = conditions.filter(
+		(condition): condition is SQLWrapper => condition !== undefined,
+	);
+	if (defined.length === 0) return undefined;
+	return and(...defined);
 }

@@ -214,7 +214,7 @@ export function PublicNavIsland() {
 	const isHighRole = HIGH_ROLES.has(user.role);
 	const canPublish = user.role !== "reader";
 	const avatarSrc = gravatarUrl(user.email);
-	const displayName = user.name || user.email.split("@")[0];
+	const displayName = user.name || user.email.split("@")[0] || user.email;
 
 	return (
 		<div className="pnav-actions">

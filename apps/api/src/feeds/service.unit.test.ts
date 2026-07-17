@@ -102,7 +102,10 @@ describe("buildFeed", () => {
 	});
 
 	test("falls back to id when slug is null", () => {
-		const resourceWithoutSlug = [{ ...sampleResources[0], slug: null }];
+		const first = sampleResources[0];
+		expect(first).toBeDefined();
+		if (!first) throw new Error("missing sample resource");
+		const resourceWithoutSlug = [{ ...first, slug: null }];
 		const feed = buildFeed({
 			...baseOpts,
 			resources: resourceWithoutSlug,

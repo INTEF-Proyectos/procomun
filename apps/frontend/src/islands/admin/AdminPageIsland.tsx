@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { getApiClient } from "../../lib/get-api-client.ts";
 import { url } from "../../lib/paths.ts";
-import { ROLE_LEVELS } from "../../lib/shared-utils.ts";
+import { ROLE_LEVELS, roleLevelOf } from "../../lib/shared-utils.ts";
 import { AdminApiTokensSection } from "./AdminApiTokensSection.tsx";
 import { AdminCategoriesSection } from "./AdminCategoriesSection.tsx";
 import { AdminCollectionsSection } from "./AdminCollectionsSection.tsx";
@@ -35,7 +35,7 @@ export function AdminPageIsland() {
 				const session = await api.getSession();
 				if (
 					!session?.user ||
-					(ROLE_LEVELS[session.user.role] ?? 0) < ROLE_LEVELS.curator
+					roleLevelOf(session.user.role) < ROLE_LEVELS.curator
 				) {
 					window.location.href = session?.user ? url("perfil") : url("login");
 					return;
@@ -46,7 +46,7 @@ export function AdminPageIsland() {
 				// DEF-021: respeta la sección solicitada por URL solo si el rol tiene
 				// privilegios suficientes; de lo contrario, deniega el acceso cayendo
 				// en el dashboard (evita mostrar un panel en blanco).
-				const userLevel = ROLE_LEVELS[session.user.role] ?? 0;
+				const userLevel = roleLevelOf(session.user.role);
 				const requested = new URLSearchParams(window.location.search).get(
 					"section",
 				);
@@ -67,7 +67,7 @@ export function AdminPageIsland() {
 
 	function changeSection(s: AdminSection) {
 		// Defensa adicional: ignora secciones por encima del nivel del usuario.
-		if ((ROLE_LEVELS[userRole] ?? 0) < SECTION_MIN_ROLE[s]) return;
+		if (roleLevelOf(userRole) < SECTION_MIN_ROLE[s]) return;
 		setSection(s);
 		const newUrl = new URL(window.location.href);
 		newUrl.searchParams.set("section", s);
@@ -80,7 +80,7 @@ export function AdminPageIsland() {
 		);
 	}
 
-	const userLevel = ROLE_LEVELS[userRole] ?? 0;
+	const userLevel = roleLevelOf(userRole);
 	const canManageCollections = userLevel >= ROLE_LEVELS.curator;
 	const canManageCategories = userLevel >= ROLE_LEVELS.curator;
 

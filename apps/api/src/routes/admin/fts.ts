@@ -8,7 +8,8 @@ const ftsRoutes = new Hono<AuthEnv>();
 
 // Reindex a single resource (update search_vector from current data)
 ftsRoutes.post("/reindex/:id", requireRole("admin"), async (c) => {
-	const { id } = c.req.param();
+	const id = c.req.param("id");
+	if (!id) return c.json({ error: "Falta id" }, 400);
 	const db = getDb().db;
 	await reindexResource(db, id);
 	return c.json({ id, reindexed: true });
@@ -16,7 +17,8 @@ ftsRoutes.post("/reindex/:id", requireRole("admin"), async (c) => {
 
 // Re-extract text and reindex a single resource
 ftsRoutes.post("/re-extract/:id", requireRole("admin"), async (c) => {
-	const { id } = c.req.param();
+	const id = c.req.param("id");
+	if (!id) return c.json({ error: "Falta id" }, 400);
 	await reExtractResource(id);
 	return c.json({ id, reExtracted: true });
 });
