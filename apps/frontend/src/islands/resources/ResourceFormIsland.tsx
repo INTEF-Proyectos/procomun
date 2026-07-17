@@ -1,10 +1,17 @@
-import { useEffect, useState, type FormEvent } from "react";
-import type { CreateResourceInput, UpdateResourceInput } from "../../lib/api-client.ts";
+import { type FormEvent, useEffect, useState } from "react";
+import type {
+	CreateResourceInput,
+	UpdateResourceInput,
+} from "../../lib/api-client.ts";
 import { getApiClient } from "../../lib/get-api-client.ts";
 import { url } from "../../lib/paths.ts";
 import { hasMinRole } from "../../lib/shared-utils.ts";
 import { AccessibleFeedback } from "../shared/AccessibleFeedback.tsx";
-import { LANGUAGE_OPTIONS, LICENSE_OPTIONS, RESOURCE_TYPE_OPTIONS } from "./resource-form-options.ts";
+import {
+	LANGUAGE_OPTIONS,
+	LICENSE_OPTIONS,
+	RESOURCE_TYPE_OPTIONS,
+} from "./resource-form-options.ts";
 
 interface ResourceFormState {
 	title: string;
@@ -35,7 +42,11 @@ function hasAuthorAccess(role: string | undefined) {
 	return hasMinRole(role, "author");
 }
 
-function toFormState(resource: Partial<ResourceFormState & { author?: string | null; keywords?: string | null }>) {
+function toFormState(
+	resource: Partial<
+		ResourceFormState & { author?: string | null; keywords?: string | null }
+	>,
+) {
 	return {
 		title: resource.title ?? "",
 		description: resource.description ?? "",
@@ -47,7 +58,9 @@ function toFormState(resource: Partial<ResourceFormState & { author?: string | n
 	};
 }
 
-function toPayload(form: ResourceFormState): CreateResourceInput | UpdateResourceInput {
+function toPayload(
+	form: ResourceFormState,
+): CreateResourceInput | UpdateResourceInput {
 	return {
 		title: form.title,
 		description: form.description,
@@ -59,7 +72,10 @@ function toPayload(form: ResourceFormState): CreateResourceInput | UpdateResourc
 	};
 }
 
-export function ResourceFormIsland({ mode, resourceId }: ResourceFormIslandProps) {
+export function ResourceFormIsland({
+	mode,
+	resourceId,
+}: ResourceFormIslandProps) {
 	const [form, setForm] = useState<ResourceFormState>(EMPTY_FORM);
 	const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 	const [errorMessage, setErrorMessage] = useState("");
@@ -130,7 +146,11 @@ export function ResourceFormIsland({ mode, resourceId }: ResourceFormIslandProps
 	}
 
 	function applyFieldErrors(details: { field: string; message: string }[]) {
-		setFieldErrors(Object.fromEntries(details.map((detail) => [detail.field, detail.message])));
+		setFieldErrors(
+			Object.fromEntries(
+				details.map((detail) => [detail.field, detail.message]),
+			),
+		);
 	}
 
 	async function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -143,15 +163,22 @@ export function ResourceFormIsland({ mode, resourceId }: ResourceFormIslandProps
 		try {
 			const api = await getApiClient();
 			if (mode === "create") {
-				const created = await api.createResource(toPayload(form) as CreateResourceInput);
-				setSuccessMessage("Recurso creado. Redirigiendo al editor para adjuntar archivos…");
+				const created = await api.createResource(
+					toPayload(form) as CreateResourceInput,
+				);
+				setSuccessMessage(
+					"Recurso creado. Redirigiendo al editor para adjuntar archivos…",
+				);
 				window.setTimeout(() => {
 					window.location.href = url(`admin/recursos/editar?id=${created.id}`);
 				}, 500);
 				return;
 			}
 
-			const result = await api.updateResource(resourceId!, toPayload(form) as UpdateResourceInput);
+			const result = await api.updateResource(
+				resourceId!,
+				toPayload(form) as UpdateResourceInput,
+			);
 			if (!result.ok) {
 				if (result.details) applyFieldErrors(result.details);
 				setErrorMessage(result.error ?? "Error al actualizar el recurso");
@@ -159,9 +186,17 @@ export function ResourceFormIsland({ mode, resourceId }: ResourceFormIslandProps
 			}
 			setSuccessMessage("Recurso actualizado correctamente.");
 		} catch (error) {
-			const known = error as { details?: { field: string; message: string }[]; error?: string };
+			const known = error as {
+				details?: { field: string; message: string }[];
+				error?: string;
+			};
 			if (known.details) applyFieldErrors(known.details);
-			setErrorMessage(known.error ?? (mode === "create" ? "Error al crear el recurso" : "Error de conexión"));
+			setErrorMessage(
+				known.error ??
+					(mode === "create"
+						? "Error al crear el recurso"
+						: "Error de conexión"),
+			);
 		} finally {
 			setBusy(false);
 		}
@@ -171,10 +206,11 @@ export function ResourceFormIsland({ mode, resourceId }: ResourceFormIslandProps
 		return (
 			<div id="auth-check">
 				<p>
-					Necesitas <a id="login-link" href={url("login")}>iniciar sesión</a> como autor o superior para
-					{" "}
-					{mode === "create" ? "crear" : "editar"}
-					{" "}
+					Necesitas{" "}
+					<a id="login-link" href={url("login")}>
+						iniciar sesión
+					</a>{" "}
+					como autor o superior para {mode === "create" ? "crear" : "editar"}{" "}
 					recursos.
 				</p>
 			</div>
@@ -185,7 +221,9 @@ export function ResourceFormIsland({ mode, resourceId }: ResourceFormIslandProps
 		return (
 			<div id="not-found">
 				<p>Recurso no encontrado.</p>
-				<a id="dashboard-link" href={url("perfil")}>Volver al panel</a>
+				<a id="dashboard-link" href={url("perfil")}>
+					Volver al panel
+				</a>
 			</div>
 		);
 	}
@@ -198,7 +236,11 @@ export function ResourceFormIsland({ mode, resourceId }: ResourceFormIslandProps
 
 	return (
 		<>
-			<AccessibleFeedback message={errorMessage} variant="error" polite={false} />
+			<AccessibleFeedback
+				message={errorMessage}
+				variant="error"
+				polite={false}
+			/>
 			<AccessibleFeedback message={successMessage} variant="success" />
 
 			<form id="resource-form" onSubmit={handleSubmit} noValidate>
@@ -211,9 +253,13 @@ export function ResourceFormIsland({ mode, resourceId }: ResourceFormIslandProps
 						aria-describedby="title-error"
 						aria-invalid={fieldErrors.title ? "true" : undefined}
 						value={form.title}
-						onChange={(event) => setFieldValue("title", event.currentTarget.value)}
+						onChange={(event) =>
+							setFieldValue("title", event.currentTarget.value)
+						}
 					/>
-					<span id="title-error" className="field-error" role="alert">{fieldErrors.title ?? ""}</span>
+					<span id="title-error" className="field-error" role="alert">
+						{fieldErrors.title ?? ""}
+					</span>
 				</div>
 
 				<div className="field">
@@ -225,9 +271,13 @@ export function ResourceFormIsland({ mode, resourceId }: ResourceFormIslandProps
 						aria-describedby="description-error"
 						aria-invalid={fieldErrors.description ? "true" : undefined}
 						value={form.description}
-						onChange={(event) => setFieldValue("description", event.currentTarget.value)}
+						onChange={(event) =>
+							setFieldValue("description", event.currentTarget.value)
+						}
 					/>
-					<span id="description-error" className="field-error" role="alert">{fieldErrors.description ?? ""}</span>
+					<span id="description-error" className="field-error" role="alert">
+						{fieldErrors.description ?? ""}
+					</span>
 				</div>
 
 				<div className="row">
@@ -239,13 +289,19 @@ export function ResourceFormIsland({ mode, resourceId }: ResourceFormIslandProps
 							aria-describedby="language-error"
 							aria-invalid={fieldErrors.language ? "true" : undefined}
 							value={form.language}
-							onChange={(event) => setFieldValue("language", event.currentTarget.value)}
+							onChange={(event) =>
+								setFieldValue("language", event.currentTarget.value)
+							}
 						>
 							{LANGUAGE_OPTIONS.map((option) => (
-								<option key={option.value} value={option.value}>{option.label}</option>
+								<option key={option.value} value={option.value}>
+									{option.label}
+								</option>
 							))}
 						</select>
-						<span id="language-error" className="field-error" role="alert">{fieldErrors.language ?? ""}</span>
+						<span id="language-error" className="field-error" role="alert">
+							{fieldErrors.language ?? ""}
+						</span>
 					</div>
 
 					<div className="field">
@@ -256,13 +312,19 @@ export function ResourceFormIsland({ mode, resourceId }: ResourceFormIslandProps
 							aria-describedby="license-error"
 							aria-invalid={fieldErrors.license ? "true" : undefined}
 							value={form.license}
-							onChange={(event) => setFieldValue("license", event.currentTarget.value)}
+							onChange={(event) =>
+								setFieldValue("license", event.currentTarget.value)
+							}
 						>
 							{LICENSE_OPTIONS.map((option) => (
-								<option key={option.value} value={option.value}>{option.label}</option>
+								<option key={option.value} value={option.value}>
+									{option.label}
+								</option>
 							))}
 						</select>
-						<span id="license-error" className="field-error" role="alert">{fieldErrors.license ?? ""}</span>
+						<span id="license-error" className="field-error" role="alert">
+							{fieldErrors.license ?? ""}
+						</span>
 					</div>
 				</div>
 
@@ -274,13 +336,19 @@ export function ResourceFormIsland({ mode, resourceId }: ResourceFormIslandProps
 						aria-describedby="resourceType-error"
 						aria-invalid={fieldErrors.resourceType ? "true" : undefined}
 						value={form.resourceType}
-						onChange={(event) => setFieldValue("resourceType", event.currentTarget.value)}
+						onChange={(event) =>
+							setFieldValue("resourceType", event.currentTarget.value)
+						}
 					>
 						{RESOURCE_TYPE_OPTIONS.map((option) => (
-							<option key={option.value} value={option.value}>{option.label}</option>
+							<option key={option.value} value={option.value}>
+								{option.label}
+							</option>
 						))}
 					</select>
-					<span id="resourceType-error" className="field-error" role="alert">{fieldErrors.resourceType ?? ""}</span>
+					<span id="resourceType-error" className="field-error" role="alert">
+						{fieldErrors.resourceType ?? ""}
+					</span>
 				</div>
 
 				<div className="field">
@@ -291,9 +359,13 @@ export function ResourceFormIsland({ mode, resourceId }: ResourceFormIslandProps
 						aria-describedby="author-error"
 						aria-invalid={fieldErrors.author ? "true" : undefined}
 						value={form.author}
-						onChange={(event) => setFieldValue("author", event.currentTarget.value)}
+						onChange={(event) =>
+							setFieldValue("author", event.currentTarget.value)
+						}
 					/>
-					<span id="author-error" className="field-error" role="alert">{fieldErrors.author ?? ""}</span>
+					<span id="author-error" className="field-error" role="alert">
+						{fieldErrors.author ?? ""}
+					</span>
 				</div>
 
 				<div className="field">
@@ -305,13 +377,23 @@ export function ResourceFormIsland({ mode, resourceId }: ResourceFormIslandProps
 						aria-describedby="keywords-error"
 						aria-invalid={fieldErrors.keywords ? "true" : undefined}
 						value={form.keywords}
-						onChange={(event) => setFieldValue("keywords", event.currentTarget.value)}
+						onChange={(event) =>
+							setFieldValue("keywords", event.currentTarget.value)
+						}
 					/>
-					<span id="keywords-error" className="field-error" role="alert">{fieldErrors.keywords ?? ""}</span>
+					<span id="keywords-error" className="field-error" role="alert">
+						{fieldErrors.keywords ?? ""}
+					</span>
 				</div>
 
 				<button type="submit" id="submit-btn" disabled={busy}>
-					{busy ? (mode === "create" ? "Creando..." : "Guardando...") : (mode === "create" ? "Crear recurso" : "Guardar cambios")}
+					{busy
+						? mode === "create"
+							? "Creando..."
+							: "Guardando..."
+						: mode === "create"
+							? "Crear recurso"
+							: "Guardar cambios"}
 				</button>
 			</form>
 		</>

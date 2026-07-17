@@ -1,27 +1,27 @@
 {
-  "version": "7",
-  "dialect": "postgresql",
-  "entries": [
-    {
-      "idx": 0,
-      "version": "7",
-      "when": 1774451645509,
-      "tag": "0000_slippery_mongoose",
-      "breakpoints": true
-    },
-    {
-      "idx": 1,
-      "version": "7",
-      "when": 1774963484191,
-      "tag": "0001_needy_stellaris",
-      "breakpoints": true
-    },
-    {
-      "idx": 2,
-      "version": "7",
-      "when": 1748284800000,
-      "tag": "0002_text_to_jsonb_metadata",
-      "breakpoints": true
-    }
-  ]
+	"version": "7",
+	"dialect": "postgresql",
+	"entries": [
+		{
+			"idx": 0,
+			"version": "7",
+			"when": 1774451645509,
+			"tag": "0000_slippery_mongoose",
+			"breakpoints": true
+		},
+		{
+			"idx": 1,
+			"version": "7",
+			"when": 1774963484191,
+			"tag": "0001_needy_stellaris",
+			"breakpoints": true
+		},
+		{
+			"idx": 2,
+			"version": "7",
+			"when": 1748284800000,
+			"tag": "0002_text_to_jsonb_metadata",
+			"breakpoints": true
+		}
+	]
 }

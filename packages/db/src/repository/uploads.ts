@@ -28,7 +28,9 @@ export async function createUploadSession(
 		createdAt: new Date(),
 		updatedAt: new Date(),
 		...(data.mimeType ? { mimeType: data.mimeType } : {}),
-		...(data.checksumAlgorithm ? { checksumAlgorithm: data.checksumAlgorithm } : {}),
+		...(data.checksumAlgorithm
+			? { checksumAlgorithm: data.checksumAlgorithm }
+			: {}),
 		...(data.finalChecksum ? { finalChecksum: data.finalChecksum } : {}),
 		...(data.declaredSize != null ? { declaredSize: data.declaredSize } : {}),
 		...(data.expiresAt ? { expiresAt: data.expiresAt } : {}),
@@ -66,7 +68,10 @@ export async function getUploadSessionById(db: DrizzleDB, id: string) {
 	return rows[0] ?? null;
 }
 
-export async function listUploadSessionsForResource(db: DrizzleDB, resourceId: string) {
+export async function listUploadSessionsForResource(
+	db: DrizzleDB,
+	resourceId: string,
+) {
 	return db
 		.select({
 			id: uploadSessions.id,
@@ -92,7 +97,10 @@ export async function listUploadSessionsForResource(db: DrizzleDB, resourceId: s
 		})
 		.from(uploadSessions)
 		.where(eq(uploadSessions.resourceId, resourceId))
-		.orderBy(desc(uploadSessions.updatedAt), asc(uploadSessions.originalFilename));
+		.orderBy(
+			desc(uploadSessions.updatedAt),
+			asc(uploadSessions.originalFilename),
+		);
 }
 
 export async function updateUploadSessionProgress(
@@ -118,7 +126,12 @@ export async function updateUploadSessionProgress(
 export async function completeUploadSession(
 	db: DrizzleDB,
 	id: string,
-	data: { receivedBytes: number; publicUrl: string; mediaItemId: string; finalChecksum?: string | null },
+	data: {
+		receivedBytes: number;
+		publicUrl: string;
+		mediaItemId: string;
+		finalChecksum?: string | null;
+	},
 ) {
 	await db
 		.update(uploadSessions)

@@ -26,35 +26,35 @@ export type EmbedKind = "video" | "pdf";
 export type EmbedClassification = { kind: EmbedKind; url: string };
 
 export type ClassifyOptions = {
-  /** Origen de la app/frame principal donde se abrirá el modal. */
-  pageOrigin: string;
-  /**
-   * URL base del contenido del `.elpx` servido (el `src` del iframe de
-   * preview, p.ej. `https://api.example/api/v1/elpx/<hash>/index.html`). Sirve
-   * para permitir PDFs del propio paquete y para rechazar vídeos same-origin al
-   * contenido.
-   */
-  contentBaseUrl?: string;
+	/** Origen de la app/frame principal donde se abrirá el modal. */
+	pageOrigin: string;
+	/**
+	 * URL base del contenido del `.elpx` servido (el `src` del iframe de
+	 * preview, p.ej. `https://api.example/api/v1/elpx/<hash>/index.html`). Sirve
+	 * para permitir PDFs del propio paquete y para rechazar vídeos same-origin al
+	 * contenido.
+	 */
+	contentBaseUrl?: string;
 };
 
 const PDF_PATH_RE = /\.pdf$/i;
 
 function safeUrl(raw: string): URL | null {
-  try {
-    // Solo URLs absolutas: el shim siempre reporta la URL resuelta a absoluta.
-    return new URL(raw);
-  } catch {
-    return null;
-  }
+	try {
+		// Solo URLs absolutas: el shim siempre reporta la URL resuelta a absoluta.
+		return new URL(raw);
+	} catch {
+		return null;
+	}
 }
 
 function hostOf(rawOrigin: string | undefined): string | null {
-  if (!rawOrigin) return null;
-  try {
-    return new URL(rawOrigin).hostname.toLowerCase();
-  } catch {
-    return null;
-  }
+	if (!rawOrigin) return null;
+	try {
+		return new URL(rawOrigin).hostname.toLowerCase();
+	} catch {
+		return null;
+	}
 }
 
 /**
@@ -62,29 +62,29 @@ function hostOf(rawOrigin: string | undefined): string | null {
  * modo abierto, los hosts no conocidos se devuelven validados tal cual.
  */
 export function canonicalizeProvider(url: URL): string {
-  const host = url.hostname.toLowerCase();
+	const host = url.hostname.toLowerCase();
 
-  // YouTube → youtube-nocookie (sin cookies de seguimiento).
-  if (/(^|\.)youtube(-nocookie)?\.com$/.test(host)) {
-    const m = url.pathname.match(/^\/embed\/([A-Za-z0-9_-]{6,})/);
-    if (m) return `https://www.youtube-nocookie.com/embed/${m[1]}`;
-  }
-  if (/(^|\.)youtu\.be$/.test(host)) {
-    const m = url.pathname.match(/^\/([A-Za-z0-9_-]{6,})/);
-    if (m) return `https://www.youtube-nocookie.com/embed/${m[1]}`;
-  }
+	// YouTube → youtube-nocookie (sin cookies de seguimiento).
+	if (/(^|\.)youtube(-nocookie)?\.com$/.test(host)) {
+		const m = url.pathname.match(/^\/embed\/([A-Za-z0-9_-]{6,})/);
+		if (m) return `https://www.youtube-nocookie.com/embed/${m[1]}`;
+	}
+	if (/(^|\.)youtu\.be$/.test(host)) {
+		const m = url.pathname.match(/^\/([A-Za-z0-9_-]{6,})/);
+		if (m) return `https://www.youtube-nocookie.com/embed/${m[1]}`;
+	}
 
-  return url.href;
+	return url.href;
 }
 
 function isUnderPackageBase(url: URL, contentBaseUrl?: string): boolean {
-  if (!contentBaseUrl) return false;
-  const base = safeUrl(contentBaseUrl);
-  if (!base) return false;
-  if (url.origin !== base.origin) return false;
-  // Base del paquete = directorio del documento servido (…/elpx/<hash>/).
-  const baseDir = base.pathname.slice(0, base.pathname.lastIndexOf("/") + 1);
-  return url.pathname.startsWith(baseDir);
+	if (!contentBaseUrl) return false;
+	const base = safeUrl(contentBaseUrl);
+	if (!base) return false;
+	if (url.origin !== base.origin) return false;
+	// Base del paquete = directorio del documento servido (…/elpx/<hash>/).
+	const baseDir = base.pathname.slice(0, base.pathname.lastIndexOf("/") + 1);
+	return url.pathname.startsWith(baseDir);
 }
 
 /**
@@ -92,34 +92,34 @@ function isUnderPackageBase(url: URL, contentBaseUrl?: string): boolean {
  * Devuelve `null` si NO debe promocionarse.
  */
 export function classifyEmbed(
-  rawUrl: string,
-  opts: ClassifyOptions,
+	rawUrl: string,
+	opts: ClassifyOptions,
 ): EmbedClassification | null {
-  const url = safeUrl(rawUrl);
-  if (!url) return null;
+	const url = safeUrl(rawUrl);
+	if (!url) return null;
 
-  // Rechaza credenciales en la URL (https://evil@youtube.com/…).
-  if (url.username || url.password) return null;
+	// Rechaza credenciales en la URL (https://evil@youtube.com/…).
+	if (url.username || url.password) return null;
 
-  // Solo https.
-  if (url.protocol !== "https:") return null;
+	// Solo https.
+	if (url.protocol !== "https:") return null;
 
-  const pageHost = hostOf(opts.pageOrigin);
-  const contentHost = hostOf(opts.contentBaseUrl);
-  const host = url.hostname.toLowerCase();
+	const pageHost = hostOf(opts.pageOrigin);
+	const contentHost = hostOf(opts.contentBaseUrl);
+	const host = url.hostname.toLowerCase();
 
-  // --- PDF ---
-  if (PDF_PATH_RE.test(url.pathname)) {
-    const crossOrigin = host !== pageHost && host !== contentHost;
-    if (crossOrigin || isUnderPackageBase(url, opts.contentBaseUrl)) {
-      return { kind: "pdf", url: url.href };
-    }
-    return null;
-  }
+	// --- PDF ---
+	if (PDF_PATH_RE.test(url.pathname)) {
+		const crossOrigin = host !== pageHost && host !== contentHost;
+		if (crossOrigin || isUnderPackageBase(url, opts.contentBaseUrl)) {
+			return { kind: "pdf", url: url.href };
+		}
+		return null;
+	}
 
-  // --- Vídeo (cualquier iframe https cross-origin: modo abierto) ---
-  // INVARIANTE: nunca same-origin a la app ni al contenido.
-  if (host === pageHost || host === contentHost) return null;
+	// --- Vídeo (cualquier iframe https cross-origin: modo abierto) ---
+	// INVARIANTE: nunca same-origin a la app ni al contenido.
+	if (host === pageHost || host === contentHost) return null;
 
-  return { kind: "video", url: canonicalizeProvider(url) };
+	return { kind: "video", url: canonicalizeProvider(url) };
 }

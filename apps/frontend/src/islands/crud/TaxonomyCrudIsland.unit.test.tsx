@@ -1,8 +1,8 @@
 import { describe, expect, test } from "bun:test";
 import { renderToStaticMarkup } from "react-dom/server";
-import { TaxonomyCrudIsland } from "./TaxonomyCrudIsland.tsx";
-import { CrudTable } from "./CrudTable.tsx";
 import { ConfirmDialog } from "../shared/ConfirmDialog.tsx";
+import { CrudTable } from "./CrudTable.tsx";
+import { TaxonomyCrudIsland } from "./TaxonomyCrudIsland.tsx";
 
 describe("React islands CRUD pilot", () => {
 	test("TaxonomyCrudIsland renderiza el shell inicial del piloto", () => {
@@ -19,7 +19,11 @@ describe("React islands CRUD pilot", () => {
 		const html = renderToStaticMarkup(
 			<CrudTable
 				columns={[
-					{ id: "name", header: "Nombre", cell: (row: { name: string }) => row.name },
+					{
+						id: "name",
+						header: "Nombre",
+						cell: (row: { name: string }) => row.name,
+					},
 				]}
 				rows={[]}
 				getRowKey={(row) => row.name}
@@ -43,7 +47,9 @@ describe("React islands CRUD pilot", () => {
 			/>,
 		);
 
-		expect(html).toContain('Seguro que deseas eliminar &quot;Matematicas&quot;?');
+		expect(html).toContain(
+			"Seguro que deseas eliminar &quot;Matematicas&quot;?",
+		);
 		expect(html).toContain("confirm-dialog-title");
 		expect(html).toContain("Eliminar categoria");
 	});

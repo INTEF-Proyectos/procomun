@@ -2,15 +2,16 @@ import { and, asc, eq, isNull, sql } from "drizzle-orm";
 import { user } from "../schema/auth.ts";
 import { collectionResources } from "../schema/collections.ts";
 import { resources } from "../schema/resources.ts";
-import {
-	andWhere,
-	type DrizzleDB,
-	normalizePagination,
-} from "./shared.ts";
+import { andWhere, type DrizzleDB, normalizePagination } from "./shared.ts";
 
-async function getNextCollectionResourcePosition(db: DrizzleDB, collectionId: string) {
+async function getNextCollectionResourcePosition(
+	db: DrizzleDB,
+	collectionId: string,
+) {
 	const rows = await db
-		.select({ maxPosition: sql<number>`coalesce(max(${collectionResources.position}), -1)` })
+		.select({
+			maxPosition: sql<number>`coalesce(max(${collectionResources.position}), -1)`,
+		})
 		.from(collectionResources)
 		.where(eq(collectionResources.collectionId, collectionId));
 	return (rows[0]?.maxPosition ?? -1) + 1;
@@ -57,7 +58,11 @@ export async function listCollectionResources(
 	collectionId: string,
 	opts: { limit?: number; offset?: number; status?: string } = {},
 ) {
-	const { limit, offset } = normalizePagination(opts.limit ?? 100, opts.offset, 100);
+	const { limit, offset } = normalizePagination(
+		opts.limit ?? 100,
+		opts.offset,
+		100,
+	);
 	const conditions = [
 		eq(collectionResources.collectionId, collectionId),
 		isNull(resources.deletedAt),
@@ -95,7 +100,9 @@ export async function reorderCollectionResource(
 	direction: "up" | "down",
 ) {
 	const items = await listCollectionResources(db, collectionId, { limit: 100 });
-	const currentIndex = items.findIndex((item) => item.resourceId === resourceId);
+	const currentIndex = items.findIndex(
+		(item) => item.resourceId === resourceId,
+	);
 	if (currentIndex === -1) return false;
 
 	const swapIndex = direction === "up" ? currentIndex - 1 : currentIndex + 1;

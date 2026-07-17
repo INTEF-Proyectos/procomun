@@ -8,10 +8,17 @@ export function normalizeSearch(column: any) {
 }
 
 export function buildSearchTerm(value: string) {
-	return `%${value.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "")}%`;
+	return `%${value
+		.toLowerCase()
+		.normalize("NFD")
+		.replace(/[\u0300-\u036f]/g, "")}%`;
 }
 
-export function normalizePagination(limit?: number, offset?: number, maxLimit = 100) {
+export function normalizePagination(
+	limit?: number,
+	offset?: number,
+	maxLimit = 100,
+) {
 	return {
 		limit: Math.min(limit ?? 20, maxLimit),
 		offset: offset ?? 0,

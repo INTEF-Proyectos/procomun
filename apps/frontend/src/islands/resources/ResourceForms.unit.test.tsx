@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { renderToStaticMarkup } from "react-dom/server";
-import { ResourceFormIsland } from "./ResourceFormIsland.tsx";
 import { ResourceEditorIsland } from "./ResourceEditorIsland.tsx";
+import { ResourceFormIsland } from "./ResourceFormIsland.tsx";
 
 describe("Resource form islands", () => {
 	test("ResourceFormIsland renderiza el shell inicial de alta", () => {

@@ -24,28 +24,28 @@ import path from "node:path";
  */
 
 export type ElpxExtractLimits = {
-  /** Número máximo de entradas en el ZIP. */
-  maxEntries: number;
-  /** Tamaño total descomprimido máximo, en bytes. */
-  maxTotalUncompressed: number;
-  /** Ratio máximo total descomprimido/comprimido (guarda secundaria). */
-  maxCompressionRatio: number;
+	/** Número máximo de entradas en el ZIP. */
+	maxEntries: number;
+	/** Tamaño total descomprimido máximo, en bytes. */
+	maxTotalUncompressed: number;
+	/** Ratio máximo total descomprimido/comprimido (guarda secundaria). */
+	maxCompressionRatio: number;
 };
 
 export const DEFAULT_ELPX_EXTRACT_LIMITS: ElpxExtractLimits = {
-  maxEntries: 5_000,
-  maxTotalUncompressed: 500 * 1024 * 1024, // 500 MiB
-  maxCompressionRatio: 500,
+	maxEntries: 5_000,
+	maxTotalUncompressed: 500 * 1024 * 1024, // 500 MiB
+	maxCompressionRatio: 500,
 };
 
 export type ZipEntryInfo = {
-  name: string;
-  uncompressedSize: number;
-  compressedSize: number;
-  compressionMethod: number;
-  flags: number;
-  localHeaderOffset: number;
-  isSymlink: boolean;
+	name: string;
+	uncompressedSize: number;
+	compressedSize: number;
+	compressionMethod: number;
+	flags: number;
+	localHeaderOffset: number;
+	isSymlink: boolean;
 };
 
 const EOCD_SIGNATURE = 0x06054b50; // PK\x05\x06
@@ -65,24 +65,24 @@ const ZIP_METHOD_DEFLATE = 8;
  * Port directo de `zip_utils.php::is_unsafe_zip_entry`.
  */
 export function isUnsafeZipEntry(name: string): boolean {
-  if (name === "") return true;
-  if (name.includes("\\")) return true;
-  if (name.startsWith("/")) return true;
-  if (/^[a-zA-Z]+:\/\//.test(name)) return true;
-  if (/(^|\/)\.\.(\/|$)/.test(name)) return true;
-  return false;
+	if (name === "") return true;
+	if (name.includes("\\")) return true;
+	if (name.startsWith("/")) return true;
+	if (/^[a-zA-Z]+:\/\//.test(name)) return true;
+	if (/(^|\/)\.\.(\/|$)/.test(name)) return true;
+	return false;
 }
 
 function findEocdOffset(buf: Buffer): number {
-  // El EOCD está al final; su comentario puede ocupar hasta 65535 bytes, así
-  // que escaneamos hacia atrás buscando la firma. El mínimo EOCD son 22 bytes.
-  const minOffset = Math.max(0, buf.length - (22 + 0xffff));
-  for (let i = buf.length - 22; i >= minOffset; i--) {
-    if (buf.readUInt32LE(i) === EOCD_SIGNATURE) {
-      return i;
-    }
-  }
-  return -1;
+	// El EOCD está al final; su comentario puede ocupar hasta 65535 bytes, así
+	// que escaneamos hacia atrás buscando la firma. El mínimo EOCD son 22 bytes.
+	const minOffset = Math.max(0, buf.length - (22 + 0xffff));
+	for (let i = buf.length - 22; i >= minOffset; i--) {
+		if (buf.readUInt32LE(i) === EOCD_SIGNATURE) {
+			return i;
+		}
+	}
+	return -1;
 }
 
 /**
@@ -92,72 +92,72 @@ function findEocdOffset(buf: Buffer): number {
  * lo tratamos como no soportado, fail-closed).
  */
 export function readZipCentralDirectory(buf: Buffer): ZipEntryInfo[] {
-  if (buf.length < 22 || buf.readUInt16LE(0) !== 0x4b50) {
-    throw new Error("El archivo no es un ZIP válido");
-  }
+	if (buf.length < 22 || buf.readUInt16LE(0) !== 0x4b50) {
+		throw new Error("El archivo no es un ZIP válido");
+	}
 
-  const eocd = findEocdOffset(buf);
-  if (eocd < 0) {
-    throw new Error("El archivo no es un .elpx válido (ZIP sin directorio central)");
-  }
+	const eocd = findEocdOffset(buf);
+	if (eocd < 0) {
+		throw new Error("El archivo no es un .elpx válido (ZIP sin directorio central)");
+	}
 
-  const totalEntries = buf.readUInt16LE(eocd + 10);
-  let offset = buf.readUInt32LE(eocd + 16);
-  if (offset === ZIP64_SENTINEL || totalEntries === 0xffff) {
-    throw new Error("Archivo ZIP64 no soportado");
-  }
+	const totalEntries = buf.readUInt16LE(eocd + 10);
+	let offset = buf.readUInt32LE(eocd + 16);
+	if (offset === ZIP64_SENTINEL || totalEntries === 0xffff) {
+		throw new Error("Archivo ZIP64 no soportado");
+	}
 
-  const entries: ZipEntryInfo[] = [];
-  for (let i = 0; i < totalEntries; i++) {
-    if (offset + 46 > buf.length || buf.readUInt32LE(offset) !== CDFH_SIGNATURE) {
-      throw new Error("Directorio central del ZIP corrupto");
-    }
+	const entries: ZipEntryInfo[] = [];
+	for (let i = 0; i < totalEntries; i++) {
+		if (offset + 46 > buf.length || buf.readUInt32LE(offset) !== CDFH_SIGNATURE) {
+			throw new Error("Directorio central del ZIP corrupto");
+		}
 
-    const versionMadeBy = buf.readUInt16LE(offset + 4);
-    const flags = buf.readUInt16LE(offset + 8);
-    const compressionMethod = buf.readUInt16LE(offset + 10);
-    const compressedSize = buf.readUInt32LE(offset + 20);
-    const uncompressedSize = buf.readUInt32LE(offset + 24);
-    const nameLen = buf.readUInt16LE(offset + 28);
-    const extraLen = buf.readUInt16LE(offset + 30);
-    const commentLen = buf.readUInt16LE(offset + 32);
-    const externalAttr = buf.readUInt32LE(offset + 38);
-    const localHeaderOffset = buf.readUInt32LE(offset + 42);
+		const versionMadeBy = buf.readUInt16LE(offset + 4);
+		const flags = buf.readUInt16LE(offset + 8);
+		const compressionMethod = buf.readUInt16LE(offset + 10);
+		const compressedSize = buf.readUInt32LE(offset + 20);
+		const uncompressedSize = buf.readUInt32LE(offset + 24);
+		const nameLen = buf.readUInt16LE(offset + 28);
+		const extraLen = buf.readUInt16LE(offset + 30);
+		const commentLen = buf.readUInt16LE(offset + 32);
+		const externalAttr = buf.readUInt32LE(offset + 38);
+		const localHeaderOffset = buf.readUInt32LE(offset + 42);
 
-    if (
-      compressedSize === ZIP64_SENTINEL ||
-      uncompressedSize === ZIP64_SENTINEL ||
-      localHeaderOffset === ZIP64_SENTINEL
-    ) {
-      throw new Error("Archivo ZIP64 no soportado");
-    }
+		if (
+			compressedSize === ZIP64_SENTINEL ||
+			uncompressedSize === ZIP64_SENTINEL ||
+			localHeaderOffset === ZIP64_SENTINEL
+		) {
+			throw new Error("Archivo ZIP64 no soportado");
+		}
 
-    const nameEnd = offset + 46 + nameLen;
-    if (nameEnd > buf.length) {
-      throw new Error("Directorio central del ZIP corrupto");
-    }
-    const name = buf.toString("utf8", offset + 46, nameEnd);
+		const nameEnd = offset + 46 + nameLen;
+		if (nameEnd > buf.length) {
+			throw new Error("Directorio central del ZIP corrupto");
+		}
+		const name = buf.toString("utf8", offset + 46, nameEnd);
 
-    // El host está en el byte alto de "version made by"; 3 = Unix. Solo en ese
-    // caso los 16 bits altos de los atributos externos llevan el modo Unix.
-    const hostSystem = versionMadeBy >> 8;
-    const unixMode = (externalAttr >>> 16) & 0xffff;
-    const isSymlink = hostSystem === 3 && (unixMode & S_IFMT) === S_IFLNK;
+		// El host está en el byte alto de "version made by"; 3 = Unix. Solo en ese
+		// caso los 16 bits altos de los atributos externos llevan el modo Unix.
+		const hostSystem = versionMadeBy >> 8;
+		const unixMode = (externalAttr >>> 16) & 0xffff;
+		const isSymlink = hostSystem === 3 && (unixMode & S_IFMT) === S_IFLNK;
 
-    entries.push({
-      name,
-      uncompressedSize,
-      compressedSize,
-      compressionMethod,
-      flags,
-      localHeaderOffset,
-      isSymlink,
-    });
+		entries.push({
+			name,
+			uncompressedSize,
+			compressedSize,
+			compressionMethod,
+			flags,
+			localHeaderOffset,
+			isSymlink,
+		});
 
-    offset += 46 + nameLen + extraLen + commentLen;
-  }
+		offset += 46 + nameLen + extraLen + commentLen;
+	}
 
-  return entries;
+	return entries;
 }
 
 /**
@@ -166,61 +166,61 @@ export function readZipCentralDirectory(buf: Buffer): ZipEntryInfo[] {
  * que exceda los límites anti zip-bomb, ANTES de tocar el disco.
  */
 export function inspectZipEntries(
-  buf: Buffer,
-  limits: ElpxExtractLimits = DEFAULT_ELPX_EXTRACT_LIMITS,
+	buf: Buffer,
+	limits: ElpxExtractLimits = DEFAULT_ELPX_EXTRACT_LIMITS,
 ): ZipEntryInfo[] {
-  const entries = readZipCentralDirectory(buf);
+	const entries = readZipCentralDirectory(buf);
 
-  if (entries.length > limits.maxEntries) {
-    throw new Error(
-      `El .elpx contiene demasiadas entradas (${entries.length} > ${limits.maxEntries})`,
-    );
-  }
+	if (entries.length > limits.maxEntries) {
+		throw new Error(
+			`El .elpx contiene demasiadas entradas (${entries.length} > ${limits.maxEntries})`,
+		);
+	}
 
-  let totalUncompressed = 0;
-  let totalCompressed = 0;
-  const canonicalNames = new Set<string>();
+	let totalUncompressed = 0;
+	let totalCompressed = 0;
+	const canonicalNames = new Set<string>();
 
-  for (const entry of entries) {
-    if (isUnsafeZipEntry(entry.name)) {
-      throw new Error(`Entrada de ZIP no segura: ${entry.name}`);
-    }
-    if (entry.isSymlink) {
-      throw new Error(`El .elpx contiene un enlace simbólico: ${entry.name}`);
-    }
-    if ((entry.flags & ZIP_FLAG_ENCRYPTED) !== 0) {
-      throw new Error(`El .elpx contiene una entrada cifrada no soportada: ${entry.name}`);
-    }
-    if (![ZIP_METHOD_STORE, ZIP_METHOD_DEFLATE].includes(entry.compressionMethod)) {
-      throw new Error(`Método de compresión ZIP no soportado en ${entry.name}`);
-    }
+	for (const entry of entries) {
+		if (isUnsafeZipEntry(entry.name)) {
+			throw new Error(`Entrada de ZIP no segura: ${entry.name}`);
+		}
+		if (entry.isSymlink) {
+			throw new Error(`El .elpx contiene un enlace simbólico: ${entry.name}`);
+		}
+		if ((entry.flags & ZIP_FLAG_ENCRYPTED) !== 0) {
+			throw new Error(`El .elpx contiene una entrada cifrada no soportada: ${entry.name}`);
+		}
+		if (![ZIP_METHOD_STORE, ZIP_METHOD_DEFLATE].includes(entry.compressionMethod)) {
+			throw new Error(`Método de compresión ZIP no soportado en ${entry.name}`);
+		}
 
-    const canonical = path.posix.normalize(entry.name).replace(/\/$/, "");
-    if (canonical === "." || canonicalNames.has(canonical)) {
-      throw new Error(`El .elpx contiene una ruta duplicada o ambigua: ${entry.name}`);
-    }
-    canonicalNames.add(canonical);
+		const canonical = path.posix.normalize(entry.name).replace(/\/$/, "");
+		if (canonical === "." || canonicalNames.has(canonical)) {
+			throw new Error(`El .elpx contiene una ruta duplicada o ambigua: ${entry.name}`);
+		}
+		canonicalNames.add(canonical);
 
-    totalUncompressed += entry.uncompressedSize;
-    totalCompressed += entry.compressedSize;
-  }
+		totalUncompressed += entry.uncompressedSize;
+		totalCompressed += entry.compressedSize;
+	}
 
-  if (totalUncompressed > limits.maxTotalUncompressed) {
-    throw new Error(
-      `El .elpx descomprimido excede el tamaño máximo permitido (${totalUncompressed} > ${limits.maxTotalUncompressed} bytes)`,
-    );
-  }
+	if (totalUncompressed > limits.maxTotalUncompressed) {
+		throw new Error(
+			`El .elpx descomprimido excede el tamaño máximo permitido (${totalUncompressed} > ${limits.maxTotalUncompressed} bytes)`,
+		);
+	}
 
-  if (
-    totalCompressed > 0 &&
-    totalUncompressed / totalCompressed > limits.maxCompressionRatio
-  ) {
-    throw new Error(
-      `Ratio de compresión sospechoso (posible zip bomb): ${Math.round(totalUncompressed / totalCompressed)} > ${limits.maxCompressionRatio}`,
-    );
-  }
+	if (
+		totalCompressed > 0 &&
+		totalUncompressed / totalCompressed > limits.maxCompressionRatio
+	) {
+		throw new Error(
+			`Ratio de compresión sospechoso (posible zip bomb): ${Math.round(totalUncompressed / totalCompressed)} > ${limits.maxCompressionRatio}`,
+		);
+	}
 
-  return entries;
+	return entries;
 }
 
 /**
@@ -230,113 +230,113 @@ export function inspectZipEntries(
  * profundidad; el límite autoritativo se aplica durante el streaming.
  */
 export async function assertExtractionContained(
-  dir: string,
-  maxBytes: number = DEFAULT_ELPX_EXTRACT_LIMITS.maxTotalUncompressed,
+	dir: string,
+	maxBytes: number = DEFAULT_ELPX_EXTRACT_LIMITS.maxTotalUncompressed,
 ): Promise<void> {
-  const root = await realpath(dir);
-  let totalBytes = 0;
+	const root = await realpath(dir);
+	let totalBytes = 0;
 
-  async function walk(current: string): Promise<void> {
-    const dirents = await readdir(current, { withFileTypes: true });
-    for (const dirent of dirents) {
-      const full = path.join(current, dirent.name);
+	async function walk(current: string): Promise<void> {
+		const dirents = await readdir(current, { withFileTypes: true });
+		for (const dirent of dirents) {
+			const full = path.join(current, dirent.name);
 
-      // No seguir symlinks: inspeccionamos el enlace, no su destino.
-      const stats = await lstat(full);
-      if (stats.isSymbolicLink()) {
-        throw new Error(`Extracción insegura: enlace simbólico en ${full}`);
-      }
+			// No seguir symlinks: inspeccionamos el enlace, no su destino.
+			const stats = await lstat(full);
+			if (stats.isSymbolicLink()) {
+				throw new Error(`Extracción insegura: enlace simbólico en ${full}`);
+			}
 
-      const real = await realpath(full);
-      const contained = real === root || real.startsWith(root + path.sep);
-      if (!contained) {
-        throw new Error(`Extracción insegura: ruta fuera del destino en ${full}`);
-      }
+			const real = await realpath(full);
+			const contained = real === root || real.startsWith(root + path.sep);
+			if (!contained) {
+				throw new Error(`Extracción insegura: ruta fuera del destino en ${full}`);
+			}
 
-      if (stats.isDirectory()) {
-        await walk(full);
-      } else if (stats.isFile()) {
-        totalBytes += stats.size;
-        if (totalBytes > maxBytes) {
-          throw new Error(
-            `La extracción del .elpx excede el tamaño máximo permitido (${totalBytes} > ${maxBytes} bytes)`,
-          );
-        }
-      }
-    }
-  }
+			if (stats.isDirectory()) {
+				await walk(full);
+			} else if (stats.isFile()) {
+				totalBytes += stats.size;
+				if (totalBytes > maxBytes) {
+					throw new Error(
+						`La extracción del .elpx excede el tamaño máximo permitido (${totalBytes} > ${maxBytes} bytes)`,
+					);
+				}
+			}
+		}
+	}
 
-  await walk(dir);
+	await walk(dir);
 }
 
 type ExtractionCounter = { bytes: number };
 
 function entryCompressedBytes(buf: Buffer, entry: ZipEntryInfo): Uint8Array {
-  const offset = entry.localHeaderOffset;
-  if (offset + 30 > buf.length || buf.readUInt32LE(offset) !== LFH_SIGNATURE) {
-    throw new Error(`Cabecera local ZIP corrupta para ${entry.name}`);
-  }
+	const offset = entry.localHeaderOffset;
+	if (offset + 30 > buf.length || buf.readUInt32LE(offset) !== LFH_SIGNATURE) {
+		throw new Error(`Cabecera local ZIP corrupta para ${entry.name}`);
+	}
 
-  const localFlags = buf.readUInt16LE(offset + 6);
-  const localMethod = buf.readUInt16LE(offset + 8);
-  const nameLen = buf.readUInt16LE(offset + 26);
-  const extraLen = buf.readUInt16LE(offset + 28);
-  const nameStart = offset + 30;
-  const dataStart = nameStart + nameLen + extraLen;
-  const dataEnd = dataStart + entry.compressedSize;
+	const localFlags = buf.readUInt16LE(offset + 6);
+	const localMethod = buf.readUInt16LE(offset + 8);
+	const nameLen = buf.readUInt16LE(offset + 26);
+	const extraLen = buf.readUInt16LE(offset + 28);
+	const nameStart = offset + 30;
+	const dataStart = nameStart + nameLen + extraLen;
+	const dataEnd = dataStart + entry.compressedSize;
 
-  if (dataEnd > buf.length) {
-    throw new Error(`Datos comprimidos fuera del ZIP para ${entry.name}`);
-  }
-  const localName = buf.toString("utf8", nameStart, nameStart + nameLen);
-  if (localName !== entry.name || localFlags !== entry.flags || localMethod !== entry.compressionMethod) {
-    throw new Error(`Cabecera local ZIP inconsistente para ${entry.name}`);
-  }
+	if (dataEnd > buf.length) {
+		throw new Error(`Datos comprimidos fuera del ZIP para ${entry.name}`);
+	}
+	const localName = buf.toString("utf8", nameStart, nameStart + nameLen);
+	if (localName !== entry.name || localFlags !== entry.flags || localMethod !== entry.compressionMethod) {
+		throw new Error(`Cabecera local ZIP inconsistente para ${entry.name}`);
+	}
 
-  return new Uint8Array(buf.buffer, buf.byteOffset + dataStart, entry.compressedSize);
+	return new Uint8Array(buf.buffer, buf.byteOffset + dataStart, entry.compressedSize);
 }
 
 async function extractFileEntry(
-  buf: Buffer,
-  entry: ZipEntryInfo,
-  target: string,
-  counter: ExtractionCounter,
-  maxBytes: number,
+	buf: Buffer,
+	entry: ZipEntryInfo,
+	target: string,
+	counter: ExtractionCounter,
+	maxBytes: number,
 ): Promise<void> {
-  const compressed = entryCompressedBytes(buf, entry);
-  let stream: ReadableStream<Uint8Array> = new Blob([compressed]).stream();
-  if (entry.compressionMethod === ZIP_METHOD_DEFLATE) {
-    stream = stream.pipeThrough(new DecompressionStream("deflate-raw"));
-  }
+	const compressed = entryCompressedBytes(buf, entry);
+	let stream: ReadableStream<Uint8Array> = new Blob([compressed]).stream();
+	if (entry.compressionMethod === ZIP_METHOD_DEFLATE) {
+		stream = stream.pipeThrough(new DecompressionStream("deflate-raw"));
+	}
 
-  const file = await open(target, "wx");
-  let entryBytes = 0;
-  try {
-    const reader = stream.getReader();
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      if (!value) continue;
+	const file = await open(target, "wx");
+	let entryBytes = 0;
+	try {
+		const reader = stream.getReader();
+		while (true) {
+			const { done, value } = await reader.read();
+			if (done) break;
+			if (!value) continue;
 
-      entryBytes += value.byteLength;
-      counter.bytes += value.byteLength;
-      if (counter.bytes > maxBytes) {
-        await reader.cancel();
-        throw new Error(
-          `La extracción del .elpx excede el tamaño máximo permitido (${counter.bytes} > ${maxBytes} bytes)`,
-        );
-      }
-      await file.write(value);
-    }
-  } finally {
-    await file.close();
-  }
+			entryBytes += value.byteLength;
+			counter.bytes += value.byteLength;
+			if (counter.bytes > maxBytes) {
+				await reader.cancel();
+				throw new Error(
+					`La extracción del .elpx excede el tamaño máximo permitido (${counter.bytes} > ${maxBytes} bytes)`,
+				);
+			}
+			await file.write(value);
+		}
+	} finally {
+		await file.close();
+	}
 
-  if (entryBytes !== entry.uncompressedSize) {
-    throw new Error(
-      `Tamaño descomprimido inconsistente para ${entry.name} (${entryBytes} != ${entry.uncompressedSize})`,
-    );
-  }
+	if (entryBytes !== entry.uncompressedSize) {
+		throw new Error(
+			`Tamaño descomprimido inconsistente para ${entry.name} (${entryBytes} != ${entry.uncompressedSize})`,
+		);
+	}
 }
 
 /**
@@ -350,36 +350,36 @@ async function extractFileEntry(
  * extracción parcial o insegura en disco.
  */
 export async function safeExtractElpx(
-  filePath: string,
-  extractPath: string,
-  limits: ElpxExtractLimits = DEFAULT_ELPX_EXTRACT_LIMITS,
+	filePath: string,
+	extractPath: string,
+	limits: ElpxExtractLimits = DEFAULT_ELPX_EXTRACT_LIMITS,
 ): Promise<void> {
-  const buf = Buffer.from(await Bun.file(filePath).bytes());
+	const buf = Buffer.from(await Bun.file(filePath).bytes());
 
-  try {
-    const entries = inspectZipEntries(buf, limits);
-    await mkdir(extractPath, { recursive: true });
-    const root = path.resolve(extractPath);
-    const counter: ExtractionCounter = { bytes: 0 };
+	try {
+		const entries = inspectZipEntries(buf, limits);
+		await mkdir(extractPath, { recursive: true });
+		const root = path.resolve(extractPath);
+		const counter: ExtractionCounter = { bytes: 0 };
 
-    for (const entry of entries) {
-      const target = path.resolve(root, entry.name);
-      if (target !== root && !target.startsWith(root + path.sep)) {
-        throw new Error(`Entrada de ZIP no segura: ${entry.name}`);
-      }
+		for (const entry of entries) {
+			const target = path.resolve(root, entry.name);
+			if (target !== root && !target.startsWith(root + path.sep)) {
+				throw new Error(`Entrada de ZIP no segura: ${entry.name}`);
+			}
 
-      if (entry.name.endsWith("/")) {
-        await mkdir(target, { recursive: true });
-        continue;
-      }
+			if (entry.name.endsWith("/")) {
+				await mkdir(target, { recursive: true });
+				continue;
+			}
 
-      await mkdir(path.dirname(target), { recursive: true });
-      await extractFileEntry(buf, entry, target, counter, limits.maxTotalUncompressed);
-    }
+			await mkdir(path.dirname(target), { recursive: true });
+			await extractFileEntry(buf, entry, target, counter, limits.maxTotalUncompressed);
+		}
 
-    await assertExtractionContained(extractPath, limits.maxTotalUncompressed);
-  } catch (error) {
-    await rm(extractPath, { recursive: true, force: true });
-    throw error;
-  }
+		await assertExtractionContained(extractPath, limits.maxTotalUncompressed);
+	} catch (error) {
+		await rm(extractPath, { recursive: true, force: true });
+		throw error;
+	}
 }

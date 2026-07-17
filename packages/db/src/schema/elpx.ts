@@ -1,5 +1,13 @@
-import { pgTable, text, boolean, integer, jsonb, timestamp, varchar } from "drizzle-orm/pg-core";
 import { relations } from "drizzle-orm";
+import {
+	boolean,
+	integer,
+	jsonb,
+	pgTable,
+	text,
+	timestamp,
+	varchar,
+} from "drizzle-orm/pg-core";
 import { resources } from "./resources.ts";
 
 export const elpxProjects = pgTable("elpx_projects", {

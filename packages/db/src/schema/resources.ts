@@ -1,4 +1,4 @@
-import { relations } from "drizzle-orm";
+import { relations, sql } from "drizzle-orm";
 import {
 	boolean,
 	customType,
@@ -6,6 +6,7 @@ import {
 	pgTable,
 	text,
 	timestamp,
+	uniqueIndex,
 	varchar,
 } from "drizzle-orm/pg-core";
 import { user } from "./auth.ts";
@@ -17,56 +18,69 @@ const tsvector = customType<{ data: string }>({
 	},
 });
 
-export const resources = pgTable("resources", {
-	id: text("id").primaryKey(),
-	slug: varchar("slug", { length: 512 }).notNull().unique(),
-	externalId: text("external_id"),
-	sourceUri: text("source_uri"),
+export const resources = pgTable(
+	"resources",
+	{
+		id: text("id").primaryKey(),
+		slug: varchar("slug", { length: 512 }).notNull().unique(),
+		externalId: text("external_id"),
+		sourceUri: text("source_uri"),
 
-	// Metadatos descriptivos
-	title: text("title").notNull(),
-	description: text("description").notNull(),
-	language: varchar("language", { length: 10 }).notNull(),
-	license: varchar("license", { length: 50 }).notNull(),
-	resourceType: varchar("resource_type", { length: 100 }).notNull(),
-	keywords: text("keywords"),
-	author: text("author"),
-	publisher: text("publisher"),
-	duration: integer("duration"),
+		// Metadatos descriptivos
+		title: text("title").notNull(),
+		description: text("description").notNull(),
+		language: varchar("language", { length: 10 }).notNull(),
+		license: varchar("license", { length: 50 }).notNull(),
+		resourceType: varchar("resource_type", { length: 100 }).notNull(),
+		keywords: text("keywords"),
+		author: text("author"),
+		publisher: text("publisher"),
+		duration: integer("duration"),
 
-	// Accesibilidad
-	accessibilityFeatures: text("accessibility_features"),
-	accessibilityHazards: text("accessibility_hazards"),
-	accessMode: text("access_mode"),
+		// Accesibilidad
+		accessibilityFeatures: text("accessibility_features"),
+		accessibilityHazards: text("accessibility_hazards"),
+		accessMode: text("access_mode"),
 
-	// Autoría
-	createdBy: text("created_by").references(() => user.id),
+		// Autoría
+		createdBy: text("created_by").references(() => user.id),
 
-	// Estado editorial
-	editorialStatus: varchar("editorial_status", { length: 50 })
-		.notNull()
-		.default("draft"),
-	assignedCuratorId: text("assigned_curator_id").references(() => user.id),
-	curatedAt: timestamp("curated_at"),
-	featuredAt: timestamp("featured_at"),
+		// Estado editorial
+		editorialStatus: varchar("editorial_status", { length: 50 })
+			.notNull()
+			.default("draft"),
+		assignedCuratorId: text("assigned_curator_id").references(() => user.id),
+		curatedAt: timestamp("curated_at"),
+		featuredAt: timestamp("featured_at"),
 
-	// Importación
-	importedAt: timestamp("imported_at"),
-	importSource: text("import_source"),
+		// Importación
+		importedAt: timestamp("imported_at"),
+		importSource: text("import_source"),
 
-	// Full Text Search
-	extractedText: text("extracted_text"),
-	searchVector: tsvector("search_vector"),
-	extractionStatus: varchar("extraction_status", { length: 20 }).notNull().default("pending"),
-	extractedAt: timestamp("extracted_at"),
-	extractionError: text("extraction_error"),
+		// Full Text Search
+		extractedText: text("extracted_text"),
+		searchVector: tsvector("search_vector"),
+		extractionStatus: varchar("extraction_status", { length: 20 })
+			.notNull()
+			.default("pending"),
+		extractedAt: timestamp("extracted_at"),
+		extractionError: text("extraction_error"),
 
-	// Sistema
-	deletedAt: timestamp("deleted_at"),
+		// Sistema
+		deletedAt: timestamp("deleted_at"),
 
-	createdAt: timestamp("created_at").notNull().defaultNow(),
-	updatedAt: timestamp("updated_at").notNull().defaultNow(),
-});
+		createdAt: timestamp("created_at").notNull().defaultNow(),
+		updatedAt: timestamp("updated_at").notNull().defaultNow(),
+	},
+	(table) => [
+		// Garantiza idempotencia a nivel de BD para importadores externos: un mismo
+		// (import_source, external_id) no puede crear dos recursos. Parcial porque
+		// external_id es null para recursos no importados (no deben restringirse entre sí).
+		uniqueIndex("resources_import_source_external_id_idx")
+			.on(table.importSource, table.externalId)
+			.where(sql`${table.externalId} IS NOT NULL`),
+	],
+);
 
 export const mediaItems = pgTable("media_items", {
 	id: text("id").primaryKey(),
@@ -124,12 +138,9 @@ export const resourceSubjectsRelations = relations(
 	}),
 );
 
-export const resourceLevelsRelations = relations(
-	resourceLevels,
-	({ one }) => ({
-		resource: one(resources, {
-			fields: [resourceLevels.resourceId],
-			references: [resources.id],
-		}),
+export const resourceLevelsRelations = relations(resourceLevels, ({ one }) => ({
+	resource: one(resources, {
+		fields: [resourceLevels.resourceId],
+		references: [resources.id],
 	}),
-);
+}));

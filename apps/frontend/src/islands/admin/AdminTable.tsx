@@ -20,7 +20,10 @@ interface AdminTableProps<T> {
 	emptyMessage?: string;
 }
 
-function buildPageNumbers(current: number, total: number): (number | "ellipsis")[] {
+function buildPageNumbers(
+	current: number,
+	total: number,
+): (number | "ellipsis")[] {
 	if (total <= 7) {
 		return Array.from({ length: total }, (_, i) => i + 1);
 	}
@@ -32,6 +35,20 @@ function buildPageNumbers(current: number, total: number): (number | "ellipsis")
 	if (current < total - 2) pages.push("ellipsis");
 	pages.push(total);
 	return pages;
+}
+
+function keyedPageNumbers(
+	current: number,
+	total: number,
+): Array<{ key: string; value: number | "ellipsis" }> {
+	let previousPage = 0;
+	return buildPageNumbers(current, total).map((value) => {
+		if (value === "ellipsis") {
+			return { key: `ellipsis-after-${previousPage}`, value };
+		}
+		previousPage = value;
+		return { key: `page-${value}`, value };
+	});
 }
 
 export function AdminTable<T>({
@@ -56,10 +73,7 @@ export function AdminTable<T>({
 					<thead>
 						<tr>
 							{columns.map((col) => (
-								<th
-									key={col.key}
-									className={col.headerClassName ?? ""}
-								>
+								<th key={col.key} className={col.headerClassName ?? ""}>
 									{col.label}
 								</th>
 							))}
@@ -68,20 +82,14 @@ export function AdminTable<T>({
 					<tbody>
 						{loading && (
 							<tr>
-								<td
-									colSpan={columns.length}
-									className="admin-table-loading"
-								>
+								<td colSpan={columns.length} className="admin-table-loading">
 									Cargando...
 								</td>
 							</tr>
 						)}
 						{!loading && data.length === 0 && (
 							<tr>
-								<td
-									colSpan={columns.length}
-									className="admin-table-empty"
-								>
+								<td colSpan={columns.length} className="admin-table-empty">
 									{emptyMessage}
 								</td>
 							</tr>
@@ -90,10 +98,7 @@ export function AdminTable<T>({
 							data.map((item) => (
 								<tr key={getKey(item)}>
 									{columns.map((col) => (
-										<td
-											key={col.key}
-											className={col.className ?? ""}
-										>
+										<td key={col.key} className={col.className ?? ""}>
 											{col.render(item)}
 										</td>
 									))}
@@ -109,8 +114,7 @@ export function AdminTable<T>({
 						<strong>
 							{start}-{end}
 						</strong>{" "}
-						de <strong>{total.toLocaleString("es-ES")}</strong>{" "}
-						registros
+						de <strong>{total.toLocaleString("es-ES")}</strong> registros
 					</span>
 					<div className="admin-pagination-buttons">
 						<button
@@ -120,30 +124,23 @@ export function AdminTable<T>({
 							onClick={() => onPageChange(page - 1)}
 							aria-label="Pagina anterior"
 						>
-							<span className="material-symbols-outlined">
-								chevron_left
-							</span>
+							<span className="material-symbols-outlined">chevron_left</span>
 						</button>
-						{buildPageNumbers(page, totalPages).map((p, i) =>
-							p === "ellipsis" ? (
-								<span
-									key={`ellipsis-${i}`}
-									className="admin-page-ellipsis"
-								>
+						{keyedPageNumbers(page, totalPages).map((item) =>
+							item.value === "ellipsis" ? (
+								<span key={item.key} className="admin-page-ellipsis">
 									...
 								</span>
 							) : (
 								<button
-									key={p}
+									key={item.key}
 									type="button"
-									className={`admin-page-btn${p === page ? " admin-page-btn-active" : ""}`}
-									onClick={() => onPageChange(p)}
-									aria-label={`Pagina ${p}`}
-									aria-current={
-										p === page ? "page" : undefined
-									}
+									className={`admin-page-btn${item.value === page ? " admin-page-btn-active" : ""}`}
+									onClick={() => onPageChange(item.value as number)}
+									aria-label={`Pagina ${item.value}`}
+									aria-current={item.value === page ? "page" : undefined}
 								>
-									{p.toLocaleString("es-ES")}
+									{item.value.toLocaleString("es-ES")}
 								</button>
 							),
 						)}
@@ -154,9 +151,7 @@ export function AdminTable<T>({
 							onClick={() => onPageChange(page + 1)}
 							aria-label="Pagina siguiente"
 						>
-							<span className="material-symbols-outlined">
-								chevron_right
-							</span>
+							<span className="material-symbols-outlined">chevron_right</span>
 						</button>
 					</div>
 				</div>

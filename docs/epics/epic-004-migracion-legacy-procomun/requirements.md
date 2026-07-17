@@ -1,0 +1,49 @@
+# Requirements — Épica 004: importador de recursos legacy Procomún (.elpx)
+
+## Fecha
+2026-07-10
+
+## Origen
+Matriz de decisión funcional (`docs/casos/matriz-decision-funcional-procomun/README.md`), filas F2-07 (migración de recursos legacy, P0), F2-08 (migración de usuarios, P0, pendiente de validar con INTEF) y F2-09 (migración de ficheros/formatos, P0, pendiente de validar formatos obligatorios con INTEF). Roadmap Fase 2 (`docs/producto/roadmap.md`), ítem "Migración desde Procomún".
+
+## Problema público/educativo
+La plataforma legacy "Procomún" en producción contiene ~78.800 ODEs (Objetos Digitales Educativos) y ~100.000 adjuntos multimedia. Sin un importador automático, todo ese catálogo histórico se pierde en la transición a `procomun-ng`, con el consiguiente daño a la reutilización de recursos ya creados y usados por la comunidad docente.
+
+## Usuario principal
+Equipo de migración/curación (rol `curator`/`admin`) que ejecuta la importación por lotes y revisa editorialmente los recursos resultantes antes de publicarlos.
+
+## Contexto de datos disponible
+- `ode-export/` (directorio local, no versionado): 9 pares `<id>.json` + `<id>.elpx` de ejemplo real, usados como base de análisis y como fixture de piloto.
+- El `.json` contiene ~39 campos de metadatos tipo LOM/Dublin Core (`titleStr`, `descriptionStr`, `generalLanguageStr`, `rightsCopyrightAndOtherRestrictionsStr`, `knowledgeArea`, `learningContext`, `resourceType`, `authorStr`, `labelsStr`, `idODE`, `rutaAccesoContenidos`, `publicationDate`, etc.).
+- El `.elpx` es un paquete eXeLearning (ZIP), formato ya soportado nativamente por `procomun-ng` (ver `apps/api/src/services/elpx-processor.ts`).
+- **No existe documentación contractual completa del formato de exportación legacy** (PPT del expediente `CE01698/2023` pendiente de obtener, ver `docs/casos/contexto-procomun-legacy/`). El esquema de mapeo se basa en los 9 ejemplos observados, no en una especificación cerrada.
+
+## Objetivo de la épica
+Entregar un importador automático (CLI, idempotente, con dry-run) capaz de convertir pares `.json`+`.elpx` legacy en recursos válidos de `procomun-ng`, piloteado sobre los 9 ejemplos disponibles, sentando la base técnica para escalar después al volumen real cuando se resuelvan las decisiones de negocio pendientes.
+
+## Requisitos funcionales mínimos
+- RF-001: leer un directorio con pares `<id>.json`+`<id>.elpx` y emparejarlos por nombre base.
+- RF-002: mapear los campos del JSON legacy al perfil mínimo de metadatos (ADR-0009) con normalización de idioma, licencia y tipo de recurso.
+- RF-003: reutilizar el pipeline de procesamiento `.elpx` ya existente (`parseElpxMetadata`, `processElpxUpload`, `safeExtractElpx`) sin reimplementarlo.
+- RF-004: persistir cada recurso importado de forma idempotente — reejecutar el importador sobre el mismo origen no debe crear duplicados.
+- RF-005: soportar modo `--dry-run` que valida y mapea sin escribir en base de datos.
+- RF-006: generar un informe de ejecución (`informe_ingesta.json`) con métricas de calidad (importados, omitidos, errores bloqueantes por causa, warnings tolerables).
+- RF-007: distinguir errores bloqueantes (se salta el registro) de errores tolerables (se importa con warning) según reglas explícitas.
+
+## Requisitos no funcionales
+- Idempotencia garantizada a nivel de base de datos (índice único), no solo de aplicación.
+- Un fallo en un registro no debe abortar el procesamiento del resto del lote.
+- Todo `.ts` productivo nuevo debe llevar su test emparejado (regla AGENTS.md).
+- Reutilización estricta de la extracción segura anti zip-slip/symlink/zip-bomb ya auditada (ADR-0026a) — el importador no toca la seguridad de apertura de `.elpx`.
+
+## Fuera de alcance (esta entrega)
+- Formatos SCORM 1.2/2004, ePUB, IMS, enlaces externos (F2-09, pendiente de validar con INTEF qué formatos son obligatorios de preservación).
+- Migración de usuarios/autoría real como cuentas de `procomun-ng` (F2-08, pendiente con INTEF); la autoría legacy se guarda como texto libre.
+- Ejecución sobre el volumen completo (~78.800 ODEs) — condicionada a decisiones de negocio pendientes y a disponibilidad real del dataset.
+- Indexación FTS del contenido interno del `.elpx` (el extractor actual de `apps/api/src/fts/extract.ts` no abre el `index.html` interno del paquete).
+- Conexión con la tabla `taxonomies` (hoy desconectada de `resources`); se mantiene el patrón de texto libre ya usado en el resto del sistema para `resource_subjects`/`resource_levels`.
+
+## Riesgos y supuestos
+- El esquema de origen está inferido de 9 ejemplos reales, no de una especificación oficial completa; el volumen real puede contener variantes no vistas.
+- Se detectó y corrigió un bug real en `packages/db/src/elpx-metadata.ts` (claves `pp_license`/`pp_lang` no mapeadas) que impedía extraer `language`/`license` de prácticamente cualquier `.elpx` real — prerrequisito de esta épica, ver ADR-0029.
+- Decisiones de negocio pendientes con INTEF (alcance completo vs. selectivo, tratamiento de usuarios históricos, formatos legacy adicionales obligatorios) no bloquean esta iteración técnica pero sí la ejecución sobre volumen real.

@@ -1,5 +1,5 @@
-import { cors } from "hono/cors";
 import type { Hono } from "hono";
+import { cors } from "hono/cors";
 import { auditMiddleware } from "../auth/audit.ts";
 import { auth } from "../auth/config.ts";
 import { type AuthEnv, sessionMiddleware } from "../auth/middleware.ts";

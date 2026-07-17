@@ -12,7 +12,9 @@ export const SECTION_MIN_ROLE: Record<AdminSection, number> = {
 	"api-tokens": ROLE_LEVELS.admin,
 };
 
-export function isAdminSection(value: string | null | undefined): value is AdminSection {
+export function isAdminSection(
+	value: string | null | undefined,
+): value is AdminSection {
 	return value != null && value in SECTION_MIN_ROLE;
 }
 

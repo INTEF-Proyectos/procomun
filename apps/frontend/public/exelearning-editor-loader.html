@@ -9,29 +9,33 @@
 </style>
 </head>
 <body>
-<iframe id="editor-frame" sandbox="allow-scripts allow-same-origin allow-popups allow-popups-to-escape-sandbox allow-forms allow-downloads" allow="clipboard-write"></iframe>
+<iframe id="editor-frame" title="Editor eXeLearning" sandbox="allow-scripts allow-same-origin allow-popups allow-popups-to-escape-sandbox allow-forms allow-downloads" allow="clipboard-write"></iframe>
 <script>
-(function() {
+(() => {
   var params = new URLSearchParams(window.location.search);
   var elpxUrl = params.get('elpxUrl') || '';
   var resourceId = params.get('resourceId') || '';
   var base = window.location.pathname.replace(/\/[^/]*$/, '/');
-  var editorBase = base + 'exelearning-editor';
+  var editorBase = `${base}exelearning-editor`;
 
   // Load editor index.html, inject config, and display in iframe
-  fetch(editorBase + '/index.html')
-    .then(function(r) { return r.text(); })
-    .then(function(html) {
+  fetch(`${editorBase}/index.html`)
+    .then((r) => r.text())
+    .then((html) => {
       // Inject base tag
-      html = html.replace('<head>', '<head>\n<base href="' + editorBase + '/">');
+      html = html.replace('<head>', `<head>\n<base href="${editorBase}/">`);
 
       // Inject embedding config WITHOUT untrusted data (elpxUrl sent via postMessage later)
       var configObj = 'basePath: "' + editorBase + '",' +
         'parentOrigin: "' + window.location.origin + '",' +
         'trustedOrigins: ["' + window.location.origin + '"],' +
         'hideUI: { fileMenu: true, saveButton: true, userMenu: true }';
-      var config = '<script>window.__EXE_EMBEDDING_CONFIG__ = {' + configObj + '};<\/script>';
-      html = html.replace('</head>', config + '\n</head>');
+      // Las etiquetas de script se parten en dos trozos a propósito: la
+      // etiqueta de cierre escrita entera cerraría este bloque inline según la
+      // especificación HTML. No unir en un template literal (biome useTemplate
+      // lo propone y rompe el documento).
+      var config = '<scr' + 'ipt>window.__EXE_EMBEDDING_CONFIG__ = {' + configObj + '};</scr' + 'ipt>';
+      html = html.replace('</head>', `${config}\n</head>`);
 
       // Write to iframe (no untrusted data or DOM text in the HTML string)
       var frame = document.getElementById('editor-frame');
@@ -43,14 +47,14 @@
       // Inject bridge script as a DOM element (avoids reinterpreting DOM text as HTML)
       var bridgeSrc = document.getElementById('bridge-src');
       if (bridgeSrc && doc.body) {
-        var s = doc.createElement('script');
+        const s = doc.createElement('script');
         s.text = bridgeSrc.textContent || '';
         doc.body.appendChild(s);
       }
     });
 
   // Forward postMessages from editor iframe to our parent
-  window.addEventListener('message', function(event) {
+  window.addEventListener('message', (event) => {
     if (event.source === document.getElementById('editor-frame').contentWindow) {
       // Forward to parent (the editar.astro page)
       if (window.parent && window.parent !== window) {
@@ -64,11 +68,11 @@
   // For WP_REQUEST_SAVE: forward to editor, but if no response in 5s,
   // perform the export directly from the loader as a fallback.
   var pendingSaveTimer = null;
-  window.addEventListener('message', function(event) {
+  window.addEventListener('message', (event) => {
     if (event.source === window.parent) {
-      var frame = document.getElementById('editor-frame');
+      const frame = document.getElementById('editor-frame');
       if (frame.contentWindow) {
-        var transferables = [];
+        const transferables = [];
         if (event.data && event.data.data && event.data.data.bytes instanceof ArrayBuffer) {
           transferables.push(event.data.data.bytes);
         }
@@ -77,8 +81,8 @@
         // Fallback: if bridge doesn't respond to WP_REQUEST_SAVE within 5s,
         // perform export directly from the loader context
         if (event.data && event.data.type === 'WP_REQUEST_SAVE') {
-          var reqId = event.data.requestId;
-          pendingSaveTimer = setTimeout(function() {
+          const reqId = event.data.requestId;
+          pendingSaveTimer = setTimeout(() => {
             pendingSaveTimer = null;
             var editorWin = frame.contentWindow;
             if (!editorWin) return;
@@ -87,17 +91,17 @@
             var dm = yb && yb.documentManager;
             var SE = editorWin.SharedExporters;
             if (SE && SE.createExporter && dm) {
-              var exporter = SE.createExporter('elpx', dm, yb.assetCache || null, yb.resourceFetcher || null, yb.assetManager || null);
-              exporter.export({}).then(function(result) {
+              const exporter = SE.createExporter('elpx', dm, yb.assetCache || null, yb.resourceFetcher || null, yb.assetManager || null);
+              exporter.export({}).then((result) => {
                 if (!result || !result.success || !result.data) {
                   window.parent.postMessage({ type: 'WP_REQUEST_SAVE_ERROR', requestId: reqId, error: result && result.error || 'Export failed' }, '*');
                   return;
                 }
                 var blob = new Blob([result.data], { type: 'application/zip' });
-                blob.arrayBuffer().then(function(bytes) {
+                blob.arrayBuffer().then((bytes) => {
                   window.parent.postMessage({ type: 'WP_SAVE_FILE', requestId: reqId, bytes: bytes, filename: result.filename || 'project.elpx', mimeType: 'application/zip', size: bytes.byteLength }, '*');
                 });
-              }).catch(function(err) {
+              }).catch((err) => {
                 window.parent.postMessage({ type: 'WP_REQUEST_SAVE_ERROR', requestId: reqId, error: err.message || 'Export error' }, '*');
               });
             } else {
@@ -110,7 +114,7 @@
   });
 
   // Cancel fallback timer when bridge responds normally
-  window.addEventListener('message', function(event) {
+  window.addEventListener('message', (event) => {
     if (event.source === document.getElementById('editor-frame').contentWindow) {
       if (event.data && (event.data.type === 'WP_SAVE_FILE' || event.data.type === 'WP_REQUEST_SAVE_ERROR') && pendingSaveTimer) {
         clearTimeout(pendingSaveTimer);
