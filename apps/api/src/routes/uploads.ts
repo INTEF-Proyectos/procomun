@@ -101,11 +101,16 @@ async function getTusServer() {
 					throw { status_code: 401, body: "No autenticado" };
 				}
 
-				const resourceId = upload.metadata.resourceId;
-				const originalFilename = upload.metadata.filename;
-				const mimeType = upload.metadata.mimeType || "application/octet-stream";
-				const checksumAlgorithm = upload.metadata.checksumAlgorithm ?? null;
-				const finalChecksum = upload.metadata.finalChecksum ?? null;
+				const metadata = upload.metadata;
+				if (!metadata) {
+					throw { status_code: 400, body: "Upload-Metadata incompleta" };
+				}
+
+				const resourceId = metadata.resourceId;
+				const originalFilename = metadata.filename;
+				const mimeType = metadata.mimeType || "application/octet-stream";
+				const checksumAlgorithm = metadata.checksumAlgorithm ?? null;
+				const finalChecksum = metadata.finalChecksum ?? null;
 
 				if (!resourceId || !originalFilename) {
 					throw { status_code: 400, body: "Upload-Metadata incompleta" };

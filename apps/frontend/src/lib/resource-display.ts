@@ -20,12 +20,25 @@ export const TYPE_ICONS: Record<string, string> = {
 	proyecto: "🚀",
 };
 
-export const STATUS_MAP: Record<string, { label: string; cssClass: string }> = {
+export const STATUS_MAP = {
 	draft: { label: "Borrador", cssClass: "pill-status-draft" },
 	review: { label: "En revision", cssClass: "pill-status-review" },
 	published: { label: "Publicado", cssClass: "pill-status-published" },
 	archived: { label: "Archivado", cssClass: "pill-status-archived" },
-};
+} as const satisfies Record<string, { label: string; cssClass: string }>;
+
+export type EditorialStatusKey = keyof typeof STATUS_MAP;
+
+/** Resolve a dynamic editorial status string to its display metadata. */
+export function statusLabelOf(status: string | undefined | null): {
+	label: string;
+	cssClass: string;
+} {
+	if (status != null && Object.hasOwn(STATUS_MAP, status)) {
+		return STATUS_MAP[status as EditorialStatusKey];
+	}
+	return STATUS_MAP.draft;
+}
 
 export const FILE_ICONS: Record<string, string> = {
 	"application/pdf": "📄",

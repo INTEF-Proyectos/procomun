@@ -57,13 +57,14 @@ export function buildFeed(opts: {
 		offset,
 	} = opts;
 
+	const firstResource = resources[0];
 	const feed = new Feed({
 		title,
 		description,
 		id: feedId,
 		link: siteUrl,
 		language: "es",
-		updated: resources.length > 0 ? toDate(resources[0].createdAt) : new Date(),
+		updated: firstResource ? toDate(firstResource.createdAt) : new Date(),
 		generator: "Procomún",
 		feedLinks: {
 			atom: feedUrl,
@@ -116,7 +117,12 @@ export function buildFeed(opts: {
 					: [{ name: "Anónimo" }],
 			category: categories,
 			extensions: resource.license
-				? [{ name: "dc:rights", objects: resource.license }]
+				? [
+						{
+							name: "dc:rights",
+							objects: { rights: resource.license },
+						},
+					]
 				: [],
 		});
 	}

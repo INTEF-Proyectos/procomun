@@ -94,7 +94,7 @@ export async function listReports(
 	db: DrizzleDB,
 	opts: ListReportsOptions = {},
 ) {
-	const { limit, offset } = normalizePagination(opts);
+	const { limit, offset } = normalizePagination(opts.limit, opts.offset);
 
 	const conditions = [
 		opts.status ? eq(reports.status, opts.status) : undefined,

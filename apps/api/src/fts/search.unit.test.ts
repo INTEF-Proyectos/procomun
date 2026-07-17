@@ -20,6 +20,7 @@ import {
 	reindexAllResources,
 	reindexResource,
 	resetUnaccentCache,
+	rowsFromExecute,
 	saveExtractionResult,
 	searchResources,
 	updateSearchVector,
@@ -164,7 +165,7 @@ describe("Text Extraction", () => {
 });
 
 describe("FTS Search & Indexing", () => {
-	let db: ReturnType<typeof drizzle>;
+	let db: TestDatabase;
 	let testDb: TestDatabase;
 	let pglite: PGlite;
 
@@ -172,7 +173,7 @@ describe("FTS Search & Indexing", () => {
 		pglite = new PGlite();
 		await createTables(pglite);
 		db = drizzle(pglite, { schema });
-		testDb = db as unknown as TestDatabase;
+		testDb = db;
 
 		// Create test resources
 		await createResource(testDb, {
@@ -203,10 +204,10 @@ describe("FTS Search & Indexing", () => {
 		});
 
 		// Publish all resources for searching
-		const rawResources = await db.execute(sql`SELECT id FROM resources`);
-		const allResources = (rawResources.rows ?? rawResources) as unknown as {
-			id: string;
-		}[];
+		const rawResources: unknown = await db.execute(
+			sql`SELECT id FROM resources`,
+		);
+		const allResources = rowsFromExecute<{ id: string }>(rawResources);
 		for (const r of allResources) {
 			await db.execute(
 				sql`UPDATE resources SET editorial_status = 'published' WHERE id = ${r.id}`,
@@ -414,12 +415,10 @@ describe("FTS Search & Indexing", () => {
 
 		await markExtractionPending(testDb, id);
 
-		const rows = await db.execute(
+		const rows: unknown = await db.execute(
 			sql`SELECT extraction_status FROM resources WHERE id = ${id}`,
 		);
-		const result = (rows.rows ?? rows) as unknown as {
-			extraction_status: string;
-		}[];
+		const result = rowsFromExecute<{ extraction_status: string }>(rows);
 		expect(result[0]?.extraction_status).toBe("pending");
 	});
 
@@ -434,12 +433,10 @@ describe("FTS Search & Indexing", () => {
 
 		await markExtractionProcessing(testDb, id);
 
-		const rows = await db.execute(
+		const rows: unknown = await db.execute(
 			sql`SELECT extraction_status FROM resources WHERE id = ${id}`,
 		);
-		const result = (rows.rows ?? rows) as unknown as {
-			extraction_status: string;
-		}[];
+		const result = rowsFromExecute<{ extraction_status: string }>(rows);
 		expect(result[0]?.extraction_status).toBe("processing");
 	});
 
@@ -473,13 +470,13 @@ describe("FTS Search & Indexing", () => {
 			error: "File corrupted",
 		});
 
-		const rows = await db.execute(
+		const rows: unknown = await db.execute(
 			sql`SELECT extraction_status, extraction_error FROM resources WHERE id = ${id}`,
 		);
-		const result = (rows.rows ?? rows) as unknown as {
+		const result = rowsFromExecute<{
 			extraction_status: string;
 			extraction_error: string;
-		}[];
+		}>(rows);
 		expect(result[0]?.extraction_status).toBe("error");
 		expect(result[0]?.extraction_error).toBe("File corrupted");
 	});
@@ -498,13 +495,13 @@ describe("FTS Search & Indexing", () => {
 			status: "skipped",
 		});
 
-		const rows = await db.execute(
+		const rows: unknown = await db.execute(
 			sql`SELECT extraction_status, extracted_at FROM resources WHERE id = ${id}`,
 		);
-		const result = (rows.rows ?? rows) as unknown as {
+		const result = rowsFromExecute<{
 			extraction_status: string;
 			extracted_at: string | null;
-		}[];
+		}>(rows);
 		expect(result[0]?.extraction_status).toBe("skipped");
 		expect(result[0]?.extracted_at).toBeNull();
 	});

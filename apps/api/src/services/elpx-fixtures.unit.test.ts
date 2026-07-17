@@ -1,4 +1,11 @@
-import { afterAll, beforeAll, describe, expect, it } from "bun:test";
+import {
+	afterAll,
+	beforeAll,
+	describe,
+	expect,
+	it,
+	setDefaultTimeout,
+} from "bun:test";
 import { mkdir, readdir, rm } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
@@ -34,7 +41,8 @@ afterAll(async () => {
 // ---------------------------------------------------------------------------
 // parseElpxMetadata with real fixtures
 // ---------------------------------------------------------------------------
-describe("parseElpxMetadata with real fixtures", { timeout: 30_000 }, () => {
+describe("parseElpxMetadata with real fixtures", () => {
+	setDefaultTimeout(30_000);
 	for (const fixture of FIXTURES) {
 		const fixturePath = path.join(FIXTURES_DIR, fixture);
 
@@ -60,7 +68,8 @@ describe("parseElpxMetadata with real fixtures", { timeout: 30_000 }, () => {
 // ---------------------------------------------------------------------------
 // processElpxUpload with real fixtures
 // ---------------------------------------------------------------------------
-describe("processElpxUpload with real fixtures", { timeout: 60_000 }, () => {
+describe("processElpxUpload with real fixtures", () => {
+	setDefaultTimeout(60_000);
 	const results: Record<
 		string,
 		Awaited<ReturnType<typeof processElpxUpload>>
@@ -70,52 +79,57 @@ describe("processElpxUpload with real fixtures", { timeout: 60_000 }, () => {
 		const fixturePath = path.join(FIXTURES_DIR, fixture);
 		const fixtureBaseDir = path.join(TEMP_DIR, fixture.replace(/\s+/g, "_"));
 
-		it(`processes "${fixture}" successfully`, { timeout: 60_000 }, async () => {
-			await mkdir(fixtureBaseDir, { recursive: true });
+		it(
+			`processes "${fixture}" successfully`,
+			async () => {
+				await mkdir(fixtureBaseDir, { recursive: true });
 
-			const result = await processElpxUpload(fixturePath, fixtureBaseDir);
-			results[fixture] = result;
+				const result = await processElpxUpload(fixturePath, fixtureBaseDir);
+				results[fixture] = result;
 
-			// Hash must be a non-empty string (UUID)
-			expect(typeof result.hash).toBe("string");
-			expect(result.hash.length).toBeGreaterThan(0);
+				// Hash must be a non-empty string (UUID)
+				expect(typeof result.hash).toBe("string");
+				expect(result.hash.length).toBeGreaterThan(0);
 
-			// extractPath must exist
-			const extractPathExists = await Bun.file(
-				path.join(result.extractPath, "content.xml"),
-			).exists();
-			expect(extractPathExists).toBe(true);
+				// extractPath must exist
+				const extractPathExists = await Bun.file(
+					path.join(result.extractPath, "content.xml"),
+				).exists();
+				expect(extractPathExists).toBe(true);
 
-			// Verify index.html existence matches hasPreview
-			const indexExists = await Bun.file(
-				path.join(result.extractPath, "index.html"),
-			).exists();
-			expect(result.hasPreview).toBe(indexExists);
+				// Verify index.html existence matches hasPreview
+				const indexExists = await Bun.file(
+					path.join(result.extractPath, "index.html"),
+				).exists();
+				expect(result.hasPreview).toBe(indexExists);
 
-			// content.xml must always exist in extracted directory
-			const contentXmlExists = await Bun.file(
-				path.join(result.extractPath, "content.xml"),
-			).exists();
-			expect(contentXmlExists).toBe(true);
+				// content.xml must always exist in extracted directory
+				const contentXmlExists = await Bun.file(
+					path.join(result.extractPath, "content.xml"),
+				).exists();
+				expect(contentXmlExists).toBe(true);
 
-			// Metadata should be populated (all string fields)
-			for (const key of Object.keys(
-				result.metadata,
-			) as (keyof ElpxMetadata)[]) {
-				expect(typeof result.metadata[key]).toBe("string");
-			}
+				// Metadata should be populated (all string fields)
+				for (const key of Object.keys(
+					result.metadata,
+				) as (keyof ElpxMetadata)[]) {
+					expect(typeof result.metadata[key]).toBe("string");
+				}
 
-			console.log(
-				`[${fixture}] hash=${result.hash}, hasPreview=${result.hasPreview}, title="${result.metadata.title}"`,
-			);
-		});
+				console.log(
+					`[${fixture}] hash=${result.hash}, hasPreview=${result.hasPreview}, title="${result.metadata.title}"`,
+				);
+			},
+			{ timeout: 60_000 },
+		);
 	}
 });
 
 // ---------------------------------------------------------------------------
 // metadata content validation
 // ---------------------------------------------------------------------------
-describe("metadata content validation", { timeout: 30_000 }, () => {
+describe("metadata content validation", () => {
+	setDefaultTimeout(30_000);
 	it('"propiedades.elpx" has title filled', async () => {
 		const fixturePath = path.join(FIXTURES_DIR, "propiedades.elpx");
 		const metadata = await parseElpxMetadata(fixturePath);
@@ -150,49 +164,54 @@ describe("metadata content validation", { timeout: 30_000 }, () => {
 		console.log("[mermaid] title:", metadata.title);
 	});
 
-	it("language field is populated for every real fixture (pp_lang key)", {
-		timeout: 30_000,
-	}, async () => {
-		// Every content.xml in FIXTURES_DIR carries a pp_lang odeProperty (verified by
-		// inspection). If this regresses, METADATA_KEYS in elpx-metadata.ts stopped
-		// mapping pp_lang -> language.
-		const languages: Record<string, string> = {};
+	it(
+		"language field is populated for every real fixture (pp_lang key)",
+		async () => {
+			// Every content.xml in FIXTURES_DIR carries a pp_lang odeProperty (verified by
+			// inspection). If this regresses, METADATA_KEYS in elpx-metadata.ts stopped
+			// mapping pp_lang -> language.
+			const languages: Record<string, string> = {};
 
-		for (const fixture of FIXTURES) {
-			const fixturePath = path.join(FIXTURES_DIR, fixture);
-			const metadata = await parseElpxMetadata(fixturePath);
-			expect(metadata.language.length).toBeGreaterThan(0);
-			// Language codes are typically 2-5 chars (e.g., "es", "en", "pt-BR")
-			expect(metadata.language.length).toBeLessThanOrEqual(10);
-			languages[fixture] = metadata.language;
-		}
+			for (const fixture of FIXTURES) {
+				const fixturePath = path.join(FIXTURES_DIR, fixture);
+				const metadata = await parseElpxMetadata(fixturePath);
+				expect(metadata.language.length).toBeGreaterThan(0);
+				// Language codes are typically 2-5 chars (e.g., "es", "en", "pt-BR")
+				expect(metadata.language.length).toBeLessThanOrEqual(10);
+				languages[fixture] = metadata.language;
+			}
 
-		console.log("Fixtures with language:", languages);
-	});
+			console.log("Fixtures with language:", languages);
+		},
+		{ timeout: 30_000 },
+	);
 
-	it("license field is populated for every real fixture (license/pp_license key)", {
-		timeout: 30_000,
-	}, async () => {
-		// Every content.xml in FIXTURES_DIR carries either a bare "license" or a
-		// "pp_license" odeProperty (verified by inspection). If this regresses,
-		// METADATA_KEYS in elpx-metadata.ts stopped mapping one of those keys.
-		const licenses: Record<string, string> = {};
+	it(
+		"license field is populated for every real fixture (license/pp_license key)",
+		async () => {
+			// Every content.xml in FIXTURES_DIR carries either a bare "license" or a
+			// "pp_license" odeProperty (verified by inspection). If this regresses,
+			// METADATA_KEYS in elpx-metadata.ts stopped mapping one of those keys.
+			const licenses: Record<string, string> = {};
 
-		for (const fixture of FIXTURES) {
-			const fixturePath = path.join(FIXTURES_DIR, fixture);
-			const metadata = await parseElpxMetadata(fixturePath);
-			expect(metadata.license.length).toBeGreaterThan(0);
-			licenses[fixture] = metadata.license;
-		}
+			for (const fixture of FIXTURES) {
+				const fixturePath = path.join(FIXTURES_DIR, fixture);
+				const metadata = await parseElpxMetadata(fixturePath);
+				expect(metadata.license.length).toBeGreaterThan(0);
+				licenses[fixture] = metadata.license;
+			}
 
-		console.log("Fixtures with license:", licenses);
-	});
+			console.log("Fixtures with license:", licenses);
+		},
+		{ timeout: 30_000 },
+	);
 });
 
 // ---------------------------------------------------------------------------
 // elpx content proxy integration
 // ---------------------------------------------------------------------------
-describe("elpx content proxy integration", { timeout: 60_000 }, () => {
+describe("elpx content proxy integration", () => {
+	setDefaultTimeout(60_000);
 	let app: InstanceType<typeof Hono>;
 	let processedHash: string;
 	let processedExtractPath: string;
@@ -292,23 +311,25 @@ describe("elpx content proxy integration", { timeout: 60_000 }, () => {
 		expect(res.status).toBe(404);
 	});
 
-	it("serves a second fixture through the proxy", {
-		timeout: 30_000,
-	}, async () => {
-		const fixturePath = path.join(FIXTURES_DIR, "mermaid.elpx");
-		const result = await processElpxUpload(fixturePath, integrationBaseDir);
+	it(
+		"serves a second fixture through the proxy",
+		async () => {
+			const fixturePath = path.join(FIXTURES_DIR, "mermaid.elpx");
+			const result = await processElpxUpload(fixturePath, integrationBaseDir);
 
-		const res = await app.request(`/api/v1/elpx/${result.hash}`);
-		const indexExists = await Bun.file(
-			path.join(result.extractPath, "index.html"),
-		).exists();
+			const res = await app.request(`/api/v1/elpx/${result.hash}`);
+			const indexExists = await Bun.file(
+				path.join(result.extractPath, "index.html"),
+			).exists();
 
-		if (indexExists) {
-			expect(res.status).toBe(200);
-			const html = await res.text();
-			expect(html).toContain(`/api/v1/elpx/${result.hash}/`);
-		} else {
-			expect(res.status).toBe(404);
-		}
-	});
+			if (indexExists) {
+				expect(res.status).toBe(200);
+				const html = await res.text();
+				expect(html).toContain(`/api/v1/elpx/${result.hash}/`);
+			} else {
+				expect(res.status).toBe(404);
+			}
+		},
+		{ timeout: 30_000 },
+	);
 });

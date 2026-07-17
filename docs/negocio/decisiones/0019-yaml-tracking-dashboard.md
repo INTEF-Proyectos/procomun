@@ -57,3 +57,16 @@ Se elige la **opción C**: YAML con claves map para todos los documentos de trac
 El formato de claves para `status.yaml` usa el patrón `T-YYYY-MM-DD-NNN` para tareas, garantizando unicidad temporal. Las claves de `decision-log.yaml` usan `ADR-NNNN` alineado con la numeración existente.
 
 El dashboard se inspira en el implementado en el proyecto idevices-spec (DR-0013), adaptado al stack y estructura de Procomún.
+
+### Enmienda 2026-07-17 — claves con hora y aleatorio
+
+El contador diario `NNN` colisiona cuando dos PRs abiertas el mismo día eligen el siguiente número sin ver la otra rama. Git puede auto-mergear el YAML; el parser se queda con la última clave y el historial se pierde en silencio (mitigado en parte por `scripts/check-tracking.ts`, que falla si hay duplicados en texto crudo).
+
+**Formato nuevo para entradas nuevas:** `T-YYYY-MM-DD-HHMMSSrr`
+
+- `YYYY-MM-DD` y `HHMMSS` en **UTC**
+- `rr`: dos dígitos aleatorios (00–99)
+- Generador: `bun run new-status-key` (`scripts/new-status-key.ts`)
+- Las claves históricas `T-YYYY-MM-DD-NNN` **no se reescriben**; el validador acepta ambos sufijos numéricos
+
+Consecuencia: la probabilidad de colisión entre ramas paralelas deja de depender de coordinar el contador del día.

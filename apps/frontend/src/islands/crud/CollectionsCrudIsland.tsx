@@ -84,9 +84,12 @@ export function CollectionsCrudIsland() {
 	const [total, setTotal] = useState(0);
 	const [statusMessage, setStatusMessage] = useState("Cargando colecciones...");
 	const [createForm, setCreateForm] = useState(EMPTY_FORM);
-	const [createFeedback, setCreateFeedback] = useState({
+	const [createFeedback, setCreateFeedback] = useState<{
+		message: string;
+		variant: "neutral" | "success" | "error";
+	}>({
 		message: "",
-		variant: "neutral" as const,
+		variant: "neutral",
 	});
 	const [editing, setEditing] = useState<CollectionRecord | null>(null);
 	const [editForm, setEditForm] = useState(EMPTY_FORM);
@@ -99,9 +102,12 @@ export function CollectionsCrudIsland() {
 	>([]);
 	const [resourceSearch, setResourceSearch] = useState("");
 	const [resourceResults, setResourceResults] = useState<Resource[]>([]);
-	const [resourceFeedback, setResourceFeedback] = useState({
+	const [resourceFeedback, setResourceFeedback] = useState<{
+		message: string;
+		variant: "neutral" | "success" | "error";
+	}>({
 		message: "",
-		variant: "neutral" as const,
+		variant: "neutral",
 	});
 	const [busyAction, setBusyAction] = useState<
 		| "create"

@@ -14,6 +14,8 @@ describe("Search Case and Accent Insensitivity", () => {
 	beforeAll(async () => {
 		pglite = new PGlite();
 		await createTables(pglite);
+		// search.test only loads resources schema (not full AppSchema); cast is
+		// the narrowest bridge for this focused suite.
 		db = drizzle(pglite, { schema }) as unknown as TestDatabase;
 
 		// Seed some data
