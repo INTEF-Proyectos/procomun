@@ -1,70 +1,55 @@
 {
-  "id": "1615293421477",
-  "idODE": "1615293421477",
-  "titleStr": "Vender con los sentidos",
-  "preview": "https://ode.educacion.es/INTEF/1615293421477/vistaPreviaAgrega.png",
-  "type": "ODE",
-  "published": "1",
-  "certified": null,
-  "mecIdentifierStr": "es_2021052912_9134826",
-  "descriptionStr": "En este nuevo desafío, que denominamos \"Vender con los sentidos\", trabajaremos aspectos para favorecer la recuperación del sector comercial partiendo de proyectos reales.",
-  "publicatorStr": "Docente Ejemplo Tres",
-  "publicatorNameStr": "Docente Ejemplo Tres",
-  "publicatorEmailStr": "docente.tres@ejemplo.test",
-  "knowledgeArea": [
-    "Artes Plásticas"
-  ],
-  "learningContext": [
-    "Formación Profesional",
-    "Formación Profesional Básica (más de 15 años)"
-  ],
-  "resourceType": [
-    "Basado en proyectos "
-  ],
-  "publicationDate": "2021-05-29T13:48:27.339Z",
-  "lastIndexDate": "2021-06-01T02:00:03.312Z",
-  "fechaRegistro": "20230316",
-  "labelsStr": [
-    ""
-  ],
-  "generalIdentifierStr": null,
-  "educationalLearningResourceTypeStr": [
-    "real project"
-  ],
-  "educationalIntendedEndUserRoleStr": [
-    "learner",
-    "group"
-  ],
-  "educationalContextStr": null,
-  "educationalCognitiveProcess": null,
-  "educationalDescriptionStr": [
-    "CONOCIMIENTO PREVIO: No se requieren conocimientos previos. Sólo ganas de investigar y aprender.",
-    "OBJETIVOS: Crear un contenido digital exportable al mundo laboral."
-  ],
-  "educationalLanguageStr": null,
-  "rightsCopyrightAndOtherRestrictionsStr": "creative commons: attribution - share alike",
-  "rightsAccessStr": "universal",
-  "rightsAccessDescriptionStr": "es_andalucia_20090324,es_aragon_20080930,es_baleares_200907131205,es_canarias_20090114,es_cantabria_20081215,es_clm_20091103121523455,es_castillayleon_201002241811,es_euskadi_20100423,es_extremadura_20111222,galicia20091006,es_larioja_20081107,es_{nodo}_20080923,es_na_90348943,es_valencia_201101241416,es_cnice_20080623",
-  "lifecycleContributeStr": [
-    "publisher##BEGIN:VCARD VERSION:3.0 FN: Docente Ejemplo Tres EMAIL;TYPE=INTERNET:  ORG: Plataforma AgregaEND:VCARD##",
-    "author##BEGIN:VCARD VERSION:3.0 FN: Docente Ejemplo Tres EMAIL;TYPE=INTERNET: ORG: Plataforma Agrega-WebSemanticaEND:VCARD##",
-    "author##BEGIN:VCARD VERSION:3.0 FN: Docente Ejemplo Tres EMAIL;TYPE=INTERNET:docente.tres@ejemplo.test END:VCARDEND:VCARD##"
-  ],
-  "generalAggregationLevelStr": "2",
-  "generalLanguageStr": [
-    "es"
-  ],
-  "generateId": null,
-  "nodoPublicacion": "INTEF",
-  "odeNode": "INTEF",
-  "rutaAccesoContenidos": "https://ode.educacion.es/INTEF/1615293421477",
-  "technicalLocationStr": null,
-  "editores": null,
-  "metadatosLOMES": null,
-  "estado": "SINCRO_CONTENIDO",
-  "authorStr": [
-    "Docente Ejemplo Tres"
-  ],
-  "collectionNameStr": null,
-  "idDrupal": null
+	"id": "1615293421477",
+	"idODE": "1615293421477",
+	"titleStr": "Vender con los sentidos",
+	"preview": "https://ode.educacion.es/INTEF/1615293421477/vistaPreviaAgrega.png",
+	"type": "ODE",
+	"published": "1",
+	"certified": null,
+	"mecIdentifierStr": "es_2021052912_9134826",
+	"descriptionStr": "En este nuevo desafío, que denominamos \"Vender con los sentidos\", trabajaremos aspectos para favorecer la recuperación del sector comercial partiendo de proyectos reales.",
+	"publicatorStr": "Docente Ejemplo Tres",
+	"publicatorNameStr": "Docente Ejemplo Tres",
+	"publicatorEmailStr": "docente.tres@ejemplo.test",
+	"knowledgeArea": ["Artes Plásticas"],
+	"learningContext": [
+		"Formación Profesional",
+		"Formación Profesional Básica (más de 15 años)"
+	],
+	"resourceType": ["Basado en proyectos "],
+	"publicationDate": "2021-05-29T13:48:27.339Z",
+	"lastIndexDate": "2021-06-01T02:00:03.312Z",
+	"fechaRegistro": "20230316",
+	"labelsStr": [""],
+	"generalIdentifierStr": null,
+	"educationalLearningResourceTypeStr": ["real project"],
+	"educationalIntendedEndUserRoleStr": ["learner", "group"],
+	"educationalContextStr": null,
+	"educationalCognitiveProcess": null,
+	"educationalDescriptionStr": [
+		"CONOCIMIENTO PREVIO: No se requieren conocimientos previos. Sólo ganas de investigar y aprender.",
+		"OBJETIVOS: Crear un contenido digital exportable al mundo laboral."
+	],
+	"educationalLanguageStr": null,
+	"rightsCopyrightAndOtherRestrictionsStr": "creative commons: attribution - share alike",
+	"rightsAccessStr": "universal",
+	"rightsAccessDescriptionStr": "es_andalucia_20090324,es_aragon_20080930,es_baleares_200907131205,es_canarias_20090114,es_cantabria_20081215,es_clm_20091103121523455,es_castillayleon_201002241811,es_euskadi_20100423,es_extremadura_20111222,galicia20091006,es_larioja_20081107,es_{nodo}_20080923,es_na_90348943,es_valencia_201101241416,es_cnice_20080623",
+	"lifecycleContributeStr": [
+		"publisher##BEGIN:VCARD VERSION:3.0 FN: Docente Ejemplo Tres EMAIL;TYPE=INTERNET:  ORG: Plataforma AgregaEND:VCARD##",
+		"author##BEGIN:VCARD VERSION:3.0 FN: Docente Ejemplo Tres EMAIL;TYPE=INTERNET: ORG: Plataforma Agrega-WebSemanticaEND:VCARD##",
+		"author##BEGIN:VCARD VERSION:3.0 FN: Docente Ejemplo Tres EMAIL;TYPE=INTERNET:docente.tres@ejemplo.test END:VCARDEND:VCARD##"
+	],
+	"generalAggregationLevelStr": "2",
+	"generalLanguageStr": ["es"],
+	"generateId": null,
+	"nodoPublicacion": "INTEF",
+	"odeNode": "INTEF",
+	"rutaAccesoContenidos": "https://ode.educacion.es/INTEF/1615293421477",
+	"technicalLocationStr": null,
+	"editores": null,
+	"metadatosLOMES": null,
+	"estado": "SINCRO_CONTENIDO",
+	"authorStr": ["Docente Ejemplo Tres"],
+	"collectionNameStr": null,
+	"idDrupal": null
 }

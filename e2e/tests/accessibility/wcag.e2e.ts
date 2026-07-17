@@ -4,7 +4,9 @@ import { PUBLISHED_RESOURCE } from "../../fixtures/test-data";
 import { loginAs } from "../../utils/auth";
 
 test.describe("Accessibility - Public pages", () => {
-	test("home page has no critical accessibility violations", async ({ page }) => {
+	test("home page has no critical accessibility violations", async ({
+		page,
+	}) => {
 		await page.goto("/");
 		const results = await new AxeBuilder({ page })
 			.withTags(["wcag2a", "wcag2aa"])

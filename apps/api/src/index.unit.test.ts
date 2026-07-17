@@ -1,10 +1,10 @@
-import { expect, test, describe, beforeAll } from "bun:test";
+import { beforeAll, describe, expect, test } from "bun:test";
 import { mkdtemp, writeFile } from "node:fs/promises";
-import path from "node:path";
 import { tmpdir } from "node:os";
-import { app } from "./index.ts";
-import { getDb } from "./db.ts";
+import path from "node:path";
 import * as repo from "@procomun/db/repository";
+import { getDb } from "./db.ts";
+import { app } from "./index.ts";
 
 let publishedSlug: string;
 let draftSlug: string;
@@ -16,7 +16,9 @@ let publishedElpxUploadId: string;
 let publishedCollectionSlug: string;
 
 beforeAll(async () => {
-	process.env.UPLOAD_STORAGE_DIR = await mkdtemp(path.join(tmpdir(), "procomun-public-uploads-"));
+	process.env.UPLOAD_STORAGE_DIR = await mkdtemp(
+		path.join(tmpdir(), "procomun-public-uploads-"),
+	);
 
 	const draft = await repo.createResource(getDb().db, {
 		title: "Recurso borrador test",
@@ -37,7 +39,10 @@ beforeAll(async () => {
 	publishedSlug = pub.slug;
 	await repo.updateEditorialStatus(getDb().db, pub.id, "published", "system");
 	publishedUploadId = `public-upload-${crypto.randomUUID()}`;
-	await writeFile(path.join(process.env.UPLOAD_STORAGE_DIR!, publishedUploadId), "pdf de prueba");
+	await writeFile(
+		path.join(process.env.UPLOAD_STORAGE_DIR!, publishedUploadId),
+		"pdf de prueba",
+	);
 	await repo.ensureUser(getDb().db, {
 		id: "system",
 		email: "system@local.invalid",
@@ -86,7 +91,12 @@ beforeAll(async () => {
 		resourceType: "documento",
 	});
 	englishSlug = english.slug;
-	await repo.updateEditorialStatus(getDb().db, english.id, "published", "system");
+	await repo.updateEditorialStatus(
+		getDb().db,
+		english.id,
+		"published",
+		"system",
+	);
 
 	const publishedElpx = await repo.createResource(getDb().db, {
 		title: "Recurso eXe publicado test",
@@ -96,9 +106,17 @@ beforeAll(async () => {
 		resourceType: "actividad-interactiva",
 	});
 	publishedElpxSlug = publishedElpx.slug;
-	await repo.updateEditorialStatus(getDb().db, publishedElpx.id, "published", "system");
+	await repo.updateEditorialStatus(
+		getDb().db,
+		publishedElpx.id,
+		"published",
+		"system",
+	);
 	publishedElpxUploadId = `public-elpx-${crypto.randomUUID()}`;
-	await writeFile(path.join(process.env.UPLOAD_STORAGE_DIR!, publishedElpxUploadId), "elpx de prueba");
+	await writeFile(
+		path.join(process.env.UPLOAD_STORAGE_DIR!, publishedElpxUploadId),
+		"elpx de prueba",
+	);
 	await repo.createUploadSession(getDb().db, {
 		id: publishedElpxUploadId,
 		resourceId: publishedElpx.id,
@@ -206,7 +224,9 @@ describe("Rutas públicas /api/v1", () => {
 		expect(body.subjects).toBeDefined();
 		expect(body.levels).toBeDefined();
 		expect(Array.isArray(body.mediaItems)).toBe(true);
-		expect(body.mediaItems[0]?.url).toBe(`/api/v1/uploads/${publishedUploadId}/content`);
+		expect(body.mediaItems[0]?.url).toBe(
+			`/api/v1/uploads/${publishedUploadId}/content`,
+		);
 	});
 
 	test("GET /api/v1/resources/:slug expone elpxFileUrl cuando existe proyecto eXe", async () => {
@@ -214,15 +234,21 @@ describe("Rutas públicas /api/v1", () => {
 		expect(res.status).toBe(200);
 		const body = await res.json();
 		expect(body.slug).toBe(publishedElpxSlug);
-		expect(body.elpxFileUrl).toBe(`/api/v1/uploads/${publishedElpxUploadId}/content`);
+		expect(body.elpxFileUrl).toBe(
+			`/api/v1/uploads/${publishedElpxUploadId}/content`,
+		);
 		expect(body.elpxPreview?.previewUrl).toBe("/api/v1/elpx/hash-public-elpx/");
 	});
 
 	test("GET /api/v1/uploads/:id/content descarga archivo de recurso publicado", async () => {
-		const res = await app.request(`/api/v1/uploads/${publishedUploadId}/content`);
+		const res = await app.request(
+			`/api/v1/uploads/${publishedUploadId}/content`,
+		);
 		expect(res.status).toBe(200);
 		expect(res.headers.get("content-type")).toContain("application/pdf");
-		expect(res.headers.get("content-disposition")).toContain('filename="guia-publica.pdf"');
+		expect(res.headers.get("content-disposition")).toContain(
+			'filename="guia-publica.pdf"',
+		);
 		expect(await res.text()).toBe("pdf de prueba");
 	});
 
@@ -261,12 +287,19 @@ describe("Rutas públicas /api/v1", () => {
 	});
 
 	test("GET /api/v1/resources combina texto y filtros", async () => {
-		const res = await app.request("/api/v1/resources?q=English&language=en&license=cc0");
+		const res = await app.request(
+			"/api/v1/resources?q=English&language=en&license=cc0",
+		);
 		expect(res.status).toBe(200);
 		const body = await res.json();
 		const slugs = body.data.map((r: { slug: string }) => r.slug);
 		expect(slugs).toContain(englishSlug);
-		expect(body.data.every((r: { language: string; license: string }) => r.language === "en" && r.license === "cc0")).toBe(true);
+		expect(
+			body.data.every(
+				(r: { language: string; license: string }) =>
+					r.language === "en" && r.license === "cc0",
+			),
+		).toBe(true);
 	});
 
 	test("GET /api/v1/collections devuelve lista", async () => {
@@ -275,18 +308,29 @@ describe("Rutas públicas /api/v1", () => {
 		const body = await res.json();
 		expect(Array.isArray(body.data)).toBe(true);
 		expect(body.data[0]?.resourceCount).toBeGreaterThan(0);
-		expect(body.data.some((item: { slug: string }) => item.slug === publishedCollectionSlug)).toBe(true);
+		expect(
+			body.data.some(
+				(item: { slug: string }) => item.slug === publishedCollectionSlug,
+			),
+		).toBe(true);
 	});
 
 	test("GET /api/v1/collections?q= filtra colecciones publicadas", async () => {
 		const res = await app.request("/api/v1/collections?q=publica");
 		expect(res.status).toBe(200);
 		const body = await res.json();
-		expect(body.data.every((item: { editorialStatus: string }) => item.editorialStatus === "published")).toBe(true);
+		expect(
+			body.data.every(
+				(item: { editorialStatus: string }) =>
+					item.editorialStatus === "published",
+			),
+		).toBe(true);
 	});
 
 	test("GET /api/v1/collections/:slug devuelve detalle con recursos", async () => {
-		const res = await app.request(`/api/v1/collections/${publishedCollectionSlug}`);
+		const res = await app.request(
+			`/api/v1/collections/${publishedCollectionSlug}`,
+		);
 		expect(res.status).toBe(200);
 		const body = await res.json();
 		expect(body.slug).toBe(publishedCollectionSlug);
@@ -313,7 +357,9 @@ describe("Rutas admin /api/admin — sin autenticación", () => {
 	});
 
 	test("DELETE /api/admin/resources/123 devuelve 401 sin sesión", async () => {
-		const res = await app.request("/api/admin/resources/123", { method: "DELETE" });
+		const res = await app.request("/api/admin/resources/123", {
+			method: "DELETE",
+		});
 		expect(res.status).toBe(401);
 	});
 });

@@ -1,6 +1,11 @@
 import { and, eq } from "drizzle-orm";
 import { elpxProjects } from "../schema/elpx.ts";
-import { mediaItems, resourceLevels, resourceSubjects, resources } from "../schema/resources.ts";
+import {
+	mediaItems,
+	resourceLevels,
+	resourceSubjects,
+	resources,
+} from "../schema/resources.ts";
 import { uploadSessions } from "../schema/uploads.ts";
 import { buildSlug, type DrizzleDB } from "./shared.ts";
 
@@ -62,7 +67,12 @@ export async function findLegacyResourceByExternalId(
 	const rows = await db
 		.select({ id: resources.id, slug: resources.slug })
 		.from(resources)
-		.where(and(eq(resources.importSource, importSource), eq(resources.externalId, externalId)))
+		.where(
+			and(
+				eq(resources.importSource, importSource),
+				eq(resources.externalId, externalId),
+			),
+		)
 		.limit(1);
 	return rows[0] ?? null;
 }
@@ -76,7 +86,11 @@ export async function findLegacyResourceByExternalId(
  */
 export async function importLegacyResourceWithElpx(
 	db: DrizzleDB,
-	input: { resource: LegacyResourceInput; elpx: LegacyElpxInput; media: LegacyMediaInput },
+	input: {
+		resource: LegacyResourceInput;
+		elpx: LegacyElpxInput;
+		media: LegacyMediaInput;
+	},
 ): Promise<ImportLegacyResourceResult> {
 	return db.transaction(async (tx: DrizzleDB) => {
 		const resourceId = crypto.randomUUID();
@@ -115,7 +129,9 @@ export async function importLegacyResourceWithElpx(
 		if (input.resource.subjects.length) {
 			await tx
 				.insert(resourceSubjects)
-				.values(input.resource.subjects.map((subject) => ({ resourceId, subject })));
+				.values(
+					input.resource.subjects.map((subject) => ({ resourceId, subject })),
+				);
 		}
 		if (input.resource.levels.length) {
 			await tx

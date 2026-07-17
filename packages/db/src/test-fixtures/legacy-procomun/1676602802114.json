@@ -1,71 +1,55 @@
 {
-  "id": "1676602802114",
-  "idODE": "1676602802114",
-  "titleStr": "Macroeconomia. Indicadors Econòmics.pdf",
-  "preview": "https://ode.educacion.es/INTEF/1676602802114/vistaPreviaAgrega.png",
-  "type": "ODE",
-  "published": "1",
-  "certified": null,
-  "mecIdentifierStr": "es_2023021522_9112708",
-  "descriptionStr": "Infografia conceptes principals dels indicadors econòmics. Economia 1r Batxiller",
-  "publicatorStr": "Docente Ejemplo Cuatro",
-  "publicatorNameStr": "Docente Ejemplo Cuatro",
-  "publicatorEmailStr": "docente.cuatro@ejemplo.test",
-  "knowledgeArea": [
-    "Economía"
-  ],
-  "learningContext": [
-    "Bachillerato",
-    "Educación Secundaria Obligatoria",
-    "12 - 13 años / Primer curso",
-    "13 - 14 años / Segundo curso",
-    "14 - 15 años / Tercer curso",
-    "15 - 16 / Cuarto curso"
-  ],
-  "resourceType": [
-    "Mapa conceptual"
-  ],
-  "publicationDate": "2023-02-15T11:27:09Z",
-  "lastIndexDate": "2023-02-18T03:00:07.058Z",
-  "fechaRegistro": "20230316",
-  "labelsStr": [
-    "macroeconomía"
-  ],
-  "generalIdentifierStr": null,
-  "educationalLearningResourceTypeStr": [
-    "conceptual map"
-  ],
-  "educationalIntendedEndUserRoleStr": [
-    "learner",
-    "individual"
-  ],
-  "educationalContextStr": null,
-  "educationalCognitiveProcess": null,
-  "educationalDescriptionStr": [
-    "",
-    ""
-  ],
-  "educationalLanguageStr": null,
-  "rightsCopyrightAndOtherRestrictionsStr": "creative commons: attribution - non commercial - share alike",
-  "rightsAccessStr": "universal",
-  "rightsAccessDescriptionStr": "es_andalucia_20090324,es_aragon_20080930,es_baleares_200907131205,es_canarias_20090114,es_cantabria_20081215,es_clm_20091103121523455,es_castillayleon_201002241811,es_euskadi_20100423,es_extremadura_20111222,galicia20091006,es_larioja_20081107,es_{nodo}_20080923,es_na_90348943,es_valencia_201101241416,es_cnice_20080623",
-  "lifecycleContributeStr": [
-    "publisher##BEGIN:VCARD VERSION:3.0 FN: Docente Ejemplo Cuatro EMAIL;TYPE=INTERNET:  ORG: Plataforma AgregaEND:VCARD##",
-    "author##BEGIN:VCARD VERSION:3.0 FN: Docente Ejemplo Cuatro EMAIL;TYPE=INTERNET: ORG: Plataforma Agrega-WebSemanticaEND:VCARD##"
-  ],
-  "generalAggregationLevelStr": "2",
-  "generalLanguageStr": [
-    "ca"
-  ],
-  "generateId": null,
-  "nodoPublicacion": "INTEF",
-  "odeNode": "INTEF",
-  "rutaAccesoContenidos": "https://ode.educacion.es/INTEF/1676602802114",
-  "technicalLocationStr": null,
-  "editores": null,
-  "metadatosLOMES": null,
-  "estado": "SINCRO_CONTENIDO",
-  "authorStr": null,
-  "collectionNameStr": null,
-  "idDrupal": "33832"
+	"id": "1676602802114",
+	"idODE": "1676602802114",
+	"titleStr": "Macroeconomia. Indicadors Econòmics.pdf",
+	"preview": "https://ode.educacion.es/INTEF/1676602802114/vistaPreviaAgrega.png",
+	"type": "ODE",
+	"published": "1",
+	"certified": null,
+	"mecIdentifierStr": "es_2023021522_9112708",
+	"descriptionStr": "Infografia conceptes principals dels indicadors econòmics. Economia 1r Batxiller",
+	"publicatorStr": "Docente Ejemplo Cuatro",
+	"publicatorNameStr": "Docente Ejemplo Cuatro",
+	"publicatorEmailStr": "docente.cuatro@ejemplo.test",
+	"knowledgeArea": ["Economía"],
+	"learningContext": [
+		"Bachillerato",
+		"Educación Secundaria Obligatoria",
+		"12 - 13 años / Primer curso",
+		"13 - 14 años / Segundo curso",
+		"14 - 15 años / Tercer curso",
+		"15 - 16 / Cuarto curso"
+	],
+	"resourceType": ["Mapa conceptual"],
+	"publicationDate": "2023-02-15T11:27:09Z",
+	"lastIndexDate": "2023-02-18T03:00:07.058Z",
+	"fechaRegistro": "20230316",
+	"labelsStr": ["macroeconomía"],
+	"generalIdentifierStr": null,
+	"educationalLearningResourceTypeStr": ["conceptual map"],
+	"educationalIntendedEndUserRoleStr": ["learner", "individual"],
+	"educationalContextStr": null,
+	"educationalCognitiveProcess": null,
+	"educationalDescriptionStr": ["", ""],
+	"educationalLanguageStr": null,
+	"rightsCopyrightAndOtherRestrictionsStr": "creative commons: attribution - non commercial - share alike",
+	"rightsAccessStr": "universal",
+	"rightsAccessDescriptionStr": "es_andalucia_20090324,es_aragon_20080930,es_baleares_200907131205,es_canarias_20090114,es_cantabria_20081215,es_clm_20091103121523455,es_castillayleon_201002241811,es_euskadi_20100423,es_extremadura_20111222,galicia20091006,es_larioja_20081107,es_{nodo}_20080923,es_na_90348943,es_valencia_201101241416,es_cnice_20080623",
+	"lifecycleContributeStr": [
+		"publisher##BEGIN:VCARD VERSION:3.0 FN: Docente Ejemplo Cuatro EMAIL;TYPE=INTERNET:  ORG: Plataforma AgregaEND:VCARD##",
+		"author##BEGIN:VCARD VERSION:3.0 FN: Docente Ejemplo Cuatro EMAIL;TYPE=INTERNET: ORG: Plataforma Agrega-WebSemanticaEND:VCARD##"
+	],
+	"generalAggregationLevelStr": "2",
+	"generalLanguageStr": ["ca"],
+	"generateId": null,
+	"nodoPublicacion": "INTEF",
+	"odeNode": "INTEF",
+	"rutaAccesoContenidos": "https://ode.educacion.es/INTEF/1676602802114",
+	"technicalLocationStr": null,
+	"editores": null,
+	"metadatosLOMES": null,
+	"estado": "SINCRO_CONTENIDO",
+	"authorStr": null,
+	"collectionNameStr": null,
+	"idDrupal": "33832"
 }

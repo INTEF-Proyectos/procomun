@@ -66,33 +66,25 @@ export function AdminDashboardSection({
 	}, []);
 
 	const publishedPct =
-		stats.total > 0
-			? Math.round((stats.published / stats.total) * 100)
-			: 0;
+		stats.total > 0 ? Math.round((stats.published / stats.total) * 100) : 0;
 
 	return (
 		<>
 			<div className="admin-section-header">
 				<h1>Panel de Gestion</h1>
-				<p>
-					Vista general de recursos educativos y accesos rapidos
-				</p>
+				<p>Vista general de recursos educativos y accesos rapidos</p>
 			</div>
 
 			<div className="admin-stats-grid">
 				<div className="admin-stat-card">
 					<div className="admin-stat-card-top">
 						<div className="admin-stat-icon admin-stat-icon--total">
-							<span className="material-symbols-outlined">
-								library_books
-							</span>
+							<span className="material-symbols-outlined">library_books</span>
 						</div>
 						<span className="admin-stat-label">Total</span>
 					</div>
 					<div className="admin-stat-value">
-						{loading
-							? "..."
-							: stats.total.toLocaleString("es-ES")}
+						{loading ? "..." : stats.total.toLocaleString("es-ES")}
 					</div>
 					<div className="admin-stat-subtitle admin-stat-subtitle--secondary">
 						Recursos en la plataforma
@@ -102,16 +94,12 @@ export function AdminDashboardSection({
 				<div className="admin-stat-card">
 					<div className="admin-stat-card-top">
 						<div className="admin-stat-icon admin-stat-icon--published">
-							<span className="material-symbols-outlined">
-								check_circle
-							</span>
+							<span className="material-symbols-outlined">check_circle</span>
 						</div>
 						<span className="admin-stat-label">Publicados</span>
 					</div>
 					<div className="admin-stat-value">
-						{loading
-							? "..."
-							: stats.published.toLocaleString("es-ES")}
+						{loading ? "..." : stats.published.toLocaleString("es-ES")}
 					</div>
 					<div className="admin-stat-subtitle admin-stat-subtitle--muted">
 						{publishedPct}% de efectividad
@@ -121,16 +109,12 @@ export function AdminDashboardSection({
 				<div className="admin-stat-card">
 					<div className="admin-stat-card-top">
 						<div className="admin-stat-icon admin-stat-icon--review">
-							<span className="material-symbols-outlined">
-								pending_actions
-							</span>
+							<span className="material-symbols-outlined">pending_actions</span>
 						</div>
 						<span className="admin-stat-label">En Revision</span>
 					</div>
 					<div className="admin-stat-value">
-						{loading
-							? "..."
-							: stats.review.toLocaleString("es-ES")}
+						{loading ? "..." : stats.review.toLocaleString("es-ES")}
 					</div>
 					<div className="admin-stat-subtitle admin-stat-subtitle--tertiary">
 						Requiere atencion
@@ -140,16 +124,12 @@ export function AdminDashboardSection({
 				<div className="admin-stat-card">
 					<div className="admin-stat-card-top">
 						<div className="admin-stat-icon admin-stat-icon--draft">
-							<span className="material-symbols-outlined">
-								draft
-							</span>
+							<span className="material-symbols-outlined">draft</span>
 						</div>
 						<span className="admin-stat-label">Borradores</span>
 					</div>
 					<div className="admin-stat-value">
-						{loading
-							? "..."
-							: stats.draft.toLocaleString("es-ES")}
+						{loading ? "..." : stats.draft.toLocaleString("es-ES")}
 					</div>
 					<div className="admin-stat-subtitle admin-stat-subtitle--muted">
 						Sin finalizar
@@ -176,9 +156,7 @@ export function AdminDashboardSection({
 					onClick={() => onNavigate("resources")}
 				>
 					<div className="admin-quick-action-icon">
-						<span className="material-symbols-outlined">
-							library_books
-						</span>
+						<span className="material-symbols-outlined">library_books</span>
 					</div>
 					<div className="admin-quick-action-text">
 						<strong>Gestionar Recursos</strong>
@@ -210,9 +188,7 @@ export function AdminDashboardSection({
 						onClick={() => onNavigate("categories")}
 					>
 						<div className="admin-quick-action-icon">
-							<span className="material-symbols-outlined">
-								category
-							</span>
+							<span className="material-symbols-outlined">category</span>
 						</div>
 						<div className="admin-quick-action-text">
 							<strong>Gestionar Categorias</strong>
@@ -225,7 +201,13 @@ export function AdminDashboardSection({
 					className="admin-quick-action"
 					style={{ textDecoration: "none", color: "inherit" }}
 				>
-					<div className="admin-quick-action-icon" style={{ background: "var(--color-primary)", color: "var(--color-on-primary)" }}>
+					<div
+						className="admin-quick-action-icon"
+						style={{
+							background: "var(--color-primary)",
+							color: "var(--color-on-primary)",
+						}}
+					>
 						<span className="material-symbols-outlined">add_circle</span>
 					</div>
 					<div className="admin-quick-action-text">
@@ -261,8 +243,11 @@ function BadgeSettingsSection() {
 				const api = await getApiClient();
 				const all = await api.getSettings();
 				setSettings((prev) => ({ ...prev, ...all }));
-			} catch { /* use defaults */ }
-			finally { setLoaded(true); }
+			} catch {
+				/* use defaults */
+			} finally {
+				setLoaded(true);
+			}
 		})();
 	}, []);
 
@@ -286,69 +271,141 @@ function BadgeSettingsSection() {
 	return (
 		<div style={{ marginTop: "2rem" }}>
 			<div className="admin-section-header">
-				<h2 style={{ fontFamily: "var(--font-display)", fontSize: "1.25rem", fontWeight: 700 }}>
-					<span className="material-symbols-outlined" style={{ fontSize: "20px", marginRight: "0.5rem", verticalAlign: "middle" }}>tune</span>
+				<h2
+					style={{
+						fontFamily: "var(--font-display)",
+						fontSize: "1.25rem",
+						fontWeight: 700,
+					}}
+				>
+					<span
+						className="material-symbols-outlined"
+						style={{
+							fontSize: "20px",
+							marginRight: "0.5rem",
+							verticalAlign: "middle",
+						}}
+					>
+						tune
+					</span>
 					Configuracion de Badges
 				</h2>
-				<p>Define los criterios para mostrar "Novedad" y "Destacado" en las tarjetas de recursos</p>
+				<p>
+					Define los criterios para mostrar "Novedad" y "Destacado" en las
+					tarjetas de recursos
+				</p>
 			</div>
-			<div className="admin-dev-tools" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem" }}>
-				<label className="admin-dev-tools-row" style={{ display: "flex", flexDirection: "column", gap: "0.25rem" }}>
-					<span className="admin-dev-tools-label">Novedad: dias desde creacion</span>
+			<div
+				className="admin-dev-tools"
+				style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem" }}
+			>
+				<label
+					className="admin-dev-tools-row"
+					style={{ display: "flex", flexDirection: "column", gap: "0.25rem" }}
+				>
+					<span className="admin-dev-tools-label">
+						Novedad: dias desde creacion
+					</span>
 					<input
 						type="number"
 						className="admin-dev-tools-select"
 						value={settings.badge_novedad_days}
-						onChange={(e) => setSettings({ ...settings, badge_novedad_days: e.target.value })}
+						onChange={(e) =>
+							setSettings({ ...settings, badge_novedad_days: e.target.value })
+						}
 						min="1"
 						max="365"
 						style={{ width: "100%" }}
 					/>
 				</label>
-				<label className="admin-dev-tools-row" style={{ display: "flex", flexDirection: "column", gap: "0.25rem" }}>
-					<span className="admin-dev-tools-label">Destacado: minimo valoraciones</span>
+				<label
+					className="admin-dev-tools-row"
+					style={{ display: "flex", flexDirection: "column", gap: "0.25rem" }}
+				>
+					<span className="admin-dev-tools-label">
+						Destacado: minimo valoraciones
+					</span>
 					<input
 						type="number"
 						className="admin-dev-tools-select"
 						value={settings.badge_destacado_min_ratings}
-						onChange={(e) => setSettings({ ...settings, badge_destacado_min_ratings: e.target.value })}
+						onChange={(e) =>
+							setSettings({
+								...settings,
+								badge_destacado_min_ratings: e.target.value,
+							})
+						}
 						min="1"
 						max="100"
 						style={{ width: "100%" }}
 					/>
 				</label>
-				<label className="admin-dev-tools-row" style={{ display: "flex", flexDirection: "column", gap: "0.25rem" }}>
+				<label
+					className="admin-dev-tools-row"
+					style={{ display: "flex", flexDirection: "column", gap: "0.25rem" }}
+				>
 					<span className="admin-dev-tools-label">Destacado: media minima</span>
 					<input
 						type="number"
 						className="admin-dev-tools-select"
 						value={settings.badge_destacado_min_avg}
-						onChange={(e) => setSettings({ ...settings, badge_destacado_min_avg: e.target.value })}
+						onChange={(e) =>
+							setSettings({
+								...settings,
+								badge_destacado_min_avg: e.target.value,
+							})
+						}
 						min="1"
 						max="5"
 						step="0.1"
 						style={{ width: "100%" }}
 					/>
 				</label>
-				<label className="admin-dev-tools-row" style={{ display: "flex", flexDirection: "column", gap: "0.25rem" }}>
-					<span className="admin-dev-tools-label">Destacado: minimo favoritos</span>
+				<label
+					className="admin-dev-tools-row"
+					style={{ display: "flex", flexDirection: "column", gap: "0.25rem" }}
+				>
+					<span className="admin-dev-tools-label">
+						Destacado: minimo favoritos
+					</span>
 					<input
 						type="number"
 						className="admin-dev-tools-select"
 						value={settings.badge_destacado_min_favorites}
-						onChange={(e) => setSettings({ ...settings, badge_destacado_min_favorites: e.target.value })}
+						onChange={(e) =>
+							setSettings({
+								...settings,
+								badge_destacado_min_favorites: e.target.value,
+							})
+						}
 						min="1"
 						max="100"
 						style={{ width: "100%" }}
 					/>
 				</label>
 			</div>
-			<div style={{ marginTop: "1rem", display: "flex", alignItems: "center", gap: "1rem" }}>
-				<button type="button" className="admin-dev-btn admin-dev-btn--primary" onClick={handleSave} disabled={saving}>
+			<div
+				style={{
+					marginTop: "1rem",
+					display: "flex",
+					alignItems: "center",
+					gap: "1rem",
+				}}
+			>
+				<button
+					type="button"
+					className="admin-dev-btn admin-dev-btn--primary"
+					onClick={handleSave}
+					disabled={saving}
+				>
 					<span className="material-symbols-outlined">save</span>
 					{saving ? "Guardando..." : "Guardar cambios"}
 				</button>
-				{message && <span style={{ fontSize: "0.875rem", color: "var(--color-primary)" }}>{message}</span>}
+				{message && (
+					<span style={{ fontSize: "0.875rem", color: "var(--color-primary)" }}>
+						{message}
+					</span>
+				)}
 			</div>
 		</div>
 	);
@@ -368,14 +425,18 @@ function DevToolsSection() {
 	if (!visible) return null;
 
 	async function runSeed(clean: boolean) {
-		const msg = clean ? "¿Borrar recursos generados y crear nuevos?" : "¿Generar recursos aleatorios?";
+		const msg = clean
+			? "¿Borrar recursos generados y crear nuevos?"
+			: "¿Generar recursos aleatorios?";
 		if (!confirm(msg)) return;
 		setSeedBusy(true);
 		setSeedStatus("Generando...");
 		try {
 			const api = await getApiClient();
 			const result = await api.seedResources(Number(seedCount), clean);
-			setSeedStatus(`Creados ${result.count} recursos en ${result.durationMs}ms.`);
+			setSeedStatus(
+				`Creados ${result.count} recursos en ${result.durationMs}ms.`,
+			);
 		} catch {
 			setSeedStatus("Error al generar recursos");
 		} finally {
@@ -386,14 +447,31 @@ function DevToolsSection() {
 	return (
 		<div style={{ marginTop: "2rem" }}>
 			<div className="admin-section-header">
-				<h2 style={{ fontFamily: "var(--font-display)", fontSize: "1.25rem", fontWeight: 700 }}>
-					<span className="material-symbols-outlined" style={{ fontSize: "20px", marginRight: "0.5rem", verticalAlign: "middle" }}>science</span>
+				<h2
+					style={{
+						fontFamily: "var(--font-display)",
+						fontSize: "1.25rem",
+						fontWeight: 700,
+					}}
+				>
+					<span
+						className="material-symbols-outlined"
+						style={{
+							fontSize: "20px",
+							marginRight: "0.5rem",
+							verticalAlign: "middle",
+						}}
+					>
+						science
+					</span>
 					Herramientas de desarrollo
 				</h2>
 			</div>
 			<div className="admin-dev-tools">
 				<div className="admin-dev-tools-row">
-					<span className="admin-dev-tools-label">Generar recursos de prueba:</span>
+					<span className="admin-dev-tools-label">
+						Generar recursos de prueba:
+					</span>
 					<select
 						className="admin-dev-tools-select"
 						value={seedCount}
@@ -405,18 +483,26 @@ function DevToolsSection() {
 						<option value="1000">1.000</option>
 						<option value="10000">10.000</option>
 					</select>
-					<button type="button" className="admin-dev-btn admin-dev-btn--primary" onClick={() => runSeed(false)} disabled={seedBusy}>
+					<button
+						type="button"
+						className="admin-dev-btn admin-dev-btn--primary"
+						onClick={() => runSeed(false)}
+						disabled={seedBusy}
+					>
 						<span className="material-symbols-outlined">play_arrow</span>
 						{seedBusy ? "Generando..." : "Ejecutar"}
 					</button>
-					<button type="button" className="admin-dev-btn admin-dev-btn--danger" onClick={() => runSeed(true)} disabled={seedBusy}>
+					<button
+						type="button"
+						className="admin-dev-btn admin-dev-btn--danger"
+						onClick={() => runSeed(true)}
+						disabled={seedBusy}
+					>
 						<span className="material-symbols-outlined">delete_sweep</span>
 						Limpiar y ejecutar
 					</button>
 				</div>
-				{seedStatus && (
-					<div className="admin-dev-status">{seedStatus}</div>
-				)}
+				{seedStatus && <div className="admin-dev-status">{seedStatus}</div>}
 			</div>
 		</div>
 	);

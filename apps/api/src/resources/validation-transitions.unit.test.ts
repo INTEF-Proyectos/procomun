@@ -1,5 +1,9 @@
-import { expect, test, describe } from "bun:test";
-import { validateTransition, TRANSITION_RULES, ROLE_LEVELS } from "@procomun/db/validation";
+import { describe, expect, test } from "bun:test";
+import {
+	ROLE_LEVELS,
+	TRANSITION_RULES,
+	validateTransition,
+} from "@procomun/db/validation";
 
 describe("validateTransition", () => {
 	describe("author puede enviar a revisión", () => {

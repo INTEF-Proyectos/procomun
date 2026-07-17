@@ -1,4 +1,4 @@
-import { startTransition, useEffect, useState } from "react";
+import { startTransition, useCallback, useEffect, useState } from "react";
 import type { Resource, SessionData } from "../../lib/api-client.ts";
 import { getApiClient } from "../../lib/get-api-client.ts";
 import { url } from "../../lib/paths.ts";
@@ -37,17 +37,9 @@ function getResourceIcon(type: string): {
 	const t = type?.toLowerCase() ?? "";
 	if (t.includes("ode") || t.includes("scorm") || t.includes("learning"))
 		return { icon: "menu_book", className: "admin-resource-icon--book" };
-	if (
-		t.includes("video") ||
-		t.includes("multimedia") ||
-		t.includes("audio")
-	)
+	if (t.includes("video") || t.includes("multimedia") || t.includes("audio"))
 		return { icon: "smart_display", className: "admin-resource-icon--video" };
-	if (
-		t.includes("document") ||
-		t.includes("pdf") ||
-		t.includes("text")
-	)
+	if (t.includes("document") || t.includes("pdf") || t.includes("text"))
 		return { icon: "description", className: "admin-resource-icon--doc" };
 	return { icon: "article", className: "admin-resource-icon--default" };
 }
@@ -56,17 +48,9 @@ function getTypeBadgeClass(type: string): string {
 	const t = type?.toLowerCase() ?? "";
 	if (t.includes("ode") || t.includes("scorm") || t.includes("learning"))
 		return "type-badge--ode";
-	if (
-		t.includes("video") ||
-		t.includes("multimedia") ||
-		t.includes("audio")
-	)
+	if (t.includes("video") || t.includes("multimedia") || t.includes("audio"))
 		return "type-badge--multimedia";
-	if (
-		t.includes("document") ||
-		t.includes("pdf") ||
-		t.includes("text")
-	)
+	if (t.includes("document") || t.includes("pdf") || t.includes("text"))
 		return "type-badge--document";
 	return "type-badge--default";
 }
@@ -97,7 +81,7 @@ export function AdminResourcesSection() {
 	const [statReview, setStatReview] = useState(0);
 	const [statDraft, setStatDraft] = useState(0);
 
-	async function loadStats() {
+	const loadStats = useCallback(async () => {
 		try {
 			const api = await getApiClient();
 			const [all, pub, rev, dra] = await Promise.all([
@@ -113,34 +97,33 @@ export function AdminResourcesSection() {
 		} catch {
 			/* keep zeros */
 		}
-	}
+	}, []);
 
-	async function loadResources(
-		nextPage = page,
-		nextSearch = search,
-		nextStatus = statusFilter,
-	) {
-		setLoading(true);
-		try {
-			const api = await getApiClient();
-			const result = await api.listAdminResources({
-				q: nextSearch || undefined,
-				status: nextStatus || undefined,
-				limit: PAGE_SIZE,
-				offset: (nextPage - 1) * PAGE_SIZE,
-			});
-			startTransition(() => {
-				setRows(result.data);
-				setTotal(result.total);
-				setPage(nextPage);
-			});
-		} catch {
-			setRows([]);
-			setTotal(0);
-		} finally {
-			setLoading(false);
-		}
-	}
+	const loadResources = useCallback(
+		async (nextPage: number, nextSearch: string, nextStatus: string) => {
+			setLoading(true);
+			try {
+				const api = await getApiClient();
+				const result = await api.listAdminResources({
+					q: nextSearch || undefined,
+					status: nextStatus || undefined,
+					limit: PAGE_SIZE,
+					offset: (nextPage - 1) * PAGE_SIZE,
+				});
+				startTransition(() => {
+					setRows(result.data);
+					setTotal(result.total);
+					setPage(nextPage);
+				});
+			} catch {
+				setRows([]);
+				setTotal(0);
+			} finally {
+				setLoading(false);
+			}
+		},
+		[],
+	);
 
 	useEffect(() => {
 		void (async () => {
@@ -153,11 +136,12 @@ export function AdminResourcesSection() {
 			await loadStats();
 			await loadResources(1, "", "");
 		})();
-	}, []);
+	}, [loadStats, loadResources]);
 
 	const currentRole = session?.user.role ?? "reader";
 	const canEditResource = (resource: Resource) =>
-		currentRole === "admin" || (currentRole === "curator" && resource.editorialStatus === "review");
+		currentRole === "admin" ||
+		(currentRole === "curator" && resource.editorialStatus === "review");
 
 	function applySearch() {
 		void loadResources(1, search.trim(), statusFilter);
@@ -176,8 +160,7 @@ export function AdminResourcesSection() {
 			await api.deleteResource(deleteTarget.id);
 			setDeleteTarget(null);
 			void loadStats();
-			const nextPage =
-				rows.length === 1 && page > 1 ? page - 1 : page;
+			const nextPage = rows.length === 1 && page > 1 ? page - 1 : page;
 			void loadResources(nextPage, search.trim(), statusFilter);
 		} catch {
 			/* error handled silently */
@@ -197,20 +180,12 @@ export function AdminResourcesSection() {
 				const iconInfo = getResourceIcon(r.resourceType);
 				return (
 					<div className="admin-resource-cell">
-						<div
-							className={`admin-resource-icon ${iconInfo.className}`}
-						>
-							<span className="material-symbols-outlined">
-								{iconInfo.icon}
-							</span>
+						<div className={`admin-resource-icon ${iconInfo.className}`}>
+							<span className="material-symbols-outlined">{iconInfo.icon}</span>
 						</div>
 						<div>
-							<div className="admin-resource-title">
-								{r.title}
-							</div>
-							<div className="admin-resource-id">
-								ID: {r.id.slice(0, 12)}
-							</div>
+							<div className="admin-resource-title">{r.title}</div>
+							<div className="admin-resource-id">ID: {r.id.slice(0, 12)}</div>
 						</div>
 					</div>
 				);
@@ -220,9 +195,7 @@ export function AdminResourcesSection() {
 			key: "type",
 			label: "Tipo",
 			render: (r) => (
-				<span
-					className={`type-badge ${getTypeBadgeClass(r.resourceType)}`}
-				>
+				<span className={`type-badge ${getTypeBadgeClass(r.resourceType)}`}>
 					{r.resourceType || "-"}
 				</span>
 			),
@@ -256,13 +229,10 @@ export function AdminResourcesSection() {
 			key: "author",
 			label: "Autor",
 			render: (r) => {
-				const name =
-					r.createdByName || r.author || "Sin autor";
+				const name = r.createdByName || r.author || "Sin autor";
 				return (
 					<div className="admin-author-cell">
-						<div className="admin-author-avatar">
-							{getInitials(name)}
-						</div>
+						<div className="admin-author-avatar">{getInitials(name)}</div>
 						<span className="admin-author-name">{name}</span>
 					</div>
 				);
@@ -272,9 +242,7 @@ export function AdminResourcesSection() {
 			key: "updatedAt",
 			label: "Ultima Act.",
 			render: (r) => (
-				<span className="admin-date-cell">
-					{formatDate(r.updatedAt)}
-				</span>
+				<span className="admin-date-cell">{formatDate(r.updatedAt)}</span>
 			),
 		},
 		{
@@ -291,9 +259,7 @@ export function AdminResourcesSection() {
 								className="admin-action-btn admin-action-btn--edit"
 								aria-label={`Editar ${r.title}`}
 							>
-								<span className="material-symbols-outlined">
-									edit
-								</span>
+								<span className="material-symbols-outlined">edit</span>
 							</a>
 							<button
 								type="button"
@@ -302,9 +268,7 @@ export function AdminResourcesSection() {
 								onClick={() => setDeleteTarget(r)}
 								aria-label={`Eliminar ${r.title}`}
 							>
-								<span className="material-symbols-outlined">
-									delete
-								</span>
+								<span className="material-symbols-outlined">delete</span>
 							</button>
 						</>
 					) : (
@@ -319,9 +283,7 @@ export function AdminResourcesSection() {
 		<>
 			<div className="admin-section-header">
 				<h1>Listado de Recursos</h1>
-				<p>
-					Gestion centralizada de contenidos educativos
-				</p>
+				<p>Gestion centralizada de contenidos educativos</p>
 			</div>
 
 			{/* Stat cards */}
@@ -329,9 +291,7 @@ export function AdminResourcesSection() {
 				<div className="admin-stat-card">
 					<div className="admin-stat-card-top">
 						<div className="admin-stat-icon admin-stat-icon--total">
-							<span className="material-symbols-outlined">
-								library_books
-							</span>
+							<span className="material-symbols-outlined">library_books</span>
 						</div>
 						<span className="admin-stat-label">Total</span>
 					</div>
@@ -346,9 +306,7 @@ export function AdminResourcesSection() {
 				<div className="admin-stat-card">
 					<div className="admin-stat-card-top">
 						<div className="admin-stat-icon admin-stat-icon--published">
-							<span className="material-symbols-outlined">
-								check_circle
-							</span>
+							<span className="material-symbols-outlined">check_circle</span>
 						</div>
 						<span className="admin-stat-label">Publicados</span>
 					</div>
@@ -363,9 +321,7 @@ export function AdminResourcesSection() {
 				<div className="admin-stat-card">
 					<div className="admin-stat-card-top">
 						<div className="admin-stat-icon admin-stat-icon--review">
-							<span className="material-symbols-outlined">
-								pending_actions
-							</span>
+							<span className="material-symbols-outlined">pending_actions</span>
 						</div>
 						<span className="admin-stat-label">En Revision</span>
 					</div>
@@ -380,9 +336,7 @@ export function AdminResourcesSection() {
 				<div className="admin-stat-card">
 					<div className="admin-stat-card-top">
 						<div className="admin-stat-icon admin-stat-icon--draft">
-							<span className="material-symbols-outlined">
-								draft
-							</span>
+							<span className="material-symbols-outlined">draft</span>
 						</div>
 						<span className="admin-stat-label">Borradores</span>
 					</div>
@@ -399,9 +353,7 @@ export function AdminResourcesSection() {
 			<div className="admin-filter-bar">
 				<div className="admin-filter-bar-inner">
 					<div className="admin-filter-search">
-						<span className="admin-filter-label">
-							Busqueda avanzada
-						</span>
+						<span className="admin-filter-label">Busqueda avanzada</span>
 						<div className="admin-search-wrap">
 							<input
 								type="search"
@@ -425,18 +377,14 @@ export function AdminResourcesSection() {
 						</div>
 					</div>
 					<div className="admin-status-pills">
-						<span className="admin-filter-label">
-							Estado del Recurso
-						</span>
+						<span className="admin-filter-label">Estado del Recurso</span>
 						<div className="admin-status-pills-inner">
 							{STATUS_FILTERS.map((f) => (
 								<button
 									key={f.value}
 									type="button"
 									className={`admin-status-pill${statusFilter === f.value ? " admin-status-pill-active" : ""}`}
-									onClick={() =>
-										applyStatusFilter(f.value)
-									}
+									onClick={() => applyStatusFilter(f.value)}
 								>
 									{f.label}
 								</button>
@@ -455,9 +403,7 @@ export function AdminResourcesSection() {
 				total={total}
 				page={page}
 				pageSize={PAGE_SIZE}
-				onPageChange={(p) =>
-					void loadResources(p, search.trim(), statusFilter)
-				}
+				onPageChange={(p) => void loadResources(p, search.trim(), statusFilter)}
 				emptyMessage="No hay recursos para los filtros actuales."
 			/>
 

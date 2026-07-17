@@ -2,8 +2,9 @@
  * Full Text Search service using PostgreSQL native FTS.
  * Generates tsvector, performs searches, and handles reindexing.
  */
-import { sql, eq, isNull } from "drizzle-orm";
+
 import { resources } from "@procomun/db/schema";
+import { eq, isNull, sql } from "drizzle-orm";
 
 // biome-ignore lint: generic drizzle db type
 type DrizzleDB = any;
@@ -218,7 +219,9 @@ export async function searchResources(
 				AND r.editorial_status = ${status}
 				AND r.deleted_at IS NULL
 		`);
-		countResult = (rawCount.rows ?? rawCount) as unknown as { total: string | number }[];
+		countResult = (rawCount.rows ?? rawCount) as unknown as {
+			total: string | number;
+		}[];
 	} else {
 		const rawResults = await db.execute(sql`
 			SELECT
@@ -250,7 +253,9 @@ export async function searchResources(
 				AND r.editorial_status = ${status}
 				AND r.deleted_at IS NULL
 		`);
-		countResult = (rawCount.rows ?? rawCount) as unknown as { total: string | number }[];
+		countResult = (rawCount.rows ?? rawCount) as unknown as {
+			total: string | number;
+		}[];
 	}
 
 	const total = Number(countResult[0]?.total ?? 0);

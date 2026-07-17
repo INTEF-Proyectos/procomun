@@ -15,7 +15,13 @@ export async function loadImportLegacyProcomunDependencies() {
 	const [
 		{ getDb, waitForDb },
 		{ processElpxUpload, removeElpxExtraction, buildElpxPath },
-		{ getUploadConfig, ensureUploadStorageDir, computeFileSha256, buildUploadPublicUrl, sanitizeFilename },
+		{
+			getUploadConfig,
+			ensureUploadStorageDir,
+			computeFileSha256,
+			buildUploadPublicUrl,
+			sanitizeFilename,
+		},
 		{ updateSearchVector },
 		legacyImport,
 		repo,
@@ -74,7 +80,9 @@ export async function findLegacySourcePairs(
 
 	const pairs: PairedSource[] = [];
 	const incomplete: string[] = [];
-	for (const [baseName, record] of [...byBase.entries()].sort(([a], [b]) => a.localeCompare(b))) {
+	for (const [baseName, record] of [...byBase.entries()].sort(([a], [b]) =>
+		a.localeCompare(b),
+	)) {
 		if (record.json && record.elpx) {
 			pairs.push({ baseName, jsonPath: record.json, elpxPath: record.elpx });
 		} else {
@@ -128,7 +136,12 @@ export async function* iterateResolvedPairs(
 }
 
 type RecordOutcome =
-	| { outcome: "imported"; externalId: string; resourceId: string; warnings: string[] }
+	| {
+			outcome: "imported";
+			externalId: string;
+			resourceId: string;
+			warnings: string[];
+	  }
 	| { outcome: "would_import"; externalId: string; warnings: string[] }
 	| { outcome: "skipped_existing"; externalId: string }
 	| { outcome: "blocked"; externalId: string; reasons: string[] }
@@ -183,7 +196,11 @@ function parseCliArgs(args: string[]) {
 		limit,
 		only: values.only,
 		reportDir: path.resolve(
-			values["report-dir"] ?? path.join(import.meta.dir, "../../../../local-data/legacy-import-reports"),
+			values["report-dir"] ??
+				path.join(
+					import.meta.dir,
+					"../../../../local-data/legacy-import-reports",
+				),
 		),
 	};
 }
@@ -221,7 +238,9 @@ export async function importLegacyProcomun(args: string[]) {
 	// seguridad (ver quit_() en @electric-sql/pglite) — reproducible incluso
 	// llamando a process.exit(0) explícitamente. Cerrar el cliente antes de
 	// salir evita esa ruta y deja el código de salida real (0/1).
-	const client = deps.getDb().db.$client as { close?: () => unknown } | undefined;
+	const client = deps.getDb().db.$client as
+		| { close?: () => unknown }
+		| undefined;
 	if (typeof client?.close === "function") {
 		try {
 			await client.close();
@@ -239,7 +258,12 @@ export async function importLegacyProcomun(args: string[]) {
  * inyectando dependencias sin pasar por `process.exit`/parseArgs.
  */
 export async function runImportLegacyProcomun(
-	options: { sourceDir: string; dryRun: boolean; limit?: number; only?: string },
+	options: {
+		sourceDir: string;
+		dryRun: boolean;
+		limit?: number;
+		only?: string;
+	},
 	deps: Deps,
 ): Promise<ImportLegacyProcomunReport> {
 	const startedAt = new Date().toISOString();
@@ -252,9 +276,13 @@ export async function runImportLegacyProcomun(
 	if (!options.dryRun) {
 		await deps.ensureUploadStorageDir(config);
 	}
-	const systemUser = options.dryRun ? null : await deps.ensureLegacyImportSystemUser(db);
+	const systemUser = options.dryRun
+		? null
+		: await deps.ensureLegacyImportSystemUser(db);
 
-	const { pairs: allPairs, incomplete } = await findLegacySourcePairs(options.sourceDir);
+	const { pairs: allPairs, incomplete } = await findLegacySourcePairs(
+		options.sourceDir,
+	);
 
 	console.log(
 		`[import:legacy-procomun] ${allPairs.length} pares encontrados en ${options.sourceDir}` +
@@ -278,7 +306,10 @@ export async function runImportLegacyProcomun(
 	// Streaming: se itera par a par (ver iterateResolvedPairs) y se corta en
 	// cuanto --only encuentra su objetivo o --limit alcanza su cupo, sin haber
 	// leído ni parseado los ficheros restantes del directorio.
-	for await (const resolved of iterateResolvedPairs(allPairs, deps.resolveLegacyExternalId)) {
+	for await (const resolved of iterateResolvedPairs(
+		allPairs,
+		deps.resolveLegacyExternalId,
+	)) {
 		if (options.only && resolved.externalId !== options.only) continue;
 
 		processed++;
@@ -290,7 +321,9 @@ export async function runImportLegacyProcomun(
 				externalId: resolved.externalId,
 				message: `No se pudo leer/parsear el JSON: ${resolved.parseError}`,
 			});
-			console.error(`[error] ${resolved.externalId}: no se pudo leer/parsear el JSON: ${resolved.parseError}`);
+			console.error(
+				`[error] ${resolved.externalId}: no se pudo leer/parsear el JSON: ${resolved.parseError}`,
+			);
 			if (options.only) break;
 			if (options.limit != null && processed >= options.limit) break;
 			continue;
@@ -307,12 +340,18 @@ export async function runImportLegacyProcomun(
 		} catch (err) {
 			errored++;
 			const message = err instanceof Error ? err.message : String(err);
-			records.push({ outcome: "error", externalId: resolved.externalId, message });
+			records.push({
+				outcome: "error",
+				externalId: resolved.externalId,
+				message,
+			});
 			console.error(`[error] ${resolved.externalId}: ${message}`);
 		}
 
 		if (mapping) {
-			const warningMessages = mapping.warnings.map((w) => `${w.field}: ${w.message}`);
+			const warningMessages = mapping.warnings.map(
+				(w) => `${w.field}: ${w.message}`,
+			);
 
 			if (mapping.blocking) {
 				blocked++;
@@ -321,7 +360,9 @@ export async function runImportLegacyProcomun(
 					externalId: mapping.externalId || pair.baseName,
 					reasons: mapping.blockingErrors,
 				});
-				console.log(`[bloqueado] ${pair.baseName}: ${mapping.blockingErrors.join("; ")}`);
+				console.log(
+					`[bloqueado] ${pair.baseName}: ${mapping.blockingErrors.join("; ")}`,
+				);
 			} else {
 				const existing = await deps.repo.findLegacyResourceByExternalId(
 					db,
@@ -330,8 +371,13 @@ export async function runImportLegacyProcomun(
 				);
 				if (existing) {
 					skippedExisting++;
-					records.push({ outcome: "skipped_existing", externalId: mapping.externalId });
-					console.log(`[omitido] ${mapping.externalId}: ya importado (resourceId=${existing.id})`);
+					records.push({
+						outcome: "skipped_existing",
+						externalId: mapping.externalId,
+					});
+					console.log(
+						`[omitido] ${mapping.externalId}: ya importado (resourceId=${existing.id})`,
+					);
 				} else if (options.dryRun) {
 					imported++;
 					records.push({
@@ -391,7 +437,10 @@ export async function runImportLegacyProcomun(
  * `elpx_projects.hash` garantiza que nunca hay dos filas con el mismo
  * checksum. Por eso es seguro reclamarlo (borrarlo) y reintentar una vez.
  */
-async function promoteElpxExtractionPath(stagingPath: string, finalPath: string): Promise<void> {
+async function promoteElpxExtractionPath(
+	stagingPath: string,
+	finalPath: string,
+): Promise<void> {
 	try {
 		await rename(stagingPath, finalPath);
 	} catch (err) {
@@ -420,8 +469,19 @@ async function persistImportedResource(params: {
 	onImported: () => void;
 	onErrored: () => void;
 }): Promise<void> {
-	const { deps, db, config, pair, elpxFilename, mapping, warningMessages, systemUser, records, onImported, onErrored } =
-		params;
+	const {
+		deps,
+		db,
+		config,
+		pair,
+		elpxFilename,
+		mapping,
+		warningMessages,
+		systemUser,
+		records,
+		onImported,
+		onErrored,
+	} = params;
 
 	const uploadId = crypto.randomUUID();
 	const storagePath = path.join(config.storageDir, uploadId);
@@ -439,7 +499,10 @@ async function persistImportedResource(params: {
 		// sí sola no basta (TOCTOU): dos ejecuciones podrían pasarla ambas antes
 		// de que cualquiera persista. La defensa real es la restricción UNIQUE
 		// de `elpx_projects.hash` en la inserción de más abajo.
-		const existingElpxProject = await deps.repo.getElpxProjectByHash(db, checksum);
+		const existingElpxProject = await deps.repo.getElpxProjectByHash(
+			db,
+			checksum,
+		);
 		if (existingElpxProject) {
 			throw new Error(
 				`El .elpx tiene el mismo contenido (hash ${checksum}) que un recurso ya importado (resourceId=${existingElpxProject.resourceId}); no se vuelve a extraer.`,
@@ -451,7 +514,9 @@ async function persistImportedResource(params: {
 		// intentos concurrentes con el mismo .elpx (incluso si ambos superan la
 		// comprobación previa por una carrera) extraen siempre en directorios
 		// distintos, así que nunca pueden pisarse durante la extracción.
-		processed = await deps.processElpxUpload(storagePath, config.storageDir, { hash: uploadId });
+		processed = await deps.processElpxUpload(storagePath, config.storageDir, {
+			hash: uploadId,
+		});
 
 		// `elpx.hash` (el checksum) es el identificador público de la preview
 		// (`/api/v1/elpx/<hash>/`, ver preview.ts y elpx-content.ts), que
@@ -506,7 +571,9 @@ async function persistImportedResource(params: {
 			warningMessages.push(
 				`preview: no se pudo promocionar el directorio de extracción a su ruta final (${message}); el contenido sigue en ${processed.extractPath}`,
 			);
-			console.error(`[warning] ${mapping.externalId}: fallo al promocionar extractPath: ${message}`);
+			console.error(
+				`[warning] ${mapping.externalId}: fallo al promocionar extractPath: ${message}`,
+			);
 		}
 
 		// Indexación best-effort: un fallo aquí no invalida la importación (el
@@ -519,7 +586,9 @@ async function persistImportedResource(params: {
 			warningMessages.push(
 				`search_vector: no se pudo indexar para búsqueda (${message}); ejecutar fts:reindex manualmente`,
 			);
-			console.error(`[warning] ${mapping.externalId}: fallo al indexar search_vector: ${message}`);
+			console.error(
+				`[warning] ${mapping.externalId}: fallo al indexar search_vector: ${message}`,
+			);
 		}
 
 		onImported();

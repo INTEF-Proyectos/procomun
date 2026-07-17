@@ -1,5 +1,9 @@
 import { describe, expect, test } from "bun:test";
-import { buildSearchTerm, normalizePagination, optionalAndWhere } from "./filters.ts";
+import {
+	buildSearchTerm,
+	normalizePagination,
+	optionalAndWhere,
+} from "./filters.ts";
 
 describe("repository shared filters", () => {
 	test("buildSearchTerm removes accents and normalizes casing", () => {

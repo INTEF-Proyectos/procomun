@@ -1,7 +1,12 @@
 import { normalizeLanguage } from "./normalize-language.ts";
 import { normalizeLicense } from "./normalize-license.ts";
 import { mapResourceType } from "./resource-type-map.ts";
-import type { LegacyOdeJson, MappedLegacyResource, MappingResult, MappingWarning } from "./types.ts";
+import type {
+	LegacyOdeJson,
+	MappedLegacyResource,
+	MappingResult,
+	MappingWarning,
+} from "./types.ts";
 
 const MAX_TITLE_LENGTH = 500;
 const MAX_DESCRIPTION_LENGTH = 5000;
@@ -26,7 +31,9 @@ function truncate(value: string, max: number): string {
 	return value.length > max ? value.slice(0, max) : value;
 }
 
-function dedupeTrimmed(values: (string | null | undefined)[] | null | undefined): string[] {
+function dedupeTrimmed(
+	values: (string | null | undefined)[] | null | undefined,
+): string[] {
 	const seen = new Set<string>();
 	const result: string[] = [];
 	for (const raw of values ?? []) {
@@ -44,7 +51,10 @@ function dedupeTrimmed(values: (string | null | undefined)[] | null | undefined)
  * deduplicar (dos valores distintos podrían colapsar al mismo prefijo tras
  * truncar). Devuelve cuántos valores se truncaron para poder avisar.
  */
-function truncateList(values: string[], max: number): { values: string[]; truncatedCount: number } {
+function truncateList(
+	values: string[],
+	max: number,
+): { values: string[]; truncatedCount: number } {
 	let truncatedCount = 0;
 	const truncated = values.map((value) => {
 		if (value.length > max) {
@@ -62,7 +72,10 @@ function truncateList(values: string[], max: number): { values: string[]; trunca
  * corta antes de partir una a la mitad, en vez de truncar el string final a
  * ciegas.
  */
-function buildKeywords(values: string[], max: number): { keywords: string | null; truncated: boolean } {
+function buildKeywords(
+	values: string[],
+	max: number,
+): { keywords: string | null; truncated: boolean } {
 	if (values.length === 0) return { keywords: null, truncated: false };
 
 	let result = "";
@@ -91,10 +104,12 @@ function buildKeywords(values: string[], max: number): { keywords: string | null
  * Se usa como último fallback para el autor cuando authorStr/publicatorNameStr
  * están vacíos.
  */
-function extractVcardAuthorName(entries: (string | null | undefined)[] | null | undefined): string {
+function extractVcardAuthorName(
+	entries: (string | null | undefined)[] | null | undefined,
+): string {
 	for (const entry of entries ?? []) {
 		if (!entry?.startsWith("author##")) continue;
-		const match = entry.match(/FN:\s*([^]*?)\s*EMAIL/);
+		const match = entry.match(/FN:\s*([\s\S]*?)\s*EMAIL/);
 		const name = match?.[1]?.trim();
 		if (name) return name;
 	}
@@ -111,12 +126,25 @@ function extractVcardAuthorName(entries: (string | null | undefined)[] | null | 
  * componentes que devuelve la fecha ya construida no coinciden con los que
  * pedimos, es que hubo desbordamiento y se rechaza.
  */
-function isStrictCalendarDate(year: number, month: number, day: number): boolean {
-	if (!Number.isInteger(year) || !Number.isInteger(month) || !Number.isInteger(day)) return false;
+function isStrictCalendarDate(
+	year: number,
+	month: number,
+	day: number,
+): boolean {
+	if (
+		!Number.isInteger(year) ||
+		!Number.isInteger(month) ||
+		!Number.isInteger(day)
+	)
+		return false;
 	if (month < 1 || month > 12) return false;
 	if (day < 1 || day > 31) return false;
 	const date = new Date(Date.UTC(year, month - 1, day));
-	return date.getUTCFullYear() === year && date.getUTCMonth() === month - 1 && date.getUTCDate() === day;
+	return (
+		date.getUTCFullYear() === year &&
+		date.getUTCMonth() === month - 1 &&
+		date.getUTCDate() === day
+	);
 }
 
 function parseFechaRegistro(value: string | null | undefined): Date | null {
@@ -124,7 +152,9 @@ function parseFechaRegistro(value: string | null | undefined): Date | null {
 	const year = Number(value.slice(0, 4));
 	const month = Number(value.slice(4, 6));
 	const day = Number(value.slice(6, 8));
-	return isStrictCalendarDate(year, month, day) ? new Date(Date.UTC(year, month - 1, day)) : null;
+	return isStrictCalendarDate(year, month, day)
+		? new Date(Date.UTC(year, month - 1, day))
+		: null;
 }
 
 function parseImportedAt(json: LegacyOdeJson): Date | null {
@@ -135,7 +165,12 @@ function parseImportedAt(json: LegacyOdeJson): Date | null {
 		// completo que construye `new Date()` (que sí conserva hora/minuto/etc.).
 		const dateOnly = json.publicationDate.match(/^(\d{4})-(\d{2})-(\d{2})/);
 		const dateOnlyValid =
-			!dateOnly || isStrictCalendarDate(Number(dateOnly[1]), Number(dateOnly[2]), Number(dateOnly[3]));
+			!dateOnly ||
+			isStrictCalendarDate(
+				Number(dateOnly[1]),
+				Number(dateOnly[2]),
+				Number(dateOnly[3]),
+			);
 		if (dateOnlyValid) {
 			const date = new Date(json.publicationDate);
 			if (!Number.isNaN(date.getTime())) return date;
@@ -160,23 +195,34 @@ export function resolveLegacyExternalId(json: LegacyOdeJson): string {
  * datos ni el .elpx — es una función pura para poder testear el mapeo de
  * forma aislada.
  */
-export function mapLegacyRecord(json: LegacyOdeJson, fallbackTitle: string): MappingResult {
+export function mapLegacyRecord(
+	json: LegacyOdeJson,
+	fallbackTitle: string,
+): MappingResult {
 	const warnings: MappingWarning[] = [];
 	const blockingErrors: string[] = [];
 
 	const externalId = resolveLegacyExternalId(json);
 	if (!externalId) {
-		blockingErrors.push("Falta idODE/id: no se puede identificar ni deduplicar el recurso");
+		blockingErrors.push(
+			"Falta idODE/id: no se puede identificar ni deduplicar el recurso",
+		);
 	}
 
-	const title = truncate((json.titleStr ?? "").trim(), MAX_TITLE_LENGTH) || fallbackTitle;
+	const title =
+		truncate((json.titleStr ?? "").trim(), MAX_TITLE_LENGTH) || fallbackTitle;
 
 	const description = truncate(
-		firstNonEmpty([json.descriptionStr, ...(json.educationalDescriptionStr ?? [])]),
+		firstNonEmpty([
+			json.descriptionStr,
+			...(json.educationalDescriptionStr ?? []),
+		]),
 		MAX_DESCRIPTION_LENGTH,
 	);
 	if (!description) {
-		blockingErrors.push("descriptionStr y educationalDescriptionStr están vacíos");
+		blockingErrors.push(
+			"descriptionStr y educationalDescriptionStr están vacíos",
+		);
 	}
 
 	const languageResult = normalizeLanguage([
@@ -190,7 +236,9 @@ export function mapLegacyRecord(json: LegacyOdeJson, fallbackTitle: string): Map
 		});
 	}
 
-	const licenseResult = normalizeLicense(json.rightsCopyrightAndOtherRestrictionsStr);
+	const licenseResult = normalizeLicense(
+		json.rightsCopyrightAndOtherRestrictionsStr,
+	);
 	if (!licenseResult.matched) {
 		blockingErrors.push(`Licencia no reconocida: "${licenseResult.rawInput}"`);
 	} else if (licenseResult.ndSaConflictResolved) {
@@ -230,7 +278,10 @@ export function mapLegacyRecord(json: LegacyOdeJson, fallbackTitle: string): Map
 	if (author) {
 		const truncatedAuthor = truncate(author, MAX_AUTHOR_LENGTH);
 		if (truncatedAuthor.length !== author.length) {
-			warnings.push({ field: "author", message: "Autor truncado a 500 caracteres" });
+			warnings.push({
+				field: "author",
+				message: "Autor truncado a 500 caracteres",
+			});
 		}
 	}
 
@@ -269,7 +320,9 @@ export function mapLegacyRecord(json: LegacyOdeJson, fallbackTitle: string): Map
 		});
 	}
 
-	const sourceUri = firstNonEmpty([json.rutaAccesoContenidos, json.technicalLocationStr]) || null;
+	const sourceUri =
+		firstNonEmpty([json.rutaAccesoContenidos, json.technicalLocationStr]) ||
+		null;
 
 	const resource: MappedLegacyResource = {
 		externalId,

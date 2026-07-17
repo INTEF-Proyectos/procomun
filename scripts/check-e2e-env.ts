@@ -7,7 +7,10 @@ const launchers = {
 	firefox,
 } as const;
 
-export function formatE2EEnvError(browserName: BrowserName, error: unknown): string {
+export function formatE2EEnvError(
+	browserName: BrowserName,
+	error: unknown,
+): string {
 	const details = error instanceof Error ? error.message : String(error);
 
 	return [

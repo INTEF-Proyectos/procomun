@@ -40,7 +40,11 @@ export const LICENSE_OPTIONS: FilterOption[] = [
 
 const cache = new Map<string, FilterOption[]>();
 
-export async function loadFilterOptions(type: string, emptyLabel: string, fallback: FilterOption[]): Promise<FilterOption[]> {
+export async function loadFilterOptions(
+	type: string,
+	emptyLabel: string,
+	fallback: FilterOption[],
+): Promise<FilterOption[]> {
 	if (cache.has(type)) return cache.get(type)!;
 	try {
 		const base = (window as Record<string, unknown>).__BASE_URL__ ?? "";

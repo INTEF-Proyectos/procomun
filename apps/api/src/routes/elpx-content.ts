@@ -1,6 +1,6 @@
-import { Hono } from "hono";
-import path from "node:path";
 import { realpath } from "node:fs/promises";
+import path from "node:path";
+import { Hono } from "hono";
 import { getUploadConfig } from "../uploads/config.ts";
 
 const MIME_TYPES: Record<string, string> = {
@@ -128,14 +128,11 @@ function rewriteRelativeUrls(
 
 	const attrPattern =
 		/(<[^>]+\s)(src|href|poster)(\s*=\s*["'])(?!https?:\/\/|data:|\/\/|#|javascript:)([^"']+)(["'])/gi;
-	html = html.replace(
-		attrPattern,
-		(match, prefix, attr, eq, url, quote) => {
-			if (!url || url.startsWith("/")) return match;
-			const resolved = resolveRelativePath(dir, url);
-			return `${prefix}${attr}${eq}${baseUrl}${resolved}${quote}`;
-		},
-	);
+	html = html.replace(attrPattern, (match, prefix, attr, eq, url, quote) => {
+		if (!url || url.startsWith("/")) return match;
+		const resolved = resolveRelativePath(dir, url);
+		return `${prefix}${attr}${eq}${baseUrl}${resolved}${quote}`;
+	});
 
 	html = html.replace(
 		/url\s*\(\s*["']?(?!https?:\/\/|data:|\/\/|#)([^"')\s]+)["']?\s*\)/gi,

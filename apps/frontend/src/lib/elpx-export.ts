@@ -100,7 +100,12 @@ interface SharedExportersAPI {
 		resourceFetcher: unknown | null,
 		options?: Record<string, unknown>,
 		assetManager?: unknown | null,
-	): Promise<{ success: boolean; data?: Uint8Array; filename?: string; error?: string }>;
+	): Promise<{
+		success: boolean;
+		data?: Uint8Array;
+		filename?: string;
+		error?: string;
+	}>;
 	createExporter(
 		format: string,
 		documentManager: unknown,
@@ -126,7 +131,9 @@ let bundleLoadPromise: Promise<SharedExportersAPI> | null = null;
  * Load the SharedExporters bundle lazily. Returns the API once available.
  * Caches the result so subsequent calls are instant.
  */
-export function loadExportersBundle(bundleSrc?: string): Promise<SharedExportersAPI> {
+export function loadExportersBundle(
+	bundleSrc?: string,
+): Promise<SharedExportersAPI> {
 	if (bundleLoadPromise) return bundleLoadPromise;
 
 	bundleLoadPromise = new Promise<SharedExportersAPI>((resolve, reject) => {
@@ -145,13 +152,17 @@ export function loadExportersBundle(bundleSrc?: string): Promise<SharedExporters
 				resolve(window.SharedExporters);
 			} else {
 				bundleLoadPromise = null;
-				reject(new Error("SharedExporters no disponible tras cargar el bundle"));
+				reject(
+					new Error("SharedExporters no disponible tras cargar el bundle"),
+				);
 			}
 		};
 
 		script.onerror = () => {
 			bundleLoadPromise = null;
-			reject(new Error(`No se pudo cargar el bundle de exportación: ${script.src}`));
+			reject(
+				new Error(`No se pudo cargar el bundle de exportación: ${script.src}`),
+			);
 		};
 
 		document.head.appendChild(script);
@@ -229,9 +240,12 @@ export function createResourceFetcher(files: Map<string, Uint8Array>): unknown {
 			return libs;
 		},
 		fetchScormFiles: async (): Promise<Map<string, Blob>> => emptyMap,
-		fetchLibraryFiles: async (_paths: string[]): Promise<Map<string, Blob>> => emptyMap,
-		fetchLibraryDirectory: async (_name: string): Promise<Map<string, Blob>> => emptyMap,
-		fetchSchemas: async (_format: string): Promise<Map<string, Blob>> => emptyMap,
+		fetchLibraryFiles: async (_paths: string[]): Promise<Map<string, Blob>> =>
+			emptyMap,
+		fetchLibraryDirectory: async (_name: string): Promise<Map<string, Blob>> =>
+			emptyMap,
+		fetchSchemas: async (_format: string): Promise<Map<string, Blob>> =>
+			emptyMap,
 	};
 }
 
@@ -252,7 +266,8 @@ export function createAssetManager(files: Map<string, Uint8Array>): unknown {
 
 	return {
 		getProjectAssets: async () => assets,
-		getAsset: async (assetId: string) => assets.find((a) => a.id === assetId) || null,
+		getAsset: async (assetId: string) =>
+			assets.find((a) => a.id === assetId) || null,
 		resolveAssetURL: async (url: string) => {
 			const matched = assets.find((a) => a.path === url || a.id === url);
 			if (!matched) return null;
@@ -288,10 +303,15 @@ export async function exportElpx(
 		// 3. Parse content.xml for metadata and navigation
 		const contentXml = files.get("content.xml");
 		if (!contentXml) {
-			return { success: false, error: "El archivo .elpx no contiene content.xml" };
+			return {
+				success: false,
+				error: "El archivo .elpx no contiene content.xml",
+			};
 		}
 
-		const parsedContent = parseContentXmlForExport(new TextDecoder().decode(contentXml));
+		const parsedContent = parseContentXmlForExport(
+			new TextDecoder().decode(contentXml),
+		);
 
 		// 4. Create adapters
 		const documentAdapter = createDocumentAdapter({
@@ -313,22 +333,32 @@ export async function exportElpx(
 		);
 
 		if (!result?.success || !result?.data) {
-			return { success: false, error: result?.error || "La exportación falló sin mensaje de error" };
+			return {
+				success: false,
+				error: result?.error || "La exportación falló sin mensaje de error",
+			};
 		}
 
 		// 6. Determine output metadata
 		const formatInfo = EXPORT_FORMATS.find((f) => f.id === format);
-		const filename = result.filename || `export${formatInfo?.extension || ".zip"}`;
+		const filename =
+			result.filename || `export${formatInfo?.extension || ".zip"}`;
 		const mimeType = formatInfo?.mimeType || "application/zip";
 
 		return {
 			success: true,
-			data: result.data instanceof Uint8Array ? result.data : new Uint8Array(result.data),
+			data:
+				result.data instanceof Uint8Array
+					? result.data
+					: new Uint8Array(result.data),
 			filename,
 			mimeType,
 		};
 	} catch (err) {
-		const message = err instanceof Error ? err.message : "Error desconocido durante la exportación";
+		const message =
+			err instanceof Error
+				? err.message
+				: "Error desconocido durante la exportación";
 		return { success: false, error: message };
 	}
 }
@@ -369,7 +399,10 @@ export async function exportAndDownload(
 	// Fetch the .elpx file
 	const response = await fetch(elpxUrl);
 	if (!response.ok) {
-		return { success: false, error: `No se pudo descargar el archivo .elpx: ${response.status}` };
+		return {
+			success: false,
+			error: `No se pudo descargar el archivo .elpx: ${response.status}`,
+		};
 	}
 
 	const elpxData = new Uint8Array(await response.arrayBuffer());
@@ -388,7 +421,9 @@ export async function exportAndDownload(
  * Extract all files from a ZIP buffer (simplified version for export adapter).
  * Uses the central directory for robust parsing.
  */
-async function extractElpxFiles(data: Uint8Array): Promise<Map<string, Uint8Array>> {
+async function extractElpxFiles(
+	data: Uint8Array,
+): Promise<Map<string, Uint8Array>> {
 	const view = new DataView(data.buffer, data.byteOffset, data.byteLength);
 	const files = new Map<string, Uint8Array>();
 
@@ -422,7 +457,8 @@ async function extractElpxFiles(data: Uint8Array): Promise<Map<string, Uint8Arra
 		pos += 46 + nameLen + extraLen + commentLen;
 
 		// Skip directories, empty files, and path traversal
-		if (name.endsWith("/") || uncompressedSize === 0 || name.includes("..")) continue;
+		if (name.endsWith("/") || uncompressedSize === 0 || name.includes(".."))
+			continue;
 
 		// Extract from local header
 		const localNameLen = view.getUint16(localHeaderOffset + 26, true);
@@ -473,12 +509,16 @@ export function parseContentXmlForExport(xmlString: string): {
 } {
 	// Extract metadata fields using regex (lightweight, no DOM parser needed)
 	const getTag = (tag: string): string => {
-		const match = xmlString.match(new RegExp(`<${tag}[^>]*>([^<]*)</${tag}>`, "i"));
+		const match = xmlString.match(
+			new RegExp(`<${tag}[^>]*>([^<]*)</${tag}>`, "i"),
+		);
 		return match?.[1]?.trim() || "";
 	};
 
 	const getAttr = (tag: string, attr: string): string => {
-		const match = xmlString.match(new RegExp(`<${tag}[^>]*${attr}="([^"]*)"`, "i"));
+		const match = xmlString.match(
+			new RegExp(`<${tag}[^>]*${attr}="([^"]*)"`, "i"),
+		);
 		return match?.[1] || "";
 	};
 
@@ -495,10 +535,9 @@ export function parseContentXmlForExport(xmlString: string): {
 	// Parse navigation structure (pages/nodes)
 	const pages: Array<Record<string, unknown>> = [];
 	const nodeRegex = /<node\b[^>]*>/gi;
-	let nodeMatch: RegExpExecArray | null;
 	let pageIndex = 0;
 
-	while ((nodeMatch = nodeRegex.exec(xmlString)) !== null) {
+	for (const nodeMatch of xmlString.matchAll(nodeRegex)) {
 		const nodeStr = nodeMatch[0];
 		const idMatch = nodeStr.match(/id="([^"]*)"/);
 		const titleMatch = nodeStr.match(/title="([^"]*)"/);
@@ -522,6 +561,8 @@ export function parseContentXmlForExport(xmlString: string): {
 /**
  * Validate that a format string is a supported export format.
  */
-export function isValidExportFormat(format: string): format is ElpxExportFormat {
+export function isValidExportFormat(
+	format: string,
+): format is ElpxExportFormat {
 	return EXPORT_FORMATS.some((f) => f.id === format);
 }

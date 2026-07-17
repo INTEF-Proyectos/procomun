@@ -40,7 +40,10 @@ export function normalizeLanguage(
 	for (const raw of candidates) {
 		const code = raw.trim().toLowerCase().split(/[-_]/)[0] ?? "";
 		if ((VALID_LANGUAGES as readonly string[]).includes(code)) {
-			return { language: code as (typeof VALID_LANGUAGES)[number], guessed: false };
+			return {
+				language: code as (typeof VALID_LANGUAGES)[number],
+				guessed: false,
+			};
 		}
 		const aliased = LANGUAGE_ALIASES[code];
 		if (aliased) {

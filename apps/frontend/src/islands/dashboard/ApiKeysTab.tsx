@@ -1,11 +1,11 @@
-import { useEffect, useState } from "react";
-import { getApiClient } from "../../lib/get-api-client.ts";
+import { useCallback, useEffect, useState } from "react";
 import type { ApiTokenRecord } from "../../lib/api-client.ts";
-import { ApiKeyCreateDialog } from "./ApiKeyCreateDialog.tsx";
-import { ApiKeyRevokeDialog } from "./ApiKeyRevokeDialog.tsx";
+import { getApiClient } from "../../lib/get-api-client.ts";
+import * as m from "../../paraglide/messages.js";
 import { EmptyState } from "../../ui/EmptyState.tsx";
 import { Skeleton } from "../../ui/Skeleton.tsx";
-import * as m from "../../paraglide/messages.js";
+import { ApiKeyCreateDialog } from "./ApiKeyCreateDialog.tsx";
+import { ApiKeyRevokeDialog } from "./ApiKeyRevokeDialog.tsx";
 
 export function ApiKeysTab() {
 	const [keys, setKeys] = useState<ApiTokenRecord[]>([]);
@@ -14,7 +14,7 @@ export function ApiKeysTab() {
 	const [revokeId, setRevokeId] = useState<string | null>(null);
 	const [revokeName, setRevokeName] = useState("");
 
-	async function fetchKeys() {
+	const fetchKeys = useCallback(async () => {
 		try {
 			const api = await getApiClient();
 			const data = await api.listApiTokens();
@@ -24,15 +24,16 @@ export function ApiKeysTab() {
 		} finally {
 			setLoading(false);
 		}
-	}
+	}, []);
 
 	useEffect(() => {
 		fetchKeys();
-	}, []);
+	}, [fetchKeys]);
 
 	function getStatus(key: ApiTokenRecord): "active" | "revoked" | "expired" {
 		if (key.revokedAt) return "revoked";
-		if (key.expiresAt && new Date(key.expiresAt) <= new Date()) return "expired";
+		if (key.expiresAt && new Date(key.expiresAt) <= new Date())
+			return "expired";
 		return "active";
 	}
 
@@ -106,13 +107,36 @@ export function ApiKeysTab() {
 	}
 
 	return (
-		<div className="dashboard-tab-content" style={{ display: "flex", flexDirection: "column", gap: "1.5rem" }}>
-			<div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "1rem" }}>
+		<div
+			className="dashboard-tab-content"
+			style={{ display: "flex", flexDirection: "column", gap: "1.5rem" }}
+		>
+			<div
+				style={{
+					display: "flex",
+					justifyContent: "space-between",
+					alignItems: "center",
+					gap: "1rem",
+				}}
+			>
 				<div>
-					<h3 style={{ fontSize: "1.25rem", fontWeight: "700", margin: 0, color: "var(--color-on-surface)" }}>
+					<h3
+						style={{
+							fontSize: "1.25rem",
+							fontWeight: "700",
+							margin: 0,
+							color: "var(--color-on-surface)",
+						}}
+					>
 						{m.api_keys_title()}
 					</h3>
-					<p style={{ fontSize: "0.875rem", color: "var(--color-on-surface-variant)", margin: "0.25rem 0 0 0" }}>
+					<p
+						style={{
+							fontSize: "0.875rem",
+							color: "var(--color-on-surface-variant)",
+							margin: "0.25rem 0 0 0",
+						}}
+					>
 						{m.api_keys_desc()}
 					</p>
 				</div>
@@ -132,7 +156,12 @@ export function ApiKeysTab() {
 						cursor: "pointer",
 					}}
 				>
-					<span className="material-symbols-outlined" style={{ fontSize: "20px" }}>add</span>
+					<span
+						className="material-symbols-outlined"
+						style={{ fontSize: "20px" }}
+					>
+						add
+					</span>
 					{m.api_keys_create_btn()}
 				</button>
 			</div>
@@ -161,40 +190,102 @@ export function ApiKeysTab() {
 					}
 				/>
 			) : (
-				<div style={{ overflowX: "auto", border: "1px solid var(--color-outline-variant)", borderRadius: "0.75rem", background: "var(--color-surface)" }}>
-					<table style={{ width: "100%", borderCollapse: "collapse", textAlign: "left", fontSize: "0.875rem" }}>
+				<div
+					style={{
+						overflowX: "auto",
+						border: "1px solid var(--color-outline-variant)",
+						borderRadius: "0.75rem",
+						background: "var(--color-surface)",
+					}}
+				>
+					<table
+						style={{
+							width: "100%",
+							borderCollapse: "collapse",
+							textAlign: "left",
+							fontSize: "0.875rem",
+						}}
+					>
 						<thead>
-							<tr style={{ borderBottom: "1px solid var(--color-outline-variant)", background: "var(--color-surface-container-low)", color: "var(--color-on-surface-variant)" }}>
+							<tr
+								style={{
+									borderBottom: "1px solid var(--color-outline-variant)",
+									background: "var(--color-surface-container-low)",
+									color: "var(--color-on-surface-variant)",
+								}}
+							>
 								<th style={{ padding: "1rem" }}>{m.api_keys_col_name()}</th>
 								<th style={{ padding: "1rem" }}>{m.api_keys_col_prefix()}</th>
 								<th style={{ padding: "1rem" }}>{m.api_keys_col_status()}</th>
 								<th style={{ padding: "1rem" }}>{m.api_keys_col_created()}</th>
 								<th style={{ padding: "1rem" }}>{m.api_keys_col_expires()}</th>
-								<th style={{ padding: "1rem" }}>{m.api_keys_col_last_used()}</th>
+								<th style={{ padding: "1rem" }}>
+									{m.api_keys_col_last_used()}
+								</th>
 								<th style={{ padding: "1rem" }}>{m.api_keys_col_requests()}</th>
-								<th style={{ padding: "1rem", textAlign: "right" }}>{m.api_keys_col_actions()}</th>
+								<th style={{ padding: "1rem", textAlign: "right" }}>
+									{m.api_keys_col_actions()}
+								</th>
 							</tr>
 						</thead>
 						<tbody>
 							{keys.map((key) => {
 								const status = getStatus(key);
 								return (
-									<tr key={key.id} style={{ borderBottom: "1px solid var(--color-outline-variant)", color: "var(--color-on-surface)" }}>
-										<td style={{ padding: "1rem", fontWeight: "600" }}>{key.name}</td>
+									<tr
+										key={key.id}
+										style={{
+											borderBottom: "1px solid var(--color-outline-variant)",
+											color: "var(--color-on-surface)",
+										}}
+									>
+										<td style={{ padding: "1rem", fontWeight: "600" }}>
+											{key.name}
+										</td>
 										<td style={{ padding: "1rem" }}>
-											<code style={{ background: "var(--color-surface-container-high)", padding: "0.2rem 0.4rem", borderRadius: "0.25rem", fontFamily: "monospace" }}>
+											<code
+												style={{
+													background: "var(--color-surface-container-high)",
+													padding: "0.2rem 0.4rem",
+													borderRadius: "0.25rem",
+													fontFamily: "monospace",
+												}}
+											>
 												{key.tokenPrefix}...
 											</code>
 										</td>
 										<td style={{ padding: "1rem" }}>{getStatusBadge(key)}</td>
-										<td style={{ padding: "1rem", color: "var(--color-on-surface-variant)" }}>{formatDate(key.createdAt)}</td>
-										<td style={{ padding: "1rem", color: "var(--color-on-surface-variant)" }}>
-											{key.expiresAt ? formatDate(key.expiresAt) : m.api_keys_no_expiration()}
+										<td
+											style={{
+												padding: "1rem",
+												color: "var(--color-on-surface-variant)",
+											}}
+										>
+											{formatDate(key.createdAt)}
 										</td>
-										<td style={{ padding: "1rem", color: "var(--color-on-surface-variant)" }}>
-											{key.lastUsedAt ? formatDate(key.lastUsedAt) : m.api_keys_never_used()}
+										<td
+											style={{
+												padding: "1rem",
+												color: "var(--color-on-surface-variant)",
+											}}
+										>
+											{key.expiresAt
+												? formatDate(key.expiresAt)
+												: m.api_keys_no_expiration()}
 										</td>
-										<td style={{ padding: "1rem", fontWeight: "500" }}>{key.requestCount}</td>
+										<td
+											style={{
+												padding: "1rem",
+												color: "var(--color-on-surface-variant)",
+											}}
+										>
+											{key.lastUsedAt
+												? formatDate(key.lastUsedAt)
+												: m.api_keys_never_used()}
+										</td>
+										<td style={{ padding: "1rem", fontWeight: "500" }}>
+											{key.requestCount}
+										</td>
 										<td style={{ padding: "1rem", textAlign: "right" }}>
 											{status === "active" ? (
 												<button
@@ -216,12 +307,23 @@ export function ApiKeysTab() {
 														borderRadius: "0.25rem",
 													}}
 												>
-													<span className="material-symbols-outlined" style={{ fontSize: "20px" }}>
+													<span
+														className="material-symbols-outlined"
+														style={{ fontSize: "20px" }}
+													>
 														delete_forever
 													</span>
 												</button>
 											) : (
-												<span style={{ color: "var(--color-outline)", fontSize: "0.75rem", fontStyle: "italic" }}>-</span>
+												<span
+													style={{
+														color: "var(--color-outline)",
+														fontSize: "0.75rem",
+														fontStyle: "italic",
+													}}
+												>
+													-
+												</span>
 											)}
 										</td>
 									</tr>
@@ -232,7 +334,11 @@ export function ApiKeysTab() {
 				</div>
 			)}
 
-			<ApiKeyCreateDialog open={createOpen} onClose={() => setCreateOpen(false)} onCreated={fetchKeys} />
+			<ApiKeyCreateDialog
+				open={createOpen}
+				onClose={() => setCreateOpen(false)}
+				onCreated={fetchKeys}
+			/>
 			<ApiKeyRevokeDialog
 				open={revokeId !== null}
 				onClose={() => {

@@ -2,12 +2,12 @@ import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import { resolveLegacyExternalId } from "@procomun/db/legacy-import";
 import type { LegacyOdeJson } from "@procomun/db/legacy-import";
+import { resolveLegacyExternalId } from "@procomun/db/legacy-import";
 import {
 	findLegacySourcePairs,
 	iterateResolvedPairs,
-	loadImportLegacyProcomunDependencies,
+	type loadImportLegacyProcomunDependencies,
 	runImportLegacyProcomun,
 } from "./import-legacy-procomun.ts";
 
@@ -19,7 +19,10 @@ async function collect<T>(iter: AsyncGenerator<T>): Promise<T[]> {
 	return out;
 }
 
-function buildMockDeps(storageDir: string, overrides: Partial<Deps> = {}): Deps {
+function buildMockDeps(
+	storageDir: string,
+	overrides: Partial<Deps> = {},
+): Deps {
 	const base: Deps = {
 		// biome-ignore lint: mock de DrizzleDB, no se usa realmente en estos tests
 		getDb: () => ({ db: {} as any }),
@@ -29,7 +32,11 @@ function buildMockDeps(storageDir: string, overrides: Partial<Deps> = {}): Deps 
 		// de persistImportedResource (promoción del directorio de extracción al
 		// nombre del checksum) tenga algo real que mover y falle con
 		// ENOTEMPTY/EEXIST cuando corresponda, en vez de un path inventado.
-		processElpxUpload: (async (_storagePath: string, baseDir: string, opts?: { hash?: string }) => {
+		processElpxUpload: (async (
+			_storagePath: string,
+			baseDir: string,
+			opts?: { hash?: string },
+		) => {
 			const hash = opts?.hash ?? "mock-hash";
 			const extractPath = path.join(baseDir, "elpx", hash);
 			await mkdir(extractPath, { recursive: true });
@@ -38,10 +45,18 @@ function buildMockDeps(storageDir: string, overrides: Partial<Deps> = {}): Deps 
 				hash,
 				extractPath,
 				hasPreview: true,
-				metadata: { title: "t", description: "d", author: "a", license: "l", language: "es", learningResourceType: "" },
+				metadata: {
+					title: "t",
+					description: "d",
+					author: "a",
+					license: "l",
+					language: "es",
+					learningResourceType: "",
+				},
 			};
 		}) as Deps["processElpxUpload"],
-		buildElpxPath: ((baseDir: string, hash: string) => path.join(baseDir, "elpx", hash)) as Deps["buildElpxPath"],
+		buildElpxPath: ((baseDir: string, hash: string) =>
+			path.join(baseDir, "elpx", hash)) as Deps["buildElpxPath"],
 		getUploadConfig: (() => ({
 			// storageDir real (mkdtemp): runImportLegacyProcomun escribe aquí de
 			// verdad vía Bun.write antes de llamar a processElpxUpload/repo (ambos
@@ -57,8 +72,10 @@ function buildMockDeps(storageDir: string, overrides: Partial<Deps> = {}): Deps 
 			allowedExtensions: [],
 		})) as Deps["getUploadConfig"],
 		ensureUploadStorageDir: async () => {},
-		computeFileSha256: (async () => "mock-checksum") as Deps["computeFileSha256"],
-		buildUploadPublicUrl: ((id: string) => `/api/v1/uploads/${id}/content`) as Deps["buildUploadPublicUrl"],
+		computeFileSha256: (async () =>
+			"mock-checksum") as Deps["computeFileSha256"],
+		buildUploadPublicUrl: ((id: string) =>
+			`/api/v1/uploads/${id}/content`) as Deps["buildUploadPublicUrl"],
 		sanitizeFilename: ((f: string) => f) as Deps["sanitizeFilename"],
 		// Réplica fiel de la real (rm recursivo): con processElpxUpload creando
 		// directorios reales (ver arriba), un no-op dejaría el directorio del
@@ -95,7 +112,10 @@ function buildMockDeps(storageDir: string, overrides: Partial<Deps> = {}): Deps 
 				importedAt: null,
 			},
 		})) as Deps["mapLegacyRecord"],
-		ensureLegacyImportSystemUser: (async () => ({ id: "system-user", email: "x@x.test" })) as Deps["ensureLegacyImportSystemUser"],
+		ensureLegacyImportSystemUser: (async () => ({
+			id: "system-user",
+			email: "x@x.test",
+		})) as Deps["ensureLegacyImportSystemUser"],
 		repo: {
 			findLegacyResourceByExternalId: async () => null,
 			importLegacyResourceWithElpx: async () => ({
@@ -155,10 +175,15 @@ describe("iterateResolvedPairs", () => {
 			path.join(dir, "nombre-de-fichero-cualquiera.json"),
 			JSON.stringify({ idODE: "es_externo_real" }),
 		);
-		await writeFile(path.join(dir, "nombre-de-fichero-cualquiera.elpx"), "zip-bytes");
+		await writeFile(
+			path.join(dir, "nombre-de-fichero-cualquiera.elpx"),
+			"zip-bytes",
+		);
 
 		const { pairs } = await findLegacySourcePairs(dir);
-		const resolved = await collect(iterateResolvedPairs(pairs, resolveLegacyExternalId));
+		const resolved = await collect(
+			iterateResolvedPairs(pairs, resolveLegacyExternalId),
+		);
 
 		expect(resolved).toHaveLength(1);
 		expect(resolved[0]?.externalId).toBe("es_externo_real");
@@ -166,13 +191,21 @@ describe("iterateResolvedPairs", () => {
 	});
 
 	test("captura un JSON malformado como parseError sin lanzar, con fallback al nombre de fichero", async () => {
-		await writeFile(path.join(dir, "corrupto.json"), "{ esto no es JSON válido");
+		await writeFile(
+			path.join(dir, "corrupto.json"),
+			"{ esto no es JSON válido",
+		);
 		await writeFile(path.join(dir, "corrupto.elpx"), "zip-bytes");
-		await writeFile(path.join(dir, "valido.json"), JSON.stringify({ idODE: "es_valido" }));
+		await writeFile(
+			path.join(dir, "valido.json"),
+			JSON.stringify({ idODE: "es_valido" }),
+		);
 		await writeFile(path.join(dir, "valido.elpx"), "zip-bytes");
 
 		const { pairs } = await findLegacySourcePairs(dir);
-		const resolved = await collect(iterateResolvedPairs(pairs, resolveLegacyExternalId));
+		const resolved = await collect(
+			iterateResolvedPairs(pairs, resolveLegacyExternalId),
+		);
 
 		const corrupted = resolved.find((r) => r.pair.baseName === "corrupto");
 		expect(corrupted?.parseError).toBeTruthy();
@@ -184,11 +217,16 @@ describe("iterateResolvedPairs", () => {
 	});
 
 	test("cae al nombre de fichero cuando el JSON es válido pero no trae idODE/id", async () => {
-		await writeFile(path.join(dir, "sin-id.json"), JSON.stringify({ titleStr: "Sin identificador" }));
+		await writeFile(
+			path.join(dir, "sin-id.json"),
+			JSON.stringify({ titleStr: "Sin identificador" }),
+		);
 		await writeFile(path.join(dir, "sin-id.elpx"), "zip-bytes");
 
 		const { pairs } = await findLegacySourcePairs(dir);
-		const resolved = await collect(iterateResolvedPairs(pairs, resolveLegacyExternalId));
+		const resolved = await collect(
+			iterateResolvedPairs(pairs, resolveLegacyExternalId),
+		);
 
 		expect(resolved[0]?.externalId).toBe("sin-id");
 		expect(resolved[0]?.parseError).toBeUndefined();
@@ -267,7 +305,10 @@ describe("runImportLegacyProcomun (deps mockeadas)", () => {
 			} as Deps["repo"],
 		});
 
-		const report = await runImportLegacyProcomun({ sourceDir: dir, dryRun: false }, deps);
+		const report = await runImportLegacyProcomun(
+			{ sourceDir: dir, dryRun: false },
+			deps,
+		);
 
 		expect(report.totals.blocked).toBe(1);
 		expect(report.totals.imported).toBe(0);
@@ -280,7 +321,10 @@ describe("runImportLegacyProcomun (deps mockeadas)", () => {
 		let importCalled = false;
 		const deps = buildMockDeps(storageDir, {
 			repo: {
-				findLegacyResourceByExternalId: async () => ({ id: "existing-id", slug: "existing" }),
+				findLegacyResourceByExternalId: async () => ({
+					id: "existing-id",
+					slug: "existing",
+				}),
 				importLegacyResourceWithElpx: async () => {
 					importCalled = true;
 					throw new Error("no debería llamarse");
@@ -288,7 +332,10 @@ describe("runImportLegacyProcomun (deps mockeadas)", () => {
 			} as Deps["repo"],
 		});
 
-		const report = await runImportLegacyProcomun({ sourceDir: dir, dryRun: false }, deps);
+		const report = await runImportLegacyProcomun(
+			{ sourceDir: dir, dryRun: false },
+			deps,
+		);
 
 		expect(report.totals.skippedExisting).toBe(1);
 		expect(report.totals.imported).toBe(0);
@@ -312,7 +359,10 @@ describe("runImportLegacyProcomun (deps mockeadas)", () => {
 			} as Deps["repo"],
 		});
 
-		const report = await runImportLegacyProcomun({ sourceDir: dir, dryRun: true }, deps);
+		const report = await runImportLegacyProcomun(
+			{ sourceDir: dir, dryRun: true },
+			deps,
+		);
 
 		expect(report.dryRun).toBe(true);
 		expect(report.totals.imported).toBe(1);
@@ -323,10 +373,16 @@ describe("runImportLegacyProcomun (deps mockeadas)", () => {
 
 	test("un registro importable llama a processElpxUpload y persiste vía el repositorio", async () => {
 		const deps = buildMockDeps(storageDir);
-		const report = await runImportLegacyProcomun({ sourceDir: dir, dryRun: false }, deps);
+		const report = await runImportLegacyProcomun(
+			{ sourceDir: dir, dryRun: false },
+			deps,
+		);
 
 		expect(report.totals.imported).toBe(1);
-		expect(report.records[0]).toMatchObject({ outcome: "imported", resourceId: "mock-resource-id" });
+		expect(report.records[0]).toMatchObject({
+			outcome: "imported",
+			resourceId: "mock-resource-id",
+		});
 	});
 
 	test("un fallo al persistir se cuenta como error y no aborta el resto del lote", async () => {
@@ -335,7 +391,7 @@ describe("runImportLegacyProcomun (deps mockeadas)", () => {
 
 		let calls = 0;
 		const deps = buildMockDeps(storageDir, {
-			mapLegacyRecord: ((json: unknown, fallbackTitle: string) => ({
+			mapLegacyRecord: ((_json: unknown, fallbackTitle: string) => ({
 				externalId: fallbackTitle,
 				blocking: false,
 				blockingErrors: [],
@@ -361,7 +417,8 @@ describe("runImportLegacyProcomun (deps mockeadas)", () => {
 				findLegacyResourceByExternalId: async () => null,
 				importLegacyResourceWithElpx: async () => {
 					calls++;
-					if (calls === 1) throw new Error("fallo simulado en el primer registro");
+					if (calls === 1)
+						throw new Error("fallo simulado en el primer registro");
 					return {
 						resourceId: "mock-resource-id-2",
 						slug: "mock-slug-2",
@@ -373,7 +430,10 @@ describe("runImportLegacyProcomun (deps mockeadas)", () => {
 			} as Deps["repo"],
 		});
 
-		const report = await runImportLegacyProcomun({ sourceDir: dir, dryRun: false }, deps);
+		const report = await runImportLegacyProcomun(
+			{ sourceDir: dir, dryRun: false },
+			deps,
+		);
 
 		expect(report.totals.processed).toBe(2);
 		expect(report.totals.errored).toBe(1);
@@ -402,7 +462,7 @@ describe("runImportLegacyProcomun (deps mockeadas)", () => {
 		let insertCalls = 0;
 
 		const deps = buildMockDeps(storageDir, {
-			mapLegacyRecord: ((json: unknown, fallbackTitle: string) => ({
+			mapLegacyRecord: ((_json: unknown, fallbackTitle: string) => ({
 				externalId: fallbackTitle.replace(".elpx", ""),
 				blocking: false,
 				blockingErrors: [],
@@ -439,16 +499,29 @@ describe("runImportLegacyProcomun (deps mockeadas)", () => {
 					insertCalls++;
 					extractPathsAtInsert.push(input.elpx.extractPath);
 					if (insertCalls === 1) {
-						return { resourceId: "winner-id", slug: "winner", mediaItemId: "m1", elpxProjectId: "e1" };
+						return {
+							resourceId: "winner-id",
+							slug: "winner",
+							mediaItemId: "m1",
+							elpxProjectId: "e1",
+						};
 					}
-					throw new Error('duplicate key value violates unique constraint "elpx_projects_hash_idx"');
+					throw new Error(
+						'duplicate key value violates unique constraint "elpx_projects_hash_idx"',
+					);
 				},
 			} as Deps["repo"],
 		});
 
 		const [reportA, reportB] = await Promise.all([
-			runImportLegacyProcomun({ sourceDir: dir, dryRun: false, only: "dup-a" }, deps),
-			runImportLegacyProcomun({ sourceDir: dir, dryRun: false, only: "dup-b" }, deps),
+			runImportLegacyProcomun(
+				{ sourceDir: dir, dryRun: false, only: "dup-a" },
+				deps,
+			),
+			runImportLegacyProcomun(
+				{ sourceDir: dir, dryRun: false, only: "dup-b" },
+				deps,
+			),
 		]);
 
 		expect(reportA.totals.imported + reportB.totals.imported).toBe(1);
@@ -462,7 +535,9 @@ describe("runImportLegacyProcomun (deps mockeadas)", () => {
 		// insertar, no tras un rename): exactamente la que hace que la URL
 		// pública de preview resuelva bien.
 		expect(extractPathsAtInsert[0]).toBe(extractPathsAtInsert[1]);
-		expect(extractPathsAtInsert[0]).toBe(path.join(storageDir, "elpx", "mock-checksum"));
+		expect(extractPathsAtInsert[0]).toBe(
+			path.join(storageDir, "elpx", "mock-checksum"),
+		);
 
 		// La perdedora limpia únicamente su propio directorio privado por
 		// uploadId (nunca visto por BD), nunca el directorio final que sí ganó y
@@ -488,12 +563,20 @@ describe("runImportLegacyProcomun (deps mockeadas)", () => {
 		// ENOTEMPTY contra ese huérfano). Con el commit en BD antes del rename,
 		// la inserción es la única dueña legítima del checksum, así que
 		// promoteElpxExtractionPath() puede reclamar (borrar) el huérfano.
-		await mkdir(path.join(storageDir, "elpx", "mock-checksum"), { recursive: true });
-		await writeFile(path.join(storageDir, "elpx", "mock-checksum", "content.xml"), "contenido huérfano");
+		await mkdir(path.join(storageDir, "elpx", "mock-checksum"), {
+			recursive: true,
+		});
+		await writeFile(
+			path.join(storageDir, "elpx", "mock-checksum", "content.xml"),
+			"contenido huérfano",
+		);
 
 		const deps = buildMockDeps(storageDir); // getElpxProjectByHash del mock base -> null
 
-		const report = await runImportLegacyProcomun({ sourceDir: dir, dryRun: false }, deps);
+		const report = await runImportLegacyProcomun(
+			{ sourceDir: dir, dryRun: false },
+			deps,
+		);
 
 		expect(report.totals.imported).toBe(1);
 		expect(report.totals.errored).toBe(0);
@@ -501,7 +584,9 @@ describe("runImportLegacyProcomun (deps mockeadas)", () => {
 
 		// El huérfano se reclamó: el directorio final contiene ahora el
 		// contenido recién extraído, no el huérfano preexistente.
-		const content = await Bun.file(path.join(storageDir, "elpx", "mock-checksum", "content.xml")).text();
+		const content = await Bun.file(
+			path.join(storageDir, "elpx", "mock-checksum", "content.xml"),
+		).text();
 		expect(content).toBe("<ode/>");
 	});
 
@@ -511,7 +596,10 @@ describe("runImportLegacyProcomun (deps mockeadas)", () => {
 		await writeFile(path.join(dir, "otro.elpx"), "fake-zip-bytes");
 
 		const deps = buildMockDeps(storageDir);
-		const report = await runImportLegacyProcomun({ sourceDir: dir, dryRun: false }, deps);
+		const report = await runImportLegacyProcomun(
+			{ sourceDir: dir, dryRun: false },
+			deps,
+		);
 
 		expect(report.totals.processed).toBe(2);
 		expect(report.totals.errored).toBe(1);
@@ -526,7 +614,10 @@ describe("runImportLegacyProcomun (deps mockeadas)", () => {
 		await writeFile(path.join(dir, "otro.elpx"), "fake-zip-bytes");
 
 		const deps = buildMockDeps(storageDir);
-		const report = await runImportLegacyProcomun({ sourceDir: dir, dryRun: false, only: "es_mock" }, deps);
+		const report = await runImportLegacyProcomun(
+			{ sourceDir: dir, dryRun: false, only: "es_mock" },
+			deps,
+		);
 
 		expect(report.totals.pairsFound).toBe(2);
 		expect(report.totals.processed).toBe(1);
@@ -537,7 +628,10 @@ describe("runImportLegacyProcomun (deps mockeadas)", () => {
 		await writeFile(path.join(dir, "otro.elpx"), "fake-zip-bytes");
 
 		const deps = buildMockDeps(storageDir);
-		const report = await runImportLegacyProcomun({ sourceDir: dir, dryRun: false, limit: 1 }, deps);
+		const report = await runImportLegacyProcomun(
+			{ sourceDir: dir, dryRun: false, limit: 1 },
+			deps,
+		);
 
 		expect(report.totals.pairsFound).toBe(2);
 		expect(report.totals.processed).toBe(1);

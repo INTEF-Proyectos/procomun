@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
+import { RESOURCE_TYPE_VALUES, RESOURCE_TYPES } from "./resource-types.ts";
 import { DEMO_RESOURCES } from "./seed-data.ts";
-import { RESOURCE_TYPES, RESOURCE_TYPE_VALUES } from "./resource-types.ts";
 
 describe("RESOURCE_TYPES", () => {
 	it("has unique, non-empty values and labels", () => {

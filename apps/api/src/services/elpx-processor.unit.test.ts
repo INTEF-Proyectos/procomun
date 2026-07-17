@@ -1,15 +1,18 @@
-import { describe, it, expect, beforeAll, afterAll } from "bun:test";
-import { mkdtemp, mkdir, writeFile, rm, readdir } from "node:fs/promises";
-import path from "node:path";
+import { afterAll, beforeAll, describe, expect, it } from "bun:test";
+import { mkdir, mkdtemp, readdir, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
+import path from "node:path";
+import { Hono } from "hono";
 import {
+	addCrossOriginToLocalScripts,
+	elpxContentRoutes,
+} from "../routes/elpx-content.ts";
+import {
+	buildElpxPath,
 	parseElpxMetadata,
 	processElpxUpload,
-	buildElpxPath,
 	removeElpxExtraction,
 } from "./elpx-processor.ts";
-import { elpxContentRoutes, addCrossOriginToLocalScripts } from "../routes/elpx-content.ts";
-import { Hono } from "hono";
 
 // ---------------------------------------------------------------------------
 // addCrossOriginToLocalScripts (ADR-0027)
@@ -119,11 +122,14 @@ async function createZipFile(
 		filePaths.push(name);
 	}
 
-	const proc = Bun.spawn(["python3", "-m", "zipfile", "-c", zipPath, ...filePaths], {
-		cwd: staging,
-		stdout: "ignore",
-		stderr: "ignore",
-	});
+	const proc = Bun.spawn(
+		["python3", "-m", "zipfile", "-c", zipPath, ...filePaths],
+		{
+			cwd: staging,
+			stdout: "ignore",
+			stderr: "ignore",
+		},
+	);
 	const exitCode = await proc.exited;
 	if (exitCode !== 0) {
 		throw new Error(`zipfile failed with exit code ${exitCode}`);
@@ -271,9 +277,7 @@ describe("processElpxUpload", () => {
 
 		expect(typeof result.hash).toBe("string");
 		expect(result.hash.length).toBeGreaterThan(0);
-		expect(result.extractPath).toBe(
-			path.join(baseDir, "elpx", result.hash),
-		);
+		expect(result.extractPath).toBe(path.join(baseDir, "elpx", result.hash));
 		expect(result.hasPreview).toBe(true);
 		expect(result.metadata.title).toBe("Recurso de prueba");
 		expect(result.metadata.author).toBe("Maria Garcia");
@@ -309,11 +313,7 @@ describe("removeElpxExtraction", () => {
 	it("elimina el directorio de extraccion", async () => {
 		const dirToRemove = path.join(tempDir, "to-remove");
 		await mkdir(dirToRemove, { recursive: true });
-		await writeFile(
-			path.join(dirToRemove, "file.txt"),
-			"content",
-			"utf-8",
-		);
+		await writeFile(path.join(dirToRemove, "file.txt"), "content", "utf-8");
 
 		await removeElpxExtraction(dirToRemove);
 
@@ -373,9 +373,7 @@ describe("elpxContentRoutes", () => {
 	});
 
 	it("GET /:hash/images/photo.png devuelve binario con MIME correcto", async () => {
-		const res = await app.request(
-			`/api/v1/elpx/${fakeHash}/images/photo.png`,
-		);
+		const res = await app.request(`/api/v1/elpx/${fakeHash}/images/photo.png`);
 
 		expect(res.status).toBe(200);
 		expect(res.headers.get("Content-Type")).toBe("image/png");
@@ -405,9 +403,7 @@ describe("elpxContentRoutes", () => {
 	});
 
 	it("devuelve 404 para archivo inexistente dentro del hash", async () => {
-		const res = await app.request(
-			`/api/v1/elpx/${fakeHash}/no-existe.html`,
-		);
+		const res = await app.request(`/api/v1/elpx/${fakeHash}/no-existe.html`);
 
 		expect(res.status).toBe(404);
 	});
@@ -490,14 +486,14 @@ describe("elpxContentRoutes", () => {
 		expect(res.headers.get("Access-Control-Allow-Origin")).toBe("*");
 
 		// Un static (imagen) también lleva ACAO.
-		const asset = await app.request(`/api/v1/elpx/${fakeHash}/images/photo.png`);
+		const asset = await app.request(
+			`/api/v1/elpx/${fakeHash}/images/photo.png`,
+		);
 		expect(asset.headers.get("Access-Control-Allow-Origin")).toBe("*");
 	});
 
 	it("establece cabecera Cache-Control en recursos estaticos", async () => {
-		const res = await app.request(
-			`/api/v1/elpx/${fakeHash}/images/photo.png`,
-		);
+		const res = await app.request(`/api/v1/elpx/${fakeHash}/images/photo.png`);
 
 		expect(res.status).toBe(200);
 		expect(res.headers.get("Cache-Control")).toContain("public");

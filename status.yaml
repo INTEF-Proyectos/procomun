@@ -1395,3 +1395,283 @@ tasks:
       únicas por intento", sustituye a "Comprobación de duplicados antes de extraer"). Validación: bun test
       apps/ packages/ scripts/ → 798 pass, 0 fail (+2 tests nuevos); bun run scripts/check-test-files.ts sin
       incidencias.
+
+  T-2026-07-16-002:
+    date: 2026-07-16
+    agent: "devops-sre + qa-validacion + frontend-ux-accesibilidad"
+    task: "Restauración de las puertas de calidad: sustitución del paquete biome equivocado por @biomejs/biome real y saneamiento asociado"
+    status: Done
+    related: ["ADR-0030", "T-2026-07-16-001"]
+    notes: >
+      La dependencia raíz "biome@0.3.3" era un paquete homónimo abandonado (gestor de variables de
+      entorno), no el linter: bun run lint y el format-check de CI salían 0 sin analizar nada desde
+      el inicio del repo (hallazgo de la evaluación ADR-0030). Se sustituye por @biomejs/biome 2.4.8
+      (coincide con el schema declarado en biome.json). Primera ejecución real: 111 errores de lint,
+      275 warnings y 311 archivos sin formatear.
+      Acciones (todo arreglos reales de código; biome.json queda con las reglas recomendadas
+      completas, sin exclusiones ni rebajas de severidad, y sin supresiones nuevas):
+      formato y fixes seguros con biome check --write (~330 archivos);
+      useExhaustiveDependencies (23) resuelto con useCallback preservando las condiciones de
+      disparo de cada efecto; a11y (32) resuelto con elementos semánticos reales (search,
+      fieldset, button), overlays con listener de document en vez de div clicable, dropzones sin
+      tabIndex no interactivo, radios nativos en StarRating, foco programático en vez de
+      autoFocus, y saneado del footer (legales y email a ayuda#contacto, icono web a intef.es,
+      eliminados los enlaces href="#" a comunidades/usuarios/compartir por no existir la
+      funcionalidad); sanitizadores de caracteres de control reimplementados por code point
+      (fts/extract, fts/worker, uploads/config, scripts/check-coverage) con semántica idéntica;
+      bucles while((m=re.exec())) reescritos con matchAll; claves por índice sustituidas por
+      claves de contenido; [^] por [\s\S] en generate-elpx.ts; type="button" y títulos/aria en
+      SVG e iframes del dashboard /dev/ y del loader de eXeLearning — cuyo HTML era además
+      genuinamente inválido (la secuencia </script> dentro de una cadena JS cerraba el script
+      según la especificación HTML; bug latente corregido); embed-shim.js con const/let en vez
+      de var en bloques (6 noInnerDeclarations, semántica intacta).
+      Limpieza adicional: retiradas dependencias sin uso del frontend (@electric-sql/pglite,
+      drizzle-orm, @testing-library/dom, @testing-library/react) y movidas typescript/@types/* a
+      devDependencies; retirada la exclusión vestigial de optimizeDeps en vite.config.ts con su
+      aserción de test; corregido el comentario obsoleto de api-client.ts que citaba
+      PreviewApiClient; eliminado test-regex.ts suelto en la raíz (regla 15); formateado
+      project.inlang/settings.json (biome local lo ignoraba por un .gitignore no versionado que
+      genera inlang y cuya negación biome no honra — causa del primer fallo de CI de la PR).
+      Quedan 3 biome-ignore históricos previos a esta tarea (noExplicitAny "generic drizzle db
+      type" en fts/search.ts, seed-random.ts y repository/shared/db.ts, nivel warning): su
+      arreglo real es el tipado del Lote 1 de ADR-0030.
+      Validación: biome lint con 0 errores en todo el repo (warnings restantes = niveles por
+      defecto de las reglas recomendadas, mayoría noExplicitAny/noNonNullAssertion solapados con
+      el Lote 1); verificado que el gate falla con error inyectado; format-check exit 0;
+      bun run test verde con coverage >= 90%; tsc sin errores nuevos respecto a la línea base
+      de 635; build de frontend OK; design:lint OK; dashboard /dev/ servido con HTTP 200 tras
+      los cambios.
+
+  T-2026-07-16-003:
+    date: 2026-07-16
+    agent: "devops-sre + qa-validacion"
+    task: "Integración de main (PR #268, importador legacy .elpx) en la rama de restauración de puertas de calidad (PR #272)"
+    status: Done
+    related: ["ADR-0029", "epic-004-migracion-legacy-procomun", "T-2026-07-16-002"]
+    notes: >
+      La PR #272 estaba en conflicto con main tras entrar PR #268. Se integra main con merge
+      (no rebase: los 10 commits de la rama son de formateo y un rebase reproduciría el mismo
+      conflicto en cada uno). 7 ficheros en conflicto, resueltos a mano uno a uno: el patrón
+      general es "contenido funcional de main + formateo de la rama", pero dos casos exigían
+      criterio y un "prefer ours" ciego habría revertido correcciones verificadas de main.
+      elpx-safe-extract.ts: se conserva stdout/stderr "ignore" de main (72ac8a6d) — la rama solo
+      había reindentado el "pipe" antiguo, que cuelga el importador cuando el buffer del pipe se
+      llena y proc.exited nunca resuelve.
+      elpx-metadata.ts: único conflicto con cambio semántico por ambos lados, resuelto como
+      unión — claves pp_license/pp_lang de main (sin ellas language no se extraía nunca) MÁS la
+      reescritura de parseContentXml a matchAll de la rama (f7d2dc92 eliminó el bucle
+      while((m=exec())) junto con su supresión biome-ignore noAssignInExpressions).
+      elpx-fixtures.unit.test.ts: se conservan los tests reforzados de main (los antiguos eran
+      vacuos: el if() saltaba la aserción justo cuando el campo venía vacío, que era siempre).
+      repository.ts: la rama solo había ordenado los export *; se mantiene el orden y se inserta
+      legacy-import.ts en su posición. repository.unit.test.ts: unión (los 6 tests de importación
+      legacy de main + reordenación de imports). apps/cli/src/index.ts: unión (comando
+      import:legacy-procomun + formateo). status.yaml: unión, claves disjuntas, sin pérdida de
+      historial (reglas 11 y 12).
+      El código de PR #268 nunca pasó por Biome real (main aún depende del paquete equivocado
+      biome@0.3.3), así que los gates restaurados se aplican por primera vez sobre él: reformateo
+      de ~13 ficheros y un único error real de lint, corregido de verdad y sin supresiones —
+      field-mapper.ts usaba /FN:\s*([^]*?)\s*EMAIL/ (noEmptyCharacterClassInRegex), sustituido
+      por [\s\S] igual que ya se hizo en generate-elpx.ts; equivalencia comprobada con vCards de
+      una y varias líneas. bun.lock se regeneró con bun install (el auto-merge era correcto: main
+      no tocó las líneas de biome, así que @biomejs/biome 2.4.8 sobrevive y biome@0.3.3 sigue
+      eliminado).
+      Validación: bun run check-test-files OK; biome lint 0 errores; format-check exit 0 sobre
+      ficheros versionados (el único fichero que falla, .claude/settings.local.json, no está
+      versionado y CI no lo ve); bun run test 773 pass / 0 fail con coverage 90.65%;
+      importador legacy en integración termina en ~1,2s (confirma que el fix del cuelgue sigue
+      vivo); comprobado que el test de pp_lang falla de verdad si se quita la clave (25 pass /
+      1 fail) y vuelve a 26 pass al restaurarla; CLI expone import:legacy-procomun y loadCommand
+      resuelve el handler; tsc sin errores nuevos imputables al merge (paso no bloqueante en CI,
+      continue-on-error).
+
+  T-2026-07-16-004:
+    date: 2026-07-16
+    agent: "documentacion-y-roadmap"
+    task: "Resolución de la colisión de numeración ADR-0029 entre PR #268 (ya en main) y PR #271 (abierto)"
+    status: Done
+    related: ["ADR-0029", "ADR-0030", "T-2026-07-16-001", "T-2026-07-16-002"]
+    notes: >
+      Dos ADR distintas reclamaban el número 0029. La PR #271 se ramificó antes de que entrara la
+      PR #268 y tomó el siguiente número libre; #268 lo ocupó primero al mergear. Ambas definen la
+      clave ADR-0029 en decision-log.yaml y añaden un fichero 0029-*.md, así que #271 colisionará
+      al mergear.
+      Decisión: ADR-0029 se queda con "Importador automático de recursos legacy Procomún (.elpx)"
+      (#268) y la evaluación de estrategia de modernización de #271 pasa a ADR-0030 (número libre;
+      el máximo en main era 0029). Criterio: la ADR del importador ya está en main, en estado
+      Aceptado, y está referenciada desde README.md, docs/producto/roadmap.md, los cuatro
+      documentos de docs/epics/epic-004-migracion-legacy-procomun/, decision-log.yaml, el texto de
+      ayuda del CLI ("ver ADR-0029") y hasta desde repository.unit.test.ts; renumerarla obligaría a
+      tocar código y una decisión ya aceptada. La de #271 sigue en estado Propuesto y sin mergear,
+      por lo que moverla es inocuo.
+      Alcance de esta PR: se corrigen las referencias de T-2026-07-16-002 (contenido propio de esta
+      PR, aún sin mergear) que apuntaban a ADR-0029 queriendo decir la evaluación de reescritura —
+      related, "hallazgo de la evaluación" y "Lote 1" pasan a ADR-0030. Tras el merge de main,
+      ADR-0029 resuelve al importador, así que esas referencias señalaban al documento equivocado.
+      Las referencias a ADR-0029 de T-2026-07-16-003 sí son el importador y se dejan como están.
+      Pendiente fuera de esta PR: la PR #271 debe renombrar su fichero a
+      0029-estrategia-modernizacion-reescritura.md -> 0030-estrategia-modernizacion-reescritura.md
+      y su clave de decision-log.yaml a ADR-0030. Hasta entonces, ADR-0030 y T-2026-07-16-001 son
+      referencias adelantadas que resuelven cuando #271 entre; no se reserva la clave en
+      decision-log.yaml aquí porque apuntaría a un fichero inexistente en main.
+      Validación: parseo YAML de status.yaml; ningún gate valida numeración de ADR ni las claves
+      related, comprobado en scripts/.
+
+  T-2026-07-16-007:
+    date: 2026-07-16
+    agent: "devops-sre + qa-validacion"
+    task: "Segunda integración de main en la PR #272: entra la PR #273 (licencias legacy ND+SA) mientras la rama estaba en revisión"
+    status: Done
+    related: ["ADR-0029", "T-2026-07-16-003"]
+    notes: >
+      La PR #273 ("resolve legacy ND+SA licenses as *-sa") mergeó en main mientras esta rama
+      estaba en verde, y volvió a dejarla en conflicto. Mismo patrón que T-2026-07-16-003: los
+      cuatro ficheros en conflicto son código de importador que esta rama solo había reformateado.
+      normalize-license.ts: se conserva el cambio de main de "const nd" a "let nd" — es requisito
+      del propio fix (la línea "if (ndSaConflictResolved) nd = false" reasigna la variable, así que
+      mantener const rompería la compilación) — con el formateo de esta rama.
+      Los tres ficheros de test (normalize-license.unit.test.ts, field-mapper.unit.test.ts,
+      import-legacy-procomun.integration.test.ts) se resuelven tomando la versión de main y
+      reformateando: sus aserciones antiguas (ND+SA bloqueaba) son justo lo que #273 corrige
+      (ahora resuelve a *-sa). Antes de descartar ese lado se verificó que la aportación de esta
+      rama a los tres era solo formato y orden de imports, comparando el multiconjunto de símbolos
+      importados y el contenido sin espacios ni comas finales: ningún import se pierde.
+      field-mapper.ts automergeó limpio y el fix real [^] -> [\s\S] de T-2026-07-16-003 sobrevive.
+      Validación: biome format exit 0; biome lint 0 errores; bun run test 774 pass / 0 fail (+1
+      test nuevo de #273) con coverage 90,65%; el test de ND+SA de #273 pasa; diff -w contra
+      origin/main sobre packages/db/src/legacy-import/ muestra como único cambio no-formato el
+      [\s\S], confirmando que no se ha revertido nada de #273.
+      Corrección posterior (mismo día): la primera pasada de formateo de este merge fue un no-op
+      silencioso. Al cambiar a la rama de la PR #271 (que aún fija biome@0.3.3) y ejecutar allí
+      bun install, node_modules quedó con el paquete equivocado; al volver a esta rama no se
+      reinstaló, así que bunx @biomejs/biome resolvía al binario falso y format/lint salían 0 sin
+      analizar nada — exactamente el fallo que esta PR corrige. Lo detectó el Format Check de CI,
+      que sí instala en limpio. Tras bun install (biome 2.4.8 real) se reformatearon los 4
+      ficheros afectados. Lección operativa: tras cambiar entre ramas con distinta dependencia de
+      biome hay que reinstalar, y un "exit 0" sin resumen de biome es señal de binario falso.
+
+  T-2026-07-16-008:
+    date: 2026-07-16
+    agent: "devops-sre + qa-validacion"
+    task: "Tercera integración de main en la PR #272: entra la PR #274 (fuente única de tipos de recurso)"
+    status: Done
+    related: ["T-2026-07-16-003", "T-2026-07-16-007"]
+    notes: >
+      main avanzó otra vez durante la revisión (#273 y luego #274). La #274 automergea sin
+      conflictos, pero trae código que nunca pasó por Biome real — mismo efecto que #268 y #273 —
+      así que el Format Check de CI la marcaba: resource-type-map.unit.test.ts, resource-types.ts
+      y resource-types.unit.test.ts. Se aplica el formateo real (3 ficheros); solo formato y orden
+      de imports, verificado comparando contenido sin espacios ni comas y el multiconjunto de
+      tokens contra origin/main.
+      Patrón observado y que conviene cerrar cuanto antes: cada PR que entra en main mientras esta
+      rama está abierta añade código sin formatear, porque en main el linter sigue siendo el
+      paquete equivocado. La deuda no deja de crecer hasta que esta PR mergee.
+      Validación con biome 2.4.8 real (comprobada la versión antes de cada pasada, tras el no-op
+      de T-2026-07-16-007): format . solo señala .claude/settings.local.json, que no está
+      versionado y CI no ve; biome lint 0 errores; check-test-files OK; bun run test 790 pass /
+      0 fail (+16 tests de #274) con coverage 90,68%.
+
+  T-2026-07-16-009:
+    date: 2026-07-16
+    agent: "devops-sre + frontend-ux-accesibilidad + qa-validacion"
+    task: "Cuarta integración de main en la PR #272: entran la PR #269 (TypeScript 7.0.2) y la PR #275 (selects de tipo de recurso unificados)"
+    status: Done
+    related: ["T-2026-07-16-003", "T-2026-07-16-007", "T-2026-07-16-008"]
+    notes: >
+      Seis ficheros en conflicto. Los dos package.json requerían criterio porque ambos lados
+      tocaban dependencias y un "prefer ours" habría revertido el bump de la #269:
+      package.json raíz — se conserva @biomejs/biome 2.4.8 de esta rama (razón de ser de la PR;
+      main sigue con el paquete equivocado biome@0.3.3) Y el typescript 7.0.2 de la #269, con el
+      formateo en tabs de esta rama.
+      apps/frontend/package.json — la #269 subió typescript en dependencies, donde estaba antes;
+      esta rama lo había movido a devDependencies junto con @types/* como parte de la limpieza.
+      Se mantiene la estructura de esta rama (devDependencies, sin las dependencias sin uso que ya
+      se retiraron) con la versión 7.0.2 de la #269.
+      bun.lock — no se resuelve a mano: se regenera con bun install a partir de los package.json
+      ya fusionados. Resultado verificado: @biomejs/biome 2.4.8 y typescript 7.0.2, sin rastro de
+      biome@0.3.3.
+      Los tres ficheros de frontend (NuevoPage.tsx, EditarPage.tsx, ResourceEditorIsland.tsx) no
+      podían resolverse tomando un lado entero: la #275 sustituye las listas <option> escritas a
+      mano por las opciones compartidas, y esta rama tiene ahí arreglos reales previos de lint y
+      a11y. Se fusionan ambos: la funcionalidad de la #275 (RESOURCE_TYPE_OPTIONS en alta,
+      getResourceTypeOptions en edición) con el formateo, el orden de imports y los atributos
+      aria de esta rama. Comprobado que no queda ninguna lista de <option> de tipo de recurso
+      escrita a mano en apps/frontend/src/.
+      Validación con biome 2.4.8 real (versión comprobada antes de la pasada): format . solo
+      señala .claude/settings.local.json, no versionado y que CI no ve; biome lint 0 errores;
+      bun run test 793 pass / 0 fail con coverage 90,75%; build del frontend OK con TypeScript 7;
+      tsc 665 errores (paso no bloqueante) — ninguno menciona resourceTypeOptions ni las
+      resoluciones de este merge; el delta sobre la línea base de 635 es código nuevo de
+      #268/#273/#274/#275 y la mayor estrictez de TS 7.
+
+  T-2026-07-16-010:
+    date: 2026-07-16
+    agent: "devops-sre + frontend-ux-accesibilidad + qa-validacion"
+    task: "Reducción de warnings de biome con arreglos reales, sin supresiones"
+    status: Done
+    related: ["ADR-0030", "T-2026-07-16-002"]
+    notes: >
+      Punto de partida: 269 warnings + 19 infos. Quedan 231 + 1 info. Se corrigen 56
+      diagnósticos, todos con cambios reales de código y sin añadir ninguna supresión.
+      Mecánicos (fix seguro de biome, sin cambio de comportamiento): noUnusedImports (15),
+      useTemplate (13), useOptionalChain (3), useLiteralKeys (5).
+      Código muerto real encontrado al revisarlos uno a uno: elpx-processor.ts construía
+      zipBuffer/blob/zipResponse que no usaba nadie (restos de un enfoque abandonado; la
+      extracción real la hace unzip), y de paso leía el fichero entero en memoria para nada;
+      seed.ts definía getResultLength sin una sola referencia; api-tokens.ts asignaba result en
+      revokeApiToken sin leerlo (se conserva el await, la función sigue devolviendo true siempre);
+      PublicCollectionsIsland tenía un estado slug que nunca se lee (se mantiene el setter);
+      AdminSidebar desestructuraba userName y EmbedSection slug sin usarlos.
+      Parámetros exigidos por una firma ajena, marcados con guion bajo en vez de eliminarse:
+      canManageCollection(user, _collection) — la política vigente es que cualquier curator o
+      admin gestiona cualquier colección, sin mirar curatorId, y el parámetro lo impone el
+      contrato canManage de crud-builder; listFilters(_user); los callbacks (_match) de
+      String.replace en generate-elpx.ts; y los mocks de mapLegacyRecord en los tests.
+      embed-shim.js: siete catch (e) con el binding sin usar, reescritos con optional catch
+      binding (catch {}), ES2019 y soportado en todos los navegadores objetivo.
+      Regresión introducida y corregida en el proceso, que conviene no repetir: el fix "unsafe"
+      de useTemplate unió '<scr' + 'ipt>' ... '</scr' + 'ipt>' en un template literal en
+      exelearning-editor-loader.html y volvió a romper el documento — es justo el bug que había
+      arreglado c4ea68a1, porque la etiqueta de cierre escrita entera cierra el bloque inline
+      según la especificación HTML. Se restaura la concatenación partida y se documenta en el
+      propio fichero para que nadie la "arregle" otra vez. Sus 6 warnings de useTemplate y
+      useOptionalChain son falsos positivos y se quedan. (Al documentarlo, el primer intento de
+      comentario contenía la etiqueta de cierre literal y reprodujo el fallo; el comentario final
+      la describe sin escribirla.)
+      Lo que NO se toca y por qué: noNonNullAssertion (134) y noExplicitAny (74) son el 90% de lo
+      que queda y no son rebajas de reglas, sino los niveles por defecto de las recomendadas. Su
+      arreglo real es modelar tipos, que es el Lote 1 de ADR-0030 (los 635 errores de tsc);
+      forzarlos aquí sería cambiar aserciones legítimas de tests por ruido o esconderlos con
+      supresiones, justo lo contrario del objetivo de esta PR. Quedan además 9
+      noDescendingSpecificity y 1 noImportantStyles de CSS, que exigen decisiones de diseño.
+      Validación: biome lint 0 errores; format exit 0; bun run test 793 pass / 0 fail con
+      coverage 90,75%; build del frontend OK; design:lint y check-test-files OK; embed-shim.js y
+      los dos HTML públicos parsean sin errores.
+
+  T-2026-07-17-001:
+    date: 2026-07-17
+    agent: "devops-sre + qa-validacion + documentacion-y-roadmap"
+    task: "Cierre de review de la PR #272: ignore de tooling local, tests de borde de normalizeText, conteo real de biome-ignore y gate documentado"
+    status: Done
+    related: ["ADR-0030", "T-2026-07-16-002", "T-2026-07-16-010"]
+    notes: >
+      Follow-up de la review de fix/quality-gates-biome (PR #272).
+      1) .gitignore y biome.json (files.includes con !!) ignoran tooling local de agentes
+      (.claude/, .cursor/, .grok/, .omc/) para que make lint / bun run lint en local coincida
+      con CI. Antes, .claude/settings.local.json solo estaba en el gitignore global del
+      usuario y Biome lo formateaba como error aunque no estuviera versionado.
+      2) apps/api/src/fts/extract.unit.test.ts: cinco tests de borde de normalizeText (CR,
+      NBSP, trailing whitespace al límite, pending whitespace que supera el techo y luego más
+      contenido, carácter multi-byte que no cabe en el presupuesto de bytes).
+      3) Conteo real de biome-ignore en el árbol (no borrar el histórico de T-2026-07-16-002,
+      que decía 3): hay 7 supresiones justificadas —
+      (a) 3× generic drizzle db type: apps/api/src/fts/search.ts, packages/db/src/seed-random.ts,
+      packages/db/src/repository/shared/db.ts;
+      (b) 2× mocks en apps/cli/src/commands/import-legacy-procomun.unit.test.ts;
+      (c) 2× noNonNullAssertion justificados en apps/cli/src/commands/import-legacy-procomun.ts.
+      Las de (b)/(c) entraron con el importador legacy (#268) y no son nuevas de esta tarea.
+      4) Descripción de la PR #272 actualizada en inglés: el gate falla solo con errores
+      (0 errors); ~190 warnings esperados (mayoría noNonNullAssertion/noExplicitAny); el
+      burn-down de tipado es el Lote 1 de ADR-0030, fuera de alcance de esta PR.
+      Validación: bun run lint exit 0 (0 errors; warnings no fallan el gate); bun test sobre
+      extract.unit.test.ts en verde; check-test-files OK.

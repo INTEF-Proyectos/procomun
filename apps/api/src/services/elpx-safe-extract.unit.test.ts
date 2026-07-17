@@ -1,14 +1,22 @@
-import { describe, it, expect, beforeAll, afterAll } from "bun:test";
-import { mkdtemp, mkdir, writeFile, rm, readdir, symlink, access } from "node:fs/promises";
-import path from "node:path";
-import { tmpdir } from "node:os";
+import { afterAll, beforeAll, describe, expect, it } from "bun:test";
 import {
+	access,
+	mkdir,
+	mkdtemp,
+	readdir,
+	rm,
+	symlink,
+	writeFile,
+} from "node:fs/promises";
+import { tmpdir } from "node:os";
+import path from "node:path";
+import {
+	assertExtractionContained,
+	DEFAULT_ELPX_EXTRACT_LIMITS,
+	inspectZipEntries,
 	isUnsafeZipEntry,
 	readZipCentralDirectory,
-	inspectZipEntries,
-	assertExtractionContained,
 	safeExtractElpx,
-	DEFAULT_ELPX_EXTRACT_LIMITS,
 } from "./elpx-safe-extract.ts";
 
 // --- Helper: crea ZIPs arbitrarios (incl. entradas maliciosas) vía python ---
@@ -190,7 +198,10 @@ describe("inspectZipEntries", () => {
 		await createRawZip(zipPath, { files });
 		const buf = Buffer.from(await Bun.file(zipPath).bytes());
 		expect(() =>
-			inspectZipEntries(buf, { ...DEFAULT_ELPX_EXTRACT_LIMITS, maxEntries: 10 }),
+			inspectZipEntries(buf, {
+				...DEFAULT_ELPX_EXTRACT_LIMITS,
+				maxEntries: 10,
+			}),
 		).toThrow(/demasiadas entradas/i);
 	});
 

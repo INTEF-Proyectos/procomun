@@ -3,10 +3,10 @@
  * Reads locale from <html lang="..."> at runtime.
  */
 import {
-	overwriteGetLocale,
 	baseLocale,
-	locales,
 	isLocale,
+	locales,
+	overwriteGetLocale,
 } from "../paraglide/runtime.js";
 
 function resolveLocale(): string {
@@ -19,7 +19,7 @@ function resolveLocale(): string {
 
 overwriteGetLocale(resolveLocale);
 
-export { locales, baseLocale, isLocale };
+export { baseLocale, isLocale, locales };
 
 /** All supported locales with their display labels. */
 export const LOCALE_LABELS: Record<string, string> = {
