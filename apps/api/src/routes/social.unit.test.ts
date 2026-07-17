@@ -1,8 +1,8 @@
-import { expect, test, describe } from "bun:test";
+import { describe, expect, test } from "bun:test";
 import { Hono } from "hono";
 import type { AuthEnv } from "../auth/middleware.ts";
-import { socialRoutes } from "./social.ts";
 import { adminRoutes } from "./admin/index.ts";
+import { socialRoutes } from "./social.ts";
 
 /**
  * Social routes apply sessionMiddleware internally, which calls betterAuth.
@@ -21,7 +21,12 @@ function createSocialApp(mockUser: Record<string, unknown> | null = null) {
 	// Admin routes (no sessionMiddleware conflict — they use their own)
 	app.use("/api/admin/*", async (c, next) => {
 		c.set("user", mockUser as AuthEnv["Variables"]["user"]);
-		c.set("session", mockUser ? ({ id: "test-session" } as AuthEnv["Variables"]["session"]) : null);
+		c.set(
+			"session",
+			mockUser
+				? ({ id: "test-session" } as AuthEnv["Variables"]["session"])
+				: null,
+		);
 		await next();
 	});
 	app.route("/api/admin", adminRoutes);
@@ -32,7 +37,12 @@ function createSocialApp(mockUser: Record<string, unknown> | null = null) {
 	const socialWrapper = new Hono<AuthEnv>();
 	socialWrapper.use("*", async (c, next) => {
 		c.set("user", mockUser as AuthEnv["Variables"]["user"]);
-		c.set("session", mockUser ? ({ id: "test-session" } as AuthEnv["Variables"]["session"]) : null);
+		c.set(
+			"session",
+			mockUser
+				? ({ id: "test-session" } as AuthEnv["Variables"]["session"])
+				: null,
+		);
 		await next();
 	});
 
@@ -52,13 +62,19 @@ const validResource = {
 	resourceType: "documento",
 };
 
-async function createPublishedResource(app: ReturnType<typeof createSocialApp>, suffix = "") {
+async function createPublishedResource(
+	app: ReturnType<typeof createSocialApp>,
+	suffix = "",
+) {
 	const res = await app.request("/api/admin/resources", {
 		method: "POST",
 		headers: { "Content-Type": "application/json" },
-		body: JSON.stringify({ ...validResource, title: `Social Test ${suffix || Date.now()}` }),
+		body: JSON.stringify({
+			...validResource,
+			title: `Social Test ${suffix || Date.now()}`,
+		}),
 	});
-	const body = await res.json() as { id: string; slug: string };
+	const body = (await res.json()) as { id: string; slug: string };
 
 	// draft → review
 	await app.request(`/api/admin/resources/${body.id}/status`, {
@@ -86,7 +102,7 @@ describe("Social — Ratings", () => {
 		const { slug } = await createPublishedResource(adminApp, "ratings-1");
 		const res = await adminApp.request(`/api/v1/resources/${slug}/ratings`);
 		expect(res.status).toBe(200);
-		const body = await res.json() as Record<string, unknown>;
+		const body = (await res.json()) as Record<string, unknown>;
 		expect(body.totalRatings).toBe(0);
 		expect(body.averageScore).toBe(0);
 	});
@@ -101,7 +117,7 @@ describe("Social — Ratings", () => {
 		expect(res.status).toBe(200);
 
 		const check = await adminApp.request(`/api/v1/resources/${slug}/ratings`);
-		const body = await check.json() as Record<string, unknown>;
+		const body = (await check.json()) as Record<string, unknown>;
 		expect(body.totalRatings).toBe(1);
 		expect(body.averageScore).toBe(4);
 	});
@@ -117,7 +133,9 @@ describe("Social — Ratings", () => {
 	});
 
 	test("GET /resources/:slug/ratings → 404 non-existent", async () => {
-		const res = await adminApp.request("/api/v1/resources/no-existe-xyz/ratings");
+		const res = await adminApp.request(
+			"/api/v1/resources/no-existe-xyz/ratings",
+		);
 		expect(res.status).toBe(404);
 	});
 });
@@ -125,25 +143,33 @@ describe("Social — Ratings", () => {
 describe("Social — Favorites", () => {
 	test("POST /resources/:slug/favorite → toggle on", async () => {
 		const { slug } = await createPublishedResource(adminApp, "fav-1");
-		const res = await adminApp.request(`/api/v1/resources/${slug}/favorite`, { method: "POST" });
+		const res = await adminApp.request(`/api/v1/resources/${slug}/favorite`, {
+			method: "POST",
+		});
 		expect(res.status).toBe(200);
-		const body = await res.json() as { favorited: boolean; count: number };
+		const body = (await res.json()) as { favorited: boolean; count: number };
 		expect(body.favorited).toBe(true);
 		expect(body.count).toBe(1);
 	});
 
 	test("POST /resources/:slug/favorite → toggle off", async () => {
 		const { slug } = await createPublishedResource(adminApp, "fav-2");
-		await adminApp.request(`/api/v1/resources/${slug}/favorite`, { method: "POST" });
-		const res = await adminApp.request(`/api/v1/resources/${slug}/favorite`, { method: "POST" });
-		const body = await res.json() as { favorited: boolean; count: number };
+		await adminApp.request(`/api/v1/resources/${slug}/favorite`, {
+			method: "POST",
+		});
+		const res = await adminApp.request(`/api/v1/resources/${slug}/favorite`, {
+			method: "POST",
+		});
+		const body = (await res.json()) as { favorited: boolean; count: number };
 		expect(body.favorited).toBe(false);
 		expect(body.count).toBe(0);
 	});
 
 	test("POST /resources/:slug/favorite → 401 without auth", async () => {
 		const { slug } = await createPublishedResource(adminApp, "fav-3");
-		const res = await anonApp.request(`/api/v1/resources/${slug}/favorite`, { method: "POST" });
+		const res = await anonApp.request(`/api/v1/resources/${slug}/favorite`, {
+			method: "POST",
+		});
 		expect(res.status).toBe(401);
 	});
 });
@@ -159,7 +185,11 @@ describe("Social — My profile", () => {
 
 		const res = await readerApp.request("/api/v1/users/me/profile");
 		expect(res.status).toBe(200);
-		const body = await res.json() as { name: string | null; bio: string | null; role: string };
+		const body = (await res.json()) as {
+			name: string | null;
+			bio: string | null;
+			role: string;
+		};
 		expect(body.name).toBe("Reader Test");
 		expect(body.bio).toBeNull();
 		expect(body.role).toBe("reader");
@@ -183,7 +213,10 @@ describe("Social — My profile", () => {
 
 		const getRes = await readerApp.request("/api/v1/users/me/profile");
 		expect(getRes.status).toBe(200);
-		const body = await getRes.json() as { name: string | null; bio: string | null };
+		const body = (await getRes.json()) as {
+			name: string | null;
+			bio: string | null;
+		};
 		expect(body.name).toBe("Reader Editado");
 		expect(body.bio).toBe("Bio persistida");
 	});
@@ -201,43 +234,60 @@ describe("Social — My profile", () => {
 describe("Social — Downloads", () => {
 	test("POST /resources/:slug/download → log download", async () => {
 		const { slug } = await createPublishedResource(adminApp, "dl-1");
-		const res = await adminApp.request(`/api/v1/resources/${slug}/download`, { method: "POST" });
+		const res = await adminApp.request(`/api/v1/resources/${slug}/download`, {
+			method: "POST",
+		});
 		expect(res.status).toBe(200);
-		const body = await res.json() as { count: number };
+		const body = (await res.json()) as { count: number };
 		expect(body.count).toBe(1);
 	});
 
 	test("POST /resources/:slug/download → anonymous download increments counter", async () => {
 		const { slug } = await createPublishedResource(adminApp, "dl-anon");
-		const res = await anonApp.request(`/api/v1/resources/${slug}/download`, { method: "POST" });
+		const res = await anonApp.request(`/api/v1/resources/${slug}/download`, {
+			method: "POST",
+		});
 		expect(res.status).toBe(200);
-		const body = await res.json() as { count: number };
+		const body = (await res.json()) as { count: number };
 		expect(body.count).toBe(1);
 	});
 
 	test("POST /resources/:slug/download → counter increments on repeated downloads", async () => {
 		const { slug } = await createPublishedResource(adminApp, "dl-multi");
-		await anonApp.request(`/api/v1/resources/${slug}/download`, { method: "POST" });
-		await anonApp.request(`/api/v1/resources/${slug}/download`, { method: "POST" });
-		const res = await anonApp.request(`/api/v1/resources/${slug}/download`, { method: "POST" });
+		await anonApp.request(`/api/v1/resources/${slug}/download`, {
+			method: "POST",
+		});
+		await anonApp.request(`/api/v1/resources/${slug}/download`, {
+			method: "POST",
+		});
+		const res = await anonApp.request(`/api/v1/resources/${slug}/download`, {
+			method: "POST",
+		});
 		expect(res.status).toBe(200);
-		const body = await res.json() as { count: number };
+		const body = (await res.json()) as { count: number };
 		expect(body.count).toBe(3);
 	});
 
 	test("POST /resources/:slug/download → stats reflect download count after tracking", async () => {
 		const { slug } = await createPublishedResource(adminApp, "dl-stats");
-		await anonApp.request(`/api/v1/resources/${slug}/download`, { method: "POST" });
-		await anonApp.request(`/api/v1/resources/${slug}/download`, { method: "POST" });
+		await anonApp.request(`/api/v1/resources/${slug}/download`, {
+			method: "POST",
+		});
+		await anonApp.request(`/api/v1/resources/${slug}/download`, {
+			method: "POST",
+		});
 
 		const statsRes = await anonApp.request(`/api/v1/resources/${slug}/stats`);
 		expect(statsRes.status).toBe(200);
-		const stats = await statsRes.json() as { downloadCount: number };
+		const stats = (await statsRes.json()) as { downloadCount: number };
 		expect(stats.downloadCount).toBe(2);
 	});
 
 	test("POST /resources/:slug/download → 404 for non-existent resource", async () => {
-		const res = await anonApp.request("/api/v1/resources/no-existe-xyz/download", { method: "POST" });
+		const res = await anonApp.request(
+			"/api/v1/resources/no-existe-xyz/download",
+			{ method: "POST" },
+		);
 		expect(res.status).toBe(404);
 	});
 
@@ -256,7 +306,7 @@ describe("Social — Downloads", () => {
 
 		const statsRes = await anonApp.request(`/api/v1/resources/${slug}/stats`);
 		expect(statsRes.status).toBe(200);
-		const stats = await statsRes.json() as {
+		const stats = (await statsRes.json()) as {
 			downloadCount: number;
 			exportCounts: { scorm: number; ims: number; web: number; epub: number };
 		};
@@ -272,7 +322,7 @@ describe("Social — Stats", () => {
 		const { slug } = await createPublishedResource(adminApp, "stats-1");
 		const res = await adminApp.request(`/api/v1/resources/${slug}/stats`);
 		expect(res.status).toBe(200);
-		const body = await res.json() as Record<string, unknown>;
+		const body = (await res.json()) as Record<string, unknown>;
 		expect(typeof body.downloadCount).toBe("number");
 		expect(typeof body.favoriteCount).toBe("number");
 		expect(typeof body.ratingAvg).toBe("number");
@@ -289,7 +339,7 @@ describe("Social — User endpoints", () => {
 	test("GET /users/me/favorites → list", async () => {
 		const res = await adminApp.request("/api/v1/users/me/favorites");
 		expect(res.status).toBe(200);
-		const body = await res.json() as { data: unknown[] };
+		const body = (await res.json()) as { data: unknown[] };
 		expect(Array.isArray(body.data)).toBe(true);
 	});
 
@@ -301,14 +351,14 @@ describe("Social — User endpoints", () => {
 	test("GET /users/me/ratings → list", async () => {
 		const res = await adminApp.request("/api/v1/users/me/ratings");
 		expect(res.status).toBe(200);
-		const body = await res.json() as { data: unknown[] };
+		const body = (await res.json()) as { data: unknown[] };
 		expect(Array.isArray(body.data)).toBe(true);
 	});
 
 	test("GET /users/me/dashboard → summary", async () => {
 		const res = await adminApp.request("/api/v1/users/me/dashboard");
 		expect(res.status).toBe(200);
-		const body = await res.json() as Record<string, unknown>;
+		const body = (await res.json()) as Record<string, unknown>;
 		expect(typeof body.draftCount).toBe("number");
 		expect(typeof body.publishedCount).toBe("number");
 		expect(typeof body.favoriteCount).toBe("number");
@@ -324,7 +374,7 @@ describe("Social — Activity Feed", () => {
 	test("GET /users/me/activity → empty initially", async () => {
 		const res = await adminApp.request("/api/v1/users/me/activity");
 		expect(res.status).toBe(200);
-		const body = await res.json() as { data: unknown[]; total: number };
+		const body = (await res.json()) as { data: unknown[]; total: number };
 		expect(Array.isArray(body.data)).toBe(true);
 	});
 
@@ -342,36 +392,57 @@ describe("Social — Activity Feed", () => {
 		});
 
 		const res = await adminApp.request("/api/v1/users/me/activity");
-		const body = await res.json() as { data: { type: string; description: string }[] };
-		const ratingEvent = body.data.find(e => e.type === "rating_given" && e.description.includes("act-rating"));
+		const body = (await res.json()) as {
+			data: { type: string; description: string }[];
+		};
+		const ratingEvent = body.data.find(
+			(e) => e.type === "rating_given" && e.description.includes("act-rating"),
+		);
 		expect(ratingEvent).toBeDefined();
 	});
 
 	test("favorite creates activity event", async () => {
 		const { slug } = await createPublishedResource(adminApp, "act-fav");
-		await adminApp.request(`/api/v1/resources/${slug}/favorite`, { method: "POST" });
+		await adminApp.request(`/api/v1/resources/${slug}/favorite`, {
+			method: "POST",
+		});
 
 		const res = await adminApp.request("/api/v1/users/me/activity");
-		const body = await res.json() as { data: { type: string; description: string }[] };
-		const favEvent = body.data.find(e => e.type === "favorite_added" && e.description.includes("act-fav"));
+		const body = (await res.json()) as {
+			data: { type: string; description: string }[];
+		};
+		const favEvent = body.data.find(
+			(e) => e.type === "favorite_added" && e.description.includes("act-fav"),
+		);
 		expect(favEvent).toBeDefined();
 	});
 
 	test("unfavorite creates favorite_removed event", async () => {
 		const { slug } = await createPublishedResource(adminApp, "act-unfav");
-		await adminApp.request(`/api/v1/resources/${slug}/favorite`, { method: "POST" });
-		await adminApp.request(`/api/v1/resources/${slug}/favorite`, { method: "POST" });
+		await adminApp.request(`/api/v1/resources/${slug}/favorite`, {
+			method: "POST",
+		});
+		await adminApp.request(`/api/v1/resources/${slug}/favorite`, {
+			method: "POST",
+		});
 
 		const res = await adminApp.request("/api/v1/users/me/activity");
-		const body = await res.json() as { data: { type: string }[] };
-		const removeEvent = body.data.find(e => e.type === "favorite_removed");
+		const body = (await res.json()) as { data: { type: string }[] };
+		const removeEvent = body.data.find((e) => e.type === "favorite_removed");
 		expect(removeEvent).toBeDefined();
 	});
 
 	test("activity supports pagination", async () => {
-		const res = await adminApp.request("/api/v1/users/me/activity?limit=2&offset=0");
+		const res = await adminApp.request(
+			"/api/v1/users/me/activity?limit=2&offset=0",
+		);
 		expect(res.status).toBe(200);
-		const body = await res.json() as { data: unknown[]; total: number; limit: number; offset: number };
+		const body = (await res.json()) as {
+			data: unknown[];
+			total: number;
+			limit: number;
+			offset: number;
+		};
 		expect(body.limit).toBe(2);
 		expect(body.offset).toBe(0);
 		expect(body.data.length).toBeLessThanOrEqual(2);

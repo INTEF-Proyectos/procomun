@@ -1,11 +1,11 @@
-import { Hono } from "hono";
 import path from "node:path";
+import { seedRandomResources } from "@procomun/db/seed-random";
+import { Hono } from "hono";
 import { type AuthEnv, requireAuth, requireRole } from "../auth/middleware.ts";
 import { getDb } from "../db.ts";
-import { seedRandomResources } from "@procomun/db/seed-random";
 import { isDevelopmentMode } from "../env.ts";
-import { getUploadConfig } from "../uploads/config.ts";
 import { processElpxUpload } from "../services/elpx-processor.ts";
+import { getUploadConfig } from "../uploads/config.ts";
 
 const devRoutes = new Hono<AuthEnv>();
 
@@ -52,9 +52,14 @@ devRoutes.post("/seed-resources", async (c) => {
 		const config = getUploadConfig();
 		const result = await seedRandomResources(getDb().db, count, {
 			clean,
-			elpx: elpxFixtures.length > 0
-				? { fixtures: elpxFixtures, storageDir: config.storageDir, processElpx: processElpxUpload }
-				: undefined,
+			elpx:
+				elpxFixtures.length > 0
+					? {
+							fixtures: elpxFixtures,
+							storageDir: config.storageDir,
+							processElpx: processElpxUpload,
+						}
+					: undefined,
 		});
 		return c.json(result);
 	} catch (err: unknown) {

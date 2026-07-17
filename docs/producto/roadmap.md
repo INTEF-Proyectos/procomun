@@ -54,7 +54,7 @@ Catalogo MVP operativo con busqueda facetada, CRUD unificado, flujo editorial co
 
 | Épica | Estado |
 |-------|--------|
-| Migración desde Procomún (análisis) | En progreso — contexto legacy documentado en `docs/casos/contexto-procomun-legacy/` (estado del arte, requisitos funcionales, info contractual); pendiente obtener PPT y diseñar ETL |
+| Migración desde Procomún (análisis) | En implementación — contexto legacy documentado en `docs/casos/contexto-procomun-legacy/`; ADR-0029 y épica `docs/epics/epic-004-migracion-legacy-procomun/` abiertas para el importador de recursos `.elpx`; piloto sobre 9 ejemplos de `ode-export/` en curso; sigue pendiente obtener PPT del expediente y decisiones de negocio con INTEF sobre alcance/formatos/usuarios históricos |
 | Pipeline de ingestión OAI-PMH | No iniciada |
 | Flujo de curación y moderación | No iniciada |
 | Mejora de relevancia en búsqueda | No iniciada |

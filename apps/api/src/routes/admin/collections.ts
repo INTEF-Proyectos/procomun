@@ -1,29 +1,45 @@
-import { buildCrudRoutes } from "../crud-builder.ts";
+import * as repo from "@procomun/db/repository";
 import { validateCollection } from "@procomun/db/validation";
-import { canManageCollection, getCurrentUser, hasMinRole } from "../../auth/roles.ts";
 import { logActivity } from "../../activity/log.ts";
+import { canManageCollection } from "../../auth/roles.ts";
 import { ensureCurrentUser } from "../../auth/user-sync.ts";
 import { getDb } from "../../db.ts";
-import * as repo from "@procomun/db/repository";
+import { buildCrudRoutes } from "../crud-builder.ts";
 import { parseJsonBodyOrNull, requireManageableCollection } from "./guards.ts";
 
 const collectionRoutes = buildCrudRoutes({
 	baseRole: "curator",
-	list: (db, opts) => repo.listCollections(db, opts as Parameters<typeof repo.listCollections>[1]),
+	list: (db, opts) =>
+		repo.listCollections(
+			db,
+			opts as Parameters<typeof repo.listCollections>[1],
+		),
 	getById: repo.getCollectionById,
-	create: (db, data) => repo.createCollection(db, data as Parameters<typeof repo.createCollection>[1]),
+	create: (db, data) =>
+		repo.createCollection(
+			db,
+			data as Parameters<typeof repo.createCollection>[1],
+		),
 	update: (db, id, data) => {
 		const payload = data as Record<string, unknown>;
 		return repo.updateCollection(db, id, {
 			title: typeof payload.title === "string" ? payload.title : undefined,
-			description: typeof payload.description === "string" ? payload.description : undefined,
-			coverImageUrl: typeof payload.coverImageUrl === "string"
-				? payload.coverImageUrl
-				: payload.coverImageUrl === null
-				? null
-				: undefined,
-			editorialStatus: typeof payload.editorialStatus === "string" ? payload.editorialStatus : undefined,
-			isOrdered: typeof payload.isOrdered === "boolean" ? payload.isOrdered : undefined,
+			description:
+				typeof payload.description === "string"
+					? payload.description
+					: undefined,
+			coverImageUrl:
+				typeof payload.coverImageUrl === "string"
+					? payload.coverImageUrl
+					: payload.coverImageUrl === null
+						? null
+						: undefined,
+			editorialStatus:
+				typeof payload.editorialStatus === "string"
+					? payload.editorialStatus
+					: undefined,
+			isOrdered:
+				typeof payload.isOrdered === "boolean" ? payload.isOrdered : undefined,
 		});
 	},
 	remove: repo.deleteCollection,
@@ -31,7 +47,7 @@ const collectionRoutes = buildCrudRoutes({
 	validateUpdate: validateCollection,
 	mergeOnUpdate: true,
 	canManage: canManageCollection,
-	listFilters: (user) => ({
+	listFilters: (_user) => ({
 		curatorId: undefined,
 	}),
 	prepareCreate: async (body, user) => {
@@ -39,9 +55,13 @@ const collectionRoutes = buildCrudRoutes({
 		return {
 			title: body.title,
 			description: body.description,
-			coverImageUrl: typeof body.coverImageUrl === "string" ? body.coverImageUrl : null,
+			coverImageUrl:
+				typeof body.coverImageUrl === "string" ? body.coverImageUrl : null,
 			curatorId: user.id,
-			editorialStatus: typeof body.editorialStatus === "string" ? body.editorialStatus : undefined,
+			editorialStatus:
+				typeof body.editorialStatus === "string"
+					? body.editorialStatus
+					: undefined,
 			isOrdered: !!body.isOrdered,
 		};
 	},
@@ -80,7 +100,9 @@ collectionRoutes.get("/:id/resources", async (c) => {
 	const check = await requireManageableCollection(c, id);
 	if ("response" in check) return check.response;
 
-	const resources = await repo.listCollectionResources(getDb().db, id, { limit: 100 });
+	const resources = await repo.listCollectionResources(getDb().db, id, {
+		limit: 100,
+	});
 	return c.json(resources);
 });
 
@@ -99,7 +121,9 @@ collectionRoutes.post("/:id/resources", async (c) => {
 		return c.json({ error: "Recurso no encontrado" }, 404);
 	}
 
-	const linkedResources = await repo.listCollectionResources(getDb().db, id, { limit: 100 });
+	const linkedResources = await repo.listCollectionResources(getDb().db, id, {
+		limit: 100,
+	});
 	if (linkedResources.some((item) => item.resourceId === body.resourceId)) {
 		return c.json({ error: "El recurso ya está asociado a la colección" }, 409);
 	}
@@ -122,12 +146,27 @@ collectionRoutes.patch("/:id/resources/reorder", async (c) => {
 	const check = await requireManageableCollection(c, id);
 	if ("response" in check) return check.response;
 
-	const body = await parseJsonBodyOrNull<{ resourceId?: string; direction?: "up" | "down" }>(c);
-	if (!body?.resourceId || !body.direction || !["up", "down"].includes(body.direction)) {
-		return c.json({ error: "resourceId y direction válidos son obligatorios" }, 400);
+	const body = await parseJsonBodyOrNull<{
+		resourceId?: string;
+		direction?: "up" | "down";
+	}>(c);
+	if (
+		!body?.resourceId ||
+		!body.direction ||
+		!["up", "down"].includes(body.direction)
+	) {
+		return c.json(
+			{ error: "resourceId y direction válidos son obligatorios" },
+			400,
+		);
 	}
 
-	const reordered = await repo.reorderCollectionResource(getDb().db, id, body.resourceId, body.direction);
+	const reordered = await repo.reorderCollectionResource(
+		getDb().db,
+		id,
+		body.resourceId,
+		body.direction,
+	);
 	if (!reordered) {
 		return c.json({ error: "No se pudo reordenar el recurso" }, 400);
 	}

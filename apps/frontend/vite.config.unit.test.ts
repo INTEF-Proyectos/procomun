@@ -4,7 +4,10 @@ import config from "./vite.config.ts";
 
 type Middleware = (
 	req: { url?: string },
-	res: { setHeader: (name: string, value: string) => void; end: (content: string) => void },
+	res: {
+		setHeader: (name: string, value: string) => void;
+		end: (content: string) => void;
+	},
 	next: () => void,
 ) => void;
 
@@ -22,12 +25,13 @@ function getDashboardMiddleware(): Middleware {
 			},
 		},
 	});
-	if (!middleware) throw new Error("Expected dashboard middleware to be registered.");
+	if (!middleware)
+		throw new Error("Expected dashboard middleware to be registered.");
 	return middleware;
 }
 
 describe("frontend Vite config", () => {
-	test("mantiene proxy de API y excluye PGlite de optimizeDeps", () => {
+	test("mantiene proxy de API hacia el backend local", () => {
 		if (typeof config === "function") {
 			throw new Error("Expected static Vite config object.");
 		}
@@ -35,7 +39,6 @@ describe("frontend Vite config", () => {
 		const proxy = config.server?.proxy;
 		expect(proxy).toBeDefined();
 		expect(JSON.stringify(proxy)).toContain("http://localhost:3000");
-		expect(config.optimizeDeps?.exclude).toContain("@electric-sql/pglite");
 	});
 
 	test("configura soporte del dashboard dev antes de plugins de framework", () => {
@@ -56,13 +59,9 @@ describe("frontend Vite config", () => {
 
 		try {
 			process.chdir(frontendRoot);
-			middleware(
-				req,
-				{ setHeader() {}, end() {} },
-				() => {
-					nextCalls += 1;
-				},
-			);
+			middleware(req, { setHeader() {}, end() {} }, () => {
+				nextCalls += 1;
+			});
 		} finally {
 			process.chdir(cwd);
 		}

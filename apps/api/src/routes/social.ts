@@ -1,22 +1,24 @@
-import { Hono } from "hono";
-import { type AuthEnv, sessionMiddleware, requireAuth } from "../auth/middleware.ts";
-import { getDb } from "../db.ts";
-import { eq, and, sql, desc, isNull } from "drizzle-orm";
-import {
-	favorites,
-	ratings,
-	resources,
-} from "@procomun/db/schema";
 import * as repo from "@procomun/db/repository";
+import { favorites, ratings, resources } from "@procomun/db/schema";
+import { and, desc, eq, isNull, sql } from "drizzle-orm";
+import { Hono } from "hono";
 import { logActivity } from "../activity/log.ts";
+import { type AuthEnv, requireAuth } from "../auth/middleware.ts";
+import { getDb } from "../db.ts";
 import { parsePagination } from "../http/pagination.ts";
 import { listUserActivity } from "../social/activity-service.ts";
 import { getUserDashboardSummary } from "../social/dashboard-service.ts";
 import { toggleResourceFavorite } from "../social/favorites-service.ts";
+import {
+	getResourceRatingsSummary,
+	upsertResourceRating,
+} from "../social/ratings-service.ts";
 import { enrichResourceCards } from "../social/resource-card.ts";
 import { resolveResourceBySlug } from "../social/resource-resolver.ts";
-import { getResourceRatingsSummary, upsertResourceRating } from "../social/ratings-service.ts";
-import { incrementDownload, getResourceSocialStats } from "../social/resource-stats-service.ts";
+import {
+	getResourceSocialStats,
+	incrementDownload,
+} from "../social/resource-stats-service.ts";
 
 const socialRoutes = new Hono<AuthEnv>();
 
@@ -48,8 +50,16 @@ socialRoutes.post("/resources/:slug/ratings", requireAuth, async (c) => {
 	const currentUser = c.get("user")!;
 	const body = await c.req.json<{ score: number }>();
 
-	if (!body.score || body.score < 1 || body.score > 5 || !Number.isInteger(body.score)) {
-		return c.json({ error: "La puntuacion debe ser un entero entre 1 y 5" }, 400);
+	if (
+		!body.score ||
+		body.score < 1 ||
+		body.score > 5 ||
+		!Number.isInteger(body.score)
+	) {
+		return c.json(
+			{ error: "La puntuacion debe ser un entero entre 1 y 5" },
+			400,
+		);
 	}
 
 	const resource = await resolveResourceBySlug(slug);
@@ -135,7 +145,9 @@ socialRoutes.get("/users/me/favorites", requireAuth, async (c) => {
 		})
 		.from(favorites)
 		.innerJoin(resources, eq(favorites.resourceId, resources.id))
-		.where(and(eq(favorites.userId, currentUser.id), isNull(resources.deletedAt)))
+		.where(
+			and(eq(favorites.userId, currentUser.id), isNull(resources.deletedAt)),
+		)
 		.orderBy(desc(favorites.createdAt))
 		.limit(limit)
 		.offset(offset);
@@ -144,7 +156,9 @@ socialRoutes.get("/users/me/favorites", requireAuth, async (c) => {
 		.select({ count: sql<number>`count(*)` })
 		.from(favorites)
 		.innerJoin(resources, eq(favorites.resourceId, resources.id))
-		.where(and(eq(favorites.userId, currentUser.id), isNull(resources.deletedAt)));
+		.where(
+			and(eq(favorites.userId, currentUser.id), isNull(resources.deletedAt)),
+		);
 
 	const enriched = await enrichResourceCards(rows);
 	return c.json({
@@ -189,7 +203,9 @@ socialRoutes.get("/users/me/ratings", requireAuth, async (c) => {
 		.select({ count: sql<number>`count(*)` })
 		.from(ratings)
 		.innerJoin(resources, eq(ratings.resourceId, resources.id))
-		.where(and(eq(ratings.userId, currentUser.id), isNull(resources.deletedAt)));
+		.where(
+			and(eq(ratings.userId, currentUser.id), isNull(resources.deletedAt)),
+		);
 
 	const enrichedRatings = await enrichResourceCards(rows);
 	return c.json({
@@ -245,8 +261,10 @@ socialRoutes.patch("/users/me/profile", requireAuth, async (c) => {
 	}
 
 	const updates: { name?: string | null; bio?: string | null } = {};
-	if ("name" in body) updates.name = typeof body.name === "string" ? body.name : null;
-	if ("bio" in body) updates.bio = typeof body.bio === "string" ? body.bio : null;
+	if ("name" in body)
+		updates.name = typeof body.name === "string" ? body.name : null;
+	if ("bio" in body)
+		updates.bio = typeof body.bio === "string" ? body.bio : null;
 
 	await repo.updateUser(getDb().db, currentUser.id, updates);
 	return c.json({ id: currentUser.id, updated: true });
@@ -337,7 +355,10 @@ socialRoutes.post("/resources/:slug/report", requireAuth, async (c) => {
 
 	const body = await c.req.json<{ reason: string; description?: string }>();
 
-	if (!body.reason || !repo.REPORT_REASONS.includes(body.reason as repo.ReportReason)) {
+	if (
+		!body.reason ||
+		!repo.REPORT_REASONS.includes(body.reason as repo.ReportReason)
+	) {
 		return c.json(
 			{ error: `Motivo inválido. Válidos: ${repo.REPORT_REASONS.join(", ")}` },
 			400,

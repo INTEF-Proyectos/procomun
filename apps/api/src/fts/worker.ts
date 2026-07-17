@@ -2,15 +2,16 @@
  * Async text extraction worker.
  * Processes extraction jobs without blocking uploads.
  */
+
+import * as repo from "@procomun/db/repository";
 import { getDb } from "../db.ts";
+import { getUploadConfig, resolveStoredFilePath } from "../uploads/config.ts";
 import { extractTextFromFile, isSupportedForExtraction } from "./extract.ts";
 import {
 	markExtractionPending,
 	markExtractionProcessing,
 	saveExtractionResult,
 } from "./search.ts";
-import { resolveStoredFilePath, getUploadConfig } from "../uploads/config.ts";
-import * as repo from "@procomun/db/repository";
 
 /**
  * Neutraliza caracteres de control (incluidos CR/LF, NUL y secuencias ANSI)
@@ -18,7 +19,14 @@ import * as repo from "@procomun/db/repository";
  * logs, para evitar inyección/envenenamiento de logs (CWE-117).
  */
 export function sanitizeForLog(value: string): string {
-	return value.replace(/[\u0000-\u001f\u007f]/g, "?");
+	// Sustituye por "?" cada carácter de control (0x00-0x1F y 0x7F), filtrando
+	// por code point para que el conjunto neutralizado quede explícito.
+	return Array.from(value)
+		.map((ch) => {
+			const code = ch.codePointAt(0) ?? 0;
+			return code <= 0x1f || code === 0x7f ? "?" : ch;
+		})
+		.join("");
 }
 
 /**

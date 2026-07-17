@@ -1,4 +1,4 @@
-import { expect, test, describe } from "bun:test";
+import { describe, expect, test } from "bun:test";
 import { Hono } from "hono";
 import * as repo from "@procomun/db/repository";
 import type { AuthEnv } from "./middleware.ts";
@@ -48,7 +48,9 @@ describe("tokenAuthMiddleware", () => {
 	test("returns 401 with non-existent token", async () => {
 		const app = createTestApp();
 		const res = await app.request("/test", {
-			headers: { Authorization: "Bearer pck_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" },
+			headers: {
+				Authorization: "Bearer pck_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+			},
 		});
 		expect(res.status).toBe(401);
 	});

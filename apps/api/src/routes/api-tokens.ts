@@ -1,3 +1,4 @@
+import * as repo from "@procomun/db/repository";
 import { sql } from "drizzle-orm";
 import { Hono } from "hono";
 import type { AuthEnv } from "../auth/middleware.ts";
@@ -5,7 +6,6 @@ import { requireAuth } from "../auth/middleware.ts";
 import { getCurrentUser } from "../auth/roles.ts";
 import { ensureCurrentUser } from "../auth/user-sync.ts";
 import { getDb } from "../db.ts";
-import * as repo from "@procomun/db/repository";
 
 // Tope de tokens activos por usuario: evita que un usuario cree tokens de forma
 // ilimitada (entre otros, para eludir el rate limit que ahora va por usuario).
@@ -29,7 +29,11 @@ apiTokenRoutes.post("/", async (c) => {
 		return c.json({ error: "El cuerpo debe ser JSON válido" }, 400);
 	}
 
-	if (!body.name || typeof body.name !== "string" || body.name.trim().length === 0) {
+	if (
+		!body.name ||
+		typeof body.name !== "string" ||
+		body.name.trim().length === 0
+	) {
 		return c.json({ error: "El nombre del token es obligatorio" }, 400);
 	}
 

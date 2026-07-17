@@ -3,10 +3,12 @@
  * or import.meta.env.BASE_URL (SSR), defaulting to "/".
  */
 export function getBaseUrl(): string {
-	return (typeof window !== "undefined" &&
-		(window as unknown as { __BASE_URL__?: string }).__BASE_URL__) ||
+	return (
+		(typeof window !== "undefined" &&
+			(window as unknown as { __BASE_URL__?: string }).__BASE_URL__) ||
 		(typeof import.meta !== "undefined" && import.meta.env?.BASE_URL) ||
-		"/";
+		"/"
+	);
 }
 
 /** Returns the current locale from <html lang> (client) or "es" as fallback. */

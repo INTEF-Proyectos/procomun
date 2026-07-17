@@ -8,9 +8,16 @@ export function escapeHtml(s: string): string {
 }
 
 export const TYPE_ICONS: Record<string, string> = {
-	documento: "📄", presentacion: "📊", video: "🎞️", audio: "🎧",
-	imagen: "📷", "actividad-interactiva": "🎮", "secuencia-didactica": "📚",
-	ejercicio: "✍️", evaluacion: "📋", proyecto: "🚀",
+	documento: "📄",
+	presentacion: "📊",
+	video: "🎞️",
+	audio: "🎧",
+	imagen: "📷",
+	"actividad-interactiva": "🎮",
+	"secuencia-didactica": "📚",
+	ejercicio: "✍️",
+	evaluacion: "📋",
+	proyecto: "🚀",
 };
 
 export const STATUS_MAP: Record<string, { label: string; cssClass: string }> = {
@@ -21,8 +28,12 @@ export const STATUS_MAP: Record<string, { label: string; cssClass: string }> = {
 };
 
 export const FILE_ICONS: Record<string, string> = {
-	"application/pdf": "📄", "video/mp4": "🎞️", "audio/mpeg": "🎧",
-	"image/png": "📷", "image/jpeg": "📷", "image/gif": "📷",
+	"application/pdf": "📄",
+	"video/mp4": "🎞️",
+	"audio/mpeg": "🎧",
+	"image/png": "📷",
+	"image/jpeg": "📷",
+	"image/gif": "📷",
 };
 
 export function formatBytes(bytes?: number | null): string {

@@ -91,7 +91,11 @@ describe("check-design-md", () => {
 
 		const result = checkDesignContract(design, extractCssCustomProperties(CSS));
 
-		expect(result.errors).toContain("Missing required component token: components.card");
-		expect(result.errors).toContain("colors.primary (#111111) does not match --color-primary (#003fb1).");
+		expect(result.errors).toContain(
+			"Missing required component token: components.card",
+		);
+		expect(result.errors).toContain(
+			"colors.primary (#111111) does not match --color-primary (#003fb1).",
+		);
 	});
 });

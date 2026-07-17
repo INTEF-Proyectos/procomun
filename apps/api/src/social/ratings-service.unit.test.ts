@@ -1,7 +1,10 @@
 import { describe, expect, test } from "bun:test";
 import * as repo from "@procomun/db/repository";
 import { getDb } from "../db.ts";
-import { getResourceRatingsSummary, upsertResourceRating } from "./ratings-service.ts";
+import {
+	getResourceRatingsSummary,
+	upsertResourceRating,
+} from "./ratings-service.ts";
 
 describe("ratings-service", () => {
 	test("upserts ratings and exposes aggregated summary", async () => {

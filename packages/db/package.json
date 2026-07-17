@@ -11,7 +11,9 @@
 		"./validation": "./src/validation.ts",
 		"./seed-data": "./src/seed-data.ts",
 		"./seed-random": "./src/seed-random.ts",
-		"./elpx-metadata": "./src/elpx-metadata.ts"
+		"./elpx-metadata": "./src/elpx-metadata.ts",
+		"./legacy-import": "./src/legacy-import/index.ts",
+		"./resource-types": "./src/resource-types.ts"
 	},
 	"scripts": {
 		"db:generate": "drizzle-kit generate",
@@ -21,7 +23,7 @@
 		"test": "bun test"
 	},
 	"dependencies": {
-		"@electric-sql/pglite": "0.5.3",
+		"@electric-sql/pglite": "0.5.4",
 		"@faker-js/faker": "10.5.0",
 		"drizzle-orm": "0.45.2"
 	},

@@ -2,7 +2,11 @@ import { readdir } from "node:fs/promises";
 import { join, relative } from "node:path";
 import { SEARCH_ROOTS } from "./run-bun-suite.ts";
 
-const TEST_SUFFIXES = [".unit.test.ts", ".integration.test.ts", ".test.ts"] as const;
+const TEST_SUFFIXES = [
+	".unit.test.ts",
+	".integration.test.ts",
+	".test.ts",
+] as const;
 
 const EXCLUDED_PREFIXES = [
 	"apps/api/static/",
@@ -100,7 +104,10 @@ type MissingTestPair = {
 	acceptedTests: string[];
 };
 
-async function walkDirectory(rootDir: string, currentDir: string): Promise<string[]> {
+async function walkDirectory(
+	rootDir: string,
+	currentDir: string,
+): Promise<string[]> {
 	const entries = await readdir(currentDir, { withFileTypes: true });
 	const files: string[] = [];
 
@@ -139,7 +146,10 @@ export function getAcceptedTestsForSource(filePath: string) {
 	);
 
 	for (const group of ALTERNATIVE_TEST_GROUPS) {
-		if (group.sourceExact === filePath || (group.sourcePrefix && filePath.startsWith(group.sourcePrefix))) {
+		if (
+			group.sourceExact === filePath ||
+			(group.sourcePrefix && filePath.startsWith(group.sourcePrefix))
+		) {
 			for (const testFile of group.tests) {
 				acceptedTests.add(testFile);
 			}
@@ -166,7 +176,11 @@ export async function listTrackedTypescriptFiles(
 				}
 			}
 		} catch (error) {
-			if (!(error instanceof Error) || !("code" in error) || error.code !== "ENOENT") {
+			if (
+				!(error instanceof Error) ||
+				!("code" in error) ||
+				error.code !== "ENOENT"
+			) {
 				throw error;
 			}
 		}
@@ -187,7 +201,10 @@ export function findMissingTestPairs(
 			source,
 			acceptedTests: getAcceptedTestsForSource(source),
 		}))
-		.filter(({ acceptedTests }) => !acceptedTests.some((testFile) => availableTests.has(testFile)));
+		.filter(
+			({ acceptedTests }) =>
+				!acceptedTests.some((testFile) => availableTests.has(testFile)),
+		);
 }
 
 async function main() {
@@ -196,11 +213,15 @@ async function main() {
 	const missing = findMissingTestPairs(files, testFiles);
 
 	if (missing.length === 0) {
-		console.log("All tracked TypeScript source files have an accepted test file.");
+		console.log(
+			"All tracked TypeScript source files have an accepted test file.",
+		);
 		return;
 	}
 
-	console.error("Missing test coverage pairs for the following TypeScript files:");
+	console.error(
+		"Missing test coverage pairs for the following TypeScript files:",
+	);
 	for (const item of missing) {
 		console.error(`- ${item.source}`);
 		console.error(`  Accepted tests: ${item.acceptedTests.join(", ")}`);

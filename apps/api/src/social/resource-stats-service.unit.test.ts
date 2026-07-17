@@ -3,7 +3,10 @@ import * as repo from "@procomun/db/repository";
 import { getDb } from "../db.ts";
 import { toggleResourceFavorite } from "./favorites-service.ts";
 import { upsertResourceRating } from "./ratings-service.ts";
-import { getResourceSocialStats, incrementDownload } from "./resource-stats-service.ts";
+import {
+	getResourceSocialStats,
+	incrementDownload,
+} from "./resource-stats-service.ts";
 
 describe("resource-stats-service", () => {
 	test("aggregates download, favorite and rating stats", async () => {

@@ -6,6 +6,7 @@ describe("CLI dispatcher", () => {
 	test("lista los comandos públicos", () => {
 		expect(CLI_COMMANDS).toContain("seed");
 		expect(CLI_COMMANDS).toContain("fts:reindex");
+		expect(CLI_COMMANDS).toContain("import:legacy-procomun");
 	});
 
 	test("devuelve null para comandos desconocidos", async () => {
@@ -19,5 +20,6 @@ describe("CLI dispatcher", () => {
 
 		expect(lines.join("\n")).toContain("seed");
 		expect(lines.join("\n")).toContain("fts:reindex");
+		expect(lines.join("\n")).toContain("import:legacy-procomun");
 	});
 });

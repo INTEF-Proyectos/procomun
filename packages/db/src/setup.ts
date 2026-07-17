@@ -215,6 +215,7 @@ export const SCHEMA_STATEMENTS = [
 	`CREATE INDEX IF NOT EXISTS idx_resources_slug ON resources(slug)`,
 	`CREATE INDEX IF NOT EXISTS idx_resources_status ON resources(editorial_status)`,
 	`CREATE INDEX IF NOT EXISTS idx_resources_type ON resources(resource_type)`,
+	`CREATE UNIQUE INDEX IF NOT EXISTS resources_import_source_external_id_idx ON resources(import_source, external_id) WHERE external_id IS NOT NULL`,
 	`CREATE INDEX IF NOT EXISTS idx_upload_sessions_resource_id ON upload_sessions(resource_id)`,
 	`CREATE INDEX IF NOT EXISTS idx_upload_sessions_owner_id ON upload_sessions(owner_id)`,
 	`CREATE INDEX IF NOT EXISTS idx_upload_sessions_status ON upload_sessions(status)`,
@@ -335,7 +336,9 @@ INSERT INTO platform_settings (key, value, updated_at) VALUES
 ON CONFLICT (key) DO NOTHING
 `;
 
-export async function createTables(executor: { exec: (sql: string) => Promise<unknown> }) {
+export async function createTables(executor: {
+	exec: (sql: string) => Promise<unknown>;
+}) {
 	for (const statement of SCHEMA_STATEMENTS) {
 		await executor.exec(statement);
 	}

@@ -1,7 +1,7 @@
-import type { Context, Next } from "hono";
-import type { AuthEnv } from "./middleware.ts";
-import { getDb } from "../db.ts";
 import * as repo from "@procomun/db/repository";
+import type { Context, Next } from "hono";
+import { getDb } from "../db.ts";
+import type { AuthEnv } from "./middleware.ts";
 
 /**
  * Simple in-memory rate limiter per token.
@@ -11,7 +11,11 @@ const rateLimitStore = new Map<string, { count: number; resetAt: number }>();
 const RATE_LIMIT_MAX = 100;
 const RATE_LIMIT_WINDOW_MS = 60 * 1000; // 1 minute
 
-function checkRateLimit(tokenId: string): { allowed: boolean; remaining: number; resetAt: number } {
+function checkRateLimit(tokenId: string): {
+	allowed: boolean;
+	remaining: number;
+	resetAt: number;
+} {
 	const now = Date.now();
 	let entry = rateLimitStore.get(tokenId);
 
@@ -22,7 +26,11 @@ function checkRateLimit(tokenId: string): { allowed: boolean; remaining: number;
 
 	entry.count++;
 	const allowed = entry.count <= RATE_LIMIT_MAX;
-	return { allowed, remaining: Math.max(0, RATE_LIMIT_MAX - entry.count), resetAt: entry.resetAt };
+	return {
+		allowed,
+		remaining: Math.max(0, RATE_LIMIT_MAX - entry.count),
+		resetAt: entry.resetAt,
+	};
 }
 
 /**
@@ -32,7 +40,13 @@ function checkRateLimit(tokenId: string): { allowed: boolean; remaining: number;
 export async function tokenAuthMiddleware(c: Context<AuthEnv>, next: Next) {
 	const authHeader = c.req.header("Authorization");
 	if (!authHeader || !authHeader.startsWith("Bearer ")) {
-		return c.json({ error: "Token de autenticación requerido. Usa la cabecera Authorization: Bearer <token>" }, 401);
+		return c.json(
+			{
+				error:
+					"Token de autenticación requerido. Usa la cabecera Authorization: Bearer <token>",
+			},
+			401,
+		);
 	}
 
 	const rawToken = authHeader.slice(7);
@@ -55,7 +69,10 @@ export async function tokenAuthMiddleware(c: Context<AuthEnv>, next: Next) {
 	c.header("X-RateLimit-Reset", String(Math.ceil(rateLimit.resetAt / 1000)));
 
 	if (!rateLimit.allowed) {
-		return c.json({ error: "Demasiadas peticiones. Inténtalo de nuevo más tarde." }, 429);
+		return c.json(
+			{ error: "Demasiadas peticiones. Inténtalo de nuevo más tarde." },
+			429,
+		);
 	}
 
 	// Load the user

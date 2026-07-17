@@ -5,10 +5,12 @@ type FetchCall = { url: string; init?: RequestInit };
 
 function captureFetch(response: Response): { calls: FetchCall[] } {
 	const calls: FetchCall[] = [];
-	globalThis.fetch = mock(async (url: string | URL | Request, init?: RequestInit) => {
-		calls.push({ url: String(url), init });
-		return response;
-	}) as typeof fetch;
+	globalThis.fetch = mock(
+		async (url: string | URL | Request, init?: RequestInit) => {
+			calls.push({ url: String(url), init });
+			return response;
+		},
+	) as typeof fetch;
 	return { calls };
 }
 
@@ -27,10 +29,17 @@ describe("HttpApiClient.createUser (DEF-019)", () => {
 	});
 
 	test("crea el usuario contra /api/admin/users SIN usar el registro público", async () => {
-		const { calls } = captureFetch(jsonResponse({ id: "u-new", created: true }, 201));
+		const { calls } = captureFetch(
+			jsonResponse({ id: "u-new", created: true }, 201),
+		);
 		const client = new HttpApiClient();
 
-		const result = await client.createUser({ name: "Nueva", email: "nueva@test.com", password: "supersecret8", role: "editor" });
+		const result = await client.createUser({
+			name: "Nueva",
+			email: "nueva@test.com",
+			password: "supersecret8",
+			role: "editor",
+		});
 
 		expect(result).toEqual({ ok: true, id: "u-new" });
 		expect(calls).toHaveLength(1);
@@ -48,7 +57,15 @@ describe("HttpApiClient.createUser (DEF-019)", () => {
 	});
 
 	test("propaga errores de validación", async () => {
-		captureFetch(jsonResponse({ error: "Datos inválidos", details: [{ field: "email", message: "Correo electrónico inválido" }] }, 400));
+		captureFetch(
+			jsonResponse(
+				{
+					error: "Datos inválidos",
+					details: [{ field: "email", message: "Correo electrónico inválido" }],
+				},
+				400,
+			),
+		);
 		const client = new HttpApiClient();
 
 		const result = await client.createUser({ email: "malo", password: "x" });
@@ -69,7 +86,10 @@ describe("HttpApiClient.updateUser (DEF-004)", () => {
 		const { calls } = captureFetch(jsonResponse({ id: "u-1", updated: true }));
 		const client = new HttpApiClient();
 
-		const result = await client.updateUser("u-1", { name: "Nuevo Nombre", bio: "Mi nueva bio" });
+		const result = await client.updateUser("u-1", {
+			name: "Nuevo Nombre",
+			bio: "Mi nueva bio",
+		});
 
 		expect(result).toEqual({ ok: true });
 		expect(calls).toHaveLength(1);
@@ -94,7 +114,10 @@ describe("HttpApiClient.updateMyProfile (PR-234)", () => {
 		const { calls } = captureFetch(jsonResponse({ id: "u-1", updated: true }));
 		const client = new HttpApiClient();
 
-		const result = await client.updateMyProfile({ name: "Nuevo Nombre", bio: "Mi nueva bio" });
+		const result = await client.updateMyProfile({
+			name: "Nuevo Nombre",
+			bio: "Mi nueva bio",
+		});
 
 		expect(result).toEqual({ ok: true });
 		expect(calls).toHaveLength(1);

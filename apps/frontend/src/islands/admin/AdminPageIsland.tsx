@@ -2,15 +2,15 @@ import { useEffect, useState } from "react";
 import { getApiClient } from "../../lib/get-api-client.ts";
 import { url } from "../../lib/paths.ts";
 import { ROLE_LEVELS } from "../../lib/shared-utils.ts";
-import { resolveAdminSection, SECTION_MIN_ROLE } from "./admin-sections.ts";
-import { AdminSidebar } from "./AdminSidebar.tsx";
-import { AdminDashboardSection } from "./AdminDashboardSection.tsx";
-import { AdminResourcesSection } from "./AdminResourcesSection.tsx";
-import { AdminUsersSection } from "./AdminUsersSection.tsx";
-import { AdminCollectionsSection } from "./AdminCollectionsSection.tsx";
-import { AdminCategoriesSection } from "./AdminCategoriesSection.tsx";
-import { AdminReportsSection } from "./AdminReportsSection.tsx";
 import { AdminApiTokensSection } from "./AdminApiTokensSection.tsx";
+import { AdminCategoriesSection } from "./AdminCategoriesSection.tsx";
+import { AdminCollectionsSection } from "./AdminCollectionsSection.tsx";
+import { AdminDashboardSection } from "./AdminDashboardSection.tsx";
+import { AdminReportsSection } from "./AdminReportsSection.tsx";
+import { AdminResourcesSection } from "./AdminResourcesSection.tsx";
+import { AdminSidebar } from "./AdminSidebar.tsx";
+import { AdminUsersSection } from "./AdminUsersSection.tsx";
+import { resolveAdminSection, SECTION_MIN_ROLE } from "./admin-sections.ts";
 import "./AdminPageIsland.css";
 
 export type AdminSection =
@@ -47,7 +47,9 @@ export function AdminPageIsland() {
 				// privilegios suficientes; de lo contrario, deniega el acceso cayendo
 				// en el dashboard (evita mostrar un panel en blanco).
 				const userLevel = ROLE_LEVELS[session.user.role] ?? 0;
-				const requested = new URLSearchParams(window.location.search).get("section");
+				const requested = new URLSearchParams(window.location.search).get(
+					"section",
+				);
 				const resolved = resolveAdminSection(requested, userLevel);
 				setSection(resolved);
 				if (requested && requested !== resolved) {
@@ -74,9 +76,7 @@ export function AdminPageIsland() {
 
 	if (loading) {
 		return (
-			<div className="admin-loading">
-				Cargando panel de administracion...
-			</div>
+			<div className="admin-loading">Cargando panel de administracion...</div>
 		);
 	}
 
@@ -101,7 +101,9 @@ export function AdminPageIsland() {
 					/>
 				)}
 				{section === "resources" && <AdminResourcesSection />}
-				{section === "collections" && canManageCollections && <AdminCollectionsSection />}
+				{section === "collections" && canManageCollections && (
+					<AdminCollectionsSection />
+				)}
 				{section === "categories" && canManageCategories && (
 					<AdminCategoriesSection />
 				)}
