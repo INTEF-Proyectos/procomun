@@ -33,8 +33,8 @@ export async function seedResources(args: string[]) {
 		console.log(`\n¡Éxito!`);
 		console.log(`- Recursos creados: ${result.count}`);
 		console.log(`- Tiempo: ${result.durationMs}ms`);
-	} catch (err: any) {
-		console.error("\nError:", err.message);
+	} catch (err) {
+		console.error("\nError:", err instanceof Error ? err.message : err);
 		process.exit(1);
 	}
 }

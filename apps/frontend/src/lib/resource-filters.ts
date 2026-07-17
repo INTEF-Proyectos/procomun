@@ -45,7 +45,8 @@ export async function loadFilterOptions(
 	emptyLabel: string,
 	fallback: FilterOption[],
 ): Promise<FilterOption[]> {
-	if (cache.has(type)) return cache.get(type)!;
+	const cached = cache.get(type);
+	if (cached) return cached;
 	try {
 		const base = (window as Record<string, unknown>).__BASE_URL__ ?? "";
 		const res = await fetch(`${base}api/v1/taxonomies/${type}`);

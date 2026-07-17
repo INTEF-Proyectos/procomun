@@ -52,8 +52,12 @@ export function ApiKeyCreateDialog({
 			const result = await api.createApiToken(name.trim(), expiresAt);
 			setCreatedKey(result);
 			onCreated();
-		} catch (err: any) {
-			setError(err.message || "Error al crear la clave de API");
+		} catch (err) {
+			setError(
+				err instanceof Error
+					? err.message
+					: String(err) || "Error al crear la clave de API",
+			);
 		} finally {
 			setLoading(false);
 		}

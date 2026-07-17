@@ -31,6 +31,8 @@ export function useIframeScale<T extends HTMLElement = HTMLDivElement>(
 		const wrapper = ref.current;
 		const iframe = wrapper.querySelector("iframe");
 		if (!iframe) return;
+		// Capturado para que `rescale` (un closure) conserve el narrowing del if.
+		const iframeEl = iframe;
 
 		// +20px hides the cross-origin iframe scrollbar behind overflow:hidden
 		iframe.style.width = `${iframeWidth + 20}px`;
@@ -42,7 +44,7 @@ export function useIframeScale<T extends HTMLElement = HTMLDivElement>(
 			const scale = fillWidth
 				? w / iframeWidth
 				: Math.min(w / iframeWidth, h / iframeHeight);
-			iframe!.style.transform = `scale(${scale})`;
+			iframeEl.style.transform = `scale(${scale})`;
 		}
 
 		rescale();

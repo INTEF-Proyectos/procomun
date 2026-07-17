@@ -609,10 +609,6 @@
 .home-news-card:hover {
 	text-decoration: none;
 }
-.home-news-card:hover .home-iframe-wrap iframe,
-.home-news-card:hover .home-news-placeholder {
-	opacity: 0.9;
-}
 .home-news-preview {
 	height: 10rem;
 	border-radius: var(--radius-xl);
@@ -620,6 +616,9 @@
 	margin-bottom: var(--space-4);
 	position: relative;
 }
+/* Base del placeholder antes de la regla :hover que lo especializa: no comparten
+   ninguna propiedad (aquí layout, allí opacity), así que el orden no altera el
+   resultado; solo deja la cascada de general a específico. */
 .home-news-placeholder {
 	width: 100%;
 	height: 100%;
@@ -628,6 +627,10 @@
 	justify-content: center;
 	background: var(--color-surface-container-highest);
 	border-radius: var(--radius-xl);
+}
+.home-news-card:hover .home-iframe-wrap iframe,
+.home-news-card:hover .home-news-placeholder {
+	opacity: 0.9;
 }
 .home-news-timestamp {
 	font-size: 10px;

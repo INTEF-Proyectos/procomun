@@ -14,11 +14,15 @@ let publishedUploadId: string;
 let publishedElpxSlug: string;
 let publishedElpxUploadId: string;
 let publishedCollectionSlug: string;
+/** Se guarda aparte del env var (que sigue siendo el que lee la app bajo
+ * prueba) para disponer del directorio ya tipado como string. */
+let uploadStorageDir: string;
 
 beforeAll(async () => {
-	process.env.UPLOAD_STORAGE_DIR = await mkdtemp(
+	uploadStorageDir = await mkdtemp(
 		path.join(tmpdir(), "procomun-public-uploads-"),
 	);
+	process.env.UPLOAD_STORAGE_DIR = uploadStorageDir;
 
 	const draft = await repo.createResource(getDb().db, {
 		title: "Recurso borrador test",
@@ -40,7 +44,7 @@ beforeAll(async () => {
 	await repo.updateEditorialStatus(getDb().db, pub.id, "published", "system");
 	publishedUploadId = `public-upload-${crypto.randomUUID()}`;
 	await writeFile(
-		path.join(process.env.UPLOAD_STORAGE_DIR!, publishedUploadId),
+		path.join(uploadStorageDir, publishedUploadId),
 		"pdf de prueba",
 	);
 	await repo.ensureUser(getDb().db, {
@@ -114,7 +118,7 @@ beforeAll(async () => {
 	);
 	publishedElpxUploadId = `public-elpx-${crypto.randomUUID()}`;
 	await writeFile(
-		path.join(process.env.UPLOAD_STORAGE_DIR!, publishedElpxUploadId),
+		path.join(uploadStorageDir, publishedElpxUploadId),
 		"elpx de prueba",
 	);
 	await repo.createUploadSession(getDb().db, {
