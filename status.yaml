@@ -1866,3 +1866,43 @@ tasks:
       0 fail con coverage 90,38%; build del frontend OK; y el seed se ejecuta de verdad
       (exit 0), que es lo que ejercita demoResource y los índices de la semilla; crc32 comprobado
       idéntico en 7 casos y contra el vector canónico 0x414FA339.
+
+  T-2026-07-17-010:
+    date: 2026-07-17
+    agent: "devops-sre + qa-validacion"
+    task: "Endurecer los pipelines: puerta de tipos con línea base y resto de hallazgos de la revisión de CI"
+    status: Done
+    related: ["ADR-0030", "T-2026-07-17-007", "T-2026-07-17-009"]
+    notes: >
+      Cierra los hallazgos de la revisión de los workflows que quedaban sin arreglar.
+      El principal: el paso "Type Check" corría bunx tsc --noEmit con continue-on-error: true, así
+      que GitHub reescribía su conclusión a success aunque tsc emitiera 617 errores y saliera con
+      código 1. Una marca verde para una puerta que no comprobaba nada — la misma clase de mentira
+      que el paquete biome equivocado que arregló la #272, y la última que quedaba. Ponerla en
+      estricto hoy no es viable (la deuda es el Lote 1), pero dejarla en verde mientras crece
+      tampoco: pasó de 635 a 665 en una sola jornada (#268, #273, #274, #275) sin que nadie se
+      enterara. Se añade scripts/check-types.ts: tolera los errores existentes contra una línea
+      base (665) y falla si crecen; si bajan, avisa para apretarla. Solo gira en un sentido.
+      Comprobado que rompe de verdad: con un error inyectado sale 1 y lista los ficheros
+      culpables; al retirarlo, 0.
+      E2E sobre el merge: e2e.yml solo se disparaba en pull_request, así que la imagen de main se
+      publicaba sin que nadie hubiera probado el resultado ya fusionado — dos PRs verdes por
+      separado pueden romper main al juntarse, y hoy entran varias al día. Se expone e2e.yml como
+      workflow_call y el job docker pasa a needs: [build, e2e].
+      Resto: bun fijado a 1.3.14 en los tres workflows (con `latest`, una release de bun cambia CI
+      sin tocar el repo y los runs no son reproducibles); packages: write baja del nivel de
+      workflow al job docker, que es el único que publica (antes lo tenía también build, que
+      ejecuta código de PRs); concurrency groups en ci y e2e, sin cancelar en main para no abortar
+      una publicación a medias; se sustituye `npx wait-on` por un bucle con curl (se bajaba de la
+      red en cada run, sin versión fijada y sin estar declarado); se documenta el riesgo de
+      pull_request_target en el workflow de dependabot (corre con secretos del repo base y
+      contents: write y hace checkout del head de la PR; la guarda de actor es la mitigación que
+      documenta GitHub, y bun no ejecuta scripts de ciclo de vida por defecto); y se corrige un
+      comentario que prometía un trigger `schedule` para Firefox/WebKit que no existe.
+      De paso, un efecto secundario que conviene anotar: al añadir check-types.ts el coverage bajó
+      a 89,7% y tumbó su propia puerta, porque toda la lógica de reporte vivía dentro de main() y
+      no era testeable (2% de líneas cubiertas). Se extrae formatVerdict() y se prueba: 15 tests,
+      el fichero pasa a 72% y el coverage global vuelve a 90,25%.
+      Validación: los 3 workflows parsean; e2e.yml expone workflow_call y ci.yml lo invoca; las
+      seis puertas en verde en local (lint, check-test-files, design-lint, check-tracking,
+      check-types, check-coverage); bun run test 821 pass / 0 fail con coverage 90,25%.
