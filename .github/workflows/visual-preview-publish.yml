@@ -7,10 +7,16 @@ on:
 
 # This trusted workflow never checks out or executes pull-request code. It only
 # validates bounded PNG artifacts from a successful E2E run before publishing.
+#
+# pull-requests: write is required to list/create/update PR comments via the
+# issues comments API. With only issues: write, GitHub returns 403
+# "Resource not accessible by integration" and x-accepted-github-permissions
+# shows issues=read; pull_requests=read.
 permissions:
   actions: read
   contents: write
   issues: write
+  pull-requests: write
 
 concurrency:
   group: visual-preview-publish
