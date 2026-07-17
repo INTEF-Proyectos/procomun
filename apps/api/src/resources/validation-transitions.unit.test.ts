@@ -27,13 +27,17 @@ describe("validateTransition", () => {
 		test("draft → published con author es inválido (rol insuficiente)", () => {
 			const r = validateTransition("draft", "published", "author");
 			expect(r.valid).toBe(false);
-			expect(r.errors[0].message).toContain("Rol insuficiente");
+			const firstError = r.errors[0];
+			expect(firstError).toBeDefined();
+			expect(firstError?.message).toContain("Rol insuficiente");
 		});
 
 		test("review → published con author es inválido (rol insuficiente)", () => {
 			const r = validateTransition("review", "published", "author");
 			expect(r.valid).toBe(false);
-			expect(r.errors[0].message).toContain("Rol insuficiente");
+			const firstError = r.errors[0];
+			expect(firstError).toBeDefined();
+			expect(firstError?.message).toContain("Rol insuficiente");
 		});
 
 		test("review → draft con author es inválido (rol insuficiente)", () => {
@@ -56,7 +60,9 @@ describe("validateTransition", () => {
 		test("review → published con editor es inválido (rol insuficiente)", () => {
 			const r = validateTransition("review", "published", "editor");
 			expect(r.valid).toBe(false);
-			expect(r.errors[0].message).toContain("Rol insuficiente");
+			const firstError = r.errors[0];
+			expect(firstError).toBeDefined();
+			expect(firstError?.message).toContain("Rol insuficiente");
 		});
 
 		test("review → draft con editor es inválido (rol insuficiente)", () => {
@@ -108,7 +114,9 @@ describe("validateTransition", () => {
 		test("draft → review con reader es inválido", () => {
 			const r = validateTransition("draft", "review", "reader");
 			expect(r.valid).toBe(false);
-			expect(r.errors[0].message).toContain("Rol insuficiente");
+			const firstError = r.errors[0];
+			expect(firstError).toBeDefined();
+			expect(firstError?.message).toContain("Rol insuficiente");
 		});
 	});
 
@@ -116,7 +124,9 @@ describe("validateTransition", () => {
 		test("published → review no está permitida", () => {
 			const r = validateTransition("published", "review", "admin");
 			expect(r.valid).toBe(false);
-			expect(r.errors[0].message).toContain("Transición no permitida");
+			const firstError = r.errors[0];
+			expect(firstError).toBeDefined();
+			expect(firstError?.message).toContain("Transición no permitida");
 		});
 
 		test("draft → archived no está permitida", () => {
@@ -127,7 +137,9 @@ describe("validateTransition", () => {
 		test("estado actual desconocido retorna error", () => {
 			const r = validateTransition("unknown", "draft", "admin");
 			expect(r.valid).toBe(false);
-			expect(r.errors[0].message).toContain("Estado actual no válido");
+			const firstError = r.errors[0];
+			expect(firstError).toBeDefined();
+			expect(firstError?.message).toContain("Estado actual no válido");
 		});
 	});
 });
@@ -143,9 +155,28 @@ describe("TRANSITION_RULES", () => {
 
 describe("ROLE_LEVELS", () => {
 	test("jerarquía de roles es correcta", () => {
-		expect(ROLE_LEVELS.reader).toBeLessThan(ROLE_LEVELS.author);
-		expect(ROLE_LEVELS.author).toBeLessThan(ROLE_LEVELS.editor);
-		expect(ROLE_LEVELS.editor).toBeLessThan(ROLE_LEVELS.curator);
-		expect(ROLE_LEVELS.curator).toBeLessThan(ROLE_LEVELS.admin);
+		const reader = ROLE_LEVELS.reader;
+		const author = ROLE_LEVELS.author;
+		const editor = ROLE_LEVELS.editor;
+		const curator = ROLE_LEVELS.curator;
+		const admin = ROLE_LEVELS.admin;
+		expect(reader).toBeDefined();
+		expect(author).toBeDefined();
+		expect(editor).toBeDefined();
+		expect(curator).toBeDefined();
+		expect(admin).toBeDefined();
+		if (
+			reader === undefined ||
+			author === undefined ||
+			editor === undefined ||
+			curator === undefined ||
+			admin === undefined
+		) {
+			throw new Error("ROLE_LEVELS incompleto");
+		}
+		expect(reader).toBeLessThan(author);
+		expect(author).toBeLessThan(editor);
+		expect(editor).toBeLessThan(curator);
+		expect(curator).toBeLessThan(admin);
 	});
 });

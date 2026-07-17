@@ -187,7 +187,7 @@ Tras completar una feature:
 
 ## Reglas Críticas para IA Autónoma (NUEVO)
 
-11. **Nunca borrar historial de estado global.** Debes usar `status.yaml` para anotar el estado actual de tu tarea y traspasar el turno a otro agente. Usa claves map-keyed `T-YYYY-MM-DD-NNN` para nuevas entradas (ADR-0019).
+11. **Nunca borrar historial de estado global.** Debes usar `status.yaml` para anotar el estado actual de tu tarea y traspasar el turno a otro agente. Usa claves map-keyed `T-YYYY-MM-DD-HHMMSSrr` para nuevas entradas (ADR-0019): fecha UTC + hora:minuto:segundo UTC + 2 dígitos aleatorios. Genera la clave con `bun run new-status-key` y **no** uses el contador diario `NNN` (colisiona entre PRs en paralelo; el validador lo detecta tras el merge). Las claves históricas `T-YYYY-MM-DD-NNN` se conservan.
 12. **Inmutabilidad.** Al actualizar `tasks.md` o diseños en markdown, no borres el contenido previo; añade secciones fechadas al final.
 13. **Uso de Plantillas.** Al crear una ADR nueva, copia obligatoriamente la plantilla de `.templates/adr-template.md`.
 14. **Validación ESTRICTA con Testing.** Ningún agente puede marcar una tarea de código como "Completada" basándose en suposición. La validación requiere obligatoriamente: crear un test automatizado (TypeScript) y ejecutar `bun test` hasta que la salida sea exitosa.

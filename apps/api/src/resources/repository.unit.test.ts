@@ -248,7 +248,7 @@ describe("listResources — búsqueda por nombre de autor (DEF-014)", () => {
 			...baseResource,
 			title: `Material didactico ${crypto.randomUUID()}`,
 			description: "Contenido sin el nombre del creador",
-			author: null,
+			// Omit author so search must match via creator name, not author field.
 			createdBy: "u-humberto",
 		});
 

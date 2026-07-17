@@ -93,11 +93,17 @@ export function parseSimpleDesignFrontMatter(
 		const key = trimmed.slice(0, separatorIndex).trim();
 		const rawValue = trimmed.slice(separatorIndex + 1).trim();
 
-		while (stack.length > 1 && indent <= stack[stack.length - 1].indent) {
+		while (stack.length > 1) {
+			const top = stack[stack.length - 1];
+			if (!top || indent > top.indent) break;
 			stack.pop();
 		}
 
-		const parent = stack[stack.length - 1].object;
+		const parentFrame = stack[stack.length - 1];
+		if (!parentFrame) {
+			throw new Error("Invalid design front matter: empty stack");
+		}
+		const parent = parentFrame.object;
 		if (rawValue === "") {
 			const nested: Record<string, unknown> = {};
 			parent[key] = nested;
@@ -191,6 +197,7 @@ export function checkDesignContract(
 
 function getDesignValue(design: DesignContract, path: string) {
 	const [group, token] = path.split(".");
+	if (!group || !token) return undefined;
 	const value = (
 		design as unknown as Record<string, Record<string, string> | undefined>
 	)[group]?.[token];

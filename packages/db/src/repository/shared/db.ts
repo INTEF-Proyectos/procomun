@@ -1,12 +1,34 @@
-export type DrizzleDB = {
-	select: (...args: unknown[]) => unknown;
-	insert: (...args: unknown[]) => unknown;
-	update: (...args: unknown[]) => unknown;
-	// Este `any` es el núcleo de la deuda de tipado de la capa de datos (Lote 1
-	// de ADR-0030): tipar la base de drizzle de verdad exige la fuente única de
-	// esquema, que es una tarea aparte. La supresión se acota a la regla
-	// concreta: antes era un `biome-ignore lint:` en blanco, que silenciaba
-	// TODAS las reglas de esta línea.
-	// biome-ignore lint/suspicious/noExplicitAny: tipo genérico de la base drizzle, ver Lote 1 de ADR-0030
-	[key: string]: any;
-};
+import type { ExtractTablesWithRelations } from "drizzle-orm";
+import type {
+	PgDatabase,
+	PgQueryResultHKT,
+	PgTransaction,
+} from "drizzle-orm/pg-core";
+import type * as schema from "../../schema/index.ts";
+
+/**
+ * Esquema de la aplicación (todas las tablas y relaciones exportadas).
+ * Fuente única para tipar la capa de datos (Lote 1 de ADR-0030).
+ */
+export type AppSchema = typeof schema;
+export type AppSchemaRelations = ExtractTablesWithRelations<AppSchema>;
+
+/**
+ * Tipo real de la base Drizzle del proyecto.
+ *
+ * Sustituye el `Record` con índice `any` y métodos que devolvían `unknown`.
+ * `PgliteDatabase` y `BunSQLDatabase` extienden `PgDatabase`, así que este
+ * tipo cubre dev (PGlite) y prod (Bun SQL) sin un `any` genérico.
+ */
+export type DrizzleDB = PgDatabase<
+	PgQueryResultHKT,
+	AppSchema,
+	AppSchemaRelations
+>;
+
+/** Transacción tipada con el mismo esquema (p. ej. en `db.transaction`). */
+export type DrizzleTX = PgTransaction<
+	PgQueryResultHKT,
+	AppSchema,
+	AppSchemaRelations
+>;

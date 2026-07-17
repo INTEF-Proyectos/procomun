@@ -81,8 +81,9 @@ export async function tokenAuthMiddleware(c: Context<AuthEnv>, next: Next) {
 		return c.json({ error: "Usuario no activo" }, 403);
 	}
 
-	// Set user in context (same shape as session-based auth)
-	c.set("user", user as AuthEnv["Variables"]["user"]);
+	// Set user in context (same shape as session-based auth).
+	// getUserById returns the app user model; better-auth Session.user is wider.
+	c.set("user", user as unknown as AuthEnv["Variables"]["user"]);
 	c.set("session", null);
 
 	await next();
