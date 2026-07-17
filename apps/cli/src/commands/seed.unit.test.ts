@@ -34,107 +34,115 @@ describe("formatPostgresSeedTarget", () => {
 	});
 });
 
-describe("seedWithClient", { timeout: 60_000 }, () => {
-	test("ejecuta delete+insert idempotente para todas las entidades", {
-		timeout: 30_000,
-	}, async () => {
-		const calls: Array<{ statement: string; params?: unknown[] }> = [];
-		const logs: string[] = [];
-		let closed = false;
+describe("seedWithClient", () => {
+	test(
+		"ejecuta delete+insert idempotente para todas las entidades",
+		async () => {
+			const calls: Array<{ statement: string; params?: unknown[] }> = [];
+			const logs: string[] = [];
+			let closed = false;
 
-		await seedWithClient(
-			{
-				async query(statement, params) {
-					calls.push({ statement, params });
-					return { rows: [] };
+			await seedWithClient(
+				{
+					async query(statement, params) {
+						calls.push({ statement, params });
+						return { rows: [] };
+					},
+					async close() {
+						closed = true;
+					},
 				},
-				async close() {
-					closed = true;
+				{
+					now: "2026-03-27T10:00:00.000Z",
+					log: { log: (message: string) => logs.push(message) },
+					successTarget: "Directorio PGlite: /tmp/procomun",
 				},
-			},
-			{
-				now: "2026-03-27T10:00:00.000Z",
-				log: { log: (message: string) => logs.push(message) },
-				successTarget: "Directorio PGlite: /tmp/procomun",
-			},
-		);
+			);
 
-		expect(closed).toBe(true);
+			expect(closed).toBe(true);
 
-		// Verifica limpieza previa (DELETE)
-		expect(calls.some((c) => c.statement.includes('DELETE FROM "user"'))).toBe(
-			true,
-		);
-		expect(
-			calls.some((c) => c.statement.includes('DELETE FROM "resources"')),
-		).toBe(true);
-		expect(
-			calls.some((c) => c.statement.includes('DELETE FROM "collections"')),
-		).toBe(true);
-		expect(
-			calls.some((c) => c.statement.includes('DELETE FROM "ratings"')),
-		).toBe(true);
-		expect(
-			calls.some((c) => c.statement.includes('DELETE FROM "favorites"')),
-		).toBe(true);
-		expect(
-			calls.some((c) => c.statement.includes('DELETE FROM "downloads"')),
-		).toBe(true);
-		expect(
-			calls.some((c) =>
-				c.statement.includes(
-					'UPDATE "resources" SET assigned_curator_id = NULL',
+			// Verifica limpieza previa (DELETE)
+			expect(
+				calls.some((c) => c.statement.includes('DELETE FROM "user"')),
+			).toBe(true);
+			expect(
+				calls.some((c) => c.statement.includes('DELETE FROM "resources"')),
+			).toBe(true);
+			expect(
+				calls.some((c) => c.statement.includes('DELETE FROM "collections"')),
+			).toBe(true);
+			expect(
+				calls.some((c) => c.statement.includes('DELETE FROM "ratings"')),
+			).toBe(true);
+			expect(
+				calls.some((c) => c.statement.includes('DELETE FROM "favorites"')),
+			).toBe(true);
+			expect(
+				calls.some((c) => c.statement.includes('DELETE FROM "downloads"')),
+			).toBe(true);
+			expect(
+				calls.some((c) =>
+					c.statement.includes(
+						'UPDATE "resources" SET assigned_curator_id = NULL',
+					),
 				),
-			),
-		).toBe(true);
+			).toBe(true);
 
-		// Verifica inserciones
-		expect(
-			calls.filter((c) => c.statement.includes('INSERT INTO "user"')).length,
-		).toBe(DEMO_USERS.length);
-		expect(
-			calls.filter((c) => c.statement.includes('INSERT INTO "account"')).length,
-		).toBe(DEMO_USERS.length);
-		expect(
-			calls.filter((c) => c.statement.includes('INSERT INTO "resources"'))
-				.length,
-		).toBe(DEMO_RESOURCES.length);
-		expect(
-			calls.some((c) =>
-				c.statement.includes('INSERT INTO "resource_subjects"'),
-			),
-		).toBe(true);
-		expect(
-			calls.some((c) => c.statement.includes('INSERT INTO "resource_levels"')),
-		).toBe(true);
-		expect(
-			calls.filter((c) => c.statement.includes('INSERT INTO "collections" '))
-				.length,
-		).toBe(DEMO_COLLECTIONS.length);
-		expect(
-			calls.some((c) =>
-				c.statement.includes('INSERT INTO "collection_resources"'),
-			),
-		).toBe(true);
-		expect(
-			calls.filter((c) => c.statement.includes('INSERT INTO "ratings"')).length,
-		).toBe(DEMO_RATINGS.length);
-		expect(
-			calls.filter((c) => c.statement.includes('INSERT INTO "favorites"'))
-				.length,
-		).toBe(DEMO_FAVORITES.length);
-		expect(
-			calls.some((c) => c.statement.includes('INSERT INTO "downloads"')),
-		).toBe(true);
-		expect(
-			calls.some((c) => c.statement.includes('INSERT INTO "activity_events"')),
-		).toBe(true);
+			// Verifica inserciones
+			expect(
+				calls.filter((c) => c.statement.includes('INSERT INTO "user"')).length,
+			).toBe(DEMO_USERS.length);
+			expect(
+				calls.filter((c) => c.statement.includes('INSERT INTO "account"'))
+					.length,
+			).toBe(DEMO_USERS.length);
+			expect(
+				calls.filter((c) => c.statement.includes('INSERT INTO "resources"'))
+					.length,
+			).toBe(DEMO_RESOURCES.length);
+			expect(
+				calls.some((c) =>
+					c.statement.includes('INSERT INTO "resource_subjects"'),
+				),
+			).toBe(true);
+			expect(
+				calls.some((c) =>
+					c.statement.includes('INSERT INTO "resource_levels"'),
+				),
+			).toBe(true);
+			expect(
+				calls.filter((c) => c.statement.includes('INSERT INTO "collections" '))
+					.length,
+			).toBe(DEMO_COLLECTIONS.length);
+			expect(
+				calls.some((c) =>
+					c.statement.includes('INSERT INTO "collection_resources"'),
+				),
+			).toBe(true);
+			expect(
+				calls.filter((c) => c.statement.includes('INSERT INTO "ratings"'))
+					.length,
+			).toBe(DEMO_RATINGS.length);
+			expect(
+				calls.filter((c) => c.statement.includes('INSERT INTO "favorites"'))
+					.length,
+			).toBe(DEMO_FAVORITES.length);
+			expect(
+				calls.some((c) => c.statement.includes('INSERT INTO "downloads"')),
+			).toBe(true);
+			expect(
+				calls.some((c) =>
+					c.statement.includes('INSERT INTO "activity_events"'),
+				),
+			).toBe(true);
 
-		// Verifica mensaje final
-		expect(logs.at(-1)).toBe(
-			"\nSeed completado. Directorio PGlite: /tmp/procomun",
-		);
-	});
+			// Verifica mensaje final
+			expect(logs.at(-1)).toBe(
+				"\nSeed completado. Directorio PGlite: /tmp/procomun",
+			);
+		},
+		{ timeout: 60_000 },
+	);
 
 	test("cierra el cliente aunque falle una consulta", async () => {
 		let closed = false;

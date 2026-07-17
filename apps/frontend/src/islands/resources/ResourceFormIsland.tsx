@@ -42,11 +42,15 @@ function hasAuthorAccess(role: string | undefined) {
 	return hasMinRole(role, "author");
 }
 
-function toFormState(
-	resource: Partial<
-		ResourceFormState & { author?: string | null; keywords?: string | null }
-	>,
-) {
+function toFormState(resource: {
+	title?: string | null;
+	description?: string | null;
+	language?: string | null;
+	license?: string | null;
+	resourceType?: string | null;
+	author?: string | null;
+	keywords?: string | null;
+}): ResourceFormState {
 	return {
 		title: resource.title ?? "",
 		description: resource.description ?? "",

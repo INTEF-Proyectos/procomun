@@ -37,10 +37,12 @@ const EMPTY_FORM: ResourceFormState = {
 	keywords: "",
 };
 
-const ALLOWED_LANGUAGES = new Set(
+const ALLOWED_LANGUAGES = new Set<string>(
 	LANGUAGE_OPTIONS.map((option) => option.value),
 );
-const ALLOWED_LICENSES = new Set(LICENSE_OPTIONS.map((option) => option.value));
+const ALLOWED_LICENSES = new Set<string>(
+	LICENSE_OPTIONS.map((option) => option.value),
+);
 
 export function applyElpxMetadataToForm(
 	current: ResourceFormState,

@@ -2,6 +2,10 @@ import { beforeAll, describe, expect, test } from "bun:test";
 import { copyFile, mkdtemp, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
+import {
+	getElpxProjectByResourceId,
+	listMediaItemsForResource,
+} from "@procomun/db/repository";
 import { resources } from "@procomun/db/schema";
 import { eq } from "drizzle-orm";
 import { Hono } from "hono";
@@ -119,7 +123,7 @@ describe("import:legacy-procomun (integración, PGlite en memoria vía test-setu
 		expect(imported).not.toBeNull();
 		if (!imported) return; // la aserción previa ya ha fallado el test; solo estrecha el tipo
 
-		const elpxProject = await deps.repo.getElpxProjectByResourceId(
+		const elpxProject = await getElpxProjectByResourceId(
 			deps.getDb().db,
 			imported.id,
 		);
@@ -132,10 +136,7 @@ describe("import:legacy-procomun (integración, PGlite en memoria vía test-setu
 		);
 		expect(elpxProject?.hash).toBe(realChecksum);
 
-		const media = await deps.repo.listMediaItemsForResource(
-			deps.getDb().db,
-			imported.id,
-		);
+		const media = await listMediaItemsForResource(deps.getDb().db, imported.id);
 		expect(media).toHaveLength(1);
 		expect(media[0]?.filename).toBe("1615293421477.elpx");
 
@@ -200,7 +201,7 @@ describe("import:legacy-procomun (integración, PGlite en memoria vía test-setu
 		);
 		expect(imported).not.toBeNull();
 		if (!imported) return;
-		const elpxProject = await deps.repo.getElpxProjectByResourceId(
+		const elpxProject = await getElpxProjectByResourceId(
 			deps.getDb().db,
 			imported.id,
 		);
@@ -316,7 +317,7 @@ describe("import:legacy-procomun — deduplicación por contenido y limpieza de 
 		expect(firstResource).not.toBeNull();
 		if (!firstResource) return;
 
-		const elpxProject = await deps.repo.getElpxProjectByResourceId(
+		const elpxProject = await getElpxProjectByResourceId(
 			deps.getDb().db,
 			firstResource.id,
 		);
@@ -425,7 +426,7 @@ describe("import:legacy-procomun — carrera real entre dos ejecuciones concurre
 		expect(winner).not.toBeNull();
 		if (!winner) return;
 
-		const elpxProject = await deps.repo.getElpxProjectByResourceId(
+		const elpxProject = await getElpxProjectByResourceId(
 			deps.getDb().db,
 			winner.id,
 		);

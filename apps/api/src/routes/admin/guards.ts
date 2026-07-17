@@ -19,7 +19,8 @@ export async function requireManageableResource(
 	c: Context<AuthEnv>,
 	resourceId: string,
 ): Promise<
-	GuardFailure | GuardSuccess<Awaited<ReturnType<typeof repo.getResourceById>>>
+	| GuardFailure
+	| GuardSuccess<NonNullable<Awaited<ReturnType<typeof repo.getResourceById>>>>
 > {
 	const user = getCurrentUser(c);
 	const resource = await repo.getResourceById(getDb().db, resourceId);
@@ -37,7 +38,9 @@ export async function requireManageableCollection(
 	collectionId: string,
 ): Promise<
 	| GuardFailure
-	| GuardSuccess<Awaited<ReturnType<typeof repo.getCollectionById>>>
+	| GuardSuccess<
+			NonNullable<Awaited<ReturnType<typeof repo.getCollectionById>>>
+	  >
 > {
 	const user = getCurrentUser(c);
 	const collection = await repo.getCollectionById(getDb().db, collectionId);

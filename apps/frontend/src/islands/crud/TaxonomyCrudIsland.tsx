@@ -58,9 +58,12 @@ export function TaxonomyCrudIsland() {
 	const [total, setTotal] = useState(0);
 	const [statusMessage, setStatusMessage] = useState("Cargando categorias...");
 	const [createForm, setCreateForm] = useState<TaxonomyFormState>(EMPTY_FORM);
-	const [createFeedback, setCreateFeedback] = useState({
+	const [createFeedback, setCreateFeedback] = useState<{
+		message: string;
+		variant: "neutral" | "success" | "error";
+	}>({
 		message: "",
-		variant: "neutral" as const,
+		variant: "neutral",
 	});
 	const [editing, setEditing] = useState<TaxonomyRecord | null>(null);
 	const [editForm, setEditForm] = useState<TaxonomyFormState>(EMPTY_FORM);

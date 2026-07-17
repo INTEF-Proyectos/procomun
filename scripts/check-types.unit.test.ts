@@ -57,9 +57,9 @@ describe("check-types: ratchet", () => {
 		expect(compareWithBaseline(666, 665).status).toBe("regressed");
 	});
 
-	test("la línea base por defecto es un número, no undefined", () => {
+	test("la línea base es cero: el typecheck es estricto (issue #282)", () => {
 		expect(typeof TYPE_ERROR_BASELINE).toBe("number");
-		expect(TYPE_ERROR_BASELINE).toBeGreaterThan(0);
+		expect(TYPE_ERROR_BASELINE).toBe(0);
 	});
 });
 
@@ -115,6 +115,14 @@ describe("check-types: reporte", () => {
 	test("sin cambios pasa y no pide nada", () => {
 		const { message, exitCode } = formatVerdict(compareWithBaseline(665, 665));
 		expect(exitCode).toBe(0);
-		expect(message).toContain("igual que la línea base");
+		// Con baseline 0 el mensaje de "ok" es el de typecheck limpio; este
+		// caso fuerza baseline 665 vía el segundo argumento de compare.
+		expect(message).toMatch(/igual que la línea base|typecheck limpio/);
+	});
+
+	test("baseline 0 y cero errores reporta typecheck limpio", () => {
+		const { message, exitCode } = formatVerdict(compareWithBaseline(0, 0));
+		expect(exitCode).toBe(0);
+		expect(message).toContain("typecheck limpio");
 	});
 });

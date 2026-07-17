@@ -9,7 +9,9 @@ import {
 	overwriteGetLocale,
 } from "../paraglide/runtime.js";
 
-function resolveLocale(): string {
+type AppLocale = (typeof locales)[number];
+
+function resolveLocale(): AppLocale {
 	if (typeof document !== "undefined") {
 		const htmlLang = document.documentElement.lang;
 		if (htmlLang && isLocale(htmlLang)) return htmlLang;
