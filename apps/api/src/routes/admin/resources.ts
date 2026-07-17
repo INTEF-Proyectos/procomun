@@ -46,7 +46,8 @@ adminUploadRoutes.use("/:id/*", requireRole("author"));
 
 adminUploadRoutes.delete("/:id", requireRole("author"), async (c) => {
 	const user = getCurrentUser(c);
-	const { id } = c.req.param();
+	const id = c.req.param("id");
+	if (!id) return c.json({ error: "Falta id" }, 400);
 	const check = await requireUploadSessionForManagedResource(c, id);
 	if ("response" in check) return check.response;
 
@@ -55,7 +56,8 @@ adminUploadRoutes.delete("/:id", requireRole("author"), async (c) => {
 });
 
 adminUploadRoutes.get("/:id/content", async (c) => {
-	const { id } = c.req.param();
+	const id = c.req.param("id");
+	if (!id) return c.json({ error: "Falta id" }, 400);
 	const check = await requireUploadSessionForManagedResource(c, id);
 	if ("response" in check) return check.response;
 
@@ -160,7 +162,8 @@ resourceRoutes.post("/draft", requireRole("author"), async (c) => {
 // --- Sub-resource routes (custom, appended to resourceRoutes) ---
 
 resourceRoutes.get("/:id/media", async (c) => {
-	const { id } = c.req.param();
+	const id = c.req.param("id");
+	if (!id) return c.json({ error: "Falta id" }, 400);
 	const check = await requireManageableResource(c, id);
 	if ("response" in check) return check.response;
 	const items = await repo.listMediaItemsForResource(db(), id);
@@ -174,7 +177,10 @@ resourceRoutes.get("/:id/media", async (c) => {
 });
 
 resourceRoutes.delete("/:id/media/:mediaItemId", async (c) => {
-	const { id, mediaItemId } = c.req.param();
+	const id = c.req.param("id");
+	const mediaItemId = c.req.param("mediaItemId");
+	if (!id) return c.json({ error: "Falta id" }, 400);
+	if (!mediaItemId) return c.json({ error: "Falta mediaItemId" }, 400);
 	const check = await requireManageableResource(c, id);
 	if ("response" in check) return check.response;
 
@@ -193,14 +199,16 @@ resourceRoutes.delete("/:id/media/:mediaItemId", async (c) => {
 });
 
 resourceRoutes.get("/:id/uploads", async (c) => {
-	const { id } = c.req.param();
+	const id = c.req.param("id");
+	if (!id) return c.json({ error: "Falta id" }, 400);
 	const check = await requireManageableResource(c, id);
 	if ("response" in check) return check.response;
 	return c.json(await repo.listUploadSessionsForResource(db(), id));
 });
 
 resourceRoutes.get("/:id/elpx", async (c) => {
-	const { id } = c.req.param();
+	const id = c.req.param("id");
+	if (!id) return c.json({ error: "Falta id" }, 400);
 	const check = await requireManageableResource(c, id);
 	if ("response" in check) return check.response;
 
@@ -241,10 +249,22 @@ resourceRoutes.get("/:id/elpx", async (c) => {
 
 resourceRoutes.patch("/:id/status", async (c) => {
 	const user = getCurrentUser(c);
-	const { id } = c.req.param();
+	const id = c.req.param("id");
+	if (!id) return c.json({ error: "Falta id" }, 400);
 	const body = await parseJsonBodyOrNull<{ status?: string }>(c);
+	if (!body) return c.json({ error: "Cuerpo inválido" }, 400);
+	const status = body.status;
+	if (typeof status !== "string") {
+		return c.json(
+			{
+				error: "Validación fallida",
+				details: [{ field: "status", message: "El estado es obligatorio" }],
+			},
+			400,
+		);
+	}
 
-	const validation = validateStatus(body.status);
+	const validation = validateStatus(status);
 	if (!validation.valid)
 		return c.json(
 			{ error: "Validación fallida", details: validation.errors },
@@ -258,7 +278,7 @@ resourceRoutes.patch("/:id/status", async (c) => {
 	const userRole = user.role ?? "reader";
 	const transitionCheck = validateTransition(
 		existing.editorialStatus,
-		body.status,
+		status,
 		userRole,
 	);
 	if (!transitionCheck.valid)
@@ -267,7 +287,7 @@ resourceRoutes.patch("/:id/status", async (c) => {
 			403,
 		);
 
-	await repo.updateEditorialStatus(db(), id, body.status, user.id);
+	await repo.updateEditorialStatus(db(), id, status, user.id);
 
 	const statusLabels: Record<string, string> = {
 		draft: "borrador",
@@ -276,9 +296,9 @@ resourceRoutes.patch("/:id/status", async (c) => {
 		archived: "archivado",
 	};
 	const activityType =
-		body.status === "published"
+		status === "published"
 			? "resource_published"
-			: body.status === "draft"
+			: status === "draft"
 				? "resource_drafted"
 				: "resource_status_changed";
 	await logActivity({
@@ -287,11 +307,11 @@ resourceRoutes.patch("/:id/status", async (c) => {
 		resourceId: id,
 		resourceTitle: existing.title,
 		resourceSlug: existing.slug,
-		description: `Cambiaste el estado de «${existing.title}» a ${statusLabels[body.status] ?? body.status}`,
-		metadata: { oldStatus: existing.editorialStatus, newStatus: body.status },
+		description: `Cambiaste el estado de «${existing.title}» a ${statusLabels[status] ?? status}`,
+		metadata: { oldStatus: existing.editorialStatus, newStatus: status },
 	});
 
-	return c.json({ id, status: body.status });
+	return c.json({ id, status });
 });
 
 export { adminUploadRoutes, resourceRoutes };

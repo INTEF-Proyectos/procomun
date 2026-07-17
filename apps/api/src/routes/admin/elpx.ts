@@ -68,7 +68,8 @@ elpxAdminRoutes.post(
 	requireRole("author"),
 	async (c) => {
 		const user = getCurrentUser(c);
-		const { resourceId } = c.req.param();
+		const resourceId = c.req.param("resourceId");
+		if (!resourceId) return c.json({ error: "Falta resourceId" }, 400);
 
 		const resource = await repo.getResourceById(getDb().db, resourceId);
 		if (!resource) return c.json({ error: "Recurso no encontrado" }, 404);
@@ -191,7 +192,8 @@ elpxAdminRoutes.post(
  */
 elpxAdminRoutes.post("/save/:resourceId", requireRole("author"), async (c) => {
 	const user = getCurrentUser(c);
-	const { resourceId } = c.req.param();
+	const resourceId = c.req.param("resourceId");
+	if (!resourceId) return c.json({ error: "Falta resourceId" }, 400);
 
 	const resource = await repo.getResourceById(getDb().db, resourceId);
 	if (!resource) return c.json({ error: "Recurso no encontrado" }, 404);
@@ -294,7 +296,8 @@ elpxAdminRoutes.post(
 	requireRole("author"),
 	async (c) => {
 		const user = getCurrentUser(c);
-		const { resourceId } = c.req.param();
+		const resourceId = c.req.param("resourceId");
+		if (!resourceId) return c.json({ error: "Falta resourceId" }, 400);
 
 		const resource = await repo.getResourceById(getDb().db, resourceId);
 		if (!resource) return c.json({ error: "Recurso no encontrado" }, 404);

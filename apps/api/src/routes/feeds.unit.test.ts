@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, mock, test } from "bun:test";
 import { Hono } from "hono";
 
 // Mock the feed service to avoid DB dependency
-const mockBuildGeneralFeed = mock(() => {
+const mockBuildGeneralFeed = mock((_opts?: Record<string, unknown>) => {
 	const { Feed } = require("feed");
 	const feed = new Feed({
 		title: "Mock Feed",
@@ -21,8 +21,12 @@ const mockBuildGeneralFeed = mock(() => {
 	return feed;
 });
 
-const mockBuildCollectionFeed = mock(() => mockBuildGeneralFeed());
-const mockBuildUserFeed = mock(() => mockBuildGeneralFeed());
+const mockBuildCollectionFeed = mock((_opts?: Record<string, unknown>) =>
+	mockBuildGeneralFeed(),
+);
+const mockBuildUserFeed = mock((_opts?: Record<string, unknown>) =>
+	mockBuildGeneralFeed(),
+);
 
 mock.module("../feeds/service.ts", () => ({
 	buildGeneralFeed: mockBuildGeneralFeed,
@@ -74,8 +78,11 @@ describe("feed routes", () => {
 
 		expect(res.status).toBe(200);
 		expect(mockBuildUserFeed).toHaveBeenCalledTimes(1);
-		const args = mockBuildUserFeed.mock.calls[0][0] as Record<string, unknown>;
-		expect(args.createdBy).toBe("user-123");
+		const call = mockBuildUserFeed.mock.calls[0];
+		expect(call).toBeDefined();
+		const args = call?.[0];
+		expect(args).toBeDefined();
+		expect(args?.createdBy).toBe("user-123");
 	});
 
 	test("GET /feeds/atom/collections/:slug returns 404 when not found", async () => {
@@ -91,13 +98,13 @@ describe("feed routes", () => {
 		);
 
 		expect(mockBuildGeneralFeed).toHaveBeenCalledTimes(1);
-		const args = mockBuildGeneralFeed.mock.calls[0][0] as Record<
-			string,
-			unknown
-		>;
-		expect(args.limit).toBe(10);
-		expect(args.offset).toBe(5);
-		expect(args.search).toBe("math");
-		expect(args.resourceType).toBe("documento");
+		const call = mockBuildGeneralFeed.mock.calls[0];
+		expect(call).toBeDefined();
+		const args = call?.[0];
+		expect(args).toBeDefined();
+		expect(args?.limit).toBe(10);
+		expect(args?.offset).toBe(5);
+		expect(args?.search).toBe("math");
+		expect(args?.resourceType).toBe("documento");
 	});
 });

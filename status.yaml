@@ -1,8 +1,12 @@
 # STATUS — Tablero de estado global
 # Fuente de verdad del proyecto. Ver ADR-0019 para la justificación del formato.
 #
-# Las tareas usan claves map únicas (T-YYYY-MM-DD-NNN) para evitar
-# conflictos de merge cuando varias ramas modifican tareas distintas en paralelo.
+# Claves map únicas para evitar conflictos de merge entre ramas en paralelo.
+# Formato NUEVO (obligatorio en entradas nuevas): T-YYYY-MM-DD-HHMMSSrr
+#   fecha UTC + hora:minuto:segundo UTC + 2 dígitos aleatorios.
+#   Generar con: bun run new-status-key
+# Formato LEGACY (no reescribir): T-YYYY-MM-DD-NNN
+# No reutilices el contador NNN del día: colisiona entre PRs y check-tracking falla.
 # El campo status reemplaza la antigua separación active_tasks/completed_tasks.
 #
 # Valores de status: Pending | In Progress | Done
@@ -11,7 +15,7 @@
 metadata:
   phase: "Fase 1 — MVP de catálogo"
   epic: "Catalogo MVP operativo; flujo editorial completo; busqueda facetada implementada; backoffice con CRUD unificado; entidades (tipos, idiomas, licencias) gestionables desde admin; uploads con IndexedDB en preview mode"
-  current_agent: "@.agents/skills/frontend-ux-accesibilidad + @.agents/skills/documentacion-y-roadmap"
+  current_agent: "@.agents/skills/qa-validacion + @.agents/skills/documentacion-y-roadmap"
   instructions: >
     Todos los agentes deben leer este archivo antes de comenzar cualquier tarea para entender
     el contexto global y el progreso del proyecto. Al finalizar una tarea, deben actualizar
@@ -1954,3 +1958,105 @@ tasks:
       Validación: los 3 workflows parsean; e2e.yml expone workflow_call y ci.yml lo invoca; las
       seis puertas en verde en local (lint, check-test-files, design-lint, check-tracking,
       check-types, check-coverage); bun run test 821 pass / 0 fail con coverage 90,25%.
+
+  # Renumerada de T-2026-07-17-011 → T-2026-07-17-14354901 al fusionar main (#284 visual
+  # se quedó con 011). Formato HHMMSSrr (UTC del commit typecheck + sufijo) para no colisionar.
+  T-2026-07-17-14354901:
+    date: 2026-07-17
+    agent: "backend-api-servicios + frontend-ux-accesibilidad + devops-sre + qa-validacion"
+    task: "Bajar Type Check a cero y cerrar el refactor de calidad (issue #282 / Lote 1 de ADR-0030)"
+    status: Done
+    related: ["#282", "ADR-0030", "T-2026-07-17-009", "T-2026-07-17-010"]
+    notes: >
+      Cierra el burndown de tipos que dejaron abiertas las #280/#281: de 612 (CI) / 595 (local)
+      a 0 errores de tsc, con TYPE_ERROR_BASELINE = 0 (typecheck estricto).
+      Fase 0 (config, gratis): apps/frontend/src/css.d.ts elimina los 43 TS2882 de imports CSS;
+      paraglide se genera antes de tipar vía `npm run paraglide:compile` en el script check-types
+      (cierra el hueco local/CI de ~16 módulos no encontrados del outdir generado).
+      Fase 1 (raíz): DrizzleDB pasa de un Record con índice any y métodos que devolvían unknown
+      a PgDatabase real sobre typeof schema (packages/db/src/repository/shared/db.ts). Eso
+      elimina los 76 TS2571 y desbloquea la capa de datos; se retiran los 3 biome-ignore
+      noExplicitAny del "generic drizzle db type" (shared/db.ts, fts/search.ts, seed-random.ts).
+      Tests de repositorio tipan `let db: DrizzleDB` en vez de ReturnType<typeof drizzle>, que
+      perdía el esquema (PgliteDatabase<Record<string, unknown>>).
+      Fase 2–3: narrowing real en rutas Hono (params/body con early-return 400), mocks de fetch
+      con `as unknown as typeof fetch`, guards de noUncheckedIndexedAccess en tests y producción,
+      tipos de admin/UI, e2e y scripts. Sin @ts-expect-error, sin as any, sin bajar reglas.
+      Fase 4: TYPE_ERROR_BASELINE = 0; el ratchet queda como typecheck limpio.
+      Validación: bunx tsc --noEmit → 0 errores; make check-types limpio; make lint (solo
+      warnings preexistentes); check-test-files, design-lint, check-tracking OK; bun test
+      834 pass / 0 fail; coverage 90,17% (>= 90%).
+      Nota de merge: la clave original T-2026-07-17-011 colisionó con #284 (visual); renumerada
+      a T-2026-07-17-14354901. Prevención a futuro: PR #286 (T-YYYY-MM-DD-HHMMSSrr).
+  T-2026-07-17-011:
+    date: 2026-07-17
+    agent: "devops-sre + qa-validacion + seguridad-privacidad-legal + arquitectura-solucion"
+    task: "Publicar capturas visuales de la aplicación en cada pull request tras superar E2E"
+    status: In Progress
+    related: ["#283", "#284", "ADR-0033"]
+    notes: >
+      Se evalúan las opciones existentes antes de desarrollar: Auto PR Screenshots cubre URLs,
+      pasos autenticados y comentario actualizable, pero su configuración documentada concede
+      contents: write y pull-requests: write al mismo job que ejecuta código de la PR; Argos y
+      Webshot Archive requieren servicio o aplicación externa; Lost Pixel está retirándose y su
+      repositorio fue archivado. Se implementa una separación de privilegios: e2e.yml mantiene
+      contents: read, captura cinco vistas de escritorio después de que pase la suite Chromium y
+      sube PNG como artefacto de un día; visual-preview-publish.yml se ejecuta como workflow_run
+      confiable desde main, valida cantidad, nombre, tamaño y firma PNG, sustituye los assets de
+      la PR en una prerelease y crea o actualiza un único comentario con commit y hora. Las URLs
+      y requisitos de autenticación quedan centralizados en e2e/visual-preview-pages.ts.
+      Validación: los dos YAML parsean, Biome 2.4.8 acepta los dos ficheros TypeScript nuevos,
+      las puertas de lint, tracking, tipos, tests y coverage pasan, los 54 E2E Chromium están en
+      verde y las cinco capturas se generan en 11,1 segundos y se suben como artefacto de 1,50 MB.
+      El diff remoto contiene solo los ocho ficheros previstos. Queda In Progress porque GitHub no
+      activa un workflow_run nuevo hasta que exista en la rama por defecto; la publicación completa
+      debe verificarse con una PR posterior a la fusión. La decisión queda registrada como ADR-0033
+      e indexada en decision-log.yaml; se salta 0031 y 0032 porque están reservadas por los PR
+      abiertos #235 y #236.
+
+  T-2026-07-17-16101371:
+    date: 2026-07-17
+    agent: "devops-sre + documentacion-y-roadmap + project-manager"
+    task: "Hotfix: claves status.yaml con hora+aleatorio para evitar colisiones entre PRs"
+    status: Done
+    related: ["ADR-0019", "T-2026-07-17-011"]
+    notes: >
+      Tras fusionar #284 (visual, clave T-2026-07-17-011) en main, al mezclar main en la PR de
+      typecheck a cero (#285) check-tracking falló: la misma clave T-2026-07-17-011 existía en
+      ambas ramas (contador NNN del día). Git auto-mergea el YAML; el parser se quedaría con la
+      última y borraría historial en silencio — el validador lo detecta sobre texto crudo.
+      Cambio preventivo: formato nuevo T-YYYY-MM-DD-HHMMSSrr (UTC + 2 dígitos aleatorios),
+      generador `bun run new-status-key`, enmienda en ADR-0019, AGENTS.md regla 11, cabecera de
+      status.yaml y schema. Las claves legacy NNN no se reescriben. La colisión concreta de #285
+      se corrige en esa PR renumerando la entrada de typecheck a una clave HHMMSSrr.
+      Validación: bun test scripts/new-status-key.unit.test.ts; make check-tracking; paridad
+      archivo-test del generador.
+
+  T-2026-07-17-16250001:
+    date: 2026-07-17
+    agent: "devops-sre + seguridad-privacidad-legal"
+    task: "Hotfix: visual-preview-publish sin git local (GH_REPO + API REST)"
+    status: Done
+    related: ["#284", "ADR-0033", "T-2026-07-17-011"]
+    notes: >
+      El workflow Publish Visual Previews fallaba en "Publish latest assets" con
+      "fatal: not a git repository": gh release create --target main y gh release
+      upload requieren .git, y el job a propósito no hace checkout (ADR-0033 R1).
+      Se publica solo vía API REST (crear release, borrar assets previos, upload
+      binario) y se fija GH_REPO. Enmienda en ADR-0033. Validación: YAML del
+      workflow parseable; el run real se verifica en la siguiente PR con E2E OK.
+
+  T-2026-07-17-16420011:
+    date: 2026-07-17
+    agent: "devops-sre + seguridad-privacidad-legal"
+    task: "Hotfix: pull-requests: write en visual-preview-publish (403 al comentar PR)"
+    status: Done
+    related: ["ADR-0033", "#284", "T-2026-07-17-16250001"]
+    notes: >
+      Tras arreglar la publicación de assets sin git local, el job fallaba en
+      "Create or update pull-request comment" con 403 Resource not accessible by
+      integration al listar comentarios de issues/285. El token solo tenía
+      issues=read; pull_requests=read. La API de comentarios sobre un PR exige
+      pull-requests: write además de issues: write. Se añade al workflow y se
+      documenta en ADR-0033. Validación: el siguiente E2E verde de una PR debe
+      publicar assets y dejar/actualizar el comentario marcado.

@@ -122,15 +122,28 @@ export function timeAgo(dateStr: string | number | Date | null): string {
 }
 
 /** Role hierarchy levels. Canonical source — import from here. */
-export const ROLE_LEVELS: Record<string, number> = {
+export const ROLE_LEVELS = {
 	reader: 0,
 	author: 1,
 	editor: 2,
 	curator: 3,
 	admin: 4,
-};
+} as const;
+
+export type RoleName = keyof typeof ROLE_LEVELS;
+
+/** Resolve a dynamic role string to its hierarchy level. */
+export function roleLevelOf(
+	role: string | undefined | null,
+	fallback = 0,
+): number {
+	if (role != null && Object.hasOwn(ROLE_LEVELS, role)) {
+		return ROLE_LEVELS[role as RoleName];
+	}
+	return fallback;
+}
 
 /** Check if a role meets a minimum role level. */
 export function hasMinRole(role: string | undefined, minRole: string): boolean {
-	return (ROLE_LEVELS[role ?? "reader"] ?? 0) >= (ROLE_LEVELS[minRole] ?? 99);
+	return roleLevelOf(role ?? "reader") >= roleLevelOf(minRole, 99);
 }

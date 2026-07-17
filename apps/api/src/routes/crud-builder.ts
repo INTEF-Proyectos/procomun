@@ -1,6 +1,7 @@
 import type { ValidationResult } from "@procomun/db/validation";
 import type { Context } from "hono";
 import { Hono } from "hono";
+import type { ContentfulStatusCode } from "hono/utils/http-status";
 import { type AuthEnv, requireRole } from "../auth/middleware.ts";
 import { getCurrentUser } from "../auth/roles.ts";
 import { getDb } from "../db.ts";
@@ -9,26 +10,36 @@ import { parsePagination } from "../http/pagination.ts";
 type DbFn = ReturnType<typeof getDb>["db"];
 type User = { id: string; role?: string; name?: string; email?: string };
 
-function jsonErrorFromCrudException(err: unknown) {
+function jsonErrorFromCrudException(
+	err: unknown,
+): { error: string; status: ContentfulStatusCode } | null {
 	const msg = err instanceof Error ? err.message : "";
 	if (msg === "PARENT_NOT_FOUND") {
 		return {
 			error: "La categoría padre indicada no existe",
-			status: 400 as const,
+			status: 400,
 		};
 	}
 	if (msg === "PARENT_SELF_REFERENCE") {
 		return {
 			error: "Una categoría no puede ser padre de sí misma",
-			status: 400 as const,
+			status: 400,
 		};
 	}
 	const status =
 		typeof err === "object" && err !== null
 			? (err as { status?: number }).status
 			: undefined;
-	if (status && status >= 400 && status < 600) {
-		return { error: err instanceof Error ? err.message : "Error", status };
+	if (
+		typeof status === "number" &&
+		status >= 400 &&
+		status < 600 &&
+		Number.isInteger(status)
+	) {
+		return {
+			error: err instanceof Error ? err.message : "Error",
+			status: status as ContentfulStatusCode,
+		};
 	}
 	return null;
 }
@@ -104,7 +115,8 @@ export function buildCrudRoutes<TEntity>(
 	// GET /:id — detail
 	routes.get("/:id", async (c) => {
 		const user = getCurrentUser(c);
-		const { id } = c.req.param();
+		const id = c.req.param("id");
+		if (!id) return c.json({ error: "Falta id" }, 400);
 		const entity = await config.getById(db(), id);
 		if (!entity) return c.json({ error: notFound }, 404);
 		if (config.canManage && !config.canManage(user, entity)) {
@@ -162,7 +174,8 @@ export function buildCrudRoutes<TEntity>(
 		const update = config.update;
 		const handler = async (c: Context<AuthEnv>) => {
 			const user = getCurrentUser(c);
-			const { id } = c.req.param();
+			const id = c.req.param("id");
+			if (!id) return c.json({ error: "Falta id" }, 400);
 			const entity = await config.getById(db(), id);
 			if (!entity) return c.json({ error: notFound }, 404);
 			if (config.canManage && !config.canManage(user, entity)) {
@@ -210,7 +223,8 @@ export function buildCrudRoutes<TEntity>(
 		const remove = config.remove;
 		const handler = async (c: Context<AuthEnv>) => {
 			const user = getCurrentUser(c);
-			const { id } = c.req.param();
+			const id = c.req.param("id");
+			if (!id) return c.json({ error: "Falta id" }, 400);
 			const entity = await config.getById(db(), id);
 			if (!entity) return c.json({ error: notFound }, 404);
 			if (config.canManage && !config.canManage(user, entity)) {
