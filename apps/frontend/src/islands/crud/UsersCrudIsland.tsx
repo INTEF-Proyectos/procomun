@@ -1,8 +1,8 @@
-import { startTransition, useEffect, useState } from "react";
+import { startTransition, useCallback, useEffect, useState } from "react";
 import type { UserRecord } from "../../lib/api-client.ts";
 import { getApiClient } from "../../lib/get-api-client.ts";
 import { AccessibleFeedback } from "../shared/AccessibleFeedback.tsx";
-import { CrudTable, type CrudColumn } from "./CrudTable.tsx";
+import { type CrudColumn, CrudTable } from "./CrudTable.tsx";
 
 const PAGE_SIZE = 20;
 
@@ -29,39 +29,47 @@ export function UsersCrudIsland() {
 	const [offset, setOffset] = useState(0);
 	const [total, setTotal] = useState(0);
 	const [statusMessage, setStatusMessage] = useState("Cargando usuarios...");
-	const [saveFeedback, setSaveFeedback] = useState({ message: "", variant: "neutral" as const });
+	const [saveFeedback, setSaveFeedback] = useState({
+		message: "",
+		variant: "neutral" as const,
+	});
 	const [busyRowId, setBusyRowId] = useState<string | null>(null);
 
-	async function loadUsers(nextOffset = offset, nextSearch = appliedSearch, nextRole = appliedRole) {
-		setStatusMessage("Cargando usuarios...");
+	const loadUsers = useCallback(
+		async (nextOffset: number, nextSearch: string, nextRole: string) => {
+			setStatusMessage("Cargando usuarios...");
 
-		try {
-			const api = await getApiClient();
-			const result = await api.listUsers({
-				q: nextSearch || undefined,
-				role: nextRole || undefined,
-				limit: PAGE_SIZE,
-				offset: nextOffset,
-			});
+			try {
+				const api = await getApiClient();
+				const result = await api.listUsers({
+					q: nextSearch || undefined,
+					role: nextRole || undefined,
+					limit: PAGE_SIZE,
+					offset: nextOffset,
+				});
 
-			startTransition(() => {
-				setRows(result.data);
-				setDraftRoles(Object.fromEntries(result.data.map((user) => [user.id, user.role])));
-				setOffset(result.offset);
-				setTotal(result.total);
-				setStatusMessage(`${result.total} usuarios encontrados`);
-			});
-		} catch {
-			setRows([]);
-			setDraftRoles({});
-			setTotal(0);
-			setStatusMessage("No se pudieron cargar los usuarios.");
-		}
-	}
+				startTransition(() => {
+					setRows(result.data);
+					setDraftRoles(
+						Object.fromEntries(result.data.map((user) => [user.id, user.role])),
+					);
+					setOffset(result.offset);
+					setTotal(result.total);
+					setStatusMessage(`${result.total} usuarios encontrados`);
+				});
+			} catch {
+				setRows([]);
+				setDraftRoles({});
+				setTotal(0);
+				setStatusMessage("No se pudieron cargar los usuarios.");
+			}
+		},
+		[],
+	);
 
 	useEffect(() => {
 		void loadUsers(0, "", "");
-	}, []);
+	}, [loadUsers]);
 
 	const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 	const currentPage = Math.floor(offset / PAGE_SIZE) + 1;
@@ -101,7 +109,9 @@ export function UsersCrudIsland() {
 			id: "status",
 			header: "Estado",
 			cell: (row) => (
-				<span className={`admin-badge ${row.isActive ? "admin-badge--active" : "admin-badge--inactive"}`}>
+				<span
+					className={`admin-badge ${row.isActive ? "admin-badge--active" : "admin-badge--inactive"}`}
+				>
 					{row.isActive ? "Activo" : "Inactivo"}
 				</span>
 			),
@@ -155,11 +165,18 @@ export function UsersCrudIsland() {
 			const api = await getApiClient();
 			const result = await api.updateUser(user.id, { role: nextRole });
 			if (!result.ok) {
-				setSaveFeedback({ message: result.error ?? "Error al guardar.", variant: "error" });
+				setSaveFeedback({
+					message: result.error ?? "Error al guardar.",
+					variant: "error",
+				});
 				return;
 			}
 
-			setRows((current) => current.map((row) => row.id === user.id ? { ...row, role: nextRole } : row));
+			setRows((current) =>
+				current.map((row) =>
+					row.id === user.id ? { ...row, role: nextRole } : row,
+				),
+			);
 			setSaveFeedback({ message: "Usuario actualizado.", variant: "success" });
 		} catch {
 			setSaveFeedback({ message: "Error de conexion.", variant: "error" });
@@ -177,12 +194,22 @@ export function UsersCrudIsland() {
 			const nextActive = !user.isActive;
 			const result = await api.updateUser(user.id, { isActive: nextActive });
 			if (!result.ok) {
-				setSaveFeedback({ message: result.error ?? "Error al cambiar estado.", variant: "error" });
+				setSaveFeedback({
+					message: result.error ?? "Error al cambiar estado.",
+					variant: "error",
+				});
 				return;
 			}
 
-			setRows((current) => current.map((row) => row.id === user.id ? { ...row, isActive: nextActive } : row));
-			setSaveFeedback({ message: "Estado de usuario actualizado.", variant: "success" });
+			setRows((current) =>
+				current.map((row) =>
+					row.id === user.id ? { ...row, isActive: nextActive } : row,
+				),
+			);
+			setSaveFeedback({
+				message: "Estado de usuario actualizado.",
+				variant: "success",
+			});
 		} catch {
 			setSaveFeedback({ message: "Error de conexion.", variant: "error" });
 		} finally {
@@ -210,16 +237,24 @@ export function UsersCrudIsland() {
 				</label>
 				<label>
 					Rol
-					<select value={roleFilter} onChange={(event) => setRoleFilter(event.currentTarget.value)}>
+					<select
+						value={roleFilter}
+						onChange={(event) => setRoleFilter(event.currentTarget.value)}
+					>
 						<option value="">Todos</option>
 						{ROLE_OPTIONS.map((option) => (
 							<option key={option.value} value={option.value}>
-								{option.label[0]?.toUpperCase()}{option.label.slice(1)}
+								{option.label[0]?.toUpperCase()}
+								{option.label.slice(1)}
 							</option>
 						))}
 					</select>
 				</label>
-				<button type="button" className="admin-btn" onClick={() => void applyFilters()}>
+				<button
+					type="button"
+					className="admin-btn"
+					onClick={() => void applyFilters()}
+				>
 					Aplicar
 				</button>
 			</section>
@@ -238,7 +273,13 @@ export function UsersCrudIsland() {
 			<div className="admin-pager" hidden={total <= PAGE_SIZE}>
 				<button
 					type="button"
-					onClick={() => void loadUsers(Math.max(0, offset - PAGE_SIZE), appliedSearch, appliedRole)}
+					onClick={() =>
+						void loadUsers(
+							Math.max(0, offset - PAGE_SIZE),
+							appliedSearch,
+							appliedRole,
+						)
+					}
 					disabled={offset === 0}
 				>
 					Anterior
@@ -248,7 +289,9 @@ export function UsersCrudIsland() {
 				</span>
 				<button
 					type="button"
-					onClick={() => void loadUsers(offset + PAGE_SIZE, appliedSearch, appliedRole)}
+					onClick={() =>
+						void loadUsers(offset + PAGE_SIZE, appliedSearch, appliedRole)
+					}
 					disabled={offset + PAGE_SIZE >= total}
 				>
 					Siguiente

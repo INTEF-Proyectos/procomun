@@ -1,6 +1,6 @@
-import { mkdir, rm, copyFile, writeFile } from "node:fs/promises";
-import path from "node:path";
+import { copyFile, mkdir, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
+import path from "node:path";
 import { sanitizeFilename } from "../uploads/config.ts";
 
 export type GeneratorFileEntry = {
@@ -67,13 +67,22 @@ function generateId(): string {
 	return `${ts}${rand}`;
 }
 
-function buildContentXml(title: string, author: string, language: string, license: string, files: GeneratorFileEntry[]): string {
+function buildContentXml(
+	title: string,
+	author: string,
+	language: string,
+	license: string,
+	files: GeneratorFileEntry[],
+): string {
 	const pageId = generateId();
 	const blockId = generateId();
 	const ideviceId = generateId();
 
 	const linksHtml = files
-		.map((f) => `<li><a href="${escapeHtml(f.filename)}">${escapeHtml(f.filename)}</a></li>`)
+		.map(
+			(f) =>
+				`<li><a href="${escapeHtml(f.filename)}">${escapeHtml(f.filename)}</a></li>`,
+		)
 		.join("");
 	const listHtml = `<ul>${linksHtml}</ul>`;
 
@@ -140,7 +149,10 @@ function buildContentXml(title: string, author: string, language: string, licens
 
 function buildIndexHtml(title: string, files: GeneratorFileEntry[]): string {
 	const links = files
-		.map((f) => `    <li><a href="${escapeHtml(f.filename)}">${escapeHtml(f.filename)}</a></li>`)
+		.map(
+			(f) =>
+				`    <li><a href="${escapeHtml(f.filename)}">${escapeHtml(f.filename)}</a></li>`,
+		)
 		.join("\n");
 
 	return `<!DOCTYPE html>
@@ -171,7 +183,9 @@ ${links}
  * garantiza unicidad añadiendo un sufijo numérico cuando hace falta.
  * Devuelve una nueva lista con nombres seguros y únicos.
  */
-function sanitizeAndDeduplicateFilenames(files: GeneratorFileEntry[]): GeneratorFileEntry[] {
+function sanitizeAndDeduplicateFilenames(
+	files: GeneratorFileEntry[],
+): GeneratorFileEntry[] {
 	const seen = new Map<string, number>();
 	return files.map((f) => {
 		const safe = toSafeBundleName(f.filename);
@@ -209,7 +223,13 @@ export async function generateElpxFromFiles(opts: {
 	files: GeneratorFileEntry[];
 	outputPath: string;
 }): Promise<void> {
-	const { title, author = "", language = "es", license = "cc-by", outputPath } = opts;
+	const {
+		title,
+		author = "",
+		language = "es",
+		license = "cc-by",
+		outputPath,
+	} = opts;
 	const files = sanitizeAndDeduplicateFilenames(opts.files);
 
 	const workDir = path.join(
@@ -221,22 +241,39 @@ export async function generateElpxFromFiles(opts: {
 
 	try {
 		// Write generated files to workdir
-		await writeFile(path.join(workDir, "content.xml"), buildContentXml(title, author, language, license, files), "utf8");
-		await writeFile(path.join(workDir, "index.html"), buildIndexHtml(title, files), "utf8");
+		await writeFile(
+			path.join(workDir, "content.xml"),
+			buildContentXml(title, author, language, license, files),
+			"utf8",
+		);
+		await writeFile(
+			path.join(workDir, "index.html"),
+			buildIndexHtml(title, files),
+			"utf8",
+		);
 
 		// Copy media files to workdir. Defensa en profundidad (CAND-001): además
 		// de los nombres ya saneados, confirmamos que el destino resuelto queda
 		// dentro del directorio de staging ANTES de copiar.
 		for (const f of files) {
 			const dest = path.resolve(workDir, f.filename);
-			if (dest !== resolvedWorkDir && !dest.startsWith(resolvedWorkDir + path.sep)) {
-				throw new Error(`Nombre de archivo no permitido en el paquete: ${f.filename}`);
+			if (
+				dest !== resolvedWorkDir &&
+				!dest.startsWith(resolvedWorkDir + path.sep)
+			) {
+				throw new Error(
+					`Nombre de archivo no permitido en el paquete: ${f.filename}`,
+				);
 			}
 			await copyFile(f.filePath, dest);
 		}
 
 		// Build ZIP from the staging directory to avoid depending on the external `zip` binary.
-		const allFiles = ["content.xml", "index.html", ...files.map((f) => f.filename)];
+		const allFiles = [
+			"content.xml",
+			"index.html",
+			...files.map((f) => f.filename),
+		];
 		const proc = Bun.spawn(
 			["python3", "-m", "zipfile", "-c", outputPath, ...allFiles],
 			{ cwd: workDir, stdout: "ignore", stderr: "pipe" },

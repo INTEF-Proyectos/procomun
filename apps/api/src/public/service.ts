@@ -17,8 +17,12 @@ export async function listPublishedResources(opts: {
 		status: "published",
 	});
 
-	const resourceIds = result.data.map((resource: { id: string }) => resource.id);
-	const elpxMap = buildElpxMap(await repo.listElpxProjectsByResourceIds(db, resourceIds));
+	const resourceIds = result.data.map(
+		(resource: { id: string }) => resource.id,
+	);
+	const elpxMap = buildElpxMap(
+		await repo.listElpxProjectsByResourceIds(db, resourceIds),
+	);
 
 	return {
 		...result,
@@ -51,12 +55,19 @@ export async function listPublishedCollections(opts: {
 	await Promise.all(
 		result.data.map(async (collection: { id: string }) => {
 			try {
-				const collectionResources = await repo.listCollectionResources(db, collection.id, {
-					limit: 1,
-					status: "published",
-				});
+				const collectionResources = await repo.listCollectionResources(
+					db,
+					collection.id,
+					{
+						limit: 1,
+						status: "published",
+					},
+				);
 				if (collectionResources.length > 0) {
-					firstResourceByCollection.set(collection.id, collectionResources[0].resourceId);
+					firstResourceByCollection.set(
+						collection.id,
+						collectionResources[0].resourceId,
+					);
 				}
 			} catch {
 				// Ignore optional enrichment errors and preserve the collection listing.
@@ -67,7 +78,9 @@ export async function listPublishedCollections(opts: {
 	const firstResourceIds = [...new Set(firstResourceByCollection.values())];
 	const elpxMap =
 		firstResourceIds.length > 0
-			? buildElpxMap(await repo.listElpxProjectsByResourceIds(db, firstResourceIds))
+			? buildElpxMap(
+					await repo.listElpxProjectsByResourceIds(db, firstResourceIds),
+				)
 			: new Map();
 
 	return {
@@ -76,7 +89,9 @@ export async function listPublishedCollections(opts: {
 			const resourceId = firstResourceByCollection.get(collection.id);
 			return {
 				...collection,
-				elpxPreview: buildElpxPreview(resourceId ? elpxMap.get(resourceId) : null),
+				elpxPreview: buildElpxPreview(
+					resourceId ? elpxMap.get(resourceId) : null,
+				),
 			};
 		}),
 	};
@@ -97,7 +112,9 @@ export async function listPublishedCollectionResources(collectionId: string) {
 		return resources;
 	}
 
-	const elpxMap = buildElpxMap(await repo.listElpxProjectsByResourceIds(db, resourceIds));
+	const elpxMap = buildElpxMap(
+		await repo.listElpxProjectsByResourceIds(db, resourceIds),
+	);
 	return resources.map((resource: { resourceId: string }) => ({
 		...resource,
 		elpxPreview: buildElpxPreview(elpxMap.get(resource.resourceId)),

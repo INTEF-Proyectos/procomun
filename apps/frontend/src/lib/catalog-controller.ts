@@ -1,9 +1,18 @@
 import { getApiClient } from "./get-api-client.ts";
-import { buildListingUrl, readListingState, writeListingStateToHistory } from "./listing-history.ts";
+import {
+	buildListingUrl,
+	readListingState,
+	writeListingStateToHistory,
+} from "./listing-history.ts";
 import { DEFAULT_PAGE_SIZE, getPaginationState } from "./pagination.ts";
 import { url } from "./paths.ts";
-import { loadFilterOptions, RESOURCE_TYPE_OPTIONS, LANGUAGE_OPTIONS, LICENSE_OPTIONS } from "./resource-filters.ts";
 import { escapeHtml, TYPE_ICONS } from "./resource-display.ts";
+import {
+	LANGUAGE_OPTIONS,
+	LICENSE_OPTIONS,
+	loadFilterOptions,
+	RESOURCE_TYPE_OPTIONS,
+} from "./resource-filters.ts";
 
 function renderCard(r: Record<string, any>): string {
 	const icon = TYPE_ICONS[r.resourceType] || "&#128196;";
@@ -38,17 +47,23 @@ function renderCard(r: Record<string, any>): string {
 function renderPaginationHtml(currentPage: number, totalPages: number): string {
 	const pages: (number | "...")[] = [];
 	for (let i = 1; i <= totalPages; i++) {
-		if (i === 1 || i === totalPages || (i >= currentPage - 1 && i <= currentPage + 1)) {
+		if (
+			i === 1 ||
+			i === totalPages ||
+			(i >= currentPage - 1 && i <= currentPage + 1)
+		) {
 			pages.push(i);
 		} else if (pages.length > 0 && pages[pages.length - 1] !== "...") {
 			pages.push("...");
 		}
 	}
-	return pages.map((p) =>
-		p === "..."
-			? `<span class="pag-ellipsis">&hellip;</span>`
-			: `<button class="pag-num${p === currentPage ? " active" : ""}" data-page="${p}">${p}</button>`
-	).join("");
+	return pages
+		.map((p) =>
+			p === "..."
+				? `<span class="pag-ellipsis">&hellip;</span>`
+				: `<button class="pag-num${p === currentPage ? " active" : ""}" data-page="${p}">${p}</button>`,
+		)
+		.join("");
 }
 
 /** Scale preview iframes to fit their container (like WordPress wp-exelearning plugin). */
@@ -67,13 +82,25 @@ function scalePreviewIframes() {
 }
 
 export function initCatalog() {
-	const container = document.getElementById("resources-container") as HTMLDivElement;
+	const container = document.getElementById(
+		"resources-container",
+	) as HTMLDivElement;
 	const summary = document.getElementById("results-summary") as HTMLElement;
-	const searchInput = document.getElementById("header-search") as HTMLInputElement | null;
-	const typeFilter = document.getElementById("filter-resource-type") as HTMLSelectElement;
-	const langFilter = document.getElementById("filter-language") as HTMLSelectElement;
-	const licFilter = document.getElementById("filter-license") as HTMLSelectElement;
-	const clearBtn = document.getElementById("clear-filters") as HTMLButtonElement;
+	const searchInput = document.getElementById(
+		"header-search",
+	) as HTMLInputElement | null;
+	const typeFilter = document.getElementById(
+		"filter-resource-type",
+	) as HTMLSelectElement;
+	const langFilter = document.getElementById(
+		"filter-language",
+	) as HTMLSelectElement;
+	const licFilter = document.getElementById(
+		"filter-license",
+	) as HTMLSelectElement;
+	const clearBtn = document.getElementById(
+		"clear-filters",
+	) as HTMLButtonElement;
 	const paginationEl = document.getElementById("pagination") as HTMLElement;
 	const prevBtn = document.getElementById("pag-prev") as HTMLButtonElement;
 	const nextBtn = document.getElementById("pag-next") as HTMLButtonElement;
@@ -81,7 +108,9 @@ export function initCatalog() {
 	const viewGrid = document.getElementById("view-grid") as HTMLButtonElement;
 	const viewList = document.getElementById("view-list") as HTMLButtonElement;
 	const sidebar = document.getElementById("sidebar") as HTMLElement;
-	const toggleSidebar = document.getElementById("toggle-sidebar") as HTMLButtonElement | null;
+	const toggleSidebar = document.getElementById(
+		"toggle-sidebar",
+	) as HTMLButtonElement | null;
 
 	let query = "";
 	let page = 1;
@@ -93,7 +122,8 @@ export function initCatalog() {
 	function setView(mode: string) {
 		viewMode = mode;
 		localStorage.setItem("catalog-view", mode);
-		container.className = mode === "list" ? "resources-list-view" : "resources-grid";
+		container.className =
+			mode === "list" ? "resources-list-view" : "resources-grid";
 		viewGrid.classList.toggle("active", mode === "grid");
 		viewList.classList.toggle("active", mode === "list");
 		requestAnimationFrame(scalePreviewIframes);
@@ -115,7 +145,13 @@ export function initCatalog() {
 	function writeUrl(mode: "push" | "replace" = "replace") {
 		writeListingStateToHistory(
 			window.history,
-			buildListingUrl(window.location.pathname, window.location.search, { query, page, resourceType, language, license }),
+			buildListingUrl(window.location.pathname, window.location.search, {
+				query,
+				page,
+				resourceType,
+				language,
+				license,
+			}),
 			mode,
 		);
 	}
@@ -156,10 +192,15 @@ export function initCatalog() {
 				writeUrl("replace");
 			}
 
-			const s = getPaginationState(total, limit, (page - 1) * DEFAULT_PAGE_SIZE);
-			summary.textContent = total === 0
-				? "Sin resultados para la busqueda actual."
-				: `${s.startItem}\u2013${s.endItem} de ${s.total} recursos`;
+			const s = getPaginationState(
+				total,
+				limit,
+				(page - 1) * DEFAULT_PAGE_SIZE,
+			);
+			summary.textContent =
+				total === 0
+					? "Sin resultados para la busqueda actual."
+					: `${s.startItem}\u2013${s.endItem} de ${s.total} recursos`;
 
 			if (data.length === 0) {
 				container.innerHTML = `<p class="empty">No se encontraron recursos.</p>`;
@@ -167,7 +208,9 @@ export function initCatalog() {
 				return;
 			}
 
-			container.innerHTML = data.map((r: Record<string, string>) => renderCard(r)).join("");
+			container.innerHTML = data
+				.map((r: Record<string, string>) => renderCard(r))
+				.join("");
 			scalePreviewIframes();
 			updatePagination(total, limit);
 		} catch {
@@ -190,7 +233,6 @@ export function initCatalog() {
 		load();
 	}
 
-
 	let debounce: ReturnType<typeof setTimeout>;
 	searchInput?.addEventListener("input", () => {
 		clearTimeout(debounce);
@@ -200,9 +242,18 @@ export function initCatalog() {
 		}, 300);
 	});
 
-	typeFilter.addEventListener("change", () => { resourceType = typeFilter.value; resetAndLoad(); });
-	langFilter.addEventListener("change", () => { language = langFilter.value; resetAndLoad(); });
-	licFilter.addEventListener("change", () => { license = licFilter.value; resetAndLoad(); });
+	typeFilter.addEventListener("change", () => {
+		resourceType = typeFilter.value;
+		resetAndLoad();
+	});
+	langFilter.addEventListener("change", () => {
+		language = langFilter.value;
+		resetAndLoad();
+	});
+	licFilter.addEventListener("change", () => {
+		license = licFilter.value;
+		resetAndLoad();
+	});
 
 	clearBtn.addEventListener("click", () => {
 		if (searchInput) searchInput.value = "";
@@ -216,29 +267,51 @@ export function initCatalog() {
 		resetAndLoad();
 	});
 
-	prevBtn.addEventListener("click", () => { if (page > 1) goToPage(page - 1); });
+	prevBtn.addEventListener("click", () => {
+		if (page > 1) goToPage(page - 1);
+	});
 	nextBtn.addEventListener("click", () => goToPage(page + 1));
 	pagNumbers.addEventListener("click", (e) => {
-		const btn = (e.target as HTMLElement).closest("[data-page]") as HTMLElement | null;
+		const btn = (e.target as HTMLElement).closest(
+			"[data-page]",
+		) as HTMLElement | null;
 		if (btn) goToPage(Number(btn.dataset.page));
 	});
 
 	viewGrid.addEventListener("click", () => setView("grid"));
 	viewList.addEventListener("click", () => setView("list"));
-	toggleSidebar?.addEventListener("click", () => sidebar.classList.toggle("open"));
-	window.addEventListener("popstate", () => { readUrl(); load(); });
-	window.addEventListener("resize", () => requestAnimationFrame(scalePreviewIframes));
+	toggleSidebar?.addEventListener("click", () =>
+		sidebar.classList.toggle("open"),
+	);
+	window.addEventListener("popstate", () => {
+		readUrl();
+		load();
+	});
+	window.addEventListener("resize", () =>
+		requestAnimationFrame(scalePreviewIframes),
+	);
 
-
-	function populateSelect(select: HTMLSelectElement, options: { value: string; label: string }[]) {
+	function populateSelect(
+		select: HTMLSelectElement,
+		options: { value: string; label: string }[],
+	) {
 		const current = select.value;
-		select.innerHTML = options.map((o) => `<option value="${escapeHtml(o.value)}">${escapeHtml(o.label)}</option>`).join("");
+		select.innerHTML = options
+			.map(
+				(o) =>
+					`<option value="${escapeHtml(o.value)}">${escapeHtml(o.label)}</option>`,
+			)
+			.join("");
 		select.value = current;
 	}
 
 	async function loadDynamicFilters() {
 		const [types, langs, lics] = await Promise.all([
-			loadFilterOptions("resource-type", "Todos los tipos", RESOURCE_TYPE_OPTIONS),
+			loadFilterOptions(
+				"resource-type",
+				"Todos los tipos",
+				RESOURCE_TYPE_OPTIONS,
+			),
 			loadFilterOptions("language", "Todos los idiomas", LANGUAGE_OPTIONS),
 			loadFilterOptions("license", "Todas las licencias", LICENSE_OPTIONS),
 		]);

@@ -2,11 +2,15 @@
  * Serves the eXeLearning static editor with Procomun bootstrap config injected.
  * Equivalent to editor-bootstrap.php in wp-exelearning.
  */
-import { Hono } from "hono";
+
 import { readFile } from "node:fs/promises";
 import path from "node:path";
+import { Hono } from "hono";
 
-const EDITOR_STATIC_DIR = path.resolve(import.meta.dir, "../../static/exelearning-editor/static");
+const EDITOR_STATIC_DIR = path.resolve(
+	import.meta.dir,
+	"../../static/exelearning-editor/static",
+);
 
 /**
  * Serializes a value as JSON that is safe to embed inside an inline <script>.
@@ -74,7 +78,10 @@ exelearningEditorRoutes.get("/index.html", async (c) => {
 	try {
 		html = await readFile(indexPath, "utf-8");
 	} catch {
-		return c.text("Editor no disponible. Ejecuta: make download-exelearning-editor", 404);
+		return c.text(
+			"Editor no disponible. Ejecuta: make download-exelearning-editor",
+			404,
+		);
 	}
 
 	// Determine editor base URL for asset resolution
@@ -248,7 +255,7 @@ const BRIDGE_SCRIPT = `<script>
 	if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
 	else init();
 })();
-<\/script>`;
+</script>`;
 
 /**
  * Serve all static editor assets (JS, CSS, images, fonts, etc.)
@@ -275,13 +282,30 @@ exelearningEditorRoutes.get("/*", async (c) => {
 	// Determine MIME type from extension
 	const ext = path.extname(relativePath).slice(1).toLowerCase();
 	const mimeTypes: Record<string, string> = {
-		html: "text/html", js: "application/javascript", mjs: "application/javascript",
-		css: "text/css", json: "application/json", xml: "application/xml",
-		png: "image/png", jpg: "image/jpeg", jpeg: "image/jpeg", gif: "image/gif",
-		svg: "image/svg+xml", webp: "image/webp", ico: "image/x-icon",
-		woff: "font/woff", woff2: "font/woff2", ttf: "font/ttf", otf: "font/otf",
-		mp3: "audio/mpeg", mp4: "video/mp4", webm: "video/webm", wav: "audio/wav",
-		pdf: "application/pdf", zip: "application/zip", txt: "text/plain",
+		html: "text/html",
+		js: "application/javascript",
+		mjs: "application/javascript",
+		css: "text/css",
+		json: "application/json",
+		xml: "application/xml",
+		png: "image/png",
+		jpg: "image/jpeg",
+		jpeg: "image/jpeg",
+		gif: "image/gif",
+		svg: "image/svg+xml",
+		webp: "image/webp",
+		ico: "image/x-icon",
+		woff: "font/woff",
+		woff2: "font/woff2",
+		ttf: "font/ttf",
+		otf: "font/otf",
+		mp3: "audio/mpeg",
+		mp4: "video/mp4",
+		webm: "video/webm",
+		wav: "audio/wav",
+		pdf: "application/pdf",
+		zip: "application/zip",
+		txt: "text/plain",
 	};
 	const contentType = mimeTypes[ext] || "application/octet-stream";
 

@@ -1,8 +1,8 @@
+import * as repo from "@procomun/db/repository";
 import { Hono } from "hono";
 import { type AuthEnv, requireRole } from "../../auth/middleware.ts";
 import { getCurrentUser } from "../../auth/roles.ts";
 import { getDb } from "../../db.ts";
-import * as repo from "@procomun/db/repository";
 import { parsePagination } from "../../http/pagination.ts";
 
 const reportRoutes = new Hono<AuthEnv>();
@@ -61,13 +61,25 @@ reportRoutes.patch("/:id", async (c) => {
 	}>();
 
 	// Validate status
-	if (body.status && !repo.REPORT_STATUSES.includes(body.status as repo.ReportStatus)) {
-		return c.json({ error: `Estado inválido. Válidos: ${repo.REPORT_STATUSES.join(", ")}` }, 400);
+	if (
+		body.status &&
+		!repo.REPORT_STATUSES.includes(body.status as repo.ReportStatus)
+	) {
+		return c.json(
+			{ error: `Estado inválido. Válidos: ${repo.REPORT_STATUSES.join(", ")}` },
+			400,
+		);
 	}
 
 	// Validate actionTaken
-	if (body.actionTaken && !repo.REPORT_ACTIONS.includes(body.actionTaken as repo.ReportAction)) {
-		return c.json({ error: `Acción inválida. Válidas: ${repo.REPORT_ACTIONS.join(", ")}` }, 400);
+	if (
+		body.actionTaken &&
+		!repo.REPORT_ACTIONS.includes(body.actionTaken as repo.ReportAction)
+	) {
+		return c.json(
+			{ error: `Acción inválida. Válidas: ${repo.REPORT_ACTIONS.join(", ")}` },
+			400,
+		);
 	}
 
 	await repo.updateReport(getDb().db, id, {
@@ -79,7 +91,12 @@ reportRoutes.patch("/:id", async (c) => {
 
 	// Apply real action on the resource if applicable
 	if (body.actionTaken === "resource_deactivated" && report.resourceId) {
-		await repo.updateEditorialStatus(getDb().db, report.resourceId, "archived", currentUser.id);
+		await repo.updateEditorialStatus(
+			getDb().db,
+			report.resourceId,
+			"archived",
+			currentUser.id,
+		);
 	} else if (body.actionTaken === "resource_deleted" && report.resourceId) {
 		await repo.deleteResource(getDb().db, report.resourceId);
 	}

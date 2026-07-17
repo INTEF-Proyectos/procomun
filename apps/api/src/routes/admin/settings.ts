@@ -1,7 +1,7 @@
+import * as repo from "@procomun/db/repository";
 import { Hono } from "hono";
 import { type AuthEnv, requireRole } from "../../auth/middleware.ts";
 import { getDb } from "../../db.ts";
-import * as repo from "@procomun/db/repository";
 
 const settingsRoutes = new Hono<AuthEnv>();
 
@@ -14,7 +14,10 @@ settingsRoutes.get("/", async (c) => {
 
 settingsRoutes.put("/", async (c) => {
 	const body = await c.req.json<Record<string, string>>();
-	const entries = Object.entries(body).map(([key, value]) => ({ key, value: String(value) }));
+	const entries = Object.entries(body).map(([key, value]) => ({
+		key,
+		value: String(value),
+	}));
 	if (entries.length === 0) {
 		return c.json({ error: "Se requiere al menos una configuración" }, 400);
 	}

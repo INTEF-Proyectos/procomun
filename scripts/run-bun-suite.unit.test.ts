@@ -1,7 +1,7 @@
-import { mkdtemp, mkdir, writeFile } from "node:fs/promises";
-import { join } from "node:path";
-import { tmpdir } from "node:os";
 import { describe, expect, test } from "bun:test";
+import { mkdir, mkdtemp, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 
 import {
 	buildBunTestArgs,
@@ -14,11 +14,9 @@ import {
 
 describe("run-bun-suite helpers", () => {
 	test("buildBunTestArgs places coverage before file paths", () => {
-		expect(buildBunTestArgs(["apps/api/src/index.unit.test.ts"], { coverage: true })).toEqual([
-			"test",
-			"--coverage",
-			"apps/api/src/index.unit.test.ts",
-		]);
+		expect(
+			buildBunTestArgs(["apps/api/src/index.unit.test.ts"], { coverage: true }),
+		).toEqual(["test", "--coverage", "apps/api/src/index.unit.test.ts"]);
 	});
 
 	test("findSuiteFiles returns sorted matches from configured roots", async () => {
@@ -28,9 +26,15 @@ describe("run-bun-suite helpers", () => {
 		await mkdir(join(rootDir, "packages", "db", "src"), { recursive: true });
 		await mkdir(join(rootDir, "scripts"), { recursive: true });
 
-		await writeFile(join(rootDir, "apps", "api", "src", "zeta.unit.test.ts"), "");
+		await writeFile(
+			join(rootDir, "apps", "api", "src", "zeta.unit.test.ts"),
+			"",
+		);
 		await writeFile(join(rootDir, "scripts", "alpha.unit.test.ts"), "");
-		await writeFile(join(rootDir, "packages", "db", "src", "resource.integration.test.ts"), "");
+		await writeFile(
+			join(rootDir, "packages", "db", "src", "resource.integration.test.ts"),
+			"",
+		);
 		await writeFile(join(rootDir, "apps", "api", "src", "ignore.spec.ts"), "");
 
 		expect(await findSuiteFiles("unit", rootDir)).toEqual([
@@ -48,7 +52,10 @@ describe("run-bun-suite helpers", () => {
 		await mkdir(join(rootDir, "apps", "api", "src"), { recursive: true });
 		await mkdir(join(rootDir, "scripts"), { recursive: true });
 
-		await writeFile(join(rootDir, "apps", "api", "src", "resource.unit.test.ts"), "");
+		await writeFile(
+			join(rootDir, "apps", "api", "src", "resource.unit.test.ts"),
+			"",
+		);
 		await writeFile(join(rootDir, "scripts", "suite.integration.test.ts"), "");
 
 		expect(await findStandardTestFiles(rootDir)).toEqual([

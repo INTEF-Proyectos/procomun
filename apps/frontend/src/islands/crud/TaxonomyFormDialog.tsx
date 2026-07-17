@@ -1,6 +1,9 @@
 import type { FormEvent } from "react";
 import { ModalFrame } from "../shared/ModalFrame.tsx";
-import { TAXONOMY_TYPE_OPTIONS, type TaxonomyType } from "./taxonomy-options.ts";
+import {
+	TAXONOMY_TYPE_OPTIONS,
+	type TaxonomyType,
+} from "./taxonomy-options.ts";
 
 interface TaxonomyFormValues {
 	name: string;
@@ -30,7 +33,12 @@ export function TaxonomyFormDialog({
 	if (!open) return null;
 
 	return (
-		<ModalFrame open={open} className="admin-edit-dialog" titleId="edit-taxonomy-title" onClose={onCancel}>
+		<ModalFrame
+			open={open}
+			className="admin-edit-dialog"
+			titleId="edit-taxonomy-title"
+			onClose={onCancel}
+		>
 			<h2 id="edit-taxonomy-title">Editar categoria</h2>
 			<form onSubmit={onSubmit}>
 				<label>
@@ -74,10 +82,19 @@ export function TaxonomyFormDialog({
 					{error}
 				</div>
 				<div className="admin-dialog-actions">
-					<button type="button" className="admin-btn" onClick={onCancel} disabled={busy}>
+					<button
+						type="button"
+						className="admin-btn"
+						onClick={onCancel}
+						disabled={busy}
+					>
 						Cancelar
 					</button>
-					<button type="submit" className="admin-btn admin-btn--primary" disabled={busy}>
+					<button
+						type="submit"
+						className="admin-btn admin-btn--primary"
+						disabled={busy}
+					>
 						{busy ? "Guardando..." : "Guardar"}
 					</button>
 				</div>
