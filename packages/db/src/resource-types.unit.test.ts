@@ -23,8 +23,9 @@ describe("RESOURCE_TYPES", () => {
 	// que ningún test lo detectara — ver comentario en resource-types.ts.
 	it("covers every resourceType usado en los datos semilla (DEMO_RESOURCES)", () => {
 		const seedTypes = new Set(DEMO_RESOURCES.map((r) => r.resourceType));
+		const allowed = new Set<string>(RESOURCE_TYPE_VALUES);
 		for (const type of seedTypes) {
-			expect(RESOURCE_TYPE_VALUES).toContain(type);
+			expect(allowed.has(type)).toBe(true);
 		}
 	});
 });

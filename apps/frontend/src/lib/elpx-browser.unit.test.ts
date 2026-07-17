@@ -16,9 +16,16 @@ const FIXTURES_DIR = path.resolve(
 	"../../../api/src/test-fixtures/elpx",
 );
 
+function toBlobPart(data: Uint8Array): BlobPart {
+	// slice() copies into an ArrayBuffer-backed Uint8Array (BlobPart-safe).
+	return data.slice();
+}
+
 function fixtureFile(name: string): File {
 	const buf = readFileSync(path.join(FIXTURES_DIR, name));
-	return new File([buf], name, { type: "application/zip" });
+	return new File([toBlobPart(new Uint8Array(buf))], name, {
+		type: "application/zip",
+	});
 }
 
 /**
@@ -58,7 +65,7 @@ describe("parseElpxMetadata", () => {
 		// Create a minimal valid ZIP but without content.xml
 		// ZIP with just an empty file "dummy.txt"
 		const zip = createMinimalZip("dummy.txt", new Uint8Array(0));
-		const file = new File([zip], "no-content.elpx", {
+		const file = new File([toBlobPart(zip)], "no-content.elpx", {
 			type: "application/zip",
 		});
 
@@ -66,7 +73,10 @@ describe("parseElpxMetadata", () => {
 	});
 
 	test("lanza error para archivo ZIP inválido", async () => {
-		const file = new File([new Uint8Array([0, 1, 2, 3])], "invalid.elpx");
+		const file = new File(
+			[toBlobPart(new Uint8Array([0, 1, 2, 3]))],
+			"invalid.elpx",
+		);
 		await expect(parseElpxMetadata(file)).rejects.toThrow();
 	});
 });
@@ -100,7 +110,7 @@ describe("extractPreviewHtml", () => {
 			"content.xml",
 			new TextEncoder().encode("<ode></ode>"),
 		);
-		const file = new File([zip], "no-preview.elpx", {
+		const file = new File([toBlobPart(zip)], "no-preview.elpx", {
 			type: "application/zip",
 		});
 		const html = await extractPreviewHtml(file);
@@ -172,7 +182,9 @@ describe("createPreviewBlobUrl", () => {
 			"content.xml",
 			new TextEncoder().encode("<ode></ode>"),
 		);
-		const file = new File([zip], "no-index.elpx", { type: "application/zip" });
+		const file = new File([toBlobPart(zip)], "no-index.elpx", {
+			type: "application/zip",
+		});
 		const blobUrl = await createPreviewBlobUrl(file);
 
 		expect(blobUrl).toBeNull();
@@ -222,7 +234,9 @@ describe("parseAndPreview", () => {
 				"<ode><odeProperty><key>pp_title</key><value>Test</value></odeProperty></ode>",
 			),
 		);
-		const file = new File([zip], "no-index.elpx", { type: "application/zip" });
+		const file = new File([toBlobPart(zip)], "no-index.elpx", {
+			type: "application/zip",
+		});
 		const result = await parseAndPreview(file);
 
 		expect(result.metadata.title).toBe("Test");

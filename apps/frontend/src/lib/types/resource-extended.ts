@@ -28,7 +28,8 @@ export interface ResourceSummary {
 }
 
 /** Full resource detail with social data and relations */
-export interface ResourceDetail extends Resource {
+export interface ResourceDetail
+	extends Omit<Resource, "rating" | "favoriteCount"> {
 	rating: RatingSummary;
 	favoriteCount: number;
 	userFavorited?: boolean;

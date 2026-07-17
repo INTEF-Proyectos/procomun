@@ -2,7 +2,7 @@ import { type FormEvent, Fragment, useEffect, useRef, useState } from "react";
 import type { Resource, UpdateResourceInput } from "../../lib/api-client.ts";
 import { getApiClient } from "../../lib/get-api-client.ts";
 import { url } from "../../lib/paths.ts";
-import { hasMinRole, ROLE_LEVELS } from "../../lib/shared-utils.ts";
+import { hasMinRole, roleLevelOf } from "../../lib/shared-utils.ts";
 import { AccessibleFeedback } from "../shared/AccessibleFeedback.tsx";
 import {
 	getResourceTypeOptions,
@@ -295,8 +295,8 @@ export function ResourceEditorIsland() {
 
 	const allowedTransitions = (TRANSITION_RULES[currentStatus] ?? []).filter(
 		(rule) => {
-			const userLevel = ROLE_LEVELS[userRole] ?? 0;
-			return userLevel >= (ROLE_LEVELS[rule.minRole] ?? 99);
+			const userLevel = roleLevelOf(userRole);
+			return userLevel >= roleLevelOf(rule.minRole, 99);
 		},
 	);
 	const resourceTypeOptions = getResourceTypeOptions(form.resourceType);

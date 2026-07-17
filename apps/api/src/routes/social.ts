@@ -28,7 +28,8 @@ const socialRoutes = new Hono<AuthEnv>();
 // GET /resources/:slug/ratings
 // ---------------------------------------------------------------------------
 socialRoutes.get("/resources/:slug/ratings", async (c) => {
-	const { slug } = c.req.param();
+	const slug = c.req.param("slug");
+	if (!slug) return c.json({ error: "Falta slug" }, 400);
 	const resource = await resolveResourceBySlug(slug);
 	if (!resource) {
 		return c.json({ error: "Recurso no encontrado" }, 404);
@@ -46,7 +47,8 @@ socialRoutes.get("/resources/:slug/ratings", async (c) => {
 // POST /resources/:slug/ratings (auth required)
 // ---------------------------------------------------------------------------
 socialRoutes.post("/resources/:slug/ratings", requireAuth, async (c) => {
-	const { slug } = c.req.param();
+	const slug = c.req.param("slug");
+	if (!slug) return c.json({ error: "Falta slug" }, 400);
 	const currentUser = requireUser(c);
 	const body = await c.req.json<{ score: number }>();
 
@@ -90,7 +92,8 @@ socialRoutes.post("/resources/:slug/ratings", requireAuth, async (c) => {
 // POST /resources/:slug/favorite (auth required - toggle)
 // ---------------------------------------------------------------------------
 socialRoutes.post("/resources/:slug/favorite", requireAuth, async (c) => {
-	const { slug } = c.req.param();
+	const slug = c.req.param("slug");
+	if (!slug) return c.json({ error: "Falta slug" }, 400);
 	const currentUser = requireUser(c);
 
 	const resource = await resolveResourceBySlug(slug);
@@ -289,7 +292,8 @@ socialRoutes.get("/users/me/activity", requireAuth, async (c) => {
 // POST /resources/:slug/download (log download event)
 // ---------------------------------------------------------------------------
 socialRoutes.post("/resources/:slug/download", async (c) => {
-	const { slug } = c.req.param();
+	const slug = c.req.param("slug");
+	if (!slug) return c.json({ error: "Falta slug" }, 400);
 
 	const resource = await resolveResourceBySlug(slug);
 	if (!resource) {
@@ -330,7 +334,8 @@ socialRoutes.post("/resources/:slug/download", async (c) => {
 // GET /resources/:slug/stats (aggregated social stats)
 // ---------------------------------------------------------------------------
 socialRoutes.get("/resources/:slug/stats", async (c) => {
-	const { slug } = c.req.param();
+	const slug = c.req.param("slug");
+	if (!slug) return c.json({ error: "Falta slug" }, 400);
 
 	const resource = await resolveResourceBySlug(slug);
 	if (!resource) {
@@ -345,7 +350,8 @@ socialRoutes.get("/resources/:slug/stats", async (c) => {
 // POST /resources/:slug/report (auth required — submit content report)
 // ---------------------------------------------------------------------------
 socialRoutes.post("/resources/:slug/report", requireAuth, async (c) => {
-	const { slug } = c.req.param();
+	const slug = c.req.param("slug");
+	if (!slug) return c.json({ error: "Falta slug" }, 400);
 	const currentUser = requireUser(c);
 
 	const resource = await resolveResourceBySlug(slug);

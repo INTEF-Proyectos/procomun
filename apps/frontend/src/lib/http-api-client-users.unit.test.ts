@@ -10,8 +10,14 @@ function captureFetch(response: Response): { calls: FetchCall[] } {
 			calls.push({ url: String(url), init });
 			return response;
 		},
-	) as typeof fetch;
+	) as unknown as typeof fetch;
 	return { calls };
+}
+
+function getCall(calls: FetchCall[], index: number): FetchCall {
+	const call = calls[index];
+	if (!call) throw new Error(`Expected fetch call at index ${index}`);
+	return call;
 }
 
 function jsonResponse(body: unknown, status = 200): Response {
@@ -44,11 +50,11 @@ describe("HttpApiClient.createUser (DEF-019)", () => {
 		expect(result).toEqual({ ok: true, id: "u-new" });
 		expect(calls).toHaveLength(1);
 		// Regresión DEF-019: jamás debe llamar al endpoint público de Better Auth.
-		expect(calls[0].url).toBe("/api/admin/users");
-		expect(calls[0].url).not.toContain("/api/auth/sign-up");
-		expect(calls[0].init?.method).toBe("POST");
-		expect(calls[0].init?.credentials).toBe("include");
-		expect(JSON.parse(calls[0].init?.body as string)).toEqual({
+		expect(getCall(calls, 0).url).toBe("/api/admin/users");
+		expect(getCall(calls, 0).url).not.toContain("/api/auth/sign-up");
+		expect(getCall(calls, 0).init?.method).toBe("POST");
+		expect(getCall(calls, 0).init?.credentials).toBe("include");
+		expect(JSON.parse(getCall(calls, 0).init?.body as string)).toEqual({
 			name: "Nueva",
 			email: "nueva@test.com",
 			password: "supersecret8",
@@ -93,11 +99,11 @@ describe("HttpApiClient.updateUser (DEF-004)", () => {
 
 		expect(result).toEqual({ ok: true });
 		expect(calls).toHaveLength(1);
-		expect(calls[0].url).toBe("/api/admin/users/u-1");
-		expect(calls[0].init?.method).toBe("PATCH");
-		expect(calls[0].init?.credentials).toBe("include");
+		expect(getCall(calls, 0).url).toBe("/api/admin/users/u-1");
+		expect(getCall(calls, 0).init?.method).toBe("PATCH");
+		expect(getCall(calls, 0).init?.credentials).toBe("include");
 		// Regresión DEF-004: la bio debe viajar en el cuerpo del PATCH.
-		const body = JSON.parse(calls[0].init?.body as string);
+		const body = JSON.parse(getCall(calls, 0).init?.body as string);
 		expect(body.name).toBe("Nuevo Nombre");
 		expect(body.bio).toBe("Mi nueva bio");
 	});
@@ -121,10 +127,10 @@ describe("HttpApiClient.updateMyProfile (PR-234)", () => {
 
 		expect(result).toEqual({ ok: true });
 		expect(calls).toHaveLength(1);
-		expect(calls[0].url).toBe("/api/v1/users/me/profile");
-		expect(calls[0].init?.method).toBe("PATCH");
-		expect(calls[0].init?.credentials).toBe("include");
-		expect(JSON.parse(calls[0].init?.body as string)).toEqual({
+		expect(getCall(calls, 0).url).toBe("/api/v1/users/me/profile");
+		expect(getCall(calls, 0).init?.method).toBe("PATCH");
+		expect(getCall(calls, 0).init?.credentials).toBe("include");
+		expect(JSON.parse(getCall(calls, 0).init?.body as string)).toEqual({
 			name: "Nuevo Nombre",
 			bio: "Mi nueva bio",
 		});
@@ -153,9 +159,9 @@ describe("HttpApiClient.deleteUser (DEF-020)", () => {
 		const result = await client.deleteUser("u-1");
 
 		expect(result).toEqual({ ok: true });
-		expect(calls[0].url).toBe("/api/admin/users/u-1");
-		expect(calls[0].init?.method).toBe("DELETE");
-		expect(calls[0].init?.credentials).toBe("include");
+		expect(getCall(calls, 0).url).toBe("/api/admin/users/u-1");
+		expect(getCall(calls, 0).init?.method).toBe("DELETE");
+		expect(getCall(calls, 0).init?.credentials).toBe("include");
 	});
 
 	test("devuelve error cuando la baja falla", async () => {

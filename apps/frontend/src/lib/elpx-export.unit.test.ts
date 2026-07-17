@@ -200,9 +200,12 @@ describe("createAssetManager", () => {
 
 		const assets = await manager.getProjectAssets();
 		expect(assets).toHaveLength(2);
-		expect(assets[0].path).toBe("content/img/foto.png");
-		expect(assets[0].size).toBe(3);
-		expect(assets[1].path).toBe("resources/video.mp4");
+		const first = assets[0];
+		const second = assets[1];
+		if (!first || !second) throw new Error("expected two assets");
+		expect(first.path).toBe("content/img/foto.png");
+		expect(first.size).toBe(3);
+		expect(second.path).toBe("resources/video.mp4");
 	});
 
 	test("getAsset devuelve null para asset inexistente", async () => {

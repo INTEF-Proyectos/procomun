@@ -63,10 +63,10 @@ export async function enrichResourceCards<T extends ResourceWithId>(rows: T[]) {
 	]);
 
 	const elpxMap = buildElpxMap(elpxList);
-	const favoriteMap = new Map(
+	const favoriteMap = new Map<string, number>(
 		favoriteRows.map((row) => [row.resourceId, Number(row.count)]),
 	);
-	const ratingMap = new Map(
+	const ratingMap = new Map<string, { average: number; count: number }>(
 		ratingRows.map((row) => [
 			row.resourceId,
 			{ average: Number(row.avg), count: Number(row.count) },

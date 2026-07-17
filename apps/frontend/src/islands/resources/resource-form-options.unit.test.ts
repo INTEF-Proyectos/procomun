@@ -25,7 +25,7 @@ describe("getResourceTypeOptions", () => {
 		expect(
 			options.filter((option) => option.value === currentValue),
 		).toHaveLength(1);
-		expect(options.slice(1)).toEqual(RESOURCE_TYPE_OPTIONS);
+		expect(options.slice(1)).toEqual([...RESOURCE_TYPE_OPTIONS]);
 	});
 
 	test("returns only canonical options when the current value is empty", () => {
