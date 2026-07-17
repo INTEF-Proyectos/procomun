@@ -193,3 +193,11 @@ ADR-0030:
     (sin corregir aquí): colisiones de numeración 0023/0024/0026 y cuatro ADRs sin
     indexar (0023-feeds, 0024-api-tokens, 0025-jsonb, 0026-fts); su regularización
     requiere decisión humana.
+
+ADR-0033:
+  title: "Publicación segura de capturas visuales de pull requests mediante workflow_run"
+  status: Aceptado
+  date: 2026-07-17
+  file: 0033-capturas-visuales-pr-workflow-run.md
+  notes: >
+    ADR-0031 y ADR-0032 están reservadas por los PR abiertos #235 y #236.

@@ -29,9 +29,12 @@ export function UsersCrudIsland() {
 	const [offset, setOffset] = useState(0);
 	const [total, setTotal] = useState(0);
 	const [statusMessage, setStatusMessage] = useState("Cargando usuarios...");
-	const [saveFeedback, setSaveFeedback] = useState({
+	const [saveFeedback, setSaveFeedback] = useState<{
+		message: string;
+		variant: "neutral" | "success" | "error";
+	}>({
 		message: "",
-		variant: "neutral" as const,
+		variant: "neutral",
 	});
 	const [busyRowId, setBusyRowId] = useState<string | null>(null);
 

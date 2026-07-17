@@ -164,7 +164,10 @@ async function main() {
 		for (const e of errors) console.error(`- ${e}`);
 		console.error(
 			"\nLas claves map-keyed de ADR-0019 deben ser únicas: si dos ramas en " +
-				"paralelo eligen el mismo número, renumera la que aún no haya mergeado.",
+				"paralelo eligen la misma, renumera la que aún no haya mergeado. " +
+				"Para entradas nuevas usa `bun run new-status-key` " +
+				"(formato T-YYYY-MM-DD-HHMMSSrr con hora UTC + 2 dígitos aleatorios; " +
+				"evita el NNN secuencial del día, que colisiona entre PRs).",
 		);
 		process.exit(1);
 	}

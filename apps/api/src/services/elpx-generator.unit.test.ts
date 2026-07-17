@@ -1,4 +1,4 @@
-import { afterAll, describe, expect, it } from "bun:test";
+import { afterAll, describe, expect, it, setDefaultTimeout } from "bun:test";
 import { mkdir, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
@@ -23,7 +23,8 @@ async function makeTempFile(
 	return filePath;
 }
 
-describe("generateElpxFromFiles", { timeout: 30_000 }, () => {
+describe("generateElpxFromFiles", () => {
+	setDefaultTimeout(30_000);
 	it("genera un .elpx válido con content.xml e index.html", async () => {
 		const pdfPath = await makeTempFile(
 			"test1",

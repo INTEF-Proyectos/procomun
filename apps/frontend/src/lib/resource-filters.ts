@@ -48,7 +48,8 @@ export async function loadFilterOptions(
 	const cached = cache.get(type);
 	if (cached) return cached;
 	try {
-		const base = (window as Record<string, unknown>).__BASE_URL__ ?? "";
+		const base =
+			(window as unknown as Record<string, unknown>).__BASE_URL__ ?? "";
 		const res = await fetch(`${base}api/v1/taxonomies/${type}`);
 		if (!res.ok) return fallback;
 		const data: { slug: string; name: string }[] = await res.json();
