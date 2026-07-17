@@ -1,5 +1,5 @@
-import { Dialog } from "../../ui/Dialog.tsx";
 import type { EmbedClassification } from "../../lib/elpx-embed-policy.ts";
+import { Dialog } from "../../ui/Dialog.tsx";
 
 /**
  * Player de confianza para los embeds promocionados desde el .elpx (ADR-0027).
@@ -32,9 +32,7 @@ export function EmbedModal({
 				style={{
 					position: "relative",
 					width: "100%",
-					...(isVideo
-						? { aspectRatio: "16 / 9" }
-						: { height: "70vh" }),
+					...(isVideo ? { aspectRatio: "16 / 9" } : { height: "70vh" }),
 				}}
 			>
 				{isVideo ? (

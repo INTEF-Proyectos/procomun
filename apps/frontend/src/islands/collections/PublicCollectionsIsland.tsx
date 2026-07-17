@@ -1,9 +1,18 @@
-import { startTransition, useEffect, useState, type FormEvent } from "react";
-import type { CollectionDetailRecord, CollectionRecord } from "../../lib/api-client.ts";
+import {
+	type FormEvent,
+	startTransition,
+	useCallback,
+	useEffect,
+	useState,
+} from "react";
+import { useIframeScale } from "../../hooks/use-iframe-scale.ts";
+import type {
+	CollectionDetailRecord,
+	CollectionRecord,
+} from "../../lib/api-client.ts";
 import { getApiClient } from "../../lib/get-api-client.ts";
 import { url } from "../../lib/paths.ts";
 import { formatDateLong } from "../../lib/shared-utils.ts";
-import { useIframeScale } from "../../hooks/use-iframe-scale.ts";
 import "./PublicCollectionsIsland.css";
 
 const PAGE_SIZE = 9;
@@ -20,10 +29,19 @@ function truncate(text: string, maxLength: number) {
 }
 
 function CollectionIframePreview({ src }: { src: string }) {
-	const ref = useIframeScale<HTMLDivElement>({ iframeWidth: 1024, fillWidth: true });
+	const ref = useIframeScale<HTMLDivElement>({
+		iframeWidth: 1024,
+		fillWidth: true,
+	});
 	return (
 		<div className="col-res-preview" ref={ref}>
-			<iframe src={src} loading="lazy" tabIndex={-1} sandbox="allow-scripts" title="Vista previa" />
+			<iframe
+				src={src}
+				loading="lazy"
+				tabIndex={-1}
+				sandbox="allow-scripts"
+				title="Vista previa"
+			/>
 		</div>
 	);
 }
@@ -32,7 +50,9 @@ function coverStyle(coverImageUrl?: string | null) {
 	if (!coverImageUrl) {
 		return { backgroundImage: "linear-gradient(135deg, #0f4ccf, #60a5fa)" };
 	}
-	return { backgroundImage: `linear-gradient(rgba(15, 76, 207, 0.12), rgba(15, 76, 207, 0.42)), url("${coverImageUrl}")` };
+	return {
+		backgroundImage: `linear-gradient(rgba(15, 76, 207, 0.12), rgba(15, 76, 207, 0.42)), url("${coverImageUrl}")`,
+	};
 }
 
 function readCollectionLocation(search: string): CollectionLocationState {
@@ -48,7 +68,9 @@ export function PublicCollectionsIsland() {
 	const [query, setQuery] = useState("");
 	const [appliedQuery, setAppliedQuery] = useState("");
 	const [page, setPage] = useState(1);
-	const [slug, setSlug] = useState<string | null>(null);
+	// El valor no se lee: la fuente de verdad del slug es la URL (syncUrl); solo
+	// se conserva el setter para forzar el re-render al cambiar de colección.
+	const [, setSlug] = useState<string | null>(null);
 	const [loading, setLoading] = useState(true);
 	const [collections, setCollections] = useState<CollectionRecord[]>([]);
 	const [total, setTotal] = useState(0);
@@ -70,10 +92,14 @@ export function PublicCollectionsIsland() {
 			else params.delete("slug");
 		}
 		const suffix = params.toString();
-		window.history.pushState({}, "", `${url("colecciones")}${suffix ? `?${suffix}` : ""}`);
+		window.history.pushState(
+			{},
+			"",
+			`${url("colecciones")}${suffix ? `?${suffix}` : ""}`,
+		);
 	}
 
-	async function loadList(nextPage: number, nextQuery: string) {
+	const loadList = useCallback(async (nextPage: number, nextQuery: string) => {
 		setLoading(true);
 		setError("");
 		try {
@@ -98,9 +124,9 @@ export function PublicCollectionsIsland() {
 			setError("No se pudieron cargar las colecciones.");
 			setLoading(false);
 		}
-	}
+	}, []);
 
-	async function loadDetail(nextSlug: string) {
+	const loadDetail = useCallback(async (nextSlug: string) => {
 		setLoading(true);
 		setError("");
 		try {
@@ -122,7 +148,7 @@ export function PublicCollectionsIsland() {
 			setError("No se pudo cargar el detalle de la colección.");
 			setLoading(false);
 		}
-	}
+	}, []);
 
 	useEffect(() => {
 		function syncFromLocation(search: string) {
@@ -145,7 +171,7 @@ export function PublicCollectionsIsland() {
 		return () => {
 			window.removeEventListener("popstate", handlePopState);
 		};
-	}, []);
+	}, [loadList, loadDetail]);
 
 	async function handleSearch(event: FormEvent<HTMLFormElement>) {
 		event.preventDefault();
@@ -169,20 +195,34 @@ export function PublicCollectionsIsland() {
 					Volver al listado
 				</button>
 
-				<header className="collection-detail-hero" style={coverStyle(detail.coverImageUrl)}>
+				<header
+					className="collection-detail-hero"
+					style={coverStyle(detail.coverImageUrl)}
+				>
 					<div className="collection-detail-overlay">
 						<p className="collections-eyebrow">Colección pública</p>
 						<h1>{detail.title}</h1>
 						<p>{detail.description}</p>
-						<ul className="collection-detail-meta" aria-label="Metadatos de la colección">
-							<li>{detail.resourceCount ?? detail.resources.length} recursos</li>
+						<ul
+							className="collection-detail-meta"
+							aria-label="Metadatos de la colección"
+						>
+							<li>
+								{detail.resourceCount ?? detail.resources.length} recursos
+							</li>
 							<li>Curator: {detail.curatorName ?? "Equipo editorial"}</li>
-							<li>Actualizada {formatDateLong(detail.updatedAt ?? detail.createdAt)}</li>
+							<li>
+								Actualizada{" "}
+								{formatDateLong(detail.updatedAt ?? detail.createdAt)}
+							</li>
 						</ul>
 					</div>
 				</header>
 
-				<section className="collection-detail-section" aria-labelledby="collection-resources-title">
+				<section
+					className="collection-detail-section"
+					aria-labelledby="collection-resources-title"
+				>
 					<div className="collections-section-head">
 						<div>
 							<p className="collections-eyebrow">Recursos asociados</p>
@@ -192,15 +232,27 @@ export function PublicCollectionsIsland() {
 					<div className="collection-resource-grid">
 						{detail.resources.map((resource) => {
 							return (
-								<a key={resource.resourceId} href={url(`recurso?slug=${resource.slug}`)} className="collection-resource-card">
-									{resource.elpxPreview && <CollectionIframePreview src={resource.elpxPreview.previewUrl} />}
-									<p className="collection-resource-type">{resource.resourceType}</p>
+								<a
+									key={resource.resourceId}
+									href={url(`recurso?slug=${resource.slug}`)}
+									className="collection-resource-card"
+								>
+									{resource.elpxPreview && (
+										<CollectionIframePreview
+											src={resource.elpxPreview.previewUrl}
+										/>
+									)}
+									<p className="collection-resource-type">
+										{resource.resourceType}
+									</p>
 									<h3>{resource.title}</h3>
 									<p>{truncate(resource.description ?? "", 180)}</p>
 									<div className="collection-resource-meta">
 										<span>{resource.language.toUpperCase()}</span>
 										<span>{resource.license}</span>
-										<span>{resource.author ?? resource.createdByName ?? "Sin autor"}</span>
+										<span>
+											{resource.author ?? resource.createdByName ?? "Sin autor"}
+										</span>
 									</div>
 								</a>
 							);
@@ -217,29 +269,43 @@ export function PublicCollectionsIsland() {
 				<p className="collections-eyebrow">Colecciones editoriales</p>
 				<h1>Colecciones publicadas</h1>
 				<p>
-					Explora agrupaciones temáticas curadas por el equipo editorial para encontrar secuencias y selecciones de recursos ya organizadas.
+					Explora agrupaciones temáticas curadas por el equipo editorial para
+					encontrar secuencias y selecciones de recursos ya organizadas.
 				</p>
-				<form className="collections-search" onSubmit={handleSearch} role="search">
-					<input
-						type="search"
-						placeholder="Buscar por título o descripción"
-						aria-label="Buscar colecciones"
-						value={query}
-						onChange={(event) => setQuery(event.currentTarget.value)}
-					/>
-					<button type="submit">Buscar</button>
-				</form>
+				<search>
+					<form className="collections-search" onSubmit={handleSearch}>
+						<input
+							type="search"
+							placeholder="Buscar por título o descripción"
+							aria-label="Buscar colecciones"
+							value={query}
+							onChange={(event) => setQuery(event.currentTarget.value)}
+						/>
+						<button type="submit">Buscar</button>
+					</form>
+				</search>
 			</header>
 
-			<section className="collection-list-section" aria-labelledby="collections-results-title">
+			<section
+				className="collection-list-section"
+				aria-labelledby="collections-results-title"
+			>
 				<div className="collections-section-head">
 					<div>
 						<p className="collections-eyebrow">Resultados</p>
-						<h2 id="collections-results-title">{loading ? "Cargando colecciones..." : `${total} colecciones publicadas`}</h2>
+						<h2 id="collections-results-title">
+							{loading
+								? "Cargando colecciones..."
+								: `${total} colecciones publicadas`}
+						</h2>
 					</div>
 				</div>
 
-				{error ? <p className="collections-feedback collections-feedback-error">{error}</p> : null}
+				{error ? (
+					<p className="collections-feedback collections-feedback-error">
+						{error}
+					</p>
+				) : null}
 
 				<div className="collection-card-grid">
 					{collections.map((collection) => (
@@ -253,7 +319,10 @@ export function PublicCollectionsIsland() {
 								void loadDetail(collection.slug);
 							}}
 						>
-							<div className="collection-public-card-cover" style={coverStyle(collection.coverImageUrl)} />
+							<div
+								className="collection-public-card-cover"
+								style={coverStyle(collection.coverImageUrl)}
+							/>
 							<div className="collection-public-card-body">
 								<p className="collection-public-card-eyebrow">Colección</p>
 								<h3>{collection.title}</h3>
@@ -268,10 +337,16 @@ export function PublicCollectionsIsland() {
 				</div>
 
 				{!loading && !collections.length && !error ? (
-					<p className="collections-feedback">No hay colecciones publicadas para los filtros actuales.</p>
+					<p className="collections-feedback">
+						No hay colecciones publicadas para los filtros actuales.
+					</p>
 				) : null}
 
-				<nav className="collections-pagination" aria-label="Paginación de colecciones" hidden={total <= PAGE_SIZE}>
+				<nav
+					className="collections-pagination"
+					aria-label="Paginación de colecciones"
+					hidden={total <= PAGE_SIZE}
+				>
 					<button
 						type="button"
 						disabled={page <= 1}

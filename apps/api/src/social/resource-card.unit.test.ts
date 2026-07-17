@@ -3,10 +3,7 @@ import { buildResourceCard, roundRatingAverage } from "./resource-card.ts";
 
 describe("resource-card", () => {
 	test("buildResourceCard normalizes missing social signals", () => {
-		const card = buildResourceCard(
-			{ id: "res-1", title: "Demo" },
-			{},
-		);
+		const card = buildResourceCard({ id: "res-1", title: "Demo" }, {});
 
 		expect(card.elpxPreview).toBeNull();
 		expect(card.favoriteCount).toBe(0);

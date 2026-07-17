@@ -1,8 +1,8 @@
 import { and, desc, eq, sql } from "drizzle-orm";
+import { user } from "../schema/auth.ts";
 import { reports } from "../schema/reports.ts";
 import { resources } from "../schema/resources.ts";
-import { user } from "../schema/auth.ts";
-import { type DrizzleDB, normalizePagination, optionalAndWhere } from "./shared.ts";
+import { type DrizzleDB, normalizePagination } from "./shared.ts";
 
 export const REPORT_REASONS = [
 	"inappropriate",
@@ -90,7 +90,10 @@ export async function createReport(db: DrizzleDB, input: CreateReportInput) {
 	return { id };
 }
 
-export async function listReports(db: DrizzleDB, opts: ListReportsOptions = {}) {
+export async function listReports(
+	db: DrizzleDB,
+	opts: ListReportsOptions = {},
+) {
 	const { limit, offset } = normalizePagination(opts);
 
 	const conditions = [
@@ -139,7 +142,11 @@ export async function getReportById(db: DrizzleDB, reportId: string) {
 	return rows[0] ?? null;
 }
 
-export async function updateReport(db: DrizzleDB, reportId: string, input: UpdateReportInput) {
+export async function updateReport(
+	db: DrizzleDB,
+	reportId: string,
+	input: UpdateReportInput,
+) {
 	const updates: Record<string, unknown> = {
 		updatedAt: new Date(),
 	};
@@ -156,11 +163,16 @@ export async function updateReport(db: DrizzleDB, reportId: string, input: Updat
 	await db.update(reports).set(updates).where(eq(reports.id, reportId));
 }
 
-export async function getReportCountByResource(db: DrizzleDB, resourceId: string) {
+export async function getReportCountByResource(
+	db: DrizzleDB,
+	resourceId: string,
+) {
 	const result = await db
 		.select({ count: sql<number>`count(*)` })
 		.from(reports)
-		.where(and(eq(reports.resourceId, resourceId), eq(reports.status, "pending")));
+		.where(
+			and(eq(reports.resourceId, resourceId), eq(reports.status, "pending")),
+		);
 
 	return Number(result[0]?.count ?? 0);
 }

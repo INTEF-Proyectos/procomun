@@ -1,6 +1,6 @@
 /**
  * Interfaz estable para todas las operaciones de datos del frontend.
- * Dos implementaciones: HttpApiClient (servidor) y PreviewApiClient (PGlite en navegador).
+ * Implementación actual: HttpApiClient (contra la API del servidor).
  */
 
 export interface Resource {
@@ -262,8 +262,14 @@ export interface ApiClient {
 		license?: string;
 	}): Promise<ResourceListResult>;
 	getResourceBySlug(slug: string): Promise<Resource | null>;
-	listPublicCollections(opts?: { q?: string; limit?: number; offset?: number }): Promise<PaginatedResult<CollectionRecord>>;
-	getPublicCollectionBySlug(slug: string): Promise<CollectionDetailRecord | null>;
+	listPublicCollections(opts?: {
+		q?: string;
+		limit?: number;
+		offset?: number;
+	}): Promise<PaginatedResult<CollectionRecord>>;
+	getPublicCollectionBySlug(
+		slug: string,
+	): Promise<CollectionDetailRecord | null>;
 	getConfig(): Promise<AppConfig>;
 	getPlatformStats(): Promise<{ users: number }>;
 
@@ -275,66 +281,219 @@ export interface ApiClient {
 	signOut(): Promise<void>;
 
 	// Admin
-	listAdminResources(opts?: { q?: string; limit?: number; offset?: number; status?: string }): Promise<ResourceListResult>;
+	listAdminResources(opts?: {
+		q?: string;
+		limit?: number;
+		offset?: number;
+		status?: string;
+	}): Promise<ResourceListResult>;
 	getResourceById(id: string): Promise<Resource | null>;
 	listResourceMediaItems(id: string): Promise<MediaItemRecord[]>;
 	listResourceUploads(id: string): Promise<UploadSessionRecord[]>;
 	createDraftResource(): Promise<{ id: string; slug: string }>;
-	createResource(data: CreateResourceInput): Promise<{ id: string; slug: string }>;
-	updateResource(id: string, data: UpdateResourceInput): Promise<{ ok: boolean; error?: string; details?: { field: string; message: string }[] }>;
-	updateResourceStatus(id: string, status: string): Promise<{ id: string; status: string }>;
+	createResource(
+		data: CreateResourceInput,
+	): Promise<{ id: string; slug: string }>;
+	updateResource(
+		id: string,
+		data: UpdateResourceInput,
+	): Promise<{
+		ok: boolean;
+		error?: string;
+		details?: { field: string; message: string }[];
+	}>;
+	updateResourceStatus(
+		id: string,
+		status: string,
+	): Promise<{ id: string; status: string }>;
 	deleteResource(id: string): Promise<void>;
 	getUploadConfig(): Promise<UploadConfig>;
 	cancelUpload(id: string): Promise<{ id: string; cancelled: boolean }>;
-	deleteMediaItem(resourceId: string, mediaItemId: string): Promise<{ id: string; deleted: boolean }>;
+	deleteMediaItem(
+		resourceId: string,
+		mediaItemId: string,
+	): Promise<{ id: string; deleted: boolean }>;
 	getElpxProject(resourceId: string): Promise<ElpxProjectInfo | null>;
-	generateElpx(resourceId: string): Promise<{ ok: boolean; elpxHash: string; hasPreview: boolean; previewUrl: string | null; elpxFileUrl: string | null }>;
+	generateElpx(resourceId: string): Promise<{
+		ok: boolean;
+		elpxHash: string;
+		hasPreview: boolean;
+		previewUrl: string | null;
+		elpxFileUrl: string | null;
+	}>;
 
-	listUsers(opts?: { q?: string; role?: string; limit?: number; offset?: number }): Promise<PaginatedResult<UserRecord>>;
+	listUsers(opts?: {
+		q?: string;
+		role?: string;
+		limit?: number;
+		offset?: number;
+	}): Promise<PaginatedResult<UserRecord>>;
 	getUserById(id: string): Promise<UserRecord | null>;
-	createUser(data: { name?: string; email: string; password: string; role?: string }): Promise<{ ok: boolean; id?: string; error?: string; details?: { field: string; message: string }[] }>;
-	updateUser(id: string, data: Partial<Pick<UserRecord, "name" | "bio" | "role" | "isActive">>): Promise<{ ok: boolean; error?: string }>;
+	createUser(data: {
+		name?: string;
+		email: string;
+		password: string;
+		role?: string;
+	}): Promise<{
+		ok: boolean;
+		id?: string;
+		error?: string;
+		details?: { field: string; message: string }[];
+	}>;
+	updateUser(
+		id: string,
+		data: Partial<Pick<UserRecord, "name" | "bio" | "role" | "isActive">>,
+	): Promise<{ ok: boolean; error?: string }>;
 	deleteUser(id: string): Promise<{ ok: boolean; error?: string }>;
 
-	listCollections(opts?: { q?: string; limit?: number; offset?: number }): Promise<PaginatedResult<CollectionRecord>>;
+	listCollections(opts?: {
+		q?: string;
+		limit?: number;
+		offset?: number;
+	}): Promise<PaginatedResult<CollectionRecord>>;
 	getCollectionById(id: string): Promise<CollectionRecord | null>;
-	listCollectionResources(collectionId: string): Promise<CollectionResourceRecord[]>;
-	createCollection(data: { title: string; description: string; coverImageUrl?: string | null; editorialStatus?: string; isOrdered?: boolean }): Promise<{ id: string; slug: string }>;
-	updateCollection(id: string, data: Partial<{ title: string; description: string; coverImageUrl: string | null; editorialStatus: string; isOrdered: boolean }>): Promise<{ ok: boolean; error?: string; details?: { field: string; message: string }[] }>;
+	listCollectionResources(
+		collectionId: string,
+	): Promise<CollectionResourceRecord[]>;
+	createCollection(data: {
+		title: string;
+		description: string;
+		coverImageUrl?: string | null;
+		editorialStatus?: string;
+		isOrdered?: boolean;
+	}): Promise<{ id: string; slug: string }>;
+	updateCollection(
+		id: string,
+		data: Partial<{
+			title: string;
+			description: string;
+			coverImageUrl: string | null;
+			editorialStatus: string;
+			isOrdered: boolean;
+		}>,
+	): Promise<{
+		ok: boolean;
+		error?: string;
+		details?: { field: string; message: string }[];
+	}>;
 	deleteCollection(id: string): Promise<void>;
-	addResourceToCollection(collectionId: string, resourceId: string): Promise<{ ok: boolean }>;
-	removeResourceFromCollection(collectionId: string, resourceId: string): Promise<{ ok: boolean }>;
-	reorderCollectionResource(collectionId: string, resourceId: string, direction: "up" | "down"): Promise<{ ok: boolean; error?: string }>;
+	addResourceToCollection(
+		collectionId: string,
+		resourceId: string,
+	): Promise<{ ok: boolean }>;
+	removeResourceFromCollection(
+		collectionId: string,
+		resourceId: string,
+	): Promise<{ ok: boolean }>;
+	reorderCollectionResource(
+		collectionId: string,
+		resourceId: string,
+		direction: "up" | "down",
+	): Promise<{ ok: boolean; error?: string }>;
 
-	listTaxonomies(opts?: { q?: string; type?: string; limit?: number; offset?: number }): Promise<PaginatedResult<TaxonomyRecord>>;
+	listTaxonomies(opts?: {
+		q?: string;
+		type?: string;
+		limit?: number;
+		offset?: number;
+	}): Promise<PaginatedResult<TaxonomyRecord>>;
 	getTaxonomyById(id: string): Promise<TaxonomyRecord | null>;
-	createTaxonomy(data: { name: string; slug?: string; type?: string; parentId?: string | null }): Promise<{ id: string; slug: string }>;
-	updateTaxonomy(id: string, data: Partial<{ name: string; slug: string; type: string; parentId: string | null }>): Promise<{ ok: boolean; error?: string; details?: { field: string; message: string }[] }>;
+	createTaxonomy(data: {
+		name: string;
+		slug?: string;
+		type?: string;
+		parentId?: string | null;
+	}): Promise<{ id: string; slug: string }>;
+	updateTaxonomy(
+		id: string,
+		data: Partial<{
+			name: string;
+			slug: string;
+			type: string;
+			parentId: string | null;
+		}>,
+	): Promise<{
+		ok: boolean;
+		error?: string;
+		details?: { field: string; message: string }[];
+	}>;
 	deleteTaxonomy(id: string): Promise<void>;
 
 	// Social
-	getResourceRatings(slug: string): Promise<{ resourceId: string; averageScore: number; totalRatings: number; distribution: Record<number, number> }>;
-	submitRating(slug: string, score: number): Promise<{ resourceId: string; userId: string; score: number; createdAt: string }>;
+	getResourceRatings(slug: string): Promise<{
+		resourceId: string;
+		averageScore: number;
+		totalRatings: number;
+		distribution: Record<number, number>;
+	}>;
+	submitRating(
+		slug: string,
+		score: number,
+	): Promise<{
+		resourceId: string;
+		userId: string;
+		score: number;
+		createdAt: string;
+	}>;
 	toggleFavorite(slug: string): Promise<{ favorited: boolean; count: number }>;
-	getUserFavorites(opts?: { limit?: number; offset?: number }): Promise<PaginatedResult<Resource>>;
-	getUserRatings(opts?: { limit?: number; offset?: number }): Promise<PaginatedResult<Resource>>;
-	getUserDashboard(): Promise<{ draftCount: number; publishedCount: number; favoriteCount: number; ratingCount?: number; recentResources: Resource[] }>;
+	getUserFavorites(opts?: {
+		limit?: number;
+		offset?: number;
+	}): Promise<PaginatedResult<Resource>>;
+	getUserRatings(opts?: {
+		limit?: number;
+		offset?: number;
+	}): Promise<PaginatedResult<Resource>>;
+	getUserDashboard(): Promise<{
+		draftCount: number;
+		publishedCount: number;
+		favoriteCount: number;
+		ratingCount?: number;
+		recentResources: Resource[];
+	}>;
 	getMyProfile(): Promise<UserRecord | null>;
-	updateMyProfile(data: Partial<Pick<UserRecord, "name" | "bio">>): Promise<{ ok: boolean; error?: string }>;
-	getUserActivity(opts?: { limit?: number; offset?: number }): Promise<PaginatedResult<import("./types/user-extended.ts").ActivityItem>>;
+	updateMyProfile(
+		data: Partial<Pick<UserRecord, "name" | "bio">>,
+	): Promise<{ ok: boolean; error?: string }>;
+	getUserActivity(opts?: {
+		limit?: number;
+		offset?: number;
+	}): Promise<PaginatedResult<import("./types/user-extended.ts").ActivityItem>>;
 	trackDownload(slug: string, format?: string): Promise<{ count: number }>;
-	getResourceStats(slug: string): Promise<{ downloadCount: number; exportCounts: { scorm: number; ims: number; web: number; epub: number }; favoriteCount: number; ratingAvg: number; ratingCount: number; userFavorited: boolean }>;
-	reportResource(slug: string, reason: string, description?: string): Promise<{ id: string }>;
+	getResourceStats(slug: string): Promise<{
+		downloadCount: number;
+		exportCounts: { scorm: number; ims: number; web: number; epub: number };
+		favoriteCount: number;
+		ratingAvg: number;
+		ratingCount: number;
+		userFavorited: boolean;
+	}>;
+	reportResource(
+		slug: string,
+		reason: string,
+		description?: string,
+	): Promise<{ id: string }>;
 
 	// Admin Reports
-	listReports(opts?: { status?: string; reason?: string; resourceId?: string; limit?: number; offset?: number }): Promise<PaginatedResult<ReportRecord>>;
+	listReports(opts?: {
+		status?: string;
+		reason?: string;
+		resourceId?: string;
+		limit?: number;
+		offset?: number;
+	}): Promise<PaginatedResult<ReportRecord>>;
 	getReportById(id: string): Promise<ReportRecord | null>;
-	updateReport(id: string, data: { status?: string; resolution?: string; actionTaken?: string }): Promise<ReportRecord>;
+	updateReport(
+		id: string,
+		data: { status?: string; resolution?: string; actionTaken?: string },
+	): Promise<ReportRecord>;
 
 	// Badges / Settings
 	getBadgeConfig(): Promise<BadgeConfig>;
 	getSettings(): Promise<Record<string, string>>;
-	updateSettings(settings: Record<string, string>): Promise<Record<string, string>>;
+	updateSettings(
+		settings: Record<string, string>,
+	): Promise<Record<string, string>>;
 
 	// API Tokens (User)
 	listApiTokens(): Promise<ApiTokenRecord[]>;
@@ -342,10 +501,16 @@ export interface ApiClient {
 	revokeApiToken(id: string): Promise<void>;
 
 	// API Tokens (Admin)
-	listAllApiTokens(filters?: { userId?: string; status?: "active" | "revoked" | "expired" }): Promise<ApiTokenRecord[]>;
+	listAllApiTokens(filters?: {
+		userId?: string;
+		status?: "active" | "revoked" | "expired";
+	}): Promise<ApiTokenRecord[]>;
 	revokeApiTokenAdmin(id: string): Promise<void>;
 	getGlobalApiTokenStats(): Promise<ApiTokenStats>;
 
 	// Dev
-	seedResources(count: number, clean?: boolean): Promise<{ count: number; durationMs: number }>;
+	seedResources(
+		count: number,
+		clean?: boolean,
+	): Promise<{ count: number; durationMs: number }>;
 }

@@ -1,9 +1,12 @@
 import type { Hono } from "hono";
 import { serveStatic } from "hono/bun";
-import { type AuthEnv } from "../auth/middleware.ts";
+import type { AuthEnv } from "../auth/middleware.ts";
 import { isDevelopmentMode } from "../env.ts";
 
-export function registerFrontendServing(app: Hono<AuthEnv>, frontendDir?: string) {
+export function registerFrontendServing(
+	app: Hono<AuthEnv>,
+	frontendDir?: string,
+) {
 	if (!frontendDir) {
 		app.get("/", (c) =>
 			c.json({

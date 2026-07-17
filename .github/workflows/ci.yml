@@ -26,10 +26,7 @@ jobs:
     - name: Install dependencies
       run: make deps
 
-    - name: Format Check
-      run: bunx @biomejs/biome format .
-
-    - name: Lint Check
+    - name: Biome Check
       run: make lint
 
     - name: Type Check

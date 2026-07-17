@@ -1,11 +1,10 @@
-import { Hono } from "hono";
-import { sql } from "drizzle-orm";
-import { readUploadContent } from "./uploads.ts";
-import { contentDisposition } from "../uploads/config.ts";
-import { getDb } from "../db.ts";
 import * as repo from "@procomun/db/repository";
 import { user } from "@procomun/db/schema";
+import { sql } from "drizzle-orm";
+import { Hono } from "hono";
+import { getDb } from "../db.ts";
 import { buildElpxPreview } from "../elpx/preview.ts";
+import { searchResources } from "../fts/search.ts";
 import { parsePagination } from "../http/pagination.ts";
 import { canViewResource, getSessionUser } from "../public/access.ts";
 import {
@@ -13,7 +12,9 @@ import {
 	listPublishedCollections,
 	listPublishedResources,
 } from "../public/service.ts";
-import { searchResources } from "../fts/search.ts";
+import { contentDisposition } from "../uploads/config.ts";
+import { readUploadContent } from "./uploads.ts";
+
 const publicRoutes = new Hono();
 
 publicRoutes.get("/resources", async (c) => {
@@ -50,12 +51,19 @@ publicRoutes.get("/resources/:slug", async (c) => {
 	if (elpx?.uploadSessionId) {
 		elpxFileUrl = `/api/v1/uploads/${elpx.uploadSessionId}/content`;
 	} else {
-		const elpxMedia = resource.mediaItems?.find((mediaItem) =>
-			mediaItem.filename?.endsWith(".elpx") || mediaItem.filename?.endsWith(".elp"));
+		const elpxMedia = resource.mediaItems?.find(
+			(mediaItem) =>
+				mediaItem.filename?.endsWith(".elpx") ||
+				mediaItem.filename?.endsWith(".elp"),
+		);
 		if (elpxMedia) elpxFileUrl = elpxMedia.url;
 	}
 
-	return c.json({ ...resource, elpxPreview: buildElpxPreview(elpx), elpxFileUrl });
+	return c.json({
+		...resource,
+		elpxPreview: buildElpxPreview(elpx),
+		elpxFileUrl,
+	});
 });
 
 publicRoutes.get("/uploads/:id/content", async (c) => {
@@ -79,7 +87,10 @@ publicRoutes.get("/uploads/:id/content", async (c) => {
 		status: 200,
 		headers: {
 			"Content-Type": session.mimeType ?? "application/octet-stream",
-			"Content-Disposition": contentDisposition("attachment", session.originalFilename),
+			"Content-Disposition": contentDisposition(
+				"attachment",
+				session.originalFilename,
+			),
 		},
 	});
 });
@@ -117,7 +128,9 @@ publicRoutes.get("/config/badges", async (c) => {
 		novedadDays: Number(settings.badge_novedad_days ?? "30"),
 		destacadoMinRatings: Number(settings.badge_destacado_min_ratings ?? "3"),
 		destacadoMinAvg: Number(settings.badge_destacado_min_avg ?? "4.0"),
-		destacadoMinFavorites: Number(settings.badge_destacado_min_favorites ?? "3"),
+		destacadoMinFavorites: Number(
+			settings.badge_destacado_min_favorites ?? "3",
+		),
 	});
 });
 
@@ -142,7 +155,9 @@ publicRoutes.get("/search", async (c) => {
 
 publicRoutes.get("/stats", async (c) => {
 	const db = getDb().db;
-	const [userCount] = await db.select({ count: sql<number>`count(*)` }).from(user);
+	const [userCount] = await db
+		.select({ count: sql<number>`count(*)` })
+		.from(user);
 	return c.json({
 		users: Number(userCount?.count ?? 0),
 	});

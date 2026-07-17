@@ -1,10 +1,12 @@
 import { readFile } from "node:fs/promises";
+import * as repo from "@procomun/db/repository";
 import { FileStore } from "@tus/file-store";
 import { EVENTS, Server } from "@tus/server";
-import { Hono, type Context } from "hono";
+import { type Context, Hono } from "hono";
 import type { AuthEnv } from "../auth/middleware.ts";
 import { getDb } from "../db.ts";
-import * as repo from "@procomun/db/repository";
+import { enqueueExtraction } from "../fts/worker.ts";
+import { processElpxUpload } from "../services/elpx-processor.ts";
 import {
 	buildUploadPublicUrl,
 	buildUploadStorageKey,
@@ -17,8 +19,6 @@ import {
 	type UploadUser,
 	validateUploadCandidate,
 } from "../uploads/config.ts";
-import { processElpxUpload } from "../services/elpx-processor.ts";
-import { enqueueExtraction } from "../fts/worker.ts";
 
 const USER_HEADER = "x-procomun-upload-user";
 
@@ -32,7 +32,9 @@ function decodeUser(req: Request): UploadUser | null {
 	const raw = req.headers.get(USER_HEADER);
 	if (!raw) return null;
 	try {
-		return JSON.parse(Buffer.from(raw, "base64url").toString("utf8")) as UploadUser;
+		return JSON.parse(
+			Buffer.from(raw, "base64url").toString("utf8"),
+		) as UploadUser;
 	} catch {
 		return null;
 	}
@@ -61,7 +63,10 @@ async function getTusServer() {
 
 		const server = new Server({
 			path: "/api/uploads",
-			datastore: new FileStore({ directory: config.storageDir, expirationPeriodInMilliseconds: config.sessionTtlMs }),
+			datastore: new FileStore({
+				directory: config.storageDir,
+				expirationPeriodInMilliseconds: config.sessionTtlMs,
+			}),
 			maxSize: config.maxFileSizeBytes,
 			relativeLocation: true,
 			allowedCredentials: true,
@@ -82,7 +87,10 @@ async function getTusServer() {
 					throw { status_code: 404, body: "Upload no encontrado" };
 				}
 
-				const resource = await repo.getResourceById(getDb().db, session.resourceId);
+				const resource = await repo.getResourceById(
+					getDb().db,
+					session.resourceId,
+				);
 				if (!resource || !canManageResourceUpload(user, resource)) {
 					throw { status_code: 403, body: "Permisos insuficientes" };
 				}
@@ -117,7 +125,10 @@ async function getTusServer() {
 					fileSize: upload.size ?? null,
 				});
 				if (!validation.ok) {
-					throw { status_code: 400, body: validation.error ?? "Upload inválido" };
+					throw {
+						status_code: 400,
+						body: validation.error ?? "Upload inválido",
+					};
 				}
 
 				await repo.ensureUser(getDb().db, {
@@ -133,7 +144,11 @@ async function getTusServer() {
 					ownerId: user.id,
 					originalFilename,
 					mimeType,
-					storageKey: buildUploadStorageKey(resourceId, upload.id, originalFilename),
+					storageKey: buildUploadStorageKey(
+						resourceId,
+						upload.id,
+						originalFilename,
+					),
 					checksumAlgorithm,
 					finalChecksum,
 					declaredSize: upload.size ?? null,
@@ -189,7 +204,10 @@ async function getTusServer() {
 				const ext = extractFileExtension(session.originalFilename);
 				if (ext === ".elpx" || ext === ".elp") {
 					try {
-						const result = await processElpxUpload(finalPath, config.storageDir);
+						const result = await processElpxUpload(
+							finalPath,
+							config.storageDir,
+						);
 						await repo.createElpxProject(getDb().db, {
 							resourceId: session.resourceId,
 							hash: result.hash,
@@ -208,7 +226,10 @@ async function getTusServer() {
 
 				// Trigger async text extraction for FTS
 				enqueueExtraction(session.resourceId, upload.id).catch((err) => {
-					console.error("[fts] Error enqueuing extraction:", err?.message ?? err);
+					console.error(
+						"[fts] Error enqueuing extraction:",
+						err?.message ?? err,
+					);
 				});
 
 				return {
@@ -236,7 +257,10 @@ async function getTusServer() {
 	return tusServerPromise;
 }
 
-export async function terminateUpload(uploadId: string, user: UploadUser | null) {
+export async function terminateUpload(
+	uploadId: string,
+	user: UploadUser | null,
+) {
 	const request = new Request(`http://localhost/api/uploads/${uploadId}`, {
 		method: "DELETE",
 		headers: {

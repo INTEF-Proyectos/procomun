@@ -1,15 +1,21 @@
-import { expect, test, describe } from "bun:test";
-import { getDb } from "../db.ts";
+import { describe, expect, test } from "bun:test";
 import * as repo from "@procomun/db/repository";
+import { getDb } from "../db.ts";
 
 const db = () => getDb().db;
-const listResources = (opts: Parameters<typeof repo.listResources>[1]) => repo.listResources(db(), opts);
+const listResources = (opts: Parameters<typeof repo.listResources>[1]) =>
+	repo.listResources(db(), opts);
 const getResourceById = (id: string) => repo.getResourceById(db(), id);
 const getResourceBySlug = (slug: string) => repo.getResourceBySlug(db(), slug);
-const createResource = (data: Parameters<typeof repo.createResource>[1]) => repo.createResource(db(), data);
-const updateResource = (id: string, data: Parameters<typeof repo.updateResource>[2]) => repo.updateResource(db(), id, data);
+const createResource = (data: Parameters<typeof repo.createResource>[1]) =>
+	repo.createResource(db(), data);
+const updateResource = (
+	id: string,
+	data: Parameters<typeof repo.updateResource>[2],
+) => repo.updateResource(db(), id, data);
 const deleteResource = (id: string) => repo.deleteResource(db(), id);
-const updateEditorialStatus = (id: string, status: string, curatorId: string) => repo.updateEditorialStatus(db(), id, status, curatorId);
+const updateEditorialStatus = (id: string, status: string, curatorId: string) =>
+	repo.updateEditorialStatus(db(), id, status, curatorId);
 
 const baseResource = {
 	title: "Recurso test repo",
@@ -82,7 +88,9 @@ describe("Repository — CRUD completo", () => {
 		expect(resource).not.toBeNull();
 		expect(resource!.mediaItems).toHaveLength(1);
 		expect(resource!.mediaItems?.[0]?.filename).toBe("guia.pdf");
-		expect(resource!.mediaItems?.[0]?.url).toBe("/api/v1/uploads/upload-public/content");
+		expect(resource!.mediaItems?.[0]?.url).toBe(
+			"/api/v1/uploads/upload-public/content",
+		);
 	});
 
 	test("getResourceBySlug → null para slug inexistente", async () => {
@@ -151,8 +159,14 @@ describe("Repository — CRUD completo", () => {
 			language: "en",
 		});
 
-		expect(result.data.some((resource) => resource.title === "English repo resource")).toBe(true);
-		expect(result.data.every((resource) => resource.language === "en")).toBe(true);
+		expect(
+			result.data.some(
+				(resource) => resource.title === "English repo resource",
+			),
+		).toBe(true);
+		expect(result.data.every((resource) => resource.language === "en")).toBe(
+			true,
+		);
 	});
 
 	test("listResources filtra por visibleToUserId para propietarios o curadores asignados", async () => {

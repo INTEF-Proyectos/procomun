@@ -24,7 +24,10 @@ export const SUITE_DEFINITIONS: Record<SuiteName, SuiteDefinition> = {
 	},
 };
 
-async function walkDirectory(rootDir: string, currentDir: string): Promise<string[]> {
+async function walkDirectory(
+	rootDir: string,
+	currentDir: string,
+): Promise<string[]> {
 	const entries = await readdir(currentDir, { withFileTypes: true });
 	const files: string[] = [];
 
@@ -83,7 +86,9 @@ export async function findSuiteFiles(
 	return [...files].sort();
 }
 
-export async function findStandardTestFiles(rootDir = process.cwd()): Promise<string[]> {
+export async function findStandardTestFiles(
+	rootDir = process.cwd(),
+): Promise<string[]> {
 	const files = await Promise.all([
 		findSuiteFiles("unit", rootDir),
 		findSuiteFiles("integration", rootDir),
@@ -124,7 +129,9 @@ async function main() {
 	const coverage = process.argv.includes("--coverage");
 
 	if (!isSuiteName(suiteArg)) {
-		console.error("Usage: bun run scripts/run-bun-suite.ts <unit|integration> [--coverage]");
+		console.error(
+			"Usage: bun run scripts/run-bun-suite.ts <unit|integration> [--coverage]",
+		);
 		process.exit(1);
 	}
 
@@ -141,7 +148,9 @@ async function main() {
 		process.exit(1);
 	}
 
-	console.log(`Running ${definition.label} tests in ${files.length} file(s)...`);
+	console.log(
+		`Running ${definition.label} tests in ${files.length} file(s)...`,
+	);
 
 	const result = Bun.spawnSync({
 		cmd: ["bun", ...buildBunTestArgs(files, { coverage })],
@@ -161,7 +170,10 @@ async function main() {
 	}
 
 	const combinedOutput = `${stdout}\n${stderr}`;
-	if ((result.exitCode === 99 || result.exitCode === 100) && hasPassingBunSummary(combinedOutput)) {
+	if (
+		(result.exitCode === 99 || result.exitCode === 100) &&
+		hasPassingBunSummary(combinedOutput)
+	) {
 		console.warn(
 			`bun test returned exit code ${result.exitCode} despite reporting 0 failures; normalizing to success.`,
 		);

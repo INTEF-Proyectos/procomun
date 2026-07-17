@@ -1,19 +1,22 @@
 import { beforeAll, describe, expect, test } from "bun:test";
 import { mkdtemp } from "node:fs/promises";
-import path from "node:path";
 import { tmpdir } from "node:os";
+import path from "node:path";
+import * as repo from "@procomun/db/repository";
 import { Hono } from "hono";
-import { adminRoutes } from "./admin/index.ts";
-import { uploadRoutes } from "./uploads.ts";
 import type { AuthEnv } from "../auth/middleware.ts";
 import { getDb } from "../db.ts";
-import * as repo from "@procomun/db/repository";
+import { adminRoutes } from "./admin/index.ts";
+import { uploadRoutes } from "./uploads.ts";
 
 function createUploadApp(mockUser: Record<string, unknown> | null = null) {
 	const app = new Hono<AuthEnv>();
 	app.use("*", async (c, next) => {
 		c.set("user", mockUser as AuthEnv["Variables"]["user"]);
-		c.set("session", mockUser ? ({ id: "s" } as AuthEnv["Variables"]["session"]) : null);
+		c.set(
+			"session",
+			mockUser ? ({ id: "s" } as AuthEnv["Variables"]["session"]) : null,
+		);
 		await next();
 	});
 	app.route("/api/uploads", uploadRoutes);
@@ -29,12 +32,24 @@ function encodeMetadata(entries: Record<string, string>) {
 
 describe("Rutas uploads — tus resumable", () => {
 	beforeAll(async () => {
-		process.env.UPLOAD_STORAGE_DIR = await mkdtemp(path.join(tmpdir(), "procomun-uploads-"));
+		process.env.UPLOAD_STORAGE_DIR = await mkdtemp(
+			path.join(tmpdir(), "procomun-uploads-"),
+		);
 	});
 
 	test("POST + PATCH crean sesión de upload y media item final", async () => {
-		const app = createUploadApp({ id: "upload-author", role: "author", email: "author@example.com", name: "Author" });
-		const adminApp = createUploadApp({ id: "upload-admin", role: "admin", email: "admin-upload@example.com", name: "Admin" });
+		const app = createUploadApp({
+			id: "upload-author",
+			role: "author",
+			email: "author@example.com",
+			name: "Author",
+		});
+		const adminApp = createUploadApp({
+			id: "upload-admin",
+			role: "admin",
+			email: "admin-upload@example.com",
+			name: "Admin",
+		});
 		const db = getDb().db;
 
 		await repo.ensureUser(db, {
@@ -85,13 +100,17 @@ describe("Rutas uploads — tus resumable", () => {
 		});
 		expect(patchRes.status).toBe(204);
 
-		const uploadsRes = await adminApp.request(`/api/admin/resources/${resource.id}/uploads`);
+		const uploadsRes = await adminApp.request(
+			`/api/admin/resources/${resource.id}/uploads`,
+		);
 		expect(uploadsRes.status).toBe(200);
 		const uploads = await uploadsRes.json();
 		expect(uploads.length).toBe(1);
 		expect(uploads[0].status).toBe("completed");
 
-		const mediaRes = await adminApp.request(`/api/admin/resources/${resource.id}/media`);
+		const mediaRes = await adminApp.request(
+			`/api/admin/resources/${resource.id}/media`,
+		);
 		expect(mediaRes.status).toBe(200);
 		const media = await mediaRes.json();
 		expect(media.length).toBe(1);
@@ -99,7 +118,12 @@ describe("Rutas uploads — tus resumable", () => {
 	});
 
 	test("DELETE cancela una subida incompleta", async () => {
-		const app = createUploadApp({ id: "upload-curator", role: "curator", email: "curator@example.com", name: "Curator" });
+		const app = createUploadApp({
+			id: "upload-curator",
+			role: "curator",
+			email: "curator@example.com",
+			name: "Curator",
+		});
 		const db = getDb().db;
 
 		await repo.ensureUser(db, {
@@ -145,7 +169,12 @@ describe("Rutas uploads — tus resumable", () => {
 	});
 
 	test("editor puede crear un upload para recursos creados manualmente por el mismo", async () => {
-		const app = createUploadApp({ id: "upload-editor", role: "editor", email: "editor@example.com", name: "Editor" });
+		const app = createUploadApp({
+			id: "upload-editor",
+			role: "editor",
+			email: "editor@example.com",
+			name: "Editor",
+		});
 		const db = getDb().db;
 
 		await repo.ensureUser(db, {

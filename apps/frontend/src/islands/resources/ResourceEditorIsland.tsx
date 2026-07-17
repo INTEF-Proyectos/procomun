@@ -1,10 +1,14 @@
-import { Fragment, useEffect, useRef, useState, type FormEvent } from "react";
+import { type FormEvent, Fragment, useEffect, useRef, useState } from "react";
 import type { Resource, UpdateResourceInput } from "../../lib/api-client.ts";
 import { getApiClient } from "../../lib/get-api-client.ts";
 import { url } from "../../lib/paths.ts";
+import { hasMinRole, ROLE_LEVELS } from "../../lib/shared-utils.ts";
 import { AccessibleFeedback } from "../shared/AccessibleFeedback.tsx";
-import { ROLE_LEVELS, hasMinRole } from "../../lib/shared-utils.ts";
-import { LANGUAGE_OPTIONS, LICENSE_OPTIONS, RESOURCE_TYPE_OPTIONS } from "./resource-form-options.ts";
+import {
+	getResourceTypeOptions,
+	LANGUAGE_OPTIONS,
+	LICENSE_OPTIONS,
+} from "./resource-form-options.ts";
 
 interface ResourceFormState {
 	title: string;
@@ -37,7 +41,10 @@ const TRANSITION_RULES: Record<string, { to: string; minRole: string }[]> = {
 		{ to: "review", minRole: "author" },
 		{ to: "published", minRole: "editor" },
 	],
-	review: [{ to: "draft", minRole: "curator" }, { to: "published", minRole: "curator" }],
+	review: [
+		{ to: "draft", minRole: "curator" },
+		{ to: "published", minRole: "curator" },
+	],
 	published: [{ to: "archived", minRole: "curator" }],
 	archived: [{ to: "draft", minRole: "curator" }],
 };
@@ -89,7 +96,10 @@ function toPayload(form: ResourceFormState): UpdateResourceInput {
 export function ResourceEditorIsland() {
 	const uploadPanelRef = useRef<HTMLElement | null>(null);
 	const uploaderInstanceRef = useRef<{ destroy(): void } | null>(null);
-	const resourceId = typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("id") : null;
+	const resourceId =
+		typeof window !== "undefined"
+			? new URLSearchParams(window.location.search).get("id")
+			: null;
 
 	const [form, setForm] = useState<ResourceFormState>(EMPTY_FORM);
 	const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
@@ -150,7 +160,9 @@ export function ResourceEditorIsland() {
 		void (async () => {
 			try {
 				const api = await getApiClient();
-				const { initResourceUploader } = await import("../../lib/resource-uploader.ts");
+				const { initResourceUploader } = await import(
+					"../../lib/resource-uploader.ts"
+				);
 				if (cancelled || !uploadPanelRef.current) return;
 				uploaderInstanceRef.current?.destroy();
 				uploaderInstanceRef.current = await initResourceUploader({
@@ -161,7 +173,9 @@ export function ResourceEditorIsland() {
 				setUploadError("");
 			} catch {
 				if (!cancelled) {
-					setUploadError("No se pudo inicializar el panel de archivos. Recarga la página para reintentar.");
+					setUploadError(
+						"No se pudo inicializar el panel de archivos. Recarga la página para reintentar.",
+					);
 				}
 			}
 		})();
@@ -179,7 +193,11 @@ export function ResourceEditorIsland() {
 	}
 
 	function applyFieldErrors(details: { field: string; message: string }[]) {
-		setFieldErrors(Object.fromEntries(details.map((detail) => [detail.field, detail.message])));
+		setFieldErrors(
+			Object.fromEntries(
+				details.map((detail) => [detail.field, detail.message]),
+			),
+		);
 	}
 
 	async function handleSubmit(event?: FormEvent<HTMLFormElement>) {
@@ -216,10 +234,19 @@ export function ResourceEditorIsland() {
 			const api = await getApiClient();
 			await api.updateResourceStatus(resourceId, targetStatus);
 			setCurrentStatus(targetStatus);
-			setWorkflowSuccess(`Estado cambiado a: ${STEP_LABELS[targetStatus] ?? "Archivado"}`);
+			setWorkflowSuccess(
+				`Estado cambiado a: ${STEP_LABELS[targetStatus] ?? "Archivado"}`,
+			);
 		} catch (error) {
-			const known = error as { error?: string; details?: { message: string }[] };
-			setWorkflowError(known?.details?.[0]?.message ?? known?.error ?? "Error al cambiar el estado");
+			const known = error as {
+				error?: string;
+				details?: { message: string }[];
+			};
+			setWorkflowError(
+				known?.details?.[0]?.message ??
+					known?.error ??
+					"Error al cambiar el estado",
+			);
 		} finally {
 			setBusyTransition(null);
 		}
@@ -228,7 +255,13 @@ export function ResourceEditorIsland() {
 	if (showAuthCheck) {
 		return (
 			<div id="auth-check">
-				<p>Necesitas <a id="login-link" href={url("login")}>iniciar sesión</a> como autor o superior para editar recursos.</p>
+				<p>
+					Necesitas{" "}
+					<a id="login-link" href={url("login")}>
+						iniciar sesión
+					</a>{" "}
+					como autor o superior para editar recursos.
+				</p>
 			</div>
 		);
 	}
@@ -237,7 +270,9 @@ export function ResourceEditorIsland() {
 		return (
 			<div id="not-found">
 				<p>Recurso no encontrado.</p>
-				<a id="dashboard-link" href={url("perfil")}>Volver al panel</a>
+				<a id="dashboard-link" href={url("perfil")}>
+					Volver al panel
+				</a>
 			</div>
 		);
 	}
@@ -247,79 +282,113 @@ export function ResourceEditorIsland() {
 	}
 
 	const resourceMetaParts = [];
-	if (resource?.createdByName) resourceMetaParts.push(`Creado por: ${resource.createdByName}`);
+	if (resource?.createdByName)
+		resourceMetaParts.push(`Creado por: ${resource.createdByName}`);
 	if (resource?.createdAt) {
-		const date = new Date(typeof resource.createdAt === "number" ? resource.createdAt * 1000 : resource.createdAt);
+		const date = new Date(
+			typeof resource.createdAt === "number"
+				? resource.createdAt * 1000
+				: resource.createdAt,
+		);
 		resourceMetaParts.push(`Fecha: ${date.toLocaleDateString("es-ES")}`);
 	}
 
-	const allowedTransitions = (TRANSITION_RULES[currentStatus] ?? []).filter((rule) => {
-		const userLevel = ROLE_LEVELS[userRole] ?? 0;
-		return userLevel >= (ROLE_LEVELS[rule.minRole] ?? 99);
-	});
+	const allowedTransitions = (TRANSITION_RULES[currentStatus] ?? []).filter(
+		(rule) => {
+			const userLevel = ROLE_LEVELS[userRole] ?? 0;
+			return userLevel >= (ROLE_LEVELS[rule.minRole] ?? 99);
+		},
+	);
+	const resourceTypeOptions = getResourceTypeOptions(form.resourceType);
 
 	return (
 		<>
-			{resourceMetaParts.length > 0
-				? (
-					<div id="resource-meta" className="resource-meta">
-						{resourceMetaParts.map((part, index) => (
-							<span key={part}>
-								{index > 0 ? <span className="meta-sep">|</span> : null}
-								{" "}
-								{part}
-							</span>
-						))}
-					</div>
-				)
-				: null}
+			{resourceMetaParts.length > 0 ? (
+				<div id="resource-meta" className="resource-meta">
+					{resourceMetaParts.map((part, index) => (
+						<span key={part}>
+							{index > 0 ? <span className="meta-sep">|</span> : null} {part}
+						</span>
+					))}
+				</div>
+			) : null}
 
-			<section id="editorial-workflow" className="workflow-section" aria-label="Estado editorial del recurso">
-				<div className="stepper" role="group" aria-label="Progreso editorial">
+			<section
+				id="editorial-workflow"
+				className="workflow-section"
+				aria-label="Estado editorial del recurso"
+			>
+				<fieldset className="stepper" aria-label="Progreso editorial">
 					{STEPS.map((step, index) => {
 						const stepIndex = STEPS.indexOf(step);
-						const currentIndex = STEPS.indexOf(currentStatus as typeof STEPS[number]);
+						const currentIndex = STEPS.indexOf(
+							currentStatus as (typeof STEPS)[number],
+						);
 						const isArchived = currentStatus === "archived";
 						const stepClasses = [
 							"step",
 							isArchived ? "step--archived" : "",
 							!isArchived && stepIndex === currentIndex ? "step--active" : "",
 							!isArchived && stepIndex < currentIndex ? "step--completed" : "",
-						].filter(Boolean).join(" ");
+						]
+							.filter(Boolean)
+							.join(" ");
 
-							return (
-								<Fragment key={step}>
-									<div className={stepClasses} data-status={step} aria-current={!isArchived && stepIndex === currentIndex ? "step" : undefined}>
-										<span className="step-dot" aria-hidden="true"></span>
-										<span className="step-label">{STEP_LABELS[step]}</span>
-									</div>
-								{index < STEPS.length - 1
-									? (
-										<div
-											key={`${step}-line`}
-											className={[
-												"step-line",
-												currentStatus === "archived" ? "step-line--archived" : "",
-												currentIndex > index ? "step-line--completed" : "",
-												currentIndex > index && index === 0 ? "step-line--completed-draft" : "",
-												currentIndex > index && index === 1 ? "step-line--completed-review" : "",
-											].filter(Boolean).join(" ")}
-											aria-hidden="true"
-											></div>
-										)
-										: null}
-								</Fragment>
-							);
-						})}
-				</div>
-				<div id="archived-badge" className="archived-badge" style={{ display: currentStatus === "archived" ? "block" : "none" }} role="status">
+						return (
+							<Fragment key={step}>
+								<div
+									className={stepClasses}
+									data-status={step}
+									aria-current={
+										!isArchived && stepIndex === currentIndex
+											? "step"
+											: undefined
+									}
+								>
+									<span className="step-dot" aria-hidden="true"></span>
+									<span className="step-label">{STEP_LABELS[step]}</span>
+								</div>
+								{index < STEPS.length - 1 ? (
+									<div
+										key={`${step}-line`}
+										className={[
+											"step-line",
+											currentStatus === "archived" ? "step-line--archived" : "",
+											currentIndex > index ? "step-line--completed" : "",
+											currentIndex > index && index === 0
+												? "step-line--completed-draft"
+												: "",
+											currentIndex > index && index === 1
+												? "step-line--completed-review"
+												: "",
+										]
+											.filter(Boolean)
+											.join(" ")}
+										aria-hidden="true"
+									></div>
+								) : null}
+							</Fragment>
+						);
+					})}
+				</fieldset>
+				<div
+					id="archived-badge"
+					className="archived-badge"
+					style={{ display: currentStatus === "archived" ? "block" : "none" }}
+					role="status"
+				>
 					Archivado
 				</div>
 				<p className="sr-only" id="status-announcement" aria-live="polite">
 					{`Estado actual: ${STEP_LABELS[currentStatus] ?? "Archivado"}`}
 				</p>
 				<div id="workflow-actions" className="workflow-actions">
-					<button type="button" className="wf-btn btn-outline" onClick={() => void handleSubmit()} disabled={busy}>
+					<button
+						type="button"
+						className="wf-btn btn-outline"
+						onClick={() => void handleSubmit()}
+						disabled={busy}
+					>
 						&#9998; Guardar cambios
 					</button>
 					{allowedTransitions.map((rule) => {
@@ -332,16 +401,27 @@ export function ResourceEditorIsland() {
 								onClick={() => void handleTransition(rule.to)}
 								disabled={busyTransition !== null}
 							>
-								{busyTransition === rule.to ? "Actualizando..." : (TRANSITION_LABELS[key] ?? rule.to)}
+								{busyTransition === rule.to
+									? "Actualizando..."
+									: (TRANSITION_LABELS[key] ?? rule.to)}
 							</button>
 						);
 					})}
 				</div>
-				<AccessibleFeedback message={workflowError} variant="error" polite={false} />
+				<AccessibleFeedback
+					message={workflowError}
+					variant="error"
+					polite={false}
+				/>
 				<AccessibleFeedback message={workflowSuccess} variant="success" />
 			</section>
 
-			<section id="upload-panel" className="upload-panel" ref={uploadPanelRef} aria-labelledby="upload-title">
+			<section
+				id="upload-panel"
+				className="upload-panel"
+				ref={uploadPanelRef}
+				aria-labelledby="upload-title"
+			>
 				<div className="upload-header">
 					<div>
 						<p className="eyebrow">Archivos</p>
@@ -352,11 +432,20 @@ export function ResourceEditorIsland() {
 						<input data-upload-input type="file" multiple />
 					</label>
 				</div>
-				<div data-upload-dropzone className="upload-dropzone" tabIndex={0}>
-					Arrastra archivos aquí o usa el selector. Se permiten lotes de varios archivos y la subida continuará si la conexión se corta.
+				<div data-upload-dropzone className="upload-dropzone">
+					Arrastra archivos aquí o usa el selector. Se permiten lotes de varios
+					archivos y la subida continuará si la conexión se corta.
 				</div>
-				<AccessibleFeedback message={uploadError} variant="error" polite={false} />
-				<div data-upload-feedback className="upload-feedback" aria-live="polite"></div>
+				<AccessibleFeedback
+					message={uploadError}
+					variant="error"
+					polite={false}
+				/>
+				<div
+					data-upload-feedback
+					className="upload-feedback"
+					aria-live="polite"
+				></div>
 				<div className="upload-progress-summary">
 					<progress data-global-progress max="100" value="0"></progress>
 					<span data-global-progress-label>Sin subidas activas</span>
@@ -364,23 +453,37 @@ export function ResourceEditorIsland() {
 				<div className="upload-columns">
 					<section>
 						<h3>Cola local</h3>
-						<ul data-upload-queue className="upload-list"><li>No hay archivos en cola.</li></ul>
+						<ul data-upload-queue className="upload-list">
+							<li>No hay archivos en cola.</li>
+						</ul>
 					</section>
 					<section>
 						<h3>Uploads recientes</h3>
-						<ul data-persisted-uploads className="upload-list"><li>No hay uploads recientes.</li></ul>
+						<ul data-persisted-uploads className="upload-list">
+							<li>No hay uploads recientes.</li>
+						</ul>
 					</section>
 				</div>
 				<section>
 					<h3>Archivos adjuntos</h3>
-					<ul data-media-list className="upload-list"><li>No hay archivos adjuntos todavía.</li></ul>
+					<ul data-media-list className="upload-list">
+						<li>No hay archivos adjuntos todavía.</li>
+					</ul>
 				</section>
 			</section>
 
-			<AccessibleFeedback message={errorMessage} variant="error" polite={false} />
+			<AccessibleFeedback
+				message={errorMessage}
+				variant="error"
+				polite={false}
+			/>
 			<AccessibleFeedback message={successMessage} variant="success" />
 
-			<form id="resource-form" onSubmit={(event) => void handleSubmit(event)} noValidate>
+			<form
+				id="resource-form"
+				onSubmit={(event) => void handleSubmit(event)}
+				noValidate
+			>
 				<div className="field">
 					<label htmlFor="title">Título *</label>
 					<input
@@ -390,9 +493,13 @@ export function ResourceEditorIsland() {
 						aria-describedby="title-error"
 						aria-invalid={fieldErrors.title ? "true" : undefined}
 						value={form.title}
-						onChange={(event) => setFieldValue("title", event.currentTarget.value)}
+						onChange={(event) =>
+							setFieldValue("title", event.currentTarget.value)
+						}
 					/>
-					<span id="title-error" className="field-error" role="alert">{fieldErrors.title ?? ""}</span>
+					<span id="title-error" className="field-error" role="alert">
+						{fieldErrors.title ?? ""}
+					</span>
 				</div>
 
 				<div className="field">
@@ -404,9 +511,13 @@ export function ResourceEditorIsland() {
 						aria-describedby="description-error"
 						aria-invalid={fieldErrors.description ? "true" : undefined}
 						value={form.description}
-						onChange={(event) => setFieldValue("description", event.currentTarget.value)}
+						onChange={(event) =>
+							setFieldValue("description", event.currentTarget.value)
+						}
 					/>
-					<span id="description-error" className="field-error" role="alert">{fieldErrors.description ?? ""}</span>
+					<span id="description-error" className="field-error" role="alert">
+						{fieldErrors.description ?? ""}
+					</span>
 				</div>
 
 				<div className="row">
@@ -418,13 +529,19 @@ export function ResourceEditorIsland() {
 							aria-describedby="language-error"
 							aria-invalid={fieldErrors.language ? "true" : undefined}
 							value={form.language}
-							onChange={(event) => setFieldValue("language", event.currentTarget.value)}
+							onChange={(event) =>
+								setFieldValue("language", event.currentTarget.value)
+							}
 						>
 							{LANGUAGE_OPTIONS.map((option) => (
-								<option key={option.value} value={option.value}>{option.label}</option>
+								<option key={option.value} value={option.value}>
+									{option.label}
+								</option>
 							))}
 						</select>
-						<span id="language-error" className="field-error" role="alert">{fieldErrors.language ?? ""}</span>
+						<span id="language-error" className="field-error" role="alert">
+							{fieldErrors.language ?? ""}
+						</span>
 					</div>
 
 					<div className="field">
@@ -435,13 +552,19 @@ export function ResourceEditorIsland() {
 							aria-describedby="license-error"
 							aria-invalid={fieldErrors.license ? "true" : undefined}
 							value={form.license}
-							onChange={(event) => setFieldValue("license", event.currentTarget.value)}
+							onChange={(event) =>
+								setFieldValue("license", event.currentTarget.value)
+							}
 						>
 							{LICENSE_OPTIONS.map((option) => (
-								<option key={option.value} value={option.value}>{option.label}</option>
+								<option key={option.value} value={option.value}>
+									{option.label}
+								</option>
 							))}
 						</select>
-						<span id="license-error" className="field-error" role="alert">{fieldErrors.license ?? ""}</span>
+						<span id="license-error" className="field-error" role="alert">
+							{fieldErrors.license ?? ""}
+						</span>
 					</div>
 				</div>
 
@@ -453,13 +576,19 @@ export function ResourceEditorIsland() {
 						aria-describedby="resourceType-error"
 						aria-invalid={fieldErrors.resourceType ? "true" : undefined}
 						value={form.resourceType}
-						onChange={(event) => setFieldValue("resourceType", event.currentTarget.value)}
+						onChange={(event) =>
+							setFieldValue("resourceType", event.currentTarget.value)
+						}
 					>
-						{RESOURCE_TYPE_OPTIONS.map((option) => (
-							<option key={option.value} value={option.value}>{option.label}</option>
+						{resourceTypeOptions.map((option) => (
+							<option key={option.value} value={option.value}>
+								{option.label}
+							</option>
 						))}
 					</select>
-					<span id="resourceType-error" className="field-error" role="alert">{fieldErrors.resourceType ?? ""}</span>
+					<span id="resourceType-error" className="field-error" role="alert">
+						{fieldErrors.resourceType ?? ""}
+					</span>
 				</div>
 
 				<div className="field">
@@ -470,9 +599,13 @@ export function ResourceEditorIsland() {
 						aria-describedby="author-error"
 						aria-invalid={fieldErrors.author ? "true" : undefined}
 						value={form.author}
-						onChange={(event) => setFieldValue("author", event.currentTarget.value)}
+						onChange={(event) =>
+							setFieldValue("author", event.currentTarget.value)
+						}
 					/>
-					<span id="author-error" className="field-error" role="alert">{fieldErrors.author ?? ""}</span>
+					<span id="author-error" className="field-error" role="alert">
+						{fieldErrors.author ?? ""}
+					</span>
 				</div>
 
 				<div className="field">
@@ -484,12 +617,23 @@ export function ResourceEditorIsland() {
 						aria-describedby="keywords-error"
 						aria-invalid={fieldErrors.keywords ? "true" : undefined}
 						value={form.keywords}
-						onChange={(event) => setFieldValue("keywords", event.currentTarget.value)}
+						onChange={(event) =>
+							setFieldValue("keywords", event.currentTarget.value)
+						}
 					/>
-					<span id="keywords-error" className="field-error" role="alert">{fieldErrors.keywords ?? ""}</span>
+					<span id="keywords-error" className="field-error" role="alert">
+						{fieldErrors.keywords ?? ""}
+					</span>
 				</div>
 
-				<button type="submit" id="submit-btn" style={{ display: "none" }} disabled={busy}>Guardar cambios</button>
+				<button
+					type="submit"
+					id="submit-btn"
+					style={{ display: "none" }}
+					disabled={busy}
+				>
+					Guardar cambios
+				</button>
 			</form>
 		</>
 	);

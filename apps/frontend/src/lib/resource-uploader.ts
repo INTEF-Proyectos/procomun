@@ -1,9 +1,20 @@
 import Uppy from "@uppy/core";
 import Tus from "@uppy/tus";
-import type { ApiClient, MediaItemRecord, UploadSessionRecord } from "./api-client.ts";
+import type {
+	ApiClient,
+	MediaItemRecord,
+	UploadSessionRecord,
+} from "./api-client.ts";
 import { escapeHtml, formatBytes } from "./resource-display.ts";
 
 export { escapeHtml, formatBytes };
+
+type UploaderController = {
+	destroy(): void;
+};
+
+const activeUploaders = new WeakMap<HTMLElement, UploaderController>();
+const uploaderInitializations = new WeakMap<HTMLElement, object>();
 
 export function extractUploadId(uploadUrl?: string | null) {
 	if (!uploadUrl) return null;
@@ -62,26 +73,60 @@ export async function initResourceUploader(args: {
 	onUploadComplete?: (successCount: number) => Promise<void>;
 }) {
 	const { resourceId, root, api } = args;
+	const initToken = {};
+	uploaderInitializations.set(root, initToken);
+
 	const config = await api.getUploadConfig();
+	if (uploaderInitializations.get(root) !== initToken) return null;
+
+	// A route/search-param transition can initialize the same panel again without
+	// unmounting it. Tear down the previous instance before adding new listeners.
+	activeUploaders.get(root)?.destroy();
+
 	const picker = root.querySelector<HTMLInputElement>("[data-upload-input]");
 	const dropzone = root.querySelector<HTMLElement>("[data-upload-dropzone]");
 	const queue = root.querySelector<HTMLElement>("[data-upload-queue]");
 	const mediaList = root.querySelector<HTMLElement>("[data-media-list]");
-	const persistedList = root.querySelector<HTMLElement>("[data-persisted-uploads]");
-	const globalProgress = root.querySelector<HTMLProgressElement>("[data-global-progress]");
-	const globalLabel = root.querySelector<HTMLElement>("[data-global-progress-label]");
+	const persistedList = root.querySelector<HTMLElement>(
+		"[data-persisted-uploads]",
+	);
+	const globalProgress = root.querySelector<HTMLProgressElement>(
+		"[data-global-progress]",
+	);
+	const globalLabel = root.querySelector<HTMLElement>(
+		"[data-global-progress-label]",
+	);
 	const feedback = root.querySelector<HTMLElement>("[data-upload-feedback]");
 
-	if (!picker || !dropzone || !queue || !mediaList || !persistedList || !globalProgress || !globalLabel || !feedback) {
+	if (
+		!picker ||
+		!dropzone ||
+		!queue ||
+		!mediaList ||
+		!persistedList ||
+		!globalProgress ||
+		!globalLabel ||
+		!feedback
+	) {
+		if (uploaderInitializations.get(root) === initToken) {
+			uploaderInitializations.delete(root);
+		}
 		return null;
 	}
 
+	const abortController = new AbortController();
+	const listenerOptions: AddEventListenerOptions = {
+		signal: abortController.signal,
+	};
 	const uppy = new Uppy({
 		autoProceed: true,
 		restrictions: {
 			maxFileSize: config.maxFileSizeBytes,
 			maxNumberOfFiles: config.maxFilesPerBatch,
-			allowedFileTypes: [...config.allowedExtensions, ...config.allowedMimeTypes],
+			allowedFileTypes: [
+				...config.allowedExtensions,
+				...config.allowedMimeTypes,
+			],
 		},
 	});
 
@@ -100,25 +145,21 @@ export async function initResourceUploader(args: {
 		]);
 
 		persistedList.innerHTML = uploads.length
-			? uploads
-				.map((upload) => renderPersistedUploadItem(upload))
-				.join("")
+			? uploads.map((upload) => renderPersistedUploadItem(upload)).join("")
 			: "<li>No hay uploads recientes.</li>";
 
-		const displayItems = mediaItems.filter((item) => item.filename !== "recurso-generado.elpx");
+		const displayItems = mediaItems.filter(
+			(item) => item.filename !== "recurso-generado.elpx",
+		);
 		mediaList.innerHTML = displayItems.length
-			? displayItems
-				.map((item) => renderMediaItem(item))
-				.join("")
+			? displayItems.map((item) => renderMediaItem(item)).join("")
 			: "<li>No hay archivos adjuntos todavía.</li>";
 	}
 
 	function renderLocalQueue() {
 		const files = uppy.getFiles();
 		queue.innerHTML = files.length
-			? files
-				.map((file) => renderQueueItem(file))
-				.join("")
+			? files.map((file) => renderQueueItem(file)).join("")
 			: "<li>No hay archivos en cola.</li>";
 
 		const totalBytes = files.reduce((sum, file) => sum + (file.size ?? 0), 0);
@@ -126,11 +167,13 @@ export async function initResourceUploader(args: {
 			const percentage = (file.progress?.percentage ?? 0) / 100;
 			return sum + Math.round((file.size ?? 0) * percentage);
 		}, 0);
-		const globalPercentage = totalBytes > 0 ? Math.round((uploadedBytes / totalBytes) * 100) : 0;
+		const globalPercentage =
+			totalBytes > 0 ? Math.round((uploadedBytes / totalBytes) * 100) : 0;
 		globalProgress.value = globalPercentage;
-		globalLabel.textContent = totalBytes > 0
-			? `${globalPercentage}% subido (${formatBytes(uploadedBytes)} / ${formatBytes(totalBytes)})`
-			: "Sin subidas activas";
+		globalLabel.textContent =
+			totalBytes > 0
+				? `${globalPercentage}% subido (${formatBytes(uploadedBytes)} / ${formatBytes(totalBytes)})`
+				: "Sin subidas activas";
 	}
 
 	async function addFiles(files: FileList | File[]) {
@@ -159,68 +202,100 @@ export async function initResourceUploader(args: {
 					},
 				});
 			} catch (error) {
-				feedback.textContent = error instanceof Error ? error.message : "No se pudo añadir el archivo";
+				feedback.textContent =
+					error instanceof Error
+						? error.message
+						: "No se pudo añadir el archivo";
 				feedback.className = "upload-feedback error";
 			}
 		}
 		renderLocalQueue();
 	}
 
-	picker.addEventListener("change", async () => {
-		if (picker.files?.length) {
-			await addFiles(picker.files);
-			picker.value = "";
-		}
-	});
+	picker.addEventListener(
+		"change",
+		async () => {
+			if (picker.files?.length) {
+				await addFiles(picker.files);
+				picker.value = "";
+			}
+		},
+		listenerOptions,
+	);
 
-	dropzone.addEventListener("dragover", (event) => {
-		event.preventDefault();
-		dropzone.classList.add("is-dragover");
-	});
-	dropzone.addEventListener("dragleave", () => dropzone.classList.remove("is-dragover"));
-	dropzone.addEventListener("drop", async (event) => {
-		event.preventDefault();
-		dropzone.classList.remove("is-dragover");
-		if (event.dataTransfer?.files?.length) {
-			await addFiles(event.dataTransfer.files);
-		}
-	});
+	dropzone.addEventListener(
+		"dragover",
+		(event) => {
+			event.preventDefault();
+			dropzone.classList.add("is-dragover");
+		},
+		listenerOptions,
+	);
+	dropzone.addEventListener(
+		"dragleave",
+		() => dropzone.classList.remove("is-dragover"),
+		listenerOptions,
+	);
+	dropzone.addEventListener(
+		"drop",
+		async (event) => {
+			event.preventDefault();
+			dropzone.classList.remove("is-dragover");
+			if (event.dataTransfer?.files?.length) {
+				await addFiles(event.dataTransfer.files);
+			}
+		},
+		listenerOptions,
+	);
 
-	queue.addEventListener("click", async (event) => {
-		const target = event.target as HTMLElement | null;
-		const fileId = target?.getAttribute("data-remove-local");
-		if (!fileId) return;
-		const uploadId = target.getAttribute("data-upload-id");
-		uppy.removeFile(fileId);
-		if (uploadId) {
-			await api.cancelUpload(uploadId).catch(() => {});
+	queue.addEventListener(
+		"click",
+		async (event) => {
+			const target = event.target as HTMLElement | null;
+			const fileId = target?.getAttribute("data-remove-local");
+			if (!fileId) return;
+			const uploadId = target.getAttribute("data-upload-id");
+			uppy.removeFile(fileId);
+			if (uploadId) {
+				await api.cancelUpload(uploadId).catch(() => {});
+				await refreshPersisted();
+			}
+			renderLocalQueue();
+		},
+		listenerOptions,
+	);
+
+	persistedList.addEventListener(
+		"click",
+		async (event) => {
+			const target = event.target as HTMLElement | null;
+			const uploadId = target?.getAttribute("data-cancel-upload");
+			if (!uploadId) return;
+			await api.cancelUpload(uploadId);
 			await refreshPersisted();
-		}
-		renderLocalQueue();
-	});
+		},
+		listenerOptions,
+	);
 
-	persistedList.addEventListener("click", async (event) => {
-		const target = event.target as HTMLElement | null;
-		const uploadId = target?.getAttribute("data-cancel-upload");
-		if (!uploadId) return;
-		await api.cancelUpload(uploadId);
-		await refreshPersisted();
-	});
-
-	mediaList.addEventListener("click", async (event) => {
-		const target = event.target as HTMLElement | null;
-		const mediaItemId = target?.getAttribute("data-delete-media");
-		if (!mediaItemId) return;
-		if (!window.confirm("¿Eliminar este archivo del recurso?")) return;
-		try {
-			await api.deleteMediaItem(resourceId, mediaItemId);
-			await refreshPersisted();
-			if (args.onUploadComplete) await args.onUploadComplete(0);
-		} catch (err) {
-			feedback.textContent = err instanceof Error ? err.message : "Error al eliminar el archivo";
-			feedback.className = "upload-feedback error";
-		}
-	});
+	mediaList.addEventListener(
+		"click",
+		async (event) => {
+			const target = event.target as HTMLElement | null;
+			const mediaItemId = target?.getAttribute("data-delete-media");
+			if (!mediaItemId) return;
+			if (!window.confirm("¿Eliminar este archivo del recurso?")) return;
+			try {
+				await api.deleteMediaItem(resourceId, mediaItemId);
+				await refreshPersisted();
+				if (args.onUploadComplete) await args.onUploadComplete(0);
+			} catch (err) {
+				feedback.textContent =
+					err instanceof Error ? err.message : "Error al eliminar el archivo";
+				feedback.className = "upload-feedback error";
+			}
+		},
+		listenerOptions,
+	);
 
 	uppy.on("file-added", renderLocalQueue);
 	uppy.on("upload-progress", renderLocalQueue);
@@ -243,19 +318,43 @@ export async function initResourceUploader(args: {
 		}
 	});
 
-	window.addEventListener("beforeunload", (event) => {
-		const hasActiveUploads = uppy.getFiles().some((file) => (file.progress?.uploadComplete ?? false) === false);
+	function handleBeforeUnload(event: BeforeUnloadEvent) {
+		const hasActiveUploads = uppy
+			.getFiles()
+			.some((file) => (file.progress?.uploadComplete ?? false) === false);
 		if (!hasActiveUploads) return;
 		event.preventDefault();
 		event.returnValue = "";
-	});
+	}
 
-	await refreshPersisted();
-	renderLocalQueue();
+	window.addEventListener("beforeunload", handleBeforeUnload, listenerOptions);
 
-	return {
+	let destroyed = false;
+	const controller: UploaderController = {
 		destroy() {
-			uppy.destroy();
+			if (destroyed) return;
+			destroyed = true;
+			abortController.abort();
+			try {
+				uppy.destroy();
+			} finally {
+				if (activeUploaders.get(root) === controller) {
+					activeUploaders.delete(root);
+				}
+				if (uploaderInitializations.get(root) === initToken) {
+					uploaderInitializations.delete(root);
+				}
+			}
 		},
 	};
+	activeUploaders.set(root, controller);
+
+	try {
+		await refreshPersisted();
+		renderLocalQueue();
+		return controller;
+	} catch (error) {
+		controller.destroy();
+		throw error;
+	}
 }

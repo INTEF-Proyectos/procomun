@@ -1,4 +1,4 @@
-import { expect, test, describe } from "bun:test";
+import { describe, expect, test } from "bun:test";
 import { Hono } from "hono";
 import type { AuthEnv } from "../auth/middleware.ts";
 import { apiTokenRoutes } from "./api-tokens.ts";
@@ -13,7 +13,12 @@ function createTokenApp(mockUser: Record<string, unknown> | null = null) {
 	// Mock session middleware + requireAuth
 	app.use("*", async (c, next) => {
 		c.set("user", mockUser as AuthEnv["Variables"]["user"]);
-		c.set("session", mockUser ? ({ id: "test-session" } as AuthEnv["Variables"]["session"]) : null);
+		c.set(
+			"session",
+			mockUser
+				? ({ id: "test-session" } as AuthEnv["Variables"]["session"])
+				: null,
+		);
 		await next();
 	});
 
@@ -40,7 +45,12 @@ describe("Token management — sin sesión", () => {
 });
 
 describe("Token management — con sesión", () => {
-	const app = createTokenApp({ id: "user-1", role: "author", email: "test@example.com", name: "Test" });
+	const app = createTokenApp({
+		id: "user-1",
+		role: "author",
+		email: "test@example.com",
+		name: "Test",
+	});
 
 	test("POST /api/v1/tokens → 201 crea token", async () => {
 		const res = await app.request("/api/v1/tokens", {

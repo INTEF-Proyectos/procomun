@@ -1,7 +1,11 @@
 import * as repo from "@procomun/db/repository";
 import type { Context } from "hono";
 import type { AuthEnv } from "../../auth/middleware.ts";
-import { canManageCollection, canManageResource, getCurrentUser } from "../../auth/roles.ts";
+import {
+	canManageCollection,
+	canManageResource,
+	getCurrentUser,
+} from "../../auth/roles.ts";
 import { getDb } from "../../db.ts";
 
 type GuardFailure = { response: Response };
@@ -14,7 +18,9 @@ export async function parseJsonBodyOrNull<T>(c: Context<AuthEnv>) {
 export async function requireManageableResource(
 	c: Context<AuthEnv>,
 	resourceId: string,
-): Promise<GuardFailure | GuardSuccess<Awaited<ReturnType<typeof repo.getResourceById>>>> {
+): Promise<
+	GuardFailure | GuardSuccess<Awaited<ReturnType<typeof repo.getResourceById>>>
+> {
 	const user = getCurrentUser(c);
 	const resource = await repo.getResourceById(getDb().db, resourceId);
 	if (!resource) {
@@ -29,7 +35,10 @@ export async function requireManageableResource(
 export async function requireManageableCollection(
 	c: Context<AuthEnv>,
 	collectionId: string,
-): Promise<GuardFailure | GuardSuccess<Awaited<ReturnType<typeof repo.getCollectionById>>>> {
+): Promise<
+	| GuardFailure
+	| GuardSuccess<Awaited<ReturnType<typeof repo.getCollectionById>>>
+> {
 	const user = getCurrentUser(c);
 	const collection = await repo.getCollectionById(getDb().db, collectionId);
 	if (!collection) {

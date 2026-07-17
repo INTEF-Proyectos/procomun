@@ -1,9 +1,9 @@
 import { describe, expect, test } from "bun:test";
 import * as repo from "@procomun/db/repository";
 import { getDb } from "../db.ts";
+import { getUserDashboardSummary } from "./dashboard-service.ts";
 import { toggleResourceFavorite } from "./favorites-service.ts";
 import { upsertResourceRating } from "./ratings-service.ts";
-import { getUserDashboardSummary } from "./dashboard-service.ts";
 
 describe("dashboard-service", () => {
 	test("returns user counts and enriched recent resources", async () => {
@@ -31,7 +31,12 @@ describe("dashboard-service", () => {
 			resourceType: "documento",
 			createdBy: userId,
 		});
-		await repo.updateEditorialStatus(getDb().db, published.id, "published", userId);
+		await repo.updateEditorialStatus(
+			getDb().db,
+			published.id,
+			"published",
+			userId,
+		);
 		await toggleResourceFavorite({ resourceId: published.id, userId });
 		await upsertResourceRating({ resourceId: published.id, userId, score: 4 });
 
@@ -40,8 +45,15 @@ describe("dashboard-service", () => {
 		expect(summary.publishedCount).toBeGreaterThanOrEqual(1);
 		expect(summary.favoriteCount).toBe(1);
 		expect(summary.ratingCount).toBe(1);
-		expect(summary.recentResources.some((resource) => resource.id === draft.id)).toBe(true);
-		expect(summary.recentResources.some((resource) => resource.id === published.id)).toBe(true);
-		expect(summary.recentResources.find((resource) => resource.id === published.id)?.rating.count).toBe(1);
+		expect(
+			summary.recentResources.some((resource) => resource.id === draft.id),
+		).toBe(true);
+		expect(
+			summary.recentResources.some((resource) => resource.id === published.id),
+		).toBe(true);
+		expect(
+			summary.recentResources.find((resource) => resource.id === published.id)
+				?.rating.count,
+		).toBe(1);
 	});
 });

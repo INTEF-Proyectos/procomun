@@ -1,5 +1,5 @@
-import { expect, test, describe } from "bun:test";
-import { ac, reader, author, editor, curator, admin } from "./permissions.ts";
+import { describe, expect, test } from "bun:test";
+import { ac, admin, author, curator, editor, reader } from "./permissions.ts";
 
 describe("Modelo de permisos RBAC", () => {
 	describe("reader", () => {
@@ -100,11 +100,24 @@ describe("Modelo de permisos RBAC", () => {
 		});
 
 		test("puede gestionar usuarios", () => {
-			expect(admin.authorize({ user: ["create", "delete", "ban"] }).success).toBe(true);
+			expect(
+				admin.authorize({ user: ["create", "delete", "ban"] }).success,
+			).toBe(true);
 		});
 
 		test("tiene todos los permisos de recurso", () => {
-			expect(admin.authorize({ resource: ["create", "read", "update", "delete", "curate", "moderate"] }).success).toBe(true);
+			expect(
+				admin.authorize({
+					resource: [
+						"create",
+						"read",
+						"update",
+						"delete",
+						"curate",
+						"moderate",
+					],
+				}).success,
+			).toBe(true);
 		});
 	});
 

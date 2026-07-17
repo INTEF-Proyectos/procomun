@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { Hono } from "hono";
-import type { AuthEnv } from "./middleware.ts";
 import { auditMiddleware } from "./audit.ts";
+import type { AuthEnv } from "./middleware.ts";
 
 describe("auditMiddleware", () => {
 	test("never breaks the response flow", async () => {
