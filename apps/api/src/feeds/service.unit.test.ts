@@ -127,14 +127,16 @@ describe("buildFeed", () => {
 		const maliciousResources = [
 			{
 				...first,
+				// Solo title/description de ítem van en CDATA (donde aplica el bug de xml-js).
 				title: payload,
 				description: payload,
 			},
 		];
 		const feed = buildFeed({
 			...baseOpts,
-			title: payload,
-			description: payload,
+			// title/description de canal van como texto (_text), no CDATA.
+			title: "Canal de prueba",
+			description: "Descripción de prueba",
 			resources: maliciousResources,
 			total: 1,
 		});
@@ -142,12 +144,14 @@ describe("buildFeed", () => {
 		for (const xml of [feed.atom1(), feed.rss2()]) {
 			// No hay ruptura de CDATA: el terminador nunca queda justo antes del marcado.
 			expect(xml.includes("]]><img")).toBe(false);
-			// El payload queda inerte dentro de CDATA; tras eliminar las secciones
-			// CDATA no debe quedar ningún `<img` como marcado vivo.
+			// El payload de ítem queda inerte dentro de CDATA; tras eliminar las
+			// secciones CDATA no debe quedar ningún `<img` como marcado vivo.
 			const withoutCdata = xml.replace(/<!\[CDATA\[[\s\S]*?\]\]>/g, "");
 			expect(withoutCdata.includes("<img")).toBe(false);
-			// El terminador queda neutralizado.
+			// El terminador de los campos CDATA queda neutralizado.
 			expect(xml).toContain("]]&gt;");
+			// XML bien formado (al menos un cierre de feed/rss).
+			expect(xml.includes("</feed>") || xml.includes("</rss>")).toBe(true);
 		}
 	});
 });

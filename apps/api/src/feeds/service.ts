@@ -74,9 +74,12 @@ export function buildFeed(opts: {
 	} = opts;
 
 	const firstResource = resources[0];
+	// title/description del canal van como texto plano (_text), no CDATA: xml-js
+	// ya escapa <>& ahí. Solo los campos de ítem que la librería `feed` envuelve
+	// en CDATA (title, description) necesitan neutralizeCdata.
 	const feed = new Feed({
-		title: neutralizeCdata(title),
-		description: neutralizeCdata(description),
+		title,
+		description,
 		id: feedId,
 		link: siteUrl,
 		language: "es",
@@ -108,8 +111,8 @@ export function buildFeed(opts: {
 
 		if (resource.resourceType) {
 			categories.push({
-				name: neutralizeCdata(resource.resourceType),
-				term: neutralizeCdata(resource.resourceType),
+				name: resource.resourceType,
+				term: resource.resourceType,
 			});
 		}
 		if (resource.keywords) {
@@ -117,11 +120,12 @@ export function buildFeed(opts: {
 				.split(",")
 				.map((k) => k.trim())
 				.filter(Boolean)) {
-				categories.push({ name: neutralizeCdata(kw) });
+				categories.push({ name: kw });
 			}
 		}
 
 		feed.addItem({
+			// CDATA en Atom/RSS: hay que neutralizar TODOS los `]]>` (xml-js solo el 1º).
 			title: neutralizeCdata(resource.title ?? "Sin título"),
 			id: resourceUrl,
 			link: resourceUrl,
@@ -131,9 +135,8 @@ export function buildFeed(opts: {
 				resource.author || resource.createdByName
 					? [
 							{
-								name: neutralizeCdata(
-									resource.author ?? resource.createdByName ?? "Anónimo",
-								),
+								// Autor va como texto plano, no CDATA.
+								name: resource.author ?? resource.createdByName ?? "Anónimo",
 							},
 						]
 					: [{ name: "Anónimo" }],
