@@ -1971,8 +1971,10 @@ tasks:
       confiable desde main, valida cantidad, nombre, tamaño y firma PNG, sustituye los assets de
       la PR en una prerelease y crea o actualiza un único comentario con commit y hora. Las URLs
       y requisitos de autenticación quedan centralizados en e2e/visual-preview-pages.ts.
-      Validación disponible en este entorno: los dos YAML parsean, Biome 2.4.8 acepta los dos
-      ficheros TypeScript nuevos y el diff remoto solo contiene los cuatro ficheros previstos.
-      Queda In Progress porque GitHub no activa un workflow_run nuevo hasta que exista en la rama
+      Validación: los dos YAML parsean, Biome 2.4.8 acepta los dos ficheros TypeScript nuevos,
+      las puertas de lint, tracking, tipos, tests y coverage pasan, los 54 E2E Chromium están en
+      verde y las cinco capturas se generan en 11,1 segundos y se suben como artefacto de 1,50 MB.
+      El diff remoto contiene solo los seis ficheros previstos. Queda In Progress porque GitHub no
+      activa un workflow_run nuevo hasta que exista en la rama
       por defecto; la publicación completa debe verificarse con una PR posterior a la fusión.
 
