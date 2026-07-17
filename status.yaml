@@ -1773,3 +1773,42 @@ tasks:
       Sin cambios de código productivo propios de esta PR documental. Validación: parseo YAML de
       status.yaml y decision-log.yaml; sin claves duplicadas; campos file: de ADR-0029 y ADR-0030
       apuntan a ficheros existentes.
+
+  T-2026-07-17-007:
+    date: 2026-07-17
+    agent: "devops-sre + qa-validacion + documentacion-y-roadmap"
+    task: "Validador de los ficheros de tracking (ADR-0019) y cableado en CI de tres puertas que existían pero no se ejecutaban"
+    status: Done
+    related: ["ADR-0019", "ADR-0022", "T-2026-07-17-003", "T-2026-07-17-004", "T-2026-07-17-005"]
+    notes: >
+      Problema: el esquema map-keyed de ADR-0019 se adoptó para evitar conflictos de merge en
+      trabajo paralelo, pero el contador es secuencial por día, así que dos ramas abiertas a la vez
+      eligen el mismo número sin enterarse. El fallo es peor que un conflicto textual: git no ve
+      nada raro (son dos ramas añadiendo texto al final) y el parser YAML, ante dos claves iguales,
+      se queda con la última sin avisar. Una entrada de historial desaparece en silencio, contra la
+      regla 11. Ocurrió de verdad: T-2026-07-17-002 llegó a estar reclamada por tres tareas
+      distintas (main, #235 y #260) y T-2026-07-17-003 por dos (#236 y #260), y nadie lo detectó
+      hasta auditarlo a mano.
+      Se añade scripts/check-tracking.ts, que valida status.yaml y decision-log.yaml. Detecta las
+      claves duplicadas sobre el TEXTO CRUDO, no sobre el objeto parseado: mirar el objeto no
+      serviría de nada, porque para entonces el parser ya ha descartado la repetida — hay un test
+      que fija justo ese comportamiento para que nadie "simplifique" el script. Errores (salida 1):
+      claves T-* o ADR-* duplicadas, y entradas de decision-log cuyo file: no existe. Avisos (no
+      bloquean): referencias de related: a claves que aún no existen, que entre PRs abiertas en
+      paralelo son legítimas y se resuelven solas al mergear la otra rama.
+      Se cablean además en CI dos puertas que ya existían como script y nunca se ejecutaban:
+      check-test-files (regla 16, paridad archivo-test) y design:lint (ADR-0022, DESIGN.md como
+      contrato). CI llamaba a make check-coverage, no a make test, así que la regla 16 solo se
+      comprobaba en local. Se añaden los targets check-tracking, check-test-files y design-lint al
+      Makefile para que local y CI ejecuten lo mismo.
+      Hallazgo del propio validador al estrenarlo: ADR-0025 se referencia desde T-2026-06-24-002
+      pero no está indexada en decision-log.yaml. Coincide con lo que ya detectó la evaluación de
+      ADR-0030 (cuatro ADR sin indexar: 0023-feeds, 0024-api-tokens, 0025-jsonb, 0026-fts). Sale
+      como aviso, no como error, y su regularización sigue requiriendo decisión humana.
+      Queda fuera de esta PR: el paso Type Check de CI sigue con continue-on-error, así que emite
+      617 errores y se reporta en verde — misma clase de puerta falsa que el paquete biome
+      equivocado que arregló la #272. Su arreglo real es el Lote 1 de ADR-0030.
+      Validación: bun test scripts/check-tracking.unit.test.ts → 12 pass / 0 fail; comprobado que
+      el gate falla de verdad con error inyectado (clave duplicada → exit 1; file: inexistente →
+      exit 1) y vuelve a 0 al restaurar; make lint, check-test-files, design-lint y check-tracking
+      en verde; bun run test 800 pass / 0 fail con coverage 90,4%.
