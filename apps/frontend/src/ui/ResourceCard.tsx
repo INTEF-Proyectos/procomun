@@ -32,7 +32,10 @@ export function ResourceCard({
 	const description = resource.description || "";
 	const clipped =
 		description.length > 140 ? `${description.slice(0, 140)}...` : description;
-	const hasPreview = !!resource.elpxPreview?.previewUrl;
+	// Se deriva el valor, no solo el booleano: así TypeScript lo estrecha en el
+	// JSX sin necesidad de afirmarlo.
+	const previewUrl = resource.elpxPreview?.previewUrl;
+	const hasPreview = !!previewUrl;
 	const previewRef = useIframeScale<HTMLDivElement>({
 		iframeWidth: 1200,
 		iframeHeight: 675,
@@ -86,7 +89,7 @@ export function ResourceCard({
 				{hasPreview ? (
 					<div className="rc-preview-wrapper" ref={previewRef}>
 						<iframe
-							src={resource.elpxPreview!.previewUrl}
+							src={previewUrl}
 							loading="lazy"
 							tabIndex={-1}
 							sandbox="allow-scripts"

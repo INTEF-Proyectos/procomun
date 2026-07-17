@@ -69,12 +69,16 @@ describe("Admin API Tokens routes", () => {
 
 		const res = await app.request("/api/admin/api-tokens");
 		expect(res.status).toBe(200);
-		const body = await res.json();
+		// Solo se tipan los campos que viajan intactos por JSON (las fechas de
+		// listAllApiTokens llegan serializadas como string, no como Date).
+		const body = (await res.json()) as Array<
+			Pick<Awaited<ReturnType<typeof listAllApiTokens>>[number], "id" | "user">
+		>;
 		expect(Array.isArray(body)).toBe(true);
 		expect(body.length).toBeGreaterThan(0);
-		const found = body.find((t: any) => t.id === token1.id);
+		const found = body.find((t) => t.id === token1.id);
 		expect(found).toBeDefined();
-		expect(found.user.name).toBe("Author User");
+		expect(found?.user.name).toBe("Author User");
 	});
 
 	test("GET /api/admin/api-tokens rejects non-admin", async () => {
