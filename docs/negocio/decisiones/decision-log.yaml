@@ -182,6 +182,18 @@ ADR-0029:
   date: 2026-07-10
   file: 0029-importador-legacy-procomun-elpx.md
 
+ADR-0030:
+  title: "Estrategia de modernización: rechazar la reescritura completa y ejecutar simplificación incremental"
+  status: Propuesto
+  date: 2026-07-16
+  file: 0030-estrategia-modernizacion-reescritura.md
+  notes: >
+    Evaluación multiagente con línea base medida (commit eea2fe7d) en
+    docs/casos/evaluacion-reescritura-plataforma/. Detectadas durante la evaluación
+    (sin corregir aquí): colisiones de numeración 0023/0024/0026 y cuatro ADRs sin
+    indexar (0023-feeds, 0024-api-tokens, 0025-jsonb, 0026-fts); su regularización
+    requiere decisión humana.
+
 ADR-0032:
   title: "Modelo de versionado de recursos (snapshots inmutables + puntero a versión vigente)"
   status: Propuesto
