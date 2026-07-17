@@ -3,10 +3,7 @@ import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { Hono } from "hono";
-import {
-	AUTHOR_ASSET_CSP,
-	elpxContentRoutes,
-} from "./elpx-content.ts";
+import { AUTHOR_ASSET_CSP, elpxContentRoutes } from "./elpx-content.ts";
 
 // Hash de 40 hex (estilo SHA-1) que satisface /^[a-f0-9-]{8,64}$/i.
 const HASH = "0123456789abcdef0123456789abcdef01234567";
