@@ -37,7 +37,7 @@ export async function auditMiddleware(c: Context<AuthEnv>, next: Next) {
 	const path = redactAuditPath(c.req.path);
 	const status = c.res.status;
 	const ipAddress =
-		c.req.header("x-forwarded-for")?.split(",")[0].trim() ||
+		c.req.header("x-forwarded-for")?.split(",")[0]?.trim() ||
 		c.req.header("cf-connecting-ip") ||
 		c.req.header("x-real-ip") ||
 		null;

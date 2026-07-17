@@ -5,8 +5,7 @@ import { getBaseUrl, url } from "../../lib/paths.ts";
 import {
 	FILE_ICONS,
 	formatBytes,
-	STATUS_MAP,
-	TYPE_ICONS,
+	statusLabelOf,
 } from "../../lib/resource-display.ts";
 import {
 	buildExportFilename,
@@ -212,7 +211,7 @@ function ResourceDetailContent({
 		format?: ResourceExportKind | "direct",
 	) => void;
 }) {
-	const status = STATUS_MAP[resource.editorialStatus] ?? STATUS_MAP.draft;
+	const status = statusLabelOf(resource.editorialStatus);
 	const keywords = resource.keywords
 		? resource.keywords
 				.split(",")

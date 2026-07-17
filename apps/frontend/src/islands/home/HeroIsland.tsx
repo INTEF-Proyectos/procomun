@@ -12,13 +12,13 @@ const QUICK_FILTERS = [
 	{ key: "fp" as const, value: "FP" },
 ];
 
-const FILTER_LABELS: Record<string, () => string> = {
+const FILTER_LABELS = {
 	infantil: m.hero_filter_infantil,
 	primaria: m.hero_filter_primaria,
 	secundaria: m.hero_filter_secundaria,
 	bachillerato: m.hero_filter_bachillerato,
 	fp: m.hero_filter_fp,
-};
+} as const;
 
 export function HeroIsland() {
 	const searchRef = useRef<HTMLFormElement>(null);
@@ -29,7 +29,9 @@ export function HeroIsland() {
 		if (!el) return;
 
 		const observer = new IntersectionObserver(
-			([entry]) => {
+			(entries) => {
+				const entry = entries[0];
+				if (!entry) return;
 				document.body.classList.toggle(
 					"nav-search-visible",
 					!entry.isIntersecting,

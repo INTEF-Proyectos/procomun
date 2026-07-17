@@ -35,7 +35,8 @@ publicRoutes.get("/resources", async (c) => {
 });
 
 publicRoutes.get("/resources/:slug", async (c) => {
-	const { slug } = c.req.param();
+	const slug = c.req.param("slug");
+	if (!slug) return c.json({ error: "Falta slug" }, 400);
 	const resource = await repo.getResourceBySlug(getDb().db, slug);
 	if (!resource) {
 		return c.json({ error: "Recurso no encontrado" }, 404);

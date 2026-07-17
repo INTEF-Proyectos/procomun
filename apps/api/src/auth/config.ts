@@ -1,6 +1,7 @@
 import * as pgSchema from "@procomun/db/schema";
 import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
+import { createAuthMiddleware } from "better-auth/api";
 import { admin as adminPlugin, genericOAuth } from "better-auth/plugins";
 import { logActivity } from "../activity/log.ts";
 import { getDb } from "../db.ts";
@@ -34,20 +35,19 @@ export const auth = betterAuth({
 		},
 	},
 	hooks: {
-		after: async (ctx) => {
+		after: createAuthMiddleware(async (ctx) => {
 			if (ctx.path === "/sign-out") {
 				const session = ctx.context.session;
-				if (session) {
+				if (session?.session) {
 					await logActivity({
-						userId: session.userId,
+						userId: session.session.userId,
 						type: "auth_logout",
 						description: "Cierre de sesión",
-						metadata: { sessionId: session.id },
+						metadata: { sessionId: session.session.id },
 					});
 				}
 			}
-			return ctx;
-		},
+		}),
 	},
 	emailAndPassword: {
 		enabled: true,

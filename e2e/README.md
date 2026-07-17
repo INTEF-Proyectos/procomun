@@ -146,6 +146,35 @@ bunx playwright test --grep "login"
 bunx playwright test tests/public/home-and-search.e2e.ts
 ```
 
+## Capturas visuales en pull requests
+
+Después de superar la suite E2E de Chromium, CI genera capturas de escritorio de
+las vistas definidas en `e2e/visual-preview-pages.ts`. Un workflow separado y
+confiable publica las imágenes y actualiza un único comentario en el pull
+request.
+
+Para añadir una vista, incorpora una entrada a `VISUAL_PREVIEW_PAGES`:
+
+- `id`: nombre de fichero estable, en minúsculas, con números o guiones y un
+  máximo de 64 caracteres.
+- `title`: nombre descriptivo usado por Playwright.
+- `path`: URL relativa; puede contener query string.
+- `readySelector`: selector CSS que confirma que el contenido asíncrono ya está
+  listo para la captura.
+- `auth`: rol opcional de `TEST_USERS`; si se indica, Playwright inicia sesión
+  antes de abrir la URL.
+
+El conjunto admite hasta 20 PNG, de 10 MiB como máximo cada uno. Los workflows no
+necesitan cambios al añadir otra entrada.
+
+Ejecución local, con la aplicación y el seed ya iniciados:
+
+```bash
+CAPTURE_VISUAL_PREVIEWS=true \
+VISUAL_PREVIEW_DIR=visual-previews \
+bunx playwright test e2e/visual-preview.e2e.ts --project=chromium --workers=1
+```
+
 ## CI/CD
 
 Los E2E se ejecutan en GitHub Actions (`.github/workflows/e2e.yml`):

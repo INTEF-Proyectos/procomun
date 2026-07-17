@@ -11,9 +11,7 @@ test.describe("Search filters", () => {
 			.getByRole("combobox", { name: /tipo/i })
 			.or(page.getByLabel(/tipo/i));
 		if (await typeFilter.isVisible()) {
-			await typeFilter.selectOption({
-				label: new RegExp(FILTERS.resourceType, "i"),
-			});
+			await selectOptionMatching(typeFilter, FILTERS.resourceType);
 			await expect(page.locator("body")).not.toHaveText(/error/i);
 		}
 	});
@@ -23,7 +21,7 @@ test.describe("Search filters", () => {
 			.getByRole("combobox", { name: /nivel/i })
 			.or(page.getByLabel(/nivel/i));
 		if (await levelFilter.isVisible()) {
-			await levelFilter.selectOption({ label: new RegExp(FILTERS.level, "i") });
+			await selectOptionMatching(levelFilter, FILTERS.level);
 			await expect(page.locator("body")).not.toHaveText(/error/i);
 		}
 	});
@@ -33,9 +31,7 @@ test.describe("Search filters", () => {
 			.getByRole("combobox", { name: /idioma|lengua/i })
 			.or(page.getByLabel(/idioma|lengua/i));
 		if (await langFilter.isVisible()) {
-			await langFilter.selectOption({
-				label: new RegExp(FILTERS.language, "i"),
-			});
+			await selectOptionMatching(langFilter, FILTERS.language);
 			await expect(page.locator("body")).not.toHaveText(/error/i);
 		}
 	});
@@ -45,10 +41,27 @@ test.describe("Search filters", () => {
 			.getByRole("combobox", { name: /licencia/i })
 			.or(page.getByLabel(/licencia/i));
 		if (await licenseFilter.isVisible()) {
-			await licenseFilter.selectOption({
-				label: new RegExp(FILTERS.license, "i"),
-			});
+			await selectOptionMatching(licenseFilter, FILTERS.license);
 			await expect(page.locator("body")).not.toHaveText(/error/i);
 		}
 	});
 });
+
+/**
+ * Playwright's selectOption({ label }) only accepts a string label, not RegExp.
+ * Match case-insensitively against option text, then select by the resolved label.
+ */
+async function selectOptionMatching(
+	select: import("@playwright/test").Locator,
+	pattern: string,
+) {
+	const labels = await select.locator("option").allTextContents();
+	const matcher = new RegExp(pattern, "i");
+	const match = labels
+		.map((label) => label.trim())
+		.find((label) => matcher.test(label));
+	if (!match) {
+		throw new Error(`No option matching /${pattern}/i in select`);
+	}
+	await select.selectOption({ label: match });
+}

@@ -3,16 +3,9 @@
  * Generates tsvector, performs searches, and handles reindexing.
  */
 
+import type { DrizzleDB } from "@procomun/db/repository";
 import { resources } from "@procomun/db/schema";
 import { eq, isNull, sql } from "drizzle-orm";
-
-// Tipar esto de verdad depende de tipar la base de drizzle, que es el núcleo
-// del Lote 1 de ADR-0030 (probado: sustituirlo por `{ execute }` o por el
-// DrizzleDB compartido dispara decenas de errores de tsc, porque sus métodos
-// devuelven `unknown`). La supresión se acota a la regla concreta; antes era un
-// `biome-ignore lint:` en blanco, que silenciaba todas.
-// biome-ignore lint/suspicious/noExplicitAny: tipo genérico de la base drizzle, ver Lote 1 de ADR-0030
-type DrizzleDB = any;
 
 /** FTS dictionary configuration by language code */
 const LANGUAGE_CONFIGS: Record<string, string> = {
@@ -176,6 +169,16 @@ export type FtsSearchResult = {
 	headline: string | null;
 };
 
+/** Normalize `db.execute` results across Bun SQL / PGlite drivers. */
+export function rowsFromExecute<T>(raw: unknown): T[] {
+	if (Array.isArray(raw)) return raw as T[];
+	if (raw && typeof raw === "object" && "rows" in raw) {
+		const rows = (raw as { rows: unknown }).rows;
+		if (Array.isArray(rows)) return rows as T[];
+	}
+	return [];
+}
+
 /**
  * Perform a full-text search using PostgreSQL FTS.
  * Returns results ranked by relevance with highlighted snippets.
@@ -194,7 +197,7 @@ export async function searchResources(
 	let countResult: { total: string | number }[];
 
 	if (hasUnaccent) {
-		const rawResults = await db.execute(sql`
+		const rawResults: unknown = await db.execute(sql`
 			SELECT
 				r.id,
 				r.slug,
@@ -215,20 +218,18 @@ export async function searchResources(
 			LIMIT ${limit}
 			OFFSET ${offset}
 		`);
-		results = (rawResults.rows ?? rawResults) as unknown as FtsSearchResult[];
+		results = rowsFromExecute<FtsSearchResult>(rawResults);
 
-		const rawCount = await db.execute(sql`
+		const rawCount: unknown = await db.execute(sql`
 			SELECT count(*) AS total
 			FROM resources r
 			WHERE r.search_vector @@ websearch_to_tsquery(${config}::regconfig, unaccent(${opts.query}))
 				AND r.editorial_status = ${status}
 				AND r.deleted_at IS NULL
 		`);
-		countResult = (rawCount.rows ?? rawCount) as unknown as {
-			total: string | number;
-		}[];
+		countResult = rowsFromExecute<{ total: string | number }>(rawCount);
 	} else {
-		const rawResults = await db.execute(sql`
+		const rawResults: unknown = await db.execute(sql`
 			SELECT
 				r.id,
 				r.slug,
@@ -249,18 +250,16 @@ export async function searchResources(
 			LIMIT ${limit}
 			OFFSET ${offset}
 		`);
-		results = (rawResults.rows ?? rawResults) as unknown as FtsSearchResult[];
+		results = rowsFromExecute<FtsSearchResult>(rawResults);
 
-		const rawCount = await db.execute(sql`
+		const rawCount: unknown = await db.execute(sql`
 			SELECT count(*) AS total
 			FROM resources r
 			WHERE r.search_vector @@ websearch_to_tsquery(${config}::regconfig, ${opts.query})
 				AND r.editorial_status = ${status}
 				AND r.deleted_at IS NULL
 		`);
-		countResult = (rawCount.rows ?? rawCount) as unknown as {
-			total: string | number;
-		}[];
+		countResult = rowsFromExecute<{ total: string | number }>(rawCount);
 	}
 
 	const total = Number(countResult[0]?.total ?? 0);

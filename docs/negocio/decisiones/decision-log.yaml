@@ -166,9 +166,8 @@ ADR-0026:
 
 ADR-0027:
   title: "Reproducción segura de vídeos/PDF embebidos en .elpx (promote-to-parent con player en modal)"
-  status: Supersedido
+  status: Aceptado
   date: 2026-06-14
-  superseded_by: ADR-0033
   file: 0027-reproduccion-segura-embeds-elpx.md
 
 ADR-0028:
@@ -196,11 +195,12 @@ ADR-0030:
     requiere decisión humana.
 
 ADR-0033:
-  title: "Migración al bridge de medios externos compartido de eXeLearning"
+  title: "Publicación segura de capturas visuales de pull requests mediante workflow_run"
   status: Aceptado
-  date: 2026-06-29
-  file: 0033-migracion-bridge-medios-compartido-exelearning.md
-
+  date: 2026-07-17
+  file: 0033-capturas-visuales-pr-workflow-run.md
+  notes: >
+    ADR-0031 y ADR-0032 están reservadas por los PR abiertos #235 y #236.
 ADR-0034:
   title: "Topología del preview HTTP y cableado del editor embebido"
   status: Aceptado
