@@ -12,6 +12,7 @@
 		"format": "biome format --write .",
 		"design:lint": "bun run scripts/check-design-md.ts",
 		"check-tracking": "bun run scripts/check-tracking.ts",
+		"new-status-key": "bun run scripts/new-status-key.ts",
 		"paraglide:compile": "bun apps/frontend/node_modules/@inlang/paraglide-js/bin/run.js compile --project apps/frontend/project.inlang --outdir apps/frontend/src/paraglide --strategy url baseLocale --silent",
 		"check-types": "bun run paraglide:compile && bun run scripts/check-types.ts",
 		"test": "bun run check-test-files && bun run test:standard && bun run check-coverage",
