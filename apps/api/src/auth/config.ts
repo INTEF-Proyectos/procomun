@@ -1,20 +1,12 @@
+import * as pgSchema from "@procomun/db/schema";
 import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
-import { admin as adminPlugin } from "better-auth/plugins";
-import { genericOAuth } from "better-auth/plugins";
-import {
-	ac,
-	admin,
-	author,
-	curator,
-	editor,
-	reader,
-} from "./permissions.ts";
-import * as pgSchema from "@procomun/db/schema";
+import { admin as adminPlugin, genericOAuth } from "better-auth/plugins";
+import { logActivity } from "../activity/log.ts";
 import { getDb } from "../db.ts";
 import { AUTH_DEFAULT_COOKIE_ATTRIBUTES } from "./cookie-config.ts";
+import { ac, admin, author, curator, editor, reader } from "./permissions.ts";
 import { getAuthBaseUrl, getFrontendUrl } from "./urls.ts";
-import { logActivity } from "../activity/log.ts";
 
 const frontendUrl = getFrontendUrl();
 const oidcEnabled = process.env.OIDC_ENABLED === "true";

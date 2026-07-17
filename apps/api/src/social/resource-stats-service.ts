@@ -1,10 +1,14 @@
-import { eq, sql } from "drizzle-orm";
 import { downloads, favorites, ratings } from "@procomun/db/schema";
+import { eq, sql } from "drizzle-orm";
 import { getDb } from "../db.ts";
 import { getUserFavoriteState } from "./favorites-service.ts";
 import { roundRatingAverage } from "./resource-card.ts";
 
-export async function incrementDownload(resourceId: string, userId?: string, format = "direct") {
+export async function incrementDownload(
+	resourceId: string,
+	userId?: string,
+	format = "direct",
+) {
 	const db = getDb().db;
 	await db.insert(downloads).values({
 		id: crypto.randomUUID(),
@@ -22,28 +26,38 @@ export async function incrementDownload(resourceId: string, userId?: string, for
 	return Number(countResult[0]?.count ?? 0);
 }
 
-export async function getResourceSocialStats(resourceId: string, userId?: string) {
+export async function getResourceSocialStats(
+	resourceId: string,
+	userId?: string,
+) {
 	const db = getDb().db;
-	const [dlResult, dlGroupResult, favResult, ratingResult, userFavorited] = await Promise.all([
-		db.select({ count: sql<number>`count(*)` }).from(downloads).where(eq(downloads.resourceId, resourceId)),
-		db
-			.select({
-				format: downloads.format,
-				count: sql<number>`count(*)`,
-			})
-			.from(downloads)
-			.where(eq(downloads.resourceId, resourceId))
-			.groupBy(downloads.format),
-		db.select({ count: sql<number>`count(*)` }).from(favorites).where(eq(favorites.resourceId, resourceId)),
-		db
-			.select({
-				avg: sql<number>`coalesce(avg(${ratings.score}), 0)`,
-				count: sql<number>`count(*)`,
-			})
-			.from(ratings)
-			.where(eq(ratings.resourceId, resourceId)),
-		getUserFavoriteState(resourceId, userId),
-	]);
+	const [dlResult, dlGroupResult, favResult, ratingResult, userFavorited] =
+		await Promise.all([
+			db
+				.select({ count: sql<number>`count(*)` })
+				.from(downloads)
+				.where(eq(downloads.resourceId, resourceId)),
+			db
+				.select({
+					format: downloads.format,
+					count: sql<number>`count(*)`,
+				})
+				.from(downloads)
+				.where(eq(downloads.resourceId, resourceId))
+				.groupBy(downloads.format),
+			db
+				.select({ count: sql<number>`count(*)` })
+				.from(favorites)
+				.where(eq(favorites.resourceId, resourceId)),
+			db
+				.select({
+					avg: sql<number>`coalesce(avg(${ratings.score}), 0)`,
+					count: sql<number>`count(*)`,
+				})
+				.from(ratings)
+				.where(eq(ratings.resourceId, resourceId)),
+			getUserFavoriteState(resourceId, userId),
+		]);
 
 	const exportCounts = {
 		scorm: 0,

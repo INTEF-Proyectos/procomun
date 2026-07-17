@@ -1,5 +1,11 @@
 import { describe, expect, test } from "bun:test";
-import { buildExportFilename, getElpxMediaItem, getResourceElpxFileUrl, isElpxFilename, RESOURCE_EXPORT_OPTIONS } from "./resource-export.ts";
+import {
+	buildExportFilename,
+	getElpxMediaItem,
+	getResourceElpxFileUrl,
+	isElpxFilename,
+	RESOURCE_EXPORT_OPTIONS,
+} from "./resource-export.ts";
 
 describe("resource-export", () => {
 	test("detecta extensiones .elpx y .elp", () => {
@@ -11,8 +17,22 @@ describe("resource-export", () => {
 
 	test("localiza el media item .elpx dentro del recurso", () => {
 		const mediaItem = getElpxMediaItem([
-			{ id: "1", resourceId: "r1", type: "file", url: "/a.pdf", filename: "a.pdf", isPrimary: 0 },
-			{ id: "2", resourceId: "r1", type: "file", url: "/project.elpx", filename: "project.elpx", isPrimary: 1 },
+			{
+				id: "1",
+				resourceId: "r1",
+				type: "file",
+				url: "/a.pdf",
+				filename: "a.pdf",
+				isPrimary: 0,
+			},
+			{
+				id: "2",
+				resourceId: "r1",
+				type: "file",
+				url: "/project.elpx",
+				filename: "project.elpx",
+				isPrimary: 1,
+			},
 		]);
 
 		expect(mediaItem?.id).toBe("2");
@@ -22,28 +42,61 @@ describe("resource-export", () => {
 		expect(
 			getResourceElpxFileUrl({
 				elpxFileUrl: "/api/v1/uploads/elpx/content",
-				mediaItems: [{ id: "1", resourceId: "r1", type: "file", url: "/project.elpx", filename: "project.elpx", isPrimary: 1 }],
+				mediaItems: [
+					{
+						id: "1",
+						resourceId: "r1",
+						type: "file",
+						url: "/project.elpx",
+						filename: "project.elpx",
+						isPrimary: 1,
+					},
+				],
 			}),
 		).toBe("/api/v1/uploads/elpx/content");
 
 		expect(
 			getResourceElpxFileUrl({
 				elpxFileUrl: null,
-				mediaItems: [{ id: "1", resourceId: "r1", type: "file", url: "/project.elpx", filename: "project.elpx", isPrimary: 1 }],
+				mediaItems: [
+					{
+						id: "1",
+						resourceId: "r1",
+						type: "file",
+						url: "/project.elpx",
+						filename: "project.elpx",
+						isPrimary: 1,
+					},
+				],
 			}),
 		).toBe("/project.elpx");
 	});
 
 	test("expone los cuatro formatos esperados", () => {
-		expect(RESOURCE_EXPORT_OPTIONS.map((option) => option.id)).toEqual(["scorm", "ims", "web", "epub"]);
-		expect(RESOURCE_EXPORT_OPTIONS.map((option) => option.editorFormat)).toEqual(["scorm12", "ims", "html5", "epub3"]);
+		expect(RESOURCE_EXPORT_OPTIONS.map((option) => option.id)).toEqual([
+			"scorm",
+			"ims",
+			"web",
+			"epub",
+		]);
+		expect(
+			RESOURCE_EXPORT_OPTIONS.map((option) => option.editorFormat),
+		).toEqual(["scorm12", "ims", "html5", "epub3"]);
 	});
 
 	test("genera nombres de archivo con sufijo de formato", () => {
-		expect(buildExportFilename("Mi Recurso Pedagógico", "scorm")).toBe("mi-recurso-pedagogico_scorm.zip");
-		expect(buildExportFilename("Mi Recurso Pedagógico", "ims")).toBe("mi-recurso-pedagogico_ims.zip");
-		expect(buildExportFilename("Mi Recurso Pedagógico", "web")).toBe("mi-recurso-pedagogico_web.zip");
-		expect(buildExportFilename("Mi Recurso Pedagógico", "epub")).toBe("mi-recurso-pedagogico.epub");
+		expect(buildExportFilename("Mi Recurso Pedagógico", "scorm")).toBe(
+			"mi-recurso-pedagogico_scorm.zip",
+		);
+		expect(buildExportFilename("Mi Recurso Pedagógico", "ims")).toBe(
+			"mi-recurso-pedagogico_ims.zip",
+		);
+		expect(buildExportFilename("Mi Recurso Pedagógico", "web")).toBe(
+			"mi-recurso-pedagogico_web.zip",
+		);
+		expect(buildExportFilename("Mi Recurso Pedagógico", "epub")).toBe(
+			"mi-recurso-pedagogico.epub",
+		);
 	});
 
 	test("usa 'recurso' como fallback cuando el título produce slug vacío", () => {
@@ -52,6 +105,8 @@ describe("resource-export", () => {
 	});
 
 	test("normaliza caracteres especiales y acentos", () => {
-		expect(buildExportFilename("Éducación & Ciência!", "web")).toBe("educacion-ciencia_web.zip");
+		expect(buildExportFilename("Éducación & Ciência!", "web")).toBe(
+			"educacion-ciencia_web.zip",
+		);
 	});
 });

@@ -1,7 +1,9 @@
 import type { Context, Hono, Next } from "hono";
-import { type AuthEnv } from "../auth/middleware.ts";
+import type { AuthEnv } from "../auth/middleware.ts";
 import { tokenAuthMiddleware } from "../auth/token-auth.ts";
 import { adminRoutes } from "../routes/admin/index.ts";
+import { apiResourceRoutes } from "../routes/api-resources.ts";
+import { apiTokenRoutes } from "../routes/api-tokens.ts";
 import { devRoutes } from "../routes/dev.ts";
 import { elpxContentRoutes } from "../routes/elpx-content.ts";
 import { exelearningEditorRoutes } from "../routes/exelearning-editor.ts";
@@ -10,8 +12,6 @@ import { previewRoutes, previewSessionRoutes } from "../routes/preview.ts";
 import { publicRoutes } from "../routes/public.ts";
 import { socialRoutes } from "../routes/social.ts";
 import { uploadRoutes } from "../routes/uploads.ts";
-import { apiResourceRoutes } from "../routes/api-resources.ts";
-import { apiTokenRoutes } from "../routes/api-tokens.ts";
 import { getLimits as getPreviewLimits } from "../services/preview-session-store.ts";
 
 export const PREVIEW_MULTIPART_OVERHEAD_BYTES = 2 * 1024 * 1024;

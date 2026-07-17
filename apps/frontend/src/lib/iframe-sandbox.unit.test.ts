@@ -17,7 +17,9 @@ function extractSandboxAttrs(html: string): string[] {
 /** Check if a sandbox value has the dangerous combination */
 function hasUnsafeSandbox(sandbox: string): boolean {
 	const tokens = sandbox.split(/\s+/);
-	return tokens.includes("allow-scripts") && tokens.includes("allow-same-origin");
+	return (
+		tokens.includes("allow-scripts") && tokens.includes("allow-same-origin")
+	);
 }
 
 describe("iframe sandbox security (DEF-002)", () => {
@@ -57,7 +59,8 @@ describe("iframe sandbox security (DEF-002)", () => {
 
 	test("ResourceDetailIsland preview iframe no combina allow-scripts con allow-same-origin", async () => {
 		const src = await Bun.file(
-			new URL("../islands/catalog/ResourceDetailIsland.tsx", import.meta.url).pathname,
+			new URL("../islands/catalog/ResourceDetailIsland.tsx", import.meta.url)
+				.pathname,
 		).text();
 
 		const sandboxMatches = [...src.matchAll(/sandbox="([^"]+)"/g)];
@@ -79,7 +82,10 @@ describe("iframe sandbox security (DEF-002)", () => {
 
 	test("PublicCollectionsIsland preview iframe no combina allow-scripts con allow-same-origin", async () => {
 		const src = await Bun.file(
-			new URL("../islands/collections/PublicCollectionsIsland.tsx", import.meta.url).pathname,
+			new URL(
+				"../islands/collections/PublicCollectionsIsland.tsx",
+				import.meta.url,
+			).pathname,
 		).text();
 
 		const sandboxMatches = [...src.matchAll(/sandbox="([^"]+)"/g)];

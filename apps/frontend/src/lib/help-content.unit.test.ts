@@ -1,5 +1,9 @@
 import { describe, expect, test } from "bun:test";
-import { HELP_FOOTER_LINKS, HELP_SECTIONS, buildHelpHref } from "./help-content.ts";
+import {
+	buildHelpHref,
+	HELP_FOOTER_LINKS,
+	HELP_SECTIONS,
+} from "./help-content.ts";
 
 describe("help content", () => {
 	test("define las secciones de ayuda clave para la navegacion y soporte", () => {

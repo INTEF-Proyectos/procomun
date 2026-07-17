@@ -277,3 +277,74 @@ const BRIDGE_SCRIPT = `<script>
 	init();
 })();
 <\/script>`;
+
+
+/**
+ * Serve all static editor assets (JS, CSS, images, fonts, etc.)
+ */
+exelearningEditorRoutes.get("/*", async (c) => {
+	const urlPath = new URL(c.req.url).pathname;
+	// Strip the route prefix to get the relative file path
+	const prefix = "/api/v1/exelearning-editor/";
+	const relativePath = urlPath.startsWith(prefix)
+		? urlPath.slice(prefix.length)
+		: urlPath.replace(/^\/+/, "");
+
+	if (!relativePath || relativePath.includes("..")) {
+		return c.text("Not found", 404);
+	}
+
+	// Defense in depth (see ADR-0032 and the SW_NEUTRALIZE_SCRIPT above): never
+	// serve the legacy preview Service Worker from this origin. The bundled pre-v2
+	// editor could otherwise register `preview-sw.js` and run untrusted author
+	// content SAME-ORIGIN as the authenticated user. The register() stub blocks
+	// installation; refusing to serve the script blocks it a second way. Both go
+	// away once an HTTP-preview-v2 editor is bundled.
+	if (path.basename(relativePath) === "preview-sw.js") {
+		return c.text("Not found", 404);
+	}
+
+	const filePath = path.join(EDITOR_STATIC_DIR, relativePath);
+	const file = Bun.file(filePath);
+
+	if (!(await file.exists())) {
+		return c.text("Not found", 404);
+	}
+
+	// Determine MIME type from extension
+	const ext = path.extname(relativePath).slice(1).toLowerCase();
+	const mimeTypes: Record<string, string> = {
+		html: "text/html",
+		js: "application/javascript",
+		mjs: "application/javascript",
+		css: "text/css",
+		json: "application/json",
+		xml: "application/xml",
+		png: "image/png",
+		jpg: "image/jpeg",
+		jpeg: "image/jpeg",
+		gif: "image/gif",
+		svg: "image/svg+xml",
+		webp: "image/webp",
+		ico: "image/x-icon",
+		woff: "font/woff",
+		woff2: "font/woff2",
+		ttf: "font/ttf",
+		otf: "font/otf",
+		mp3: "audio/mpeg",
+		mp4: "video/mp4",
+		webm: "video/webm",
+		wav: "audio/wav",
+		pdf: "application/pdf",
+		zip: "application/zip",
+		txt: "text/plain",
+	};
+	const contentType = mimeTypes[ext] || "application/octet-stream";
+
+	return new Response(file, {
+		headers: {
+			"Content-Type": contentType,
+			"Cache-Control": "public, max-age=3600",
+		},
+	});
+});

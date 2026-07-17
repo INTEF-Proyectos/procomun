@@ -1,18 +1,20 @@
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import { PGlite } from "@electric-sql/pglite";
 import { drizzle } from "drizzle-orm/pglite";
+import { createResource, listResources } from "./repository.ts";
 import * as schema from "./schema/resources.ts";
 import { createTables } from "./setup.ts";
-import { listResources, createResource } from "./repository.ts";
+
+type TestDatabase = Parameters<typeof createResource>[0];
 
 describe("Search Case and Accent Insensitivity", () => {
-	let db: any;
+	let db: TestDatabase;
 	let pglite: PGlite;
 
 	beforeAll(async () => {
 		pglite = new PGlite();
 		await createTables(pglite);
-		db = drizzle(pglite, { schema });
+		db = drizzle(pglite, { schema }) as unknown as TestDatabase;
 
 		// Seed some data
 		await createResource(db, {

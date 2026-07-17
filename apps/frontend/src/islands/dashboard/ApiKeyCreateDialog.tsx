@@ -1,8 +1,8 @@
 import { useState } from "react";
-import { Dialog } from "../../ui/Dialog.tsx";
-import * as m from "../../paraglide/messages.js";
-import { getApiClient } from "../../lib/get-api-client.ts";
 import type { ApiTokenRecord } from "../../lib/api-client.ts";
+import { getApiClient } from "../../lib/get-api-client.ts";
+import * as m from "../../paraglide/messages.js";
+import { Dialog } from "../../ui/Dialog.tsx";
 
 interface ApiKeyCreateDialogProps {
 	open: boolean;
@@ -10,7 +10,11 @@ interface ApiKeyCreateDialogProps {
 	onCreated: () => void;
 }
 
-export function ApiKeyCreateDialog({ open, onClose, onCreated }: ApiKeyCreateDialogProps) {
+export function ApiKeyCreateDialog({
+	open,
+	onClose,
+	onCreated,
+}: ApiKeyCreateDialogProps) {
 	const [name, setName] = useState("");
 	const [expiryOption, setExpiryOption] = useState("never"); // "never" | "30" | "90" | "365" | "custom"
 	const [customDate, setCustomDate] = useState("");
@@ -80,18 +84,38 @@ export function ApiKeyCreateDialog({ open, onClose, onCreated }: ApiKeyCreateDia
 		<Dialog
 			open={open}
 			onClose={handleClose}
-			title={createdKey ? m.api_keys_create_dialog_title() : m.api_keys_create_btn()}
+			title={
+				createdKey ? m.api_keys_create_dialog_title() : m.api_keys_create_btn()
+			}
 			size="md"
 		>
 			{!createdKey ? (
-				<form onSubmit={handleSubmit} className="api-key-create-form" style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
+				<form
+					onSubmit={handleSubmit}
+					className="api-key-create-form"
+					style={{ display: "flex", flexDirection: "column", gap: "1rem" }}
+				>
 					{error && (
-						<div className="api-key-error" style={{ color: "var(--color-error)", fontSize: "0.875rem", padding: "0.5rem", background: "var(--color-error-container)", borderRadius: "0.5rem" }}>
+						<div
+							className="api-key-error"
+							style={{
+								color: "var(--color-error)",
+								fontSize: "0.875rem",
+								padding: "0.5rem",
+								background: "var(--color-error-container)",
+								borderRadius: "0.5rem",
+							}}
+						>
 							{error}
 						</div>
 					)}
-					<div style={{ display: "flex", flexDirection: "column", gap: "0.25rem" }}>
-						<label htmlFor="token-name" style={{ fontSize: "0.875rem", fontWeight: "600" }}>
+					<div
+						style={{ display: "flex", flexDirection: "column", gap: "0.25rem" }}
+					>
+						<label
+							htmlFor="token-name"
+							style={{ fontSize: "0.875rem", fontWeight: "600" }}
+						>
 							{m.api_keys_col_name()} *
 						</label>
 						<input
@@ -111,8 +135,13 @@ export function ApiKeyCreateDialog({ open, onClose, onCreated }: ApiKeyCreateDia
 						/>
 					</div>
 
-					<div style={{ display: "flex", flexDirection: "column", gap: "0.25rem" }}>
-						<label htmlFor="token-expiry" style={{ fontSize: "0.875rem", fontWeight: "600" }}>
+					<div
+						style={{ display: "flex", flexDirection: "column", gap: "0.25rem" }}
+					>
+						<label
+							htmlFor="token-expiry"
+							style={{ fontSize: "0.875rem", fontWeight: "600" }}
+						>
 							{m.api_keys_col_expires()}
 						</label>
 						<select
@@ -136,8 +165,17 @@ export function ApiKeyCreateDialog({ open, onClose, onCreated }: ApiKeyCreateDia
 					</div>
 
 					{expiryOption === "custom" && (
-						<div style={{ display: "flex", flexDirection: "column", gap: "0.25rem" }}>
-							<label htmlFor="token-custom-date" style={{ fontSize: "0.875rem", fontWeight: "600" }}>
+						<div
+							style={{
+								display: "flex",
+								flexDirection: "column",
+								gap: "0.25rem",
+							}}
+						>
+							<label
+								htmlFor="token-custom-date"
+								style={{ fontSize: "0.875rem", fontWeight: "600" }}
+							>
 								Fecha de expiración
 							</label>
 							<input
@@ -158,7 +196,15 @@ export function ApiKeyCreateDialog({ open, onClose, onCreated }: ApiKeyCreateDia
 						</div>
 					)}
 
-					<div className="dialog-footer" style={{ display: "flex", justifyContent: "flex-end", gap: "0.75rem", marginTop: "1rem" }}>
+					<div
+						className="dialog-footer"
+						style={{
+							display: "flex",
+							justifyContent: "flex-end",
+							gap: "0.75rem",
+							marginTop: "1rem",
+						}}
+					>
 						<button
 							type="button"
 							onClick={handleClose}
@@ -192,7 +238,12 @@ export function ApiKeyCreateDialog({ open, onClose, onCreated }: ApiKeyCreateDia
 				</form>
 			) : (
 				<div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
-					<p style={{ fontSize: "0.875rem", color: "var(--color-on-surface-variant)" }}>
+					<p
+						style={{
+							fontSize: "0.875rem",
+							color: "var(--color-on-surface-variant)",
+						}}
+					>
 						{m.api_keys_create_dialog_desc()}
 					</p>
 
@@ -207,7 +258,14 @@ export function ApiKeyCreateDialog({ open, onClose, onCreated }: ApiKeyCreateDia
 							border: "1px solid var(--color-outline-variant)",
 						}}
 					>
-						<code style={{ flex: 1, fontFamily: "monospace", wordBreak: "break-all", fontSize: "0.95rem" }}>
+						<code
+							style={{
+								flex: 1,
+								fontFamily: "monospace",
+								wordBreak: "break-all",
+								fontSize: "0.95rem",
+							}}
+						>
 							{createdKey.token}
 						</code>
 						<button
@@ -225,7 +283,10 @@ export function ApiKeyCreateDialog({ open, onClose, onCreated }: ApiKeyCreateDia
 								cursor: "pointer",
 							}}
 						>
-							<span className="material-symbols-outlined" style={{ fontSize: "18px" }}>
+							<span
+								className="material-symbols-outlined"
+								style={{ fontSize: "18px" }}
+							>
 								{copied ? "check" : "content_copy"}
 							</span>
 						</button>
@@ -244,7 +305,13 @@ export function ApiKeyCreateDialog({ open, onClose, onCreated }: ApiKeyCreateDia
 						{m.api_keys_create_dialog_warning()}
 					</div>
 
-					<div style={{ display: "flex", justifyContent: "flex-end", marginTop: "1rem" }}>
+					<div
+						style={{
+							display: "flex",
+							justifyContent: "flex-end",
+							marginTop: "1rem",
+						}}
+					>
 						<button
 							type="button"
 							onClick={handleClose}

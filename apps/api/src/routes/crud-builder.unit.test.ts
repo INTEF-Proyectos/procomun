@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
-import { buildCrudRoutes } from "./crud-builder.ts";
 import { Hono } from "hono";
 import type { AuthEnv } from "../auth/middleware.ts";
+import { buildCrudRoutes } from "./crud-builder.ts";
 
 describe("buildCrudRoutes", () => {
 	test("applies list filters and pagination on the collection route", async () => {
@@ -18,13 +18,18 @@ describe("buildCrudRoutes", () => {
 
 		const app = new Hono<AuthEnv>();
 		app.use("*", async (c, next) => {
-			c.set("user", { id: "author-1", role: "author" } as AuthEnv["Variables"]["user"]);
+			c.set("user", {
+				id: "author-1",
+				role: "author",
+			} as AuthEnv["Variables"]["user"]);
 			c.set("session", null);
 			await next();
 		});
 		app.route("/crud", routes);
 
-		const response = await app.request("/crud?limit=5&offset=3&q=matematicas&language=es");
+		const response = await app.request(
+			"/crud?limit=5&offset=3&q=matematicas&language=es",
+		);
 		expect(response.status).toBe(200);
 		expect(listCalls).toEqual([
 			{
@@ -46,7 +51,10 @@ describe("buildCrudRoutes", () => {
 
 		const app = new Hono<AuthEnv>();
 		app.use("*", async (c, next) => {
-			c.set("user", { id: "author-1", role: "author" } as AuthEnv["Variables"]["user"]);
+			c.set("user", {
+				id: "author-1",
+				role: "author",
+			} as AuthEnv["Variables"]["user"]);
 			c.set("session", null);
 			await next();
 		});

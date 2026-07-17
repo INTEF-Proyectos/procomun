@@ -3,7 +3,9 @@ import { normalizeMediaUrl } from "./media.ts";
 
 describe("repository shared media", () => {
 	test("builds a public upload URL when an upload id exists", () => {
-		expect(normalizeMediaUrl("/otra/ruta", "upload-1")).toBe("/api/v1/uploads/upload-1/content");
+		expect(normalizeMediaUrl("/otra/ruta", "upload-1")).toBe(
+			"/api/v1/uploads/upload-1/content",
+		);
 	});
 
 	test("rewrites legacy admin upload URLs to the public path", () => {

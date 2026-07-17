@@ -112,8 +112,12 @@ describe("registerGlobalMiddleware", () => {
 		});
 
 		expect(response.status).toBe(200);
-		expect(response.headers.get("access-control-allow-origin")).toBe("http://localhost:5173");
-		expect(response.headers.get("access-control-allow-credentials")).toBe("true");
+		expect(response.headers.get("access-control-allow-origin")).toBe(
+			"http://localhost:5173",
+		);
+		expect(response.headers.get("access-control-allow-credentials")).toBe(
+			"true",
+		);
 	});
 
 	test("rejects a cross-origin preview management mutation before the route", async () => {

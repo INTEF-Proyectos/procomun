@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { Hono } from "hono";
-import type { AuthEnv } from "./middleware.ts";
 import { auditMiddleware, redactAuditPath } from "./audit.ts";
+import type { AuthEnv } from "./middleware.ts";
 
 describe("redactAuditPath", () => {
 	const ID = "756f4e31-18e6-4f16-b868-516c5b945d8b";

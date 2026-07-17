@@ -25,7 +25,11 @@ export function readListingState(search: string): ListingState {
 	};
 }
 
-export function buildListingUrl(pathname: string, search: string, state: ListingState): string {
+export function buildListingUrl(
+	pathname: string,
+	search: string,
+	state: ListingState,
+): string {
 	const params = new URLSearchParams(search);
 	if (state.query) {
 		params.set("q", state.query);

@@ -1,6 +1,6 @@
-import { inArray, sql } from "drizzle-orm";
 import * as repo from "@procomun/db/repository";
 import { favorites, ratings } from "@procomun/db/schema";
+import { inArray, sql } from "drizzle-orm";
 import { getDb } from "../db.ts";
 import { buildElpxMap, buildElpxPreview } from "../elpx/preview.ts";
 
@@ -12,7 +12,8 @@ type ResourceCardSignals = {
 	rating: { average: number; count: number };
 };
 
-export type EnrichedResourceCard<T extends ResourceWithId> = T & ResourceCardSignals;
+export type EnrichedResourceCard<T extends ResourceWithId> = T &
+	ResourceCardSignals;
 
 export function roundRatingAverage(value: unknown) {
 	return Math.round(Number(value ?? 0) * 100) / 100;
@@ -43,7 +44,10 @@ export async function enrichResourceCards<T extends ResourceWithId>(rows: T[]) {
 	const [elpxList, favoriteRows, ratingRows] = await Promise.all([
 		repo.listElpxProjectsByResourceIds(db, resourceIds),
 		db
-			.select({ resourceId: favorites.resourceId, count: sql<number>`count(*)` })
+			.select({
+				resourceId: favorites.resourceId,
+				count: sql<number>`count(*)`,
+			})
 			.from(favorites)
 			.where(inArray(favorites.resourceId, resourceIds))
 			.groupBy(favorites.resourceId),

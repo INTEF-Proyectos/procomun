@@ -63,3 +63,8 @@ apps/api/src/test-fixtures/elpx/demo/
 apps/frontend/public/api/v1/elpx/
 .omc/
 .antigravitycli
+
+# Local AI / agent tooling (must stay out of Biome + git so local lint matches CI)
+.claude/
+.cursor/
+.grok/
