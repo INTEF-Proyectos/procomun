@@ -113,6 +113,16 @@ describe("isUnsafeZipEntry", () => {
 		expect(isUnsafeZipEntry("http://example.com/x")).toBe(true);
 	});
 
+	it("rechaza null bytes en el nombre", () => {
+		expect(isUnsafeZipEntry("evil\0.txt")).toBe(true);
+		expect(isUnsafeZipEntry("a/b\0/c.txt")).toBe(true);
+	});
+
+	it("rechaza rutas absolutas Windows (C:…)", () => {
+		expect(isUnsafeZipEntry("C:/Windows/System32/x.dll")).toBe(true);
+		expect(isUnsafeZipEntry("c:foo")).toBe(true);
+	});
+
 	it("no confunde nombres con .. embebido legítimo", () => {
 		expect(isUnsafeZipEntry("file..name.txt")).toBe(false);
 		expect(isUnsafeZipEntry("a/b..c/d.txt")).toBe(false);

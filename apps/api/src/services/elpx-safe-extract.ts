@@ -66,8 +66,12 @@ const ZIP_METHOD_DEFLATE = 8;
  */
 export function isUnsafeZipEntry(name: string): boolean {
 	if (name === "") return true;
+	// Null byte: en algunas capas de FS trunca el path y permite colisiones.
+	if (name.includes("\0")) return true;
 	if (name.includes("\\")) return true;
 	if (name.startsWith("/")) return true;
+	// Rutas absolutas estilo Windows (`C:/…`, `C:\…`) además de esquemas `://`.
+	if (/^[a-zA-Z]:/.test(name)) return true;
 	if (/^[a-zA-Z]+:\/\//.test(name)) return true;
 	if (/(^|\/)\.\.(\/|$)/.test(name)) return true;
 	return false;
@@ -345,22 +349,28 @@ async function extractFileEntry(
 		while (true) {
 			const { done, value } = await reader.read();
 			if (done) break;
-			if (!value) continue;
+			if (!value || value.byteLength === 0) continue;
 
-			entryBytes += value.byteLength;
-			counter.bytes += value.byteLength;
-			if (counter.bytes > maxBytes) {
+			// Comprobar ANTES de acumular/escribir: un único chunk enorme no debe
+			// ni siquiera contarse como materializado más allá del límite.
+			const nextTotal = counter.bytes + value.byteLength;
+			if (nextTotal > maxBytes) {
 				await reader.cancel();
 				throw new Error(
-					`La extracción del .elpx excede el tamaño máximo permitido (${counter.bytes} > ${maxBytes} bytes)`,
+					`La extracción del .elpx excede el tamaño máximo permitido (${nextTotal} > ${maxBytes} bytes)`,
 				);
 			}
+			entryBytes += value.byteLength;
+			counter.bytes = nextTotal;
 			await file.write(value);
 		}
 	} finally {
 		await file.close();
 	}
 
+	// El directorio central puede mentir: si el tamaño real no coincide con el
+	// declarado, fallamos cerrados (corrupción o forgery). La cota autoritativa
+	// de disco es el contador de streaming de arriba.
 	if (entryBytes !== entry.uncompressedSize) {
 		throw new Error(
 			`Tamaño descomprimido inconsistente para ${entry.name} (${entryBytes} != ${entry.uncompressedSize})`,
