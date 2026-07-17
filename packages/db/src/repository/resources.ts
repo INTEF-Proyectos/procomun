@@ -341,7 +341,7 @@ export async function listMediaItemsForResource(
 		.where(eq(mediaItems.resourceId, resourceId))
 		.orderBy(desc(mediaItems.isPrimary), asc(mediaItems.filename));
 
-	return rows.map((row: any) => ({
+	return rows.map((row: MediaItemRow) => ({
 		id: row.id,
 		resourceId: row.resourceId,
 		type: row.type,
@@ -353,6 +353,19 @@ export async function listMediaItemsForResource(
 		uploadId: row.uploadId as string | null,
 	}));
 }
+
+/** Forma de cada fila del select de media items (con el join a uploadSessions). */
+type MediaItemRow = {
+	id: string;
+	resourceId: string;
+	type: string;
+	mimeType: string | null;
+	url: string;
+	fileSize: number | null;
+	filename: string;
+	isPrimary: boolean | null;
+	uploadId: string | null;
+};
 
 export async function createMediaItem(
 	db: DrizzleDB,

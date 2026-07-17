@@ -203,7 +203,12 @@ function generateCoverSvg(resource: SeedResource): string {
 		label: "Educacion",
 	};
 	const idx = parseInt(resource.id.replace("res-", ""), 10) || 0;
-	const decoFn = DECO_SHAPES[idx % DECO_SHAPES.length]!;
+	const decoFn = DECO_SHAPES[idx % DECO_SHAPES.length];
+	if (!decoFn) {
+		throw new Error(
+			"DECO_SHAPES está vacío: no hay forma decorativa que dibujar",
+		);
+	}
 
 	const maxChars = 35;
 	const words = resource.title.split(" ");
@@ -532,8 +537,8 @@ function buildZipBuffer(entries: ZipEntry[]): Uint8Array {
 
 function crc32(data: Uint8Array): number {
 	let crc = 0xffffffff;
-	for (let i = 0; i < data.length; i++) {
-		crc ^= data[i]!;
+	for (const byte of data) {
+		crc ^= byte;
 		for (let j = 0; j < 8; j++) {
 			crc = (crc >>> 1) ^ (crc & 1 ? 0xedb88320 : 0);
 		}
@@ -757,7 +762,13 @@ export async function generateDemoElpx(
 
 		// Pick random template
 		const tplIdx = Math.floor(Math.random() * templates.length);
-		const templateFiles = templates[tplIdx]!;
+		const templateFiles = templates[tplIdx];
+		const templateFile = TEMPLATE_FILES[tplIdx];
+		if (!templateFiles || !templateFile) {
+			throw new Error(
+				`Plantilla ${tplIdx} no disponible: se cargaron ${templates.length} de ${TEMPLATE_FILES.length} plantillas`,
+			);
+		}
 		const filename = `demo-${resource.slug}.elpx`;
 		const outputPath = path.join(outputDir, filename);
 		const pageNames = PAGE_NAMES[resource.id] ?? [
@@ -810,10 +821,9 @@ export async function generateDemoElpx(
 		await writeFile(outputPath, zipBuffer);
 
 		generatedFiles.set(resource.id, filename);
-		const themeName = TEMPLATE_FILES[tplIdx]!.replace(
-			"sample-project-theme-",
-			"",
-		).replace(".elpx", "");
+		const themeName = templateFile
+			.replace("sample-project-theme-", "")
+			.replace(".elpx", "");
 		log.log(
 			`  + ${filename} (tema: ${themeName}, ${Math.round(zipBuffer.length / 1024)} KB)`,
 		);
