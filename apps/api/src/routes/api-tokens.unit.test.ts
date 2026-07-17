@@ -120,7 +120,7 @@ describe("Token management — tope de tokens activos", () => {
 		name: "Cap",
 	});
 
-	test("POST /api/v1/tokens → 201 hasta el tope (10) y 429 en el 11º", async () => {
+	test("POST /api/v1/tokens → 201 hasta el tope (10) y 403 en el 11º", async () => {
 		// Los 10 primeros tokens deben crearse correctamente.
 		for (let i = 0; i < 10; i++) {
 			const res = await app.request("/api/v1/tokens", {
@@ -137,7 +137,7 @@ describe("Token management — tope de tokens activos", () => {
 			headers: { "Content-Type": "application/json" },
 			body: JSON.stringify({ name: "Token 11" }),
 		});
-		expect(res.status).toBe(429);
+		expect(res.status).toBe(403);
 		const body = await res.json();
 		expect(body.error).toContain("número máximo de tokens activos (10)");
 	});
@@ -171,7 +171,7 @@ describe("Token management — tope de tokens activos", () => {
 		);
 
 		expect(responses.map((response) => response.status).sort()).toEqual([
-			201, 429,
+			201, 403,
 		]);
 
 		const listResponse = await raceApp.request("/api/v1/tokens");

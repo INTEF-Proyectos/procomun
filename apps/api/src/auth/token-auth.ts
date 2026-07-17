@@ -4,24 +4,25 @@ import { getDb } from "../db.ts";
 import type { AuthEnv } from "./middleware.ts";
 
 /**
- * Simple in-memory rate limiter per token.
- * Allows `maxRequests` per `windowMs` milliseconds.
+ * Simple in-memory rate limiter keyed by user id (not token id).
+ * Allows `RATE_LIMIT_MAX` requests per `RATE_LIMIT_WINDOW_MS` milliseconds
+ * across all tokens of the same user.
  */
 const rateLimitStore = new Map<string, { count: number; resetAt: number }>();
 const RATE_LIMIT_MAX = 100;
 const RATE_LIMIT_WINDOW_MS = 60 * 1000; // 1 minute
 
-function checkRateLimit(tokenId: string): {
+function checkRateLimit(userId: string): {
 	allowed: boolean;
 	remaining: number;
 	resetAt: number;
 } {
 	const now = Date.now();
-	let entry = rateLimitStore.get(tokenId);
+	let entry = rateLimitStore.get(userId);
 
 	if (!entry || now >= entry.resetAt) {
 		entry = { count: 0, resetAt: now + RATE_LIMIT_WINDOW_MS };
-		rateLimitStore.set(tokenId, entry);
+		rateLimitStore.set(userId, entry);
 	}
 
 	entry.count++;

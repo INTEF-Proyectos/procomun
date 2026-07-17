@@ -56,6 +56,7 @@ apiTokenRoutes.post("/", async (c) => {
 	// the active-token count. Without this lock, concurrent requests can both see
 	// count=9 and create the 10th and 11th tokens. The lock is transaction-scoped
 	// and keyed by the user id; hash collisions only serialize unrelated users.
+	const tokenName = body.name.trim();
 	const result = await db.transaction(async (tx: typeof db) => {
 		await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${user.id}))`);
 		const activeCount = await repo.countActiveApiTokens(tx, user.id);
@@ -63,17 +64,18 @@ apiTokenRoutes.post("/", async (c) => {
 
 		return repo.createApiToken(tx, {
 			userId: user.id,
-			name: body.name?.trim() ?? "",
+			name: tokenName,
 			expiresAt,
 		});
 	});
 
+	// 403 (no 429): reintentar no ayuda; el usuario debe revocar un token primero.
 	if (!result) {
 		return c.json(
 			{
 				error: `Has alcanzado el número máximo de tokens activos (${MAX_ACTIVE_TOKENS_PER_USER}). Revoca alguno antes de crear otro.`,
 			},
-			429,
+			403,
 		);
 	}
 
