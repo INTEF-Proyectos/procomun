@@ -10,6 +10,14 @@
 
 // --- Types ---
 
+/**
+ * Ensure a Uint8Array is ArrayBuffer-backed so Blob / stream APIs accept it
+ * under strict TS libs (Uint8Array<ArrayBufferLike> is not assignable to BlobPart).
+ */
+function toBytes(data: Uint8Array): Uint8Array<ArrayBuffer> {
+	return data.slice();
+}
+
 /** Supported export format identifiers matching eXeLearning's ExportFormat enum */
 export type ElpxExportFormat =
 	| "scorm12"
@@ -216,7 +224,7 @@ export function createResourceFetcher(files: Map<string, Uint8Array>): unknown {
 	const emptyMap = new Map<string, Blob>();
 
 	const toBlob = (data: Uint8Array, type = "application/octet-stream") =>
-		new Blob([data], { type });
+		new Blob([toBytes(data)], { type });
 
 	return {
 		fetchTheme: async (_themeName: string): Promise<Map<string, Blob>> => {
@@ -271,7 +279,7 @@ export function createAssetManager(files: Map<string, Uint8Array>): unknown {
 		resolveAssetURL: async (url: string) => {
 			const matched = assets.find((a) => a.path === url || a.id === url);
 			if (!matched) return null;
-			return URL.createObjectURL(new Blob([matched.data]));
+			return URL.createObjectURL(new Blob([toBytes(matched.data)]));
 		},
 	};
 }
@@ -369,7 +377,9 @@ export async function exportElpx(
  * Trigger a file download in the browser from export result data.
  */
 export function downloadExportResult(result: ElpxExportResult): void {
-	const blob = new Blob([result.data], { type: result.mimeType });
+	const blob = new Blob([toBytes(result.data)], {
+		type: result.mimeType,
+	});
 	const url = URL.createObjectURL(blob);
 	const a = document.createElement("a");
 	a.href = url;
@@ -480,7 +490,7 @@ async function extractElpxFiles(
 async function inflateRaw(data: Uint8Array): Promise<Uint8Array> {
 	const ds = new DecompressionStream("deflate-raw");
 	const writer = ds.writable.getWriter();
-	writer.write(data);
+	writer.write(toBytes(data));
 	writer.close();
 	const reader = ds.readable.getReader();
 	const chunks: Uint8Array[] = [];

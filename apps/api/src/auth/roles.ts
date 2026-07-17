@@ -15,7 +15,7 @@ export function hasMinRole(
 	role: string | undefined,
 	minRole: keyof typeof ROLE_LEVELS,
 ) {
-	return (ROLE_LEVELS[role ?? "reader"] ?? 0) >= ROLE_LEVELS[minRole];
+	return (ROLE_LEVELS[role ?? "reader"] ?? 0) >= (ROLE_LEVELS[minRole] ?? 0);
 }
 
 export function canManageResource(

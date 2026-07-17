@@ -1,59 +1,57 @@
 import AxeBuilder from "@axe-core/playwright";
-import { expect, test } from "@playwright/test";
+import { expect, type Page, test } from "@playwright/test";
 import { PUBLISHED_RESOURCE } from "../../fixtures/test-data";
 import { loginAs } from "../../utils/auth";
+
+/**
+ * @axe-core/playwright tipa `page` contra `playwright-core`, que puede
+ * resolverse a un parche distinto de `@playwright/test` (1.61.0 vs 1.61.1).
+ * Estructuralmente es el mismo Page; este helper aísla el puente de tipos.
+ */
+type AxePage = ConstructorParameters<typeof AxeBuilder>[0]["page"];
+
+function analyzePage(page: Page) {
+	// Puente entre las dos copias de tipos de playwright-core (mismo API).
+	return new AxeBuilder({ page: page as unknown as AxePage })
+		.withTags(["wcag2a", "wcag2aa"])
+		.analyze();
+}
+
+async function expectNoCriticalA11yViolations(page: Page) {
+	const results = await analyzePage(page);
+	const critical = results.violations.filter(
+		(v) => v.impact === "critical" || v.impact === "serious",
+	);
+	expect(critical).toEqual([]);
+}
 
 test.describe("Accessibility - Public pages", () => {
 	test("home page has no critical accessibility violations", async ({
 		page,
 	}) => {
 		await page.goto("/");
-		const results = await new AxeBuilder({ page })
-			.withTags(["wcag2a", "wcag2aa"])
-			.analyze();
-		const critical = results.violations.filter(
-			(v) => v.impact === "critical" || v.impact === "serious",
-		);
-		expect(critical).toEqual([]);
+		await expectNoCriticalA11yViolations(page);
 	});
 
 	test("explore page has no critical accessibility violations", async ({
 		page,
 	}) => {
 		await page.goto("/explorar");
-		const results = await new AxeBuilder({ page })
-			.withTags(["wcag2a", "wcag2aa"])
-			.analyze();
-		const critical = results.violations.filter(
-			(v) => v.impact === "critical" || v.impact === "serious",
-		);
-		expect(critical).toEqual([]);
+		await expectNoCriticalA11yViolations(page);
 	});
 
 	test("resource detail page has no critical accessibility violations", async ({
 		page,
 	}) => {
 		await page.goto(`/recurso?slug=${PUBLISHED_RESOURCE.slug}`);
-		const results = await new AxeBuilder({ page })
-			.withTags(["wcag2a", "wcag2aa"])
-			.analyze();
-		const critical = results.violations.filter(
-			(v) => v.impact === "critical" || v.impact === "serious",
-		);
-		expect(critical).toEqual([]);
+		await expectNoCriticalA11yViolations(page);
 	});
 
 	test("login page has no critical accessibility violations", async ({
 		page,
 	}) => {
 		await page.goto("/login");
-		const results = await new AxeBuilder({ page })
-			.withTags(["wcag2a", "wcag2aa"])
-			.analyze();
-		const critical = results.violations.filter(
-			(v) => v.impact === "critical" || v.impact === "serious",
-		);
-		expect(critical).toEqual([]);
+		await expectNoCriticalA11yViolations(page);
 	});
 });
 
@@ -110,24 +108,12 @@ test.describe("Accessibility - Authenticated pages", () => {
 	test("new resource form has no critical violations", async ({ page }) => {
 		await loginAs(page, "author");
 		await page.goto("/nuevo");
-		const results = await new AxeBuilder({ page })
-			.withTags(["wcag2a", "wcag2aa"])
-			.analyze();
-		const critical = results.violations.filter(
-			(v) => v.impact === "critical" || v.impact === "serious",
-		);
-		expect(critical).toEqual([]);
+		await expectNoCriticalA11yViolations(page);
 	});
 
 	test("admin panel has no critical violations", async ({ page }) => {
 		await loginAs(page, "admin");
 		await page.goto("/admin");
-		const results = await new AxeBuilder({ page })
-			.withTags(["wcag2a", "wcag2aa"])
-			.analyze();
-		const critical = results.violations.filter(
-			(v) => v.impact === "critical" || v.impact === "serious",
-		);
-		expect(critical).toEqual([]);
+		await expectNoCriticalA11yViolations(page);
 	});
 });

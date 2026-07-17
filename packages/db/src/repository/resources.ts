@@ -133,12 +133,11 @@ export async function listResources(db: DrizzleDB, opts: ResourceListOptions) {
 	if (opts.license) conditions.push(eq(resources.license, opts.license));
 	if (opts.createdBy) conditions.push(eq(resources.createdBy, opts.createdBy));
 	if (opts.visibleToUserId) {
-		conditions.push(
-			or(
-				eq(resources.createdBy, opts.visibleToUserId),
-				eq(resources.assignedCuratorId, opts.visibleToUserId),
-			),
+		const visibility = or(
+			eq(resources.createdBy, opts.visibleToUserId),
+			eq(resources.assignedCuratorId, opts.visibleToUserId),
 		);
+		if (visibility) conditions.push(visibility);
 	}
 
 	const where = andWhere(conditions);
@@ -307,7 +306,7 @@ export async function listMediaItemsForResource(
 		.where(eq(mediaItems.resourceId, resourceId))
 		.orderBy(desc(mediaItems.isPrimary), asc(mediaItems.filename));
 
-	return rows.map((row: MediaItemRow) => ({
+	return rows.map((row) => ({
 		id: row.id,
 		resourceId: row.resourceId,
 		type: row.type,
@@ -316,22 +315,9 @@ export async function listMediaItemsForResource(
 		fileSize: row.fileSize,
 		filename: row.filename,
 		isPrimary: row.isPrimary,
-		uploadId: row.uploadId as string | null,
+		uploadId: row.uploadId,
 	}));
 }
-
-/** Forma de cada fila del select de media items (con el join a uploadSessions). */
-type MediaItemRow = {
-	id: string;
-	resourceId: string;
-	type: string;
-	mimeType: string | null;
-	url: string;
-	fileSize: number | null;
-	filename: string;
-	isPrimary: boolean | null;
-	uploadId: string | null;
-};
 
 export async function createMediaItem(
 	db: DrizzleDB,

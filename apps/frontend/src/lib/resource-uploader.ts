@@ -114,6 +114,17 @@ export async function initResourceUploader(args: {
 		return null;
 	}
 
+	// Re-bind after the compound null-guard so nested callbacks see definite DOM nodes.
+	// TypeScript does not always preserve multi-variable narrowing inside closures.
+	const pickerEl: HTMLInputElement = picker;
+	const dropzoneEl: HTMLElement = dropzone;
+	const queueEl: HTMLElement = queue;
+	const mediaListEl: HTMLElement = mediaList;
+	const persistedListEl: HTMLElement = persistedList;
+	const globalProgressEl: HTMLProgressElement = globalProgress;
+	const globalLabelEl: HTMLElement = globalLabel;
+	const feedbackEl: HTMLElement = feedback;
+
 	const abortController = new AbortController();
 	const listenerOptions: AddEventListenerOptions = {
 		signal: abortController.signal,
@@ -144,21 +155,21 @@ export async function initResourceUploader(args: {
 			api.listResourceMediaItems(resourceId),
 		]);
 
-		persistedList.innerHTML = uploads.length
+		persistedListEl.innerHTML = uploads.length
 			? uploads.map((upload) => renderPersistedUploadItem(upload)).join("")
 			: "<li>No hay uploads recientes.</li>";
 
 		const displayItems = mediaItems.filter(
 			(item) => item.filename !== "recurso-generado.elpx",
 		);
-		mediaList.innerHTML = displayItems.length
+		mediaListEl.innerHTML = displayItems.length
 			? displayItems.map((item) => renderMediaItem(item)).join("")
 			: "<li>No hay archivos adjuntos todavía.</li>";
 	}
 
 	function renderLocalQueue() {
 		const files = uppy.getFiles();
-		queue.innerHTML = files.length
+		queueEl.innerHTML = files.length
 			? files.map((file) => renderQueueItem(file)).join("")
 			: "<li>No hay archivos en cola.</li>";
 
@@ -169,8 +180,8 @@ export async function initResourceUploader(args: {
 		}, 0);
 		const globalPercentage =
 			totalBytes > 0 ? Math.round((uploadedBytes / totalBytes) * 100) : 0;
-		globalProgress.value = globalPercentage;
-		globalLabel.textContent =
+		globalProgressEl.value = globalPercentage;
+		globalLabelEl.textContent =
 			totalBytes > 0
 				? `${globalPercentage}% subido (${formatBytes(uploadedBytes)} / ${formatBytes(totalBytes)})`
 				: "Sin subidas activas";
@@ -179,8 +190,8 @@ export async function initResourceUploader(args: {
 	async function addFiles(files: FileList | File[]) {
 		const entries = Array.from(files);
 		if (entries.length > config.maxFilesPerBatch) {
-			feedback.textContent = `Solo se permiten ${config.maxFilesPerBatch} archivos por lote.`;
-			feedback.className = "upload-feedback error";
+			feedbackEl.textContent = `Solo se permiten ${config.maxFilesPerBatch} archivos por lote.`;
+			feedbackEl.className = "upload-feedback error";
 			return;
 		}
 
@@ -202,45 +213,45 @@ export async function initResourceUploader(args: {
 					},
 				});
 			} catch (error) {
-				feedback.textContent =
+				feedbackEl.textContent =
 					error instanceof Error
 						? error.message
 						: "No se pudo añadir el archivo";
-				feedback.className = "upload-feedback error";
+				feedbackEl.className = "upload-feedback error";
 			}
 		}
 		renderLocalQueue();
 	}
 
-	picker.addEventListener(
+	pickerEl.addEventListener(
 		"change",
 		async () => {
-			if (picker.files?.length) {
-				await addFiles(picker.files);
-				picker.value = "";
+			if (pickerEl.files?.length) {
+				await addFiles(pickerEl.files);
+				pickerEl.value = "";
 			}
 		},
 		listenerOptions,
 	);
 
-	dropzone.addEventListener(
+	dropzoneEl.addEventListener(
 		"dragover",
 		(event) => {
 			event.preventDefault();
-			dropzone.classList.add("is-dragover");
+			dropzoneEl.classList.add("is-dragover");
 		},
 		listenerOptions,
 	);
-	dropzone.addEventListener(
+	dropzoneEl.addEventListener(
 		"dragleave",
-		() => dropzone.classList.remove("is-dragover"),
+		() => dropzoneEl.classList.remove("is-dragover"),
 		listenerOptions,
 	);
-	dropzone.addEventListener(
+	dropzoneEl.addEventListener(
 		"drop",
 		async (event) => {
 			event.preventDefault();
-			dropzone.classList.remove("is-dragover");
+			dropzoneEl.classList.remove("is-dragover");
 			if (event.dataTransfer?.files?.length) {
 				await addFiles(event.dataTransfer.files);
 			}
@@ -248,12 +259,12 @@ export async function initResourceUploader(args: {
 		listenerOptions,
 	);
 
-	queue.addEventListener(
+	queueEl.addEventListener(
 		"click",
 		async (event) => {
 			const target = event.target as HTMLElement | null;
 			const fileId = target?.getAttribute("data-remove-local");
-			if (!fileId) return;
+			if (!target || !fileId) return;
 			const uploadId = target.getAttribute("data-upload-id");
 			uppy.removeFile(fileId);
 			if (uploadId) {
@@ -265,7 +276,7 @@ export async function initResourceUploader(args: {
 		listenerOptions,
 	);
 
-	persistedList.addEventListener(
+	persistedListEl.addEventListener(
 		"click",
 		async (event) => {
 			const target = event.target as HTMLElement | null;
@@ -277,7 +288,7 @@ export async function initResourceUploader(args: {
 		listenerOptions,
 	);
 
-	mediaList.addEventListener(
+	mediaListEl.addEventListener(
 		"click",
 		async (event) => {
 			const target = event.target as HTMLElement | null;
@@ -289,9 +300,9 @@ export async function initResourceUploader(args: {
 				await refreshPersisted();
 				if (args.onUploadComplete) await args.onUploadComplete(0);
 			} catch (err) {
-				feedback.textContent =
+				feedbackEl.textContent =
 					err instanceof Error ? err.message : "Error al eliminar el archivo";
-				feedback.className = "upload-feedback error";
+				feedbackEl.className = "upload-feedback error";
 			}
 		},
 		listenerOptions,
@@ -300,14 +311,14 @@ export async function initResourceUploader(args: {
 	uppy.on("file-added", renderLocalQueue);
 	uppy.on("upload-progress", renderLocalQueue);
 	uppy.on("upload-success", async () => {
-		feedback.textContent = "Archivo subido correctamente.";
-		feedback.className = "upload-feedback success";
+		feedbackEl.textContent = "Archivo subido correctamente.";
+		feedbackEl.className = "upload-feedback success";
 		renderLocalQueue();
 		await refreshPersisted();
 	});
 	uppy.on("upload-error", (_file, error) => {
-		feedback.textContent = error?.message ?? "Error durante la subida";
-		feedback.className = "upload-feedback error";
+		feedbackEl.textContent = error?.message ?? "Error durante la subida";
+		feedbackEl.className = "upload-feedback error";
 		renderLocalQueue();
 	});
 	uppy.on("file-removed", renderLocalQueue);

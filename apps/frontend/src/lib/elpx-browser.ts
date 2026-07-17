@@ -9,6 +9,15 @@ import { parseContentXml } from "@procomun/db/elpx-metadata";
 
 export type { ElpxMetadata };
 
+/**
+ * Ensure a Uint8Array is ArrayBuffer-backed so Blob / stream APIs accept it
+ * under strict TS libs (Uint8Array<ArrayBufferLike> is not assignable to BlobPart).
+ * `slice()` always copies into a fresh ArrayBuffer-backed view.
+ */
+function toBytes(data: Uint8Array): Uint8Array<ArrayBuffer> {
+	return data.slice();
+}
+
 /** Find End of Central Directory record by scanning backwards */
 function findEOCD(buf: Uint8Array): number {
 	const view = new DataView(buf.buffer, buf.byteOffset, buf.byteLength);
@@ -78,7 +87,7 @@ function extractLocalFileData(
 async function inflateRaw(data: Uint8Array): Promise<Uint8Array> {
 	const ds = new DecompressionStream("deflate-raw");
 	const writer = ds.writable.getWriter();
-	writer.write(data);
+	writer.write(toBytes(data));
 	writer.close();
 	const reader = ds.readable.getReader();
 	const chunks: Uint8Array[] = [];
@@ -238,7 +247,9 @@ function rewriteCssUrls(
 	return css.replace(
 		/url\(\s*["']?(?!data:|https?:|\/\/|#)([^"')]+)["']?\s*\)/gi,
 		(_match, relUrl: string) => {
-			const resolved = resolvePath(dir, relUrl.split("?")[0].split("#")[0]);
+			const withoutQuery = relUrl.split("?")[0] ?? relUrl;
+			const withoutHash = withoutQuery.split("#")[0] ?? withoutQuery;
+			const resolved = resolvePath(dir, withoutHash);
 			return blobUrls.has(resolved)
 				? `url("${blobUrls.get(resolved)}")`
 				: _match;
@@ -262,8 +273,9 @@ export async function createPreviewBlobUrl(file: File): Promise<string | null> {
 	const blobUrls = new Map<string, string>();
 	const allCreatedUrls: string[] = [];
 
-	const createBlob = (data: BlobPart, type: string): string => {
-		const u = URL.createObjectURL(new Blob([data], { type }));
+	const createBlob = (data: Uint8Array | string, type: string): string => {
+		const part: BlobPart = typeof data === "string" ? data : toBytes(data);
+		const u = URL.createObjectURL(new Blob([part], { type }));
 		allCreatedUrls.push(u);
 		return u;
 	};
@@ -289,8 +301,10 @@ export async function createPreviewBlobUrl(file: File): Promise<string | null> {
 	let html = dec.decode(indexData);
 	html = html.replace(
 		/(<[^>]+\s)(src|href|poster)(\s*=\s*["'])(?!https?:\/\/|data:|\/\/|#|javascript:|mailto:)([^"']+)(["'])/gi,
-		(_m, pre, attr, eq, rawUrl, q) => {
-			const u = blobUrls.get(rawUrl.split("?")[0].split("#")[0]);
+		(_m, pre, attr, eq, rawUrl: string, q) => {
+			const withoutQuery = rawUrl.split("?")[0] ?? rawUrl;
+			const withoutHash = withoutQuery.split("#")[0] ?? withoutQuery;
+			const u = blobUrls.get(withoutHash);
 			return u ? `${pre}${attr}${eq}${u}${q}` : _m;
 		},
 	);
@@ -328,8 +342,9 @@ export async function parseAndPreview(
 	const dec = new TextDecoder();
 	const blobUrls = new Map<string, string>();
 	const allCreatedUrls: string[] = [];
-	const createBlob = (data: BlobPart, type: string): string => {
-		const u = URL.createObjectURL(new Blob([data], { type }));
+	const createBlob = (data: Uint8Array | string, type: string): string => {
+		const part: BlobPart = typeof data === "string" ? data : toBytes(data);
+		const u = URL.createObjectURL(new Blob([part], { type }));
 		allCreatedUrls.push(u);
 		return u;
 	};
@@ -350,8 +365,10 @@ export async function parseAndPreview(
 	let html = dec.decode(indexData);
 	html = html.replace(
 		/(<[^>]+\s)(src|href|poster)(\s*=\s*["'])(?!https?:\/\/|data:|\/\/|#|javascript:|mailto:)([^"']+)(["'])/gi,
-		(_m, pre, attr, eq, rawUrl, q) => {
-			const u = blobUrls.get(rawUrl.split("?")[0].split("#")[0]);
+		(_m, pre, attr, eq, rawUrl: string, q) => {
+			const withoutQuery = rawUrl.split("?")[0] ?? rawUrl;
+			const withoutHash = withoutQuery.split("#")[0] ?? withoutQuery;
+			const u = blobUrls.get(withoutHash);
 			return u ? `${pre}${attr}${eq}${u}${q}` : _m;
 		},
 	);

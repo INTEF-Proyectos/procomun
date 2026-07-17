@@ -63,10 +63,11 @@ export async function listPublishedCollections(opts: {
 						status: "published",
 					},
 				);
-				if (collectionResources.length > 0) {
+				const firstResource = collectionResources[0];
+				if (firstResource) {
 					firstResourceByCollection.set(
 						collection.id,
-						collectionResources[0].resourceId,
+						firstResource.resourceId,
 					);
 				}
 			} catch {

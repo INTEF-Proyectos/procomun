@@ -26,6 +26,12 @@ function bodyAsJson(call: FetchCall): unknown {
 	return JSON.parse(call.init?.body as string);
 }
 
+function getCall(calls: FetchCall[], index: number): FetchCall {
+	const call = calls[index];
+	if (!call) throw new Error(`Expected fetch call at index ${index}`);
+	return call;
+}
+
 function mockFetchQueue(responses: Response[]): FetchCall[] {
 	const calls: FetchCall[] = [];
 	globalThis.fetch = mock(
@@ -35,7 +41,7 @@ function mockFetchQueue(responses: Response[]): FetchCall[] {
 			if (!response) throw new Error(`Unexpected fetch call: ${String(url)}`);
 			return response;
 		},
-	) as typeof fetch;
+	) as unknown as typeof fetch;
 	return calls;
 }
 
@@ -59,7 +65,7 @@ describe("HttpApiClient.signUp", () => {
 					status: 200,
 				});
 			},
-		) as typeof fetch;
+		) as unknown as typeof fetch;
 
 		const client = new HttpApiClient();
 		const result = await client.signUp(
@@ -83,7 +89,7 @@ describe("HttpApiClient.signUp", () => {
 			return new Response(JSON.stringify({ message: "User already exists" }), {
 				status: 422,
 			});
-		}) as typeof fetch;
+		}) as unknown as typeof fetch;
 
 		const client = new HttpApiClient();
 		const result = await client.signUp(
@@ -99,7 +105,7 @@ describe("HttpApiClient.signUp", () => {
 	test("returns default error message when response has no message", async () => {
 		globalThis.fetch = mock(async () => {
 			return new Response("", { status: 500 });
-		}) as typeof fetch;
+		}) as unknown as typeof fetch;
 
 		const client = new HttpApiClient();
 		const result = await client.signUp(
@@ -143,27 +149,33 @@ describe("HttpApiClient", () => {
 				language: "es",
 				license: "cc-by",
 			}),
-		).resolves.toEqual({ data: [{ id: "r1" }], total: 1 });
-		await expect(client.getResourceBySlug("algebra")).resolves.toEqual({
+		).resolves.toMatchObject({ data: [{ id: "r1" }], total: 1 });
+		await expect(client.getResourceBySlug("algebra")).resolves.toMatchObject({
 			id: "r1",
 			slug: "algebra",
 		});
 		await expect(client.getResourceBySlug("missing")).resolves.toBeNull();
 		await expect(
 			client.listPublicCollections({ q: "stem", limit: 20, offset: 2 }),
-		).resolves.toEqual({
+		).resolves.toMatchObject({
 			data: [{ id: "c1" }],
 			total: 1,
 		});
-		await expect(client.getPublicCollectionBySlug("stem")).resolves.toEqual({
+		await expect(
+			client.getPublicCollectionBySlug("stem"),
+		).resolves.toMatchObject({
 			id: "c1",
 			slug: "stem",
 		});
 		await expect(
 			client.getPublicCollectionBySlug("missing"),
 		).resolves.toBeNull();
-		await expect(client.getConfig()).resolves.toEqual({ oidcEnabled: true });
-		await expect(client.getPlatformStats()).resolves.toEqual({ users: 7 });
+		await expect(client.getConfig()).resolves.toMatchObject({
+			oidcEnabled: true,
+		});
+		await expect(client.getPlatformStats()).resolves.toMatchObject({
+			users: 7,
+		});
 
 		expect(calls.map((call) => call.url)).toEqual([
 			"/api/v1/resources?q=algebra&limit=10&offset=5&resourceType=lesson&language=es&license=cc-by",
@@ -193,48 +205,54 @@ describe("HttpApiClient", () => {
 
 		await expect(client.getSession()).resolves.toBeNull();
 		await expect(client.getSession()).resolves.toBeNull();
-		await expect(client.getSession()).resolves.toEqual({ user: { id: "u1" } });
+		await expect(client.getSession()).resolves.toMatchObject({
+			user: { id: "u1" },
+		});
 		const throwingFetch = globalThis.fetch;
 		globalThis.fetch = mock(async () => {
 			throw new Error("network");
-		}) as typeof fetch;
+		}) as unknown as typeof fetch;
 		await expect(client.getSession()).resolves.toBeNull();
 		globalThis.fetch = throwingFetch;
 
-		await expect(client.signIn("user@example.com", "secret")).resolves.toEqual({
+		await expect(
+			client.signIn("user@example.com", "secret"),
+		).resolves.toMatchObject({
 			ok: true,
 		});
-		await expect(client.signIn("user@example.com", "bad")).resolves.toEqual({
+		await expect(
+			client.signIn("user@example.com", "bad"),
+		).resolves.toMatchObject({
 			ok: false,
 			error: "Bad credentials",
 		});
-		await expect(client.signInOidc()).resolves.toEqual({
+		await expect(client.signInOidc()).resolves.toMatchObject({
 			ok: true,
 			redirectUrl: "/admin",
 		});
-		await expect(client.signInOidc()).resolves.toEqual({
+		await expect(client.signInOidc()).resolves.toMatchObject({
 			ok: true,
 			redirectUrl: "/oidc",
 		});
-		await expect(client.signInOidc()).resolves.toEqual({
+		await expect(client.signInOidc()).resolves.toMatchObject({
 			ok: false,
 			error: "No se pudo iniciar el login institucional",
 		});
 		await client.signOut();
 
-		expect(calls[0].init?.credentials).toBe("include");
-		expect(calls[3].url).toBe("/api/auth/sign-in/email");
-		expect(calls[3].init?.method).toBe("POST");
-		expect(bodyAsJson(calls[3])).toEqual({
+		expect(getCall(calls, 0).init?.credentials).toBe("include");
+		expect(getCall(calls, 3).url).toBe("/api/auth/sign-in/email");
+		expect(getCall(calls, 3).init?.method).toBe("POST");
+		expect(bodyAsJson(getCall(calls, 3))).toEqual({
 			email: "user@example.com",
 			password: "secret",
 		});
-		expect(calls[5].url).toBe("/api/auth/sign-in/oauth2");
-		expect(bodyAsJson(calls[5])).toEqual({
+		expect(getCall(calls, 5).url).toBe("/api/auth/sign-in/oauth2");
+		expect(bodyAsJson(getCall(calls, 5))).toEqual({
 			providerId: "oidc",
 			callbackURL: "/admin",
 		});
-		expect(calls[8]).toMatchObject({
+		expect(getCall(calls, 8)).toMatchObject({
 			url: "/api/auth/sign-out",
 			init: { method: "POST", credentials: "include" },
 		});
@@ -278,86 +296,98 @@ describe("HttpApiClient", () => {
 				offset: 0,
 				status: "review",
 			}),
-		).resolves.toEqual({
+		).resolves.toMatchObject({
 			data: [{ id: "r1" }],
 			total: 1,
 		});
 		await expect(client.listAdminResources()).rejects.toThrow(
 			"listAdminResources failed: 500",
 		);
-		await expect(client.getResourceById("r1")).resolves.toEqual({ id: "r1" });
+		await expect(client.getResourceById("r1")).resolves.toMatchObject({
+			id: "r1",
+		});
 		await expect(client.getResourceById("missing")).resolves.toBeNull();
-		await expect(client.listResourceMediaItems("r1")).resolves.toEqual([
+		await expect(client.listResourceMediaItems("r1")).resolves.toMatchObject([
 			{ id: "m1" },
 		]);
-		await expect(client.listResourceMediaItems("missing")).resolves.toEqual([]);
-		await expect(client.listResourceUploads("r1")).resolves.toEqual([
+		await expect(
+			client.listResourceMediaItems("missing"),
+		).resolves.toMatchObject([]);
+		await expect(client.listResourceUploads("r1")).resolves.toMatchObject([
 			{ id: "up1" },
 		]);
-		await expect(client.listResourceUploads("missing")).resolves.toEqual([]);
-		await expect(client.createDraftResource()).resolves.toEqual({
+		await expect(client.listResourceUploads("missing")).resolves.toMatchObject(
+			[],
+		);
+		await expect(client.createDraftResource()).resolves.toMatchObject({
 			id: "draft",
 			slug: "draft",
 		});
 		await expect(client.createDraftResource()).rejects.toThrow("no draft");
 		await expect(
 			client.createResource({ title: "T" } as never),
-		).resolves.toEqual({ id: "created", slug: "created" });
+		).resolves.toMatchObject({ id: "created", slug: "created" });
 		await expect(client.createResource({ title: "" } as never)).rejects.toEqual(
 			{ error: "invalid" },
 		);
 		await expect(
 			client.updateResource("r1", { title: "Updated" } as never),
-		).resolves.toEqual({ ok: true });
-		await expect(client.updateResource("r1", {} as never)).resolves.toEqual({
+		).resolves.toMatchObject({ ok: true });
+		await expect(
+			client.updateResource("r1", {} as never),
+		).resolves.toMatchObject({
 			ok: false,
 			error: "invalid",
 			details: ["title"],
 		});
 		await expect(
 			client.updateResourceStatus("r1", "published"),
-		).resolves.toEqual({ id: "r1", status: "published" });
+		).resolves.toMatchObject({ id: "r1", status: "published" });
 		await expect(client.updateResourceStatus("r1", "archived")).rejects.toEqual(
 			{ error: "bad transition" },
 		);
 		await client.deleteResource("r1");
-		await expect(client.getUploadConfig()).resolves.toEqual({
+		await expect(client.getUploadConfig()).resolves.toMatchObject({
 			maxFileSizeBytes: 1_000,
 		});
-		await expect(client.cancelUpload("up1")).resolves.toEqual({
+		await expect(client.cancelUpload("up1")).resolves.toMatchObject({
 			id: "up1",
 			cancelled: true,
 		});
 		await expect(client.cancelUpload("missing")).rejects.toEqual({
 			error: "missing upload",
 		});
-		await expect(client.deleteMediaItem("r1", "m1")).resolves.toEqual({
+		await expect(client.deleteMediaItem("r1", "m1")).resolves.toMatchObject({
 			id: "m1",
 			deleted: true,
 		});
 		await expect(client.deleteMediaItem("r1", "m2")).rejects.toThrow(
 			"Error al eliminar el archivo",
 		);
-		await expect(client.getElpxProject("r1")).resolves.toEqual({ id: "p1" });
+		await expect(client.getElpxProject("r1")).resolves.toMatchObject({
+			id: "p1",
+		});
 		await expect(client.getElpxProject("missing")).resolves.toBeNull();
-		await expect(client.generateElpx("r1")).resolves.toEqual({ id: "p2" });
+		await expect(client.generateElpx("r1")).resolves.toMatchObject({
+			id: "p2",
+		});
 		await expect(client.generateElpx("r1")).rejects.toThrow(
 			"Error al generar el .elpx",
 		);
 
-		expect(calls[0].url).toBe(
+		expect(getCall(calls, 0).url).toBe(
 			"/api/admin/resources?q=math&limit=0&offset=0&status=review",
 		);
-		expect(calls[8]).toMatchObject({
+		expect(getCall(calls, 8)).toMatchObject({
 			url: "/api/admin/resources/draft",
 			init: { method: "POST", credentials: "include" },
 		});
-		expect(calls[10].url).toBe("/api/admin/resources");
-		expect(bodyAsJson(calls[10])).toEqual({ title: "T" });
-		expect(calls[14].url).toBe("/api/admin/resources/r1/status");
-		expect(bodyAsJson(calls[14])).toEqual({ status: "published" });
-		expect(calls[16].init?.method).toBe("DELETE");
-		expect(calls[24].url).toBe("/api/admin/elpx/generate/r1");
+		expect(getCall(calls, 10).url).toBe("/api/admin/resources");
+		expect(bodyAsJson(getCall(calls, 10))).toEqual({ title: "T" });
+		expect(getCall(calls, 14).url).toBe("/api/admin/resources/r1/status");
+		expect(bodyAsJson(getCall(calls, 14))).toEqual({ status: "published" });
+		expect(getCall(calls, 16).init?.method).toBe("DELETE");
+		expect(getCall(calls, 24).url).toBe("/api/admin/elpx/generate/r1");
 	});
 
 	test("covers users, collections and taxonomies", async () => {
@@ -396,49 +426,55 @@ describe("HttpApiClient", () => {
 
 		await expect(
 			client.listUsers({ q: "ana", role: "admin", limit: 10, offset: 5 }),
-		).resolves.toEqual({
+		).resolves.toMatchObject({
 			data: [{ id: "u1" }],
 			total: 1,
 		});
-		await expect(client.getUserById("u1")).resolves.toEqual({ id: "u1" });
+		await expect(client.getUserById("u1")).resolves.toMatchObject({ id: "u1" });
 		await expect(client.getUserById("missing")).resolves.toBeNull();
 		await expect(
 			client.updateUser("u1", { name: "Ana", isActive: true }),
-		).resolves.toEqual({ ok: true });
-		await expect(client.updateUser("u1", { role: "admin" })).resolves.toEqual({
+		).resolves.toMatchObject({ ok: true });
+		await expect(
+			client.updateUser("u1", { role: "admin" }),
+		).resolves.toMatchObject({
 			ok: false,
 			error: "Error al actualizar usuario",
 		});
 		await expect(
 			client.listCollections({ q: "stem", limit: 10, offset: 2 }),
-		).resolves.toEqual({
+		).resolves.toMatchObject({
 			data: [{ id: "c1" }],
 			total: 1,
 		});
-		await expect(client.getCollectionById("c1")).resolves.toEqual({ id: "c1" });
+		await expect(client.getCollectionById("c1")).resolves.toMatchObject({
+			id: "c1",
+		});
 		await expect(client.getCollectionById("missing")).resolves.toBeNull();
-		await expect(client.listCollectionResources("c1")).resolves.toEqual([
+		await expect(client.listCollectionResources("c1")).resolves.toMatchObject([
 			{ resourceId: "r1" },
 		]);
-		await expect(client.listCollectionResources("missing")).resolves.toEqual(
-			[],
-		);
+		await expect(
+			client.listCollectionResources("missing"),
+		).resolves.toMatchObject([]);
 		await expect(
 			client.createCollection({ title: "C", description: "D" }),
-		).resolves.toEqual({ id: "c2" });
+		).resolves.toMatchObject({ id: "c2" });
 		await expect(
 			client.createCollection({ title: "", description: "" }),
 		).rejects.toEqual({ error: "collection invalid" });
 		await expect(
 			client.updateCollection("c1", { title: "New" }),
-		).resolves.toEqual({ ok: true });
-		await expect(client.updateCollection("c1", {})).resolves.toEqual({
+		).resolves.toMatchObject({ ok: true });
+		await expect(client.updateCollection("c1", {})).resolves.toMatchObject({
 			ok: false,
 			error: "bad collection",
 			details: ["title"],
 		});
 		await client.deleteCollection("c1");
-		await expect(client.addResourceToCollection("c1", "r1")).resolves.toEqual({
+		await expect(
+			client.addResourceToCollection("c1", "r1"),
+		).resolves.toMatchObject({
 			ok: true,
 		});
 		await expect(client.addResourceToCollection("c1", "r1")).rejects.toEqual({
@@ -446,59 +482,66 @@ describe("HttpApiClient", () => {
 		});
 		await expect(
 			client.removeResourceFromCollection("c1", "r1"),
-		).resolves.toEqual({ ok: true });
+		).resolves.toMatchObject({ ok: true });
 		await expect(
 			client.removeResourceFromCollection("c1", "r2"),
 		).rejects.toEqual({ error: "missing link" });
 		await expect(
 			client.reorderCollectionResource("c1", "r1", "up"),
-		).resolves.toEqual({ ok: true });
+		).resolves.toMatchObject({ ok: true });
 		await expect(
 			client.reorderCollectionResource("c1", "r1", "down"),
-		).resolves.toEqual({
+		).resolves.toMatchObject({
 			ok: false,
 			error: "No se pudo reordenar el recurso",
 		});
 		await expect(
 			client.listTaxonomies({ q: "eso", type: "level", limit: 10, offset: 1 }),
-		).resolves.toEqual({
+		).resolves.toMatchObject({
 			data: [{ id: "t1" }],
 			total: 1,
 		});
-		await expect(client.getTaxonomyById("t1")).resolves.toEqual({ id: "t1" });
+		await expect(client.getTaxonomyById("t1")).resolves.toMatchObject({
+			id: "t1",
+		});
 		await expect(client.getTaxonomyById("missing")).resolves.toBeNull();
 		await expect(
 			client.createTaxonomy({ name: "ESO", type: "level" }),
-		).resolves.toEqual({ id: "t2" });
+		).resolves.toMatchObject({ id: "t2" });
 		await expect(client.createTaxonomy({ name: "" })).rejects.toEqual({
 			error: "taxonomy invalid",
 		});
 		await expect(
 			client.updateTaxonomy("t1", { name: "Primaria" }),
-		).resolves.toEqual({ ok: true });
-		await expect(client.updateTaxonomy("t1", {})).resolves.toEqual({
+		).resolves.toMatchObject({ ok: true });
+		await expect(client.updateTaxonomy("t1", {})).resolves.toMatchObject({
 			ok: false,
 			error: "bad taxonomy",
 			details: ["name"],
 		});
 		await client.deleteTaxonomy("t1");
 
-		expect(calls[0].url).toBe(
+		expect(getCall(calls, 0).url).toBe(
 			"/api/admin/users?q=ana&role=admin&limit=10&offset=5",
 		);
-		expect(calls[3].init?.method).toBe("PATCH");
-		expect(bodyAsJson(calls[3])).toEqual({ name: "Ana", isActive: true });
-		expect(calls[5].url).toBe(
+		expect(getCall(calls, 3).init?.method).toBe("PATCH");
+		expect(bodyAsJson(getCall(calls, 3))).toEqual({
+			name: "Ana",
+			isActive: true,
+		});
+		expect(getCall(calls, 5).url).toBe(
 			"/api/admin/collections?q=stem&limit=10&offset=2",
 		);
-		expect(calls[15].url).toBe("/api/admin/collections/c1/resources");
-		expect(bodyAsJson(calls[15])).toEqual({ resourceId: "r1" });
-		expect(calls[19].url).toBe("/api/admin/collections/c1/resources/reorder");
-		expect(bodyAsJson(calls[19])).toEqual({
+		expect(getCall(calls, 15).url).toBe("/api/admin/collections/c1/resources");
+		expect(bodyAsJson(getCall(calls, 15))).toEqual({ resourceId: "r1" });
+		expect(getCall(calls, 19).url).toBe(
+			"/api/admin/collections/c1/resources/reorder",
+		);
+		expect(bodyAsJson(getCall(calls, 19))).toEqual({
 			resourceId: "r1",
 			direction: "up",
 		});
-		expect(calls[21].url).toBe(
+		expect(getCall(calls, 21).url).toBe(
 			"/api/admin/taxonomies?q=eso&type=level&limit=10&offset=1",
 		);
 	});
@@ -523,53 +566,55 @@ describe("HttpApiClient", () => {
 		]);
 		const client = new HttpApiClient();
 
-		await expect(client.getResourceRatings("algebra")).resolves.toEqual({
+		await expect(client.getResourceRatings("algebra")).resolves.toMatchObject({
 			avg: 4,
 		});
-		await expect(client.submitRating("algebra", 5)).resolves.toEqual({
+		await expect(client.submitRating("algebra", 5)).resolves.toMatchObject({
 			score: 5,
 		});
 		await expect(client.submitRating("algebra", 1)).rejects.toEqual({
 			error: "login required",
 		});
-		await expect(client.toggleFavorite("algebra")).resolves.toEqual({
+		await expect(client.toggleFavorite("algebra")).resolves.toMatchObject({
 			favorited: true,
 		});
 		await expect(
 			client.getUserFavorites({ limit: 10, offset: 5 }),
-		).resolves.toEqual({
+		).resolves.toMatchObject({
 			data: [{ id: "r1" }],
 			total: 1,
 		});
 		await expect(
 			client.getUserRatings({ limit: 20, offset: 10 }),
-		).resolves.toEqual({
+		).resolves.toMatchObject({
 			data: [{ id: "r2" }],
 			total: 1,
 		});
-		await expect(client.getUserDashboard()).resolves.toEqual({ resources: 3 });
+		await expect(client.getUserDashboard()).resolves.toMatchObject({
+			resources: 3,
+		});
 		await expect(
 			client.getUserActivity({ limit: 5, offset: 1 }),
-		).resolves.toEqual({
+		).resolves.toMatchObject({
 			data: [{ id: "a1" }],
 			total: 1,
 		});
-		await expect(client.trackDownload("algebra")).resolves.toEqual({
+		await expect(client.trackDownload("algebra")).resolves.toMatchObject({
 			count: 9,
 		});
-		await expect(client.getResourceStats("algebra")).resolves.toEqual({
+		await expect(client.getResourceStats("algebra")).resolves.toMatchObject({
 			downloadCount: 9,
 		});
-		await expect(client.getBadgeConfig()).resolves.toEqual({
+		await expect(client.getBadgeConfig()).resolves.toMatchObject({
 			showQualityBadges: "true",
 		});
-		await expect(client.getSettings()).resolves.toEqual({
+		await expect(client.getSettings()).resolves.toMatchObject({
 			siteName: "Procomun",
 		});
-		await expect(client.updateSettings({ siteName: "Nuevo" })).resolves.toEqual(
-			{ siteName: "Nuevo" },
-		);
-		await expect(client.seedResources(4, true)).resolves.toEqual({
+		await expect(
+			client.updateSettings({ siteName: "Nuevo" }),
+		).resolves.toMatchObject({ siteName: "Nuevo" });
+		await expect(client.seedResources(4, true)).resolves.toMatchObject({
 			count: 4,
 			durationMs: 12,
 		});
@@ -577,19 +622,25 @@ describe("HttpApiClient", () => {
 			"Error al generar recursos",
 		);
 
-		expect(calls[1].url).toBe("/api/v1/resources/algebra/ratings");
-		expect(calls[1].init?.method).toBe("POST");
-		expect(bodyAsJson(calls[1])).toEqual({ score: 5 });
-		expect(calls[4].url).toBe("/api/v1/users/me/favorites?limit=10&offset=5");
-		expect(calls[5].url).toBe("/api/v1/users/me/ratings?limit=20&offset=10");
-		expect(calls[7].url).toBe("/api/v1/users/me/activity?limit=5&offset=1");
-		expect(bodyAsJson(calls[8])).toEqual({ format: "direct" });
-		expect(calls[12].url).toBe("/api/admin/settings");
-		expect(calls[12].init?.method).toBe("PUT");
-		expect(bodyAsJson(calls[12])).toEqual({ siteName: "Nuevo" });
-		expect(calls[13].url).toBe("/api/dev/seed-resources");
-		expect(bodyAsJson(calls[13])).toEqual({ count: 4, clean: true });
-		expect(bodyAsJson(calls[14])).toEqual({ count: 1 });
+		expect(getCall(calls, 1).url).toBe("/api/v1/resources/algebra/ratings");
+		expect(getCall(calls, 1).init?.method).toBe("POST");
+		expect(bodyAsJson(getCall(calls, 1))).toEqual({ score: 5 });
+		expect(getCall(calls, 4).url).toBe(
+			"/api/v1/users/me/favorites?limit=10&offset=5",
+		);
+		expect(getCall(calls, 5).url).toBe(
+			"/api/v1/users/me/ratings?limit=20&offset=10",
+		);
+		expect(getCall(calls, 7).url).toBe(
+			"/api/v1/users/me/activity?limit=5&offset=1",
+		);
+		expect(bodyAsJson(getCall(calls, 8))).toEqual({ format: "direct" });
+		expect(getCall(calls, 12).url).toBe("/api/admin/settings");
+		expect(getCall(calls, 12).init?.method).toBe("PUT");
+		expect(bodyAsJson(getCall(calls, 12))).toEqual({ siteName: "Nuevo" });
+		expect(getCall(calls, 13).url).toBe("/api/dev/seed-resources");
+		expect(bodyAsJson(getCall(calls, 13))).toEqual({ count: 4, clean: true });
+		expect(bodyAsJson(getCall(calls, 14))).toEqual({ count: 1 });
 	});
 
 	test("covers user and admin API token endpoints", async () => {
@@ -608,12 +659,12 @@ describe("HttpApiClient", () => {
 		]);
 		const client = new HttpApiClient();
 
-		await expect(client.listApiTokens()).resolves.toEqual([
+		await expect(client.listApiTokens()).resolves.toMatchObject([
 			{ id: "token-1", name: "CLI" },
 		]);
 		await expect(
 			client.createApiToken("Import", "2030-01-01T00:00:00.000Z"),
-		).resolves.toEqual({
+		).resolves.toMatchObject({
 			id: "token-2",
 			name: "Import",
 			token: "pck_secret",
@@ -627,7 +678,7 @@ describe("HttpApiClient", () => {
 		);
 		await expect(
 			client.listAllApiTokens({ userId: "u1", status: "active" }),
-		).resolves.toEqual([{ id: "token-3", userId: "u1" }]);
+		).resolves.toMatchObject([{ id: "token-3", userId: "u1" }]);
 		await expect(client.listAllApiTokens()).rejects.toThrow("admin only");
 		await expect(
 			client.revokeApiTokenAdmin("token-3"),
@@ -635,7 +686,7 @@ describe("HttpApiClient", () => {
 		await expect(client.revokeApiTokenAdmin("missing")).rejects.toThrow(
 			"Error al revocar token de API (admin)",
 		);
-		await expect(client.getGlobalApiTokenStats()).resolves.toEqual({
+		await expect(client.getGlobalApiTokenStats()).resolves.toMatchObject({
 			total: 3,
 			active: 2,
 			revoked: 1,
@@ -645,23 +696,25 @@ describe("HttpApiClient", () => {
 			"Error al obtener estadísticas globales",
 		);
 
-		expect(calls[0].url).toBe("/api/v1/tokens");
-		expect(calls[0].init?.credentials).toBe("include");
-		expect(calls[1].url).toBe("/api/v1/tokens");
-		expect(calls[1].init?.method).toBe("POST");
-		expect(bodyAsJson(calls[1])).toEqual({
+		expect(getCall(calls, 0).url).toBe("/api/v1/tokens");
+		expect(getCall(calls, 0).init?.credentials).toBe("include");
+		expect(getCall(calls, 1).url).toBe("/api/v1/tokens");
+		expect(getCall(calls, 1).init?.method).toBe("POST");
+		expect(bodyAsJson(getCall(calls, 1))).toEqual({
 			name: "Import",
 			expiresAt: "2030-01-01T00:00:00.000Z",
 		});
-		expect(calls[3]).toMatchObject({
+		expect(getCall(calls, 3)).toMatchObject({
 			url: "/api/v1/tokens/token-1",
 			init: { method: "DELETE", credentials: "include" },
 		});
-		expect(calls[5].url).toBe("/api/admin/api-tokens?userId=u1&status=active");
-		expect(calls[7]).toMatchObject({
+		expect(getCall(calls, 5).url).toBe(
+			"/api/admin/api-tokens?userId=u1&status=active",
+		);
+		expect(getCall(calls, 7)).toMatchObject({
 			url: "/api/admin/api-tokens/token-3",
 			init: { method: "DELETE", credentials: "include" },
 		});
-		expect(calls[9].url).toBe("/api/admin/api-tokens/stats");
+		expect(getCall(calls, 9).url).toBe("/api/admin/api-tokens/stats");
 	});
 });
