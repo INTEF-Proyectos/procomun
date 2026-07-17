@@ -54,9 +54,15 @@ describe("registerFrontendServing", () => {
 
 		async function buildDevDir() {
 			const dir = await mkdtemp(path.join(tmpdir(), "procomun-frontend-dev-"));
-			await writeFile(path.join(dir, "index.html"), "<html><body>frontend ok</body></html>");
+			await writeFile(
+				path.join(dir, "index.html"),
+				"<html><body>frontend ok</body></html>",
+			);
 			await mkdir(path.join(dir, "dev", "data"), { recursive: true });
-			await writeFile(path.join(dir, "dev", "data", "status.yaml"), "internal: secret\n");
+			await writeFile(
+				path.join(dir, "dev", "data", "status.yaml"),
+				"internal: secret\n",
+			);
 			return dir;
 		}
 

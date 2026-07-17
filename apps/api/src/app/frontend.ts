@@ -20,8 +20,12 @@ export function registerFrontendServing(
 	// El dashboard de desarrollo y la documentación interna se copian en `dist/dev`
 	// dentro del despliegue all-in-one. Sólo deben servirse en modo desarrollo para
 	// no exponer información interna (status, decisiones, roles) sin autenticación.
-	app.use("/dev", async (c, next) => (isDevelopmentMode() ? next() : c.notFound()));
-	app.use("/dev/*", async (c, next) => (isDevelopmentMode() ? next() : c.notFound()));
+	app.use("/dev", async (c, next) =>
+		isDevelopmentMode() ? next() : c.notFound(),
+	);
+	app.use("/dev/*", async (c, next) =>
+		isDevelopmentMode() ? next() : c.notFound(),
+	);
 
 	app.use(
 		"*",
