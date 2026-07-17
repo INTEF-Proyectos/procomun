@@ -1,10 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import {
-	existsSync,
-	readFileSync,
-	unlinkSync,
-	writeFileSync,
-} from "node:fs";
+import { existsSync, readFileSync, unlinkSync, writeFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { Hono } from "hono";
@@ -117,7 +112,10 @@ describe("POST /api/admin/elpx/analyze — seguridad (path traversal, issue #249
 			const attackerBytes = new Uint8Array([1, 2, 3, 4]); // no es un .elpx válido
 
 			const form = new FormData();
-			form.append("file", new File([attackerBytes], traversalName, { type: "application/zip" }));
+			form.append(
+				"file",
+				new File([attackerBytes], traversalName, { type: "application/zip" }),
+			);
 
 			const res = await app.request("/api/admin/elpx/analyze", {
 				method: "POST",
