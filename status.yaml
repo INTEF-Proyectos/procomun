@@ -1,8 +1,12 @@
 # STATUS — Tablero de estado global
 # Fuente de verdad del proyecto. Ver ADR-0019 para la justificación del formato.
 #
-# Las tareas usan claves map únicas (T-YYYY-MM-DD-NNN) para evitar
-# conflictos de merge cuando varias ramas modifican tareas distintas en paralelo.
+# Claves map únicas para evitar conflictos de merge entre ramas en paralelo.
+# Formato NUEVO (obligatorio en entradas nuevas): T-YYYY-MM-DD-HHMMSSrr
+#   fecha UTC + hora:minuto:segundo UTC + 2 dígitos aleatorios.
+#   Generar con: bun run new-status-key
+# Formato LEGACY (no reescribir): T-YYYY-MM-DD-NNN
+# No reutilices el contador NNN del día: colisiona entre PRs y check-tracking falla.
 # El campo status reemplaza la antigua separación active_tasks/completed_tasks.
 #
 # Valores de status: Pending | In Progress | Done
@@ -1979,4 +1983,22 @@ tasks:
       debe verificarse con una PR posterior a la fusión. La decisión queda registrada como ADR-0033
       e indexada en decision-log.yaml; se salta 0031 y 0032 porque están reservadas por los PR
       abiertos #235 y #236.
+
+  T-2026-07-17-16101371:
+    date: 2026-07-17
+    agent: "devops-sre + documentacion-y-roadmap + project-manager"
+    task: "Hotfix: claves status.yaml con hora+aleatorio para evitar colisiones entre PRs"
+    status: Done
+    related: ["ADR-0019", "T-2026-07-17-011"]
+    notes: >
+      Tras fusionar #284 (visual, clave T-2026-07-17-011) en main, al mezclar main en la PR de
+      typecheck a cero (#285) check-tracking falló: la misma clave T-2026-07-17-011 existía en
+      ambas ramas (contador NNN del día). Git auto-mergea el YAML; el parser se quedaría con la
+      última y borraría historial en silencio — el validador lo detecta sobre texto crudo.
+      Cambio preventivo: formato nuevo T-YYYY-MM-DD-HHMMSSrr (UTC + 2 dígitos aleatorios),
+      generador `bun run new-status-key`, enmienda en ADR-0019, AGENTS.md regla 11, cabecera de
+      status.yaml y schema. Las claves legacy NNN no se reescriben. La colisión concreta de #285
+      se corrige en esa PR renumerando la entrada de typecheck a una clave HHMMSSrr.
+      Validación: bun test scripts/new-status-key.unit.test.ts; make check-tracking; paridad
+      archivo-test del generador.
 
