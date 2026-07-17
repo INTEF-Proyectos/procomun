@@ -1126,9 +1126,9 @@ tasks:
     agent: "arquitectura-solucion + metadatos-y-curacion + busqueda-y-descubrimiento + documentacion-y-roadmap"
     task: "Diseño de la épica de versionado de recursos (#31)"
     status: Done
-    related: ["#31", "ADR-0032", "epic-004"]
+    related: ["#31", "ADR-0032", "epic-005-versionado-recursos"]
     notes: >
-      Fase de diseño de la épica (sin implementación). Se crea docs/epics/epic-004-versionado-recursos/
+      Fase de diseño de la épica (sin implementación). Se crea docs/epics/epic-005-versionado-recursos/
       (requirements.md + design.md) y ADR-0032, que decide el modelo: snapshots inmutables en una tabla
       resource_versions (append-only) + puntero resources.current_version_id a la versión vigente, versionando
       archivos y metadatos juntos, almacenamiento de binarios por contenido (hash, con reutilización y GC),
@@ -1806,8 +1806,20 @@ tasks:
       versionado de esta PR se renumera a ADR-0032. ADR-0028 se mantiene como estudio de
       alternativas (Propuesto). ADR-0030 queda reservado para modernización (#271) y
       ADR-0031 para verificación de email (#235). Fichero 0029-versionado-recursos.md →
-      0032-versionado-recursos.md; referencias actualizadas en epic-004-versionado-recursos
+      0032-versionado-recursos.md; referencias actualizadas en epic-005-versionado-recursos
       y en T-2026-06-23-007. Se unen todos los T-* de main; no se borra historial.
+
+  T-2026-07-17-17104902:
+    date: 2026-07-17
+    agent: "documentacion-y-roadmap + arquitectura-solucion"
+    task: "Revisión PR #236: renumerar épica versionado a epic-005 y limpiar índice ADR"
+    status: Done
+    related: ["#236", "#31", "ADR-0032", "epic-005-versionado-recursos", "T-2026-07-17-003"]
+    notes: >
+      Colisión de carpeta/numeración con epic-004-migracion-legacy-procomun (ya en main).
+      Se renombra docs/epics/epic-004-versionado-recursos/ a epic-005-versionado-recursos/ y se
+      actualizan títulos (Épica 005), related en status y notas de ADR-0032. decision-log: ADR-0032
+      en orden numérico; reserva de ADR-0033 solo menciona ADR-0031 (#235). Sin cambios de código.
 
   T-2026-07-17-007:
     date: 2026-07-17

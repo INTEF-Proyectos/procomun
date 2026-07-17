@@ -1,4 +1,4 @@
-# Design — Épica 004: versionado de recursos
+# Design — Épica 005: versionado de recursos
 
 ## Fecha
 2026-06-23

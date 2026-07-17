@@ -1,4 +1,4 @@
-# Requirements — Épica 004: versionado de recursos
+# Requirements — Épica 005: versionado de recursos
 
 ## Fecha
 2026-06-23
