@@ -134,14 +134,19 @@ describe("buildEditorConfigScript — escape de XSS reflejado", () => {
 			editorBaseUrl,
 		);
 		// Extrae el valor de initialProjectUrl y verifica que es JSON válido.
-		const match = script.match(/initialProjectUrl: (.+),/);
-		expect(match).not.toBeNull();
-		const value = JSON.parse((match as RegExpMatchArray)[1]);
-		expect(value).toBe("/recursos/proyecto.elpx");
+		// El grupo capturado se comprueba en vez de afirmarlo con un cast: con
+		// noUncheckedIndexedAccess, match[1] es string | undefined, y si el patrón
+		// dejara de casar el test debe decirlo, no reventar dentro de JSON.parse.
+		const projectUrlRaw = script.match(/initialProjectUrl: (.+),/)?.[1];
+		expect(projectUrlRaw).toBeDefined();
+		if (!projectUrlRaw)
+			throw new Error("initialProjectUrl no está en el script");
+		expect(JSON.parse(projectUrlRaw)).toBe("/recursos/proyecto.elpx");
 
-		const idMatch = script.match(/resourceId: (.+),/);
-		expect(idMatch).not.toBeNull();
-		expect(JSON.parse((idMatch as RegExpMatchArray)[1])).toBe("abc-123");
+		const resourceIdRaw = script.match(/resourceId: (.+),/)?.[1];
+		expect(resourceIdRaw).toBeDefined();
+		if (!resourceIdRaw) throw new Error("resourceId no está en el script");
+		expect(JSON.parse(resourceIdRaw)).toBe("abc-123");
 	});
 
 	test("sin elpxUrl produce initialProjectUrl: null", () => {
