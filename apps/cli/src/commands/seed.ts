@@ -23,6 +23,25 @@ type SeedClient = {
 // Helpers
 // ---------------------------------------------------------------------------
 
+/**
+ * Acceso por índice a los recursos de la semilla.
+ *
+ * `DEMO_RESOURCES` es estático, pero con `noUncheckedIndexedAccess` indexarlo
+ * devuelve `T | undefined`. En vez de silenciarlo con `!`, se comprueba: si
+ * alguien recorta o reordena la semilla, esto falla con un mensaje que dice qué
+ * índice se ha quedado sin recurso, en vez de con un TypeError opaco al leer
+ * `.title` de undefined.
+ */
+function demoResource(index: number) {
+	const resource = DEMO_RESOURCES[index];
+	if (!resource) {
+		throw new Error(
+			`DEMO_RESOURCES[${index}] no existe: la semilla solo tiene ${DEMO_RESOURCES.length} recursos`,
+		);
+	}
+	return resource;
+}
+
 /** Build a SQL IN clause with numbered parameters: ($1,$2,$3) */
 function inClause(
 	ids: string[],
@@ -249,10 +268,12 @@ export async function seedWithClient(
 			}
 
 			// Attach .elpx if generated
-			if (elpxSupport && generatedElpx?.has(r.id)) {
+			// Una sola lectura del Map en vez de has() + get()!: así el tipo ya
+			// es string y no hace falta afirmar que existe.
+			const elpxFilename = generatedElpx?.get(r.id);
+			if (elpxSupport && elpxFilename) {
 				try {
 					const { copyFile, mkdir } = await import("node:fs/promises");
-					const elpxFilename = generatedElpx.get(r.id)!;
 					const elpxPath = path.join(
 						elpxSupport.repoRoot,
 						"apps/api/src/test-fixtures/elpx/demo",
@@ -421,8 +442,8 @@ export async function seedWithClient(
 				userId: "user-humberto",
 				type: "resource_published",
 				resId: "res-01",
-				title: DEMO_RESOURCES[0]!.title,
-				slug: DEMO_RESOURCES[0]!.slug,
+				title: demoResource(0).title,
+				slug: demoResource(0).slug,
 				desc: "Publicó un nuevo recurso",
 				daysAgo: 1,
 			},
@@ -430,8 +451,8 @@ export async function seedWithClient(
 				userId: "user-carlos",
 				type: "resource_published",
 				resId: "res-02",
-				title: DEMO_RESOURCES[1]!.title,
-				slug: DEMO_RESOURCES[1]!.slug,
+				title: demoResource(1).title,
+				slug: demoResource(1).slug,
 				desc: "Publicó un nuevo recurso",
 				daysAgo: 2,
 			},
@@ -439,8 +460,8 @@ export async function seedWithClient(
 				userId: "user-fran",
 				type: "favorite_added",
 				resId: "res-01",
-				title: DEMO_RESOURCES[0]!.title,
-				slug: DEMO_RESOURCES[0]!.slug,
+				title: demoResource(0).title,
+				slug: demoResource(0).slug,
 				desc: "Añadió un recurso a favoritos",
 				daysAgo: 3,
 			},
@@ -448,8 +469,8 @@ export async function seedWithClient(
 				userId: "user-humberto",
 				type: "rating_given",
 				resId: "res-03",
-				title: DEMO_RESOURCES[2]!.title,
-				slug: DEMO_RESOURCES[2]!.slug,
+				title: demoResource(2).title,
+				slug: demoResource(2).slug,
 				desc: "Valoró un recurso con 5 estrellas",
 				daysAgo: 4,
 			},
@@ -457,8 +478,8 @@ export async function seedWithClient(
 				userId: "user-carlos",
 				type: "resource_published",
 				resId: "res-11",
-				title: DEMO_RESOURCES[10]!.title,
-				slug: DEMO_RESOURCES[10]!.slug,
+				title: demoResource(10).title,
+				slug: demoResource(10).slug,
 				desc: "Publicó un nuevo recurso",
 				daysAgo: 5,
 			},
@@ -466,8 +487,8 @@ export async function seedWithClient(
 				userId: "user-humberto2",
 				type: "resource_published",
 				resId: "res-20",
-				title: DEMO_RESOURCES[19]!.title,
-				slug: DEMO_RESOURCES[19]!.slug,
+				title: demoResource(19).title,
+				slug: demoResource(19).slug,
 				desc: "Publicó un nuevo recurso",
 				daysAgo: 6,
 			},
@@ -475,8 +496,8 @@ export async function seedWithClient(
 				userId: "user-yanira",
 				type: "favorite_added",
 				resId: "res-07",
-				title: DEMO_RESOURCES[6]!.title,
-				slug: DEMO_RESOURCES[6]!.slug,
+				title: demoResource(6).title,
+				slug: demoResource(6).slug,
 				desc: "Añadió un recurso a favoritos",
 				daysAgo: 7,
 			},
@@ -484,8 +505,8 @@ export async function seedWithClient(
 				userId: "user-carlos2",
 				type: "resource_created",
 				resId: "res-22",
-				title: DEMO_RESOURCES[21]!.title,
-				slug: DEMO_RESOURCES[21]!.slug,
+				title: demoResource(21).title,
+				slug: demoResource(21).slug,
 				desc: "Creó un borrador",
 				daysAgo: 1,
 			},
@@ -493,8 +514,8 @@ export async function seedWithClient(
 				userId: "user-catedra",
 				type: "resource_created",
 				resId: "res-21",
-				title: DEMO_RESOURCES[20]!.title,
-				slug: DEMO_RESOURCES[20]!.slug,
+				title: demoResource(20).title,
+				slug: demoResource(20).slug,
 				desc: "Creó un borrador",
 				daysAgo: 2,
 			},
@@ -502,8 +523,8 @@ export async function seedWithClient(
 				userId: "demo-admin",
 				type: "resource_published",
 				resId: "res-17",
-				title: DEMO_RESOURCES[16]!.title,
-				slug: DEMO_RESOURCES[16]!.slug,
+				title: demoResource(16).title,
+				slug: demoResource(16).slug,
 				desc: "Publicó un nuevo recurso",
 				daysAgo: 10,
 			},
@@ -511,8 +532,8 @@ export async function seedWithClient(
 				userId: "user-fran",
 				type: "resource_published",
 				resId: "res-07",
-				title: DEMO_RESOURCES[6]!.title,
-				slug: DEMO_RESOURCES[6]!.slug,
+				title: demoResource(6).title,
+				slug: demoResource(6).slug,
 				desc: "Publicó un nuevo recurso",
 				daysAgo: 12,
 			},
@@ -520,8 +541,8 @@ export async function seedWithClient(
 				userId: "user-carlos",
 				type: "rating_given",
 				resId: "res-01",
-				title: DEMO_RESOURCES[0]!.title,
-				slug: DEMO_RESOURCES[0]!.slug,
+				title: demoResource(0).title,
+				slug: demoResource(0).slug,
 				desc: "Valoró un recurso con 5 estrellas",
 				daysAgo: 8,
 			},
@@ -529,8 +550,8 @@ export async function seedWithClient(
 				userId: "user-humberto2",
 				type: "resource_published",
 				resId: "res-15",
-				title: DEMO_RESOURCES[14]!.title,
-				slug: DEMO_RESOURCES[14]!.slug,
+				title: demoResource(14).title,
+				slug: demoResource(14).slug,
 				desc: "Publicó un nuevo recurso",
 				daysAgo: 15,
 			},
@@ -538,8 +559,8 @@ export async function seedWithClient(
 				userId: "user-carlos2",
 				type: "rating_given",
 				resId: "res-07",
-				title: DEMO_RESOURCES[6]!.title,
-				slug: DEMO_RESOURCES[6]!.slug,
+				title: demoResource(6).title,
+				slug: demoResource(6).slug,
 				desc: "Valoró un recurso con 5 estrellas",
 				daysAgo: 9,
 			},
@@ -547,8 +568,8 @@ export async function seedWithClient(
 				userId: "demo-curator",
 				type: "favorite_added",
 				resId: "res-01",
-				title: DEMO_RESOURCES[0]!.title,
-				slug: DEMO_RESOURCES[0]!.slug,
+				title: demoResource(0).title,
+				slug: demoResource(0).slug,
 				desc: "Añadió un recurso a favoritos",
 				daysAgo: 4,
 			},
@@ -586,7 +607,17 @@ export async function seedWithClient(
 
 export async function seed() {
 	if (resolveSeedMode() === "postgres") {
-		await seedPostgres(process.env.DATABASE_URL!);
+		const databaseUrl = process.env.DATABASE_URL;
+		// resolveSeedMode() solo devuelve "postgres" cuando DATABASE_URL está
+		// definida, pero TypeScript no puede correlacionar las dos lecturas del
+		// entorno. La guarda documenta el invariante y evita caer a pglite en
+		// silencio si alguna vez dejara de cumplirse.
+		if (!databaseUrl) {
+			throw new Error(
+				"Modo postgres seleccionado pero DATABASE_URL no está definida",
+			);
+		}
+		await seedPostgres(databaseUrl);
 		return;
 	}
 

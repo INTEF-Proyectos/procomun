@@ -18,7 +18,14 @@ function shuffleAndPick<T>(arr: T[], n: number): T[] {
 	const copy = [...arr];
 	for (let i = copy.length - 1; i > 0; i--) {
 		const j = Math.floor(Math.random() * (i + 1));
-		[copy[i], copy[j]] = [copy[j]!, copy[i]!];
+		const a = copy[i];
+		const b = copy[j];
+		// i y j están siempre en rango por construcción del bucle, pero
+		// noUncheckedIndexedAccess no puede saberlo; con los valores ya leídos el
+		// intercambio queda tipado sin afirmar nada.
+		if (a === undefined || b === undefined) continue;
+		copy[i] = b;
+		copy[j] = a;
 	}
 	return copy.slice(0, n);
 }

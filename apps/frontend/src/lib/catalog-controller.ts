@@ -1,3 +1,4 @@
+import type { Resource } from "./api-client.ts";
 import { getApiClient } from "./get-api-client.ts";
 import {
 	buildListingUrl,
@@ -14,8 +15,8 @@ import {
 	RESOURCE_TYPE_OPTIONS,
 } from "./resource-filters.ts";
 
-function renderCard(r: Record<string, any>): string {
-	const icon = TYPE_ICONS[r.resourceType] || "&#128196;";
+function renderCard(r: Resource): string {
+	const icon = TYPE_ICONS[r.resourceType ?? ""] || "&#128196;";
 	const desc = (r.description || "").slice(0, 140);
 	const ellipsis = (r.description || "").length > 140 ? "..." : "";
 
@@ -208,9 +209,7 @@ export function initCatalog() {
 				return;
 			}
 
-			container.innerHTML = data
-				.map((r: Record<string, string>) => renderCard(r))
-				.join("");
+			container.innerHTML = data.map((r) => renderCard(r)).join("");
 			scalePreviewIframes();
 			updatePagination(total, limit);
 		} catch {

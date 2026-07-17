@@ -11,7 +11,9 @@ import { describe, expect, test } from "bun:test";
 /** Extract all sandbox attribute values from rendered HTML */
 function extractSandboxAttrs(html: string): string[] {
 	const matches = [...html.matchAll(/sandbox="([^"]+)"/g)];
-	return matches.map((m) => m[1]!);
+	return matches
+		.map((m) => m[1])
+		.filter((sandbox): sandbox is string => sandbox !== undefined);
 }
 
 /** Check if a sandbox value has the dangerous combination */
@@ -29,9 +31,8 @@ describe("iframe sandbox security (DEF-002)", () => {
 			new URL("./catalog-controller.ts", import.meta.url).pathname,
 		).text();
 
-		const sandboxMatches = [...src.matchAll(/sandbox="([^"]+)"/g)];
-		for (const [, sandbox] of sandboxMatches) {
-			expect(hasUnsafeSandbox(sandbox!)).toBe(false);
+		for (const sandbox of extractSandboxAttrs(src)) {
+			expect(hasUnsafeSandbox(sandbox)).toBe(false);
 		}
 	});
 
@@ -40,9 +41,8 @@ describe("iframe sandbox security (DEF-002)", () => {
 			new URL("../islands/home/HomeDataIsland.tsx", import.meta.url).pathname,
 		).text();
 
-		const sandboxMatches = [...src.matchAll(/sandbox="([^"]+)"/g)];
-		for (const [, sandbox] of sandboxMatches) {
-			expect(hasUnsafeSandbox(sandbox!)).toBe(false);
+		for (const sandbox of extractSandboxAttrs(src)) {
+			expect(hasUnsafeSandbox(sandbox)).toBe(false);
 		}
 	});
 
@@ -51,9 +51,8 @@ describe("iframe sandbox security (DEF-002)", () => {
 			new URL("../islands/catalog/CatalogIsland.tsx", import.meta.url).pathname,
 		).text();
 
-		const sandboxMatches = [...src.matchAll(/sandbox="([^"]+)"/g)];
-		for (const [, sandbox] of sandboxMatches) {
-			expect(hasUnsafeSandbox(sandbox!)).toBe(false);
+		for (const sandbox of extractSandboxAttrs(src)) {
+			expect(hasUnsafeSandbox(sandbox)).toBe(false);
 		}
 	});
 
@@ -63,9 +62,8 @@ describe("iframe sandbox security (DEF-002)", () => {
 				.pathname,
 		).text();
 
-		const sandboxMatches = [...src.matchAll(/sandbox="([^"]+)"/g)];
-		for (const [, sandbox] of sandboxMatches) {
-			expect(hasUnsafeSandbox(sandbox!)).toBe(false);
+		for (const sandbox of extractSandboxAttrs(src)) {
+			expect(hasUnsafeSandbox(sandbox)).toBe(false);
 		}
 	});
 
@@ -74,9 +72,8 @@ describe("iframe sandbox security (DEF-002)", () => {
 			new URL("../ui/ResourceCard.tsx", import.meta.url).pathname,
 		).text();
 
-		const sandboxMatches = [...src.matchAll(/sandbox="([^"]+)"/g)];
-		for (const [, sandbox] of sandboxMatches) {
-			expect(hasUnsafeSandbox(sandbox!)).toBe(false);
+		for (const sandbox of extractSandboxAttrs(src)) {
+			expect(hasUnsafeSandbox(sandbox)).toBe(false);
 		}
 	});
 
@@ -88,9 +85,8 @@ describe("iframe sandbox security (DEF-002)", () => {
 			).pathname,
 		).text();
 
-		const sandboxMatches = [...src.matchAll(/sandbox="([^"]+)"/g)];
-		for (const [, sandbox] of sandboxMatches) {
-			expect(hasUnsafeSandbox(sandbox!)).toBe(false);
+		for (const sandbox of extractSandboxAttrs(src)) {
+			expect(hasUnsafeSandbox(sandbox)).toBe(false);
 		}
 	});
 
@@ -105,9 +101,8 @@ describe("iframe sandbox security (DEF-002)", () => {
 			src.indexOf("edit-preview-iframe"),
 			src.indexOf("edit-preview-iframe") + 300,
 		);
-		const sandboxMatches = [...previewSection.matchAll(/sandbox="([^"]+)"/g)];
-		for (const [, sandbox] of sandboxMatches) {
-			expect(hasUnsafeSandbox(sandbox!)).toBe(false);
+		for (const sandbox of extractSandboxAttrs(previewSection)) {
+			expect(hasUnsafeSandbox(sandbox)).toBe(false);
 		}
 	});
 
@@ -128,9 +123,8 @@ describe("iframe sandbox security (DEF-002)", () => {
 				new URL(file, import.meta.url).pathname,
 			).text();
 
-			const sandboxMatches = [...src.matchAll(/sandbox="([^"]+)"/g)];
-			for (const [, sandbox] of sandboxMatches) {
-				expect(hasUnsafeSandbox(sandbox!)).toBe(false);
+			for (const sandbox of extractSandboxAttrs(src)) {
+				expect(hasUnsafeSandbox(sandbox)).toBe(false);
 			}
 		}
 	});

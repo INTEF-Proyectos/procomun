@@ -52,6 +52,9 @@ lint:
 check-tracking:
 	$(BUN) run check-tracking
 
+check-types:
+	$(BUN) run check-types
+
 check-test-files:
 	$(BUN) run check-test-files
 

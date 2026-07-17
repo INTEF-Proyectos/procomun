@@ -39,24 +39,36 @@ describe("suppress-extension-errors", () => {
 	});
 
 	describe("installExtensionErrorSuppressor", () => {
-		type Listener = (event: any) => void;
+		/** The slice of PromiseRejectionEvent the suppressor actually touches. */
+		type FakeRejectionEvent = {
+			reason: unknown;
+			defaultPrevented: boolean;
+			preventDefault(): void;
+		};
+		type Listener = (event: FakeRejectionEvent) => void;
+		type FakeWindow = {
+			addEventListener(type: string, listener: Listener): void;
+			removeEventListener(type: string, listener: Listener): void;
+		};
+
+		const globalWithWindow = globalThis as unknown as { window?: FakeWindow };
 		let fakeListeners: Listener[];
-		const originalWindow = (globalThis as any).window;
+		const originalWindow = globalWithWindow.window;
 
 		beforeEach(() => {
 			fakeListeners = [];
-			(globalThis as any).window = {
-				addEventListener(_type: string, listener: Listener) {
+			globalWithWindow.window = {
+				addEventListener(_type, listener) {
 					fakeListeners.push(listener);
 				},
-				removeEventListener(_type: string, listener: Listener) {
+				removeEventListener(_type, listener) {
 					fakeListeners = fakeListeners.filter((l) => l !== listener);
 				},
 			};
 		});
 
 		afterEach(() => {
-			(globalThis as any).window = originalWindow;
+			globalWithWindow.window = originalWindow;
 		});
 
 		test("prevents extension errors from propagating", () => {
