@@ -8,6 +8,13 @@ const outputDirectory = process.env.VISUAL_PREVIEW_DIR ?? "visual-previews";
 const captureEnabled = process.env.CAPTURE_VISUAL_PREVIEWS === "true";
 
 test.describe("Visual previews", () => {
+	test.use({
+		colorScheme: "light",
+		deviceScaleFactor: 1,
+		reducedMotion: "reduce",
+		viewport: { width: 1440, height: 900 },
+	});
+
 	test.skip(
 		!captureEnabled,
 		"Visual previews run in a dedicated step after the regular E2E suite.",
