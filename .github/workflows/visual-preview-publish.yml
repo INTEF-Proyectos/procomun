@@ -33,7 +33,7 @@ jobs:
 
     steps:
     - name: Download visual previews
-      uses: actions/download-artifact@v7
+      uses: actions/download-artifact@v8
       with:
         name: visual-previews-pr-${{ github.event.workflow_run.pull_requests[0].number }}-attempt-${{ github.event.workflow_run.run_attempt }}
         path: visual-previews
