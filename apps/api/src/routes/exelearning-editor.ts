@@ -12,6 +12,50 @@ const EDITOR_STATIC_DIR = path.resolve(
 	"../../static/exelearning-editor/static",
 );
 
+/**
+ * Serialize a value as JSON that is safe inside an inline script element.
+ * JSON.stringify alone leaves literal `</script>` sequences untouched.
+ */
+export function toInlineScriptJson(value: unknown): string {
+	return JSON.stringify(value ?? null)
+		.replace(/</g, "\\u003c")
+		.replace(/>/g, "\\u003e")
+		.replace(/&/g, "\\u0026")
+		.replace(/\u2028/g, "\\u2028")
+		.replace(/\u2029/g, "\\u2029");
+}
+
+/** Build the dynamic bootstrap block using script-safe JSON for every value. */
+export function buildEditorConfigScript(
+	elpxUrl: string,
+	resourceId: string,
+	editorBaseUrl: string,
+): string {
+	return `
+<script>
+window.__EXE_EMBEDDING_CONFIG__ = {
+	basePath: ${toInlineScriptJson(editorBaseUrl)},
+	initialProjectUrl: ${toInlineScriptJson(elpxUrl || null)},
+	parentOrigin: window.location.origin,
+	trustedOrigins: [window.location.origin],
+	previewSnapshot: {
+		managementUrl: "/api/v1/preview-session",
+		servingBaseUrl: "/api/v1/preview",
+		deleteUrlTemplate: "/api/v1/preview-session/{previewId}",
+	},
+	hideUI: {
+		fileMenu: true,
+		saveButton: true,
+		userMenu: true,
+	},
+};
+window.__PROCOMUN_CONFIG__ = {
+	resourceId: ${toInlineScriptJson(resourceId)},
+	editorBaseUrl: ${toInlineScriptJson(editorBaseUrl)},
+};
+</script>`;
+}
+
 export const exelearningEditorRoutes = new Hono();
 
 /**
@@ -36,29 +80,21 @@ exelearningEditorRoutes.get("/index.html", async (c) => {
 	// Determine editor base URL for asset resolution
 	const editorBaseUrl = "/api/v1/exelearning-editor";
 
-	// Inject <base> tag for relative asset resolution
-	html = html.replace("<head>", `<head>\n<base href="${editorBaseUrl}/">`);
+	// Inject <base> for relative asset resolution, then the Service Worker
+	// neutralizing stub — it MUST run before any editor script so a same-origin
+	// preview SW can never register on the Procomun origin.
+	html = html.replace(
+		"<head>",
+		`<head>\n<base href="${editorBaseUrl}/">\n${SW_NEUTRALIZE_SCRIPT}`,
+	);
 
-	// Inject Procomun embedding config before </head> (like editor-bootstrap.php)
-	const configScript = `
-<script>
-window.__EXE_EMBEDDING_CONFIG__ = {
-	basePath: "${editorBaseUrl}",
-	initialProjectUrl: ${JSON.stringify(elpxUrl || null)},
-	parentOrigin: window.location.origin,
-	trustedOrigins: [window.location.origin],
-	hideUI: {
-		fileMenu: true,
-		saveButton: true,
-		userMenu: true,
-	},
-};
-window.__PROCOMUN_CONFIG__ = {
-	resourceId: ${JSON.stringify(resourceId)},
-	editorBaseUrl: "${editorBaseUrl}",
-};
-</script>`;
-
+	// Inject Procomun embedding config before </head>. User-controlled query
+	// values are encoded as script-safe JSON to prevent `</script>` breakout.
+	const configScript = buildEditorConfigScript(
+		elpxUrl,
+		resourceId,
+		editorBaseUrl,
+	);
 	html = html.replace("</head>", `${configScript}\n</head>`);
 
 	// Inject the bridge script before </body> — handles postMessage communication
@@ -69,9 +105,45 @@ window.__PROCOMUN_CONFIG__ = {
 		headers: {
 			"Content-Type": "text/html; charset=utf-8",
 			"Cache-Control": "no-cache",
+			"Content-Security-Policy":
+				"object-src 'none'; base-uri 'self'; frame-ancestors 'self'",
 		},
 	});
 });
+
+/**
+ * Interim Service Worker neutralizing stub.
+ *
+ * The bundled pre-v2 editor (v4.0.1) still ships `loadPreviewFromServiceWorker()`
+ * and can call `navigator.serviceWorker.register('/preview-sw.js')` to drive a
+ * SAME-ORIGIN Service Worker preview. On the Procomun origin that would run
+ * untrusted author content same-origin — exactly what the opaque HTTP preview
+ * exists to prevent. Until an editor build with the opaque preview ships and
+ * this stub becomes unnecessary, neutralize SW registration so no preview SW can
+ * be installed on this origin; the supported transport is the injected
+ * `previewSnapshot` config.
+ *
+ * The dummy returned from `register()` is a full ServiceWorkerRegistration-like
+ * object (not a bare `{}`) because the v4 editor calls `reg.addEventListener`
+ * and would otherwise throw and abort its hidden export iframe.
+ */
+const SW_NEUTRALIZE_SCRIPT = `<script>
+(function () {
+	'use strict';
+	if (!('serviceWorker' in navigator)) return;
+	var dummy = {
+		scope: '', installing: null, waiting: null, active: null,
+		addEventListener: function () {}, removeEventListener: function () {},
+		update: function () { return Promise.resolve(); },
+		unregister: function () { return Promise.resolve(true); }
+	};
+	try {
+		navigator.serviceWorker.register = function () { return Promise.resolve(dummy); };
+		navigator.serviceWorker.getRegistration = function () { return Promise.resolve(undefined); };
+		navigator.serviceWorker.getRegistrations = function () { return Promise.resolve([]); };
+	} catch (e) { void e; }
+})();
+</script>`;
 
 /**
  * Bridge script injected into the editor iframe.
@@ -213,8 +285,7 @@ const BRIDGE_SCRIPT = `<script>
 		});
 	}
 
-	if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
-	else init();
+	init();
 })();
 </script>`;
 
@@ -230,6 +301,16 @@ exelearningEditorRoutes.get("/*", async (c) => {
 		: urlPath.replace(/^\/+/, "");
 
 	if (!relativePath || relativePath.includes("..")) {
+		return c.text("Not found", 404);
+	}
+
+	// Defense in depth (see ADR-0032 and the SW_NEUTRALIZE_SCRIPT above): never
+	// serve the legacy preview Service Worker from this origin. The bundled pre-v2
+	// editor could otherwise register `preview-sw.js` and run untrusted author
+	// content SAME-ORIGIN as the authenticated user. The register() stub blocks
+	// installation; refusing to serve the script blocks it a second way. Both go
+	// away once an HTTP-preview-v2 editor is bundled.
+	if (path.basename(relativePath) === "preview-sw.js") {
 		return c.text("Not found", 404);
 	}
 
