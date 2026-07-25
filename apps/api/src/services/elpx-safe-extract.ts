@@ -43,6 +43,10 @@ export type ZipEntryInfo = {
 	uncompressedSize: number;
 	compressedSize: number;
 	isSymlink: boolean;
+	/** Compression method: 0 = stored, 8 = deflate. */
+	method: number;
+	/** Offset of this entry's local file header, for readers that extract in memory. */
+	localHeaderOffset: number;
 };
 
 const EOCD_SIGNATURE = 0x06054b50; // PK\x05\x06
@@ -112,12 +116,14 @@ export function readZipCentralDirectory(buf: Buffer): ZipEntryInfo[] {
 		}
 
 		const versionMadeBy = buf.readUInt16LE(offset + 4);
+		const method = buf.readUInt16LE(offset + 10);
 		const compressedSize = buf.readUInt32LE(offset + 20);
 		const uncompressedSize = buf.readUInt32LE(offset + 24);
 		const nameLen = buf.readUInt16LE(offset + 28);
 		const extraLen = buf.readUInt16LE(offset + 30);
 		const commentLen = buf.readUInt16LE(offset + 32);
 		const externalAttr = buf.readUInt32LE(offset + 38);
+		const localHeaderOffset = buf.readUInt32LE(offset + 42);
 
 		if (
 			compressedSize === ZIP64_SENTINEL ||
@@ -134,7 +140,14 @@ export function readZipCentralDirectory(buf: Buffer): ZipEntryInfo[] {
 		const unixMode = (externalAttr >>> 16) & 0xffff;
 		const isSymlink = hostSystem === 3 && (unixMode & S_IFMT) === S_IFLNK;
 
-		entries.push({ name, uncompressedSize, compressedSize, isSymlink });
+		entries.push({
+			name,
+			uncompressedSize,
+			compressedSize,
+			isSymlink,
+			method,
+			localHeaderOffset,
+		});
 
 		offset += 46 + nameLen + extraLen + commentLen;
 	}

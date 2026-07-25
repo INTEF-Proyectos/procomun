@@ -1,38 +1,8 @@
 import { describe, expect, test } from "bun:test";
-import {
-	isSafeEntryPath,
-	readSnapshotArchive,
-} from "./preview-snapshot-archive.ts";
+import { readSnapshotArchive } from "./preview-snapshot-archive.ts";
 import { buildSimpleZip, buildZip } from "./preview-snapshot-test-zip.ts";
 
 const LIMITS = { maxFiles: 100, maxBytes: 1024 * 1024 };
-
-describe("isSafeEntryPath", () => {
-	test.each([
-		["index.html"],
-		["assets/app.js"],
-		["a/b/c/deep.css"],
-		["file with spaces.png"],
-		["acentuado-ñ.html"],
-	])("accepts %s", (name) => {
-		expect(isSafeEntryPath(name)).toBe(true);
-	});
-
-	test.each([
-		["", "empty"],
-		["/etc/passwd", "absolute"],
-		["../escape.html", "parent segment"],
-		["a/../../escape.html", "nested parent segment"],
-		["./relative.html", "dot segment"],
-		["a//b.html", "empty segment"],
-		["win\\path.html", "backslash"],
-		["C:/win.html", "drive letter"],
-		["file:///etc/passwd", "scheme"],
-		["with\0nul.html", "NUL byte"],
-	])("rejects %s (%s)", (name) => {
-		expect(isSafeEntryPath(name)).toBe(false);
-	});
-});
 
 describe("readSnapshotArchive", () => {
 	test("unpacks a well-formed archive", async () => {
@@ -77,13 +47,20 @@ describe("readSnapshotArchive", () => {
 
 	/**
 	 * The whole archive is refused, not just the offending entry — and before a
-	 * single byte is decompressed, so a traversal never reaches any writer.
+	 * single byte is inflated, so a traversal never reaches the file map. The
+	 * rule itself is `isUnsafeZipEntry` from elpx-safe-extract.ts, shared with
+	 * the .elpx upload path; these cases prove it is actually applied here.
 	 */
-	test("one unsafe path rejects the whole archive", async () => {
-		const zip = await buildSimpleZip({
-			"index.html": "ok",
-			"../escape.html": "nope",
-		});
+	test.each([
+		["../escape.html", "traversal"],
+		["/etc/passwd", "absolute"],
+		["win\\path.html", "backslash"],
+		["file:///etc/passwd", "scheme"],
+	])("one unsafe path (%s: %s) rejects the whole archive", async (name) => {
+		const zip = await buildZip([
+			{ name: "index.html", content: "ok" },
+			{ name, content: "nope" },
+		]);
 
 		const result = await readSnapshotArchive(zip, LIMITS);
 

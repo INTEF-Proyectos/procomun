@@ -1,7 +1,10 @@
 import { describe, expect, test } from "bun:test";
+import { Hono } from "hono";
+import type { AuthEnv } from "../auth/middleware.ts";
 import {
 	PREVIEW_MULTIPART_OVERHEAD_BYTES,
 	previewMultipartMaxRequestBytes,
+	registerRoutes,
 	validatePreviewMultipartContentLength,
 } from "./routes.ts";
 
@@ -31,5 +34,45 @@ describe("preview multipart raw body limit", () => {
 			error:
 				"La petición de previsualización supera el tamaño máximo (1024 bytes)",
 		});
+	});
+});
+
+/**
+ * The validator above is pure, so it stayed green while the middleware that
+ * calls it was mounted on `/assets` and `/revisions` — paths the snapshot
+ * contract removed. Nothing failed; the guard simply stopped covering anything.
+ * These go through registerRoutes so the mounting itself is under test.
+ */
+describe("preview multipart body limit wiring", () => {
+	function app(): Hono<AuthEnv> {
+		const instance = new Hono<AuthEnv>();
+		registerRoutes(instance);
+		return instance;
+	}
+
+	test("guards the live publish endpoint", async () => {
+		const response = await app().request("/api/v1/preview-session", {
+			method: "POST",
+			headers: {
+				"Content-Length": String(previewMultipartMaxRequestBytes() + 1),
+				"Content-Type": "multipart/form-data; boundary=x",
+			},
+		});
+
+		expect(response.status).toBe(413);
+	});
+
+	test("lets an in-budget request through to the route's own auth", async () => {
+		const response = await app().request("/api/v1/preview-session", {
+			method: "POST",
+			headers: {
+				"Content-Length": "1024",
+				"Content-Type": "multipart/form-data; boundary=x",
+			},
+		});
+
+		// Not 413: the body bound passed and the request reached the router,
+		// which rejects it for the unrelated reason that there is no session.
+		expect(response.status).not.toBe(413);
 	});
 });

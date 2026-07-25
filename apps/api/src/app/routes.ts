@@ -76,14 +76,11 @@ export function registerRoutes(app: Hono<AuthEnv>) {
 	app.route("/api/v1", socialRoutes);
 	app.route("/api/v1/elpx", elpxContentRoutes);
 	// Bound raw multipart bodies before the management router materializes them.
-	app.use(
-		"/api/v1/preview-session/:previewId/assets",
-		previewMultipartBodyLimit,
-	);
-	app.use(
-		"/api/v1/preview-session/:previewId/revisions",
-		previewMultipartBodyLimit,
-	);
+	// This covers the whole management surface rather than naming endpoints: the
+	// previous mounting listed the /assets and /revisions paths and silently
+	// stopped covering anything once the snapshot contract removed them.
+	app.use("/api/v1/preview-session", previewMultipartBodyLimit);
+	app.use("/api/v1/preview-session/*", previewMultipartBodyLimit);
 	// Authenticated preview-session management API (owner-gated) + the authless,
 	// capability-URL serving route for the opaque preview iframe.
 	app.route("/api/v1/preview-session", previewSessionRoutes);

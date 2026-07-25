@@ -246,11 +246,10 @@ export const previewRoutes = new Hono();
 
 /**
  * Bare-capability-URL redirect: `…/{previewId}` and `…/{previewId}/` answer a
- * `302` to the canonical entry document instead of serving index bytes inline
- * rather than serving index bytes inline. This guarantees the iframe's
- * relative-URL base is
- * always `…/{previewId}/`, so the entry document's sub-resources (`theme/…`,
- * `libs/…`, `img/…`) resolve correctly.
+ * `302` to the canonical entry document instead of serving index bytes inline.
+ * This guarantees the iframe's relative-URL base is always `…/{previewId}/`, so
+ * the entry document's sub-resources (`theme/…`, `libs/…`, `img/…`) resolve
+ * correctly.
  *
  * The `Location` is RELATIVE — byte-identical to eXe core `preview-serving.ts`,
  * so it survives a BASE_PATH mount and the Electron `app://` origin without the
