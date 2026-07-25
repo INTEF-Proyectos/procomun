@@ -77,16 +77,19 @@ describe("GET /api/v1/exelearning-editor/index.html", () => {
 		expect(bodyIdx === -1 || swIdx < bodyIdx).toBe(true);
 	});
 
-	test("activa el transporte HTTP de preview (serving contract v2)", async () => {
+	test("activa la previsualización opaca vía previewSnapshot", async () => {
 		const res = await app.request("/api/v1/exelearning-editor/index.html");
 		expect(res.status).toBe(200);
 		const html = await res.text();
-		expect(html).toContain("previewHttp");
-		expect(html).toContain("protocolVersion: 2");
-		expect(html).toContain('managementBaseUrl: "/api/v1/preview-session"');
+		expect(html).toContain("previewSnapshot");
+		expect(html).toContain('managementUrl: "/api/v1/preview-session"');
 		expect(html).toContain('servingBaseUrl: "/api/v1/preview"');
-		expect(html).not.toContain("managementHeaders");
-		expect(html).not.toContain("managementQuery");
+		expect(html).toContain(
+			'deleteUrlTemplate: "/api/v1/preview-session/{previewId}"',
+		);
+		// El protocolo v2 retirado no debe reaparecer: el editor actual no lo lee.
+		expect(html).not.toContain("previewHttp");
+		expect(html).not.toContain("protocolVersion");
 	});
 
 	test("inyecta bridge script con soporte de exportación", async () => {
@@ -147,7 +150,7 @@ describe("inline editor configuration encoding", () => {
 			payload,
 			"/api/v1/exelearning-editor",
 		);
-		expect(script).toContain("protocolVersion: 2");
+		expect(script).toContain("previewSnapshot");
 		expect(script).not.toContain("<svg onload");
 		expect(script).toContain("\\u003c/script\\u003e");
 	});

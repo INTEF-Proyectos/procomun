@@ -2095,3 +2095,23 @@ tasks:
       pull-requests: write además de issues: write. Se añade al workflow y se
       documenta en ADR-0033. Validación: el siguiente E2E verde de una PR debe
       publicar assets y dejar/actualizar el comentario marcado.
+
+  T-2026-07-25-16042561:
+    date: 2026-07-25
+    agent: "interoperabilidad-educativa + seguridad-privacidad-legal + backend-api-servicios"
+    task: "Sustituir el protocolo v2 del preview por el contrato de snapshot"
+    status: Done
+    related: ["ADR-0035", "ADR-0034", "ADR-0030"]
+    notes: >
+      El editor embebido dejó de hablar el protocolo v2: un bundle construido desde
+      la rama actual del editor no contiene ninguna referencia a previewHttp ni a
+      protocolVersion, y lee previewSnapshot. La plataforma inyectaba lo primero y
+      omitía lo segundo, así que la previsualización opaca fallaba en cerrado y se
+      quedaba siempre filtrada, sin error visible. Se sustituye el store por capas
+      (assets inmutables, revisiones incrementales, recursos fijos) por un snapshot
+      completo por refresco, con verificación del ZIP previa a descomprimir y tope
+      medido sobre bytes realmente inflados. Se conserva la topología de ADR-0034 y
+      toda la política de servido (CSP, ETag, rangos, redirección relativa).
+      Validación: bun test (976 verdes), make lint, make check-types (0 errores),
+      make check-test-files, make check-tracking.
+

@@ -68,3 +68,16 @@ El editor se sirve desde la API y puede estar embebido por un frontend en otro o
 * E2E con un artefacto de editor compatible antes de activar el transporte en producción.
 
 ADR-0034 complementa ADR-0033: el bridge compartido resuelve medios externos del contenido publicado y esta ADR resuelve el preview efímero del editor.
+
+## Enmienda 2026-07-25 (ADR-0035)
+
+Los puntos 1 y 10 quedan enmendados por [ADR-0035](0035-preview-snapshot-en-lugar-de-protocolo-v2.md):
+el editor ya no habla el protocolo v2, así que la estructura por capas (assets
+inmutables, revisiones incrementales, recursos fijos) se sustituye por un
+snapshot completo por refresco, y el bootstrap inyecta `previewSnapshot` en
+lugar de `previewHttp`.
+
+El resto de esta ADR sigue vigente: store en memoria por proceso, recuperación
+por recreación, una réplica por defecto, afinidad coherente en multi-réplica con
+acuse operativo, y límites locales al proceso.
+

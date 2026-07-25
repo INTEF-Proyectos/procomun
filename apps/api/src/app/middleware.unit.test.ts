@@ -2,13 +2,13 @@ import { describe, expect, test } from "bun:test";
 import { Hono } from "hono";
 import type { AuthEnv } from "../auth/middleware.ts";
 import { previewRoutes } from "../routes/preview.ts";
-import * as fixedResources from "../services/preview-fixed-resources.ts";
+
 import {
-	applyRevision,
-	createSession,
-	getSessionForServing,
+	getSnapshotForServing,
+	replaceSnapshot,
 	resetDependencies,
-} from "../services/preview-session-store.ts";
+} from "../services/preview-snapshot-store.ts";
+import { buildSimpleZip } from "../services/preview-snapshot-test-zip.ts";
 import {
 	registerGlobalMiddleware,
 	validatePreviewManagementRequest,
@@ -193,27 +193,15 @@ describe("registerGlobalMiddleware", () => {
 			registerGlobalMiddleware(app);
 			app.route("/api/v1/preview", previewRoutes);
 
-			const { previewId } = createSession("owner-cors");
-			const session = getSessionForServing(previewId);
-			if (!session) throw new Error("expected a live session");
-			const result = applyRevision(
-				session,
-				{
-					baseRevision: 0,
-					nextRevision: 1,
-					writes: [
-						{
-							path: "index.html",
-							bytes: new TextEncoder().encode("<html>hi</html>"),
-						},
-					],
-					deletes: [],
-					assetRefs: {},
-					fixedRefs: {},
-				},
-				fixedResources,
+			const published = await replaceSnapshot(
+				"owner-cors",
+				await buildSimpleZip({ "index.html": "<html>hi</html>" }),
 			);
-			expect("active" in result).toBe(true);
+			if (!published.ok) throw new Error("expected a published snapshot");
+			const { previewId } = published;
+			if (!getSnapshotForServing(previewId)) {
+				throw new Error("expected a live snapshot");
+			}
 
 			for (const origin of [undefined, "null"]) {
 				const res = await app.request(

@@ -1,22 +1,21 @@
 /**
- * Editor-preview routes — host-served opaque HTTP preview (serving contract v2,
- * docs/preview-serving-contract.md).
+ * Editor-preview routes — host-served opaque preview
+ * (docs/preview-serving-contract.md).
  *
  * Two deliberately separate surfaces:
  *
  * - `previewSessionRoutes` (`/api/v1/preview-session`, session-authenticated):
- *   create sessions, upload assets, publish revisions, delete. Every endpoint
- *   is owner-gated — a user may only touch their OWN sessions. Session auth is
+ *   publish a whole-project snapshot and delete it. Both endpoints are
+ *   owner-gated — a user may only touch their OWN snapshots. Session auth is
  *   applied for the `/api/v1/preview-session/*` pattern in `app/middleware.ts`,
  *   mirroring `/api/v1/tokens/*`.
  *
  * - `previewRoutes` (`/api/v1/preview/:previewId/*`, NO auth): serves the
- *   session's three layers to the opaque-origin preview iframe. An opaque iframe
- *   sends no SameSite cookie, so this is a capability URL (unguessable UUID +
- *   idle TTL), the same authless model as the published `/api/v1/elpx/:hash/*`
- *   route. Every response carries the hardening headers; scriptable types
- *   additionally get the `sandbox`-first CSP so a directly opened preview URL
- *   stays opaque.
+ *   snapshot to the opaque-origin preview iframe. An opaque iframe sends no
+ *   SameSite cookie, so this is a capability URL (unguessable UUID + idle TTL),
+ *   the same authless model as the published `/api/v1/elpx/:hash/*` route. Every
+ *   response carries the hardening headers; scriptable types additionally get
+ *   the `sandbox`-first CSP so a directly opened preview URL stays opaque.
  *
  * The Content-Security-Policy emitted here MUST stay BYTE-IDENTICAL to eXe core
  * `previewCspHeader()` (`src/shared/security/previewSandbox.ts`) — single line,
@@ -25,28 +24,16 @@
  * `base-uri 'none'`, no `allow-popups-to-escape-sandbox`).
  *
  * Mount at `/api/v1/preview` (serving) and `/api/v1/preview-session`
- * (management). The embedded editor activates the HTTP transport through the
- * `previewHttp` block injected by `exelearning-editor.ts`
- * (`protocolVersion: 2`, `managementBaseUrl`, `servingBaseUrl`).
+ * (management). The embedded editor activates the transport through the
+ * `previewSnapshot` block injected by `exelearning-editor.ts`.
  */
 import { type Context, Hono } from "hono";
 import type { AuthEnv } from "../auth/middleware.ts";
 import { requireAuth } from "../auth/middleware.ts";
 import { getCurrentUser } from "../auth/roles.ts";
-import * as fixedResources from "../services/preview-fixed-resources.ts";
-import * as store from "../services/preview-session-store.ts";
+import * as store from "../services/preview-snapshot-store.ts";
 
-/** Contract protocol version advertised by create-session. */
-export const PROTOCOL_VERSION = 2;
-
-/**
- * Advertised upper bound for one upload request. Oversized bodies die at the
- * transport layer (connection error, not a clean 413), so clients must batch
- * uploads below it.
- */
-export const RECOMMENDED_BATCH_BYTES = 64 * 1024 * 1024;
-
-// Server-minted preview session id: a v4-shaped UUID. Stricter than the elpx
+// Server-minted preview capability id: a v4-shaped UUID. Stricter than the elpx
 // route's HASH_PATTERN (which also accepts SHA-1) — a preview id is never a hash.
 const PREVIEW_ID_PATTERN =
 	/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -194,13 +181,13 @@ function bodyFromBytes(bytes: Uint8Array): Uint8Array<ArrayBuffer> {
 }
 
 /**
- * The contract's reference serving logic: UUID gate → session lookup (touches
- * the idle-TTL clock) → three-layer `getFile` → tiered headers.
+ * The reference serving logic: UUID gate → snapshot lookup (touches the
+ * idle-TTL clock) → `getFile` → tiered headers.
  *
- * Cache-Control tiers: documents `no-store`; session assets `no-cache` +
- * `ETag: "<assetKey>"` (+ 304 / single-range 206/416); fixed resources
- * `private, max-age=31536000`; 404s `no-store`. Every scriptable document type
- * carries the sandbox-first CSP, whatever layer resolved it.
+ * Cache-Control tiers: scriptable documents `no-store` (they are rewritten on
+ * every refresh); every other file `no-cache` + `ETag` (+ 304 / single-range
+ * 206/416); 404s `no-store`. Every scriptable document type carries the
+ * sandbox-first CSP.
  */
 function servePreviewFile(
 	previewId: string,
@@ -208,9 +195,9 @@ function servePreviewFile(
 	requestHeaders: { ifNoneMatch?: string | null; range?: string | null },
 ): Response {
 	if (!PREVIEW_ID_PATTERN.test(previewId)) return notFound();
-	const session = store.getSessionForServing(previewId);
-	if (!session) return notFound();
-	const file = store.getFile(session, relPath, fixedResources);
+	const snapshot = store.getSnapshotForServing(previewId);
+	if (!snapshot) return notFound();
+	const file = store.getFile(snapshot, relPath);
 	if (!file) return notFound();
 
 	const headers: Record<string, string> = {
@@ -220,7 +207,7 @@ function servePreviewFile(
 	// Emit the sandbox-first CSP on every scriptable document type (HTML, SVG,
 	// XML), not just HTML: an author SVG opened top-level would otherwise run its
 	// inline <script> same-origin (nosniff does not help — SVG is already a
-	// scriptable type). This applies to ANY resolution layer.
+	// scriptable type).
 	if (file.isScriptable) {
 		headers["Content-Security-Policy"] = PREVIEW_CSP;
 	}
@@ -230,13 +217,8 @@ function servePreviewFile(
 		return new Response(bodyFromBytes(file.bytes), { headers });
 	}
 
-	if (file.kind === "fixed") {
-		headers["Cache-Control"] = "private, max-age=31536000";
-		return new Response(bodyFromBytes(file.bytes), { headers });
-	}
-
-	// Session asset: revalidating cache tier with ETag + single-range support
-	// (large audio/video seeks without a full re-download).
+	// Non-scriptable file: revalidating cache tier with ETag + single-range
+	// support (large audio/video seeks without a full re-download).
 	headers["Cache-Control"] = "no-cache";
 	headers.ETag = `"${file.etag}"`;
 	headers["Accept-Ranges"] = "bytes";
@@ -265,7 +247,8 @@ export const previewRoutes = new Hono();
 /**
  * Bare-capability-URL redirect: `…/{previewId}` and `…/{previewId}/` answer a
  * `302` to the canonical entry document instead of serving index bytes inline
- * (serving contract v2 §4). This guarantees the iframe's relative-URL base is
+ * rather than serving index bytes inline. This guarantees the iframe's
+ * relative-URL base is
  * always `…/{previewId}/`, so the entry document's sub-resources (`theme/…`,
  * `libs/…`, `img/…`) resolve correctly.
  *
@@ -323,10 +306,12 @@ previewRoutes.get("/:previewId/*", handlePreview);
 // ---------------------------------------------------------------------------
 // Authenticated management API (mount at `/api/v1/preview-session`).
 //
-// The editor creates a session, uploads session assets (immutable per key), and
-// publishes atomic incremental revisions of the generated-document layer. Every
-// endpoint is owner-gated: a user may only touch their OWN sessions (403
-// otherwise, 404 for unknown ids).
+// The editor publishes the WHOLE project as one archive per opaque refresh, so
+// there are only two operations. Both are owner-gated: a user may only touch
+// their OWN snapshots (403 otherwise, 404 for unknown ids).
+//
+// This replaces the four-operation protocol v2 (create session / upload assets /
+// publish revision / delete) that the current editor build no longer speaks.
 // ---------------------------------------------------------------------------
 
 function ownershipError(status: 403 | 404): {
@@ -336,270 +321,68 @@ function ownershipError(status: 403 | 404): {
 	return {
 		body: {
 			error:
-				status === 403
-					? "Acceso denegado"
-					: "Sesión de previsualización no encontrada",
+				status === 403 ? "Acceso denegado" : "Previsualización no encontrada",
 		},
 		status,
 	};
-}
-
-/** Accept both the raw string field and (defensively) a pre-parsed object. */
-function parseJsonField(
-	raw: unknown,
-): { ok: true; value: unknown } | { ok: false } {
-	if (typeof raw !== "string") return { ok: true, value: raw };
-	try {
-		return { ok: true, value: JSON.parse(raw) };
-	} catch {
-		return { ok: false };
-	}
-}
-
-function isStringRecord(value: unknown): value is Record<string, string> {
-	return (
-		typeof value === "object" &&
-		value !== null &&
-		!Array.isArray(value) &&
-		Object.values(value).every((v) => typeof v === "string")
-	);
 }
 
 export const previewSessionRoutes = new Hono<AuthEnv>();
 
 previewSessionRoutes.use("*", requireAuth);
 
-// POST /api/v1/preview-session — create a session for the current user.
-previewSessionRoutes.post("/", (c) => {
+/**
+ * POST /api/v1/preview-session — publish a whole-project snapshot.
+ *
+ * multipart/form-data: `snapshot` (the project ZIP) and an optional `previewId`.
+ * The id is absent on the first refresh (mint a capability) and present
+ * afterwards (replace in place); the store refuses an id that is unknown or
+ * owned by somebody else, so a capability cannot be claimed from another author.
+ *
+ * No `previewUrl` is returned: the client derives it from `servingBaseUrl` +
+ * `/{previewId}/index.html`, keeping one source of truth for the URL shape.
+ */
+previewSessionRoutes.post("/", async (c) => {
 	const user = getCurrentUser(c);
-	const { previewId } = store.createSession(user.id);
-	const limits = store.getLimits();
-	return c.json(
-		{
-			previewId,
-			protocolVersion: PROTOCOL_VERSION,
-			revision: 0,
-			limits: {
-				maxFilesPerSession: limits.maxFilesPerSession,
-				maxBytesPerSession: limits.maxBytesPerSession,
-				maxAssetBytes: limits.maxAssetBytes,
-				recommendedBatchBytes: RECOMMENDED_BATCH_BYTES,
-			},
-		},
-		201,
-	);
-});
-
-// POST /api/v1/preview-session/:previewId/assets — upload session assets.
-// multipart/form-data: `assets` (JSON array of `{ key, size }`) and one or more
-// `files`, index-aligned. The byte budget is enforced twice — on DECLARED sizes
-// before buffering and on ACTUAL bytes while buffering — so an under-reported
-// size can never amplify memory.
-previewSessionRoutes.post("/:previewId/assets", async (c) => {
-	const user = getCurrentUser(c);
-	const owned = store.getOwnedSession(c.req.param("previewId"), user.id);
-	if ("status" in owned) {
-		const { body, status } = ownershipError(owned.status);
-		return c.json(body, status);
-	}
 
 	let form: FormData;
 	try {
 		form = await c.req.formData();
 	} catch {
-		return c.json({ error: "Se esperaba multipart/form-data" }, 400);
+		return c.json({ error: "Cuerpo multipart inválido" }, 400);
 	}
 
-	const parsed = parseJsonField(form.get("assets"));
-	if (!parsed.ok) return c.json({ error: "assets JSON no válido" }, 400);
-	const entries = parsed.value;
-	// size must be a non-negative integer: negatives could under-report the
-	// declared batch budget; non-integers never match a byte length.
-	if (
-		!Array.isArray(entries) ||
-		entries.some(
-			(e) =>
-				typeof e?.key !== "string" ||
-				typeof e?.size !== "number" ||
-				!Number.isInteger(e.size) ||
-				e.size < 0,
-		)
-	) {
-		return c.json(
-			{ error: "assets debe ser un array de entradas { key, size }" },
-			400,
-		);
+	const snapshot = form.get("snapshot");
+	if (!(snapshot instanceof File)) {
+		return c.json({ error: "Falta el archivo `snapshot`" }, 400);
+	}
+	const rawPreviewId = form.get("previewId");
+	const previewId = typeof rawPreviewId === "string" ? rawPreviewId : undefined;
+	if (previewId !== undefined && !PREVIEW_ID_PATTERN.test(previewId)) {
+		return c.json({ error: "Identificador de previsualización inválido" }, 400);
 	}
 
-	const files = form
-		.getAll("files")
-		.filter((f): f is File => f instanceof File);
-	if (files.length !== entries.length) {
-		return c.json(
-			{ error: "assets y files deben estar alineados por índice" },
-			400,
-		);
-	}
-
-	const limits = store.getLimits();
-	const remainingBudget =
-		limits.maxBytesPerSession - store.sessionBytes(owned.session);
-	let declaredBytes = 0;
-	for (const entry of entries as Array<{ size: number }>) {
-		declaredBytes += entry.size;
-		if (declaredBytes > remainingBudget) {
-			return c.json(
-				{ error: "La subida supera el presupuesto de bytes de la sesión" },
-				413,
-			);
+	const bytes = new Uint8Array(await snapshot.arrayBuffer());
+	const result = await store.replaceSnapshot(user.id, bytes, previewId);
+	if (!result.ok) {
+		if (result.status === 403 || result.status === 404) {
+			const { body, status } = ownershipError(result.status);
+			return c.json(body, status);
 		}
+		return c.json({ error: result.error }, result.status);
 	}
-
-	const buffered: Uint8Array[] = [];
-	let bufferedBytes = 0;
-	for (const file of files) {
-		const bytes = new Uint8Array(await file.arrayBuffer());
-		bufferedBytes += bytes.length;
-		if (bufferedBytes > remainingBudget) {
-			return c.json(
-				{ error: "La subida supera el presupuesto de bytes de la sesión" },
-				413,
-			);
-		}
-		buffered.push(bytes);
-	}
-
-	const result = store.storeAssets(
-		owned.session,
-		(entries as Array<{ key: string; size: number }>).map((entry, i) => ({
-			key: entry.key,
-			declaredSize: entry.size,
-			bytes: buffered[i] as Uint8Array,
-		})),
-	);
-	return c.json(result);
+	return c.json({ previewId: result.previewId }, 200);
 });
 
-// POST /api/v1/preview-session/:previewId/revisions — publish a revision.
-// multipart/form-data: `revision` (JSON meta below) and one `files` part per
-// `writes` entry, index-aligned:
-//   { baseRevision, nextRevision, writes:[path], deletes:[path],
-//     assetRefs:{path:assetKey}, fixedRefs:{path:fixedResourceId} }
-previewSessionRoutes.post("/:previewId/revisions", async (c) => {
-	const user = getCurrentUser(c);
-	const owned = store.getOwnedSession(c.req.param("previewId"), user.id);
-	if ("status" in owned) {
-		const { body, status } = ownershipError(owned.status);
-		return c.json(body, status);
-	}
-
-	let form: FormData;
-	try {
-		form = await c.req.formData();
-	} catch {
-		return c.json({ error: "Se esperaba multipart/form-data" }, 400);
-	}
-
-	const parsed = parseJsonField(form.get("revision"));
-	if (!parsed.ok) return c.json({ error: "revision JSON no válido" }, 400);
-	const meta = parsed.value as Record<string, unknown> | null;
-	if (typeof meta !== "object" || meta === null || Array.isArray(meta)) {
-		return c.json({ error: "revision debe ser un objeto JSON" }, 400);
-	}
-	if (
-		!Number.isInteger(meta.baseRevision) ||
-		!Number.isInteger(meta.nextRevision)
-	) {
-		return c.json(
-			{ error: "baseRevision y nextRevision deben ser enteros" },
-			400,
-		);
-	}
-	const writes = meta.writes ?? [];
-	if (!Array.isArray(writes) || writes.some((w) => typeof w !== "string")) {
-		return c.json({ error: "writes debe ser un array de rutas" }, 400);
-	}
-	const deletes = meta.deletes ?? [];
-	if (!Array.isArray(deletes) || deletes.some((d) => typeof d !== "string")) {
-		return c.json({ error: "deletes debe ser un array de rutas" }, 400);
-	}
-	const assetRefs = meta.assetRefs ?? {};
-	const fixedRefs = meta.fixedRefs ?? {};
-	if (!isStringRecord(assetRefs) || !isStringRecord(fixedRefs)) {
-		return c.json(
-			{ error: "assetRefs y fixedRefs deben mapear rutas a ids de cadena" },
-			400,
-		);
-	}
-
-	const files = form
-		.getAll("files")
-		.filter((f): f is File => f instanceof File);
-	if (files.length !== writes.length) {
-		return c.json(
-			{ error: "writes y files deben estar alineados por índice" },
-			400,
-		);
-	}
-
-	// Buffer write payloads with an amplification guard: a revision whose document
-	// payload alone cannot fit the session budget is rejected before it is fully
-	// materialized (the exact post-delta budget is applyRevision's job).
-	const limits = store.getLimits();
-	const remainingForDocuments =
-		limits.maxBytesPerSession - owned.session.assetBytes;
-	const bufferedWrites: Array<{ path: string; bytes: Uint8Array }> = [];
-	let bufferedBytes = 0;
-	for (let i = 0; i < files.length; i++) {
-		const bytes = new Uint8Array(await (files[i] as File).arrayBuffer());
-		bufferedBytes += bytes.length;
-		if (bufferedBytes > remainingForDocuments) {
-			return c.json(
-				{ error: "La revisión supera el presupuesto de bytes de la sesión" },
-				413,
-			);
-		}
-		bufferedWrites.push({ path: writes[i] as string, bytes });
-	}
-
-	const result = store.applyRevision(
-		owned.session,
-		{
-			baseRevision: meta.baseRevision as number,
-			nextRevision: meta.nextRevision as number,
-			writes: bufferedWrites,
-			deletes: deletes as string[],
-			assetRefs: assetRefs as Record<string, string>,
-			fixedRefs: fixedRefs as Record<string, string>,
-		},
-		fixedResources,
-	);
-	if ("active" in result) {
-		return c.json(result);
-	}
-	if (result.status === 409) {
-		return c.json(
-			{ reason: "revision-conflict", currentRevision: result.currentRevision },
-			409,
-		);
-	}
-	if (result.status === 422) {
-		// Contract shape: { reason, missing } / { reason, resources } — do not leak
-		// the internal status discriminant into the wire body.
-		const { status, ...body } = result;
-		return c.json(body, status);
-	}
-	return c.json({ error: result.message }, result.status);
-});
-
-// DELETE /api/v1/preview-session/:previewId — tear a session down.
+// DELETE /api/v1/preview-session/:previewId — drop a snapshot.
 previewSessionRoutes.delete("/:previewId", (c) => {
 	const user = getCurrentUser(c);
-	const owned = store.getOwnedSession(c.req.param("previewId"), user.id);
+	const previewId = c.req.param("previewId");
+	const owned = store.getOwnedSnapshot(previewId, user.id);
 	if ("status" in owned) {
 		const { body, status } = ownershipError(owned.status);
 		return c.json(body, status);
 	}
-	store.deleteSession(c.req.param("previewId"));
+	store.deleteSnapshot(previewId);
 	return c.json({ success: true });
 });

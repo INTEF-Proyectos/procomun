@@ -4,7 +4,7 @@ import { expect, test } from "@playwright/test";
  * Editor bootstrap → HTTP preview activation.
  *
  * What is honestly testable end-to-end today: that the embedded-editor bootstrap
- * page injects the `previewHttp` config (serving contract v2) into the iframe
+ * page injects the `previewSnapshot` config into the iframe
  * HTML. The bundled static editor (v4.0.1) predates the core HttpPreviewProvider,
  * so the full preview flow cannot be driven until a newer core editor release
  * ships (see ADR-0030 and docs/preview-serving-contract.md). This spec asserts
@@ -17,7 +17,7 @@ import { expect, test } from "@playwright/test";
  * failing on an infra dependency.
  */
 test.describe("Embedded editor bootstrap — HTTP preview wiring", () => {
-	test("injects the previewHttp config (protocol v2) into the bootstrap HTML", async ({
+	test("injects the previewSnapshot config into the bootstrap HTML", async ({
 		request,
 	}) => {
 		const res = await request.get("/api/v1/exelearning-editor/index.html");
@@ -33,8 +33,8 @@ test.describe("Embedded editor bootstrap — HTTP preview wiring", () => {
 		// The HTTP preview transport (serving contract v2): protocol version + the
 		// owner-gated management base and the authless serving base. No CSRF header
 		// or query — auth is the same-origin better-auth cookie.
-		expect(html).toContain("previewHttp");
-		expect(html).toContain("protocolVersion: 2");
+		expect(html).toContain("previewSnapshot");
+		expect(html).toContain('managementUrl: "/api/v1/preview-session"');
 		expect(html).toContain('managementBaseUrl: "/api/v1/preview-session"');
 		expect(html).toContain('servingBaseUrl: "/api/v1/preview"');
 	});

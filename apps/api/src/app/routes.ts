@@ -12,7 +12,7 @@ import { previewRoutes, previewSessionRoutes } from "../routes/preview.ts";
 import { publicRoutes } from "../routes/public.ts";
 import { socialRoutes } from "../routes/social.ts";
 import { uploadRoutes } from "../routes/uploads.ts";
-import { getLimits as getPreviewLimits } from "../services/preview-session-store.ts";
+import { getLimits as getPreviewLimits } from "../services/preview-snapshot-store.ts";
 
 export const PREVIEW_MULTIPART_OVERHEAD_BYTES = 2 * 1024 * 1024;
 
@@ -22,9 +22,9 @@ export type PreviewMultipartLengthError = {
 };
 
 export function previewMultipartMaxRequestBytes(
-	maxBytesPerSession: number = getPreviewLimits().maxBytesPerSession,
+	maxBytesPerSnapshot: number = getPreviewLimits().maxBytesPerSnapshot,
 ): number {
-	return maxBytesPerSession + PREVIEW_MULTIPART_OVERHEAD_BYTES;
+	return maxBytesPerSnapshot + PREVIEW_MULTIPART_OVERHEAD_BYTES;
 }
 
 /** Validate Content-Length without consuming or materializing the body. */

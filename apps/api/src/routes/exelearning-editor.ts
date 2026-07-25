@@ -38,10 +38,10 @@ window.__EXE_EMBEDDING_CONFIG__ = {
 	initialProjectUrl: ${toInlineScriptJson(elpxUrl || null)},
 	parentOrigin: window.location.origin,
 	trustedOrigins: [window.location.origin],
-	previewHttp: {
-		protocolVersion: 2,
-		managementBaseUrl: "/api/v1/preview-session",
+	previewSnapshot: {
+		managementUrl: "/api/v1/preview-session",
 		servingBaseUrl: "/api/v1/preview",
+		deleteUrlTemplate: "/api/v1/preview-session/{previewId}",
 	},
 	hideUI: {
 		fileMenu: true,
@@ -118,10 +118,10 @@ exelearningEditorRoutes.get("/index.html", async (c) => {
  * and can call `navigator.serviceWorker.register('/preview-sw.js')` to drive a
  * SAME-ORIGIN Service Worker preview. On the Procomun origin that would run
  * untrusted author content same-origin — exactly what the opaque HTTP preview
- * (serving contract v2) exists to prevent. Until the HTTP-preview-v2 editor
- * build ships (see ADR-0032) and this stub becomes unnecessary, neutralize SW
- * registration so no preview SW can be installed on this origin; the supported
- * transport is the injected `previewHttp` config.
+ * exists to prevent. Until an editor build with the opaque preview ships and
+ * this stub becomes unnecessary, neutralize SW registration so no preview SW can
+ * be installed on this origin; the supported transport is the injected
+ * `previewSnapshot` config.
  *
  * The dummy returned from `register()` is a full ServiceWorkerRegistration-like
  * object (not a bare `{}`) because the v4 editor calls `reg.addEventListener`
