@@ -27,12 +27,15 @@ import * as m from "../../paraglide/messages.js";
 import { getLocale } from "../../paraglide/runtime.js";
 
 /**
- * Bridge compartido de eXeLearning (lado padre), vendorizado verbatim desde
- * mod_exelearning (paridad con wp-exelearning/omeka-s-exelearning):
- *  - exe_media_policy.js  → esquema/validación compartidos (window.exeMediaPolicy).
- *  - exe_embed_relay.js   → overlay promote-to-parent de vídeos/PDF cross-origin.
- *  - exe_media_host.js    → host del iDevice de vídeo interactivo (window.exeMediaHost).
- * Sustituye al sistema bespoke (EmbedModal + use-elpx-embed-relay + elpx-embed-policy).
+ * Bridge compartido de eXeLearning (lado padre): UN artefacto vendorizado desde el
+ * core de eXeLearning, que es el canónico (eXe ADR-0021). Antes eran tres ficheros
+ * copiados desde mod_exelearning; ahora es un bundle cuyos bytes se verifican contra
+ * el manifest publicado, así que la divergencia deja de ser algo que un chequeo
+ * pueda pasar por alto y pasa a ser inexpresable.
+ *
+ * Publica window.exeEmbedRelay (overlay promote-to-parent de vídeos/PDF cross-origin)
+ * y window.exeMediaHost (host del iDevice de vídeo interactivo). Sustituye al sistema
+ * bespoke (EmbedModal + use-elpx-embed-relay + elpx-embed-policy).
  */
 type ExeBridgeWindow = Window & {
 	exeEmbedRelay?: {
@@ -86,18 +89,26 @@ function loadScriptOnce(src: string): Promise<void> {
 	});
 }
 
-// El ORDEN importa: exe_media_host.js lee window.exeMediaPolicy en tiempo de
-// carga, así que la policy debe cargarse antes que el relay y el host. Se cachea
-// la promesa para que múltiples montajes reutilicen la misma carga. Si la carga
-// falla, se limpia la promesa cacheada para que un remount pueda reintentar
-// (p. ej. tras un glitch de red o un 404 temporal del estático).
+// UN solo artefacto vendorizado (elpx/exe_external_media/), construido y publicado
+// por el core de eXeLearning, que sustituye a los tres ficheros que se cargaban
+// encadenados: la policy, el relay de embeds y el host de medios. Ya no hay orden
+// que respetar, porque ya no hay globals que uno lea del otro en tiempo de carga.
+//
+// El core es canónico (eXe ADR-0021): este repo guarda los BYTES y los verifica
+// contra el manifest publicado, en vez de una copia de la lógica que pueda
+// divergir. No lo parchees aquí — una edición local es invisible aguas arriba, se
+// sobrescribe al re-vendorizar, y falla `verify.mjs` en CI mientras tanto.
+//
+// Se cachea la promesa para que múltiples montajes reutilicen la misma carga. Si
+// falla, se limpia para que un remount pueda reintentar (p. ej. tras un glitch de
+// red o un 404 temporal del estático).
 function loadElpxBridge(): Promise<void> {
 	const w = window as unknown as ExeBridgeWindow;
 	if (!w.__exeBridgeLoader) {
 		const base = getBaseUrl();
-		w.__exeBridgeLoader = loadScriptOnce(`${base}elpx/exe_media_policy.js`)
-			.then(() => loadScriptOnce(`${base}elpx/exe_embed_relay.js`))
-			.then(() => loadScriptOnce(`${base}elpx/exe_media_host.js`))
+		w.__exeBridgeLoader = loadScriptOnce(
+			`${base}elpx/exe_external_media/exe-external-media-host.min.js`,
+		)
 			.catch((err: unknown) => {
 				w.__exeBridgeLoader = undefined;
 				throw err;

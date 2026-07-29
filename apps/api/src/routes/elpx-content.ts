@@ -47,9 +47,13 @@ const EMBED_SHIM_URL = "/api/v1/elpx/embed-shim.js";
 // el dev server de Vite los bloquea ("[Vite] Cross-origin requests for classic
 // scripts must be made with CORS mode enabled").
 const EMBED_SHIM_TAG = `<script src="${EMBED_SHIM_URL}" crossorigin="anonymous"></script>`;
+// Los bytes servidos son el artefacto CANÓNICO vendorizado desde eXeLearning
+// (ADR-0021: bytes + manifiesto, verificados en CI contra el buildHash del core),
+// no una copia bespoke. La URL pública se mantiene porque ya está incrustada en
+// los paquetes servidos; lo que cambia es de dónde salen los bytes.
 const EMBED_SHIM_PATH = path.join(
 	import.meta.dir,
-	"../../static/elpx/embed-shim.js",
+	"../../static/elpx/exe_external_media/exe-external-media-child.min.js",
 );
 let embedShimCache: string | null = null;
 
@@ -59,6 +63,9 @@ async function readEmbedShim(): Promise<string> {
 	}
 	return embedShimCache;
 }
+
+/** Solo para tests: afirma QUÉ bytes se inyectan, sin levantar el servidor. */
+export const readEmbedShimForTest = readEmbedShim;
 
 // Añade crossorigin="anonymous" a los <script src="/api/v1/elpx/..."> propios
 // del paquete para que se carguen en modo CORS bajo el origen opaco.

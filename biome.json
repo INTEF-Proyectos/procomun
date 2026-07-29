@@ -14,7 +14,7 @@
 			"!!**/.grok",
 			"!!**/.omc",
 			"!apps/frontend/public/elpx/**",
-			"!apps/api/static/elpx/embed-shim.js"
+			"!apps/api/static/elpx/**"
 		]
 	},
 	"formatter": {

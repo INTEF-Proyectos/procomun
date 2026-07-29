@@ -11,6 +11,7 @@ type RelayInstance = {
 	checkDrift: () => number;
 	dispose: () => void;
 	init?: (config?: { mode: string }) => unknown;
+	onMessage: (event: { source: unknown; data: unknown }) => void;
 };
 type RelayModule = {
 	reconstructProvider: (provider: string, id: string) => string | null;
@@ -76,5 +77,95 @@ describe("exe_embed_relay dispose() wiring", () => {
 		} finally {
 			globals.window = priorWindow;
 		}
+	});
+});
+
+describe("exe_embed_relay handshake reply", () => {
+	// The in-content shim never promotes an embed on its own authority: it announces
+	// itself and waits to be welcomed. Without that answer the author's iframes are
+	// left alone, because an unanswered placeholder is a permanent black box and this
+	// code travels inside content routinely opened with no relay at all (file://, a
+	// third-party page, an ePub reader). The reply is ADDRESSED: only a content frame
+	// the relay actually hosts is answered, never a promoted player.
+	//
+	// No DOM harness here, so document.getElementsByTagName is stubbed the same way
+	// the dispose() test stubs window.
+	function withFrames<T>(
+		frames: Array<{ contentWindow: unknown; player?: boolean }>,
+		run: () => T,
+	): T {
+		const globals = globalThis as { document?: unknown };
+		const prior = globals.document;
+		globals.document = {
+			getElementsByTagName: () =>
+				frames.map((f) => ({
+					contentWindow: f.contentWindow,
+					getAttribute: (name: string) =>
+						name === "data-exe-embed-player" && f.player ? "1" : null,
+				})),
+		};
+		try {
+			return run();
+		} finally {
+			globals.document = prior;
+		}
+	}
+
+	test("welcomes a hello from a content frame it hosts", () => {
+		const posted: unknown[] = [];
+		const contentWindow = {
+			postMessage: (msg: unknown) => {
+				posted.push(msg);
+			},
+		};
+
+		withFrames([{ contentWindow }], () => {
+			const r = relay.createRelay({ mode: "open" });
+			r.onMessage({
+				source: contentWindow,
+				data: { type: "exe-embed", action: "hello" },
+			});
+		});
+
+		expect(posted).toEqual([{ type: "exe-embed", action: "welcome" }]);
+	});
+
+	test("ignores a hello from a window it does not host", () => {
+		const posted: unknown[] = [];
+		const stranger = {
+			postMessage: (msg: unknown) => {
+				posted.push(msg);
+			},
+		};
+		const hosted = { postMessage: () => {} };
+
+		withFrames([{ contentWindow: hosted }], () => {
+			const r = relay.createRelay({ mode: "open" });
+			r.onMessage({
+				source: stranger,
+				data: { type: "exe-embed", action: "hello" },
+			});
+		});
+
+		expect(posted).toEqual([]);
+	});
+
+	test("never welcomes a promoted player frame", () => {
+		const posted: unknown[] = [];
+		const playerWindow = {
+			postMessage: (msg: unknown) => {
+				posted.push(msg);
+			},
+		};
+
+		withFrames([{ contentWindow: playerWindow, player: true }], () => {
+			const r = relay.createRelay({ mode: "open" });
+			r.onMessage({
+				source: playerWindow,
+				data: { type: "exe-embed", action: "hello" },
+			});
+		});
+
+		expect(posted).toEqual([]);
 	});
 });
