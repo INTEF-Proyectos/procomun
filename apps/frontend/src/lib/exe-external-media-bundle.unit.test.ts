@@ -26,14 +26,17 @@ describe("artefacto external-media vendorizado", () => {
 		expect(Object.keys(manifest.files).sort()).toEqual(["child", "host"]);
 	});
 
-	test.each(["child", "host"])("los bytes de %s coinciden con su digest publicado", async (half) => {
-		const record = manifest.files[half];
-		const bytes = readFileSync(join(DIST, record.path));
-		const digest = new Bun.CryptoHasher("sha256").update(bytes).digest("hex");
+	test.each(["child", "host"])(
+		"los bytes de %s coinciden con su digest publicado",
+		async (half) => {
+			const record = manifest.files[half];
+			const bytes = readFileSync(join(DIST, record.path));
+			const digest = new Bun.CryptoHasher("sha256").update(bytes).digest("hex");
 
-		expect(digest).toBe(record.sha256);
-		expect(bytes.length).toBe(record.bytes);
-	});
+			expect(digest).toBe(record.sha256);
+			expect(bytes.length).toBe(record.bytes);
+		},
+	);
 
 	/**
 	 * Editar un fichero y su digest a la vez es la forma obvia de burlar una comprobación
@@ -57,11 +60,14 @@ describe("artefacto external-media vendorizado", () => {
 	 * viajar CON ellos. Los minificadores borran comentarios normales — por eso se
 	 * comprueba sobre la salida y no sobre la fuente.
 	 */
-	test.each(["child", "host"])("%s lleva la doble licencia en los bytes servidos", (half) => {
-		expect(read(manifest.files[half].path)).toContain(
-			"SPDX-License-Identifier: AGPL-3.0-or-later OR GPL-3.0-or-later",
-		);
-	});
+	test.each(["child", "host"])(
+		"%s lleva la doble licencia en los bytes servidos",
+		(half) => {
+			expect(read(manifest.files[half].path)).toContain(
+				"SPDX-License-Identifier: AGPL-3.0-or-later OR GPL-3.0-or-later",
+			);
+		},
+	);
 
 	/** El host no debe cargar ningún SDK de proveedor: se controlan por postMessage crudo. */
 	test("el host no arrastra los SDK de YouTube ni de Vimeo", () => {
@@ -76,6 +82,8 @@ describe("artefacto external-media vendorizado", () => {
 	test("las dos mitades respetan la frontera de privilegio", () => {
 		expect(read(manifest.files.child.path)).toContain("exeExternalMediaChild");
 		expect(read(manifest.files.host.path)).toContain("exeExternalMediaHost");
-		expect(read(manifest.files.child.path)).not.toContain("exeExternalMediaHost");
+		expect(read(manifest.files.child.path)).not.toContain(
+			"exeExternalMediaHost",
+		);
 	});
 });

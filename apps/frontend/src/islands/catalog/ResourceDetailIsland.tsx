@@ -108,11 +108,10 @@ function loadElpxBridge(): Promise<void> {
 		const base = getBaseUrl();
 		w.__exeBridgeLoader = loadScriptOnce(
 			`${base}elpx/exe_external_media/exe-external-media-host.min.js`,
-		)
-			.catch((err: unknown) => {
-				w.__exeBridgeLoader = undefined;
-				throw err;
-			});
+		).catch((err: unknown) => {
+			w.__exeBridgeLoader = undefined;
+			throw err;
+		});
 	}
 	return w.__exeBridgeLoader;
 }
