@@ -18,15 +18,21 @@ const DIST = join(import.meta.dir, "../../public/elpx/exe_external_media");
 const read = (name: string) => readFileSync(join(DIST, name), "utf8");
 const manifest = JSON.parse(read("exe-external-media.manifest.json")) as {
 	buildHash: string;
-	files: Record<string, { path: string; sha256: string; bytes: number }>;
+	files: Record<
+		"child" | "host",
+		{ path: string; sha256: string; bytes: number }
+	>;
 };
+
+/** Las dos mitades del artefacto, tipadas para que indexar el manifest no pierda el literal. */
+const HALVES: ("child" | "host")[] = ["child", "host"];
 
 describe("artefacto external-media vendorizado", () => {
 	test("el manifest cubre las dos mitades", () => {
 		expect(Object.keys(manifest.files).sort()).toEqual(["child", "host"]);
 	});
 
-	test.each(["child", "host"])(
+	test.each(HALVES)(
 		"los bytes de %s coinciden con su digest publicado",
 		async (half) => {
 			const record = manifest.files[half];
@@ -45,9 +51,9 @@ describe("artefacto external-media vendorizado", () => {
 	test("el buildHash cubre la lista de ficheros", () => {
 		const recomputed = new Bun.CryptoHasher("sha256")
 			.update(
-				Object.keys(manifest.files)
-					.sort()
-					.map((key) => `${key}:${manifest.files[key].sha256}`)
+				Object.entries(manifest.files)
+					.sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
+					.map(([key, record]) => `${key}:${record.sha256}`)
 					.join("\n"),
 			)
 			.digest("hex");
@@ -60,7 +66,7 @@ describe("artefacto external-media vendorizado", () => {
 	 * viajar CON ellos. Los minificadores borran comentarios normales — por eso se
 	 * comprueba sobre la salida y no sobre la fuente.
 	 */
-	test.each(["child", "host"])(
+	test.each(HALVES)(
 		"%s lleva la doble licencia en los bytes servidos",
 		(half) => {
 			expect(read(manifest.files[half].path)).toContain(
