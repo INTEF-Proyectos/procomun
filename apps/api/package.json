@@ -11,7 +11,7 @@
 	"dependencies": {
 		"@electric-sql/pglite": "0.5.4",
 		"@procomun/db": "workspace:*",
-		"@tus/file-store": "2.1.0",
+		"@tus/file-store": "2.1.1",
 		"@tus/server": "2.4.3",
 		"cheerio": "^1.2.0",
 		"mammoth": "^1.12.0",
