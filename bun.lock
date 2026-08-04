@@ -23,7 +23,7 @@
         "@electric-sql/pglite": "0.5.4",
         "@procomun/db": "workspace:*",
         "@tus/file-store": "2.1.0",
-        "@tus/server": "2.4.2",
+        "@tus/server": "2.4.3",
         "better-auth": "1.6.25",
         "cheerio": "^1.2.0",
         "drizzle-orm": "0.45.2",
@@ -294,7 +294,7 @@
 
     "@tus/file-store": ["@tus/file-store@2.1.0", "", { "dependencies": { "@tus/utils": "^0.7.0", "debug": "^4.3.4" }, "optionalDependencies": { "@redis/client": "^5.0.0" } }, "sha512-RW/aYO2pp0L4AVG6NebPL+Q9FKKtDXF2+skBq3NbOMOEoxWFHSCgtzIX1pBPezFdZDwqdZMIlx+NQGQYYp6/3Q=="],
 
-    "@tus/server": ["@tus/server@2.4.2", "", { "dependencies": { "@tus/utils": "^0.7.0", "debug": "^4.3.4", "lodash.throttle": "^4.1.1", "set-cookie-parser": "^2.7.1", "srvx": "~0.11.15" }, "optionalDependencies": { "@redis/client": "^5.0.0", "ioredis": "^5.4.1" } }, "sha512-+/Ikw/bGzv/MzIFx3JAxdPw8dZcjwiNxIZP7kju6kyatnR6MJ1tBg+lRAE9fVunheM0XCSPlzIJ3ufSkrtk1/g=="],
+    "@tus/server": ["@tus/server@2.4.3", "", { "dependencies": { "@tus/utils": "^0.7.1", "debug": "^4.3.4", "lodash.throttle": "^4.1.1", "set-cookie-parser": "^2.7.1", "srvx": "~0.11.15" }, "optionalDependencies": { "@redis/client": "^5.0.0", "ioredis": "^5.4.1" } }, "sha512-bS0nyuc0xyK+fal9+hawnY3eMfoTSij4LqE328lKEmkl0HLDg4ld6/o5sdYMgzuNvVbvwKb7PdveDvEdqJOsYw=="],
 
     "@tus/utils": ["@tus/utils@0.7.0", "", {}, "sha512-BPom8lVwR4fkk1EynPeQwuN0e5bH2gBphwt69uF5rS4wRD2N7IyHDPqdjcAY0I7gNEWfUitPyDodywbD4r7dEQ=="],
 
@@ -705,6 +705,8 @@
     "@inlang/sdk/kysely": ["kysely@0.28.17", "", {}, "sha512-nbD8lB9EB3wNdMhOCdx5Li8DxnLbvKByylRLcJ1h+4SkrowVeECAyZlyiKMThF7xFdRz0jSQ2MoJr+wXux2y0Q=="],
 
     "@lix-js/sdk/kysely": ["kysely@0.28.17", "", {}, "sha512-nbD8lB9EB3wNdMhOCdx5Li8DxnLbvKByylRLcJ1h+4SkrowVeECAyZlyiKMThF7xFdRz0jSQ2MoJr+wXux2y0Q=="],
+
+    "@tus/server/@tus/utils": ["@tus/utils@0.7.1", "", {}, "sha512-KXKK6mhsRto7cApRtJFoIovd6rAXJBUd1qR6S1ynVXApdd+jT1eBHprKP0D9oZtJwwD/B8+n3DLAm68DYPqfuQ=="],
 
     "better-call/set-cookie-parser": ["set-cookie-parser@3.1.0", "", {}, "sha512-kjnC1DXBHcxaOaOXBHBeRtltsDG2nUiUni+jP92M9gYdW12rsmx92UsfpH7o5tDRs7I1ZZPSQJQGv3UaRfCiuw=="],
 
