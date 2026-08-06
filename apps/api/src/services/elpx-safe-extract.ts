@@ -42,10 +42,8 @@ export type ZipEntryInfo = {
 	name: string;
 	uncompressedSize: number;
 	compressedSize: number;
-	/** Compression method: 0 = stored, 8 = deflate. */
 	compressionMethod: number;
 	flags: number;
-	/** Offset of this entry's local file header, for readers that extract in memory. */
 	localHeaderOffset: number;
 	isSymlink: boolean;
 };
