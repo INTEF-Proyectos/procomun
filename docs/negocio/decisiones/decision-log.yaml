@@ -213,3 +213,13 @@ ADR-0033:
   file: 0033-capturas-visuales-pr-workflow-run.md
   notes: >
     ADR-0031 permanece reservada por el PR abierto #235 (verificación de email).
+
+ADR-0036:
+  title: "Sistema de recomendación de recursos relacionados (multi-señal en PostgreSQL)"
+  status: Aceptado
+  date: 2026-08-06
+  file: 0036-sistema-recomendacion-recursos-relacionados.md
+  notes: >
+    Issue #72. Content-based híbrido: metadatos, keywords, autor, colecciones y FTS.
+    Collaborative filtering (fase 3) diferido. ADR-0034/0035 reservadas por PRs abiertos
+    de tags/preview.

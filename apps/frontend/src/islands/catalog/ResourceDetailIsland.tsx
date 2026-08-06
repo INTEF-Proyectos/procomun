@@ -1,6 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useElpxEmbedRelay } from "../../hooks/use-elpx-embed-relay.ts";
-import type { Resource, SessionData } from "../../lib/api-client.ts";
+import type {
+	RelatedResource,
+	RelatedResourcesResult,
+	Resource,
+	SessionData,
+} from "../../lib/api-client.ts";
 import { getApiClient } from "../../lib/get-api-client.ts";
 import { url } from "../../lib/paths.ts";
 import {
@@ -14,6 +19,8 @@ import {
 	RESOURCE_EXPORT_OPTIONS,
 	type ResourceExportKind,
 } from "../../lib/resource-export.ts";
+import type { ResourceSummary } from "../../lib/types/resource-extended.ts";
+import { ResourceCard } from "../../ui/ResourceCard.tsx";
 import { FavoriteIsland } from "../social/FavoriteIsland.tsx";
 import { RatingIsland } from "../social/RatingIsland.tsx";
 import { ReportButton } from "../social/ReportButton.tsx";
@@ -22,6 +29,54 @@ import "../../lib/paraglide-client.ts";
 import { hasMinRole } from "../../lib/shared-utils.ts";
 import * as m from "../../paraglide/messages.js";
 import { getLocale } from "../../paraglide/runtime.js";
+
+function toResourceSummary(item: RelatedResource): ResourceSummary {
+	return {
+		id: item.id,
+		slug: item.slug,
+		title: item.title,
+		description: item.description,
+		resourceType: item.resourceType,
+		language: item.language,
+		license: item.license,
+		author: item.author,
+		editorialStatus: item.editorialStatus ?? "published",
+	};
+}
+
+function RelatedResourcesSection({
+	title,
+	description,
+	items,
+	headingId,
+}: {
+	title: string;
+	description?: string;
+	items: RelatedResource[];
+	headingId: string;
+}) {
+	if (items.length === 0) return null;
+
+	return (
+		<section className="related-section" aria-labelledby={headingId}>
+			<div className="related-section-header">
+				<h2 id={headingId}>{title}</h2>
+				{description ? (
+					<p className="related-section-desc">{description}</p>
+				) : null}
+			</div>
+			<div className="related-grid">
+				{items.map((item) => (
+					<ResourceCard
+						key={item.id}
+						resource={toResourceSummary(item)}
+						href={url(`recurso?slug=${item.slug}`)}
+					/>
+				))}
+			</div>
+		</section>
+	);
+}
 
 function ShareButton() {
 	const [copied, setCopied] = useState(false);
@@ -125,12 +180,14 @@ function ResourceDetailContent({
 	session,
 	stats,
 	isFavorited,
+	related,
 	onDownloadTracked,
 }: {
 	resource: Resource;
 	session: SessionData | null;
 	stats: ResourceStats | null;
 	isFavorited: boolean;
+	related: RelatedResourcesResult | null;
 	onDownloadTracked?: (
 		count: number,
 		format?: ResourceExportKind | "direct",
@@ -636,6 +693,23 @@ function ResourceDetailContent({
 					</div>
 				</aside>
 			</div>
+
+			{/* Related resources full-width (ADR-0036 / #72) */}
+			{related && related.data.length > 0 ? (
+				<RelatedResourcesSection
+					headingId="related-resources-heading"
+					title={m.detail_related_title()}
+					description={m.detail_related_desc()}
+					items={related.data}
+				/>
+			) : null}
+			{related && related.sameAuthor.length > 0 ? (
+				<RelatedResourcesSection
+					headingId="same-author-heading"
+					title={m.detail_same_author_title()}
+					items={related.sameAuthor}
+				/>
+			) : null}
 		</>
 	);
 }
@@ -687,6 +761,7 @@ export function ResourceDetailIsland() {
 	const [session, setSession] = useState<SessionData | null>(null);
 	const [stats, setStats] = useState<ResourceStats | null>(null);
 	const [isFavorited, setIsFavorited] = useState(false);
+	const [related, setRelated] = useState<RelatedResourcesResult | null>(null);
 	const [error, setError] = useState("");
 
 	useEffect(() => {
@@ -718,6 +793,11 @@ export function ResourceDetailIsland() {
 							}
 						})
 						.catch(() => {});
+
+					api
+						.getRelatedResources(slug, { limit: 6 })
+						.then((payload) => setRelated(payload))
+						.catch(() => setRelated({ data: [], sameAuthor: [], limit: 6 }));
 				}
 			} catch {
 				setError(m.detail_error());
@@ -761,6 +841,7 @@ export function ResourceDetailIsland() {
 				session={session}
 				stats={stats}
 				isFavorited={isFavorited}
+				related={related}
 				onDownloadTracked={(count, format) =>
 					setStats((prev) => updateStatsAfterDownload(prev, count, format))
 				}

@@ -2103,3 +2103,17 @@ tasks:
       pull-requests: write además de issues: write. Se añade al workflow y se
       documenta en ADR-0033. Validación: el siguiente E2E verde de una PR debe
       publicar assets y dejar/actualizar el comentario marcado.
+
+  T-2026-08-06-09120735:
+    date: 2026-08-06
+    agent: "evaluacion-tecnologica + busqueda-y-descubrimiento + backend-api-servicios + frontend-ux-accesibilidad"
+    task: "Sistema de recomendación de recursos relacionados (issue #72)"
+    status: Done
+    related: ["#72", "ADR-0036", "ADR-0005", "ADR-0009", "ADR-0026"]
+    notes: >
+      ADR-0036: content-based multi-señal en PostgreSQL (metadatos, keywords,
+      autor, co-ocurrencia en colecciones, FTS ts_rank). Endpoint
+      GET /api/v1/resources/:slug/related; UI en ficha con ResourceCard;
+      collaborative filtering diferido. Tests unitarios de score y servicio
+      con asserts numéricos de ranking. Fase 3 (recomendados para ti) fuera
+      de alcance.
