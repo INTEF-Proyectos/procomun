@@ -248,6 +248,12 @@
 	}
 }
 
+@media (min-width: 1280px) {
+	.admin-stats-grid {
+		grid-template-columns: repeat(5, minmax(0, 1fr));
+	}
+}
+
 .admin-stat-card {
 	background: var(--color-surface-container-lowest);
 	padding: 1.5rem;
@@ -313,6 +319,16 @@
 
 .admin-stat-card:hover .admin-stat-icon--draft {
 	background: var(--color-on-surface);
+	color: white;
+}
+
+.admin-stat-icon--archived {
+	background: #f3f4f6;
+	color: #6b7280;
+}
+
+.admin-stat-card:hover .admin-stat-icon--archived {
+	background: #6b7280;
 	color: white;
 }
 

@@ -2103,3 +2103,14 @@ tasks:
       pull-requests: write además de issues: write. Se añade al workflow y se
       documenta en ADR-0033. Validación: el siguiente E2E verde de una PR debe
       publicar assets y dejar/actualizar el comentario marcado.
+
+  T-2026-08-06-08301697:
+    date: 2026-08-06
+    agent: "frontend-ux-accesibilidad + qa-validacion"
+    task: "fix(admin): incluir recursos archivados en estadísticas y filtros"
+    status: Done
+    related: ["#303"]
+    notes: >
+      Añade tarjeta Archivados (listAdminResources status=archived), filtro de
+      estado Archivado y estilos compactos. Prueba unitaria del shell y de
+      ADMIN_RESOURCE_STATUS_FILTERS. bun test AdminResourcesSection.unit.test.tsx OK.
