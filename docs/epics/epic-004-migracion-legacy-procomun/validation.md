@@ -81,3 +81,7 @@ Ambos bugs eran preexistentes en la infraestructura reutilizada, no introducidos
 ### Corrección de política de rol (2026-08-06)
 
 - La prueba de mapeo verifica `administrator` → `admin` y `-` → `editor`.
+
+### Cierre de PGlite en CLI (2026-08-06)
+
+- Se añaden pruebas del cierre del cliente PGlite y de las rutas sin método `close()` o con error de cierre.

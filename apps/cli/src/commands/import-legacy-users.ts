@@ -101,6 +101,18 @@ function warningMessages(mapped: MappedLegacyUser): string[] {
 	);
 }
 
+/** Cierra PGlite en ejecuciones CLI cortas, sin acoplar el tipo Drizzle al driver. */
+export async function closeCliDb(db: unknown): Promise<void> {
+	if (!db || typeof db !== "object" || !("$client" in db)) return;
+	const client = (db as { $client?: { close?: () => unknown } }).$client;
+	if (typeof client?.close !== "function") return;
+	try {
+		await client.close();
+	} catch {
+		// El informe ya está escrito; no ocultar su resultado por un fallo al cerrar.
+	}
+}
+
 export async function importLegacyUsers(args: string[]) {
 	const options = parseCliArgs(args);
 	const deps = await loadImportLegacyUsersDependencies();
@@ -117,7 +129,9 @@ export async function importLegacyUsers(args: string[]) {
 			`importados=${report.totals.imported} omitidos_id=${report.totals.skippedExistingId} ` +
 			`omitidos_email=${report.totals.skippedExistingEmail} errores=${report.totals.errored}`,
 	);
-	process.exit(report.totals.errored > 0 ? 1 : 0);
+	const exitCode = report.totals.errored > 0 ? 1 : 0;
+	await closeCliDb(deps.getDb().db);
+	process.exit(exitCode);
 }
 
 export async function runImportLegacyUsers(

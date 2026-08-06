@@ -4,6 +4,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { mapLegacyUser } from "@procomun/db/legacy-import";
 import {
+	closeCliDb,
 	type loadImportLegacyUsersDependencies,
 	runImportLegacyUsers,
 } from "./import-legacy-users.ts";
@@ -104,5 +105,30 @@ describe("runImportLegacyUsers", () => {
 		expect(persisted).toBeFalse();
 		expect(report.totals.processed).toBe(1);
 		expect(report.records[0]?.outcome).toBe("would_import");
+	});
+});
+
+describe("closeCliDb", () => {
+	test("cierra el cliente PGlite expuesto por Drizzle", async () => {
+		let closed = false;
+		await closeCliDb({
+			$client: {
+				close: async () => {
+					closed = true;
+				},
+			},
+		});
+		expect(closed).toBeTrue();
+	});
+
+	test("tolera drivers sin close y errores durante el cierre", async () => {
+		await expect(closeCliDb({})).resolves.toBeUndefined();
+		await expect(
+			closeCliDb({
+				$client: {
+					close: async () => Promise.reject(new Error("close failed")),
+				},
+			}),
+		).resolves.toBeUndefined();
 	});
 });

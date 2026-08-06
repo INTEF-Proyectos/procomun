@@ -169,6 +169,10 @@ La tabla de mapeo anterior queda sustituida para `roles`: el importador ignora e
 
 La actualización anterior queda reemplazada por la decisión vigente: `roles = "administrator"` se persiste como `user.role = "admin"`; cualquier otro valor, incluido `-`, se persiste como `editor`. No hay otras elevaciones automáticas.
 
+### Cierre de PGlite en CLI (2026-08-06)
+
+Antes de salir, `import:legacy-users` cierra el cliente PGlite expuesto como `$client` por Drizzle, cuando el driver lo proporciona. Es necesario en ejecuciones CLI cortas: sin `close()`, el runtime WASM puede abortar durante la terminación del proceso. En PostgreSQL remoto no hay `$client.close()` compatible y el paso es un no-op seguro.
+
 ### Comando y rollback
 
 `import:legacy-users --source-file <usuarios.json> [--dry-run] [--limit <n>] [--report-dir <ruta>]` escribe `informe_usuarios-<runId>.json` (o `informe_usuarios-dryrun-<runId>.json`). Cada registro importado incorpora el `userId` exacto; el rollback manual debe usar esa lista, comprobar que conserva el prefijo `legacy-procomun:user:` y no tiene asociaciones antes de eliminarlo. No se ofrece borrado automático en esta fase.

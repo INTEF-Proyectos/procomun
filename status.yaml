@@ -2140,3 +2140,15 @@ tasks:
       Se corrige la política inmediatamente anterior: el único rol legacy con elevación es
       administrator, que se persiste como admin. Todos los demás valores, incluido -, se
       importan como editor. Las pruebas cubren ambas ramas del mapeo.
+
+  T-2026-08-06-08345320:
+    date: 2026-08-06
+    agent: "backend-api-servicios + ingestas-y-migraciones + documentacion-y-roadmap"
+    task: "Cerrar PGlite al terminar import:legacy-users"
+    status: Done
+    related: ["T-2026-08-06-08190404", "epic-004-migracion-legacy-procomun"]
+    notes: >
+      El CLI de usuarios omitía el cierre que ya aplicaba import:legacy-procomun. En una
+      ejecución corta, PGlite/WASM podía abortar durante la salida. Se cierra db.$client cuando
+      el driver expone close(), sin afectar PostgreSQL; hay pruebas de éxito, ausencia de método
+      y error de cierre.

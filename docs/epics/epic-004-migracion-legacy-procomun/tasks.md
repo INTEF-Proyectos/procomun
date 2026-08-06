@@ -57,3 +57,6 @@ Los JSON/`.elpx` de `ode-export/` contienen datos personales reales (nombres y e
 
 ### Corrección de política de rol (2026-08-06)
 - [x] Restaurar el mapeo controlado `administrator` → `admin`; todos los demás usuarios quedan como `editor`.
+
+### Cierre de PGlite en CLI (2026-08-06)
+- [x] Cerrar PGlite explícitamente tras escribir el informe para evitar abortos del runtime al terminar.
