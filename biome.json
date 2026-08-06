@@ -12,7 +12,9 @@
 			"!!**/.claude",
 			"!!**/.cursor",
 			"!!**/.grok",
-			"!!**/.omc"
+			"!!**/.omc",
+			"!apps/frontend/public/elpx/**",
+			"!apps/api/static/elpx/**"
 		]
 	},
 	"formatter": {

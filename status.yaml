@@ -1775,6 +1775,7 @@ tasks:
       burn-down de tipado es el Lote 1 de ADR-0030, fuera de alcance de esta PR.
       Validación: bun run lint exit 0 (0 errors; warnings no fallan el gate); bun test sobre
       extract.unit.test.ts en verde; check-test-files OK.
+
   T-2026-07-17-002:
     date: 2026-07-17
     agent: "documentacion-y-roadmap"
@@ -1808,6 +1809,40 @@ tasks:
       ADR-0031 para verificación de email (#235). Fichero 0029-versionado-recursos.md →
       0032-versionado-recursos.md; referencias actualizadas en epic-005-versionado-recursos
       y en T-2026-06-23-007. Se unen todos los T-* de main; no se borra historial.
+
+  T-2026-07-17-005:
+    date: 2026-07-17
+    agent: "devops-sre + backend-api-servicios + frontend-ux-accesibilidad"
+    task: "Integrar origin/main (post PR #272 biome) en feat/align-embed-bridge-with-mod (PR #260)"
+    status: Done
+    related: ["ADR-0033", "ADR-0034", "PR-260", "PR-272"]
+    notes: >
+      Merge de origin/main en la rama del bridge de medios / preview HTTP opaco.
+      Resolución de conflictos: se conservan los cambios funcionales de la PR #260
+      (preview multipart limits, redactAuditPath, cookie SameSite pin, bridge
+      compartido, embed-shim de core, CONTENT_IFRAME_SANDBOX, ADRs 0031/0032) y se
+      unen con el formateo/estilo de main cuando el conflicto era solo estilo.
+      Ficheros frontend del sistema bespoke (use-elpx-embed-relay, EmbedModal,
+      elpx-embed-policy) permanecen eliminados (mod/delete a favor de la PR).
+      decision-log: unión de ADR-0029 (main) + ADR-0033/0034 (rama).
+      En exelearning-editor.ts se restaura el catch-all de estáticos con bloqueo
+      de preview-sw.js (se había perdido en un fix previo de escape de scripts).
+
+  T-2026-07-17-006:
+    date: 2026-07-17
+    agent: "documentacion-y-roadmap"
+    task: "Renumeración de ADRs del bridge/preview en PR #260: ADR-0031→0033 y ADR-0032→0034 por colisión con PRs abiertas #235 y #236"
+    status: Done
+    related: ["ADR-0033", "ADR-0034", "PR-260", "PR-235", "PR-236"]
+    notes: >
+      Tras integrar main post-#272, las ADRs del bridge compartido y de la topología del preview
+      HTTP de esta rama usaban ADR-0031 y ADR-0032. En paralelo, la PR #235 (verificación de
+      email) reclamó ADR-0031 y la PR #236 (modelo de versionado) reclamó ADR-0032. Para evitar
+      colisiones de numeración al mergear, esta rama renumera a ADR-0033 (bridge de medios
+      externos compartido de eXeLearning) y ADR-0034 (topología del preview HTTP). Se renombran
+      los ficheros, decision-log, superseded_by de ADR-0027 y referencias en docs operativos.
+      Sin cambios de código productivo. Validación: parseo YAML de decision-log y status;
+      ficheros 0033/0034 existen; sin referencias residuales a 0031-migracion ni 0032-topologia.
 
   T-2026-07-17-17104902:
     date: 2026-07-17
@@ -2103,6 +2138,25 @@ tasks:
       pull-requests: write además de issues: write. Se añade al workflow y se
       documenta en ADR-0033. Validación: el siguiente E2E verde de una PR debe
       publicar assets y dejar/actualizar el comentario marcado.
+
+  T-2026-07-25-16042561:
+    date: 2026-07-25
+    agent: "interoperabilidad-educativa + seguridad-privacidad-legal + backend-api-servicios"
+    task: "Sustituir el protocolo v2 del preview por el contrato de snapshot"
+    status: Done
+    related: ["ADR-0035", "ADR-0034", "ADR-0030"]
+    notes: >
+      El editor embebido dejó de hablar el protocolo v2: un bundle construido desde
+      la rama actual del editor no contiene ninguna referencia a previewHttp ni a
+      protocolVersion, y lee previewSnapshot. La plataforma inyectaba lo primero y
+      omitía lo segundo, así que la previsualización opaca fallaba en cerrado y se
+      quedaba siempre filtrada, sin error visible. Se sustituye el store por capas
+      (assets inmutables, revisiones incrementales, recursos fijos) por un snapshot
+      completo por refresco, con verificación del ZIP previa a descomprimir y tope
+      medido sobre bytes realmente inflados. Se conserva la topología de ADR-0034 y
+      toda la política de servido (CSP, ETag, rangos, redirección relativa).
+      Validación: bun test (976 verdes), make lint, make check-types (0 errores),
+      make check-test-files, make check-tracking.
 
   T-2026-08-06-08321910:
     date: 2026-08-06

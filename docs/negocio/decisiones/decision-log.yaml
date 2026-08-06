@@ -213,3 +213,20 @@ ADR-0033:
   file: 0033-capturas-visuales-pr-workflow-run.md
   notes: >
     ADR-0031 permanece reservada por el PR abierto #235 (verificación de email).
+
+ADR-0034:
+  title: "Topología del preview HTTP y cableado del editor embebido"
+  status: Aceptado
+  date: 2026-07-11
+  file: 0034-topologia-store-preview-http.md
+
+ADR-0035:
+  title: "Previsualización opaca por snapshot completo en lugar del protocolo v2"
+  status: Aceptado
+  date: 2026-07-25
+  file: 0035-preview-snapshot-en-lugar-de-protocolo-v2.md
+  notes: >
+    Enmienda los puntos 1 y 10 de ADR-0034. El editor dejó de hablar el protocolo
+    v2 (un bundle actual no referencia previewHttp ni protocolVersion), por lo que
+    la previsualización opaca era inalcanzable: se inyectaba un contrato que nadie
+    leía y se omitía el que sí se lee.

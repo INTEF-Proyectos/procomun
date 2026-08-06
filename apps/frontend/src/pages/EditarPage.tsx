@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { getResourceTypeOptions } from "../islands/resources/resource-form-options.ts";
 import type { Resource } from "../lib/api-client.ts";
+import { CONTENT_IFRAME_SANDBOX } from "../lib/embed-sandbox.ts";
 import { getApiClient } from "../lib/get-api-client.ts";
 import { url } from "../lib/paths.ts";
 import "../styles/editar.css";
@@ -709,7 +710,7 @@ export default function EditarPage() {
 									<iframe
 										src={previewUrl}
 										className="edit-preview-iframe"
-										sandbox="allow-scripts allow-popups allow-popups-to-escape-sandbox"
+										sandbox={CONTENT_IFRAME_SANDBOX}
 										loading="lazy"
 										title="Vista previa"
 									/>
