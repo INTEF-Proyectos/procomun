@@ -474,10 +474,7 @@ describe("elpxContentRoutes", () => {
 		expect(res.headers.get("X-Content-Type-Options")).toBe("nosniff");
 		expect(res.headers.get("Access-Control-Allow-Origin")).toBe("*");
 		const js = await res.text();
-		// El shim servido es ahora el canónico de mod_exelearning (exe_embed_shim.js):
-		// expone window.exeEmbedShim y reporta embeds con el mensaje {type:'exe-embed'}.
-		expect(js).toContain("exeEmbedShim");
-		expect(js).toContain("exe-embed");
+		expect(js).toContain("procomun-elpx-embed");
 	});
 
 	it("sirve el contenido .elpx con CORS y crossorigin en scripts propios (ADR-0027)", async () => {
