@@ -2158,3 +2158,13 @@ tasks:
       Validación: bun test (976 verdes), make lint, make check-types (0 errores),
       make check-test-files, make check-tracking.
 
+  T-2026-08-06-08321910:
+    date: 2026-08-06
+    agent: "frontend-ux-accesibilidad + qa-validacion"
+    task: "fix(admin): compactar listado de colecciones al ancho disponible"
+    status: Done
+    related: ["#304"]
+    notes: >
+      Densidad tipográfica 14/12 px, truncado con elipsis y title accesible en
+      descripción/portada, acciones con icono + aria-label (patrón Recursos).
+      buildCollectionColumns exportado y cubierto por unit test. bun test OK.
