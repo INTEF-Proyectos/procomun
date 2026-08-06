@@ -2115,6 +2115,19 @@ tasks:
       descripción/portada, acciones con icono + aria-label (patrón Recursos).
       buildCollectionColumns exportado y cubierto por unit test. bun test OK.
 
+  T-2026-08-06-09380245:
+    date: 2026-08-06
+    agent: "devops-sre + project-manager"
+    task: "Hotfix CI main: sincronizar bun.lock con @tus/file-store 2.1.1"
+    status: Done
+    related: ["#300"]
+    notes: >
+      El job docker de CI Pipeline en main fallaba en bun install --frozen-lockfile
+      ("lockfile had changes, but lockfile is frozen"). Causa: el PR #300 (dependabot)
+      subió apps/api @tus/file-store de 2.1.0 a 2.1.1 sin actualizar bun.lock.
+      Se regenera el lockfile (file-store 2.1.1 y @tus/utils 0.7.1). Validación local:
+      bun install --frozen-lockfile OK.
+
   T-2026-08-06-10043103:
     date: 2026-08-06
     agent: "project-manager + devops-sre"
