@@ -56,7 +56,6 @@ describe("tags repository (issue #76)", () => {
 			license: "cc-by",
 			resourceType: "documento",
 			createdBy: userId,
-			keywords: null,
 		});
 		resourceId = a.id;
 		otherResourceId = b.id;
