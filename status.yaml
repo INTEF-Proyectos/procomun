@@ -2103,3 +2103,22 @@ tasks:
       pull-requests: write además de issues: write. Se añade al workflow y se
       documenta en ADR-0033. Validación: el siguiente E2E verde de una PR debe
       publicar assets y dejar/actualizar el comentario marcado.
+
+  T-2026-08-06-08191097:
+    date: 2026-08-06
+    agent: "seguridad-privacidad-legal + backend-api-servicios"
+    task: "Guarda /dev: bypass por percent-encoding y 404 ante bytes nulos"
+    status: Done
+    related: ["#257", "#251"]
+    notes: >
+      Revisión de PR #257: la guarda comparaba new URL(c.req.url).pathname (sin
+      decodificar) mientras serveStatic resuelve el fichero desde c.req.path, que
+      Hono ya decodifica con decodeURI. Fuera de desarrollo, /%64ev/data/status.yaml
+      devolvía 200 con el contenido interno. Se compara ahora sobre c.req.path,
+      decodificando además los caracteres reservados (%2f) y respondiendo 404 si la
+      decodificación falla (fallo cerrado: Hono decodifica parcialmente y podría
+      resolver el fichero). Añadido rechazo de bytes nulos: /assets%00.js hacía
+      lanzar a Bun.file() dentro de serveStatic y la petición acababa en 500 sin
+      manejar. Validación: bun test apps/api/src/app/frontend.unit.test.ts (8 pass);
+      regresiones verificadas en rojo antes del arreglo. check-types 0 errores,
+      biome y check-test-files OK.

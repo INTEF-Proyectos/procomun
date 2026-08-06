@@ -103,6 +103,62 @@ describe("registerFrontendServing", () => {
 			}
 		});
 
+		test("blocks percent-encoded /dev variants outside development", async () => {
+			process.env.NODE_ENV = "production";
+			frontendDir = await buildDevDir();
+			await writeFile(
+				path.join(frontendDir, "dev", "index.html"),
+				"<html><body>dev dash</body></html>",
+			);
+
+			const app = new Hono<AuthEnv>();
+			registerFrontendServing(app, frontendDir);
+
+			for (const p of [
+				"/%64ev/data/status.yaml",
+				"/%44ev/data/status.yaml",
+				"/de%76/data/status.yaml",
+				"/%64%65%76/data/status.yaml",
+				"/%2fdev/data/status.yaml",
+				"/dev%2fdata/status.yaml",
+				"/%64ev",
+				"/%64ev/",
+				"/%64ev/index.html",
+			]) {
+				const response = await app.request(`http://localhost${p}`);
+				const body = await response.text();
+				expect(body).not.toContain("internal: secret");
+				expect(body).not.toContain("dev dash");
+				expect(response.status).toBe(404);
+			}
+		});
+
+		test("returns 404 when the request path cannot be decoded", async () => {
+			process.env.NODE_ENV = "production";
+			frontendDir = await buildDevDir();
+
+			const app = new Hono<AuthEnv>();
+			registerFrontendServing(app, frontendDir);
+
+			const response = await app.request("http://localhost/%E0%A4%A");
+			expect(response.status).toBe(404);
+		});
+
+		test("returns 404 for paths with null bytes instead of crashing", async () => {
+			frontendDir = await buildDevDir();
+
+			for (const nodeEnv of ["production", "development"]) {
+				process.env.NODE_ENV = nodeEnv;
+				const app = new Hono<AuthEnv>();
+				registerFrontendServing(app, frontendDir);
+
+				for (const p of ["/dev%00/data/status.yaml", "/assets%00.js"]) {
+					const response = await app.request(`http://localhost${p}`);
+					expect(response.status).toBe(404);
+				}
+			}
+		});
+
 		test("serves /dev internal data only in development", async () => {
 			process.env.NODE_ENV = "development";
 			frontendDir = await buildDevDir();
