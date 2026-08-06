@@ -113,6 +113,16 @@ describe("isUnsafeZipEntry", () => {
 		expect(isUnsafeZipEntry("http://example.com/x")).toBe(true);
 	});
 
+	it("rechaza null bytes en el nombre", () => {
+		expect(isUnsafeZipEntry("evil\0.txt")).toBe(true);
+		expect(isUnsafeZipEntry("a/b\0/c.txt")).toBe(true);
+	});
+
+	it("rechaza rutas absolutas Windows (C:…)", () => {
+		expect(isUnsafeZipEntry("C:/Windows/System32/x.dll")).toBe(true);
+		expect(isUnsafeZipEntry("c:foo")).toBe(true);
+	});
+
 	it("no confunde nombres con .. embebido legítimo", () => {
 		expect(isUnsafeZipEntry("file..name.txt")).toBe(false);
 		expect(isUnsafeZipEntry("a/b..c/d.txt")).toBe(false);
@@ -250,6 +260,27 @@ describe("assertExtractionContained", () => {
 		await expect(assertExtractionContained(dir)).rejects.toThrow(
 			/enlace simbólico/i,
 		);
+	});
+
+	// Anti zip-bomb autoritativo: mide el tamaño REAL materializado, no el
+	// declarado en el directorio central (que el atacante puede forjar a 0).
+	it("rechaza cuando el tamaño real extraído supera maxBytes", async () => {
+		const dir = path.join(tempDir, "contained-toobig");
+		await mkdir(dir, { recursive: true });
+		// 2 KiB reales en disco frente a un límite de 1 KiB.
+		await writeFile(path.join(dir, "payload.bin"), Buffer.alloc(2 * 1024));
+		await expect(assertExtractionContained(dir, 1024)).rejects.toThrow(
+			/tamaño máximo permitido/i,
+		);
+	});
+
+	it("acepta cuando el tamaño real extraído está bajo maxBytes", async () => {
+		const dir = path.join(tempDir, "contained-undersize");
+		await mkdir(dir, { recursive: true });
+		await writeFile(path.join(dir, "payload.bin"), Buffer.alloc(2 * 1024));
+		await expect(
+			assertExtractionContained(dir, 64 * 1024),
+		).resolves.toBeUndefined();
 	});
 });
 

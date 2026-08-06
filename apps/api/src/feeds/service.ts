@@ -5,6 +5,22 @@ import { getDb } from "../db.ts";
 const DEFAULT_PAGE_SIZE = 20;
 const MAX_PAGE_SIZE = 50;
 
+/**
+ * Neutraliza TODOS los terminadores de sección CDATA (`]]>`) en una cadena
+ * derivada del usuario antes de entregarla a la librería `feed`.
+ *
+ * La librería envuelve título/descripción en `<![CDATA[...]]>` y el `xml-js`
+ * subyacente solo sanea la PRIMERA aparición de `]]>` (usa `String.replace`
+ * con un primer argumento de tipo string). Un payload con dos o más `]]>`
+ * deja el resto intactos, cerrando la sección CDATA e inyectando marcado
+ * (feed malformado / posible XSS en lectores que renderizan HTML).
+ *
+ * Usamos `replaceAll` para neutralizar todas las apariciones.
+ */
+function neutralizeCdata(value: string): string {
+	return value.replaceAll("]]>", "]]&gt;");
+}
+
 export interface FeedOptions {
 	baseUrl: string;
 	limit?: number;
@@ -58,6 +74,9 @@ export function buildFeed(opts: {
 	} = opts;
 
 	const firstResource = resources[0];
+	// title/description del canal van como texto plano (_text), no CDATA: xml-js
+	// ya escapa <>& ahí. Solo los campos de ítem que la librería `feed` envuelve
+	// en CDATA (title, description) necesitan neutralizeCdata.
 	const feed = new Feed({
 		title,
 		description,
@@ -106,14 +125,20 @@ export function buildFeed(opts: {
 		}
 
 		feed.addItem({
-			title: resource.title ?? "Sin título",
+			// CDATA en Atom/RSS: hay que neutralizar TODOS los `]]>` (xml-js solo el 1º).
+			title: neutralizeCdata(resource.title ?? "Sin título"),
 			id: resourceUrl,
 			link: resourceUrl,
-			description: resource.description ?? "",
+			description: neutralizeCdata(resource.description ?? ""),
 			date: toDate(resource.createdAt),
 			author:
 				resource.author || resource.createdByName
-					? [{ name: resource.author ?? resource.createdByName ?? "Anónimo" }]
+					? [
+							{
+								// Autor va como texto plano, no CDATA.
+								name: resource.author ?? resource.createdByName ?? "Anónimo",
+							},
+						]
 					: [{ name: "Anónimo" }],
 			category: categories,
 			extensions: resource.license

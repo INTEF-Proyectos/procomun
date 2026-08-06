@@ -100,7 +100,16 @@ const resourceRoutes = buildCrudRoutes({
 	},
 	prepareCreate: async (body, user) => {
 		await ensureCurrentUser(user);
-		return { ...body, createdBy: user.id };
+		// Whitelist explícito: el alta desde el backoffice NUNCA acepta
+		// editorialStatus/featuredAt/assignedCuratorId/slug/… del cuerpo (mass
+		// assignment). El recurso nace como borrador (createResource por defecto)
+		// y solo cambia de estado vía PATCH /:id/status con validateTransition.
+		return {
+			...repo.pickEditableResourceFields(body),
+			subjects: Array.isArray(body.subjects) ? body.subjects : undefined,
+			levels: Array.isArray(body.levels) ? body.levels : undefined,
+			createdBy: user.id,
+		};
 	},
 	afterCreate: async (user, result, data) => {
 		const r = result as { id: string; slug: string };

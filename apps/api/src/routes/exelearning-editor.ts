@@ -12,6 +12,57 @@ const EDITOR_STATIC_DIR = path.resolve(
 	"../../static/exelearning-editor/static",
 );
 
+/**
+ * Serializes a value as JSON that is safe to embed inside an inline <script>.
+ *
+ * `JSON.stringify` alone does NOT escape the literal sequence `</script>`
+ * (nor `<`, `>`, the line separators U+2028/U+2029), so reflecting
+ * user-controlled values straight into an inline script lets an attacker break
+ * out of the <script> element and inject arbitrary markup (reflected XSS).
+ * We escape `<`, `>`, `&`, U+2028 and U+2029 to unicode escape sequences, which
+ * keeps the value JSON-parseable while preventing script breakout.
+ */
+export function toInlineScriptJson(value: unknown): string {
+	return JSON.stringify(value ?? null)
+		.replace(/</g, "\\u003c")
+		.replace(/>/g, "\\u003e")
+		.replace(/&/g, "\\u0026")
+		.replace(/\u2028/g, "\\u2028")
+		.replace(/\u2029/g, "\\u2029");
+}
+
+/**
+ * Builds the Procomun embedding config <script> block injected into the editor.
+ *
+ * Pure function so it can be unit-tested without the static editor file.
+ * User-controlled values (`elpxUrl`, `resourceId`) are encoded with
+ * {@link toInlineScriptJson} to prevent reflected XSS.
+ */
+export function buildEditorConfigScript(
+	elpxUrl: string,
+	resourceId: string,
+	editorBaseUrl: string,
+): string {
+	return `
+<script>
+window.__EXE_EMBEDDING_CONFIG__ = {
+	basePath: ${toInlineScriptJson(editorBaseUrl)},
+	initialProjectUrl: ${toInlineScriptJson(elpxUrl || null)},
+	parentOrigin: window.location.origin,
+	trustedOrigins: [window.location.origin],
+	hideUI: {
+		fileMenu: true,
+		saveButton: true,
+		userMenu: true,
+	},
+};
+window.__PROCOMUN_CONFIG__ = {
+	resourceId: ${toInlineScriptJson(resourceId)},
+	editorBaseUrl: ${toInlineScriptJson(editorBaseUrl)},
+};
+</script>`;
+}
+
 export const exelearningEditorRoutes = new Hono();
 
 /**
@@ -39,25 +90,13 @@ exelearningEditorRoutes.get("/index.html", async (c) => {
 	// Inject <base> tag for relative asset resolution
 	html = html.replace("<head>", `<head>\n<base href="${editorBaseUrl}/">`);
 
-	// Inject Procomun embedding config before </head> (like editor-bootstrap.php)
-	const configScript = `
-<script>
-window.__EXE_EMBEDDING_CONFIG__ = {
-	basePath: "${editorBaseUrl}",
-	initialProjectUrl: ${JSON.stringify(elpxUrl || null)},
-	parentOrigin: window.location.origin,
-	trustedOrigins: [window.location.origin],
-	hideUI: {
-		fileMenu: true,
-		saveButton: true,
-		userMenu: true,
-	},
-};
-window.__PROCOMUN_CONFIG__ = {
-	resourceId: ${JSON.stringify(resourceId)},
-	editorBaseUrl: "${editorBaseUrl}",
-};
-</script>`;
+	// Inject Procomun embedding config before </head> (like editor-bootstrap.php).
+	// Values are encoded with toInlineScriptJson to prevent reflected XSS.
+	const configScript = buildEditorConfigScript(
+		elpxUrl,
+		resourceId,
+		editorBaseUrl,
+	);
 
 	html = html.replace("</head>", `${configScript}\n</head>`);
 
@@ -69,6 +108,12 @@ window.__PROCOMUN_CONFIG__ = {
 		headers: {
 			"Content-Type": "text/html; charset=utf-8",
 			"Cache-Control": "no-cache",
+			// Evita que el navegador reinterpretar el bootstrap como otro MIME.
+			"X-Content-Type-Options": "nosniff",
+			// Defense-in-depth: el escape de buildEditorConfigScript es el fix
+			// principal de XSS; esta CSP limita plugins y el ancestro del frame.
+			"Content-Security-Policy":
+				"object-src 'none'; base-uri 'self'; frame-ancestors 'self'",
 		},
 	});
 });

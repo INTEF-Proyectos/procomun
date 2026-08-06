@@ -5,6 +5,7 @@ import { createAuthMiddleware } from "better-auth/api";
 import { admin as adminPlugin, genericOAuth } from "better-auth/plugins";
 import { logActivity } from "../activity/log.ts";
 import { getDb } from "../db.ts";
+import { AUTH_DEFAULT_COOKIE_ATTRIBUTES } from "./cookie-config.ts";
 import { ac, admin, author, curator, editor, reader } from "./permissions.ts";
 import { getAuthBaseUrl, getFrontendUrl } from "./urls.ts";
 
@@ -16,6 +17,9 @@ export const auth = betterAuth({
 	trustedOrigins: [frontendUrl],
 	database: drizzleAdapter(getDb().db, { provider: "pg", schema: pgSchema }),
 	basePath: "/api/auth",
+	advanced: {
+		defaultCookieAttributes: AUTH_DEFAULT_COOKIE_ATTRIBUTES,
+	},
 	databaseHooks: {
 		session: {
 			create: {

@@ -1,10 +1,15 @@
 import * as repo from "@procomun/db/repository";
+import { sql } from "drizzle-orm";
 import { Hono } from "hono";
 import type { AuthEnv } from "../auth/middleware.ts";
 import { requireAuth } from "../auth/middleware.ts";
 import { getCurrentUser } from "../auth/roles.ts";
 import { ensureCurrentUser } from "../auth/user-sync.ts";
 import { getDb } from "../db.ts";
+
+// Tope de tokens activos por usuario: evita que un usuario cree tokens de forma
+// ilimitada (entre otros, para eludir el rate limit que ahora va por usuario).
+const MAX_ACTIVE_TOKENS_PER_USER = 10;
 
 const apiTokenRoutes = new Hono<AuthEnv>();
 
@@ -47,11 +52,32 @@ apiTokenRoutes.post("/", async (c) => {
 		}
 	}
 
-	const result = await repo.createApiToken(db, {
-		userId: user.id,
-		name: body.name.trim(),
-		expiresAt,
+	// Serialize token creation per user inside the same transaction that checks
+	// the active-token count. Without this lock, concurrent requests can both see
+	// count=9 and create the 10th and 11th tokens. The lock is transaction-scoped
+	// and keyed by the user id; hash collisions only serialize unrelated users.
+	const tokenName = body.name.trim();
+	const result = await db.transaction(async (tx: typeof db) => {
+		await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${user.id}))`);
+		const activeCount = await repo.countActiveApiTokens(tx, user.id);
+		if (activeCount >= MAX_ACTIVE_TOKENS_PER_USER) return null;
+
+		return repo.createApiToken(tx, {
+			userId: user.id,
+			name: tokenName,
+			expiresAt,
+		});
 	});
+
+	// 403 (no 429): reintentar no ayuda; el usuario debe revocar un token primero.
+	if (!result) {
+		return c.json(
+			{
+				error: `Has alcanzado el número máximo de tokens activos (${MAX_ACTIVE_TOKENS_PER_USER}). Revoca alguno antes de crear otro.`,
+			},
+			403,
+		);
+	}
 
 	// The raw token is only shown once
 	return c.json(
