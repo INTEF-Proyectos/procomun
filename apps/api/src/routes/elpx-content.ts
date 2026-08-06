@@ -47,9 +47,13 @@ const EMBED_SHIM_URL = "/api/v1/elpx/embed-shim.js";
 // el dev server de Vite los bloquea ("[Vite] Cross-origin requests for classic
 // scripts must be made with CORS mode enabled").
 const EMBED_SHIM_TAG = `<script src="${EMBED_SHIM_URL}" crossorigin="anonymous"></script>`;
+// Los bytes servidos son el artefacto CANÓNICO vendorizado desde eXeLearning
+// (ADR-0021: bytes + manifiesto, verificados en CI contra el buildHash del core),
+// no una copia bespoke. La URL pública se mantiene porque ya está incrustada en
+// los paquetes servidos; lo que cambia es de dónde salen los bytes.
 const EMBED_SHIM_PATH = path.join(
 	import.meta.dir,
-	"../../static/elpx/embed-shim.js",
+	"../../static/elpx/exe_external_media/exe-external-media-child.min.js",
 );
 let embedShimCache: string | null = null;
 
@@ -59,6 +63,9 @@ async function readEmbedShim(): Promise<string> {
 	}
 	return embedShimCache;
 }
+
+/** Solo para tests: afirma QUÉ bytes se inyectan, sin levantar el servidor. */
+export const readEmbedShimForTest = readEmbedShim;
 
 // Añade crossorigin="anonymous" a los <script src="/api/v1/elpx/..."> propios
 // del paquete para que se carguen en modo CORS bajo el origen opaco.
@@ -165,16 +172,29 @@ function rewriteCssUrls(
 	);
 }
 
+// Content-Security-Policy for the served .elpx HTML document. The `sandbox` directive
+// forces an opaque origin (author JS runs but NOT as the authenticated platform origin),
+// even when the document is opened top-level. It deliberately omits `allow-same-origin`
+// and `allow-popups-to-escape-sandbox` (ADR-0026 + security audit H-1): a popup the
+// content opens must stay sandboxed, or an author-controlled same-origin document could
+// run script at the platform origin.
+export const CONTENT_HTML_CSP =
+	"default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; media-src 'self' data: blob: https:; font-src 'self' data:; connect-src 'self'; frame-src 'self' https:; frame-ancestors 'self'; form-action 'self'; base-uri 'self'; sandbox allow-scripts allow-popups allow-forms";
+
 /**
  * CSP para activos de autor no-HTML (SVG, CSS, binarios…).
  *
  * `sandbox` sin tokens: origen opaco y sin scripts si el recurso se navega
  * como documento de primer nivel. Imprescindible para SVG (image/svg+xml),
- * que puede contener <script> y provocar XSS almacenado (ADR-0026).
+ * que puede contener <script> y provocar XSS almacenado (ADR-0026 + audit H-1).
  * `default-src 'none'` refuerza el aislamiento si el navegador interpreta el
- * recurso como documento con subrecursos.
+ * recurso como documento con subrecursos. Para subresource loads
+ * (<script>/<img>/<link>) el navegador ignora la CSP de la respuesta.
  */
 export const AUTHOR_ASSET_CSP = "sandbox; default-src 'none'";
+
+/** Alias histórico de la CSP de activos no-HTML (tests y llamadas previas). */
+export const CONTENT_ASSET_CSP = AUTHOR_ASSET_CSP;
 
 function authorAssetHeaders(contentType: string): Record<string, string> {
 	return {
@@ -243,9 +263,10 @@ async function handleContent(c: Context) {
 				// La directiva `sandbox` fuerza un origen opaco para el contenido de
 				// autor del .elpx: el JS sigue ejecutándose (interactividad) pero NO
 				// con el origen autenticado de la plataforma, aunque se abra en una
-				// pestaña nueva. Sin `allow-same-origin` a propósito (ADR-0026).
-				"Content-Security-Policy":
-					"default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; media-src 'self' data: blob: https:; font-src 'self' data:; connect-src 'self'; frame-src 'self' https:; frame-ancestors 'self'; form-action 'self'; base-uri 'self'; sandbox allow-scripts allow-popups allow-forms allow-popups-to-escape-sandbox",
+				// pestaña nueva. Sin `allow-same-origin` ni `allow-popups-to-escape-
+				// sandbox` a propósito (ADR-0026 + auditoría H-1): un popup abierto por
+				// el contenido debe seguir aislado.
+				"Content-Security-Policy": CONTENT_HTML_CSP,
 			},
 		});
 	}
