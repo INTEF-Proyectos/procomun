@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test";
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync, unlinkSync, writeFileSync } from "node:fs";
+import os from "node:os";
 import path from "node:path";
 import { Hono } from "hono";
 import type { AuthEnv } from "../../auth/middleware.ts";
@@ -85,6 +86,76 @@ describe("POST /api/admin/elpx/analyze", () => {
 			body: form,
 		});
 		expect(res.status).toBe(400);
+	});
+});
+
+describe("POST /api/admin/elpx/analyze — seguridad (path traversal, issue #249)", () => {
+	// El rol por defecto "author" alcanza esta ruta.
+	const app = createElpxApp({ id: "a1", role: "author" });
+
+	test("no borra archivos fuera de la ruta temporal generada por el servidor", async () => {
+		// Sentinel "víctima" colocado en el directorio temporal del sistema.
+		// El código vulnerable construía la ruta como
+		//   path.join(tmpdir(), `procomun-elpx-${Date.now()}-${file.name}`)
+		// y un filename con doble "../" normaliza exactamente a <tmpdir>/<basename>,
+		// es decir, a la ruta del sentinel, provocando su sobrescritura y borrado.
+		const sentinelName = `elpx-victim-${crypto.randomUUID()}.elpx`;
+		const sentinelPath = path.join(os.tmpdir(), sentinelName);
+		const sentinelContent = "no-tocar-este-archivo";
+		writeFileSync(sentinelPath, sentinelContent);
+
+		try {
+			// Nombre con traversal cuyo basename coincide con el sentinel.
+			// Con el código antiguo, `procomun-elpx-<ts>-../../<basename>` se
+			// resuelve a <tmpdir>/<basename> == sentinelPath.
+			const traversalName = `../../${sentinelName}`;
+			const attackerBytes = new Uint8Array([1, 2, 3, 4]); // no es un .elpx válido
+
+			const form = new FormData();
+			form.append(
+				"file",
+				new File([attackerBytes], traversalName, { type: "application/zip" }),
+			);
+
+			const res = await app.request("/api/admin/elpx/analyze", {
+				method: "POST",
+				body: form,
+			});
+
+			// El parseo fallará (bytes inválidos); lo relevante es que el sentinel
+			// NO se vea afectado por la escritura/borrado de la ruta temporal.
+			expect(res.status).toBe(400);
+
+			// Invariante de seguridad: el archivo fuera de la ruta UUID del servidor
+			// sigue existiendo y conserva su contenido original.
+			expect(existsSync(sentinelPath)).toBe(true);
+			expect(readFileSync(sentinelPath, "utf8")).toBe(sentinelContent);
+		} finally {
+			if (existsSync(sentinelPath)) unlinkSync(sentinelPath);
+		}
+	});
+
+	test("devuelve solo el basename del filename (no refleja path traversal)", async () => {
+		const fixture = path.join(FIXTURES_DIR, "really-simple-test-project.elpx");
+		const buf = readFileSync(fixture);
+		const form = new FormData();
+		form.append(
+			"file",
+			new File([buf], "../../evil/really-simple-test-project.elpx", {
+				type: "application/zip",
+			}),
+		);
+
+		const res = await app.request("/api/admin/elpx/analyze", {
+			method: "POST",
+			body: form,
+		});
+
+		expect(res.status).toBe(200);
+		const body = await res.json();
+		expect(body.filename).toBe("really-simple-test-project.elpx");
+		expect(body.filename).not.toContain("..");
+		expect(body.filename).not.toContain("/");
 	});
 });
 
