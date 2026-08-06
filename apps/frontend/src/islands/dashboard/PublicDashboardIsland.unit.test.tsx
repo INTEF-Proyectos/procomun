@@ -1,6 +1,5 @@
 import { describe, expect, test } from "bun:test";
 import { renderToStaticMarkup } from "react-dom/server";
-import { MemoryRouter } from "react-router-dom";
 import type { DashboardSummary } from "../../lib/types/user-extended.ts";
 import {
 	PublicDashboardIsland,
@@ -42,11 +41,7 @@ describe("withFavoriteCount (DEF-005 / #202)", () => {
 
 describe("PublicDashboardIsland", () => {
 	test("muestra el shell de carga inicial del perfil", () => {
-		const html = renderToStaticMarkup(
-			<MemoryRouter>
-				<PublicDashboardIsland />
-			</MemoryRouter>,
-		);
+		const html = renderToStaticMarkup(<PublicDashboardIsland />);
 		expect(html).toContain("dashboard-loading");
 	});
 });

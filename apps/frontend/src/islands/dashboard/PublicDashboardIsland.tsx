@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useState } from "react";
-import { useLocation } from "react-router-dom";
 import type { Resource } from "../../lib/api-client.ts";
 import { getApiClient } from "../../lib/get-api-client.ts";
 import { url } from "../../lib/paths.ts";
@@ -336,7 +335,6 @@ interface ProfileEditState {
 }
 
 export function PublicDashboardIsland() {
-	const location = useLocation();
 	const [dashboard, setDashboard] = useState<DashboardSummary | null>(null);
 	const [loading, setLoading] = useState(true);
 	const [favorites, setFavorites] = useState<Resource[]>([]);
@@ -424,12 +422,12 @@ export function PublicDashboardIsland() {
 		}
 	}, []);
 
-	// Carga inicial y al volver a /perfil vía SPA (pathname/search)
+	// Carga al montar (SPA: al volver a /perfil el componente se desmonta y remonta)
 	useEffect(() => {
 		void refreshDashboard();
-	}, [location.pathname, location.search, refreshDashboard]);
+	}, [refreshDashboard]);
 
-	// BFCache / pestaña restaurada: revalida contadores al volver a la vista
+	// BFCache / pestaña restaurada: revalida contadores al volver a la vista (DEF-005)
 	useEffect(() => {
 		function revalidate() {
 			if (document.visibilityState !== "visible") return;
