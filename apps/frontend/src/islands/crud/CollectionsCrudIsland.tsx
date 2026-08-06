@@ -73,7 +73,121 @@ function isOrderedValue(value: CollectionRecord["isOrdered"] | boolean) {
 
 function coverPreview(url: string | null | undefined) {
 	if (!url) return "Sin portada";
-	return truncate(url, 36);
+	return "Con portada";
+}
+
+export interface CollectionColumnHandlers {
+	busyLoadEdit: boolean;
+	onEdit: (id: string) => void;
+	onDelete: (row: CollectionRecord) => void;
+}
+
+/** Columnas densas del listado admin de colecciones (#304). */
+export function buildCollectionColumns(
+	handlers: CollectionColumnHandlers,
+): CrudColumn<CollectionRecord>[] {
+	return [
+		{
+			id: "title",
+			header: "Titulo",
+			cell: (row) => (
+				<div className="admin-collection-cell">
+					<div className="admin-collection-title">{row.title}</div>
+					<div className="admin-collection-meta">
+						{row.curatorName ?? "Sin curator"}
+					</div>
+				</div>
+			),
+		},
+		{
+			id: "status",
+			header: "Estado",
+			cell: (row) => (
+				<span
+					className={`admin-badge ${statusBadgeClass(row.editorialStatus)}`.trim()}
+				>
+					{statusLabel(row.editorialStatus)}
+				</span>
+			),
+		},
+		{
+			id: "description",
+			header: "Descripcion",
+			className: "admin-collection-cell--clamp",
+			cell: (row) => {
+				const text = (row.description ?? "").trim();
+				if (!text) return <span className="admin-collection-meta">-</span>;
+				return (
+					<span className="admin-collection-ellipsis" title={text}>
+						{text}
+					</span>
+				);
+			},
+		},
+		{
+			id: "cover",
+			header: "Portada",
+			className: "admin-collection-cell--clamp",
+			cell: (row) => {
+				const url = row.coverImageUrl?.trim() || "";
+				const label = coverPreview(url || null);
+				return (
+					<span
+						className="admin-collection-cover admin-collection-meta"
+						title={url || undefined}
+					>
+						{label}
+					</span>
+				);
+			},
+		},
+		{
+			id: "resources",
+			header: "Recursos",
+			cell: (row) => (
+				<span className="admin-collection-meta">
+					{String(row.resourceCount ?? 0)}
+				</span>
+			),
+		},
+		{
+			id: "updatedAt",
+			header: "Actualizado",
+			cell: (row) => (
+				<span className="admin-collection-meta">{formatDate(row.updatedAt)}</span>
+			),
+		},
+		{
+			id: "actions",
+			header: "Acciones",
+			className: "admin-actions-cell",
+			cell: (row) => (
+				<div className="admin-actions-cell">
+					<button
+						type="button"
+						className="admin-action-btn admin-action-btn--edit"
+						disabled={handlers.busyLoadEdit}
+						onClick={() => handlers.onEdit(row.id)}
+						aria-label={`Editar ${row.title}`}
+					>
+						<span className="material-symbols-outlined" aria-hidden="true">
+							edit
+						</span>
+					</button>
+					<button
+						type="button"
+						className="admin-action-btn admin-action-btn--delete"
+						onClick={() => handlers.onDelete(row)}
+						aria-label={`Eliminar ${row.title}`}
+					>
+						<span className="material-symbols-outlined" aria-hidden="true">
+							delete
+						</span>
+					</button>
+				</div>
+			),
+		},
+	];
 }
 
 export function CollectionsCrudIsland() {
@@ -190,73 +304,15 @@ export function CollectionsCrudIsland() {
 	const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 	const currentPage = Math.floor(offset / PAGE_SIZE) + 1;
 
-	const columns: CrudColumn<CollectionRecord>[] = [
-		{
-			id: "title",
-			header: "Titulo",
-			cell: (row) => (
-				<div>
-					<strong>{row.title}</strong>
-					<div>{row.curatorName ?? "Sin curator"}</div>
-				</div>
-			),
+	const columns = buildCollectionColumns({
+		busyLoadEdit: busyAction === "load-edit",
+		onEdit: (id) => {
+			void handleEditOpen(id);
 		},
-		{
-			id: "status",
-			header: "Estado",
-			cell: (row) => (
-				<span
-					className={`admin-badge ${statusBadgeClass(row.editorialStatus)}`.trim()}
-				>
-					{statusLabel(row.editorialStatus)}
-				</span>
-			),
+		onDelete: (row) => {
+			setDeleteTarget(row);
 		},
-		{
-			id: "description",
-			header: "Descripcion",
-			cell: (row) => truncate(row.description ?? "", 60) || "-",
-		},
-		{
-			id: "cover",
-			header: "Portada",
-			cell: (row) => coverPreview(row.coverImageUrl),
-		},
-		{
-			id: "resources",
-			header: "Recursos",
-			cell: (row) => String(row.resourceCount ?? 0),
-		},
-		{
-			id: "updatedAt",
-			header: "Actualizado",
-			cell: (row) => formatDate(row.updatedAt),
-		},
-		{
-			id: "actions",
-			header: "Acciones",
-			className: "admin-actions-cell",
-			cell: (row) => (
-				<>
-					<button
-						type="button"
-						className="admin-btn admin-btn--sm"
-						disabled={busyAction === "load-edit"}
-						onClick={() => void handleEditOpen(row.id)}
-					>
-						Editar
-					</button>
-					<button
-						type="button"
-						className="admin-btn admin-btn--sm admin-btn--danger"
-						onClick={() => setDeleteTarget(row)}
-					>
-						Eliminar
-					</button>
-				</>
-			),
-		},
-	];
+	});
 
 	async function applyFilters() {
 		const nextSearch = search.trim();

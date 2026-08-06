@@ -2103,3 +2103,14 @@ tasks:
       pull-requests: write además de issues: write. Se añade al workflow y se
       documenta en ADR-0033. Validación: el siguiente E2E verde de una PR debe
       publicar assets y dejar/actualizar el comentario marcado.
+
+  T-2026-08-06-08321910:
+    date: 2026-08-06
+    agent: "frontend-ux-accesibilidad + qa-validacion"
+    task: "fix(admin): compactar listado de colecciones al ancho disponible"
+    status: Done
+    related: ["#304"]
+    notes: >
+      Densidad tipográfica 14/12 px, truncado con elipsis y title accesible en
+      descripción/portada, acciones con icono + aria-label (patrón Recursos).
+      buildCollectionColumns exportado y cubierto por unit test. bun test OK.
