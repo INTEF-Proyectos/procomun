@@ -165,6 +165,27 @@ function rewriteCssUrls(
 	);
 }
 
+/**
+ * CSP para activos de autor no-HTML (SVG, CSS, binarios…).
+ *
+ * `sandbox` sin tokens: origen opaco y sin scripts si el recurso se navega
+ * como documento de primer nivel. Imprescindible para SVG (image/svg+xml),
+ * que puede contener <script> y provocar XSS almacenado (ADR-0026).
+ * `default-src 'none'` refuerza el aislamiento si el navegador interpreta el
+ * recurso como documento con subrecursos.
+ */
+export const AUTHOR_ASSET_CSP = "sandbox; default-src 'none'";
+
+function authorAssetHeaders(contentType: string): Record<string, string> {
+	return {
+		"Content-Type": contentType,
+		"X-Content-Type-Options": "nosniff",
+		"Cache-Control": "public, max-age=3600",
+		"Access-Control-Allow-Origin": "*",
+		"Content-Security-Policy": AUTHOR_ASSET_CSP,
+	};
+}
+
 export const elpxContentRoutes = new Hono();
 
 async function handleContent(c: Context) {
@@ -193,7 +214,9 @@ async function handleContent(c: Context) {
 	try {
 		const real = await realpath(fullPath);
 		const realBase = await realpath(basePath);
-		if (!real.startsWith(realBase)) {
+		// Comparación con frontera de separador: evita que un prefijo común
+		// (…/elpx/ab vs …/elpx/abc) se confunda con contención real.
+		if (real !== realBase && !real.startsWith(realBase + path.sep)) {
 			return c.json({ error: "Acceso denegado" }, 403);
 		}
 	} catch {
@@ -231,22 +254,12 @@ async function handleContent(c: Context) {
 		const css = await Bun.file(fullPath).text();
 		const rewritten = rewriteCssUrls(css, hash, file);
 		return new Response(rewritten, {
-			headers: {
-				"Content-Type": "text/css",
-				"X-Content-Type-Options": "nosniff",
-				"Cache-Control": "public, max-age=3600",
-				"Access-Control-Allow-Origin": "*",
-			},
+			headers: authorAssetHeaders("text/css"),
 		});
 	}
 
 	return new Response(Bun.file(fullPath), {
-		headers: {
-			"Content-Type": mimeType,
-			"X-Content-Type-Options": "nosniff",
-			"Cache-Control": "public, max-age=3600",
-			"Access-Control-Allow-Origin": "*",
-		},
+		headers: authorAssetHeaders(mimeType),
 	});
 }
 
