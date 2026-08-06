@@ -181,12 +181,30 @@ function rewriteCssUrls(
 export const CONTENT_HTML_CSP =
 	"default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; media-src 'self' data: blob: https:; font-src 'self' data:; connect-src 'self'; frame-src 'self' https:; frame-ancestors 'self'; form-action 'self'; base-uri 'self'; sandbox allow-scripts allow-popups allow-forms";
 
-// CSP for every non-HTML package asset (svg, xml, js, css, images, fonts, …). A
-// script-capable document type (image/svg+xml, xml) navigated TOP-LEVEL must stay
-// sandboxed so its inline script cannot run at the platform origin (audit H-1); for
-// subresource loads (<script>/<img>/<link>) the browser ignores a response CSP, so this
-// is safe for the package's own js/css/images.
-export const CONTENT_ASSET_CSP = "sandbox";
+/**
+ * CSP para activos de autor no-HTML (SVG, CSS, binarios…).
+ *
+ * `sandbox` sin tokens: origen opaco y sin scripts si el recurso se navega
+ * como documento de primer nivel. Imprescindible para SVG (image/svg+xml),
+ * que puede contener <script> y provocar XSS almacenado (ADR-0026 + audit H-1).
+ * `default-src 'none'` refuerza el aislamiento si el navegador interpreta el
+ * recurso como documento con subrecursos. Para subresource loads
+ * (<script>/<img>/<link>) el navegador ignora la CSP de la respuesta.
+ */
+export const AUTHOR_ASSET_CSP = "sandbox; default-src 'none'";
+
+/** Alias histórico de la CSP de activos no-HTML (tests y llamadas previas). */
+export const CONTENT_ASSET_CSP = AUTHOR_ASSET_CSP;
+
+function authorAssetHeaders(contentType: string): Record<string, string> {
+	return {
+		"Content-Type": contentType,
+		"X-Content-Type-Options": "nosniff",
+		"Cache-Control": "public, max-age=3600",
+		"Access-Control-Allow-Origin": "*",
+		"Content-Security-Policy": AUTHOR_ASSET_CSP,
+	};
+}
 
 export const elpxContentRoutes = new Hono();
 
@@ -216,7 +234,9 @@ async function handleContent(c: Context) {
 	try {
 		const real = await realpath(fullPath);
 		const realBase = await realpath(basePath);
-		if (!real.startsWith(realBase)) {
+		// Comparación con frontera de separador: evita que un prefijo común
+		// (…/elpx/ab vs …/elpx/abc) se confunda con contención real.
+		if (real !== realBase && !real.startsWith(realBase + path.sep)) {
 			return c.json({ error: "Acceso denegado" }, 403);
 		}
 	} catch {
@@ -255,25 +275,12 @@ async function handleContent(c: Context) {
 		const css = await Bun.file(fullPath).text();
 		const rewritten = rewriteCssUrls(css, hash, file);
 		return new Response(rewritten, {
-			headers: {
-				"Content-Type": "text/css",
-				"X-Content-Type-Options": "nosniff",
-				"Cache-Control": "public, max-age=3600",
-				"Access-Control-Allow-Origin": "*",
-			},
+			headers: authorAssetHeaders("text/css"),
 		});
 	}
 
 	return new Response(Bun.file(fullPath), {
-		headers: {
-			"Content-Type": mimeType,
-			"X-Content-Type-Options": "nosniff",
-			"Cache-Control": "public, max-age=3600",
-			"Access-Control-Allow-Origin": "*",
-			// Keep author-controlled, script-capable assets (e.g. an uploaded SVG) opaque
-			// when navigated top-level, so they cannot run at the platform origin (audit H-1).
-			"Content-Security-Policy": CONTENT_ASSET_CSP,
-		},
+		headers: authorAssetHeaders(mimeType),
 	});
 }
 

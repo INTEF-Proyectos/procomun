@@ -126,24 +126,33 @@ describe("GET /api/v1/exelearning-editor/index.html", () => {
 		expect(html).toContain("initialProjectUrl: null");
 	});
 
-	test("escapa elpxUrl y resourceId para impedir cerrar el script", async () => {
+	test("escapa payload XSS reflejado en la respuesta HTTP del bootstrap", async () => {
 		const payload = "</script><img src=x onerror=alert(1)>";
-		const query = new URLSearchParams({
+		const qs = new URLSearchParams({
 			elpxUrl: payload,
 			resourceId: payload,
 		});
 		const res = await app.request(
-			`/api/v1/exelearning-editor/index.html?${query}`,
+			`/api/v1/exelearning-editor/index.html?${qs.toString()}`,
 		);
-		const html = await res.text();
 		expect(res.status).toBe(200);
+		const html = await res.text();
+		// El markup inyectado no debe aparecer crudo en el HTML.
 		expect(html).not.toContain("<img src=x onerror");
+		expect(html).not.toContain("<img src=x");
+		// El cierre de script del atacante queda como escape unicode JSON.
 		expect(html).toContain("\\u003c/script\\u003e");
+		// Defensa en profundidad: CSP + nosniff del bootstrap presentes.
+		const csp = res.headers.get("content-security-policy");
+		expect(csp).not.toBeNull();
+		expect(csp).toContain("frame-ancestors");
+		expect(csp).toContain("object-src 'none'");
+		expect(res.headers.get("x-content-type-options")).toBe("nosniff");
 	});
 });
 
 describe("inline editor configuration encoding", () => {
-	test("buildEditorConfigScript mantiene preview v2 y neutraliza payloads", () => {
+	test("buildEditorConfigScript mantiene previewSnapshot y neutraliza payloads", () => {
 		const payload = "</script><svg onload=alert(1)>";
 		const script = buildEditorConfigScript(
 			payload,
@@ -153,15 +162,6 @@ describe("inline editor configuration encoding", () => {
 		expect(script).toContain("previewSnapshot");
 		expect(script).not.toContain("<svg onload");
 		expect(script).toContain("\\u003c/script\\u003e");
-	});
-
-	test("toInlineScriptJson sigue siendo JSON reversible", () => {
-		const value = "</script><a>&\u2028\u2029";
-		const encoded = toInlineScriptJson(value);
-		expect(encoded).not.toContain("<");
-		expect(encoded).not.toContain(">");
-		expect(encoded).not.toContain("&");
-		expect(JSON.parse(encoded)).toBe(value);
 	});
 });
 
@@ -192,5 +192,72 @@ describe("GET /api/v1/exelearning-editor/* — static assets", () => {
 			const res = await app.request(`/api/v1/exelearning-editor/${p}`);
 			expect(res.status, p).toBe(404);
 		}
+	});
+});
+
+describe("buildEditorConfigScript — escape de XSS reflejado", () => {
+	const editorBaseUrl = "/api/v1/exelearning-editor";
+
+	test("no permite romper el <script> con un payload en elpxUrl/resourceId", () => {
+		const payload = "</script><img src=x onerror=alert(1)>";
+		const script = buildEditorConfigScript(payload, "</script>", editorBaseUrl);
+
+		// El cierre legítimo del bloque <script> sigue presente...
+		expect(script).toContain("</script>");
+		// ...pero el payload del atacante NO debe aparecer crudo.
+		expect(script).not.toContain("<img src=x onerror");
+		expect(script).not.toContain("<img");
+		// El cierre inyectado debe quedar escapado como unicode.
+		expect(script).toContain("\\u003c/script\\u003e");
+	});
+
+	test("una URL normal sigue siendo un valor JSON parseable y utilizable", () => {
+		const script = buildEditorConfigScript(
+			"/recursos/proyecto.elpx",
+			"abc-123",
+			editorBaseUrl,
+		);
+		// Extrae el valor de initialProjectUrl y verifica que es JSON válido.
+		// El grupo capturado se comprueba en vez de afirmarlo con un cast: con
+		// noUncheckedIndexedAccess, match[1] es string | undefined, y si el patrón
+		// dejara de casar el test debe decirlo, no reventar dentro de JSON.parse.
+		const projectUrlRaw = script.match(/initialProjectUrl: (.+),/)?.[1];
+		expect(projectUrlRaw).toBeDefined();
+		if (!projectUrlRaw)
+			throw new Error("initialProjectUrl no está en el script");
+		expect(JSON.parse(projectUrlRaw)).toBe("/recursos/proyecto.elpx");
+
+		const resourceIdRaw = script.match(/resourceId: (.+),/)?.[1];
+		expect(resourceIdRaw).toBeDefined();
+		if (!resourceIdRaw) throw new Error("resourceId no está en el script");
+		expect(JSON.parse(resourceIdRaw)).toBe("abc-123");
+	});
+
+	test("sin elpxUrl produce initialProjectUrl: null", () => {
+		const script = buildEditorConfigScript("", "", editorBaseUrl);
+		expect(script).toContain("initialProjectUrl: null");
+	});
+});
+
+describe("toInlineScriptJson", () => {
+	test("escapa <, >, & y separadores de línea U+2028/U+2029", () => {
+		const encoded = toInlineScriptJson("</script><a>&  ");
+		expect(encoded).not.toContain("<");
+		expect(encoded).not.toContain(">");
+		expect(encoded).not.toContain("&");
+		expect(encoded).not.toContain(" ");
+		expect(encoded).not.toContain(" ");
+		expect(encoded).toContain("\\u003c");
+		expect(encoded).toContain("\\u003e");
+		expect(encoded).toContain("\\u0026");
+		expect(encoded).toContain("\\u2028");
+		expect(encoded).toContain("\\u2029");
+		// Sigue siendo JSON parseable hacia el valor original.
+		expect(JSON.parse(encoded)).toBe("</script><a>&  ");
+	});
+
+	test("nullish se serializa como null", () => {
+		expect(toInlineScriptJson(null)).toBe("null");
+		expect(toInlineScriptJson(undefined)).toBe("null");
 	});
 });

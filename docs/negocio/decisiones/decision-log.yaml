@@ -194,18 +194,32 @@ ADR-0030:
     indexar (0023-feeds, 0024-api-tokens, 0025-jsonb, 0026-fts); su regularización
     requiere decisión humana.
 
+ADR-0032:
+  title: "Modelo de versionado de recursos (snapshots inmutables + puntero a versión vigente)"
+  status: Propuesto
+  date: 2026-06-23
+  file: 0032-versionado-recursos.md
+  notes: >
+    Renumerado desde ADR-0029 al integrar main: ADR-0029 ya es el importador legacy
+    (aceptado). ADR-0028 permanece como estudio de alternativas; esta ADR concreta
+    el modelo (snapshots + proyección vigente). La épica documental vive en
+    docs/epics/epic-005-versionado-recursos/ (epic-004 ya es migracion-legacy).
+    ADR-0030 en main es modernización; ADR-0031 queda reservada para #235.
+
 ADR-0033:
   title: "Publicación segura de capturas visuales de pull requests mediante workflow_run"
   status: Aceptado
   date: 2026-07-17
   file: 0033-capturas-visuales-pr-workflow-run.md
   notes: >
-    ADR-0031 y ADR-0032 están reservadas por los PR abiertos #235 y #236.
+    ADR-0031 permanece reservada por el PR abierto #235 (verificación de email).
+
 ADR-0034:
   title: "Topología del preview HTTP y cableado del editor embebido"
   status: Aceptado
   date: 2026-07-11
   file: 0034-topologia-store-preview-http.md
+
 ADR-0035:
   title: "Previsualización opaca por snapshot completo en lugar del protocolo v2"
   status: Aceptado
@@ -216,4 +230,3 @@ ADR-0035:
     v2 (un bundle actual no referencia previewHttp ni protocolVersion), por lo que
     la previsualización opaca era inalcanzable: se inyectaba un contrato que nadie
     leía y se omitía el que sí se lee.
-

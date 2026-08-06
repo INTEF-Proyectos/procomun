@@ -13,8 +13,14 @@ const EDITOR_STATIC_DIR = path.resolve(
 );
 
 /**
- * Serialize a value as JSON that is safe inside an inline script element.
- * JSON.stringify alone leaves literal `</script>` sequences untouched.
+ * Serializes a value as JSON that is safe to embed inside an inline <script>.
+ *
+ * `JSON.stringify` alone does NOT escape the literal sequence `</script>`
+ * (nor `<`, `>`, the line separators U+2028/U+2029), so reflecting
+ * user-controlled values straight into an inline script lets an attacker break
+ * out of the <script> element and inject arbitrary markup (reflected XSS).
+ * We escape `<`, `>`, `&`, U+2028 and U+2029 to unicode escape sequences, which
+ * keeps the value JSON-parseable while preventing script breakout.
  */
 export function toInlineScriptJson(value: unknown): string {
 	return JSON.stringify(value ?? null)
@@ -25,7 +31,13 @@ export function toInlineScriptJson(value: unknown): string {
 		.replace(/\u2029/g, "\\u2029");
 }
 
-/** Build the dynamic bootstrap block using script-safe JSON for every value. */
+/**
+ * Builds the Procomun embedding config <script> block injected into the editor.
+ *
+ * Pure function so it can be unit-tested without the static editor file.
+ * User-controlled values (`elpxUrl`, `resourceId`) are encoded with
+ * {@link toInlineScriptJson} to prevent reflected XSS.
+ */
 export function buildEditorConfigScript(
 	elpxUrl: string,
 	resourceId: string,
@@ -105,6 +117,10 @@ exelearningEditorRoutes.get("/index.html", async (c) => {
 		headers: {
 			"Content-Type": "text/html; charset=utf-8",
 			"Cache-Control": "no-cache",
+			// Evita que el navegador reinterprete el bootstrap como otro MIME.
+			"X-Content-Type-Options": "nosniff",
+			// Defense-in-depth: el escape de buildEditorConfigScript es el fix
+			// principal de XSS; esta CSP limita plugins y el ancestro del frame.
 			"Content-Security-Policy":
 				"object-src 'none'; base-uri 'self'; frame-ancestors 'self'",
 		},

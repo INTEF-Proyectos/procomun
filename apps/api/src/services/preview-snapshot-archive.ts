@@ -127,10 +127,13 @@ export async function readSnapshotArchive(
 				`Unsafe entry in the preview archive: ${entry.name}`,
 			);
 		}
-		if (entry.method !== METHOD_STORED && entry.method !== METHOD_DEFLATE) {
+		if (
+			entry.compressionMethod !== METHOD_STORED &&
+			entry.compressionMethod !== METHOD_DEFLATE
+		) {
 			return fail(
 				"unsupported-compression",
-				`Unsupported compression method: ${entry.method}`,
+				`Unsupported compression method: ${entry.compressionMethod}`,
 			);
 		}
 		declared += entry.uncompressedSize;
@@ -157,7 +160,9 @@ export async function readSnapshotArchive(
 			// The stored branch copies so the retained bytes do not pin the whole
 			// uploaded archive in memory for the snapshot's lifetime.
 			content =
-				entry.method === METHOD_STORED ? raw.slice() : await inflateRaw(raw);
+				entry.compressionMethod === METHOD_STORED
+					? raw.slice()
+					: await inflateRaw(raw);
 		} catch {
 			return fail("invalid-zip", "Preview archive could not be decompressed.");
 		}

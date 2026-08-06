@@ -1486,3 +1486,121 @@ describe("Rutas admin FTS — con sesión de admin", () => {
 		expect(body.reindexed).toBeGreaterThanOrEqual(0);
 	});
 });
+
+// Regresión de seguridad: el CRUD genérico de recursos pasaba el cuerpo crudo a
+// la capa de datos (.set({ ...data })), de modo que un author (rol por defecto al
+// registrarse) podía mass-assign editorialStatus/createdBy/assignedCuratorId/…
+// y autopublicarse saltándose el flujo editorial (validateTransition). El alta y
+// la edición deben ignorar esas columnas sensibles; el estado solo cambia por
+// PATCH /:id/status.
+describe("Seguridad — mass assignment / bypass del flujo editorial (recursos)", () => {
+	const validResourceSec = {
+		title: "Recurso seguridad",
+		description: "Descripción para test de seguridad",
+		language: "es",
+		license: "cc-by",
+		resourceType: "documento",
+	};
+
+	test("POST /api/admin/resources ignora editorialStatus/featuredAt del cuerpo (un author no autopublica)", async () => {
+		const app = createAdminApp({
+			id: `sec-create-${crypto.randomUUID()}`,
+			role: "author",
+		});
+		const res = await app.request("/api/admin/resources", {
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({
+				...validResourceSec,
+				editorialStatus: "published",
+				featuredAt: "2030-01-01T00:00:00.000Z",
+			}),
+		});
+		expect(res.status).toBe(201);
+		const created = await res.json();
+
+		const getRes = await app.request(`/api/admin/resources/${created.id}`);
+		expect(getRes.status).toBe(200);
+		const body = await getRes.json();
+		// El recurso nace como borrador pese a pedir "published" en el cuerpo.
+		expect(body.editorialStatus).toBe("draft");
+		// featuredAt del cuerpo también se ignora (no se destaca vía mass assignment).
+		expect(body.featuredAt ?? null).toBeNull();
+	});
+
+	test("PATCH /api/admin/resources/:id ignora editorialStatus (no se salta validateTransition)", async () => {
+		const authorId = `sec-patch-${crypto.randomUUID()}`;
+		const app = createAdminApp({ id: authorId, role: "author" });
+		const createRes = await app.request("/api/admin/resources", {
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify(validResourceSec),
+		});
+		const created = await createRes.json();
+
+		const patchRes = await app.request(`/api/admin/resources/${created.id}`, {
+			method: "PATCH",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({
+				title: "Título legítimo",
+				editorialStatus: "published",
+			}),
+		});
+		expect(patchRes.status).toBe(200);
+
+		const getRes = await app.request(`/api/admin/resources/${created.id}`);
+		const body = await getRes.json();
+		// El campo descriptivo legítimo sí se actualiza…
+		expect(body.title).toBe("Título legítimo");
+		// …pero el estado editorial NO cambia por esta vía.
+		expect(body.editorialStatus).toBe("draft");
+	});
+
+	test("PATCH /api/admin/resources/:id ignora createdBy y assignedCuratorId (sin reasignar propiedad/curación)", async () => {
+		const authorId = `sec-owner-${crypto.randomUUID()}`;
+		const app = createAdminApp({ id: authorId, role: "author" });
+		const createRes = await app.request("/api/admin/resources", {
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify(validResourceSec),
+		});
+		const created = await createRes.json();
+
+		const patchRes = await app.request(`/api/admin/resources/${created.id}`, {
+			method: "PATCH",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({
+				description: "Descripción nueva",
+				createdBy: "otro-usuario",
+				assignedCuratorId: "otro-usuario",
+			}),
+		});
+		expect(patchRes.status).toBe(200);
+
+		const getRes = await app.request(`/api/admin/resources/${created.id}`);
+		const body = await getRes.json();
+		expect(body.createdBy).toBe(authorId);
+		expect(body.assignedCuratorId).toBeNull();
+	});
+
+	test("regresión: la transición legítima sigue funcionando vía PATCH /:id/status", async () => {
+		const app = createAdminApp({ id: "1", role: "admin" });
+		const createRes = await app.request("/api/admin/resources", {
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify(validResourceSec),
+		});
+		const created = await createRes.json();
+
+		const res = await app.request(`/api/admin/resources/${created.id}/status`, {
+			method: "PATCH",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({ status: "published" }),
+		});
+		expect(res.status).toBe(200);
+
+		const getRes = await app.request(`/api/admin/resources/${created.id}`);
+		const body = await getRes.json();
+		expect(body.editorialStatus).toBe("published");
+	});
+});

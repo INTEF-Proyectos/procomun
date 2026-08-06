@@ -115,4 +115,43 @@ describe("buildFeed", () => {
 
 		expect(atom).toContain("http://localhost/recursos/res-1");
 	});
+
+	test("neutralizes all CDATA terminators to prevent breakout (issue #248)", () => {
+		// Payload con DOS terminadores `]]>`: el segundo escapaba al saneo
+		// de xml-js (String.replace solo cambia la primera aparición) y cerraba
+		// la sección CDATA, inyectando `<img onerror>` como marcado vivo.
+		const payload = "x]]>]]><img src=x onerror=alert(1)>";
+		const first = sampleResources[0];
+		expect(first).toBeDefined();
+		if (!first) throw new Error("missing sample resource");
+		const maliciousResources = [
+			{
+				...first,
+				// Solo title/description de ítem van en CDATA (donde aplica el bug de xml-js).
+				title: payload,
+				description: payload,
+			},
+		];
+		const feed = buildFeed({
+			...baseOpts,
+			// title/description de canal van como texto (_text), no CDATA.
+			title: "Canal de prueba",
+			description: "Descripción de prueba",
+			resources: maliciousResources,
+			total: 1,
+		});
+
+		for (const xml of [feed.atom1(), feed.rss2()]) {
+			// No hay ruptura de CDATA: el terminador nunca queda justo antes del marcado.
+			expect(xml.includes("]]><img")).toBe(false);
+			// El payload de ítem queda inerte dentro de CDATA; tras eliminar las
+			// secciones CDATA no debe quedar ningún `<img` como marcado vivo.
+			const withoutCdata = xml.replace(/<!\[CDATA\[[\s\S]*?\]\]>/g, "");
+			expect(withoutCdata.includes("<img")).toBe(false);
+			// El terminador de los campos CDATA queda neutralizado.
+			expect(xml).toContain("]]&gt;");
+			// XML bien formado (al menos un cierre de feed/rss).
+			expect(xml.includes("</feed>") || xml.includes("</rss>")).toBe(true);
+		}
+	});
 });
