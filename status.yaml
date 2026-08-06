@@ -2118,3 +2118,25 @@ tasks:
       en verde y check-test-files OK. check-types bloqueado por 16 errores preexistentes bajo
       local-data/uploads/elpx, no atribuibles a esta tarea. Pendiente piloto autorizado y
       definir activación/restablecimiento de las cuentas importadas.
+
+  T-2026-08-06-08293767:
+    date: 2026-08-06
+    agent: "ingestas-y-migraciones + backend-api-servicios + documentacion-y-roadmap"
+    task: "Política de roles del importador legacy: todos los usuarios son editor"
+    status: Done
+    related: ["T-2026-08-06-08190404", "epic-004-migracion-legacy-procomun"]
+    notes: >
+      Por decisión de producto se ignora roles del JSON Drupal y se persiste editor para
+      todas las cuentas, incluidos los administrator legacy. No se otorgan privilegios admin
+      de forma automática; una futura equivalencia de roles requerirá revisión explícita.
+
+  T-2026-08-06-08305818:
+    date: 2026-08-06
+    agent: "ingestas-y-migraciones + backend-api-servicios + documentacion-y-roadmap"
+    task: "Corrección de roles: administrator legacy como admin y resto como editor"
+    status: Done
+    related: ["T-2026-08-06-08293767", "epic-004-migracion-legacy-procomun"]
+    notes: >
+      Se corrige la política inmediatamente anterior: el único rol legacy con elevación es
+      administrator, que se persiste como admin. Todos los demás valores, incluido -, se
+      importan como editor. Las pruebas cubren ambas ramas del mapeo.

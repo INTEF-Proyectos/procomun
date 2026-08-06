@@ -51,3 +51,9 @@ Los JSON/`.elpx` de `ode-export/` contienen datos personales reales (nombres y e
 - [x] Ejecutar pruebas automatizadas y comprobar la paridad archivo–test.
 - [x] Ejecutar `--dry-run --limit 4` sobre el JSON exportado facilitado, en PGlite e informe aislados en `/tmp`.
 - [ ] Ejecutar un piloto autorizado sobre un extracto representativo y definir el procedimiento de activación/restablecimiento de cuentas.
+
+### Actualización de política de rol (2026-08-06)
+- [x] Asignar el rol `editor` a todos los usuarios importados e ignorar los privilegios Drupal de origen.
+
+### Corrección de política de rol (2026-08-06)
+- [x] Restaurar el mapeo controlado `administrator` → `admin`; todos los demás usuarios quedan como `editor`.

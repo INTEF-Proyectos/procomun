@@ -15,7 +15,7 @@ export interface MappedLegacyUser {
 	id: string;
 	email: string;
 	name: string | null;
-	role: "admin" | "author";
+	role: "admin" | "editor";
 	isActive: boolean;
 	warnings: MappingWarning[];
 }
@@ -42,26 +42,18 @@ export function mapLegacyUser(record: LegacyUserJson): MappedLegacyUser {
 		throw new Error("mail ausente o inválido");
 	}
 
-	const warnings: MappingWarning[] = [];
-	const rawRole = asNonEmptyString(record.roles)?.toLowerCase() ?? "";
-	const role = rawRole === "administrator" ? "admin" : "author";
-	if (rawRole && rawRole !== "administrator" && rawRole !== "-") {
-		warnings.push({
-			field: "roles",
-			message: `Rol legacy no reconocido (${rawRole}); se asigna author`,
-		});
-	}
-
 	const rawStatus = record.status;
 	const isActive = rawStatus === 1 || rawStatus === "1" || rawStatus === true;
+	const legacyRole = asNonEmptyString(record.roles)?.toLowerCase();
 
 	return {
 		legacyUid,
 		id: `legacy-procomun:user:${legacyUid}`,
 		email,
 		name: asNonEmptyString(record.name),
-		role,
+		// Única elevación automática autorizada: administrator legacy → admin.
+		role: legacyRole === "administrator" ? "admin" : "editor",
 		isActive,
-		warnings,
+		warnings: [],
 	};
 }

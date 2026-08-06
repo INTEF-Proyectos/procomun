@@ -73,3 +73,11 @@ Ambos bugs eran preexistentes en la infraestructura reutilizada, no introducidos
 - `bun run check-types` no pudo completar por 16 errores ya presentes en artefactos locales bajo `local-data/uploads/elpx/**`; la salida no atribuye errores a archivos de esta ampliación.
 - Dry-run real aislado: `import:legacy-users --source-file <ruta-absoluta>/exportados-usuarios/usuarios.json --dry-run --limit 4 --report-dir /tmp/...` → **4 importables, 0 errores, salida 0**. No se escribieron usuarios ni se usó el almacenamiento local del repositorio.
 - Pendiente: piloto de importación real autorizado y prueba del flujo de activación de cuentas antes de tratar el lote completo.
+
+### Actualización de política de rol (2026-08-06)
+
+- La prueba de mapeo verifica que incluso un usuario legacy con `roles: "administrator"` queda como `editor`.
+
+### Corrección de política de rol (2026-08-06)
+
+- La prueba de mapeo verifica `administrator` → `admin` y `-` → `editor`.

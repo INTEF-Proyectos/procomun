@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test";
 import { mapLegacyUser } from "./users.ts";
 
 describe("mapLegacyUser", () => {
-	test("mapea uid, email, estado y administrator a un usuario destino estable", () => {
+	test("mapea administrator legacy a admin con ID destino estable", () => {
 		expect(
 			mapLegacyUser({
 				uid: 42,
@@ -21,7 +21,7 @@ describe("mapLegacyUser", () => {
 		});
 	});
 
-	test("asigna author para el marcador de rol y conserva un usuario inactivo", () => {
+	test("asigna editor al marcador de rol y conserva un usuario inactivo", () => {
 		const mapped = mapLegacyUser({
 			uid: "7",
 			mail: "reader@example.test",
@@ -29,7 +29,7 @@ describe("mapLegacyUser", () => {
 			status: 0,
 		});
 
-		expect(mapped.role).toBe("author");
+		expect(mapped.role).toBe("editor");
 		expect(mapped.isActive).toBeFalse();
 		expect(mapped.warnings).toEqual([]);
 	});

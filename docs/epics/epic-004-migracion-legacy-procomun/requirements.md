@@ -74,3 +74,11 @@ Se implementa `import:legacy-users` para crear cuentas de `procomun-ng` desde es
 
 - El formato se ha inferido de `exportados-usuarios/usuarios.json` (muestra de cuatro registros), no de una especificación contractual.
 - La equivalencia definitiva de roles Drupal y la asociación de autorías requieren decisión de INTEF en una iteración posterior.
+
+### Actualización de política de rol (2026-08-06)
+
+Por decisión de producto posterior a la implementación inicial, todos los usuarios importados reciben el rol `editor`, incluidos los que el legacy marca como `administrator`. El valor `roles` se conserva solo como dato de origen no persistido y no genera privilegios en `procomun-ng`. Esta política evita elevar cuentas históricas sin revisión y permite que las cuentas creen y editen sus propios recursos; la equivalencia definitiva de privilegios legacy sigue pendiente.
+
+### Corrección de política de rol (2026-08-06)
+
+La política anterior se corrige: los registros con `roles: "administrator"` se importan como `admin`; el resto se importa como `editor`. No se aplican otras equivalencias de roles legacy.

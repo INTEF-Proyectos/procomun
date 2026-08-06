@@ -161,6 +161,14 @@ usuarios.json
 
 `importLegacyUser()` comprueba primero el ID namespaced y después el email. La inserción usa `onConflictDoNothing()` y vuelve a consultar, de modo que una carrera entre dos procesos no crea duplicados ni sobrescribe cuentas existentes. Una colisión por email se informa como `skipped_existing_email`; nunca se fusionan automáticamente identidades.
 
+### Actualización de política de rol (2026-08-06)
+
+La tabla de mapeo anterior queda sustituida para `roles`: el importador ignora el valor Drupal y persiste siempre `user.role = "editor"`. No se eleva ningún `administrator` legacy a `admin`; los permisos administrativos se concederán mediante una revisión posterior explícita.
+
+### Corrección de política de rol (2026-08-06)
+
+La actualización anterior queda reemplazada por la decisión vigente: `roles = "administrator"` se persiste como `user.role = "admin"`; cualquier otro valor, incluido `-`, se persiste como `editor`. No hay otras elevaciones automáticas.
+
 ### Comando y rollback
 
 `import:legacy-users --source-file <usuarios.json> [--dry-run] [--limit <n>] [--report-dir <ruta>]` escribe `informe_usuarios-<runId>.json` (o `informe_usuarios-dryrun-<runId>.json`). Cada registro importado incorpora el `userId` exacto; el rollback manual debe usar esa lista, comprobar que conserva el prefijo `legacy-procomun:user:` y no tiene asociaciones antes de eliminarlo. No se ofrece borrado automático en esta fase.
