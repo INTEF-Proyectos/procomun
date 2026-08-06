@@ -234,6 +234,12 @@ export async function createResource(
 		}
 	}
 
+	// Dual-write: free-text keywords → atomized tags (ADR-0034 / #76)
+	if (data.keywords) {
+		const { syncTagsFromKeywords } = await import("./tags.ts");
+		await syncTagsFromKeywords(db, id, data.keywords);
+	}
+
 	return { id, slug };
 }
 
@@ -297,6 +303,12 @@ export async function updateResource(
 		.update(resources)
 		.set({ ...safe, updatedAt: new Date() })
 		.where(and(eq(resources.id, id), isNull(resources.deletedAt)));
+
+	// Dual-write keywords → tags when the free-text field is updated (#76)
+	if (typeof safe.keywords === "string") {
+		const { syncTagsFromKeywords } = await import("./tags.ts");
+		await syncTagsFromKeywords(db, id, safe.keywords);
+	}
 }
 
 export async function deleteResource(db: DrizzleDB, id: string) {

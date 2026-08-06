@@ -2103,3 +2103,15 @@ tasks:
       pull-requests: write además de issues: write. Se añade al workflow y se
       documenta en ADR-0033. Validación: el siguiente E2E verde de una PR debe
       publicar assets y dejar/actualizar el comentario marcado.
+
+  T-2026-08-06-08595480:
+    date: 2026-08-06
+    agent: "evaluacion-tecnologica + metadatos-y-curacion + backend-api-servicios + qa-validacion"
+    task: "feat(tags): atomized tagging system foundation (issue #76)"
+    status: Done
+    related: ["#76", "ADR-0034"]
+    notes: >
+      ADR-0034: dedicated tags + resource_tags (not taxonomies). Domain normalize
+      (slug, parse keywords, Levenshtein similar). Repository ensure/set/merge/
+      migrate dual-write keywords. Public API /api/v1/tags and admin merge/migrate.
+      Unit tests 40 pass. keywords kept deprecated transitional.
