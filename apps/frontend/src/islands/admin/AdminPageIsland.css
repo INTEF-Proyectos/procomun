@@ -776,6 +776,51 @@
 	color: var(--color-on-surface-variant);
 }
 
+/* Colecciones admin: densidad alineada con Recursos (#304) */
+.admin-collection-cell {
+	min-width: 0;
+	max-width: 16rem;
+}
+
+.admin-collection-title {
+	font-weight: 700;
+	color: var(--color-on-surface);
+	font-size: 0.875rem;
+	line-height: 1.25;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.admin-collection-meta {
+	font-size: 0.75rem;
+	color: var(--color-on-surface-variant);
+	line-height: 1.3;
+}
+
+.admin-collection-cell--clamp {
+	max-width: 12rem;
+}
+
+.admin-collection-ellipsis {
+	display: block;
+	font-size: 0.875rem;
+	line-height: 1.3;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+	max-width: 12rem;
+	color: var(--color-on-surface);
+}
+
+.admin-collection-cover {
+	display: inline-block;
+	max-width: 8rem;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
 .admin-author-cell {
 	display: flex;
 	align-items: center;
