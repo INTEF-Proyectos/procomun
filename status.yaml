@@ -1121,6 +1121,22 @@ tasks:
       (window.location.assign) hacia la URL sin `q`, alineándola con el submit GET del propio buscador y
       forzando que /explorar relea el estado correcto desde la URL. Validación: bun test de la unidad afectada
       OK (3 pass, 0 fail) y bun test completo OK (714 pass, 0 fail).
+  T-2026-06-23-007:
+    date: 2026-06-23
+    agent: "arquitectura-solucion + metadatos-y-curacion + busqueda-y-descubrimiento + documentacion-y-roadmap"
+    task: "Diseño de la épica de versionado de recursos (#31)"
+    status: Done
+    related: ["#31", "ADR-0032", "epic-005-versionado-recursos"]
+    notes: >
+      Fase de diseño de la épica (sin implementación). Se crea docs/epics/epic-005-versionado-recursos/
+      (requirements.md + design.md) y ADR-0032, que decide el modelo: snapshots inmutables en una tabla
+      resource_versions (append-only) + puntero resources.current_version_id a la versión vigente, versionando
+      archivos y metadatos juntos, almacenamiento de binarios por contenido (hash, con reutilización y GC),
+      rollback no destructivo (restaurar crea una versión vigente nueva) e indexación/feeds solo de la versión
+      vigente para no duplicar en búsqueda. Reutiliza RBAC (ADR-0008), jsonb (ADR-0025) y storage local
+      (ADR-0011). Alcance por fases F1 (modelo+historial), F2 (descarga+rollback), F3 (retención+búsqueda).
+      La implementación queda como features derivadas; el issue #31 NO se cierra con este PR (solo diseño):
+      se referencia con Refs.
   T-2026-06-23-004:
     date: 2026-06-23
     agent: "backend-api-servicios + qa-validacion + documentacion-y-roadmap"
@@ -1777,6 +1793,33 @@ tasks:
       Sin cambios de código productivo propios de esta PR documental. Validación: parseo YAML de
       status.yaml y decision-log.yaml; sin claves duplicadas; campos file: de ADR-0029 y ADR-0030
       apuntan a ficheros existentes.
+
+  T-2026-07-17-003:
+    date: 2026-07-17
+    agent: "documentacion-y-roadmap"
+    task: "Integración de origin/main en PR #236 (épica versionado) y renumeración ADR-0029→ADR-0032"
+    status: Done
+    related: ["#236", "#31", "ADR-0032", "ADR-0028", "ADR-0029"]
+    notes: >
+      Merge de origin/main en docs/epic-versionado-recursos. Conflicto en decision-log.yaml:
+      ADR-0029 en main es el importador legacy (aceptado, #268); la ADR de modelo de
+      versionado de esta PR se renumera a ADR-0032. ADR-0028 se mantiene como estudio de
+      alternativas (Propuesto). ADR-0030 queda reservado para modernización (#271) y
+      ADR-0031 para verificación de email (#235). Fichero 0029-versionado-recursos.md →
+      0032-versionado-recursos.md; referencias actualizadas en epic-005-versionado-recursos
+      y en T-2026-06-23-007. Se unen todos los T-* de main; no se borra historial.
+
+  T-2026-07-17-17104902:
+    date: 2026-07-17
+    agent: "documentacion-y-roadmap + arquitectura-solucion"
+    task: "Revisión PR #236: renumerar épica versionado a epic-005 y limpiar índice ADR"
+    status: Done
+    related: ["#236", "#31", "ADR-0032", "epic-005-versionado-recursos", "T-2026-07-17-003"]
+    notes: >
+      Colisión de carpeta/numeración con epic-004-migracion-legacy-procomun (ya en main).
+      Se renombra docs/epics/epic-004-versionado-recursos/ a epic-005-versionado-recursos/ y se
+      actualizan títulos (Épica 005), related en status y notas de ADR-0032. decision-log: ADR-0032
+      en orden numérico; reserva de ADR-0033 solo menciona ADR-0031 (#235). Sin cambios de código.
 
   T-2026-07-17-007:
     date: 2026-07-17
