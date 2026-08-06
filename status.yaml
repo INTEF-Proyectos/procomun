@@ -2104,6 +2104,17 @@ tasks:
       documenta en ADR-0033. Validación: el siguiente E2E verde de una PR debe
       publicar assets y dejar/actualizar el comentario marcado.
 
+  T-2026-08-06-08321910:
+    date: 2026-08-06
+    agent: "frontend-ux-accesibilidad + qa-validacion"
+    task: "fix(admin): compactar listado de colecciones al ancho disponible"
+    status: Done
+    related: ["#304"]
+    notes: >
+      Densidad tipográfica 14/12 px, truncado con elipsis y title accesible en
+      descripción/portada, acciones con icono + aria-label (patrón Recursos).
+      buildCollectionColumns exportado y cubierto por unit test. bun test OK.
+
   T-2026-08-06-09380245:
     date: 2026-08-06
     agent: "devops-sre + project-manager"
@@ -2116,3 +2127,16 @@ tasks:
       subió apps/api @tus/file-store de 2.1.0 a 2.1.1 sin actualizar bun.lock.
       Se regenera el lockfile (file-store 2.1.1 y @tus/utils 0.7.1). Validación local:
       bun install --frozen-lockfile OK.
+
+  T-2026-08-06-10043103:
+    date: 2026-08-06
+    agent: "project-manager + devops-sre"
+    task: "Revertir fusión accidental del PR #293 (work-in-progress)"
+    status: Done
+    related: ["#293"]
+    notes: >
+      El PR #293 (feature/secure-iframe-sandbox, etiqueta work-in-progress) se
+      fusionó en main por error. Se revierte el merge commit ff11253a (-m 1)
+      para sacar el código de main. Se reabre el trabajo en un PR nuevo sobre la
+      misma base de commits de la feature. Se conserva la entrada de #306
+      (colecciones admin) añadida después del merge.
