@@ -133,3 +133,34 @@ Tras persistir cada recurso con éxito, el comando llama a `updateSearchVector(d
 `ode-export/` no está versionado. Se copian fixtures reducidas y versionadas:
 - `packages/db/src/test-fixtures/legacy-procomun/*.json` — 3-4 ejemplos cubriendo ambas generaciones (nativos MEC `es_...` y legacy Agrega numéricos).
 - `apps/api/src/test-fixtures/elpx/*.elpx` — 2-3 `.elpx` pequeños del mismo origen, añadidos al directorio ya existente.
+
+## Ampliación — importador de usuarios legacy (2026-08-06)
+
+### Flujo
+
+```
+usuarios.json
+  └─ apps/cli/src/commands/import-legacy-users.ts
+       ├─ packages/db/src/legacy-import/users.ts       (validación y mapeo puro)
+       └─ packages/db/src/repository/legacy-users-import.ts
+            └─ user                                   (sin fila en account)
+```
+
+### Mapeo
+
+| Origen | Destino | Regla |
+|---|---|---|
+| `uid` | `user.id` | `legacy-procomun:user:<uid>`; estable para reejecuciones |
+| `mail` | `user.email` | trim y minúsculas; obligatorio y con validación básica |
+| `name` | `user.name` | trim; opcional |
+| `roles` = `administrator` | `user.role` | `admin` |
+| `roles` = `-` u otro | `user.role` | `author`; el valor no reconocido deja warning |
+| `status` | `user.is_active` | activo solo para `1`, `"1"` o `true` |
+| — | `user.email_verified` | `false`, para no asumir la vigencia del correo legacy |
+| `pass` | — | no se importa |
+
+`importLegacyUser()` comprueba primero el ID namespaced y después el email. La inserción usa `onConflictDoNothing()` y vuelve a consultar, de modo que una carrera entre dos procesos no crea duplicados ni sobrescribe cuentas existentes. Una colisión por email se informa como `skipped_existing_email`; nunca se fusionan automáticamente identidades.
+
+### Comando y rollback
+
+`import:legacy-users --source-file <usuarios.json> [--dry-run] [--limit <n>] [--report-dir <ruta>]` escribe `informe_usuarios-<runId>.json` (o `informe_usuarios-dryrun-<runId>.json`). Cada registro importado incorpora el `userId` exacto; el rollback manual debe usar esa lista, comprobar que conserva el prefijo `legacy-procomun:user:` y no tiene asociaciones antes de eliminarlo. No se ofrece borrado automático en esta fase.

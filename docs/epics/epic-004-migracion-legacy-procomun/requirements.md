@@ -47,3 +47,30 @@ Entregar un importador automático (CLI, idempotente, con dry-run) capaz de conv
 - El esquema de origen está inferido de 9 ejemplos reales, no de una especificación oficial completa; el volumen real puede contener variantes no vistas.
 - Se detectó y corrigió un bug real en `packages/db/src/elpx-metadata.ts` (claves `pp_license`/`pp_lang` no mapeadas) que impedía extraer `language`/`license` de prácticamente cualquier `.elpx` real — prerrequisito de esta épica, ver ADR-0029.
 - Decisiones de negocio pendientes con INTEF (alcance completo vs. selectivo, tratamiento de usuarios históricos, formatos legacy adicionales obligatorios) no bloquean esta iteración técnica pero sí la ejecución sobre volumen real.
+
+## Ampliación — importación inicial de usuarios (2026-08-06)
+
+### Problema, usuario y alcance
+
+El exportador legacy genera un único `usuarios.json`, cuya raíz es un array de usuarios Drupal. Esta ampliación permite al equipo de migración conservar las cuentas históricas mínimas antes de decidir cómo enlazarlas con recursos y autorías. El usuario principal es el operador de migración con acceso al CLI.
+
+Se implementa `import:legacy-users` para crear cuentas de `procomun-ng` desde ese archivo, con `--dry-run`, `--limit` e informe de lote. Esta entrega **no** asocia usuarios con recursos ni conserva campos de perfil ampliado, imágenes o redes sociales.
+
+### Requisitos funcionales
+
+- Leer un JSON cuyo nivel raíz sea un array y aislar el error de cada registro mal formado.
+- Importar `uid`, `name`, `mail`, `roles` y `status`; el resto de atributos permanece fuera del modelo inicial.
+- Reejecutar el mismo archivo sin crear duplicados: el ID destino es estable y namespaced por `uid` legacy; un correo ya existente tampoco se reemplaza.
+- Emitir un informe por ejecución con importados, omisiones por UID/correo y errores.
+
+### Seguridad, privacidad y autenticación
+
+- No se copia `pass`: los hashes Drupal observados no son compatibles ni se deben reutilizar como credenciales Better Auth.
+- Las cuentas importadas quedan sin cuenta `credential` y con `email_verified = false`; requerirán un flujo futuro de verificación/restablecimiento o un proveedor de identidad antes de iniciar sesión.
+- El rol `administrator` se traduce a `admin`; el marcador `-` y los roles no reconocidos se traducen a `author` (estos últimos generan warning).
+- `status` 1/`"1"`/`true` se traduce a cuenta activa; cualquier otro valor queda inactivo.
+
+### Riesgos abiertos
+
+- El formato se ha inferido de `exportados-usuarios/usuarios.json` (muestra de cuatro registros), no de una especificación contractual.
+- La equivalencia definitiva de roles Drupal y la asociación de autorías requieren decisión de INTEF en una iteración posterior.

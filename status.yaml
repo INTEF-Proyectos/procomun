@@ -2103,3 +2103,18 @@ tasks:
       pull-requests: write además de issues: write. Se añade al workflow y se
       documenta en ADR-0033. Validación: el siguiente E2E verde de una PR debe
       publicar assets y dejar/actualizar el comentario marcado.
+
+  T-2026-08-06-08190404:
+    date: 2026-08-06
+    agent: "ingestas-y-migraciones + backend-api-servicios + documentacion-y-roadmap"
+    task: "CLI idempotente para importar usuarios del exportador Procomún legacy"
+    status: Done
+    related: ["epic-004-migracion-legacy-procomun"]
+    notes: >
+      Se crea import:legacy-users para el array usuarios.json con dry-run, limit e informe.
+      Mapea uid a ID namespaced estable, email, nombre, estado y roles; no importa hashes
+      Drupal ni asociaciones con recursos. Administrator pasa a admin y los demás a author;
+      una colisión de correo se omite sin fusionar cuentas. Validación: 10 tests específicos
+      en verde y check-test-files OK. check-types bloqueado por 16 errores preexistentes bajo
+      local-data/uploads/elpx, no atribuibles a esta tarea. Pendiente piloto autorizado y
+      definir activación/restablecimiento de las cuentas importadas.

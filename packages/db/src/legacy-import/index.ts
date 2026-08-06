@@ -1,4 +1,6 @@
 export { mapLegacyRecord, resolveLegacyExternalId } from "./field-mapper.ts";
+export { mapLegacyUser } from "./users.ts";
+export type { LegacyUserJson, MappedLegacyUser } from "./users.ts";
 export type { LanguageNormalizationResult } from "./normalize-language.ts";
 export { normalizeLanguage } from "./normalize-language.ts";
 export type {

@@ -41,3 +41,13 @@ Los JSON/`.elpx` de `ode-export/` contienen datos personales reales (nombres y e
 ## Documentación
 - [x] Actualizar `docs/producto/roadmap.md` (fila "Migración desde Procomún").
 - [x] Actualizar `status.yaml` con la tarea de esta épica (`T-2026-07-10-001`).
+
+## Ampliación — importador de usuarios legacy (2026-08-06)
+- [x] Analizar el formato real `exportados-usuarios/usuarios.json` (array de objetos Drupal).
+- [x] Implementar el mapeo puro y validado de usuarios legacy, sin contraseñas ni asociaciones de recursos.
+- [x] Implementar persistencia idempotente por UID namespaced y omisión segura ante colisión de correo.
+- [x] Registrar `import:legacy-users` con `--source-file`, `--dry-run`, `--limit` e informe.
+- [x] Añadir pruebas unitarias del mapeo, persistencia, ejecución de lote y registro del CLI.
+- [x] Ejecutar pruebas automatizadas y comprobar la paridad archivo–test.
+- [x] Ejecutar `--dry-run --limit 4` sobre el JSON exportado facilitado, en PGlite e informe aislados en `/tmp`.
+- [ ] Ejecutar un piloto autorizado sobre un extracto representativo y definir el procedimiento de activación/restablecimiento de cuentas.
