@@ -1,10 +1,15 @@
 import { describe, expect, test } from "bun:test";
+import type { ReactElement, ReactNode } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import type { CollectionRecord } from "../../lib/api-client.ts";
 import {
 	buildCollectionColumns,
 	CollectionsCrudIsland,
 } from "./CollectionsCrudIsland.tsx";
+
+function renderCell(node: ReactNode): string {
+	return renderToStaticMarkup(node as ReactElement);
+}
 
 const sample: CollectionRecord = {
 	id: "col-1",
@@ -44,10 +49,10 @@ describe("CollectionsCrudIsland", () => {
 		});
 
 		const byId = Object.fromEntries(columns.map((c) => [c.id, c]));
-		const titleHtml = renderToStaticMarkup(<>{byId.title?.cell(sample)}</>);
-		const descHtml = renderToStaticMarkup(<>{byId.description?.cell(sample)}</>);
-		const coverHtml = renderToStaticMarkup(<>{byId.cover?.cell(sample)}</>);
-		const actionsHtml = renderToStaticMarkup(<>{byId.actions?.cell(sample)}</>);
+		const titleHtml = renderCell(byId.title?.cell(sample));
+		const descHtml = renderCell(byId.description?.cell(sample));
+		const coverHtml = renderCell(byId.cover?.cell(sample));
+		const actionsHtml = renderCell(byId.actions?.cell(sample));
 
 		expect(titleHtml).toContain("admin-collection-title");
 		expect(titleHtml).toContain("admin-collection-meta");
@@ -64,13 +69,17 @@ describe("CollectionsCrudIsland", () => {
 		expect(coverHtml).toContain(`title="${sample.coverImageUrl}"`);
 		expect(coverHtml).toMatch(/>Con portada</);
 
-		expect(actionsHtml).toContain('aria-label="Editar Coleccion de Matematicas"');
+		expect(actionsHtml).toContain(
+			'aria-label="Editar Coleccion de Matematicas"',
+		);
 		expect(actionsHtml).toContain(
 			'aria-label="Eliminar Coleccion de Matematicas"',
 		);
 		expect(actionsHtml).toContain("admin-action-btn--edit");
 		expect(actionsHtml).toContain("admin-action-btn--delete");
-		expect(byId.description?.className).toContain("admin-collection-cell--clamp");
+		expect(byId.description?.className).toContain(
+			"admin-collection-cell--clamp",
+		);
 		expect(byId.cover?.className).toContain("admin-collection-cell--clamp");
 	});
 });

@@ -154,7 +154,9 @@ export function buildCollectionColumns(
 			id: "updatedAt",
 			header: "Actualizado",
 			cell: (row) => (
-				<span className="admin-collection-meta">{formatDate(row.updatedAt)}</span>
+				<span className="admin-collection-meta">
+					{formatDate(row.updatedAt)}
+				</span>
 			),
 		},
 		{
