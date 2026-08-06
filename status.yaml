@@ -2103,3 +2103,14 @@ tasks:
       pull-requests: write además de issues: write. Se añade al workflow y se
       documenta en ADR-0033. Validación: el siguiente E2E verde de una PR debe
       publicar assets y dejar/actualizar el comentario marcado.
+
+  T-2026-08-06-08344240:
+    date: 2026-08-06
+    agent: "frontend-ux-accesibilidad + qa-validacion"
+    task: "fix(perfil): contador de favoritos al volver al perfil (DEF-005)"
+    status: Done
+    related: ["#202", "DEF-005"]
+    notes: >
+      Revalidación del dashboard al montar/SPA y al restaurar pestaña (pageshow/
+      visibilitychange). Sincroniza favoriteCount con el total de GET favorites
+      y withFavoriteCount en unfavorite. Unit tests OK.
