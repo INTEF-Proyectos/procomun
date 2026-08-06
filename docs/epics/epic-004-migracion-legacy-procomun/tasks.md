@@ -41,3 +41,10 @@ Los JSON/`.elpx` de `ode-export/` contienen datos personales reales (nombres y e
 ## Documentación
 - [x] Actualizar `docs/producto/roadmap.md` (fila "Migración desde Procomún").
 - [x] Actualizar `status.yaml` con la tarea de esta épica (`T-2026-07-10-001`).
+
+## Propuesta de perfil de usuarios legacy — 2026-08-06 (issue #312)
+
+- [x] Inventariar los grupos de campos presentes en `exportados-usuarios/usuarios.json` sin incorporar datos personales de ejemplo en la documentación.
+- [x] Proponer ADR-0034 con la clasificación de campos, modelo lógico, reglas de migración y exclusiones de privacidad.
+- [ ] Obtener la aceptación de ADR-0034 por Producto, Arquitectura, Metadatos y Seguridad/Privacidad.
+- [ ] Crear la feature de implementación (migración Drizzle, validadores, controles de visibilidad, CLI idempotente e informe sin PII) solo tras la aceptación.

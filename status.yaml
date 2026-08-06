@@ -2103,3 +2103,17 @@ tasks:
       pull-requests: write además de issues: write. Se añade al workflow y se
       documenta en ADR-0033. Validación: el siguiente E2E verde de una PR debe
       publicar assets y dejar/actualizar el comentario marcado.
+
+  T-2026-08-06-09443371:
+    date: 2026-08-06
+    agent: "empresa-y-producto + arquitectura-solucion + ingestas-y-migraciones + metadatos-y-curacion + seguridad-privacidad-legal + documentacion-y-roadmap"
+    task: "Proponer el modelo y la migración de perfiles de usuarios legacy (issue #312)"
+    status: Done
+    related: ["#312", "ADR-0034", "epic-004-migracion-legacy-procomun"]
+    notes: >
+      Se propone ADR-0034: perfil de dominio separado de Better Auth, campos de
+      identidad y contexto educativo clasificados por finalidad y visibilidad privada
+      por defecto. Se excluyen hash de contraseña, DNI, fecha de nacimiento y sexo.
+      No se implementa ni carga el perfil hasta aceptación conjunta de Producto,
+      Arquitectura, Metadatos y Seguridad/Privacidad; la migración de cuentas actual
+      mantiene su alcance mínimo.

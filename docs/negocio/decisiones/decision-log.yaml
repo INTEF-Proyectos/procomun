@@ -213,3 +213,15 @@ ADR-0033:
   file: 0033-capturas-visuales-pr-workflow-run.md
   notes: >
     ADR-0031 permanece reservada por el PR abierto #235 (verificación de email).
+
+ADR-0034:
+  title: "Modelo de perfil y migración de usuarios legacy"
+  status: Propuesto
+  date: 2026-08-06
+  file: 0034-modelo-migracion-perfil-usuarios-legacy.md
+  notes: >
+    Define un perfil de dominio separado de Better Auth y clasifica los campos del
+    exportador legacy por finalidad. La propuesta conserva identidad y contexto
+    educativo de utilidad potencial con visibilidad privada por defecto, y excluye
+    contraseñas, DNI, fecha de nacimiento y sexo. No autoriza implementar ni cargar
+    perfiles hasta revisión de Producto, Arquitectura, Metadatos y Privacidad.
