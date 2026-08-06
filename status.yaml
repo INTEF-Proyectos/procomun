@@ -2115,3 +2115,14 @@ tasks:
       (slug, parse keywords, Levenshtein similar). Repository ensure/set/merge/
       migrate dual-write keywords. Public API /api/v1/tags and admin merge/migrate.
       Unit tests 40 pass. keywords kept deprecated transitional.
+
+  T-2026-08-06-09163367:
+    date: 2026-08-06
+    agent: "frontend-ux-accesibilidad + backend-api-servicios + qa-validacion"
+    task: "feat(tags): admin panel, public /tags page, catalog facet (#310)"
+    status: Done
+    related: ["#310", "#76", "#308", "ADR-0034"]
+    notes: >
+      AdminTagsSection (list/edit/merge/migrate), section tags in sidebar,
+      TagResourcesIsland at /tags/:slug, catalog ?tag= facet + listResources tagSlug,
+      listing-history tag param. Tests + check-types 0 + biome error-free.

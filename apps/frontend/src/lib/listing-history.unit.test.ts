@@ -15,6 +15,7 @@ describe("listing history helpers", () => {
 				resourceType: "",
 				language: "",
 				license: "",
+				tag: "",
 			}),
 		).toBe("/?q=matematicas&page=3");
 	});
@@ -27,6 +28,7 @@ describe("listing history helpers", () => {
 				resourceType: "",
 				language: "",
 				license: "",
+				tag: "",
 			}),
 		).toBe("/?q=matematicas");
 	});
@@ -39,14 +41,17 @@ describe("listing history helpers", () => {
 				resourceType: "video",
 				language: "es",
 				license: "cc-by",
+				tag: "robotica",
 			}),
-		).toBe("/?q=scratch&page=2&resourceType=video&language=es&license=cc-by");
+		).toBe(
+			"/?q=scratch&page=2&resourceType=video&language=es&license=cc-by&tag=robotica",
+		);
 	});
 
 	test("reads listing state from URL params", () => {
 		expect(
 			readListingState(
-				"?q=scratch&page=3&resourceType=video&language=es&license=cc-by",
+				"?q=scratch&page=3&resourceType=video&language=es&license=cc-by&tag=ia",
 			),
 		).toEqual({
 			query: "scratch",
@@ -54,6 +59,7 @@ describe("listing history helpers", () => {
 			resourceType: "video",
 			language: "es",
 			license: "cc-by",
+			tag: "ia",
 		});
 	});
 

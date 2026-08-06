@@ -36,6 +36,12 @@ const NAV_ITEMS: NavItem[] = [
 		minRole: ROLE_LEVELS.curator,
 	},
 	{
+		id: "tags",
+		label: "Etiquetas",
+		icon: "sell",
+		minRole: ROLE_LEVELS.curator,
+	},
+	{
 		id: "reports",
 		label: "Denuncias",
 		icon: "flag",

@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import { PGlite } from "@electric-sql/pglite";
 import { drizzle } from "drizzle-orm/pglite";
 import type { DrizzleDB } from "../repository/shared.ts";
-import { createResource, ensureUser } from "../repository.ts";
+import { createResource, ensureUser, listResources } from "../repository.ts";
 import * as schema from "../schema/index.ts";
 import { createTables } from "../setup.ts";
 import {
@@ -206,5 +206,36 @@ describe("tags repository (issue #76)", () => {
 		await expect(
 			mergeTags(db, "00000000-0000-0000-0000-000000000000", target.id),
 		).rejects.toBeInstanceOf(TagNotFoundError);
+	});
+
+	test("listResources filters by tagSlug (#310)", async () => {
+		const tagged = await createResource(db, {
+			title: `Tagged for filter ${crypto.randomUUID()}`,
+			description: "desc",
+			language: "es",
+			license: "cc-by",
+			resourceType: "documento",
+			createdBy: userId,
+		});
+		const other = await createResource(db, {
+			title: `Other for filter ${crypto.randomUUID()}`,
+			description: "desc",
+			language: "es",
+			license: "cc-by",
+			resourceType: "documento",
+			createdBy: userId,
+		});
+		await setResourceTagsByLabels(db, tagged.id, ["FacetaTest"]);
+		await setResourceTagsByLabels(db, other.id, ["OtroTag"]);
+
+		const page = await listResources(db, {
+			tagSlug: "facetatest",
+			limit: 50,
+			offset: 0,
+		});
+		const ids = page.data.map((r) => r.id);
+		expect(ids).toContain(tagged.id);
+		expect(ids).not.toContain(other.id);
+		expect(page.total).toBeGreaterThanOrEqual(1);
 	});
 });
