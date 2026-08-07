@@ -23,6 +23,7 @@ publicRoutes.get("/resources", async (c) => {
 	const resourceType = c.req.query("resourceType") ?? undefined;
 	const language = c.req.query("language") ?? undefined;
 	const license = c.req.query("license") ?? undefined;
+	const tag = c.req.query("tag") ?? undefined;
 	return c.json(
 		await listPublishedResources({
 			limit,
@@ -31,6 +32,7 @@ publicRoutes.get("/resources", async (c) => {
 			resourceType,
 			language,
 			license,
+			tag,
 		}),
 	);
 });

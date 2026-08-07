@@ -15,6 +15,7 @@ import type {
 	ResourceListResult,
 	SessionData,
 	SignInResult,
+	TagRecord,
 	TaxonomyRecord,
 	UpdateResourceInput,
 	UploadConfig,
@@ -34,6 +35,7 @@ export class HttpApiClient implements ApiClient {
 		resourceType?: string;
 		language?: string;
 		license?: string;
+		tag?: string;
 	}): Promise<ResourceListResult> {
 		const params = new URLSearchParams();
 		if (opts?.q) params.set("q", opts.q);
@@ -42,8 +44,53 @@ export class HttpApiClient implements ApiClient {
 		if (opts?.resourceType) params.set("resourceType", opts.resourceType);
 		if (opts?.language) params.set("language", opts.language);
 		if (opts?.license) params.set("license", opts.license);
+		if (opts?.tag) params.set("tag", opts.tag);
 		const qs = params.toString();
 		const res = await fetch(`/api/v1/resources${qs ? `?${qs}` : ""}`);
+		return res.json();
+	}
+
+	async listPublicTags(opts?: {
+		q?: string;
+		limit?: number;
+		offset?: number;
+	}): Promise<PaginatedResult<TagRecord>> {
+		const params = new URLSearchParams();
+		if (opts?.q) params.set("q", opts.q);
+		if (opts?.limit) params.set("limit", String(opts.limit));
+		if (opts?.offset) params.set("offset", String(opts.offset));
+		const qs = params.toString();
+		const res = await fetch(`/api/v1/tags${qs ? `?${qs}` : ""}`);
+		return res.json();
+	}
+
+	async listPopularTags(limit = 20): Promise<TagRecord[]> {
+		const res = await fetch(`/api/v1/tags/popular?limit=${limit}`);
+		const body = await res.json();
+		return Array.isArray(body.data) ? body.data : [];
+	}
+
+	async getPublicTagBySlug(slug: string): Promise<TagRecord | null> {
+		const res = await fetch(`/api/v1/tags/${encodeURIComponent(slug)}`);
+		if (!res.ok) return null;
+		return res.json();
+	}
+
+	async listPublicTagResources(
+		slug: string,
+		opts?: { limit?: number; offset?: number },
+	): Promise<PaginatedResult<Resource> & { tag: TagRecord }> {
+		const params = new URLSearchParams();
+		if (opts?.limit) params.set("limit", String(opts.limit));
+		if (opts?.offset) params.set("offset", String(opts.offset));
+		const qs = params.toString();
+		const res = await fetch(
+			`/api/v1/tags/${encodeURIComponent(slug)}/resources${qs ? `?${qs}` : ""}`,
+		);
+		if (!res.ok) {
+			const err = await res.json().catch(() => ({}));
+			throw err;
+		}
 		return res.json();
 	}
 
@@ -642,6 +689,95 @@ export class HttpApiClient implements ApiClient {
 			method: "DELETE",
 			credentials: "include",
 		});
+	}
+
+	async listAdminTags(opts?: {
+		q?: string;
+		limit?: number;
+		offset?: number;
+	}): Promise<PaginatedResult<TagRecord>> {
+		const params = new URLSearchParams();
+		if (opts?.q) params.set("q", opts.q);
+		if (opts?.limit) params.set("limit", String(opts.limit));
+		if (opts?.offset) params.set("offset", String(opts.offset));
+		const qs = params.toString();
+		const res = await fetch(`/api/admin/tags${qs ? `?${qs}` : ""}`, {
+			credentials: "include",
+		});
+		return res.json();
+	}
+
+	async updateAdminTag(
+		id: string,
+		data: { label?: string; description?: string | null },
+	): Promise<TagRecord> {
+		const res = await fetch(`/api/admin/tags/${id}`, {
+			method: "PATCH",
+			headers: { "Content-Type": "application/json" },
+			credentials: "include",
+			body: JSON.stringify(data),
+		});
+		if (!res.ok) {
+			const err = await res.json().catch(() => ({}));
+			throw err;
+		}
+		return res.json();
+	}
+
+	async deleteAdminTag(id: string, reassignTo?: string): Promise<void> {
+		const qs = reassignTo
+			? `?reassignTo=${encodeURIComponent(reassignTo)}`
+			: "";
+		const res = await fetch(`/api/admin/tags/${id}${qs}`, {
+			method: "DELETE",
+			credentials: "include",
+		});
+		if (!res.ok) {
+			const err = await res.json().catch(() => ({}));
+			throw err;
+		}
+	}
+
+	async mergeAdminTags(
+		sourceId: string,
+		targetId: string,
+	): Promise<{ target: TagRecord; reassigned: number }> {
+		const res = await fetch("/api/admin/tags/merge", {
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			credentials: "include",
+			body: JSON.stringify({ sourceId, targetId }),
+		});
+		if (!res.ok) {
+			const err = await res.json().catch(() => ({}));
+			throw err;
+		}
+		return res.json();
+	}
+
+	async migrateKeywordsToTags(): Promise<{
+		resourcesProcessed: number;
+		tagsCreated: number;
+		linksCreated: number;
+	}> {
+		const res = await fetch("/api/admin/tags/migrate-keywords", {
+			method: "POST",
+			credentials: "include",
+		});
+		if (!res.ok) {
+			const err = await res.json().catch(() => ({}));
+			throw err;
+		}
+		return res.json();
+	}
+
+	async listSimilarAdminTags(id: string): Promise<TagRecord[]> {
+		const res = await fetch(`/api/admin/tags/${id}/similar`, {
+			credentials: "include",
+		});
+		if (!res.ok) return [];
+		const body = await res.json();
+		return Array.isArray(body.data) ? body.data : [];
 	}
 
 	// --- Social ---
