@@ -2166,6 +2166,17 @@ tasks:
       misma base de commits de la feature. Se conserva la entrada de #306
       (colecciones admin) añadida después del merge.
 
+  T-2026-08-06-08344240:
+    date: 2026-08-06
+    agent: "frontend-ux-accesibilidad + qa-validacion"
+    task: "fix(perfil): contador de favoritos al volver al perfil (DEF-005)"
+    status: Done
+    related: ["#202", "DEF-005"]
+    notes: >
+      Revalidación del dashboard al montar/SPA y al restaurar pestaña (pageshow/
+      visibilitychange). Sincroniza favoriteCount con el total de GET favorites
+      y withFavoriteCount en unfavorite. Unit tests OK.
+
   T-2026-08-06-08595480:
     date: 2026-08-06
     agent: "evaluacion-tecnologica + metadatos-y-curacion + backend-api-servicios + qa-validacion"
@@ -2188,3 +2199,13 @@ tasks:
       AdminTagsSection (list/edit/merge/migrate), section tags in sidebar,
       TagResourcesIsland at /tags/:slug, catalog ?tag= facet + listResources tagSlug,
       listing-history tag param. Tests + check-types 0 + biome error-free.
+
+  T-2026-08-07-08110110:
+    date: 2026-08-07
+    agent: "frontend-ux-accesibilidad + qa-validacion"
+    task: "Resolver el conflicto de merge del PR #307"
+    status: Done
+    related: ["#307", "DEF-005"]
+    notes: >
+      Se integra main conservando la entrada de trazabilidad del fix de favoritos y las
+      entradas de etiquetado añadidas en la rama base. La prueba del dashboard pasa.
