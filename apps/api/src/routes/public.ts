@@ -12,6 +12,7 @@ import {
 	listPublishedCollections,
 	listPublishedResources,
 } from "../public/service.ts";
+import { getRelatedResourcesBySlug } from "../recommendations/service.ts";
 import { contentDisposition } from "../uploads/config.ts";
 import { readUploadContent } from "./uploads.ts";
 
@@ -22,6 +23,7 @@ publicRoutes.get("/resources", async (c) => {
 	const resourceType = c.req.query("resourceType") ?? undefined;
 	const language = c.req.query("language") ?? undefined;
 	const license = c.req.query("license") ?? undefined;
+	const tag = c.req.query("tag") ?? undefined;
 	return c.json(
 		await listPublishedResources({
 			limit,
@@ -30,8 +32,36 @@ publicRoutes.get("/resources", async (c) => {
 			resourceType,
 			language,
 			license,
+			tag,
 		}),
 	);
+});
+
+// More specific than /resources/:slug — related recommendations (ADR-0036 / #72).
+publicRoutes.get("/resources/:slug/related", async (c) => {
+	const slug = c.req.param("slug");
+	if (!slug) return c.json({ error: "Falta slug" }, 400);
+
+	const resource = await repo.getResourceBySlug(getDb().db, slug);
+	if (!resource) {
+		return c.json({ error: "Recurso no encontrado" }, 404);
+	}
+
+	const currentUser = await getSessionUser(c);
+	if (!canViewResource(currentUser, resource)) {
+		return c.json({ error: "Recurso no encontrado" }, 404);
+	}
+
+	const related = await getRelatedResourcesBySlug(
+		getDb().db,
+		slug,
+		c.req.query("limit"),
+	);
+	if (!related) {
+		return c.json({ error: "Recurso no encontrado" }, 404);
+	}
+
+	return c.json(related);
 });
 
 publicRoutes.get("/resources/:slug", async (c) => {

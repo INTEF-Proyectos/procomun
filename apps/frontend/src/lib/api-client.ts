@@ -39,6 +39,36 @@ export interface ResourceListResult {
 	offset: number;
 }
 
+/** Compact card used by related / same-author recommendation strips (ADR-0036). */
+export interface RelatedResource {
+	id: string;
+	slug: string;
+	title: string;
+	description: string;
+	resourceType: string;
+	language: string;
+	license: string;
+	author: string | null;
+	editorialStatus?: string;
+	score: number;
+	signals?: {
+		sharedSubjects: number;
+		sharedLevels: number;
+		sameResourceType: boolean;
+		sameLanguage: boolean;
+		sharedKeywords: number;
+		sameAuthor: boolean;
+		collectionCooccurrence: number;
+		ftsRank: number;
+	};
+}
+
+export interface RelatedResourcesResult {
+	data: RelatedResource[];
+	sameAuthor: RelatedResource[];
+	limit: number;
+}
+
 export interface UserRecord {
 	id: string;
 	email: string;
@@ -90,6 +120,18 @@ export interface TaxonomyRecord {
 	name: string;
 	type: string;
 	parentId?: string | null;
+	createdAt?: string | number | Date | null;
+	updatedAt?: string | number | Date | null;
+}
+
+/** Atomized educational tag (ADR-0034 / #76 / #310). */
+export interface TagRecord {
+	id: string;
+	slug: string;
+	label: string;
+	description: string | null;
+	usageCount: number;
+	canonicalTagId: string | null;
 	createdAt?: string | number | Date | null;
 	updatedAt?: string | number | Date | null;
 }
@@ -260,8 +302,24 @@ export interface ApiClient {
 		resourceType?: string;
 		language?: string;
 		license?: string;
+		tag?: string;
 	}): Promise<ResourceListResult>;
 	getResourceBySlug(slug: string): Promise<Resource | null>;
+	getRelatedResources(
+		slug: string,
+		opts?: { limit?: number },
+	): Promise<RelatedResourcesResult>;
+	listPublicTags(opts?: {
+		q?: string;
+		limit?: number;
+		offset?: number;
+	}): Promise<PaginatedResult<TagRecord>>;
+	listPopularTags(limit?: number): Promise<TagRecord[]>;
+	getPublicTagBySlug(slug: string): Promise<TagRecord | null>;
+	listPublicTagResources(
+		slug: string,
+		opts?: { limit?: number; offset?: number },
+	): Promise<PaginatedResult<Resource> & { tag: TagRecord }>;
 	listPublicCollections(opts?: {
 		q?: string;
 		limit?: number;
@@ -418,6 +476,28 @@ export interface ApiClient {
 		details?: { field: string; message: string }[];
 	}>;
 	deleteTaxonomy(id: string): Promise<void>;
+
+	// Tags admin (#76 / #310)
+	listAdminTags(opts?: {
+		q?: string;
+		limit?: number;
+		offset?: number;
+	}): Promise<PaginatedResult<TagRecord>>;
+	updateAdminTag(
+		id: string,
+		data: { label?: string; description?: string | null },
+	): Promise<TagRecord>;
+	deleteAdminTag(id: string, reassignTo?: string): Promise<void>;
+	mergeAdminTags(
+		sourceId: string,
+		targetId: string,
+	): Promise<{ target: TagRecord; reassigned: number }>;
+	migrateKeywordsToTags(): Promise<{
+		resourcesProcessed: number;
+		tagsCreated: number;
+		linksCreated: number;
+	}>;
+	listSimilarAdminTags(id: string): Promise<TagRecord[]>;
 
 	// Social
 	getResourceRatings(slug: string): Promise<{

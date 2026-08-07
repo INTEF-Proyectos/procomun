@@ -145,6 +145,23 @@ export const SCHEMA_STATEMENTS = [
 		resource_id TEXT NOT NULL REFERENCES "resources"(id) ON DELETE CASCADE,
 		level VARCHAR(100) NOT NULL
 	)`,
+	// Atomized tags (ADR-0034 / issue #76)
+	`CREATE TABLE IF NOT EXISTS "tags" (
+		id TEXT PRIMARY KEY,
+		slug VARCHAR(255) NOT NULL UNIQUE,
+		label TEXT NOT NULL,
+		description TEXT,
+		usage_count INTEGER NOT NULL DEFAULT 0,
+		canonical_tag_id TEXT REFERENCES tags(id) ON DELETE SET NULL,
+		created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+		updated_at TIMESTAMP NOT NULL DEFAULT NOW()
+	)`,
+	`CREATE TABLE IF NOT EXISTS "resource_tags" (
+		resource_id TEXT NOT NULL REFERENCES "resources"(id) ON DELETE CASCADE,
+		tag_id TEXT NOT NULL REFERENCES tags(id) ON DELETE CASCADE,
+		created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+		PRIMARY KEY (resource_id, tag_id)
+	)`,
 	`CREATE TABLE IF NOT EXISTS "collections" (
 		id TEXT PRIMARY KEY,
 		slug VARCHAR(512) NOT NULL UNIQUE,
@@ -222,6 +239,10 @@ export const SCHEMA_STATEMENTS = [
 	`CREATE INDEX IF NOT EXISTS idx_elpx_projects_hash ON elpx_projects(hash)`,
 	`CREATE INDEX IF NOT EXISTS idx_elpx_projects_resource_id ON elpx_projects(resource_id)`,
 	`CREATE INDEX IF NOT EXISTS idx_taxonomies_type ON taxonomies(type)`,
+	`CREATE INDEX IF NOT EXISTS tags_label_idx ON tags(label)`,
+	`CREATE INDEX IF NOT EXISTS tags_usage_count_idx ON tags(usage_count)`,
+	`CREATE INDEX IF NOT EXISTS tags_canonical_tag_id_idx ON tags(canonical_tag_id)`,
+	`CREATE INDEX IF NOT EXISTS resource_tags_tag_id_idx ON resource_tags(tag_id)`,
 	`CREATE TABLE IF NOT EXISTS "api_tokens" (
 		id TEXT PRIMARY KEY,
 		user_id TEXT NOT NULL REFERENCES "user"(id) ON DELETE CASCADE,
