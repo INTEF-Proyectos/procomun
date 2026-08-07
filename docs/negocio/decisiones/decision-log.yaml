@@ -215,10 +215,11 @@ ADR-0033:
     ADR-0031 permanece reservada por el PR abierto #235 (verificación de email).
 
 ADR-0034:
-  title: "Topología del preview HTTP y cableado del editor embebido"
+  title: "Sistema de etiquetado atomizado (tags)"
   status: Aceptado
-  date: 2026-07-11
-  file: 0034-topologia-store-preview-http.md
+  date: 2026-08-06
+  file: 0034-sistema-etiquetado-atomizado.md
+  related: ["#76", "ADR-0009"]
 
 ADR-0035:
   title: "Previsualización opaca por snapshot completo en lugar del protocolo v2"
@@ -226,7 +227,23 @@ ADR-0035:
   date: 2026-07-25
   file: 0035-preview-snapshot-en-lugar-de-protocolo-v2.md
   notes: >
-    Enmienda los puntos 1 y 10 de ADR-0034. El editor dejó de hablar el protocolo
+    Enmienda los puntos 1 y 10 de ADR-0037. El editor dejó de hablar el protocolo
     v2 (un bundle actual no referencia previewHttp ni protocolVersion), por lo que
     la previsualización opaca era inalcanzable: se inyectaba un contrato que nadie
     leía y se omitía el que sí se lee.
+
+ADR-0036:
+  title: "Sistema de recomendación de recursos relacionados (multi-señal en PostgreSQL)"
+  status: Aceptado
+  date: 2026-08-06
+  file: 0036-sistema-recomendacion-recursos-relacionados.md
+  notes: >
+    Issue #72. Content-based híbrido: metadatos, keywords, autor, colecciones y FTS.
+    Collaborative filtering (fase 3) diferido. ADR-0034 corresponde al sistema de tags;
+    ADR-0035 permanece reservada para el trabajo de preview.
+
+ADR-0037:
+  title: "Topología del preview HTTP y cableado del editor embebido"
+  status: Aceptado
+  date: 2026-07-11
+  file: 0037-topologia-store-preview-http.md
