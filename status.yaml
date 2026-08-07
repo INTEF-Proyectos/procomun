@@ -2184,3 +2184,105 @@ tasks:
       manejar. Validación: bun test apps/api/src/app/frontend.unit.test.ts (8 pass);
       regresiones verificadas en rojo antes del arreglo. check-types 0 errores,
       biome y check-test-files OK.
+
+  T-2026-08-06-09120735:
+    date: 2026-08-06
+    agent: "evaluacion-tecnologica + busqueda-y-descubrimiento + backend-api-servicios + frontend-ux-accesibilidad"
+    task: "Sistema de recomendación de recursos relacionados (issue #72)"
+    status: Done
+    related: ["#72", "ADR-0036", "ADR-0005", "ADR-0009", "ADR-0026"]
+    notes: >
+      ADR-0036: content-based multi-señal en PostgreSQL (metadatos, keywords,
+      autor, co-ocurrencia en colecciones, FTS ts_rank). Endpoint
+      GET /api/v1/resources/:slug/related; UI en ficha con ResourceCard;
+      collaborative filtering diferido. Tests unitarios de score y servicio
+      con asserts numéricos de ranking. Fase 3 (recomendados para ti) fuera
+      de alcance.
+
+  T-2026-08-06-08301697:
+    date: 2026-08-06
+    agent: "frontend-ux-accesibilidad + qa-validacion"
+    task: "fix(admin): incluir recursos archivados en estadísticas y filtros"
+    status: Done
+    related: ["#303"]
+    notes: >
+      Añade tarjeta Archivados (listAdminResources status=archived), filtro de
+      estado Archivado y estilos compactos. Prueba unitaria del shell y de
+      ADMIN_RESOURCE_STATUS_FILTERS. bun test AdminResourcesSection.unit.test.tsx OK.
+
+  T-2026-08-06-08344240:
+    date: 2026-08-06
+    agent: "frontend-ux-accesibilidad + qa-validacion"
+    task: "fix(perfil): contador de favoritos al volver al perfil (DEF-005)"
+    status: Done
+    related: ["#202", "DEF-005"]
+    notes: >
+      Revalidación del dashboard al montar/SPA y al restaurar pestaña (pageshow/
+      visibilitychange). Sincroniza favoriteCount con el total de GET favorites
+      y withFavoriteCount en unfavorite. Unit tests OK.
+
+  T-2026-08-06-08595480:
+    date: 2026-08-06
+    agent: "evaluacion-tecnologica + metadatos-y-curacion + backend-api-servicios + qa-validacion"
+    task: "feat(tags): atomized tagging system foundation (issue #76)"
+    status: Done
+    related: ["#76", "ADR-0034"]
+    notes: >
+      ADR-0034: dedicated tags + resource_tags (not taxonomies). Domain normalize
+      (slug, parse keywords, Levenshtein similar). Repository ensure/set/merge/
+      migrate dual-write keywords. Public API /api/v1/tags and admin merge/migrate.
+      Unit tests 40 pass. keywords kept deprecated transitional.
+
+  T-2026-08-06-09163367:
+    date: 2026-08-06
+    agent: "frontend-ux-accesibilidad + backend-api-servicios + qa-validacion"
+    task: "feat(tags): admin panel, public /tags page, catalog facet (#310)"
+    status: Done
+    related: ["#310", "#76", "#308", "ADR-0034"]
+    notes: >
+      AdminTagsSection (list/edit/merge/migrate), section tags in sidebar,
+      TagResourcesIsland at /tags/:slug, catalog ?tag= facet + listResources tagSlug,
+      listing-history tag param. Tests + check-types 0 + biome error-free.
+
+  T-2026-08-07-08110110:
+    date: 2026-08-07
+    agent: "frontend-ux-accesibilidad + qa-validacion"
+    task: "Resolver el conflicto de merge del PR #307"
+    status: Done
+    related: ["#307", "DEF-005"]
+    notes: >
+      Se integra main conservando la entrada de trazabilidad del fix de favoritos y las
+      entradas de etiquetado añadidas en la rama base. La prueba del dashboard pasa.
+
+  T-2026-08-07-08172187:
+    date: 2026-08-07
+    agent: "frontend-ux-accesibilidad + qa-validacion"
+    task: "Resolver el conflicto de merge del PR #305"
+    status: Done
+    related: ["#305", "#303"]
+    notes: >
+      Se integra main sin perder la trazabilidad de estadísticas y filtro de recursos
+      archivados, ni las entradas recientes de la rama base. La prueba del componente
+      administrativo pasa.
+
+  T-2026-08-07-08235507:
+    date: 2026-08-07
+    agent: "busqueda-y-descubrimiento + frontend-ux-accesibilidad + qa-validacion"
+    task: "Resolver los conflictos de merge del PR #313"
+    status: Done
+    related: ["#313", "#72", "ADR-0036"]
+    notes: >
+      Se integra main conservando el contrato de recomendaciones y las operaciones públicas
+      de tags. El registro de decisiones incluye ADR-0034 y ADR-0036 sin reservar un número
+      ya utilizado. Las pruebas de ranking/API y el typecheck pasan.
+
+  T-2026-08-07-08362103:
+    date: 2026-08-07
+    agent: "seguridad-privacidad-legal + backend-api-servicios + qa-validacion"
+    task: "Resolver el conflicto de merge del PR #257"
+    status: Done
+    related: ["#257", "#251"]
+    notes: >
+      Se integra main conservando las guardas que bloquean el dashboard interno fuera de
+      desarrollo. La prueba de serving del frontend cubre rutas /dev codificadas, variantes
+      de mayúsculas y bytes nulos.

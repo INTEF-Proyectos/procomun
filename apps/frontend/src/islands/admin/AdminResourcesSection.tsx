@@ -14,12 +14,14 @@ const STATUS_MAP: Record<string, { label: string; className: string }> = {
 	archived: { label: "Archivado", className: "status-archived" },
 };
 
-const STATUS_FILTERS = [
+/** Filtros de estado del listado admin (incluye archivados, #303). */
+export const ADMIN_RESOURCE_STATUS_FILTERS = [
 	{ value: "", label: "Todos" },
 	{ value: "published", label: "Publicado" },
 	{ value: "review", label: "En Revision" },
 	{ value: "draft", label: "Borrador" },
-];
+	{ value: "archived", label: "Archivado" },
+] as const;
 
 function formatDate(d: Resource["updatedAt"]): string {
 	if (!d) return "-";
@@ -80,20 +82,23 @@ export function AdminResourcesSection() {
 	const [statPublished, setStatPublished] = useState(0);
 	const [statReview, setStatReview] = useState(0);
 	const [statDraft, setStatDraft] = useState(0);
+	const [statArchived, setStatArchived] = useState(0);
 
 	const loadStats = useCallback(async () => {
 		try {
 			const api = await getApiClient();
-			const [all, pub, rev, dra] = await Promise.all([
+			const [all, pub, rev, dra, arch] = await Promise.all([
 				api.listAdminResources({ limit: 1, offset: 0 }),
 				api.listAdminResources({ limit: 1, offset: 0, status: "published" }),
 				api.listAdminResources({ limit: 1, offset: 0, status: "review" }),
 				api.listAdminResources({ limit: 1, offset: 0, status: "draft" }),
+				api.listAdminResources({ limit: 1, offset: 0, status: "archived" }),
 			]);
 			setStatTotal(all.total);
 			setStatPublished(pub.total);
 			setStatReview(rev.total);
 			setStatDraft(dra.total);
+			setStatArchived(arch.total);
 		} catch {
 			/* keep zeros */
 		}
@@ -347,6 +352,21 @@ export function AdminResourcesSection() {
 						Sin finalizar
 					</div>
 				</div>
+
+				<div className="admin-stat-card">
+					<div className="admin-stat-card-top">
+						<div className="admin-stat-icon admin-stat-icon--archived">
+							<span className="material-symbols-outlined">inventory_2</span>
+						</div>
+						<span className="admin-stat-label">Archivados</span>
+					</div>
+					<div className="admin-stat-value">
+						{statArchived.toLocaleString("es-ES")}
+					</div>
+					<div className="admin-stat-subtitle admin-stat-subtitle--muted">
+						Retirados del catalogo
+					</div>
+				</div>
 			</div>
 
 			{/* Filter bar */}
@@ -379,7 +399,7 @@ export function AdminResourcesSection() {
 					<div className="admin-status-pills">
 						<span className="admin-filter-label">Estado del Recurso</span>
 						<div className="admin-status-pills-inner">
-							{STATUS_FILTERS.map((f) => (
+							{ADMIN_RESOURCE_STATUS_FILTERS.map((f) => (
 								<button
 									key={f.value}
 									type="button"

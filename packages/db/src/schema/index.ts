@@ -6,5 +6,6 @@ export * from "./reports.ts";
 export * from "./resources.ts";
 export * from "./settings.ts";
 export * from "./social.ts";
+export * from "./tags.ts";
 export * from "./taxonomies.ts";
 export * from "./uploads.ts";

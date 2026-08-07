@@ -9,6 +9,7 @@ import { AdminDashboardSection } from "./AdminDashboardSection.tsx";
 import { AdminReportsSection } from "./AdminReportsSection.tsx";
 import { AdminResourcesSection } from "./AdminResourcesSection.tsx";
 import { AdminSidebar } from "./AdminSidebar.tsx";
+import { AdminTagsSection } from "./AdminTagsSection.tsx";
 import { AdminUsersSection } from "./AdminUsersSection.tsx";
 import { resolveAdminSection, SECTION_MIN_ROLE } from "./admin-sections.ts";
 import "./AdminPageIsland.css";
@@ -18,6 +19,7 @@ export type AdminSection =
 	| "resources"
 	| "collections"
 	| "categories"
+	| "tags"
 	| "reports"
 	| "users"
 	| "api-tokens";
@@ -83,6 +85,7 @@ export function AdminPageIsland() {
 	const userLevel = roleLevelOf(userRole);
 	const canManageCollections = userLevel >= ROLE_LEVELS.curator;
 	const canManageCategories = userLevel >= ROLE_LEVELS.curator;
+	const canManageTags = userLevel >= ROLE_LEVELS.curator;
 
 	return (
 		<div className="admin-shell">
@@ -107,6 +110,7 @@ export function AdminPageIsland() {
 				{section === "categories" && canManageCategories && (
 					<AdminCategoriesSection />
 				)}
+				{section === "tags" && canManageTags && <AdminTagsSection />}
 				{section === "reports" && userLevel >= ROLE_LEVELS.curator && (
 					<AdminReportsSection />
 				)}
