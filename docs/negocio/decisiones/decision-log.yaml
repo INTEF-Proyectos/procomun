@@ -213,3 +213,10 @@ ADR-0033:
   file: 0033-capturas-visuales-pr-workflow-run.md
   notes: >
     ADR-0031 permanece reservada por el PR abierto #235 (verificación de email).
+
+ADR-0034:
+  title: "Sistema de etiquetado atomizado (tags)"
+  status: Aceptado
+  date: 2026-08-06
+  file: 0034-sistema-etiquetado-atomizado.md
+  related: ["#76", "ADR-0009"]

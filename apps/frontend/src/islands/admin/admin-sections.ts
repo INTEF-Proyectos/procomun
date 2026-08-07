@@ -7,6 +7,7 @@ export const SECTION_MIN_ROLE: Record<AdminSection, number> = {
 	resources: ROLE_LEVELS.curator,
 	collections: ROLE_LEVELS.curator,
 	categories: ROLE_LEVELS.curator,
+	tags: ROLE_LEVELS.curator,
 	reports: ROLE_LEVELS.curator,
 	users: ROLE_LEVELS.admin,
 	"api-tokens": ROLE_LEVELS.admin,
