@@ -10,6 +10,7 @@ import { exelearningEditorRoutes } from "../routes/exelearning-editor.ts";
 import { feedRoutes } from "../routes/feeds.ts";
 import { publicRoutes } from "../routes/public.ts";
 import { socialRoutes } from "../routes/social.ts";
+import { tagRoutes } from "../routes/tags.ts";
 import { uploadRoutes } from "../routes/uploads.ts";
 
 export function registerRoutes(app: Hono<AuthEnv>) {
@@ -24,6 +25,7 @@ export function registerRoutes(app: Hono<AuthEnv>) {
 	);
 
 	app.route("/api/v1", publicRoutes);
+	app.route("/api/v1/tags", tagRoutes);
 	app.route("/api/v1", socialRoutes);
 	app.route("/api/v1/elpx", elpxContentRoutes);
 	app.route("/api/v1/exelearning-editor", exelearningEditorRoutes);

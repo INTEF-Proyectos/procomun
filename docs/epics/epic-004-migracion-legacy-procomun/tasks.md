@@ -45,6 +45,6 @@ Los JSON/`.elpx` de `ode-export/` contienen datos personales reales (nombres y e
 ## Propuesta de perfil de usuarios legacy — 2026-08-06 (issue #312)
 
 - [x] Inventariar los grupos de campos presentes en `exportados-usuarios/usuarios.json` sin incorporar datos personales de ejemplo en la documentación.
-- [x] Proponer ADR-0034 con la clasificación de campos, modelo lógico, reglas de migración y exclusiones de privacidad.
-- [ ] Obtener la aceptación de ADR-0034 por Producto, Arquitectura, Metadatos y Seguridad/Privacidad.
+- [x] Proponer ADR-0037 con la clasificación de campos, modelo lógico, reglas de migración y exclusiones de privacidad.
+- [ ] Obtener la aceptación de ADR-0037 por Producto, Arquitectura, Metadatos y Seguridad/Privacidad.
 - [ ] Crear la feature de implementación (migración Drizzle, validadores, controles de visibilidad, CLI idempotente e informe sin PII) solo tras la aceptación.

@@ -1,4 +1,4 @@
-# ADR-0034 Modelo de perfil y migración de usuarios legacy
+# ADR-0037 Modelo de perfil y migración de usuarios legacy
 
 * Estado: Propuesto
 * Fecha: 2026-08-06

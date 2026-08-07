@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import type { Resource } from "../../lib/api-client.ts";
 import { getApiClient } from "../../lib/get-api-client.ts";
 import { url } from "../../lib/paths.ts";
@@ -22,6 +22,22 @@ import { ApiKeysTab } from "./ApiKeysTab.tsx";
 import "./PublicDashboardIsland.css";
 import "../../lib/paraglide-client.ts";
 import * as m from "../../paraglide/messages.js";
+
+/**
+ * Actualiza el contador de favoritos del resumen (cabecera + pestaña).
+ * Usado al recargar dashboard, al listar favoritos y al quitar uno (DEF-005 / #202).
+ */
+export function withFavoriteCount(
+	dashboard: DashboardSummary,
+	favoriteCount: number,
+): DashboardSummary {
+	const next = Math.max(0, favoriteCount);
+	return {
+		...dashboard,
+		favoriteCount: next,
+		user: { ...dashboard.user, favoriteCount: next },
+	};
+}
 
 function FavoritesTab({
 	favorites,
@@ -336,95 +352,122 @@ export function PublicDashboardIsland() {
 			DEFAULT_BADGE_CONFIG,
 		);
 
-	useEffect(() => {
-		void (async () => {
-			try {
-				const api = await getApiClient();
+	const refreshDashboard = useCallback(async (opts?: { silent?: boolean }) => {
+		const silent = opts?.silent === true;
+		if (!silent) setLoading(true);
 
-				// Check session first
-				const session = await api.getSession().catch(() => null);
-				if (!session?.user) {
-					window.location.href = url("login");
-					return;
-				}
+		try {
+			const api = await getApiClient();
 
-				const { user } = session;
-
-				// Fetch dashboard data + badge config + perfil persistido (DEF-004: incluye bio)
-				const [dashData, config, profile] = await Promise.all([
-					api.getUserDashboard().catch(() => ({
-						draftCount: 0,
-						publishedCount: 0,
-						favoriteCount: 0,
-						ratingCount: 0,
-						recentResources: [] as Resource[],
-					})),
-					api.getBadgeConfig().catch(() => null),
-					api.getMyProfile().catch(() => null),
-				]);
-				if (config) setBadgeConfig(config);
-
-				setDashboard({
-					user: {
-						id: user.id,
-						name:
-							profile?.name ||
-							user.name ||
-							user.email.split("@")[0] ||
-							user.email,
-						avatarUrl: null,
-						bio: profile?.bio ?? null,
-						role: user.role,
-						resourceCount:
-							(dashData.draftCount ?? 0) + (dashData.publishedCount ?? 0),
-						favoriteCount: dashData.favoriteCount ?? 0,
-						joinedAt: "",
-					},
-					recentResources: ((dashData.recentResources ?? []) as Resource[]).map(
-						(r) => ({
-							...r,
-							author: r.createdByName || r.author || null,
-							createdAt: typeof r.createdAt === "string" ? r.createdAt : "",
-						}),
-					),
-					draftCount: dashData.draftCount ?? 0,
-					publishedCount: dashData.publishedCount ?? 0,
-					favoriteCount: dashData.favoriteCount ?? 0,
-					recentActivity: [], // loaded lazily by ActivityTab
-				});
-				setRatingCount(Number(dashData.ratingCount ?? 0));
-			} catch {
-				// Unexpected error — redirect to login as fallback
+			// Check session first
+			const session = await api.getSession().catch(() => null);
+			if (!session?.user) {
 				window.location.href = url("login");
-			} finally {
-				setLoading(false);
+				return;
 			}
-		})();
+
+			const { user } = session;
+
+			// Fetch dashboard data + badge config + perfil persistido (DEF-004: incluye bio)
+			const [dashData, config, profile] = await Promise.all([
+				api.getUserDashboard().catch(() => ({
+					draftCount: 0,
+					publishedCount: 0,
+					favoriteCount: 0,
+					ratingCount: 0,
+					recentResources: [] as Resource[],
+				})),
+				api.getBadgeConfig().catch(() => null),
+				api.getMyProfile().catch(() => null),
+			]);
+			if (config) setBadgeConfig(config);
+
+			const nextFavoriteCount = dashData.favoriteCount ?? 0;
+			setDashboard({
+				user: {
+					id: user.id,
+					name:
+						profile?.name ||
+						user.name ||
+						user.email.split("@")[0] ||
+						user.email,
+					avatarUrl: null,
+					bio: profile?.bio ?? null,
+					role: user.role,
+					resourceCount:
+						(dashData.draftCount ?? 0) + (dashData.publishedCount ?? 0),
+					favoriteCount: nextFavoriteCount,
+					joinedAt: "",
+				},
+				recentResources: ((dashData.recentResources ?? []) as Resource[]).map(
+					(r) => ({
+						...r,
+						author: r.createdByName || r.author || null,
+						createdAt: typeof r.createdAt === "string" ? r.createdAt : "",
+					}),
+				),
+				draftCount: dashData.draftCount ?? 0,
+				publishedCount: dashData.publishedCount ?? 0,
+				favoriteCount: nextFavoriteCount,
+				recentActivity: [], // loaded lazily by ActivityTab
+			});
+			setRatingCount(Number(dashData.ratingCount ?? 0));
+			// Invalida listado de favoritos para forzar recarga (DEF-005)
+			setFavoritesLoaded(false);
+		} catch {
+			// Unexpected error — redirect to login as fallback
+			if (!silent) window.location.href = url("login");
+		} finally {
+			if (!silent) setLoading(false);
+		}
 	}, []);
 
-	async function loadFavorites() {
+	// Carga al montar (SPA: al volver a /perfil el componente se desmonta y remonta)
+	useEffect(() => {
+		void refreshDashboard();
+	}, [refreshDashboard]);
+
+	// BFCache / pestaña restaurada: revalida contadores al volver a la vista (DEF-005)
+	useEffect(() => {
+		function revalidate() {
+			if (document.visibilityState !== "visible") return;
+			void refreshDashboard({ silent: true });
+		}
+		function onPageShow(event: PageTransitionEvent) {
+			if (event.persisted) revalidate();
+		}
+		document.addEventListener("visibilitychange", revalidate);
+		window.addEventListener("pageshow", onPageShow);
+		return () => {
+			document.removeEventListener("visibilitychange", revalidate);
+			window.removeEventListener("pageshow", onPageShow);
+		};
+	}, [refreshDashboard]);
+
+	const loadFavorites = useCallback(async () => {
 		try {
 			const api = await getApiClient();
 			const result = await api.getUserFavorites({ limit: 50 });
 			setFavorites(result.data);
+			// Sincroniza contador de cabecera/pestaña con el total del servidor (#202)
+			setDashboard((prev) =>
+				prev ? withFavoriteCount(prev, result.total) : prev,
+			);
 		} catch {
 			setFavorites([]);
 		} finally {
 			setFavoritesLoaded(true);
 		}
-	}
+	}, []);
 
 	async function handleUnfavorite(slug: string) {
 		try {
 			const api = await getApiClient();
 			await api.toggleFavorite(slug);
 			setFavorites((prev) => prev.filter((r) => r.slug !== slug));
-			if (dashboard) {
-				setDashboard({
-					...dashboard,
-					favoriteCount: Math.max(0, dashboard.favoriteCount - 1),
-				});
-			}
+			setDashboard((prev) =>
+				prev ? withFavoriteCount(prev, prev.favoriteCount - 1) : prev,
+			);
 		} catch {
 			// ignore
 		}
