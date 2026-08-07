@@ -2166,6 +2166,17 @@ tasks:
       misma base de commits de la feature. Se conserva la entrada de #306
       (colecciones admin) añadida después del merge.
 
+  T-2026-08-06-08301697:
+    date: 2026-08-06
+    agent: "frontend-ux-accesibilidad + qa-validacion"
+    task: "fix(admin): incluir recursos archivados en estadísticas y filtros"
+    status: Done
+    related: ["#303"]
+    notes: >
+      Añade tarjeta Archivados (listAdminResources status=archived), filtro de
+      estado Archivado y estilos compactos. Prueba unitaria del shell y de
+      ADMIN_RESOURCE_STATUS_FILTERS. bun test AdminResourcesSection.unit.test.tsx OK.
+
   T-2026-08-06-08344240:
     date: 2026-08-06
     agent: "frontend-ux-accesibilidad + qa-validacion"
@@ -2209,3 +2220,14 @@ tasks:
     notes: >
       Se integra main conservando la entrada de trazabilidad del fix de favoritos y las
       entradas de etiquetado añadidas en la rama base. La prueba del dashboard pasa.
+
+  T-2026-08-07-08172187:
+    date: 2026-08-07
+    agent: "frontend-ux-accesibilidad + qa-validacion"
+    task: "Resolver el conflicto de merge del PR #305"
+    status: Done
+    related: ["#305", "#303"]
+    notes: >
+      Se integra main sin perder la trazabilidad de estadísticas y filtro de recursos
+      archivados, ni las entradas recientes de la rama base. La prueba del componente
+      administrativo pasa.
