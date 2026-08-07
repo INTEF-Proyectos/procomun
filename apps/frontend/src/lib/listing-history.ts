@@ -6,6 +6,8 @@ export interface ListingState {
 	resourceType: string;
 	language: string;
 	license: string;
+	/** Atomized tag slug filter (issue #310). */
+	tag: string;
 }
 
 interface HistoryLike {
@@ -22,6 +24,7 @@ export function readListingState(search: string): ListingState {
 		resourceType: params.get("resourceType") ?? "",
 		language: params.get("language") ?? "",
 		license: params.get("license") ?? "",
+		tag: params.get("tag") ?? "",
 	};
 }
 
@@ -59,6 +62,12 @@ export function buildListingUrl(
 		params.set("license", state.license);
 	} else {
 		params.delete("license");
+	}
+
+	if (state.tag) {
+		params.set("tag", state.tag);
+	} else {
+		params.delete("tag");
 	}
 
 	const queryString = params.toString();

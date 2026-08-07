@@ -1,0 +1,98 @@
+.tag-page {
+	max-width: 72rem;
+	margin: 0 auto;
+	padding: 1.5rem 1rem 3rem;
+}
+
+.tag-breadcrumb {
+	font-size: 0.875rem;
+	color: var(--color-on-surface-variant, #64748b);
+	margin-bottom: 1.25rem;
+}
+
+.tag-breadcrumb a {
+	color: var(--color-primary, #0f4ccf);
+	text-decoration: none;
+}
+
+.tag-breadcrumb a:hover {
+	text-decoration: underline;
+}
+
+.tag-eyebrow {
+	font-size: 0.75rem;
+	font-weight: 700;
+	letter-spacing: 0.06em;
+	text-transform: uppercase;
+	color: var(--color-primary, #0f4ccf);
+	margin: 0 0 0.35rem;
+}
+
+.tag-header h1 {
+	margin: 0 0 0.5rem;
+	font-size: clamp(1.5rem, 2.5vw, 2rem);
+	color: var(--color-on-surface, #0f172a);
+}
+
+.tag-description {
+	margin: 0 0 0.75rem;
+	color: var(--color-on-surface-variant, #475569);
+	max-width: 40rem;
+}
+
+.tag-meta {
+	font-size: 0.875rem;
+	color: var(--color-on-surface-variant, #64748b);
+	margin: 0 0 1.5rem;
+}
+
+.tag-meta a {
+	color: var(--color-primary, #0f4ccf);
+}
+
+.tag-empty,
+.tag-error,
+.tag-page--empty p {
+	color: var(--color-on-surface-variant, #475569);
+}
+
+.tag-cta {
+	display: inline-block;
+	margin-top: 0.75rem;
+	padding: 0.5rem 1rem;
+	border-radius: 0.5rem;
+	background: var(--color-primary, #0f4ccf);
+	color: #fff;
+	text-decoration: none;
+	font-weight: 600;
+}
+
+.tag-pager {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	gap: 1rem;
+	margin-top: 2rem;
+}
+
+.tag-pager button {
+	padding: 0.4rem 0.9rem;
+	border-radius: 0.5rem;
+	border: 1px solid var(--color-outline-variant, #cbd5e1);
+	background: var(--color-surface, #fff);
+	cursor: pointer;
+}
+
+.tag-pager button:disabled {
+	opacity: 0.4;
+	cursor: not-allowed;
+}
+
+.filter-tag-link {
+	margin: 0.35rem 0 0;
+	font-size: 0.75rem;
+}
+
+.filter-tag-link a {
+	color: var(--color-primary, #0f4ccf);
+}

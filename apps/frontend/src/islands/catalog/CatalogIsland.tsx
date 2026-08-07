@@ -46,6 +46,7 @@ const DEFAULT_LISTING_STATE: ListingState = {
 	resourceType: "",
 	language: "",
 	license: "",
+	tag: "",
 };
 
 function getResourceIcon(type: string) {
@@ -280,6 +281,9 @@ export function CatalogIsland() {
 		useState<FilterOption[]>(LANGUAGE_OPTIONS);
 	const [licenseOptions, setLicenseOptions] =
 		useState<FilterOption[]>(LICENSE_OPTIONS);
+	const [tagOptions, setTagOptions] = useState<FilterOption[]>([
+		{ value: "", label: "Todas las etiquetas" },
+	]);
 	const [resources, setResources] = useState<Resource[]>([]);
 	const [total, setTotal] = useState(0);
 	const [loading, setLoading] = useState(true);
@@ -316,6 +320,7 @@ export function CatalogIsland() {
 					resourceType: nextState.resourceType || undefined,
 					language: nextState.language || undefined,
 					license: nextState.license || undefined,
+					tag: nextState.tag || undefined,
 				});
 
 				if (requestId !== requestIdRef.current) return;
@@ -409,10 +414,17 @@ export function CatalogIsland() {
 				LANGUAGE_OPTIONS,
 			),
 			loadFilterOptions("license", m.catalog_all_licenses(), LICENSE_OPTIONS),
-		]).then(([types, languages, licenses]) => {
+			getApiClient()
+				.then((api) => api.listPopularTags(40))
+				.catch(() => [] as { slug: string; label: string }[]),
+		]).then(([types, languages, licenses, popularTags]) => {
 			setResourceTypeOptions(types);
 			setLanguageOptions(languages);
 			setLicenseOptions(licenses);
+			setTagOptions([
+				{ value: "", label: "Todas las etiquetas" },
+				...popularTags.map((t) => ({ value: t.slug, label: t.label })),
+			]);
 		});
 
 		void loadResources(nextState);
@@ -574,6 +586,37 @@ export function CatalogIsland() {
 							</option>
 						))}
 					</select>
+				</div>
+
+				<div className="filter-group">
+					<label htmlFor="filter-tag">Etiqueta</label>
+					<select
+						id="filter-tag"
+						value={listingState.tag}
+						onChange={(event) => {
+							void applyListingState(
+								{
+									...listingState,
+									tag: event.currentTarget.value,
+									page: 1,
+								},
+								"replace",
+							);
+						}}
+					>
+						{tagOptions.map((option) => (
+							<option key={option.value || "all-tags"} value={option.value}>
+								{option.label}
+							</option>
+						))}
+					</select>
+					{listingState.tag ? (
+						<p className="filter-tag-link">
+							<a href={url(`tags/${listingState.tag}`)}>
+								Ver pagina de esta etiqueta
+							</a>
+						</p>
+					) : null}
 				</div>
 
 				<button

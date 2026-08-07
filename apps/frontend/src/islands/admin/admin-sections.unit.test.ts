@@ -19,6 +19,7 @@ describe("resolveAdminSection (DEF-021)", () => {
 		expect(resolveAdminSection("categories", ROLE_LEVELS.curator)).toBe(
 			"categories",
 		);
+		expect(resolveAdminSection("tags", ROLE_LEVELS.curator)).toBe("tags");
 	});
 
 	test("api-tokens solo es accesible para admin", () => {
@@ -42,5 +43,6 @@ describe("resolveAdminSection (DEF-021)", () => {
 		expect(SECTION_MIN_ROLE.users).toBe(ROLE_LEVELS.admin);
 		expect(SECTION_MIN_ROLE["api-tokens"]).toBe(ROLE_LEVELS.admin);
 		expect(SECTION_MIN_ROLE.dashboard).toBe(ROLE_LEVELS.curator);
+		expect(SECTION_MIN_ROLE.tags).toBe(ROLE_LEVELS.curator);
 	});
 });
