@@ -2176,3 +2176,36 @@ tasks:
       Revalidación del dashboard al montar/SPA y al restaurar pestaña (pageshow/
       visibilitychange). Sincroniza favoriteCount con el total de GET favorites
       y withFavoriteCount en unfavorite. Unit tests OK.
+
+  T-2026-08-06-08595480:
+    date: 2026-08-06
+    agent: "evaluacion-tecnologica + metadatos-y-curacion + backend-api-servicios + qa-validacion"
+    task: "feat(tags): atomized tagging system foundation (issue #76)"
+    status: Done
+    related: ["#76", "ADR-0034"]
+    notes: >
+      ADR-0034: dedicated tags + resource_tags (not taxonomies). Domain normalize
+      (slug, parse keywords, Levenshtein similar). Repository ensure/set/merge/
+      migrate dual-write keywords. Public API /api/v1/tags and admin merge/migrate.
+      Unit tests 40 pass. keywords kept deprecated transitional.
+
+  T-2026-08-06-09163367:
+    date: 2026-08-06
+    agent: "frontend-ux-accesibilidad + backend-api-servicios + qa-validacion"
+    task: "feat(tags): admin panel, public /tags page, catalog facet (#310)"
+    status: Done
+    related: ["#310", "#76", "#308", "ADR-0034"]
+    notes: >
+      AdminTagsSection (list/edit/merge/migrate), section tags in sidebar,
+      TagResourcesIsland at /tags/:slug, catalog ?tag= facet + listResources tagSlug,
+      listing-history tag param. Tests + check-types 0 + biome error-free.
+
+  T-2026-08-07-08110110:
+    date: 2026-08-07
+    agent: "frontend-ux-accesibilidad + qa-validacion"
+    task: "Resolver el conflicto de merge del PR #307"
+    status: Done
+    related: ["#307", "DEF-005"]
+    notes: >
+      Se integra main conservando la entrada de trazabilidad del fix de favoritos y las
+      entradas de etiquetado añadidas en la rama base. La prueba del dashboard pasa.

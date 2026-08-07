@@ -99,6 +99,9 @@ export function initCatalog() {
 	const licFilter = document.getElementById(
 		"filter-license",
 	) as HTMLSelectElement;
+	const tagFilter = document.getElementById(
+		"filter-tag",
+	) as HTMLSelectElement | null;
 	const clearBtn = document.getElementById(
 		"clear-filters",
 	) as HTMLButtonElement;
@@ -118,6 +121,7 @@ export function initCatalog() {
 	let resourceType = "";
 	let language = "";
 	let license = "";
+	let tag = "";
 	let viewMode = localStorage.getItem("catalog-view") || "grid";
 
 	function setView(mode: string) {
@@ -137,10 +141,12 @@ export function initCatalog() {
 		resourceType = s.resourceType;
 		language = s.language;
 		license = s.license;
+		tag = s.tag;
 		if (searchInput) searchInput.value = query;
 		typeFilter.value = resourceType;
 		langFilter.value = language;
 		licFilter.value = license;
+		if (tagFilter) tagFilter.value = tag;
 	}
 
 	function writeUrl(mode: "push" | "replace" = "replace") {
@@ -152,6 +158,7 @@ export function initCatalog() {
 				resourceType,
 				language,
 				license,
+				tag,
 			}),
 			mode,
 		);
@@ -183,6 +190,7 @@ export function initCatalog() {
 				resourceType: resourceType || undefined,
 				language: language || undefined,
 				license: license || undefined,
+				tag: tag || undefined,
 			});
 
 			const { data, total, limit } = result;
@@ -253,16 +261,22 @@ export function initCatalog() {
 		license = licFilter.value;
 		resetAndLoad();
 	});
+	tagFilter?.addEventListener("change", () => {
+		tag = tagFilter.value;
+		resetAndLoad();
+	});
 
 	clearBtn.addEventListener("click", () => {
 		if (searchInput) searchInput.value = "";
 		typeFilter.value = "";
 		langFilter.value = "";
 		licFilter.value = "";
+		if (tagFilter) tagFilter.value = "";
 		query = "";
 		resourceType = "";
 		language = "";
 		license = "";
+		tag = "";
 		resetAndLoad();
 	});
 

@@ -11,6 +11,7 @@ import { ftsRoutes } from "./fts.ts";
 import { reportRoutes } from "./reports.ts";
 import { adminUploadRoutes, resourceRoutes } from "./resources.ts";
 import { settingsRoutes } from "./settings.ts";
+import { tagAdminRoutes } from "./tags.ts";
 import { taxonomyRoutes } from "./taxonomies.ts";
 import { userRoutes } from "./users.ts";
 
@@ -27,6 +28,10 @@ adminRoutes.use("/collections", requireRole("curator"));
 adminRoutes.use("/collections/*", requireRole("curator"));
 adminRoutes.use("/taxonomies", requireRole("curator"));
 adminRoutes.use("/taxonomies/*", requireRole("curator"));
+// Tag management (merge/edit/delete) is curator+; resource tag attach is author+
+// and enforced inside tagAdminRoutes for /resources/:id
+adminRoutes.use("/tags", requireRole("author"));
+adminRoutes.use("/tags/*", requireRole("author"));
 adminRoutes.use("/reports", requireRole("curator"));
 adminRoutes.use("/reports/*", requireRole("curator"));
 adminRoutes.use("/users", requireRole("curator"));
@@ -42,6 +47,7 @@ adminRoutes.route("/resources", resourceRoutes);
 adminRoutes.route("/users", userRoutes);
 adminRoutes.route("/collections", collectionRoutes);
 adminRoutes.route("/taxonomies", taxonomyRoutes);
+adminRoutes.route("/tags", tagAdminRoutes);
 adminRoutes.route("/uploads", adminUploadRoutes);
 adminRoutes.route("/elpx", elpxAdminRoutes);
 adminRoutes.route("/settings", settingsRoutes);
