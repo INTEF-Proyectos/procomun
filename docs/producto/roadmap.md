@@ -402,3 +402,14 @@ Se completa el caso documental `docs/casos/evaluacion-reescritura-plataforma/`, 
 Resultado: **ADR-0030 en estado Propuesto** — «Rechazar la reescritura completa y ejecutar simplificación incremental» (programa por lotes 0–5: reparar puertas de calidad, typecheck a cero, suite de caracterización, fuente única de esquema, puertos y límites, división de módulos mixtos), con plan piloto documental sobre la vertical Colecciones y prompt de ejecución posterior.
 
 Hallazgos que condicionan el roadmap: el lint y el format-check son no-op (paquete `biome` equivocado), el typecheck de CI ignora 635 errores, la suite de integración está vacía, los 17 E2E saltados cubren el flujo editorial de escritura, y el esquema de datos carece de migraciones aplicadas y de camino de upgrade — este último punto es bloqueante a resolver **antes** de la épica de migración legacy (~79k ODEs). No se modifica código en esta tarea; la implementación queda condicionada a la aceptación humana de la ADR-0030.
+
+## Actualización 2026-08-06 — Recursos relacionados (issue #72 / ADR-0036)
+
+Se entrega la fase 1+2 del sistema de recomendación en ficha de recurso:
+
+- Endpoint público `GET /api/v1/resources/:slug/related`
+- Ranking multi-señal en PostgreSQL (materias, niveles, tipo, keywords, autor, colecciones, FTS)
+- UI «También te puede interesar» + «Más del mismo autor»
+- Collaborative filtering / «Recomendados para ti» queda diferido (fase 3 de ADR-0036)
+
+Trazabilidad: `docs/epics/epic-003/features/feature-recomendacion-recursos-relacionados/`, ADR-0036.

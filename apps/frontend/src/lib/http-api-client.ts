@@ -9,6 +9,7 @@ import type {
 	CreateResourceInput,
 	MediaItemRecord,
 	PaginatedResult,
+	RelatedResourcesResult,
 	ReportRecord,
 	Resource,
 	ResourceListResult,
@@ -96,6 +97,22 @@ export class HttpApiClient implements ApiClient {
 	async getResourceBySlug(slug: string): Promise<Resource | null> {
 		const res = await fetch(`/api/v1/resources/${slug}`);
 		if (!res.ok) return null;
+		return res.json();
+	}
+
+	async getRelatedResources(
+		slug: string,
+		opts?: { limit?: number },
+	): Promise<RelatedResourcesResult> {
+		const params = new URLSearchParams();
+		if (opts?.limit != null) params.set("limit", String(opts.limit));
+		const qs = params.toString();
+		const res = await fetch(
+			`/api/v1/resources/${encodeURIComponent(slug)}/related${qs ? `?${qs}` : ""}`,
+		);
+		if (!res.ok) {
+			return { data: [], sameAuthor: [], limit: opts?.limit ?? 6 };
+		}
 		return res.json();
 	}
 

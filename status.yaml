@@ -2166,6 +2166,20 @@ tasks:
       misma base de commits de la feature. Se conserva la entrada de #306
       (colecciones admin) añadida después del merge.
 
+  T-2026-08-06-09120735:
+    date: 2026-08-06
+    agent: "evaluacion-tecnologica + busqueda-y-descubrimiento + backend-api-servicios + frontend-ux-accesibilidad"
+    task: "Sistema de recomendación de recursos relacionados (issue #72)"
+    status: Done
+    related: ["#72", "ADR-0036", "ADR-0005", "ADR-0009", "ADR-0026"]
+    notes: >
+      ADR-0036: content-based multi-señal en PostgreSQL (metadatos, keywords,
+      autor, co-ocurrencia en colecciones, FTS ts_rank). Endpoint
+      GET /api/v1/resources/:slug/related; UI en ficha con ResourceCard;
+      collaborative filtering diferido. Tests unitarios de score y servicio
+      con asserts numéricos de ranking. Fase 3 (recomendados para ti) fuera
+      de alcance.
+
   T-2026-08-06-08301697:
     date: 2026-08-06
     agent: "frontend-ux-accesibilidad + qa-validacion"
@@ -2231,3 +2245,14 @@ tasks:
       Se integra main sin perder la trazabilidad de estadísticas y filtro de recursos
       archivados, ni las entradas recientes de la rama base. La prueba del componente
       administrativo pasa.
+
+  T-2026-08-07-08235507:
+    date: 2026-08-07
+    agent: "busqueda-y-descubrimiento + frontend-ux-accesibilidad + qa-validacion"
+    task: "Resolver los conflictos de merge del PR #313"
+    status: Done
+    related: ["#313", "#72", "ADR-0036"]
+    notes: >
+      Se integra main conservando el contrato de recomendaciones y las operaciones públicas
+      de tags. El registro de decisiones incluye ADR-0034 y ADR-0036 sin reservar un número
+      ya utilizado. Las pruebas de ranking/API y el typecheck pasan.

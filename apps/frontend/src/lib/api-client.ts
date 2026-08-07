@@ -39,6 +39,36 @@ export interface ResourceListResult {
 	offset: number;
 }
 
+/** Compact card used by related / same-author recommendation strips (ADR-0036). */
+export interface RelatedResource {
+	id: string;
+	slug: string;
+	title: string;
+	description: string;
+	resourceType: string;
+	language: string;
+	license: string;
+	author: string | null;
+	editorialStatus?: string;
+	score: number;
+	signals?: {
+		sharedSubjects: number;
+		sharedLevels: number;
+		sameResourceType: boolean;
+		sameLanguage: boolean;
+		sharedKeywords: number;
+		sameAuthor: boolean;
+		collectionCooccurrence: number;
+		ftsRank: number;
+	};
+}
+
+export interface RelatedResourcesResult {
+	data: RelatedResource[];
+	sameAuthor: RelatedResource[];
+	limit: number;
+}
+
 export interface UserRecord {
 	id: string;
 	email: string;
@@ -275,6 +305,10 @@ export interface ApiClient {
 		tag?: string;
 	}): Promise<ResourceListResult>;
 	getResourceBySlug(slug: string): Promise<Resource | null>;
+	getRelatedResources(
+		slug: string,
+		opts?: { limit?: number },
+	): Promise<RelatedResourcesResult>;
 	listPublicTags(opts?: {
 		q?: string;
 		limit?: number;
