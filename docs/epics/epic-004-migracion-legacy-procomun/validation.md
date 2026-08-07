@@ -85,3 +85,8 @@ Ambos bugs eran preexistentes en la infraestructura reutilizada, no introducidos
 ### Cierre de PGlite en CLI (2026-08-06)
 
 - Se añaden pruebas del cierre del cliente PGlite y de las rutas sin método `close()` o con error de cierre.
+
+### Correcciones de revisión del PR #309 (2026-08-07)
+
+- `bun test apps/cli/src/commands/import-legacy-users.unit.test.ts packages/db/src/repository/legacy-users-import.unit.test.ts packages/db/src/repository.unit.test.ts` ✅. Cubre conflictos de `dry-run` existentes y dentro del JSON, colisiones de email por mayúsculas/minúsculas, restricción única en base de datos y una importación concurrente.
+- `bun run check-types` ✅ (0 errores).

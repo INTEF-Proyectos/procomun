@@ -58,4 +58,58 @@ describe("importLegacyUser", () => {
 			id: "legacy-procomun:user:1",
 		});
 	});
+
+	test("trata los correos como únicos sin distinguir mayúsculas", async () => {
+		await db.insert(schema.user).values({
+			id: "existing-user",
+			email: "Admin@example.test",
+			emailVerified: true,
+			role: "author",
+			isActive: true,
+			createdAt: new Date(),
+			updatedAt: new Date(),
+		});
+
+		const colliding = mapLegacyUser({
+			uid: 2,
+			mail: "admin@example.test",
+			status: 1,
+		});
+		expect(await importLegacyUser(db, colliding)).toEqual({
+			outcome: "skipped_existing_email",
+			id: "existing-user",
+		});
+		await expect(
+			(async () => {
+				await db.insert(schema.user).values({
+					id: "duplicate-user",
+					email: "admin@example.test",
+					emailVerified: true,
+					role: "author",
+					isActive: true,
+					createdAt: new Date(),
+					updatedAt: new Date(),
+				});
+			})(),
+		).rejects.toThrow();
+	});
+
+	test("informa un conflicto cuando dos importaciones concurren", async () => {
+		const mapped = mapLegacyUser({
+			uid: 9,
+			mail: "concurrent@example.test",
+			status: 1,
+		});
+
+		const outcomes = await Promise.all([
+			importLegacyUser(db, mapped),
+			importLegacyUser(db, mapped),
+		]);
+		expect(
+			outcomes.filter((result) => result.outcome === "imported"),
+		).toHaveLength(1);
+		expect(
+			outcomes.filter((result) => result.outcome === "skipped_existing_id"),
+		).toHaveLength(1);
+	});
 });

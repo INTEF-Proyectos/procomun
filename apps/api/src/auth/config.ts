@@ -21,6 +21,16 @@ export const auth = betterAuth({
 		defaultCookieAttributes: AUTH_DEFAULT_COOKIE_ATTRIBUTES,
 	},
 	databaseHooks: {
+		user: {
+			create: {
+				before: async (user) => ({
+					data: {
+						...user,
+						email: user.email.trim().toLowerCase(),
+					},
+				}),
+			},
+		},
 		session: {
 			create: {
 				after: async (session) => {

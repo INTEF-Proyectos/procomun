@@ -60,3 +60,8 @@ Los JSON/`.elpx` de `ode-export/` contienen datos personales reales (nombres y e
 
 ### Cierre de PGlite en CLI (2026-08-06)
 - [x] Cerrar PGlite explícitamente tras escribir el informe para evitar abortos del runtime al terminar.
+
+### Correcciones de revisión del PR #309 (2026-08-07)
+- [x] Hacer que `--dry-run` consulte los conflictos existentes y detecte ID/correo duplicados dentro del propio lote.
+- [x] Normalizar emails en los flujos de creación y garantizar su unicidad sin distinción de mayúsculas mediante `lower(email)`.
+- [x] Distinguir inserciones propias de conflictos concurrentes con `RETURNING`.

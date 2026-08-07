@@ -2214,3 +2214,16 @@ tasks:
       ejecución corta, PGlite/WASM podía abortar durante la salida. Se cierra db.$client cuando
       el driver expone close(), sin afectar PostgreSQL; hay pruebas de éxito, ausencia de método
       y error de cierre.
+
+  T-2026-08-07-07004533:
+    date: 2026-08-07
+    agent: "ingestas-y-migraciones + backend-api-servicios + qa-validacion"
+    task: "Atender los comentarios de revisión del PR #309 sobre importación de usuarios legacy"
+    status: Done
+    related: ["#309", "epic-004-migracion-legacy-procomun"]
+    notes: >
+      El dry-run ejecuta ahora las mismas comprobaciones que la importación y modela los
+      registros importables del propio lote. Los emails se normalizan en los flujos de alta,
+      Better Auth los transforma antes de persistir y PostgreSQL los protege con un índice único
+      lower(email). La inserción usa RETURNING para no reportar como propia una fila creada por
+      otra ejecución concurrente. Validación: tests específicos y check-types en verde.

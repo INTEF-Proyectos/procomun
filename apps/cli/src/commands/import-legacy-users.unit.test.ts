@@ -19,6 +19,7 @@ function buildDeps(overrides: Partial<Deps> = {}): Deps {
 		}),
 		waitForDb: async () => {},
 		mapLegacyUser,
+		findLegacyUserImportConflict: async () => null,
 		importLegacyUser: async (_db, mapped) => ({
 			outcome: "imported",
 			id: mapped.id,
@@ -32,6 +33,51 @@ describe("runImportLegacyUsers", () => {
 
 	beforeEach(async () => {
 		dir = await mkdtemp(path.join(tmpdir(), "legacy-users-"));
+	});
+
+	test("dry-run informa conflictos existentes y duplicados sin insertar", async () => {
+		const sourceFile = path.join(dir, "usuarios.json");
+		await writeFile(
+			sourceFile,
+			JSON.stringify([
+				{ uid: 1, mail: "id@example.test", roles: "-", status: 1 },
+				{ uid: 2, mail: "email@example.test", roles: "-", status: 1 },
+				{ uid: 3, mail: "duplicate@example.test", roles: "-", status: 1 },
+				{ uid: 4, mail: "DUPLICATE@example.test", roles: "-", status: 1 },
+			]),
+		);
+		let persisted = false;
+		const report = await runImportLegacyUsers(
+			{ sourceFile, dryRun: true },
+			buildDeps({
+				findLegacyUserImportConflict: async (_db, mapped) => {
+					if (mapped.legacyUid === "1") {
+						return { outcome: "skipped_existing_id", id: "existing-id" };
+					}
+					if (mapped.legacyUid === "2") {
+						return { outcome: "skipped_existing_email", id: "existing-email" };
+					}
+					return null;
+				},
+				importLegacyUser: async () => {
+					persisted = true;
+					return { outcome: "imported", id: "unexpected" };
+				},
+			}),
+		);
+
+		expect(persisted).toBeFalse();
+		expect(report.totals).toMatchObject({
+			imported: 1,
+			skippedExistingId: 1,
+			skippedExistingEmail: 2,
+		});
+		expect(report.records.map((record) => record.outcome)).toEqual([
+			"skipped_existing_id",
+			"skipped_existing_email",
+			"would_import",
+			"skipped_existing_email",
+		]);
 	});
 
 	afterEach(async () => {

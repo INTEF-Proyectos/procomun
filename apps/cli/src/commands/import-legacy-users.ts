@@ -21,6 +21,7 @@ export async function loadImportLegacyUsersDependencies() {
 		getDb,
 		waitForDb,
 		mapLegacyUser: legacyImport.mapLegacyUser,
+		findLegacyUserImportConflict: repo.findLegacyUserImportConflict,
 		importLegacyUser: repo.importLegacyUser,
 	};
 }
@@ -151,6 +152,8 @@ export async function runImportLegacyUsers(
 	let skippedExistingId = 0;
 	let skippedExistingEmail = 0;
 	let errored = 0;
+	const plannedIds = new Map<string, string>();
+	const plannedEmails = new Map<string, string>();
 	const users = raw.slice(0, options.limit) as LegacyUserJson[];
 
 	for (const [index, legacy] of users.entries()) {
@@ -158,6 +161,40 @@ export async function runImportLegacyUsers(
 			const mapped = deps.mapLegacyUser(legacy);
 			const warnings = warningMessages(mapped);
 			if (options.dryRun) {
+				const existing = await deps.findLegacyUserImportConflict(db, mapped);
+				const plannedById = plannedIds.get(mapped.id);
+				const plannedByEmail = plannedEmails.get(mapped.email.toLowerCase());
+				const conflict =
+					existing ??
+					(plannedById
+						? { outcome: "skipped_existing_id" as const, id: plannedById }
+						: plannedByEmail
+							? {
+									outcome: "skipped_existing_email" as const,
+									id: plannedByEmail,
+								}
+							: null);
+				if (conflict?.outcome === "skipped_existing_id") {
+					skippedExistingId++;
+					records.push({
+						outcome: conflict.outcome,
+						legacyUid: mapped.legacyUid,
+						userId: conflict.id,
+					});
+					continue;
+				}
+				if (conflict?.outcome === "skipped_existing_email") {
+					skippedExistingEmail++;
+					records.push({
+						outcome: conflict.outcome,
+						legacyUid: mapped.legacyUid,
+						userId: conflict.id,
+					});
+					continue;
+				}
+
+				plannedIds.set(mapped.id, mapped.id);
+				plannedEmails.set(mapped.email.toLowerCase(), mapped.id);
 				imported++;
 				records.push({
 					outcome: "would_import",

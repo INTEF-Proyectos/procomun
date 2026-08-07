@@ -1,6 +1,6 @@
 import { eq } from "drizzle-orm";
 import type { MappedLegacyUser } from "../legacy-import/users.ts";
-import { user } from "../schema/auth.ts";
+import { lowerEmail, user } from "../schema/auth.ts";
 import type { DrizzleDB } from "./shared.ts";
 
 export type LegacyUserImportResult =
@@ -8,15 +8,15 @@ export type LegacyUserImportResult =
 	| { outcome: "skipped_existing_id"; id: string }
 	| { outcome: "skipped_existing_email"; id: string };
 
-/**
- * Inserta un usuario legacy sin cuenta de credenciales. El identificador
- * namespaced hace que la reejecución sea idempotente; el email único protege
- * las cuentas que ya existían en procomun-ng.
- */
-export async function importLegacyUser(
+export type LegacyUserImportConflict = Exclude<
+	LegacyUserImportResult,
+	{ outcome: "imported" }
+>;
+
+export async function findLegacyUserImportConflict(
 	db: DrizzleDB,
 	mapped: MappedLegacyUser,
-): Promise<LegacyUserImportResult> {
+): Promise<LegacyUserImportConflict | null> {
 	const existingById = await db
 		.select({ id: user.id })
 		.from(user)
@@ -29,14 +29,29 @@ export async function importLegacyUser(
 	const existingByEmail = await db
 		.select({ id: user.id })
 		.from(user)
-		.where(eq(user.email, mapped.email))
+		.where(eq(lowerEmail(user.email), mapped.email.toLowerCase()))
 		.limit(1);
 	if (existingByEmail[0]) {
 		return { outcome: "skipped_existing_email", id: existingByEmail[0].id };
 	}
 
+	return null;
+}
+
+/**
+ * Inserta un usuario legacy sin cuenta de credenciales. El identificador
+ * namespaced hace que la reejecución sea idempotente; el email único protege
+ * las cuentas que ya existían en procomun-ng.
+ */
+export async function importLegacyUser(
+	db: DrizzleDB,
+	mapped: MappedLegacyUser,
+): Promise<LegacyUserImportResult> {
+	const existing = await findLegacyUserImportConflict(db, mapped);
+	if (existing) return existing;
+
 	const now = new Date();
-	await db
+	const inserted = await db
 		.insert(user)
 		.values({
 			id: mapped.id,
@@ -48,23 +63,12 @@ export async function importLegacyUser(
 			createdAt: now,
 			updatedAt: now,
 		})
-		.onConflictDoNothing();
-
-	const inserted = await db
-		.select({ id: user.id })
-		.from(user)
-		.where(eq(user.id, mapped.id))
-		.limit(1);
+		.onConflictDoNothing()
+		.returning({ id: user.id });
 	if (inserted[0]) return { outcome: "imported", id: inserted[0].id };
 
-	const concurrentByEmail = await db
-		.select({ id: user.id })
-		.from(user)
-		.where(eq(user.email, mapped.email))
-		.limit(1);
-	if (concurrentByEmail[0]) {
-		return { outcome: "skipped_existing_email", id: concurrentByEmail[0].id };
-	}
+	const concurrent = await findLegacyUserImportConflict(db, mapped);
+	if (concurrent) return concurrent;
 
 	throw new Error(`No se pudo importar el usuario legacy ${mapped.legacyUid}`);
 }
