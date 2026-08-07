@@ -14,6 +14,7 @@ export * from "./repository/reports.ts";
 export * from "./repository/resources.ts";
 export * from "./repository/settings.ts";
 export type { AppSchema, DrizzleDB, DrizzleTX } from "./repository/shared.ts";
+export * from "./repository/tags.ts";
 export * from "./repository/taxonomies.ts";
 export * from "./repository/uploads.ts";
 export * from "./repository/users.ts";

@@ -6,6 +6,7 @@ import {
 	resourceSubjects,
 	resources,
 } from "../schema/resources.ts";
+import { resourceTags, tags } from "../schema/tags.ts";
 import { uploadSessions } from "../schema/uploads.ts";
 import {
 	andWhere,
@@ -25,6 +26,8 @@ type ResourceListOptions = {
 	resourceType?: string;
 	language?: string;
 	license?: string;
+	/** Filter by atomized tag slug (canonical or synonym). Issue #310. */
+	tagSlug?: string;
 	createdBy?: string;
 	visibleToUserId?: string;
 };
@@ -131,6 +134,33 @@ export async function listResources(db: DrizzleDB, opts: ResourceListOptions) {
 		conditions.push(eq(resources.resourceType, opts.resourceType));
 	if (opts.language) conditions.push(eq(resources.language, opts.language));
 	if (opts.license) conditions.push(eq(resources.license, opts.license));
+	if (opts.tagSlug) {
+		const slug = opts.tagSlug;
+		// Match resources linked to the tag or its canonical / synonyms (#76 / #310).
+		conditions.push(
+			sql`exists (
+				select 1
+				from ${resourceTags} rt
+				inner join ${tags} t on t.id = rt.tag_id
+				where rt.resource_id = ${resources.id}
+					and (
+						t.slug = ${slug}
+						or t.id = (
+							select coalesce(c.canonical_tag_id, c.id)
+							from ${tags} c
+							where c.slug = ${slug}
+							limit 1
+						)
+						or t.canonical_tag_id = (
+							select coalesce(c.canonical_tag_id, c.id)
+							from ${tags} c
+							where c.slug = ${slug}
+							limit 1
+						)
+					)
+			)`,
+		);
+	}
 	if (opts.createdBy) conditions.push(eq(resources.createdBy, opts.createdBy));
 	if (opts.visibleToUserId) {
 		const visibility = or(
@@ -234,6 +264,12 @@ export async function createResource(
 		}
 	}
 
+	// Dual-write: free-text keywords → atomized tags (ADR-0034 / #76)
+	if (data.keywords) {
+		const { syncTagsFromKeywords } = await import("./tags.ts");
+		await syncTagsFromKeywords(db, id, data.keywords);
+	}
+
 	return { id, slug };
 }
 
@@ -297,6 +333,12 @@ export async function updateResource(
 		.update(resources)
 		.set({ ...safe, updatedAt: new Date() })
 		.where(and(eq(resources.id, id), isNull(resources.deletedAt)));
+
+	// Dual-write keywords → tags when the free-text field is updated (#76)
+	if (typeof safe.keywords === "string") {
+		const { syncTagsFromKeywords } = await import("./tags.ts");
+		await syncTagsFromKeywords(db, id, safe.keywords);
+	}
 }
 
 export async function deleteResource(db: DrizzleDB, id: string) {

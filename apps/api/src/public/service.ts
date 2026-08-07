@@ -10,10 +10,18 @@ export async function listPublishedResources(opts: {
 	resourceType?: string;
 	language?: string;
 	license?: string;
+	/** Atomized tag slug (issue #310). */
+	tag?: string;
 }) {
 	const db = getDb().db;
 	const result = await repo.listResources(db, {
-		...opts,
+		limit: opts.limit,
+		offset: opts.offset,
+		search: opts.search,
+		resourceType: opts.resourceType,
+		language: opts.language,
+		license: opts.license,
+		tagSlug: opts.tag,
 		status: "published",
 	});
 
