@@ -2166,6 +2166,25 @@ tasks:
       misma base de commits de la feature. Se conserva la entrada de #306
       (colecciones admin) añadida después del merge.
 
+  T-2026-08-06-08191097:
+    date: 2026-08-06
+    agent: "seguridad-privacidad-legal + backend-api-servicios"
+    task: "Guarda /dev: bypass por percent-encoding y 404 ante bytes nulos"
+    status: Done
+    related: ["#257", "#251"]
+    notes: >
+      Revisión de PR #257: la guarda comparaba new URL(c.req.url).pathname (sin
+      decodificar) mientras serveStatic resuelve el fichero desde c.req.path, que
+      Hono ya decodifica con decodeURI. Fuera de desarrollo, /%64ev/data/status.yaml
+      devolvía 200 con el contenido interno. Se compara ahora sobre c.req.path,
+      decodificando además los caracteres reservados (%2f) y respondiendo 404 si la
+      decodificación falla (fallo cerrado: Hono decodifica parcialmente y podría
+      resolver el fichero). Añadido rechazo de bytes nulos: /assets%00.js hacía
+      lanzar a Bun.file() dentro de serveStatic y la petición acababa en 500 sin
+      manejar. Validación: bun test apps/api/src/app/frontend.unit.test.ts (8 pass);
+      regresiones verificadas en rojo antes del arreglo. check-types 0 errores,
+      biome y check-test-files OK.
+
   T-2026-08-06-09120735:
     date: 2026-08-06
     agent: "evaluacion-tecnologica + busqueda-y-descubrimiento + backend-api-servicios + frontend-ux-accesibilidad"
@@ -2256,3 +2275,14 @@ tasks:
       Se integra main conservando el contrato de recomendaciones y las operaciones públicas
       de tags. El registro de decisiones incluye ADR-0034 y ADR-0036 sin reservar un número
       ya utilizado. Las pruebas de ranking/API y el typecheck pasan.
+
+  T-2026-08-07-08362103:
+    date: 2026-08-07
+    agent: "seguridad-privacidad-legal + backend-api-servicios + qa-validacion"
+    task: "Resolver el conflicto de merge del PR #257"
+    status: Done
+    related: ["#257", "#251"]
+    notes: >
+      Se integra main conservando las guardas que bloquean el dashboard interno fuera de
+      desarrollo. La prueba de serving del frontend cubre rutas /dev codificadas, variantes
+      de mayúsculas y bytes nulos.
