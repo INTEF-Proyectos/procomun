@@ -65,6 +65,7 @@ blocking_adrs:
     notes: "Todavía no documentada. ADR pendiente de formalización."
 
 tasks:
+
   T-2026-03-25-001:
     date: 2026-03-25
     agent: "Director de Producto"
@@ -222,6 +223,7 @@ tasks:
     status: Done
     related: []
     notes: >
+
   T-2026-05-26-003:
     date: 2026-05-26
     agent: "frontend-ux-accesibilidad + backend-api-servicios + qa-validacion"
@@ -1031,6 +1033,7 @@ tasks:
       panel en blanco a curators; se extrae resolveAdminSection (helper puro testeado) que deniega secciones por
       encima del nivel del usuario cayendo al dashboard. Validacion: bun run test OK (668 pass, 0 fail), coverage
       90.1%, biome lint y format OK.
+
   T-2026-06-22-005:
     date: 2026-06-22
     agent: "frontend-ux-accesibilidad + qa-validacion"
@@ -1045,6 +1048,7 @@ tasks:
       envuelva (flex-wrap) alineando al inicio, de modo que las acciones quedan siempre visibles. Test de
       regresion de CSS añadido (collections-editor-layout.unit.test.ts). Validacion: bun run test OK (644 pass,
       0 fail), coverage 90.26%, biome lint/format OK.
+
   T-2026-06-22-006:
     date: 2026-06-22
     agent: "busqueda-y-descubrimiento + qa-validacion"
@@ -1058,6 +1062,7 @@ tasks:
       añade el leftJoin de user a la consulta de conteo para que el total no rompa. Test de regresion en
       apps/api/src/resources/repository.unit.test.ts. Validacion: bun run test OK (643 pass, 0 fail), coverage
       90.26%, biome lint/format OK.
+
   T-2026-06-22-007:
     date: 2026-06-22
     agent: "backend-api-servicios + seguridad-privacidad-legal + qa-validacion"
@@ -1081,6 +1086,7 @@ tasks:
       la par que /generate. Ademas /api/admin/uploads/config dejaba de requerir curator y filtraba storageDir
       (ruta interna del servidor); se omite storageDir en la respuesta. Tests de IDOR y de la config añadidos.
       Validacion final: bun run test OK (650 pass, 0 fail), coverage 90.38%, lint/format OK.
+
   T-2026-06-23-001:
     date: 2026-06-23
     agent: "frontend-ux-accesibilidad + qa-validacion + documentacion-y-roadmap"
@@ -1094,6 +1100,7 @@ tasks:
       del catálogo con query vacía. Se añaden pruebas de regresión en
       apps/frontend/src/islands/catalog/CatalogIslands.unit.test.tsx. Validación: bun test de la suite del
       catálogo OK (6 pass, 0 fail) y bun test completo OK (712 pass, 0 fail).
+
   T-2026-06-23-002:
     date: 2026-06-23
     agent: "frontend-ux-accesibilidad + qa-validacion + documentacion-y-roadmap"
@@ -1108,6 +1115,7 @@ tasks:
       filtrado solo por las facetas restantes. Se añaden helpers y regresión en
       apps/frontend/src/islands/app/AppShellIslands.unit.test.tsx. Validación: bun test de la unidad afectada
       OK (3 pass, 0 fail) y bun test completo OK (714 pass, 0 fail).
+
   T-2026-06-23-003:
     date: 2026-06-23
     agent: "frontend-ux-accesibilidad + qa-validacion + documentacion-y-roadmap"
@@ -1121,6 +1129,7 @@ tasks:
       (window.location.assign) hacia la URL sin `q`, alineándola con el submit GET del propio buscador y
       forzando que /explorar relea el estado correcto desde la URL. Validación: bun test de la unidad afectada
       OK (3 pass, 0 fail) y bun test completo OK (714 pass, 0 fail).
+
   T-2026-06-23-007:
     date: 2026-06-23
     agent: "arquitectura-solucion + metadatos-y-curacion + busqueda-y-descubrimiento + documentacion-y-roadmap"
@@ -1137,6 +1146,7 @@ tasks:
       (ADR-0011). Alcance por fases F1 (modelo+historial), F2 (descarga+rollback), F3 (retención+búsqueda).
       La implementación queda como features derivadas; el issue #31 NO se cierra con este PR (solo diseño):
       se referencia con Refs.
+
   T-2026-06-23-004:
     date: 2026-06-23
     agent: "backend-api-servicios + qa-validacion + documentacion-y-roadmap"
@@ -1154,6 +1164,7 @@ tasks:
       unitarios (DEF-009) y de integración (curator: review→draft y review→published seguido de GET 200) en
       apps/api/src/routes/admin.unit.test.ts. Validación: bun run test:standard OK (683 pass, 0 fail),
       check-test-files OK y biome lint OK.
+
   T-2026-06-23-005:
     date: 2026-06-23
     agent: "backend-api-servicios + frontend-ux-accesibilidad + qa-validacion + documentacion-y-roadmap"
@@ -1172,6 +1183,7 @@ tasks:
       (repository.unit.test.ts), endpoint con autoservicio de curator y vaciado por admin (admin.unit.test.ts) y
       contrato del cliente (http-api-client-users.unit.test.ts). Validación: bun run test:standard OK
       (684 pass, 0 fail), check-test-files OK, biome lint/format OK y check-coverage OK (90.21% ≥ 90%).
+
   T-2026-06-24-001:
     date: 2026-06-24
     agent: "backend-api-servicios + frontend-ux-accesibilidad + qa-validacion + documentacion-y-roadmap"
@@ -1192,6 +1204,7 @@ tasks:
       cubre el nuevo contrato del cliente; además se ejecutan regresiones en admin.unit.test.ts y
       http-api-client-signup.unit.test.ts. Validación: bun test sobre las 4 suites afectadas OK
       (120 pass, 0 fail).
+
   T-2026-06-24-002:
     date: 2026-06-24
     agent: "backend-api-servicios + frontend-ux-accesibilidad + qa-validacion + documentacion-y-roadmap"
@@ -1207,6 +1220,7 @@ tasks:
       sin preview, sin botón de eXeLearning y con uploader manual de adjuntos visible. Se corrige el
       endpoint para devolver el objeto JSONB directamente y se añade regresión en apps/api/src/routes/admin.unit.test.ts
       verificando metadata, previewUrl y nombre original del .elpx. Validación: bun test apps/api/src/routes/admin.unit.test.ts OK.
+
   T-2026-06-24-003:
     date: 2026-06-24
     agent: "evaluacion-tecnologica + documentacion-y-roadmap"
@@ -1219,6 +1233,7 @@ tasks:
       como backend de historial, object storage versionado y un modelo híbrido PostgreSQL snapshots + storage
       versionado. No hay cambios de código. Validación documental: status.yaml y decision-log.yaml parsean
       correctamente con Ruby YAML.
+
   T-2026-07-10-001:
     date: 2026-07-10
     agent: "ingestas-y-migraciones + backend-api-servicios + documentacion-y-roadmap"
@@ -1241,6 +1256,7 @@ tasks:
       y el comando apps/cli/src/commands/import-legacy-procomun.ts, y ejecutar el piloto sobre los 9 ejemplos.
       Validación hasta ahora: bun test apps/api/src/services/elpx-fixtures.unit.test.ts (26 pass, 0 fail),
       bun test packages/db/src/repository.unit.test.ts packages/db/src/search.test.ts (18 pass, 0 fail).
+
   T-2026-07-10-002:
     date: 2026-07-10
     agent: "ingestas-y-migraciones + backend-api-servicios + qa-validacion"
@@ -1273,6 +1289,7 @@ tasks:
       → sin incidencias. Pendiente para siguiente iteración: ampliar RESOURCE_TYPE_DICTIONARY con los 3
       tipos sin mapeo detectados en el piloto (mapa-conceptual, leccion-magistral, cuestionario) y
       verificación visual en el backoffice admin.
+
   T-2026-07-10-003:
     date: 2026-07-10
     agent: "backend-api-servicios + qa-validacion"
@@ -1301,6 +1318,7 @@ tasks:
       importación completa de los 9 ejemplos de ode-export/ en un entorno temporal aislado, EXIT_CODE=0,
       ~2.3s de duración total (antes: cuelgue indefinido). Pendiente: que el usuario reintente contra su
       local-data/ real y confirme visualmente en el backoffice admin.
+
   T-2026-07-10-004:
     date: 2026-07-10
     agent: "metadatos-y-curacion + backend-api-servicios"
@@ -1316,6 +1334,7 @@ tasks:
       packages/db/src/seed-data.ts). Se añade assertion de regresión en packages/db/src/repository.unit.test.ts
       y se actualiza design.md de la épica. Validación: bun test packages/db/src/repository.unit.test.ts
       apps/cli/ → 40 pass, 0 fail.
+
   T-2026-07-10-005:
     date: 2026-07-10
     agent: "qa-validacion + backend-api-servicios + metadatos-y-curacion"
@@ -1349,6 +1368,7 @@ tasks:
       el piloto original (importados=8, bloqueados=1, errores=0), con createdAt reflejando ahora la fecha de
       publicación original de cada recurso (verificado por consulta directa a BD) y search_vector poblado en
       los 8 recursos importados.
+
   T-2026-07-11-001:
     date: 2026-07-11
     agent: "backend-api-servicios + qa-validacion"
@@ -1381,6 +1401,7 @@ tasks:
       upload_sessions.createdAt como alternativa de último recurso. Se añade sección de actualización en
       ADR-0029 (2026-07-11) y se actualiza design.md. Validación: bun test apps/ packages/ scripts/ → 796
       pass, 0 fail; bun run scripts/check-test-files.ts sin incidencias.
+
   T-2026-07-13-001:
     date: 2026-07-13
     agent: "backend-api-servicios + qa-validacion"
@@ -1617,6 +1638,7 @@ tasks:
       file: de ADR-0029 y ADR-0030 apuntan a ficheros existentes; bun run design:lint;
       bun run check-test-files; bun run test 773 pass / 0 fail (+7 de integración) con coverage
       90,72%.
+
   T-2026-07-16-007:
     date: 2026-07-16
     agent: "devops-sre + qa-validacion"
@@ -1809,40 +1831,6 @@ tasks:
       ADR-0031 para verificación de email (#235). Fichero 0029-versionado-recursos.md →
       0032-versionado-recursos.md; referencias actualizadas en epic-005-versionado-recursos
       y en T-2026-06-23-007. Se unen todos los T-* de main; no se borra historial.
-
-  T-2026-07-17-005:
-    date: 2026-07-17
-    agent: "devops-sre + backend-api-servicios + frontend-ux-accesibilidad"
-    task: "Integrar origin/main (post PR #272 biome) en feat/align-embed-bridge-with-mod (PR #260)"
-    status: Done
-    related: ["ADR-0033", "ADR-0034", "PR-260", "PR-272"]
-    notes: >
-      Merge de origin/main en la rama del bridge de medios / preview HTTP opaco.
-      Resolución de conflictos: se conservan los cambios funcionales de la PR #260
-      (preview multipart limits, redactAuditPath, cookie SameSite pin, bridge
-      compartido, embed-shim de core, CONTENT_IFRAME_SANDBOX, ADRs 0031/0032) y se
-      unen con el formateo/estilo de main cuando el conflicto era solo estilo.
-      Ficheros frontend del sistema bespoke (use-elpx-embed-relay, EmbedModal,
-      elpx-embed-policy) permanecen eliminados (mod/delete a favor de la PR).
-      decision-log: unión de ADR-0029 (main) + ADR-0033/0034 (rama).
-      En exelearning-editor.ts se restaura el catch-all de estáticos con bloqueo
-      de preview-sw.js (se había perdido en un fix previo de escape de scripts).
-
-  T-2026-07-17-006:
-    date: 2026-07-17
-    agent: "documentacion-y-roadmap"
-    task: "Renumeración de ADRs del bridge/preview en PR #260: ADR-0031→0033 y ADR-0032→0034 por colisión con PRs abiertas #235 y #236"
-    status: Done
-    related: ["ADR-0033", "ADR-0034", "PR-260", "PR-235", "PR-236"]
-    notes: >
-      Tras integrar main post-#272, las ADRs del bridge compartido y de la topología del preview
-      HTTP de esta rama usaban ADR-0031 y ADR-0032. En paralelo, la PR #235 (verificación de
-      email) reclamó ADR-0031 y la PR #236 (modelo de versionado) reclamó ADR-0032. Para evitar
-      colisiones de numeración al mergear, esta rama renumera a ADR-0033 (bridge de medios
-      externos compartido de eXeLearning) y ADR-0034 (topología del preview HTTP). Se renombran
-      los ficheros, decision-log, superseded_by de ADR-0027 y referencias en docs operativos.
-      Sin cambios de código productivo. Validación: parseo YAML de decision-log y status;
-      ficheros 0033/0034 existen; sin referencias residuales a 0031-migracion ni 0032-topologia.
 
   T-2026-07-17-17104902:
     date: 2026-07-17
@@ -2039,6 +2027,7 @@ tasks:
 
   # Renumerada de T-2026-07-17-011 → T-2026-07-17-14354901 al fusionar main (#284 visual
   # se quedó con 011). Formato HHMMSSrr (UTC del commit typecheck + sufijo) para no colisionar.
+
   T-2026-07-17-14354901:
     date: 2026-07-17
     agent: "backend-api-servicios + frontend-ux-accesibilidad + devops-sre + qa-validacion"
@@ -2066,6 +2055,7 @@ tasks:
       834 pass / 0 fail; coverage 90,17% (>= 90%).
       Nota de merge: la clave original T-2026-07-17-011 colisionó con #284 (visual); renumerada
       a T-2026-07-17-14354901. Prevención a futuro: PR #286 (T-YYYY-MM-DD-HHMMSSrr).
+
   T-2026-07-17-011:
     date: 2026-07-17
     agent: "devops-sre + qa-validacion + seguridad-privacidad-legal + arquitectura-solucion"
@@ -2139,25 +2129,6 @@ tasks:
       documenta en ADR-0033. Validación: el siguiente E2E verde de una PR debe
       publicar assets y dejar/actualizar el comentario marcado.
 
-  T-2026-07-25-16042561:
-    date: 2026-07-25
-    agent: "interoperabilidad-educativa + seguridad-privacidad-legal + backend-api-servicios"
-    task: "Sustituir el protocolo v2 del preview por el contrato de snapshot"
-    status: Done
-    related: ["ADR-0035", "ADR-0034", "ADR-0030"]
-    notes: >
-      El editor embebido dejó de hablar el protocolo v2: un bundle construido desde
-      la rama actual del editor no contiene ninguna referencia a previewHttp ni a
-      protocolVersion, y lee previewSnapshot. La plataforma inyectaba lo primero y
-      omitía lo segundo, así que la previsualización opaca fallaba en cerrado y se
-      quedaba siempre filtrada, sin error visible. Se sustituye el store por capas
-      (assets inmutables, revisiones incrementales, recursos fijos) por un snapshot
-      completo por refresco, con verificación del ZIP previa a descomprimir y tope
-      medido sobre bytes realmente inflados. Se conserva la topología de ADR-0034 y
-      toda la política de servido (CSP, ETag, rangos, redirección relativa).
-      Validación: bun test (976 verdes), make lint, make check-types (0 errores),
-      make check-test-files, make check-tracking.
-
   T-2026-08-06-08321910:
     date: 2026-08-06
     agent: "frontend-ux-accesibilidad + qa-validacion"
@@ -2187,7 +2158,7 @@ tasks:
     agent: "project-manager + devops-sre"
     task: "Revertir fusión accidental del PR #293 (work-in-progress)"
     status: Done
-    related: ["#293", "#316"]
+    related: ["#293"]
     notes: >
       El PR #293 (feature/secure-iframe-sandbox, etiqueta work-in-progress) se
       fusionó en main por error. Se revierte el merge commit ff11253a (-m 1)
@@ -2195,13 +2166,123 @@ tasks:
       misma base de commits de la feature. Se conserva la entrada de #306
       (colecciones admin) añadida después del merge.
 
-  T-2026-08-06-10061193:
+  T-2026-08-06-08191097:
     date: 2026-08-06
-    agent: "project-manager"
-    task: "Reabrir trabajo del PR #293 tras el revert (nuevo PR)"
-    status: In Progress
-    related: ["#293", "#316"]
+    agent: "seguridad-privacidad-legal + backend-api-servicios"
+    task: "Guarda /dev: bypass por percent-encoding y 404 ante bytes nulos"
+    status: Done
+    related: ["#257", "#251"]
     notes: >
-      No se puede reabrir un PR fusionado. Se re-aplica el trabajo del #293
-      sobre main post-#316 (revert) en la rama feature/secure-iframe-sandbox-reopen
-      para continuar la revisión. Sigue work-in-progress.
+      Revisión de PR #257: la guarda comparaba new URL(c.req.url).pathname (sin
+      decodificar) mientras serveStatic resuelve el fichero desde c.req.path, que
+      Hono ya decodifica con decodeURI. Fuera de desarrollo, /%64ev/data/status.yaml
+      devolvía 200 con el contenido interno. Se compara ahora sobre c.req.path,
+      decodificando además los caracteres reservados (%2f) y respondiendo 404 si la
+      decodificación falla (fallo cerrado: Hono decodifica parcialmente y podría
+      resolver el fichero). Añadido rechazo de bytes nulos: /assets%00.js hacía
+      lanzar a Bun.file() dentro de serveStatic y la petición acababa en 500 sin
+      manejar. Validación: bun test apps/api/src/app/frontend.unit.test.ts (8 pass);
+      regresiones verificadas en rojo antes del arreglo. check-types 0 errores,
+      biome y check-test-files OK.
+
+  T-2026-08-06-09120735:
+    date: 2026-08-06
+    agent: "evaluacion-tecnologica + busqueda-y-descubrimiento + backend-api-servicios + frontend-ux-accesibilidad"
+    task: "Sistema de recomendación de recursos relacionados (issue #72)"
+    status: Done
+    related: ["#72", "ADR-0036", "ADR-0005", "ADR-0009", "ADR-0026"]
+    notes: >
+      ADR-0036: content-based multi-señal en PostgreSQL (metadatos, keywords,
+      autor, co-ocurrencia en colecciones, FTS ts_rank). Endpoint
+      GET /api/v1/resources/:slug/related; UI en ficha con ResourceCard;
+      collaborative filtering diferido. Tests unitarios de score y servicio
+      con asserts numéricos de ranking. Fase 3 (recomendados para ti) fuera
+      de alcance.
+
+  T-2026-08-06-08301697:
+    date: 2026-08-06
+    agent: "frontend-ux-accesibilidad + qa-validacion"
+    task: "fix(admin): incluir recursos archivados en estadísticas y filtros"
+    status: Done
+    related: ["#303"]
+    notes: >
+      Añade tarjeta Archivados (listAdminResources status=archived), filtro de
+      estado Archivado y estilos compactos. Prueba unitaria del shell y de
+      ADMIN_RESOURCE_STATUS_FILTERS. bun test AdminResourcesSection.unit.test.tsx OK.
+
+  T-2026-08-06-08344240:
+    date: 2026-08-06
+    agent: "frontend-ux-accesibilidad + qa-validacion"
+    task: "fix(perfil): contador de favoritos al volver al perfil (DEF-005)"
+    status: Done
+    related: ["#202", "DEF-005"]
+    notes: >
+      Revalidación del dashboard al montar/SPA y al restaurar pestaña (pageshow/
+      visibilitychange). Sincroniza favoriteCount con el total de GET favorites
+      y withFavoriteCount en unfavorite. Unit tests OK.
+
+  T-2026-08-06-08595480:
+    date: 2026-08-06
+    agent: "evaluacion-tecnologica + metadatos-y-curacion + backend-api-servicios + qa-validacion"
+    task: "feat(tags): atomized tagging system foundation (issue #76)"
+    status: Done
+    related: ["#76", "ADR-0034"]
+    notes: >
+      ADR-0034: dedicated tags + resource_tags (not taxonomies). Domain normalize
+      (slug, parse keywords, Levenshtein similar). Repository ensure/set/merge/
+      migrate dual-write keywords. Public API /api/v1/tags and admin merge/migrate.
+      Unit tests 40 pass. keywords kept deprecated transitional.
+
+  T-2026-08-06-09163367:
+    date: 2026-08-06
+    agent: "frontend-ux-accesibilidad + backend-api-servicios + qa-validacion"
+    task: "feat(tags): admin panel, public /tags page, catalog facet (#310)"
+    status: Done
+    related: ["#310", "#76", "#308", "ADR-0034"]
+    notes: >
+      AdminTagsSection (list/edit/merge/migrate), section tags in sidebar,
+      TagResourcesIsland at /tags/:slug, catalog ?tag= facet + listResources tagSlug,
+      listing-history tag param. Tests + check-types 0 + biome error-free.
+
+  T-2026-08-07-08110110:
+    date: 2026-08-07
+    agent: "frontend-ux-accesibilidad + qa-validacion"
+    task: "Resolver el conflicto de merge del PR #307"
+    status: Done
+    related: ["#307", "DEF-005"]
+    notes: >
+      Se integra main conservando la entrada de trazabilidad del fix de favoritos y las
+      entradas de etiquetado añadidas en la rama base. La prueba del dashboard pasa.
+
+  T-2026-08-07-08172187:
+    date: 2026-08-07
+    agent: "frontend-ux-accesibilidad + qa-validacion"
+    task: "Resolver el conflicto de merge del PR #305"
+    status: Done
+    related: ["#305", "#303"]
+    notes: >
+      Se integra main sin perder la trazabilidad de estadísticas y filtro de recursos
+      archivados, ni las entradas recientes de la rama base. La prueba del componente
+      administrativo pasa.
+
+  T-2026-08-07-08235507:
+    date: 2026-08-07
+    agent: "busqueda-y-descubrimiento + frontend-ux-accesibilidad + qa-validacion"
+    task: "Resolver los conflictos de merge del PR #313"
+    status: Done
+    related: ["#313", "#72", "ADR-0036"]
+    notes: >
+      Se integra main conservando el contrato de recomendaciones y las operaciones públicas
+      de tags. El registro de decisiones incluye ADR-0034 y ADR-0036 sin reservar un número
+      ya utilizado. Las pruebas de ranking/API y el typecheck pasan.
+
+  T-2026-08-07-08362103:
+    date: 2026-08-07
+    agent: "seguridad-privacidad-legal + backend-api-servicios + qa-validacion"
+    task: "Resolver el conflicto de merge del PR #257"
+    status: Done
+    related: ["#257", "#251"]
+    notes: >
+      Se integra main conservando las guardas que bloquean el dashboard interno fuera de
+      desarrollo. La prueba de serving del frontend cubre rutas /dev codificadas, variantes
+      de mayúsculas y bytes nulos.
