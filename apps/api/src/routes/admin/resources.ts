@@ -1,4 +1,3 @@
-import { unlink } from "node:fs/promises";
 import * as repo from "@procomun/db/repository";
 import {
 	validateCreateResource,
@@ -17,11 +16,8 @@ import {
 import { ensureCurrentUser } from "../../auth/user-sync.ts";
 import { getDb } from "../../db.ts";
 import { updateSearchVector } from "../../fts/search.ts";
-import {
-	contentDisposition,
-	getUploadConfig,
-	resolveStoredFilePath,
-} from "../../uploads/config.ts";
+import { retireUploadArtifacts } from "../../services/elpx-retire.ts";
+import { contentDisposition, getUploadConfig } from "../../uploads/config.ts";
 import { buildCrudRoutes } from "../crud-builder.ts";
 import { readUploadContent, terminateUpload } from "../uploads.ts";
 import {
@@ -29,6 +25,7 @@ import {
 	requireManageableResource,
 	requireUploadSessionForManagedResource,
 } from "./guards.ts";
+import { registerResourceVersionRoutes } from "./versions.ts";
 
 const db = () => getDb().db;
 
@@ -199,8 +196,8 @@ resourceRoutes.delete("/:id/media/:mediaItemId", async (c) => {
 
 	const config = getUploadConfig();
 	if (item.uploadId) {
-		await unlink(resolveStoredFilePath(config, item.uploadId)).catch(() => {});
-		await repo.cancelUploadSession(db(), item.uploadId).catch(() => {});
+		// Conserva archivo y sesión si pertenecen a una versión publicada (issue #31)
+		await retireUploadArtifacts(db(), item.uploadId, config);
 	}
 	await repo.deleteMediaItem(db(), mediaItemId);
 
@@ -255,6 +252,9 @@ resourceRoutes.get("/:id/elpx", async (c) => {
 		createdAt: elpx.createdAt,
 	});
 });
+
+// Historial de versiones (issue #31): /:id/versions, publicar y restaurar.
+registerResourceVersionRoutes(resourceRoutes);
 
 resourceRoutes.patch("/:id/status", async (c) => {
 	const user = getCurrentUser(c);

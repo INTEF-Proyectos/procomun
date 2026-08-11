@@ -77,7 +77,12 @@ publicRoutes.get("/resources/:slug", async (c) => {
 		return c.json({ error: "Recurso no encontrado" }, 404);
 	}
 
-	const elpx = await repo.getElpxProjectByResourceId(getDb().db, resource.id);
+	// Versionado (issue #31): la ficha pública sirve la versión vigente, no la
+	// copia de trabajo del autor.
+	const elpx = await repo.getCurrentElpxProjectByResourceId(
+		getDb().db,
+		resource.id,
+	);
 	let elpxFileUrl: string | null = null;
 	if (elpx?.uploadSessionId) {
 		elpxFileUrl = `/api/v1/uploads/${elpx.uploadSessionId}/content`;
@@ -100,7 +105,16 @@ publicRoutes.get("/resources/:slug", async (c) => {
 publicRoutes.get("/uploads/:id/content", async (c) => {
 	const { id } = c.req.param();
 	const session = await repo.getUploadSessionById(getDb().db, id);
-	if (!session || session.status !== "completed" || !session.mediaItemId) {
+	if (session?.status !== "completed") {
+		return c.json({ error: "Archivo no encontrado" }, 404);
+	}
+	// Sin media item la sesión solo es descargable si su .elpx forma parte del
+	// historial de versiones (issue #31): al reemplazar un archivo, el media item
+	// se borra pero la entrega publicada debe seguir descargable.
+	if (
+		!session.mediaItemId &&
+		!(await repo.isUploadSessionReferencedByVersions(getDb().db, id))
+	) {
 		return c.json({ error: "Archivo no encontrado" }, 404);
 	}
 

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { getResourceTypeOptions } from "../islands/resources/resource-form-options.ts";
-import type { Resource } from "../lib/api-client.ts";
+import type { Resource, ResourceVersionRecord } from "../lib/api-client.ts";
 import { getApiClient } from "../lib/get-api-client.ts";
 import { url } from "../lib/paths.ts";
 import "../styles/editar.css";
@@ -118,6 +118,10 @@ export default function EditarPage() {
 	);
 	const [resource, setResource] = useState<Resource | null>(null);
 	const [elpx, setElpx] = useState<ElpxProject>(null);
+	// Historial de versiones publicadas (issue #31)
+	const [versions, setVersions] = useState<ResourceVersionRecord[]>([]);
+	const [versionNotes, setVersionNotes] = useState("");
+	const [versionBusy, setVersionBusy] = useState(false);
 	const [userRole, setUserRole] = useState("reader");
 	const [errorMsg, setErrorMsg] = useState("");
 	const [successMsg, setSuccessMsg] = useState("");
@@ -337,6 +341,13 @@ export default function EditarPage() {
 					};
 				}
 
+				if (!isNew) {
+					const versionData = await api
+						.listResourceVersions(id)
+						.catch(() => []);
+					setVersions(versionData);
+				}
+
 				setResource(resourceData);
 				setElpx(elpxData);
 				setUserRole(role);
@@ -473,6 +484,59 @@ export default function EditarPage() {
 			setTimeout(() => window.location.reload(), 800);
 		} catch {
 			setErrorMsg("Error al cambiar el estado");
+		}
+	}
+
+	// --- Historial de versiones (issue #31) ---
+
+	async function handlePublishVersion() {
+		if (!resource || versionBusy) return;
+		setVersionBusy(true);
+		setErrorMsg("");
+		setSuccessMsg("");
+		try {
+			const api = await getApiClient();
+			const result = await api.publishResourceVersion(
+				resource.id,
+				versionNotes.trim() || undefined,
+			);
+			if (!result.ok) {
+				setErrorMsg(result.error ?? "Error al publicar la versión");
+				return;
+			}
+			setSuccessMsg(`Versión ${result.versionNumber} publicada`);
+			setVersionNotes("");
+			setVersions(await api.listResourceVersions(resource.id).catch(() => []));
+		} finally {
+			setVersionBusy(false);
+		}
+	}
+
+	async function handleRestoreVersion(version: ResourceVersionRecord) {
+		if (!resource || versionBusy) return;
+		if (
+			!window.confirm(
+				`¿Restaurar la versión ${version.versionNumber}? Se creará una nueva versión con su archivo y metadatos; el historial no se modifica.`,
+			)
+		) {
+			return;
+		}
+		setVersionBusy(true);
+		setErrorMsg("");
+		setSuccessMsg("");
+		try {
+			const api = await getApiClient();
+			const result = await api.restoreResourceVersion(resource.id, version.id);
+			if (!result.ok) {
+				setErrorMsg(result.error ?? "Error al restaurar la versión");
+				setVersionBusy(false);
+				return;
+			}
+			// La restauración cambia metadatos y previsualización: recarga completa.
+			window.location.reload();
+		} catch {
+			setErrorMsg("Error al restaurar la versión");
+			setVersionBusy(false);
 		}
 	}
 
@@ -829,6 +893,84 @@ export default function EditarPage() {
 									className="edit-upload-status"
 									style={{ display: "none" }}
 								/>
+							</div>
+						)}
+
+						{/* Historial de versiones (issue #31) */}
+						{!isNew && (elpx !== null || versions.length > 0) && (
+							<div className="edit-files-section" id="edit-versions-panel">
+								<h3>Historial de versiones</h3>
+								<div className="edit-field">
+									<label htmlFor="ed-version-notes">
+										Notas de cambio (opcional)
+									</label>
+									<input
+										type="text"
+										id="ed-version-notes"
+										value={versionNotes}
+										onChange={(e) => setVersionNotes(e.target.value)}
+										placeholder="Qué cambia en esta entrega…"
+										disabled={versionBusy}
+									/>
+								</div>
+								<button
+									type="button"
+									className="edit-exe-btn"
+									onClick={handlePublishVersion}
+									disabled={versionBusy}
+								>
+									<span className="material-symbols-outlined">
+										new_releases
+									</span>
+									Publicar nueva versión
+								</button>
+								{versions.length === 0 ? (
+									<p className="edit-drop-hint">
+										Aún no hay versiones publicadas. Al publicar, el .elpx
+										actual y sus metadatos quedan registrados como versión 1.
+									</p>
+								) : (
+									<ul className="edit-media-list" data-versions-list>
+										{versions.map((version) => (
+											<li key={version.id}>
+												<strong>v{version.versionNumber}</strong>
+												{version.isCurrent && (
+													<span className="edit-badge edit-badge-published">
+														Vigente
+													</span>
+												)}{" "}
+												<span className="edit-date">
+													{formatDate(version.createdAt)}
+												</span>
+												{version.createdByName && (
+													<span> — {version.createdByName}</span>
+												)}
+												{version.changeNotes && (
+													<em> · {version.changeNotes}</em>
+												)}{" "}
+												{version.downloadUrl && (
+													<a
+														href={url(version.downloadUrl.replace(/^\//, ""))}
+														download={version.originalFilename ?? undefined}
+													>
+														Descargar
+													</a>
+												)}{" "}
+												{!version.isCurrent &&
+													userLevel >= (ROLE_LEVELS.curator ?? 99) && (
+														<button
+															type="button"
+															className="edit-wf-btn-outline"
+															onClick={() => handleRestoreVersion(version)}
+															disabled={versionBusy}
+														>
+															Restaurar
+														</button>
+													)}
+											</li>
+										))}
+									</ul>
+								)}
 							</div>
 						)}
 

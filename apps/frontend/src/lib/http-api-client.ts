@@ -388,6 +388,68 @@ export class HttpApiClient implements ApiClient {
 		return res.json();
 	}
 
+	async listResourceVersions(
+		resourceId: string,
+	): Promise<import("./api-client.ts").ResourceVersionRecord[]> {
+		const res = await fetch(`/api/admin/resources/${resourceId}/versions`, {
+			credentials: "include",
+		});
+		if (!res.ok) return [];
+		return res.json();
+	}
+
+	async publishResourceVersion(resourceId: string, changeNotes?: string) {
+		const res = await fetch(`/api/admin/resources/${resourceId}/versions`, {
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			credentials: "include",
+			body: JSON.stringify({ changeNotes: changeNotes ?? null }),
+		});
+		const body = (await res.json().catch(() => ({}))) as Record<
+			string,
+			unknown
+		>;
+		if (!res.ok) {
+			return {
+				ok: false,
+				error:
+					typeof body.error === "string"
+						? body.error
+						: "Error al publicar la versión",
+			};
+		}
+		return {
+			ok: true,
+			id: body.id as string,
+			versionNumber: body.versionNumber as number,
+		};
+	}
+
+	async restoreResourceVersion(resourceId: string, versionId: string) {
+		const res = await fetch(
+			`/api/admin/resources/${resourceId}/versions/${versionId}/restore`,
+			{ method: "POST", credentials: "include" },
+		);
+		const body = (await res.json().catch(() => ({}))) as Record<
+			string,
+			unknown
+		>;
+		if (!res.ok) {
+			return {
+				ok: false,
+				error:
+					typeof body.error === "string"
+						? body.error
+						: "Error al restaurar la versión",
+			};
+		}
+		return {
+			ok: true,
+			versionNumber: body.versionNumber as number,
+			restoredFromVersionNumber: body.restoredFromVersionNumber as number,
+		};
+	}
+
 	async listUsers(opts?: {
 		q?: string;
 		role?: string;

@@ -140,3 +140,59 @@ No se usa un `ref_count` leído y actualizado fuera de transacción como fuente 
 
 ## Estado
 Diseño propuesto (F1–F3). La implementación queda condicionada a aceptar ADR-0032 y a convertir estas garantías en tests de integración.
+
+---
+
+## Adenda 2026-08-11 — Diseño MVP implementado (ADR-0037)
+
+La implementación inicial (PR del issue #31) adopta el recorte de alcance
+decidido en [ADR-0037](../../negocio/decisiones/0037-versionado-recursos-mvp.md):
+el modelo de esta página se conserva como referencia para la fase de
+optimización de almacenamiento, pero la F1+F2 entregadas usan el modelo mínimo:
+
+### Modelo entregado
+- **`resource_versions`** (única tabla nueva): `id`, `resource_id`,
+  `version_number`, `elpx_project_id` (FK `ON DELETE RESTRICT`),
+  `file_sha256`, `metadata_snapshot` JSONB, `change_notes`, `created_by`,
+  `created_at`, con `UNIQUE(resource_id, version_number)`.
+- **`resources.current_version_id`**: puntero a la versión vigente
+  (FK declarada en SQL; columna simple en Drizzle para evitar import circular).
+- **`elpx_projects` sin `UNIQUE(resource_id)`**: cada `.elpx` subido crea una
+  fila; la copia de trabajo del autor es la más reciente y las versiones
+  publicadas referencian las suyas. `elpx_projects.version` sigue siendo la
+  versión del formato ELPX (3), no la editorial.
+- **Sin** `content_blobs` ni `resource_version_blobs`: `file_sha256` reutiliza
+  `upload_sessions.finalChecksum`; no hay dedupe ni GC (retención: se conserva
+  todo; el borrado de proyectos/sesiones referenciadas está bloqueado por FK y
+  por las guardas de `apps/api/src/services/elpx-retire.ts`).
+
+### Flujos entregados
+- Publicar (autor, `POST /api/admin/resources/:id/versions`): transacción con
+  `SELECT … FOR UPDATE`, `MAX(version_number)+1`, snapshot de metadatos
+  vigentes (incl. materias/niveles) y avance del puntero. 409 si la copia de
+  trabajo ya está en el historial (una versión = una entrega publicada).
+- Historial (`GET /api/admin/resources/:id/versions`): número, fecha, autor,
+  notas, vigente y URL de descarga (`/api/admin/uploads/:id/content`).
+- Restaurar (curador/admin, `POST …/versions/:versionId/restore`): crea una
+  versión nueva reutilizando `elpx_project_id` y snapshot, aplica el snapshot a
+  la proyección (`resources` + materias + niveles + tags), nota automática
+  «Restaurada desde la versión N» y re-indexado FTS.
+- Resolución pública por versión vigente (`getCurrentElpxProjectByResourceId`)
+  con fallback a la copia de trabajo para recursos sin versiones; el editor
+  sigue usando la copia de trabajo.
+- La descarga pública de una sesión cuyo media item fue reemplazado sigue
+  disponible mientras la sesión pertenezca al historial.
+- Parser ELPX ampliado con `odeId`, `odeVersionId` y `exe_version`
+  (informativos; el número de versión de Procomún es propio).
+- UI: panel «Historial de versiones» en la página de edición (publicar con
+  notas, listado con vigente, descarga, restaurar para curador/admin).
+
+### Trazabilidad
+- RF-001..RF-007 y RF-010 cubiertos; RF-008 se mantiene por construcción (solo
+  la proyección se indexa/expone); RF-009 queda en política "conservar todo"
+  documentada en ADR-0037 (GC diferido).
+- Tests: `packages/db/src/repository/resource-versions.integration.test.ts`,
+  `apps/api/src/routes/admin/versions.unit.test.ts`,
+  `apps/api/src/routes/admin/elpx-versioning.unit.test.ts`,
+  `apps/api/src/services/elpx-retire.unit.test.ts`,
+  `packages/db/src/elpx-metadata.unit.test.ts`.

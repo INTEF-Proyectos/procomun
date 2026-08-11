@@ -10,8 +10,11 @@ import { generateElpxFromFiles } from "../../services/elpx-generator.ts";
 import {
 	parseElpxMetadata,
 	processElpxUpload,
-	removeElpxExtraction,
 } from "../../services/elpx-processor.ts";
+import {
+	retireUploadArtifacts,
+	retireWorkingCopyProject,
+} from "../../services/elpx-retire.ts";
 import {
 	buildUploadPublicUrl,
 	computeFileSha256,
@@ -103,12 +106,8 @@ elpxAdminRoutes.post(
 		await Promise.all(
 			prevElpxItems.map(async (m) => {
 				if (m.uploadId) {
-					await unlink(resolveStoredFilePath(config, m.uploadId)).catch(
-						() => {},
-					);
-					await repo
-						.cancelUploadSession(getDb().db, m.uploadId)
-						.catch(() => {});
+					// Conserva archivo y sesión si pertenecen a una versión publicada (issue #31)
+					await retireUploadArtifacts(getDb().db, m.uploadId, config);
 				}
 				await repo.deleteMediaItem(getDb().db, m.id).catch(() => {});
 			}),
@@ -154,14 +153,14 @@ elpxAdminRoutes.post(
 			finalChecksum: checksum,
 		});
 
-		// Remove existing elpx project if the resource already had one
+		// Retira la copia de trabajo anterior; si está publicada como versión,
+		// se conserva (historial, issue #31)
 		const existingElpx = await repo.getElpxProjectByResourceId(
 			getDb().db,
 			resourceId,
 		);
 		if (existingElpx) {
-			await removeElpxExtraction(existingElpx.extractPath).catch(() => {});
-			await repo.deleteElpxProject(getDb().db, existingElpx.id);
+			await retireWorkingCopyProject(getDb().db, existingElpx);
 		}
 
 		// Process the .elpx (extract + metadata)
@@ -212,14 +211,13 @@ elpxAdminRoutes.post("/save/:resourceId", requireRole("author"), async (c) => {
 	const config = getUploadConfig();
 	const filename = file.name || "project.elpx";
 
-	// Find and remove existing elpx project
+	// Retira la copia de trabajo anterior; las versiones publicadas se conservan (issue #31)
 	const existingElpx = await repo.getElpxProjectByResourceId(
 		getDb().db,
 		resourceId,
 	);
 	if (existingElpx) {
-		await removeElpxExtraction(existingElpx.extractPath).catch(() => {});
-		await repo.deleteElpxProject(getDb().db, existingElpx.id);
+		await retireWorkingCopyProject(getDb().db, existingElpx);
 	}
 
 	// Save new .elpx file to storage
@@ -348,14 +346,14 @@ elpxAdminRoutes.post(
 			return c.json({ error: message }, 500);
 		}
 
-		// Replace existing elpx project if any (RF-007)
+		// Replace existing elpx project if any (RF-007); las versiones publicadas
+		// se conservan (issue #31)
 		const existingElpx = await repo.getElpxProjectByResourceId(
 			getDb().db,
 			resourceId,
 		);
 		if (existingElpx) {
-			await removeElpxExtraction(existingElpx.extractPath).catch(() => {});
-			await repo.deleteElpxProject(getDb().db, existingElpx.id);
+			await retireWorkingCopyProject(getDb().db, existingElpx);
 		}
 
 		// Remove any previously generated recurso-generado.elpx media items
@@ -366,12 +364,8 @@ elpxAdminRoutes.post(
 		await Promise.all(
 			prevGenerated.map(async (m) => {
 				if (m.uploadId) {
-					await unlink(resolveStoredFilePath(config, m.uploadId)).catch(
-						() => {},
-					);
-					await repo
-						.cancelUploadSession(getDb().db, m.uploadId)
-						.catch(() => {});
+					// Conserva archivo y sesión si pertenecen a una versión publicada (issue #31)
+					await retireUploadArtifacts(getDb().db, m.uploadId, config);
 				}
 				await repo.deleteMediaItem(getDb().db, m.id).catch(() => {});
 			}),

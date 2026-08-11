@@ -66,6 +66,11 @@ export const resources = pgTable(
 		extractedAt: timestamp("extracted_at"),
 		extractionError: text("extraction_error"),
 
+		// Versionado (issue #31): puntero a la versión vigente en resource_versions.
+		// FK declarada solo en SQL (setup.ts / migración) para evitar la importación
+		// circular resources ↔ versions en Drizzle. Null hasta la primera publicación.
+		currentVersionId: text("current_version_id"),
+
 		// Sistema
 		deletedAt: timestamp("deleted_at"),
 
