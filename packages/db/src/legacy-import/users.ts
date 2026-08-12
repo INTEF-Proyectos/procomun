@@ -42,8 +42,6 @@ export function mapLegacyUser(record: LegacyUserJson): MappedLegacyUser {
 		throw new Error("mail ausente o inválido");
 	}
 
-	const rawStatus = record.status;
-	const isActive = rawStatus === 1 || rawStatus === "1" || rawStatus === true;
 	const legacyRole = asNonEmptyString(record.roles)?.toLowerCase();
 
 	return {
@@ -51,9 +49,10 @@ export function mapLegacyUser(record: LegacyUserJson): MappedLegacyUser {
 		id: `legacy-procomun:user:${legacyUid}`,
 		email,
 		name: asNonEmptyString(record.name),
-		// Única elevación automática autorizada: administrator legacy → admin.
+		// Mantener la capacidad legacy: administrator → admin; resto → editor.
 		role: legacyRole === "administrator" ? "admin" : "editor",
-		isActive,
+		// Las cuentas migradas deben poder recuperar credenciales e iniciar sesión.
+		isActive: true,
 		warnings: [],
 	};
 }
