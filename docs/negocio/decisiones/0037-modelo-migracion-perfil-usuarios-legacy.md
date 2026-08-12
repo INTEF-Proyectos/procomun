@@ -76,3 +76,56 @@ Antes de implementar se debe completar una feature trazable en la épica 004 con
 La aceptación de esta ADR exige una revisión conjunta de Producto, Arquitectura, Metadatos y Seguridad/Privacidad. Deben confirmarse finalidad, información a las personas afectadas, retención, ejercicio de derechos, visibilidad por defecto y el listado definitivo de campos. Hasta entonces, `import:legacy-users` conserva su alcance mínimo y no se ejecutará el lote completo de perfiles.
 
 Relacionada con la issue #312, la épica `epic-004-migracion-legacy-procomun` y el importador inicial de usuarios propuesto en el PR #309.
+
+## Adenda de revisión — 2026-08-12
+
+Esta adenda precisa la propuesta antes de su aceptación. No habilita todavía la
+importación de perfiles ni modifica el importador de cuentas mínimo.
+
+### Privacidad de los datos de presentación
+
+Los valores legacy destinados a presentación —nombre visible, biografía e imagen—
+se almacenarán en `user_profile` como `display_name`, `bio` e `image`, sujetos al
+mismo modelo de visibilidad que el resto del perfil y con valor inicial `private`.
+`user.name`, `user.bio` y `user.image`, si continúan existiendo por compatibilidad
+con Better Auth o con la cuenta mínima, no serán una fuente de datos para la
+representación pública de autores ni para las respuestas públicas de recursos.
+Solo una publicación explícita de cada campo de `user_profile` permitirá que la
+API pública lo devuelva. La migración de perfiles no copiará `bio` ni `image` a
+`user`; el valor técnico de `user.name` que ya use la cuenta mínima queda fuera de
+la representación pública y no cambia su visibilidad mediante esta ADR.
+
+### Procedencia y reversión por lote
+
+Cada inserción o campo creado por la migración deberá registrar procedencia a nivel
+de campo: `migration_batch_id`, identificador legacy, instante de importación y
+una huella del valor normalizado. Una edición de la persona usuaria reemplaza esa
+procedencia por `user` y conserva la auditoría. El informe de lote contendrá solo
+identificadores y resultados, nunca valores personales.
+
+El rollback de un `migration_batch_id` se realizará en una transacción y solo
+podrá eliminar el perfil, restablecer un campo o retirar un enlace cuando el
+registro siga marcado con ese mismo lote **y** la huella actual coincida con la
+huella importada. Si el campo fue editado, publicado o reasignado posteriormente,
+se omite y se informa como conflicto; nunca se sobrescribe una edición posterior.
+El rollback no borrará cuentas, sesiones ni recursos ya existentes, y mantendrá un
+registro auditable de los elementos revertidos y omitidos.
+
+### Política de reimportación
+
+La política inicial es de alta única y no sobrescritura:
+
+1. Un valor legacy `null`, vacío o inválido no crea ni borra un campo y se anota
+   como omitido.
+2. Para un usuario ya importado, los valores legacy distintos se detectan mediante
+   su huella y se anotan como `changed-source-skipped`; no actualizan el perfil ni
+   su visibilidad.
+3. Los campos ya editados por la persona usuaria nunca se modifican, incluso si el
+   valor legacy vuelve a cambiar.
+4. Una actualización desde el origen solo podrá existir en una feature posterior,
+   con consentimiento/base jurídica revisados, comparación por campo y una regla
+   explícita limitada a valores que sigan teniendo procedencia de migración.
+
+Así el piloto implementará estas reglas cerradas, en lugar de decidirlas durante
+la ejecución. Cualquier política de sincronización posterior requerirá revisión
+de Producto, Seguridad/Privacidad y una nueva adenda o ADR.

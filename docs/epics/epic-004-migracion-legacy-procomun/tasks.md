@@ -48,3 +48,10 @@ Los JSON/`.elpx` de `ode-export/` contienen datos personales reales (nombres y e
 - [x] Proponer ADR-0037 con la clasificación de campos, modelo lógico, reglas de migración y exclusiones de privacidad.
 - [ ] Obtener la aceptación de ADR-0037 por Producto, Arquitectura, Metadatos y Seguridad/Privacidad.
 - [ ] Crear la feature de implementación (migración Drizzle, validadores, controles de visibilidad, CLI idempotente e informe sin PII) solo tras la aceptación.
+
+### Adenda de revisión ADR-0037 — 2026-08-12
+
+- [x] Precisar que `display_name`, `bio` e `image` del legado pertenecen a `user_profile` y permanecen privados por defecto; `user` no alimenta representaciones públicas de autor.
+- [x] Definir procedencia por campo y rollback por `migration_batch_id` que no sobrescribe ediciones posteriores.
+- [x] Fijar política de reimportación: `null` se omite y los cambios de origen o usuarios existentes no se sobrescriben.
+- [ ] Corregir en GitHub la descripción del PR #315 y el comentario de la issue #312 para que mencionen ADR-0037, si su autor lo autoriza.

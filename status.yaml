@@ -2311,3 +2311,15 @@ tasks:
       renumerando la propuesta sobre perfiles legacy como ADR-0037. Se actualizan el
       índice de decisiones, las tareas de la épica de migración y la trazabilidad para
       impedir que dos decisiones compartan identificador.
+
+  T-2026-08-12-06152789:
+    date: 2026-08-12
+    agent: "documentacion-y-roadmap + seguridad-privacidad-legal"
+    task: "Atender revisión de privacidad, rollback y reimportación de ADR-0037 (PR #315)"
+    status: Done
+    related: ["#315", "#312", "ADR-0037"]
+    notes: >
+      Se añade una adenda que traslada nombre visible, biografía e imagen legacy a
+      user_profile con privacidad por defecto; define procedencia de campo y rollback
+      por migration_batch_id sin sobrescribir ediciones posteriores; y fija que null
+      se omite y las reimportaciones no actualizan usuarios ya importados.
