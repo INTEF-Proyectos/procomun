@@ -86,7 +86,11 @@ describe("resource versions", () => {
 		expect(history[1]?.id).toBe(v1.id);
 		expect("changeNotes" in (history[0] ?? {})).toBe(false);
 
-		const resource = await getResourceById(db, resourceId);
+		const [resource] = await db
+			.select({ currentVersionId: schema.resources.currentVersionId })
+			.from(schema.resources)
+			.where(eq(schema.resources.id, resourceId))
+			.limit(1);
 		expect(resource?.currentVersionId).toBe(v2.id);
 	});
 
