@@ -263,6 +263,7 @@ export interface ApiTokenStats {
 export interface AppConfig {
 	oidcEnabled: boolean;
 	oidcEndSessionUrl: string | null;
+	emailVerificationRequired: boolean;
 }
 
 export interface BadgeConfig {
@@ -333,7 +334,12 @@ export interface ApiClient {
 
 	// Auth
 	getSession(): Promise<SessionData | null>;
-	signUp(name: string, email: string, password: string): Promise<SignInResult>;
+	signUp(
+		name: string,
+		email: string,
+		password: string,
+		callbackURL?: string,
+	): Promise<SignInResult>;
 	signIn(email: string, password: string): Promise<SignInResult>;
 	signInOidc(): Promise<SignInResult>;
 	signOut(): Promise<void>;

@@ -166,12 +166,13 @@ export class HttpApiClient implements ApiClient {
 		name: string,
 		email: string,
 		password: string,
+		callbackURL?: string,
 	): Promise<SignInResult> {
 		const res = await fetch("/api/auth/sign-up/email", {
 			method: "POST",
 			headers: { "Content-Type": "application/json" },
 			credentials: "include",
-			body: JSON.stringify({ name, email, password }),
+			body: JSON.stringify({ name, email, password, callbackURL }),
 		});
 		if (res.ok) return { ok: true };
 		const data = await res.json().catch(() => null);

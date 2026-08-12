@@ -1,6 +1,7 @@
 import type { Hono } from "hono";
 import type { AuthEnv } from "../auth/middleware.ts";
 import { tokenAuthMiddleware } from "../auth/token-auth.ts";
+import { resolveEmailVerificationConfig } from "../email/transport.ts";
 import { adminRoutes } from "../routes/admin/index.ts";
 import { apiResourceRoutes } from "../routes/api-resources.ts";
 import { apiTokenRoutes } from "../routes/api-tokens.ts";
@@ -18,6 +19,8 @@ export function registerRoutes(app: Hono<AuthEnv>) {
 	app.get("/api/v1/config", (c) =>
 		c.json({
 			oidcEnabled: process.env.OIDC_ENABLED === "true",
+			emailVerificationRequired: resolveEmailVerificationConfig(process.env)
+				.enabled,
 			oidcEndSessionUrl: process.env.OIDC_ISSUER
 				? `${process.env.OIDC_ISSUER}/connect/endsession`
 				: null,
