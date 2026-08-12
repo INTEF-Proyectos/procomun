@@ -2166,6 +2166,68 @@ tasks:
       misma base de commits de la feature. Se conserva la entrada de #306
       (colecciones admin) añadida después del merge.
 
+  T-2026-07-17-004:
+    date: 2026-07-17
+    agent: "documentacion-y-roadmap"
+    task: "Integración de origin/main en PR #235 (email verification) y renumeración ADR-0030→ADR-0031"
+    status: Done
+    related: ["#235", "ADR-0031", "DEF-003", "T-2026-07-16-004"]
+    notes: >
+      Merge de origin/main en docs/email-verification-adr-def-003. Conflictos resueltos en
+      apps/api/src/auth/config.ts (unión de imports de email transport + getDb/permissions/urls)
+      y decision-log.yaml. ADR-0029 de main (importador legacy) se conserva. La ADR de
+      verificación de correo se renumera de ADR-0030 a ADR-0031 porque ADR-0030 está
+      reservado en main/status.yaml para la estrategia de modernización (PR #271 / #272).
+      Fichero 0030-verificacion-email-registro.md → 0031-verificacion-email-registro.md;
+      referencias actualizadas en decision-log.yaml, design.md del caso y .env.example.
+      No se borra ningún T-* existente.
+
+  T-2026-07-17-17104147:
+    date: 2026-07-17
+    agent: "seguridad-privacidad-legal + backend-api-servicios + qa-validacion"
+    task: "Revisión PR #235: fail-closed del transporte de log y limpieza del índice ADR"
+    status: Done
+    related: ["#235", "ADR-0031", "DEF-003", "T-2026-07-17-004"]
+    notes: >
+      LogEmailTransport queda limitado a development/test/CI (CI=true|1); production, staging
+      y NODE_ENV vacío exigen SMTP si se envía correo o se activa AUTH_REQUIRE_EMAIL_VERIFICATION.
+      MAIL_FROM obligatorio con SMTP fuera de development/test/CI. decision-log: ADR-0031 en
+      orden numérico; nota de reserva de ADR-0033 solo menciona ADR-0032 (#236). Tests de
+      transporte actualizados y en verde.
+
+  T-2026-08-06-08094314:
+    date: 2026-08-06
+    agent: "documentacion-y-roadmap + backend-api-servicios"
+    task: "Integración de origin/main en PR #235 (email verification) tras merge de #236 y hardening de seguridad"
+    status: Done
+    related: ["#235", "ADR-0031", "ADR-0032", "DEF-003", "T-2026-07-17-004"]
+    notes: >
+      Merge de origin/main en docs/email-verification-adr-def-003. Conflictos resueltos como
+      unión: package.json (versiones de main + nodemailer/@types de la rama), auth/config.ts
+      (imports de email transport + AUTH_DEFAULT_COOKIE_ATTRIBUTES de SameSite=Lax),
+      decision-log.yaml (ADR-0031 email + ADR-0032 versionado; ADR-0033 sin reservas abiertas)
+      y status.yaml (todas las entradas T-* de ambas ramas). bun install regenera lockfile.
+      No se borra historial de tracking.
+
+  T-2026-08-06-08202000:
+    date: 2026-08-06
+    agent: "backend-api-servicios + seguridad-privacidad-legal + qa-validacion"
+    task: "Revisión de @juanda en PR #235: sendOnSignIn y variables de entorno vacías"
+    status: Done
+    related: ["#235", "ADR-0031", "DEF-003", "T-2026-08-06-08094314"]
+    notes: >
+      P2 de @juanda resuelto: AUTH_REQUIRE_EMAIL_VERIFICATION controla también
+      emailVerification.sendOnSignIn (better-auth 1.6.25 lo evalúa después de validar la
+      contraseña, así que no abre un vector de envío masivo). Las tres opciones derivadas del
+      flag se centralizan en buildEmailVerificationOptions() en apps/api/src/email/transport.ts
+      y config.ts las consume, para que la correspondencia flag → comportamiento tenga tests.
+      Además, SMTP_PORT y EMAIL_VERIFICATION_EXPIRES_IN tratan la cadena vacía como no definida
+      y caen al defecto (antes Number("")=0 tumbaba el arranque con la verificación apagada);
+      la caducidad se acota a 30 días. El bloqueante de conflictos ya estaba resuelto por el
+      merge f8b80d35 (la rama contiene origin/main d32b0732). ADR-0031 y design.md del caso
+      reciben sección fechada 2026-08-06; .env.example documenta el criterio.
+      Validación: bun test transport.unit.test.ts → 24 pass / 0 fail; bun run check-types → 0
+      errores; biome check sobre los ficheros tocados sin diagnósticos.
   T-2026-08-06-08190404:
     date: 2026-08-06
     agent: "ingestas-y-migraciones + backend-api-servicios + documentacion-y-roadmap"
@@ -2362,6 +2424,27 @@ tasks:
       desarrollo. La prueba de serving del frontend cubre rutas /dev codificadas, variantes
       de mayúsculas y bytes nulos.
 
+  T-2026-08-07-08471732:
+    date: 2026-08-07
+    agent: "documentacion-y-roadmap + seguridad-privacidad-legal + qa-validacion"
+    task: "Resolver los conflictos de merge del PR #235"
+    status: Done
+    related: ["#235", "ADR-0031", "DEF-003"]
+    notes: >
+      Se integra main conservando el registro de verificación de email, los ADR de tags y
+      recomendaciones, y todas las entradas de seguimiento. ADR-0035 sigue reservado para
+      preview. Las pruebas del transporte de email pasan.
+
+  T-2026-08-11-17323020:
+    date: 2026-08-11
+    agent: "devops-sre + backend-api-servicios + seguridad-privacidad-legal + qa-validacion"
+    task: "Resolver los conflictos de merge del PR #235 tras actualizar dependencias"
+    status: Done
+    related: ["#235", "#200"]
+    notes: >
+      Se rebasa la rama sobre main en 9e9bd0da conservando la verificación de correo con
+      Nodemailer y adoptando Better Auth 1.6.26, Hono 4.13.1 y Biome 2.5.7. bun.lock se
+      regenera con Bun 1.3.14. Validación: 25 tests unitarios, Biome y lockfile congelado OK.
   T-2026-08-07-08522192:
     date: 2026-08-07
     agent: "ingestas-y-migraciones + backend-api-servicios + qa-validacion"
@@ -2419,6 +2502,28 @@ tasks:
       por migration_batch_id sin sobrescribir ediciones posteriores; y fija que null
       se omite y las reimportaciones no actualizan usuarios ya importados.
 
+  T-2026-08-12-06532436:
+    date: 2026-08-12
+    agent: "documentacion-y-roadmap"
+    task: "Resolver conflictos de merge del PR #235 con main"
+    status: Done
+    related: ["#235", "ADR-0031", "ADR-0037", "DEF-003"]
+    notes: >
+      Se integra origin/main. Solo conflictuaba status.yaml: se conservan el
+      historial de verificación de email (ADR-0031) y las entradas de ADR-0037
+      (perfiles legacy / PR #315) sin borrar T-*.
+
+  T-2026-08-12-07343370:
+    date: 2026-08-12
+    agent: "frontend-ux-accesibilidad + backend-api-servicios + qa-validacion + documentacion-y-roadmap"
+    task: "Corregir feedback de alta y verificación de correo del PR #235"
+    status: Done
+    related: ["#235", "#200", "DEF-003", "ADR-0031"]
+    notes: >
+      El registro con verificación activa confirma el envío y guía a activar la
+      cuenta; Better Auth retorna al perfil con una marca de callback y, tras
+      comprobar sesión, se muestra el aviso accesible de correo verificado e
+      inicio de sesión. Se conserva el flujo previo con el flag desactivado.
   T-2026-08-12-06521718:
     date: 2026-08-12
     agent: "documentacion-y-roadmap"
@@ -2429,3 +2534,15 @@ tasks:
       Se integra origin/main conservando el historial del importador legacy-users
       y la propuesta de perfil ADR-0037 (PR #315). Se unifican tasks.md de la épica
       y las entradas de status sin borrar ninguna de las dos líneas de trabajo.
+
+  T-2026-08-12-07394044:
+    date: 2026-08-12
+    agent: "documentacion-y-roadmap + frontend-ux-accesibilidad"
+    task: "Resolver conflictos de merge del PR #235 y conservar el feedback de verificación"
+    status: Done
+    related: ["#235", "#309", "#200", "DEF-003", "ADR-0031"]
+    notes: >
+      Se integra origin/main c7a251c3 sin perder ningún registro histórico de estado.
+      El conflicto afectaba únicamente status.yaml; se conservan las entradas de la
+      verificación por correo, de la importación legacy y de las demás líneas de trabajo.
+      Se mantiene el feedback accesible al enviar la activación y al completar el enlace.

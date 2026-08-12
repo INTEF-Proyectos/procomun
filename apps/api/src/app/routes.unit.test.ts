@@ -16,6 +16,7 @@ describe("registerRoutes", () => {
 		expect(configResponse.status).toBe(200);
 		const config = await configResponse.json();
 		expect(typeof config.oidcEnabled).toBe("boolean");
+		expect(typeof config.emailVerificationRequired).toBe("boolean");
 		expect("oidcEndSessionUrl" in config).toBe(true);
 	});
 });

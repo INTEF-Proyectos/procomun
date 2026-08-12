@@ -214,22 +214,6 @@ export interface ElpxProjectInfo {
 	createdAt: string | number | Date | null;
 }
 
-/** Versión publicada de un recurso (issue #31). */
-export interface ResourceVersionRecord {
-	id: string;
-	versionNumber: number;
-	changeNotes: string | null;
-	fileSha256: string;
-	elpxProjectId: string | null;
-	createdBy: string | null;
-	createdByName: string | null;
-	createdAt: string | number | Date | null;
-	originalFilename: string | null;
-	uploadSessionId: string | null;
-	isCurrent: boolean;
-	downloadUrl: string | null;
-}
-
 export interface UploadConfig {
 	maxFileSizeBytes: number;
 	maxFilesPerBatch: number;
@@ -279,6 +263,7 @@ export interface ApiTokenStats {
 export interface AppConfig {
 	oidcEnabled: boolean;
 	oidcEndSessionUrl: string | null;
+	emailVerificationRequired: boolean;
 }
 
 export interface BadgeConfig {
@@ -349,7 +334,12 @@ export interface ApiClient {
 
 	// Auth
 	getSession(): Promise<SessionData | null>;
-	signUp(name: string, email: string, password: string): Promise<SignInResult>;
+	signUp(
+		name: string,
+		email: string,
+		password: string,
+		callbackURL?: string,
+	): Promise<SignInResult>;
 	signIn(email: string, password: string): Promise<SignInResult>;
 	signInOidc(): Promise<SignInResult>;
 	signOut(): Promise<void>;
@@ -394,27 +384,6 @@ export interface ApiClient {
 		hasPreview: boolean;
 		previewUrl: string | null;
 		elpxFileUrl: string | null;
-	}>;
-
-	// Versionado de recursos (issue #31)
-	listResourceVersions(resourceId: string): Promise<ResourceVersionRecord[]>;
-	publishResourceVersion(
-		resourceId: string,
-		changeNotes?: string,
-	): Promise<{
-		ok: boolean;
-		id?: string;
-		versionNumber?: number;
-		error?: string;
-	}>;
-	restoreResourceVersion(
-		resourceId: string,
-		versionId: string,
-	): Promise<{
-		ok: boolean;
-		versionNumber?: number;
-		restoredFromVersionNumber?: number;
-		error?: string;
 	}>;
 
 	listUsers(opts?: {
