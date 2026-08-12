@@ -2592,3 +2592,14 @@ tasks:
       «Ver» pasa a ser una acción principal compacta con icono de visibilidad;
       «Restaurar» conserva menor prominencia con icono de retorno. Ambas incluyen
       estados hover, foco visible y deshabilitado acordes al editor.
+
+  T-2026-08-12-11450099:
+    date: 2026-08-12
+    agent: "backend-api-servicios + qa-validacion + documentacion-y-roadmap"
+    task: "Corregir las etiquetas al restaurar versiones del PR #322"
+    status: Done
+    related: ["#322", "#31", "ADR-0039", "epic-005-versionado-recursos"]
+    notes: >
+      La restauración sincroniza las etiquetas incluso si el snapshot tiene
+      keywords nulo, eliminando las etiquetas residuales de la versión posterior.
+      Se añade una regresión con una v1 sin etiquetas y una v2 etiquetada.

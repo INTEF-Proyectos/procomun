@@ -294,10 +294,11 @@ export async function restoreResourceVersion(
 				.values({ resourceId: input.resourceId, level });
 		}
 
-		if (typeof snapshot.keywords === "string") {
-			const { syncTagsFromKeywords } = await import("./tags.ts");
-			await syncTagsFromKeywords(tx, input.resourceId, snapshot.keywords);
-		}
+		// También debe sincronizarse cuando el snapshot no tiene palabras clave:
+		// `syncTagsFromKeywords(..., null)` elimina las etiquetas de la versión
+		// posterior, para que la proyección restaurada sea íntegramente fiel.
+		const { syncTagsFromKeywords } = await import("./tags.ts");
+		await syncTagsFromKeywords(tx, input.resourceId, snapshot.keywords);
 
 		return {
 			id,

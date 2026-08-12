@@ -17,6 +17,7 @@ import {
 } from "./resource-versions.ts";
 import { createResource, getResourceById } from "./resources.ts";
 import type { DrizzleDB } from "./shared.ts";
+import { listResourceTags, syncTagsFromKeywords } from "./tags.ts";
 
 let db: DrizzleDB;
 
@@ -149,6 +150,35 @@ describe("resource versions", () => {
 		expect(history[2]?.id).toBe(v1.id);
 		const resource = await getResourceById(db, resourceId);
 		expect(resource?.title).toBe("Título v1");
+	});
+
+	test("clears newer tags when the restored snapshot has no keywords", async () => {
+		const resourceId = await seedResource("Recurso sin etiquetas");
+		const project1 = await seedProject(resourceId, "g".repeat(64));
+		const v1 = await publishResourceVersion(db, {
+			resourceId,
+			elpxProjectId: project1.id,
+			createdBy: "autora",
+		});
+
+		await syncTagsFromKeywords(db, resourceId, "geometría");
+		const project2 = await seedProject(resourceId, "h".repeat(64));
+		await publishResourceVersion(db, {
+			resourceId,
+			elpxProjectId: project2.id,
+			createdBy: "autora",
+		});
+		expect(await listResourceTags(db, resourceId)).toHaveLength(1);
+
+		await restoreResourceVersion(db, {
+			resourceId,
+			versionId: v1.id,
+			createdBy: "curadora",
+		});
+
+		expect(await listResourceTags(db, resourceId)).toHaveLength(0);
+		const restored = await getResourceById(db, resourceId);
+		expect(restored?.keywords).toBeNull();
 	});
 
 	test("prevents deleting an ELPX referenced by history", async () => {

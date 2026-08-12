@@ -31,3 +31,7 @@
 
 ## Afinado de acciones del historial — 2026-08-12
 - [x] Diferenciar visualmente «Ver» como acción principal y «Restaurar» como acción secundaria, con iconos, foco visible y estados de interacción.
+
+## Corrección de etiquetas al restaurar — 2026-08-12
+- [x] Sincronizar también las etiquetas cuando el snapshot restaurado no tiene palabras clave, para eliminar las heredadas de la versión posterior.
+- [x] Cubrir la restauración de una versión sin etiquetas después de otra que sí las tenía.
