@@ -230,3 +230,15 @@ ADR-0036:
     Issue #72. Content-based híbrido: metadatos, keywords, autor, colecciones y FTS.
     Collaborative filtering (fase 3) diferido. ADR-0034 corresponde al sistema de tags;
     ADR-0035 permanece reservada para el trabajo de preview.
+
+ADR-0037:
+  title: "Modelo de perfil y migración de usuarios legacy"
+  status: Propuesto
+  date: 2026-08-06
+  file: 0037-modelo-migracion-perfil-usuarios-legacy.md
+  notes: >
+    Define un perfil de dominio separado de Better Auth y clasifica los campos del
+    exportador legacy por finalidad. La propuesta conserva identidad y contexto
+    educativo de utilidad potencial con visibilidad privada por defecto, y excluye
+    contraseñas, DNI, fecha de nacimiento y sexo. No autoriza implementar ni cargar
+    perfiles hasta revisión de Producto, Arquitectura, Metadatos y Privacidad.
