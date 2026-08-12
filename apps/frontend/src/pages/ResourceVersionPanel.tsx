@@ -138,19 +138,31 @@ export function ResourceVersionPanel() {
 							{!version.isCurrent && version.previewUrl && (
 								<button
 									type="button"
-									className="edit-wf-btn-outline"
+									className="resource-version-action resource-version-action-preview"
 									onClick={() => setPreviewVersion(version)}
 								>
+									<span
+										className="material-symbols-outlined"
+										aria-hidden="true"
+									>
+										visibility
+									</span>
 									Ver
 								</button>
 							)}{" "}
 							{!version.isCurrent && canRestore && (
 								<button
 									type="button"
-									className="edit-wf-btn-outline"
+									className="resource-version-action resource-version-action-restore"
 									onClick={() => void restore(version)}
 									disabled={busy}
 								>
+									<span
+										className="material-symbols-outlined"
+										aria-hidden="true"
+									>
+										restore
+									</span>
 									Restaurar
 								</button>
 							)}

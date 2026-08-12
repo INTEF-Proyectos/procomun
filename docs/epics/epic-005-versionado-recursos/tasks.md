@@ -28,3 +28,6 @@
 - [x] Exponer una URL de previsualización solo para versiones cuyo ELPX conserva contenido renderizable.
 - [x] Añadir junto a «Restaurar» la acción «Ver», que abre el ELPX histórico en una modal aislada y accesible.
 - [x] Cubrir la URL de previsualización de la API y el iframe seguro de la modal.
+
+## Afinado de acciones del historial — 2026-08-12
+- [x] Diferenciar visualmente «Ver» como acción principal y «Restaurar» como acción secundaria, con iconos, foco visible y estados de interacción.

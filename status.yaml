@@ -2581,3 +2581,14 @@ tasks:
       muestra la acción «Ver» junto a «Restaurar». La modal reutiliza el diálogo
       accesible de la aplicación y aplica el mismo sandbox de origen opaco que
       la ficha pública. Hay regresiones de API y de renderizado del iframe.
+
+  T-2026-08-12-11370412:
+    date: 2026-08-12
+    agent: "frontend-ux-accesibilidad + qa-validacion + documentacion-y-roadmap"
+    task: "Afinar las acciones Ver y Restaurar del historial del PR #322"
+    status: Done
+    related: ["#322", "#31", "ADR-0039", "epic-005-versionado-recursos"]
+    notes: >
+      «Ver» pasa a ser una acción principal compacta con icono de visibilidad;
+      «Restaurar» conserva menor prominencia con icono de retorno. Ambas incluyen
+      estados hover, foco visible y deshabilitado acordes al editor.

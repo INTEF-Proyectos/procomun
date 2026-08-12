@@ -439,6 +439,66 @@
 	white-space: nowrap;
 }
 
+/* Acciones compactas de las versiones: distinguir consulta y restauración sin
+   perder coherencia con los CTAs redondeados del editor. */
+.resource-version-action {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	gap: 0.3125rem;
+	min-height: 2rem;
+	padding: 0.375rem 0.75rem;
+	border-radius: 9999px;
+	font-family: var(--font-display);
+	font-size: 0.75rem;
+	font-weight: 700;
+	line-height: 1;
+	cursor: pointer;
+	transition:
+		background-color 160ms ease,
+		border-color 160ms ease,
+		box-shadow 160ms ease,
+		transform 160ms ease;
+}
+
+.resource-version-action .material-symbols-outlined {
+	font-size: 1rem;
+}
+
+.resource-version-action-preview {
+	border: 1px solid var(--color-primary);
+	background: var(--color-primary);
+	color: var(--color-on-primary);
+}
+
+.resource-version-action-preview:hover:not(:disabled) {
+	background: var(--color-primary-dark, var(--color-primary));
+	box-shadow: var(--shadow-sm);
+	transform: translateY(-1px);
+}
+
+.resource-version-action-restore {
+	border: 1px solid var(--color-outline-variant);
+	background: var(--color-surface-container-lowest);
+	color: var(--color-primary);
+}
+
+.resource-version-action-restore:hover:not(:disabled) {
+	border-color: var(--color-primary);
+	background: var(--color-primary-container);
+	transform: translateY(-1px);
+}
+
+.resource-version-action:focus-visible {
+	outline: 2px solid var(--color-primary);
+	outline-offset: 2px;
+}
+
+.resource-version-action:disabled {
+	opacity: 0.5;
+	cursor: not-allowed;
+}
+
 .upload-delete-btn {
 	flex-shrink: 0;
 	background: none;

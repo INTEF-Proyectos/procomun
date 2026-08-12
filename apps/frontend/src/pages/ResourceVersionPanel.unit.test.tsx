@@ -50,6 +50,7 @@ describe("ResourceVersionPanel", () => {
 		);
 
 		expect(html).toContain("Vista previa de la versión 1");
+		expect(html).toContain("resource-version-preview-dialog");
 		expect(html).toContain('src="/api/v1/elpx/aaaa/"');
 		expect(html).toContain(
 			'sandbox="allow-scripts allow-popups allow-popups-to-escape-sandbox"',
