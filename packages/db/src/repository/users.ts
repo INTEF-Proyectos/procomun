@@ -1,5 +1,5 @@
 import { and, asc, eq, isNull, sql } from "drizzle-orm";
-import { account, session, user } from "../schema/auth.ts";
+import { account, lowerEmail, session, user } from "../schema/auth.ts";
 import {
 	andWhere,
 	buildSearchTerm,
@@ -77,7 +77,7 @@ export async function getUserByEmail(db: DrizzleDB, email: string) {
 	const rows = await db
 		.select(USER_COLUMNS)
 		.from(user)
-		.where(eq(user.email, email))
+		.where(eq(lowerEmail(user.email), email.trim().toLowerCase()))
 		.limit(1);
 
 	return rows[0] ?? null;
@@ -91,7 +91,7 @@ export async function ensureUser(
 		.insert(user)
 		.values({
 			id: data.id,
-			email: data.email,
+			email: data.email.trim().toLowerCase(),
 			name: data.name ?? null,
 			role: data.role ?? "author",
 			emailVerified: true,
@@ -139,7 +139,7 @@ export async function createUserWithCredentials(
 
 	await db.insert(user).values({
 		id,
-		email: data.email,
+		email: data.email.trim().toLowerCase(),
 		name: data.name ?? null,
 		role: data.role ?? "author",
 		emailVerified: true,

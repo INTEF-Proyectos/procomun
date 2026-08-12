@@ -1,8 +1,11 @@
+import { type SQL, sql } from "drizzle-orm";
+import type { AnyPgColumn } from "drizzle-orm/pg-core";
 import {
 	boolean,
 	pgTable,
 	text,
 	timestamp,
+	uniqueIndex,
 	varchar,
 } from "drizzle-orm/pg-core";
 
@@ -11,23 +14,33 @@ import {
  * Referencia: ADR-0007
  */
 
-export const user = pgTable("user", {
-	id: text("id").primaryKey(),
-	email: varchar("email", { length: 255 }).notNull().unique(),
-	emailVerified: boolean("email_verified").notNull().default(false),
-	name: text("name"),
-	image: text("image"),
-	bio: text("bio"),
-	role: varchar("role", { length: 50 }).notNull().default("author"),
-	isActive: boolean("is_active").notNull().default(true),
-	banned: boolean("banned").default(false),
-	banReason: text("ban_reason"),
-	banExpires: timestamp("ban_expires"),
-	createdAt: timestamp("created_at").notNull().defaultNow(),
-	updatedAt: timestamp("updated_at").notNull().defaultNow(),
-	lastLoginAt: timestamp("last_login_at"),
-	deletedAt: timestamp("deleted_at"),
-});
+export function lowerEmail(column: AnyPgColumn): SQL {
+	return sql`lower(${column})`;
+}
+
+export const user = pgTable(
+	"user",
+	{
+		id: text("id").primaryKey(),
+		email: varchar("email", { length: 255 }).notNull().unique(),
+		emailVerified: boolean("email_verified").notNull().default(false),
+		name: text("name"),
+		image: text("image"),
+		bio: text("bio"),
+		role: varchar("role", { length: 50 }).notNull().default("author"),
+		isActive: boolean("is_active").notNull().default(true),
+		banned: boolean("banned").default(false),
+		banReason: text("ban_reason"),
+		banExpires: timestamp("ban_expires"),
+		createdAt: timestamp("created_at").notNull().defaultNow(),
+		updatedAt: timestamp("updated_at").notNull().defaultNow(),
+		lastLoginAt: timestamp("last_login_at"),
+		deletedAt: timestamp("deleted_at"),
+	},
+	(table) => [
+		uniqueIndex("user_email_lower_unique").on(lowerEmail(table.email)),
+	],
+);
 
 export const session = pgTable("session", {
 	id: text("id").primaryKey(),

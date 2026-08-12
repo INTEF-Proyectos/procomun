@@ -2166,6 +2166,68 @@ tasks:
       misma base de commits de la feature. Se conserva la entrada de #306
       (colecciones admin) añadida después del merge.
 
+  T-2026-08-06-08190404:
+    date: 2026-08-06
+    agent: "ingestas-y-migraciones + backend-api-servicios + documentacion-y-roadmap"
+    task: "CLI idempotente para importar usuarios del exportador Procomún legacy"
+    status: Done
+    related: ["epic-004-migracion-legacy-procomun"]
+    notes: >
+      Se crea import:legacy-users para el array usuarios.json con dry-run, limit e informe.
+      Mapea uid a ID namespaced estable, email, nombre, estado y roles; no importa hashes
+      Drupal ni asociaciones con recursos. Administrator pasa a admin y los demás a author;
+      una colisión de correo se omite sin fusionar cuentas. Validación: 10 tests específicos
+      en verde y check-test-files OK. check-types bloqueado por 16 errores preexistentes bajo
+      local-data/uploads/elpx, no atribuibles a esta tarea. Pendiente piloto autorizado y
+      definir activación/restablecimiento de las cuentas importadas.
+
+  T-2026-08-06-08293767:
+    date: 2026-08-06
+    agent: "ingestas-y-migraciones + backend-api-servicios + documentacion-y-roadmap"
+    task: "Política de roles del importador legacy: todos los usuarios son editor"
+    status: Done
+    related: ["T-2026-08-06-08190404", "epic-004-migracion-legacy-procomun"]
+    notes: >
+      Por decisión de producto se ignora roles del JSON Drupal y se persiste editor para
+      todas las cuentas, incluidos los administrator legacy. No se otorgan privilegios admin
+      de forma automática; una futura equivalencia de roles requerirá revisión explícita.
+
+  T-2026-08-06-08305818:
+    date: 2026-08-06
+    agent: "ingestas-y-migraciones + backend-api-servicios + documentacion-y-roadmap"
+    task: "Corrección de roles: administrator legacy como admin y resto como editor"
+    status: Done
+    related: ["T-2026-08-06-08293767", "epic-004-migracion-legacy-procomun"]
+    notes: >
+      Se corrige la política inmediatamente anterior: el único rol legacy con elevación es
+      administrator, que se persiste como admin. Todos los demás valores, incluido -, se
+      importan como editor. Las pruebas cubren ambas ramas del mapeo.
+
+  T-2026-08-06-08345320:
+    date: 2026-08-06
+    agent: "backend-api-servicios + ingestas-y-migraciones + documentacion-y-roadmap"
+    task: "Cerrar PGlite al terminar import:legacy-users"
+    status: Done
+    related: ["T-2026-08-06-08190404", "epic-004-migracion-legacy-procomun"]
+    notes: >
+      El CLI de usuarios omitía el cierre que ya aplicaba import:legacy-procomun. En una
+      ejecución corta, PGlite/WASM podía abortar durante la salida. Se cierra db.$client cuando
+      el driver expone close(), sin afectar PostgreSQL; hay pruebas de éxito, ausencia de método
+      y error de cierre.
+
+  T-2026-08-07-07004533:
+    date: 2026-08-07
+    agent: "ingestas-y-migraciones + backend-api-servicios + qa-validacion"
+    task: "Atender los comentarios de revisión del PR #309 sobre importación de usuarios legacy"
+    status: Done
+    related: ["#309", "epic-004-migracion-legacy-procomun"]
+    notes: >
+      El dry-run ejecuta ahora las mismas comprobaciones que la importación y modela los
+      registros importables del propio lote. Los emails se normalizan en los flujos de alta,
+      Better Auth los transforma antes de persistir y PostgreSQL los protege con un índice único
+      lower(email). La inserción usa RETURNING para no reportar como propia una fila creada por
+      otra ejecución concurrente. Validación: tests específicos y check-types en verde.
+
   T-2026-08-06-09443371:
     date: 2026-08-06
     agent: "empresa-y-producto + arquitectura-solucion + ingestas-y-migraciones + metadatos-y-curacion + seguridad-privacidad-legal + documentacion-y-roadmap"
@@ -2300,6 +2362,39 @@ tasks:
       desarrollo. La prueba de serving del frontend cubre rutas /dev codificadas, variantes
       de mayúsculas y bytes nulos.
 
+  T-2026-08-07-08522192:
+    date: 2026-08-07
+    agent: "ingestas-y-migraciones + backend-api-servicios + qa-validacion"
+    task: "Resolver el conflicto de merge del PR #309"
+    status: Done
+    related: ["#309", "epic-004-migracion-legacy-procomun"]
+    notes: >
+      Se integra main conservando las correcciones de dry-run, unicidad de email y concurrencia
+      del importador de usuarios legacy, junto con el historial reciente de la rama base. Las
+      pruebas específicas del CLI y repositorio pasan.
+
+  T-2026-08-12-06342142:
+    date: 2026-08-12
+    agent: "ingestas-y-migraciones + backend-api-servicios + qa-validacion + documentacion-y-roadmap"
+    task: "Atender segunda revisión de migración y cierre CLI del PR #309"
+    status: Done
+    related: ["#309", "epic-004-migracion-legacy-procomun"]
+    notes: >
+      La migración de unicidad case-insensitive pasa a 0006 y queda registrada en el
+      journal de Drizzle, con preflight no destructivo ante emails históricos duplicados.
+      El CLI cierra PGlite en finally y dry-run informa importables en lugar de importados.
+      Pruebas PGlite, CLI, typecheck, Biome y check-test-files pasan.
+
+  T-2026-08-12-06412687:
+    date: 2026-08-12
+    agent: "qa-validacion + documentacion-y-roadmap"
+    task: "Corregir formato Biome del snapshot de migración del PR #309"
+    status: Done
+    related: ["#309", "epic-004-migracion-legacy-procomun"]
+    notes: >
+      El snapshot generado por Drizzle usaba espacios y la CI exige tabulaciones.
+      Se formatea con la configuración del repositorio; make lint vuelve a pasar.
+
   T-2026-08-07-08584892:
     date: 2026-08-07
     agent: "documentacion-y-roadmap"
@@ -2324,43 +2419,13 @@ tasks:
       por migration_batch_id sin sobrescribir ediciones posteriores; y fija que null
       se omite y las reimportaciones no actualizan usuarios ya importados.
 
-  T-2026-08-11-20261542:
-    date: 2026-08-11
-    agent: "arquitectura-solucion + backend-api-servicios + frontend-ux-accesibilidad + qa-validacion"
-    task: "Implementar el sistema de versionado de recursos (issue #31) con el modelo mínimo de ADR-0039"
-    status: Done
-    related: ["#31", "ADR-0028", "ADR-0032", "ADR-0039"]
-    notes: >
-      Cada .elpx publicado es una versión inmutable: tabla resource_versions +
-      resources.current_version_id, reutilizando elpx_projects y el SHA-256 de
-      upload_sessions (sin content_blobs ni GC, aplazados según ADR-0039). Publicación
-      transaccional con bloqueo y número secuencial, historial con notas y autoría,
-      restauración no destructiva que aplica el snapshot a la proyección, protección
-      FK RESTRICT + guardas de retirada en los flujos de reemplazo, resolución pública
-      por versión vigente y panel de historial en la página de edición. Parser ELPX
-      ampliado con odeId/odeVersionId/exe_version. Suite completa en verde (989 tests,
-      cobertura 90,79 %). Tras merges posteriores el MVP de versionado queda como ADR-0039
-      (0037 = perfiles legacy; 0038 = topología preview del PR #317).
-
-  T-2026-08-12-06493314:
+  T-2026-08-12-06521718:
     date: 2026-08-12
     agent: "documentacion-y-roadmap"
-    task: "Resolver conflictos de merge del PR #322 con main (renumerar ADR de versionado)"
+    task: "Resolver conflictos de merge del PR #309 con main"
     status: Done
-    related: ["#322", "#31", "ADR-0037", "ADR-0039"]
+    related: ["#309", "#312", "ADR-0037", "epic-004-migracion-legacy-procomun"]
     notes: >
-      Se integra origin/main. ADR-0037 queda para el modelo de perfil legacy (main);
-      el MVP de versionado se renumeró primero a ADR-0038 y, al colisionar con la
-      topología preview del PR #317, a ADR-0039. Se actualizan decision-log, épica-005,
-      comentarios de schema/rutas y status.yaml.
-
-  T-2026-08-12-06550191:
-    date: 2026-08-12
-    agent: "documentacion-y-roadmap"
-    task: "Renumerar ADR de versionado del PR #322 de 0038 a 0039 (colisión con PR #317)"
-    status: Done
-    related: ["#322", "#317", "#31", "ADR-0038", "ADR-0039"]
-    notes: >
-      ADR-0038 queda para la topología del preview HTTP (PR #317). El MVP de versionado
-      de recursos pasa a ADR-0039 (fichero 0039-versionado-recursos-mvp.md) con referencias
-      actualizadas en decision-log, épica-005, schema, rutas y status.
+      Se integra origin/main conservando el historial del importador legacy-users
+      y la propuesta de perfil ADR-0037 (PR #315). Se unifican tasks.md de la épica
+      y las entradas de status sin borrar ninguna de las dos líneas de trabajo.
