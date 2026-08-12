@@ -218,7 +218,9 @@ resourceRoutes.get("/:id/elpx", async (c) => {
 	const check = await requireManageableResource(c, id);
 	if ("response" in check) return check.response;
 
-	const elpx = await repo.getElpxProjectByResourceId(db(), id);
+	// El editor debe abrir el ELPX de la versión vigente tras una restauración,
+	// no simplemente el último proyecto creado para el recurso.
+	const elpx = await repo.getCurrentElpxProjectByResourceId(db(), id);
 	if (!elpx)
 		return c.json(
 			{ error: "Este recurso no tiene un proyecto eXeLearning asociado" },

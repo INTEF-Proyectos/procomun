@@ -2557,3 +2557,15 @@ tasks:
       El panel se montaba antes de que EditarPageBase renderizara .edit-main y
       conservaba un destino nulo. Se integra en el árbol del editor, se elimina
       el portal frágil y se añaden regresiones para edición existente y alta.
+
+  T-2026-08-12-11245720:
+    date: 2026-08-12
+    agent: "backend-api-servicios + qa-validacion + documentacion-y-roadmap"
+    task: "Corregir la restauración de versiones en el editor del PR #322"
+    status: Done
+    related: ["#322", "#31", "ADR-0039", "epic-005-versionado-recursos"]
+    notes: >
+      La restauración ya creaba una versión vigente correcta, pero el endpoint
+      del editor consultaba el proyecto ELPX más reciente por fecha en vez del
+      asociado a current_version_id. Se alinea con la versión vigente y se
+      añade una regresión HTTP que comprueba el ELPX expuesto al editor.

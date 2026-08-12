@@ -19,3 +19,7 @@
 ## Corrección de renderizado — 2026-08-12
 - [x] Integrar el panel de historial directamente en el editor para evitar que su montaje previo al estado `ready` lo deje sin destino.
 - [x] Cubrir la edición existente y el alta inicial con una prueba de composición de página.
+
+## Corrección de restauración en el editor — 2026-08-12
+- [x] Hacer que el editor resuelva el ELPX de `current_version_id` después de restaurar una versión histórica.
+- [x] Cubrir por API que el editor recibe el ELPX restaurado, no el proyecto creado más recientemente.

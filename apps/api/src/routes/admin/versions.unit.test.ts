@@ -99,5 +99,11 @@ describe("resource version admin API", () => {
 		expect(history).toHaveLength(3);
 		expect(history[0]?.elpxProjectId).toBe(first.elpxProjectId);
 		expect(history[0]?.isCurrent).toBe(true);
+
+		const editorElpx = await curatorApp.request(
+			`/api/admin/resources/${id}/elpx`,
+		);
+		expect(editorElpx.status).toBe(200);
+		expect((await editorElpx.json()).id).toBe(first.elpxProjectId);
 	});
 });
