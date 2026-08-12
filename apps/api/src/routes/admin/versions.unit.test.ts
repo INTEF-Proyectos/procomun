@@ -39,6 +39,7 @@ async function seedVersion(resourceId: string, hash: string) {
 		hash,
 		extractPath: `/tmp/${crypto.randomUUID()}`,
 		originalFilename: `recurso-${hash.slice(0, 6)}.elpx`,
+		hasPreview: true,
 	});
 	const version = await repo.publishResourceVersion(getDb().db, {
 		resourceId,
@@ -69,6 +70,7 @@ describe("resource version admin API", () => {
 		expect(history[0]?.versionNumber).toBe(2);
 		expect(history[0]?.isCurrent).toBe(true);
 		expect(history[1]?.versionNumber).toBe(1);
+		expect(history[1]?.previewUrl).toBe(`/api/v1/elpx/${"a".repeat(64)}/`);
 		expect("changeNotes" in (history[0] ?? {})).toBe(false);
 	});
 

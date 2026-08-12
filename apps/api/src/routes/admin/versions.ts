@@ -15,6 +15,13 @@ function buildDownloadUrl(uploadSessionId: string | null): string | null {
 		: null;
 }
 
+function buildPreviewUrl(
+	hash: string | null,
+	hasPreview: boolean | null,
+): string | null {
+	return hash && hasPreview ? `/api/v1/elpx/${hash}/` : null;
+}
+
 /** Historial de versiones de recursos (issue #31 / ADR-0039). */
 export function registerResourceVersionRoutes(routes: Hono<AuthEnv>) {
 	routes.get("/:id/versions", async (c) => {
@@ -28,6 +35,7 @@ export function registerResourceVersionRoutes(routes: Hono<AuthEnv>) {
 			versions.map((version) => ({
 				...version,
 				downloadUrl: buildDownloadUrl(version.uploadSessionId),
+				previewUrl: buildPreviewUrl(version.elpxHash, version.hasPreview),
 			})),
 		);
 	});

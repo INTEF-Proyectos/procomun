@@ -207,6 +207,8 @@ export async function listResourceVersions(db: DrizzleDB, resourceId: string) {
 			createdBy: resourceVersions.createdBy,
 			createdByName: user.name,
 			createdAt: resourceVersions.createdAt,
+			elpxHash: elpxProjects.hash,
+			hasPreview: elpxProjects.hasPreview,
 			originalFilename: elpxProjects.originalFilename,
 			uploadSessionId: elpxProjects.uploadSessionId,
 			isCurrent: sql<boolean>`COALESCE(${resources.currentVersionId} = ${resourceVersions.id}, false)`,

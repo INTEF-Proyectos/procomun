@@ -12,6 +12,7 @@ export interface ResourceVersionRecord {
 	uploadSessionId: string | null;
 	isCurrent: boolean;
 	downloadUrl: string | null;
+	previewUrl: string | null;
 }
 
 export interface ResourceVersionApi {

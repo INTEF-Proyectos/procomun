@@ -23,3 +23,8 @@
 ## Corrección de restauración en el editor — 2026-08-12
 - [x] Hacer que el editor resuelva el ELPX de `current_version_id` después de restaurar una versión histórica.
 - [x] Cubrir por API que el editor recibe el ELPX restaurado, no el proyecto creado más recientemente.
+
+## Previsualización de versiones históricas — 2026-08-12
+- [x] Exponer una URL de previsualización solo para versiones cuyo ELPX conserva contenido renderizable.
+- [x] Añadir junto a «Restaurar» la acción «Ver», que abre el ELPX histórico en una modal aislada y accesible.
+- [x] Cubrir la URL de previsualización de la API y el iframe seguro de la modal.

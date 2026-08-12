@@ -3,6 +3,7 @@ import { useSearchParams } from "react-router-dom";
 import { getApiClient } from "../lib/get-api-client.ts";
 import { url } from "../lib/paths.ts";
 import type { ResourceVersionRecord } from "../lib/resource-version-api.ts";
+import { Dialog } from "../ui/Dialog.tsx";
 
 const RESTORE_ROLES = new Set(["curator", "admin"]);
 
@@ -15,6 +16,34 @@ function formatDate(value: ResourceVersionRecord["createdAt"]) {
 	});
 }
 
+export function ResourceVersionPreviewDialog({
+	version,
+	onClose,
+}: {
+	version: ResourceVersionRecord | null;
+	onClose: () => void;
+}) {
+	if (!version?.previewUrl) return null;
+
+	return (
+		<Dialog
+			open={true}
+			onClose={onClose}
+			title={`Vista previa de la versión ${version.versionNumber}`}
+			size="lg"
+			className="resource-version-preview-dialog"
+		>
+			<iframe
+				className="resource-version-preview-iframe"
+				src={url(version.previewUrl.replace(/^\//, ""))}
+				title={`Contenido de la versión ${version.versionNumber}`}
+				sandbox="allow-scripts allow-popups allow-popups-to-escape-sandbox"
+				referrerPolicy="no-referrer"
+			/>
+		</Dialog>
+	);
+}
+
 export function ResourceVersionPanel() {
 	const [searchParams] = useSearchParams();
 	const resourceId = searchParams.get("id");
@@ -23,6 +52,8 @@ export function ResourceVersionPanel() {
 	const [canRestore, setCanRestore] = useState(false);
 	const [busy, setBusy] = useState(false);
 	const [error, setError] = useState("");
+	const [previewVersion, setPreviewVersion] =
+		useState<ResourceVersionRecord | null>(null);
 
 	useEffect(() => {
 		if (!resourceId || isNew) return;
@@ -104,6 +135,15 @@ export function ResourceVersionPanel() {
 									Descargar
 								</a>
 							)}{" "}
+							{!version.isCurrent && version.previewUrl && (
+								<button
+									type="button"
+									className="edit-wf-btn-outline"
+									onClick={() => setPreviewVersion(version)}
+								>
+									Ver
+								</button>
+							)}{" "}
 							{!version.isCurrent && canRestore && (
 								<button
 									type="button"
@@ -118,6 +158,10 @@ export function ResourceVersionPanel() {
 					))}
 				</ul>
 			)}
+			<ResourceVersionPreviewDialog
+				version={previewVersion}
+				onClose={() => setPreviewVersion(null)}
+			/>
 		</div>
 	);
 }

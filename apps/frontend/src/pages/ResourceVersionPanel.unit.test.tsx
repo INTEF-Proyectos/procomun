@@ -1,7 +1,10 @@
 import { describe, expect, test } from "bun:test";
 import { renderToStaticMarkup } from "react-dom/server";
 import { MemoryRouter } from "react-router-dom";
-import { ResourceVersionPanel } from "./ResourceVersionPanel.tsx";
+import {
+	ResourceVersionPanel,
+	ResourceVersionPreviewDialog,
+} from "./ResourceVersionPanel.tsx";
 
 describe("ResourceVersionPanel", () => {
 	test("se renderiza durante la edición existente sin depender de un portal", () => {
@@ -23,5 +26,33 @@ describe("ResourceVersionPanel", () => {
 		);
 
 		expect(html).not.toContain('id="edit-versions-panel"');
+	});
+
+	test("renderiza el ELPX de una versión histórica en una modal aislada", () => {
+		const html = renderToStaticMarkup(
+			<ResourceVersionPreviewDialog
+				version={{
+					id: "v1",
+					versionNumber: 1,
+					fileSha256: "a".repeat(64),
+					elpxProjectId: "p1",
+					createdBy: null,
+					createdByName: null,
+					createdAt: null,
+					originalFilename: "v1.elpx",
+					uploadSessionId: null,
+					isCurrent: false,
+					downloadUrl: null,
+					previewUrl: "/api/v1/elpx/aaaa/",
+				}}
+				onClose={() => undefined}
+			/>,
+		);
+
+		expect(html).toContain("Vista previa de la versión 1");
+		expect(html).toContain('src="/api/v1/elpx/aaaa/"');
+		expect(html).toContain(
+			'sandbox="allow-scripts allow-popups allow-popups-to-escape-sandbox"',
+		);
 	});
 });
