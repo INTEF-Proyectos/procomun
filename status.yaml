@@ -2371,3 +2371,13 @@ tasks:
       journal de Drizzle, con preflight no destructivo ante emails históricos duplicados.
       El CLI cierra PGlite en finally y dry-run informa importables en lugar de importados.
       Pruebas PGlite, CLI, typecheck, Biome y check-test-files pasan.
+
+  T-2026-08-12-06412687:
+    date: 2026-08-12
+    agent: "qa-validacion + documentacion-y-roadmap"
+    task: "Corregir formato Biome del snapshot de migración del PR #309"
+    status: Done
+    related: ["#309", "epic-004-migracion-legacy-procomun"]
+    notes: >
+      El snapshot generado por Drizzle usaba espacios y la CI exige tabulaciones.
+      Se formatea con la configuración del repositorio; make lint vuelve a pasar.

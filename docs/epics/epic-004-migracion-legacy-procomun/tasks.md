@@ -70,3 +70,6 @@ Los JSON/`.elpx` de `ode-export/` contienen datos personales reales (nombres y e
 - [x] Registrar la migración `0006_user_email_case_insensitive` en el journal de Drizzle y bloquear el despliegue si existen correos que solo difieren en mayúsculas/minúsculas.
 - [x] Cerrar PGlite en `finally` también ante fallo de lectura, conexión o escritura del informe.
 - [x] Separar `wouldImport` de `imported` y mostrar `importables` en `--dry-run`.
+
+### Seguimiento de CI del PR #309 (2026-08-12)
+- [x] Formatear con Biome el snapshot de Drizzle `0004_snapshot.json` para que respete la indentación configurada y no bloquee `make lint`.
