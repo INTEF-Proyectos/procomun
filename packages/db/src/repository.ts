@@ -9,6 +9,7 @@ export * from "./repository/collection-resources.ts";
 export * from "./repository/collections.ts";
 export * from "./repository/elpx-projects.ts";
 export * from "./repository/legacy-import.ts";
+export * from "./repository/legacy-users-import.ts";
 export * from "./repository/reports.ts";
 export * from "./repository/resource-versions.ts";
 export * from "./repository/resources.ts";
