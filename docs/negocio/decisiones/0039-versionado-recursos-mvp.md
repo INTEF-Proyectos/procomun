@@ -6,56 +6,60 @@
 
 ## Contexto y Problema
 
-El requisito #31 pide historial de versiones, notas de cambio, descarga de versiones previas y rollback no destructivo con URL/slug estables. ADR-0028 estudió alternativas y ADR-0032 concretó un diseño con snapshots inmutables **más** almacenamiento direccionado por contenido: `content_blobs`, `resource_version_blobs`, deduplicación global, estados de blobs, periodos de gracia y GC coordinado entre PostgreSQL y filesystem.
+El requisito #31 pide historial, descarga de versiones previas y rollback no destructivo con URL/slug estables. ADR-0032 planteó un diseño más amplio con almacenamiento direccionado por contenido, deduplicación y GC, pero esas piezas no son necesarias para el MVP.
 
-Para un MVP ese diseño introduce demasiadas piezas. Además, la plataforma ya dispone de bloques reutilizables que ADR-0032 no aprovechaba del todo:
+La primera implementación del MVP añadía una acción explícita «Publicar nueva versión» y notas de cambio. Ese flujo se confundía con la publicación editorial del recurso («Publicar» / «Publicar directamente») y añadía una interacción que no aportaba valor suficiente.
 
-* El `.elpx` es un ZIP autocontenido (proyecto editable en `content.xml`, HTML previsualizable, recursos y metadatos), con `odeId` estable y `exe_version` documentados por eXeLearning.
-* `elpx_projects` ya representa "un `.elpx` subido y extraído" (fila + extracción en disco).
-* `upload_sessions.finalChecksum` ya guarda el SHA-256 real calculado al finalizar la subida.
+La plataforma ya dispone de las piezas necesarias para un modelo más simple:
 
-No se usa `odeVersionId` como número de versión de Procomún: la documentación de eXeLearning se contradice sobre su estabilidad (el generador conserva `meta.odeVersionId` si existe). La identificación fiable es el número secuencial propio más el SHA-256 del archivo; `odeId` queda como información para detectar que dos entregas proceden del mismo proyecto.
+* `elpx_projects` representa un `.elpx` subido o generado y extraído.
+* `upload_sessions.finalChecksum` conserva el SHA-256 calculado al finalizar la subida.
+* `resources` mantiene la identidad estable del recurso y puede apuntar a su versión vigente.
 
 ## Opciones Consideradas
 
-* A) Implementar ADR-0032 completo (blobs por contenido + dedupe + GC) desde el inicio.
-* B) **Modelo mínimo (elegida):** solo `resource_versions` + `resources.current_version_id`, tratando cada `.elpx` publicado como versión inmutable y reutilizando `elpx_projects` y `upload_sessions` tal cual.
-* C) Versionar también cada guardado/edición de metadatos (versión por cada «Guardar»).
+* A) Implementar ADR-0032 completo desde el inicio.
+* B) **Modelo mínimo automático (elegida):** `resource_versions` + `resources.current_version_id`; cada nuevo `.elpx` crea automáticamente una versión.
+* C) Mantener una acción manual separada para crear versiones y notas de cambio.
+* D) Versionar también cada edición de metadatos aunque no cambie el `.elpx`.
 
 ## Decisión
 
-Se adopta el **modelo mínimo (B)**, que conserva los principios de ADR-0032 (snapshots inmutables, proyección vigente, rollback no destructivo, D1 en búsqueda) y aplaza su maquinaria de almacenamiento:
+Se adopta el **modelo mínimo automático (B)**:
 
-1. **Tabla única `resource_versions`**: `id`, `resource_id`, `version_number` (secuencial 1,2,3…), `elpx_project_id`, `file_sha256`, `metadata_snapshot` (JSONB con título, descripción, licencia, autoría, idioma, tipo, keywords, publisher, niveles y materias), `change_notes`, `created_by`, `created_at`, con `UNIQUE(resource_id, version_number)`.
-2. **Puntero `resources.current_version_id`**: `resources` sigue siendo la identidad estable y la proyección de la versión vigente. Búsqueda, API pública, OAI-PMH y feeds no cambian de contrato ni muestran duplicados.
-3. **Reutilización de `elpx_projects`**: se elimina el `UNIQUE` de `elpx_projects.resource_id`; cada `.elpx` subido crea una fila y la versión la referencia con FK `ON DELETE RESTRICT`. `elpx_projects.version` (=3) sigue siendo la versión del **formato** ELPX, no la editorial.
-4. **SHA-256 existente**: `file_sha256` toma `upload_sessions.finalChecksum` (con `elpx_projects.hash` como reserva); no se crea otro sistema de hashes.
-5. **Versión = entrega publicada**: solo se crea versión al pulsar «Publicar nueva versión» (con notas opcionales), en una transacción que bloquea el recurso (`SELECT … FOR UPDATE`), calcula `MAX(version_number)+1`, inserta el snapshot y actualiza el puntero. Los cambios de borrador/metadatos sin nueva entrega siguen registrándose solo en auditoría.
-6. **Restauración no destructiva**: restaurar la versión N crea una versión nueva que referencia el mismo `elpx_project_id`, copia su `metadata_snapshot`, aplica el snapshot a la proyección (`resources`, materias, niveles, tags) y añade la nota automática «Restaurada desde la versión N». No se copia físicamente el `.elpx` ni se reescribe el historial.
-7. **Retención**: se conservan todas las versiones. No hay GC hasta tener datos reales de volumen. Se **impide** borrar un `elpx_project` o los artefactos de una `upload_session` mientras estén referenciados por alguna versión (FK RESTRICT + guardas en los flujos de reemplazo). El purgado por motivos legales queda como operación explícita futura, separada de la retención normal.
-8. **Resolución vigente vs. copia de trabajo**: la ficha pública y los listados resuelven el proyecto elpx vía `current_version_id` (con fallback al más reciente para recursos sin versiones); el editor del autor sigue operando sobre la copia de trabajo (último `.elpx` subido).
-9. **Parser ELPX ampliado**: se extraen `odeId`, `odeVersionId` y `exe_version` de `content.xml` como metadatos informativos.
+1. **Tabla `resource_versions`**: `id`, `resource_id`, `version_number` secuencial, `elpx_project_id`, `file_sha256`, `metadata_snapshot`, `created_by` y `created_at`, con `UNIQUE(resource_id, version_number)`. No existen notas de versión.
+2. **Creación automática**: cada nuevo `.elpx` —subida directa, guardado desde el editor eXeLearning o generación desde adjuntos— crea inmediatamente una versión y la establece como vigente mediante `resources.current_version_id`.
+3. **Publicación editorial separada**: crear una versión no publica el recurso. El estado editorial sigue gestionándose exclusivamente mediante las acciones «Publicar» / «Publicar directamente». Cuando el recurso está publicado, la ficha pública resuelve el `.elpx` desde `current_version_id`.
+4. **Snapshots inmutables**: cada versión conserva el proyecto ELPX, SHA-256 y los metadatos vigentes en ese momento. Los cambios de metadatos sin un nuevo `.elpx` no crean otra versión.
+5. **Reutilización de `elpx_projects`**: se elimina el `UNIQUE` de `elpx_projects.resource_id`; una versión referencia su proyecto mediante FK `ON DELETE RESTRICT`. `elpx_projects.version` sigue indicando la versión del formato ELPX, no la versión editorial.
+6. **Restauración no destructiva**: restaurar una versión crea una versión nueva que reutiliza su `elpx_project_id` y snapshot, aplica esos metadatos a la proyección vigente y mueve `current_version_id`. El historial anterior no se modifica.
+7. **Historial y descarga**: la interfaz mantiene el listado de versiones, identifica la vigente y permite descargar cualquier entrega. Curadores y administradores pueden restaurar versiones anteriores.
+8. **Retención**: se conservan todas las versiones. Los proyectos ELPX y artefactos de subida referenciados por una versión no se eliminan durante los reemplazos normales.
+9. **Concurrencia**: la creación de versión bloquea la fila del recurso (`SELECT … FOR UPDATE`), calcula el siguiente `version_number` y mantiene un `UNIQUE(resource_id, version_number)` como defensa adicional.
 
-No se implementan inicialmente: `content_blobs`, `resource_version_blobs`, deduplicación global, object storage versionado, Git, event sourcing, GC automático ni versionado por pulsación de «Guardar».
+No se implementan inicialmente `content_blobs`, `resource_version_blobs`, deduplicación global, object storage versionado, Git, event sourcing ni GC automático.
 
 ## Consecuencias
 
 ### Positivas
-* Cubre historial, descarga, notas, autoría, versión vigente, rollback, URL estable y ausencia de duplicados con **una tabla y un puntero**.
-* Reutiliza `elpx_projects`, `upload_sessions` y el SHA-256 existentes; el diff sobre el modelo actual es pequeño y trazable.
-* El rollback conserva una secuencia clara (restaurar v2 sobre v4 crea v5) sin destruir historial.
-* La deduplicación por blobs y el GC de ADR-0032 quedan como optimización posterior sin condicionar el modelo público.
+
+* Se elimina la ambigüedad entre «crear versión» y «publicar recurso».
+* El usuario no necesita recordar una acción adicional después de subir o guardar un `.elpx`.
+* El modelo sigue cubriendo historial, descarga, autoría, versión vigente, rollback y URL estable con una tabla y un puntero.
+* Se reutilizan `elpx_projects`, `upload_sessions` y el SHA-256 existentes.
 
 ### Negativas / Riesgos
-* Sin deduplicación: cada entrega ocupa espacio completo (aceptado hasta tener datos de volumen).
-* La proyección puede divergir del snapshot vigente si se editan metadatos tras publicar (aceptado: el snapshot documenta "los metadatos en el momento de publicar"; los cambios siguen auditados).
-* `metadata_snapshot` JSONB requiere normalización defensiva al restaurar (implementada en `parseVersionSnapshot`).
-* Las guardas de retirada viven en la capa de rutas además del FK; nuevos flujos de borrado deben reutilizarlas (`elpx-retire.ts`).
+
+* Cada nuevo `.elpx` genera una versión, por lo que el historial puede crecer más rápido que con creación manual.
+* Sin deduplicación, cada entrega ocupa espacio completo.
+* La proyección de metadatos puede cambiar después de crear una versión; el snapshot conserva los valores existentes cuando se creó esa versión.
+* Nuevos flujos de borrado deben respetar las guardas de retención de `elpx-retire.ts`.
 
 ## Notas de Implementación
 
-* DB: `packages/db/src/schema/versions.ts`, columna `resources.current_version_id` (FK solo en SQL para evitar import circular), `setup.ts` y migración manual `0006_resource_versions.sql`.
-* Repositorio: `packages/db/src/repository/resource-versions.ts` (`publishResourceVersion`, `listResourceVersions`, `restoreResourceVersion`, `countVersionsReferencingElpxProject`, `isUploadSessionReferencedByVersions`) y resolución vigente/copia de trabajo en `elpx-projects.ts`.
-* API: `GET/POST /api/admin/resources/:id/versions` y `POST …/versions/:versionId/restore` (restaurar requiere curador/admin); descarga de versiones vía `/api/admin/uploads/:id/content`; actividad `resource_version_published` / `resource_version_restored`.
-* Frontend: panel «Historial de versiones» en la página de edición (publicar con notas, listado con vigente, descarga y restauración).
-* ADR-0032 pasa a considerarse diseño de referencia para la fase de optimización de almacenamiento; sus garantías de concurrencia (bloqueo + unique defensivo) sí se implementan aquí.
+* DB: `packages/db/src/schema/versions.ts`, `resources.current_version_id`, `setup.ts` y migración `0007_resource_versions.sql`.
+* Repositorio: `packages/db/src/repository/resource-versions.ts` mantiene creación, listado, restauración y guardas de retención.
+* API: `GET /api/admin/resources/:id/versions` y `POST /api/admin/resources/:id/versions/:versionId/restore`. No existe un endpoint para crear versiones manualmente.
+* ELPX: los endpoints de subida, guardado y generación crean automáticamente la nueva versión tras registrar `elpx_projects`.
+* Frontend: «Historial de versiones» queda reducido a listado, versión vigente, descarga y restauración; se eliminan el botón «Publicar nueva versión» y las notas de cambio.
+* ADR-0032 se mantiene como referencia para una futura optimización del almacenamiento.
