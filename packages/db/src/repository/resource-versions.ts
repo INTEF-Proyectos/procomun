@@ -10,10 +10,7 @@ import { uploadSessions } from "../schema/uploads.ts";
 import { resourceVersions } from "../schema/versions.ts";
 import type { DrizzleDB } from "./shared.ts";
 
-/**
- * Snapshot de metadatos que captura cada versión publicada (issue #31).
- * Es la fuente para restaurar la proyección de `resources` en un rollback.
- */
+/** Snapshot de metadatos capturado al crear cada versión (issue #31). */
 export type ResourceVersionSnapshot = {
 	title: string;
 	description: string;
@@ -37,7 +34,7 @@ function toStringArray(value: unknown): string[] {
 		: [];
 }
 
-/** Normaliza un jsonb arbitrario al snapshot tipado (defensa en profundidad). */
+/** Normaliza un jsonb arbitrario al snapshot tipado. */
 export function parseVersionSnapshot(value: unknown): ResourceVersionSnapshot {
 	const raw = (value ?? {}) as Record<string, unknown>;
 	return {
@@ -73,9 +70,7 @@ async function buildResourceSnapshot(
 		.where(eq(resources.id, resourceId))
 		.limit(1);
 
-	if (!resource) {
-		throw new Error("Recurso no encontrado");
-	}
+	if (!resource) throw new Error("Recurso no encontrado");
 
 	const [subjects, levels] = await Promise.all([
 		tx
@@ -95,16 +90,13 @@ async function buildResourceSnapshot(
 	};
 }
 
-/** Bloquea la fila del recurso (SELECT … FOR UPDATE) dentro de la transacción. */
 async function lockResource(tx: DrizzleDB, resourceId: string) {
 	const rows = await tx
 		.select({ id: resources.id })
 		.from(resources)
 		.where(and(eq(resources.id, resourceId), isNull(resources.deletedAt)))
 		.for("update");
-	if (!rows[0]) {
-		throw new Error("Recurso no encontrado");
-	}
+	if (!rows[0]) throw new Error("Recurso no encontrado");
 }
 
 async function nextVersionNumber(
@@ -128,7 +120,6 @@ async function insertVersion(
 		elpxProjectId: string;
 		fileSha256: string;
 		snapshot: ResourceVersionSnapshot;
-		changeNotes: string | null;
 		createdBy: string | null;
 	},
 ) {
@@ -140,7 +131,6 @@ async function insertVersion(
 		elpxProjectId: data.elpxProjectId,
 		fileSha256: data.fileSha256,
 		metadataSnapshot: data.snapshot,
-		changeNotes: data.changeNotes,
 		createdBy: data.createdBy,
 		createdAt: new Date(),
 	});
@@ -152,17 +142,15 @@ async function insertVersion(
 }
 
 /**
- * Publica una nueva versión del recurso a partir de un proyecto elpx ya subido
- * (RF-001..RF-003). Transaccional: bloquea el recurso, asigna el siguiente
- * número, guarda el snapshot de metadatos vigentes y mueve el puntero
- * `resources.current_version_id`.
+ * Crea una nueva versión a partir de un proyecto elpx.
+ * Bloquea el recurso, asigna el siguiente número, guarda el snapshot y mueve
+ * `resources.current_version_id` a la nueva versión.
  */
 export async function publishResourceVersion(
 	db: DrizzleDB,
 	input: {
 		resourceId: string;
 		elpxProjectId: string;
-		changeNotes?: string | null;
 		createdBy?: string | null;
 	},
 ) {
@@ -183,8 +171,6 @@ export async function publishResourceVersion(
 			throw new Error("El proyecto elpx no pertenece al recurso");
 		}
 
-		// SHA-256 real calculado al finalizar la subida (upload_sessions);
-		// elpx_projects.hash es un identificador interno (UUID) en el flujo normal.
 		let fileSha256 = project.hash;
 		if (project.uploadSessionId) {
 			const [session] = await tx
@@ -192,9 +178,7 @@ export async function publishResourceVersion(
 				.from(uploadSessions)
 				.where(eq(uploadSessions.id, project.uploadSessionId))
 				.limit(1);
-			if (session?.finalChecksum) {
-				fileSha256 = session.finalChecksum;
-			}
+			if (session?.finalChecksum) fileSha256 = session.finalChecksum;
 		}
 
 		const versionNumber = await nextVersionNumber(tx, input.resourceId);
@@ -205,7 +189,6 @@ export async function publishResourceVersion(
 			elpxProjectId: project.id,
 			fileSha256,
 			snapshot,
-			changeNotes: input.changeNotes ?? null,
 			createdBy: input.createdBy ?? null,
 		});
 
@@ -213,16 +196,12 @@ export async function publishResourceVersion(
 	});
 }
 
-/**
- * Historial navegable de versiones (RF-004/RF-005), de la más reciente a la
- * más antigua, marcando la vigente.
- */
+/** Historial de versiones, de la más reciente a la más antigua. */
 export async function listResourceVersions(db: DrizzleDB, resourceId: string) {
 	return db
 		.select({
 			id: resourceVersions.id,
 			versionNumber: resourceVersions.versionNumber,
-			changeNotes: resourceVersions.changeNotes,
 			fileSha256: resourceVersions.fileSha256,
 			elpxProjectId: resourceVersions.elpxProjectId,
 			createdBy: resourceVersions.createdBy,
@@ -249,12 +228,7 @@ export async function getResourceVersionById(db: DrizzleDB, versionId: string) {
 	return rows[0] ?? null;
 }
 
-/**
- * Restauración no destructiva (RF-007): crea una versión nueva que reutiliza
- * el archivo (`elpx_project_id`) y el snapshot de la versión elegida, aplica
- * ese snapshot a la proyección `resources` y mueve el puntero vigente. Nunca
- * modifica ni borra el historial.
- */
+/** Restauración no destructiva: crea una versión nueva desde la seleccionada. */
 export async function restoreResourceVersion(
 	db: DrizzleDB,
 	input: {
@@ -283,12 +257,9 @@ export async function restoreResourceVersion(
 			elpxProjectId: target.elpxProjectId,
 			fileSha256: target.fileSha256,
 			snapshot,
-			changeNotes: `Restaurada desde la versión ${target.versionNumber}`,
 			createdBy: input.createdBy ?? null,
 		});
 
-		// Proyección vigente: resources y sus relaciones reflejan el snapshot
-		// restaurado en la misma transacción (snapshot y proyección no divergen).
 		await tx
 			.update(resources)
 			.set({
@@ -308,20 +279,15 @@ export async function restoreResourceVersion(
 			.delete(resourceSubjects)
 			.where(eq(resourceSubjects.resourceId, input.resourceId));
 		for (const subject of snapshot.subjects) {
-			await tx
-				.insert(resourceSubjects)
-				.values({ resourceId: input.resourceId, subject });
+			await tx.insert(resourceSubjects).values({ resourceId: input.resourceId, subject });
 		}
 		await tx
 			.delete(resourceLevels)
 			.where(eq(resourceLevels.resourceId, input.resourceId));
 		for (const level of snapshot.levels) {
-			await tx
-				.insert(resourceLevels)
-				.values({ resourceId: input.resourceId, level });
+			await tx.insert(resourceLevels).values({ resourceId: input.resourceId, level });
 		}
 
-		// Dual-write keywords → tags, como updateResource (#76)
 		if (typeof snapshot.keywords === "string") {
 			const { syncTagsFromKeywords } = await import("./tags.ts");
 			await syncTagsFromKeywords(tx, input.resourceId, snapshot.keywords);
@@ -335,10 +301,6 @@ export async function restoreResourceVersion(
 	});
 }
 
-/**
- * Nº de versiones que referencian un proyecto elpx. Protege los flujos de
- * reemplazo: un proyecto referenciado por el historial no debe borrarse.
- */
 export async function countVersionsReferencingElpxProject(
 	db: DrizzleDB,
 	elpxProjectId: string,
@@ -350,10 +312,6 @@ export async function countVersionsReferencingElpxProject(
 	return Number(row?.count ?? 0);
 }
 
-/**
- * Una sesión de subida cuyo .elpx forma parte del historial no debe perder su
- * archivo ni cancelarse: es la fuente de descarga de esa versión (RF-006).
- */
 export async function isUploadSessionReferencedByVersions(
 	db: DrizzleDB,
 	uploadSessionId: string,
