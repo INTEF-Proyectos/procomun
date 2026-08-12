@@ -2228,6 +2228,67 @@ tasks:
       reciben sección fechada 2026-08-06; .env.example documenta el criterio.
       Validación: bun test transport.unit.test.ts → 24 pass / 0 fail; bun run check-types → 0
       errores; biome check sobre los ficheros tocados sin diagnósticos.
+  T-2026-08-06-08190404:
+    date: 2026-08-06
+    agent: "ingestas-y-migraciones + backend-api-servicios + documentacion-y-roadmap"
+    task: "CLI idempotente para importar usuarios del exportador Procomún legacy"
+    status: Done
+    related: ["epic-004-migracion-legacy-procomun"]
+    notes: >
+      Se crea import:legacy-users para el array usuarios.json con dry-run, limit e informe.
+      Mapea uid a ID namespaced estable, email, nombre, estado y roles; no importa hashes
+      Drupal ni asociaciones con recursos. Administrator pasa a admin y los demás a author;
+      una colisión de correo se omite sin fusionar cuentas. Validación: 10 tests específicos
+      en verde y check-test-files OK. check-types bloqueado por 16 errores preexistentes bajo
+      local-data/uploads/elpx, no atribuibles a esta tarea. Pendiente piloto autorizado y
+      definir activación/restablecimiento de las cuentas importadas.
+
+  T-2026-08-06-08293767:
+    date: 2026-08-06
+    agent: "ingestas-y-migraciones + backend-api-servicios + documentacion-y-roadmap"
+    task: "Política de roles del importador legacy: todos los usuarios son editor"
+    status: Done
+    related: ["T-2026-08-06-08190404", "epic-004-migracion-legacy-procomun"]
+    notes: >
+      Por decisión de producto se ignora roles del JSON Drupal y se persiste editor para
+      todas las cuentas, incluidos los administrator legacy. No se otorgan privilegios admin
+      de forma automática; una futura equivalencia de roles requerirá revisión explícita.
+
+  T-2026-08-06-08305818:
+    date: 2026-08-06
+    agent: "ingestas-y-migraciones + backend-api-servicios + documentacion-y-roadmap"
+    task: "Corrección de roles: administrator legacy como admin y resto como editor"
+    status: Done
+    related: ["T-2026-08-06-08293767", "epic-004-migracion-legacy-procomun"]
+    notes: >
+      Se corrige la política inmediatamente anterior: el único rol legacy con elevación es
+      administrator, que se persiste como admin. Todos los demás valores, incluido -, se
+      importan como editor. Las pruebas cubren ambas ramas del mapeo.
+
+  T-2026-08-06-08345320:
+    date: 2026-08-06
+    agent: "backend-api-servicios + ingestas-y-migraciones + documentacion-y-roadmap"
+    task: "Cerrar PGlite al terminar import:legacy-users"
+    status: Done
+    related: ["T-2026-08-06-08190404", "epic-004-migracion-legacy-procomun"]
+    notes: >
+      El CLI de usuarios omitía el cierre que ya aplicaba import:legacy-procomun. En una
+      ejecución corta, PGlite/WASM podía abortar durante la salida. Se cierra db.$client cuando
+      el driver expone close(), sin afectar PostgreSQL; hay pruebas de éxito, ausencia de método
+      y error de cierre.
+
+  T-2026-08-07-07004533:
+    date: 2026-08-07
+    agent: "ingestas-y-migraciones + backend-api-servicios + qa-validacion"
+    task: "Atender los comentarios de revisión del PR #309 sobre importación de usuarios legacy"
+    status: Done
+    related: ["#309", "epic-004-migracion-legacy-procomun"]
+    notes: >
+      El dry-run ejecuta ahora las mismas comprobaciones que la importación y modela los
+      registros importables del propio lote. Los emails se normalizan en los flujos de alta,
+      Better Auth los transforma antes de persistir y PostgreSQL los protege con un índice único
+      lower(email). La inserción usa RETURNING para no reportar como propia una fila creada por
+      otra ejecución concurrente. Validación: tests específicos y check-types en verde.
 
   T-2026-08-06-09443371:
     date: 2026-08-06
@@ -2384,6 +2445,38 @@ tasks:
       Se rebasa la rama sobre main en 9e9bd0da conservando la verificación de correo con
       Nodemailer y adoptando Better Auth 1.6.26, Hono 4.13.1 y Biome 2.5.7. bun.lock se
       regenera con Bun 1.3.14. Validación: 25 tests unitarios, Biome y lockfile congelado OK.
+  T-2026-08-07-08522192:
+    date: 2026-08-07
+    agent: "ingestas-y-migraciones + backend-api-servicios + qa-validacion"
+    task: "Resolver el conflicto de merge del PR #309"
+    status: Done
+    related: ["#309", "epic-004-migracion-legacy-procomun"]
+    notes: >
+      Se integra main conservando las correcciones de dry-run, unicidad de email y concurrencia
+      del importador de usuarios legacy, junto con el historial reciente de la rama base. Las
+      pruebas específicas del CLI y repositorio pasan.
+
+  T-2026-08-12-06342142:
+    date: 2026-08-12
+    agent: "ingestas-y-migraciones + backend-api-servicios + qa-validacion + documentacion-y-roadmap"
+    task: "Atender segunda revisión de migración y cierre CLI del PR #309"
+    status: Done
+    related: ["#309", "epic-004-migracion-legacy-procomun"]
+    notes: >
+      La migración de unicidad case-insensitive pasa a 0006 y queda registrada en el
+      journal de Drizzle, con preflight no destructivo ante emails históricos duplicados.
+      El CLI cierra PGlite en finally y dry-run informa importables en lugar de importados.
+      Pruebas PGlite, CLI, typecheck, Biome y check-test-files pasan.
+
+  T-2026-08-12-06412687:
+    date: 2026-08-12
+    agent: "qa-validacion + documentacion-y-roadmap"
+    task: "Corregir formato Biome del snapshot de migración del PR #309"
+    status: Done
+    related: ["#309", "epic-004-migracion-legacy-procomun"]
+    notes: >
+      El snapshot generado por Drizzle usaba espacios y la CI exige tabulaciones.
+      Se formatea con la configuración del repositorio; make lint vuelve a pasar.
 
   T-2026-08-07-08584892:
     date: 2026-08-07
@@ -2431,3 +2524,25 @@ tasks:
       cuenta; Better Auth retorna al perfil con una marca de callback y, tras
       comprobar sesión, se muestra el aviso accesible de correo verificado e
       inicio de sesión. Se conserva el flujo previo con el flag desactivado.
+  T-2026-08-12-06521718:
+    date: 2026-08-12
+    agent: "documentacion-y-roadmap"
+    task: "Resolver conflictos de merge del PR #309 con main"
+    status: Done
+    related: ["#309", "#312", "ADR-0037", "epic-004-migracion-legacy-procomun"]
+    notes: >
+      Se integra origin/main conservando el historial del importador legacy-users
+      y la propuesta de perfil ADR-0037 (PR #315). Se unifican tasks.md de la épica
+      y las entradas de status sin borrar ninguna de las dos líneas de trabajo.
+
+  T-2026-08-12-07394044:
+    date: 2026-08-12
+    agent: "documentacion-y-roadmap + frontend-ux-accesibilidad"
+    task: "Resolver conflictos de merge del PR #235 y conservar el feedback de verificación"
+    status: Done
+    related: ["#235", "#309", "#200", "DEF-003", "ADR-0031"]
+    notes: >
+      Se integra origin/main c7a251c3 sin perder ningún registro histórico de estado.
+      El conflicto afectaba únicamente status.yaml; se conservan las entradas de la
+      verificación por correo, de la importación legacy y de las demás líneas de trabajo.
+      Se mantiene el feedback accesible al enviar la activación y al completar el enlace.
