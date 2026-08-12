@@ -2546,3 +2546,14 @@ tasks:
       El conflicto afectaba únicamente status.yaml; se conservan las entradas de la
       verificación por correo, de la importación legacy y de las demás líneas de trabajo.
       Se mantiene el feedback accesible al enviar la activación y al completar el enlace.
+
+  T-2026-08-12-11173899:
+    date: 2026-08-12
+    agent: "frontend-ux-accesibilidad + qa-validacion + documentacion-y-roadmap"
+    task: "Corregir el renderizado del historial de versiones del PR #322"
+    status: Done
+    related: ["#322", "#31", "ADR-0039", "epic-005-versionado-recursos"]
+    notes: >
+      El panel se montaba antes de que EditarPageBase renderizara .edit-main y
+      conservaba un destino nulo. Se integra en el árbol del editor, se elimina
+      el portal frágil y se añaden regresiones para edición existente y alta.

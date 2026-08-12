@@ -1,5 +1,4 @@
 import { useEffect, useState } from "react";
-import { createPortal } from "react-dom";
 import { useSearchParams } from "react-router-dom";
 import { getApiClient } from "../lib/get-api-client.ts";
 import { url } from "../lib/paths.ts";
@@ -20,15 +19,10 @@ export function ResourceVersionPanel() {
 	const [searchParams] = useSearchParams();
 	const resourceId = searchParams.get("id");
 	const isNew = searchParams.get("new") === "1";
-	const [target, setTarget] = useState<Element | null>(null);
 	const [versions, setVersions] = useState<ResourceVersionRecord[]>([]);
 	const [canRestore, setCanRestore] = useState(false);
 	const [busy, setBusy] = useState(false);
 	const [error, setError] = useState("");
-
-	useEffect(() => {
-		setTarget(document.querySelector(".edit-main"));
-	}, []);
 
 	useEffect(() => {
 		if (!resourceId || isNew) return;
@@ -52,7 +46,7 @@ export function ResourceVersionPanel() {
 		};
 	}, [resourceId, isNew]);
 
-	if (!target || !resourceId || isNew) return null;
+	if (!resourceId || isNew) return null;
 	const id = resourceId;
 
 	async function restore(version: ResourceVersionRecord) {
@@ -79,7 +73,7 @@ export function ResourceVersionPanel() {
 		}
 	}
 
-	return createPortal(
+	return (
 		<div className="edit-files-section" id="edit-versions-panel">
 			<h3>Historial de versiones</h3>
 			{error && (
@@ -124,7 +118,6 @@ export function ResourceVersionPanel() {
 					))}
 				</ul>
 			)}
-		</div>,
-		target,
+		</div>
 	);
 }

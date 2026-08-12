@@ -4,6 +4,7 @@ import { getResourceTypeOptions } from "../islands/resources/resource-form-optio
 import type { Resource } from "../lib/api-client.ts";
 import { getApiClient } from "../lib/get-api-client.ts";
 import { url } from "../lib/paths.ts";
+import { ResourceVersionPanel } from "./ResourceVersionPanel.tsx";
 import "../styles/editar.css";
 
 const STATUS_LABELS: Record<string, { label: string; cssClass: string }> = {
@@ -920,6 +921,8 @@ export default function EditarPage() {
 								placeholder="matemáticas, fracciones, visual"
 							/>
 						</div>
+
+						<ResourceVersionPanel />
 					</div>
 
 					{/* Right sidebar */}

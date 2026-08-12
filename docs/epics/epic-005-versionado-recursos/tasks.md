@@ -15,3 +15,7 @@
 - [ ] Política configurable de retención y GC.
 - [ ] Purgado administrativo explícito.
 - [ ] Diff visual opcional.
+
+## Corrección de renderizado — 2026-08-12
+- [x] Integrar el panel de historial directamente en el editor para evitar que su montaje previo al estado `ready` lo deje sin destino.
+- [x] Cubrir la edición existente y el alta inicial con una prueba de composición de página.
