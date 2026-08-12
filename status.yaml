@@ -2419,3 +2419,15 @@ tasks:
       Se integra origin/main. Solo conflictuaba status.yaml: se conservan el
       historial de verificación de email (ADR-0031) y las entradas de ADR-0037
       (perfiles legacy / PR #315) sin borrar T-*.
+
+  T-2026-08-12-07343370:
+    date: 2026-08-12
+    agent: "frontend-ux-accesibilidad + backend-api-servicios + qa-validacion + documentacion-y-roadmap"
+    task: "Corregir feedback de alta y verificación de correo del PR #235"
+    status: Done
+    related: ["#235", "#200", "DEF-003", "ADR-0031"]
+    notes: >
+      El registro con verificación activa confirma el envío y guía a activar la
+      cuenta; Better Auth retorna al perfil con una marca de callback y, tras
+      comprobar sesión, se muestra el aviso accesible de correo verificado e
+      inicio de sesión. Se conserva el flujo previo con el flag desactivado.

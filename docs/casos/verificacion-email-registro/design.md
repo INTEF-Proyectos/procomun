@@ -121,3 +121,19 @@ emailAndPassword: { ..., requireEmailVerification: config.enabled },
 - Flag activo: ambos en `true` y caducidad propagada.
 - `sendVerificationEmail` entrega por el transporte del entorno y falla en producción sin SMTP en lugar de escribir el token.
 - `SMTP_PORT` y `EMAIL_VERIFICATION_EXPIRES_IN` vacíos caen al defecto; valores no enteros siguen fallando.
+
+### Adenda UX — 2026-08-12
+
+Con la verificación activa, el endpoint público de configuración expone únicamente
+`emailVerificationRequired`; no revela datos de SMTP ni tokens. Tras un alta
+correcta la interfaz conserva el correo indicado y sustituye el formulario por un
+mensaje con `role="status"`: confirma el envío, pide abrir el enlace y recuerda
+comprobar correo no deseado. El alta con el flag apagado mantiene la redirección
+anterior al perfil.
+
+El alta incluye `callbackURL=/perfil?verified=1` en la solicitud a Better Auth.
+Después de una verificación válida y del auto-login, el perfil comprueba esa marca
+solo tras confirmar una sesión, muestra «Correo verificado. Has iniciado sesión…»
+con `role="status"` y elimina el parámetro de la URL para no repetir el aviso al
+recargar. Esto da feedback explícito sin crear una sesión ni mostrar éxito ante
+un enlace inválido o caducado.

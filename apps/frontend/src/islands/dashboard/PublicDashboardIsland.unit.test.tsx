@@ -2,6 +2,7 @@ import { describe, expect, test } from "bun:test";
 import { renderToStaticMarkup } from "react-dom/server";
 import type { DashboardSummary } from "../../lib/types/user-extended.ts";
 import {
+	hasEmailVerificationSuccess,
 	PublicDashboardIsland,
 	withFavoriteCount,
 } from "./PublicDashboardIsland.tsx";
@@ -40,6 +41,11 @@ describe("withFavoriteCount (DEF-005 / #202)", () => {
 });
 
 describe("PublicDashboardIsland", () => {
+	test("detecta el retorno desde una verificación de correo", () => {
+		expect(hasEmailVerificationSuccess("?verified=1")).toBeTrue();
+		expect(hasEmailVerificationSuccess("?tab=resources")).toBeFalse();
+	});
+
 	test("muestra el shell de carga inicial del perfil", () => {
 		const html = renderToStaticMarkup(<PublicDashboardIsland />);
 		expect(html).toContain("dashboard-loading");

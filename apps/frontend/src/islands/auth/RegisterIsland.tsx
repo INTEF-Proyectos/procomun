@@ -10,6 +10,9 @@ export function RegisterIsland() {
 	const [email, setEmail] = useState("");
 	const [password, setPassword] = useState("");
 	const [error, setError] = useState("");
+	const [verificationEmail, setVerificationEmail] = useState<string | null>(
+		null,
+	);
 	const [loading, setLoading] = useState(false);
 
 	async function handleSubmit(e: FormEvent) {
@@ -18,12 +21,23 @@ export function RegisterIsland() {
 
 		setLoading(true);
 		setError("");
+		setVerificationEmail(null);
 
 		try {
 			const api = await getApiClient();
-			const result = await api.signUp(name, email, password);
+			const config = await api.getConfig();
+			const result = await api.signUp(
+				name,
+				email,
+				password,
+				config.emailVerificationRequired ? url("perfil?verified=1") : undefined,
+			);
 			if (result.ok) {
-				window.location.href = result.redirectUrl || url("perfil");
+				if (config.emailVerificationRequired) {
+					setVerificationEmail(email.trim());
+				} else {
+					window.location.href = result.redirectUrl || url("perfil");
+				}
 			} else {
 				setError(result.error || m.auth_register_error());
 			}
@@ -57,64 +71,89 @@ export function RegisterIsland() {
 					</div>
 				)}
 
-				<form onSubmit={handleSubmit} className="register-form">
-					<div className="register-field">
-						<label htmlFor="reg-name">{m.auth_name_label()}</label>
-						<input
-							id="reg-name"
-							type="text"
-							value={name}
-							onChange={(e) => setName(e.target.value)}
-							placeholder={m.auth_name_placeholder()}
-							required
-							autoComplete="name"
-							disabled={loading}
-						/>
-					</div>
-
-					<div className="register-field">
-						<label htmlFor="reg-email">{m.auth_email_label()}</label>
-						<input
-							id="reg-email"
-							type="email"
-							value={email}
-							onChange={(e) => setEmail(e.target.value)}
-							placeholder={m.auth_email_placeholder()}
-							required
-							autoComplete="email"
-							disabled={loading}
-						/>
-					</div>
-
-					<div className="register-field">
-						<label htmlFor="reg-password">{m.auth_password_label()}</label>
-						<input
-							id="reg-password"
-							type="password"
-							value={password}
-							onChange={(e) => setPassword(e.target.value)}
-							placeholder={m.auth_password_hint()}
-							required
-							minLength={8}
-							autoComplete="new-password"
-							disabled={loading}
-						/>
-					</div>
-
-					<button
-						type="submit"
-						className="register-submit"
-						disabled={
-							loading || !name.trim() || !email.trim() || !password.trim()
-						}
+				{verificationEmail ? (
+					<div
+						className="register-verification"
+						role="status"
+						aria-live="polite"
 					>
-						{loading ? m.auth_register_submitting() : m.auth_register_submit()}
-					</button>
-				</form>
+						<span className="material-symbols-outlined" aria-hidden="true">
+							mark_email_read
+						</span>
+						<div>
+							<h2>{m.auth_verification_sent_title()}</h2>
+							<p>
+								{m.auth_verification_sent_description({
+									email: verificationEmail,
+								})}
+							</p>
+							<p>{m.auth_verification_sent_hint()}</p>
+						</div>
+					</div>
+				) : (
+					<form onSubmit={handleSubmit} className="register-form">
+						<div className="register-field">
+							<label htmlFor="reg-name">{m.auth_name_label()}</label>
+							<input
+								id="reg-name"
+								type="text"
+								value={name}
+								onChange={(e) => setName(e.target.value)}
+								placeholder={m.auth_name_placeholder()}
+								required
+								autoComplete="name"
+								disabled={loading}
+							/>
+						</div>
 
-				<p className="register-footer">
-					{m.auth_has_account()} <a href={url("login")}>{m.auth_sign_in()}</a>
-				</p>
+						<div className="register-field">
+							<label htmlFor="reg-email">{m.auth_email_label()}</label>
+							<input
+								id="reg-email"
+								type="email"
+								value={email}
+								onChange={(e) => setEmail(e.target.value)}
+								placeholder={m.auth_email_placeholder()}
+								required
+								autoComplete="email"
+								disabled={loading}
+							/>
+						</div>
+
+						<div className="register-field">
+							<label htmlFor="reg-password">{m.auth_password_label()}</label>
+							<input
+								id="reg-password"
+								type="password"
+								value={password}
+								onChange={(e) => setPassword(e.target.value)}
+								placeholder={m.auth_password_hint()}
+								required
+								minLength={8}
+								autoComplete="new-password"
+								disabled={loading}
+							/>
+						</div>
+
+						<button
+							type="submit"
+							className="register-submit"
+							disabled={
+								loading || !name.trim() || !email.trim() || !password.trim()
+							}
+						>
+							{loading
+								? m.auth_register_submitting()
+								: m.auth_register_submit()}
+						</button>
+					</form>
+				)}
+
+				{!verificationEmail && (
+					<p className="register-footer">
+						{m.auth_has_account()} <a href={url("login")}>{m.auth_sign_in()}</a>
+					</p>
+				)}
 			</div>
 		</div>
 	);
