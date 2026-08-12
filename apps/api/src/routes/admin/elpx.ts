@@ -23,7 +23,6 @@ import {
 } from "../../uploads/config.ts";
 
 function isElpxFile(name: string): boolean {
-	// Solo el basename: un file.name con segmentos path no debe influir en la extensión.
 	const ext = path.extname(path.basename(name)).toLowerCase();
 	return ext === ".elpx" || ext === ".elp";
 }
@@ -37,14 +36,10 @@ elpxAdminRoutes.post("/analyze", requireRole("author"), async (c) => {
 	if (!file || !(file instanceof File)) {
 		return c.json({ error: "Se requiere un archivo .elpx" }, 400);
 	}
-
 	if (!isElpxFile(file.name)) {
 		return c.json({ error: "El archivo debe ser .elpx" }, 400);
 	}
 
-	// No derivar la ruta temporal de file.name (path traversal, issue #249).
-	// Se genera un nombre único en servidor; la extensión .elpx ya quedó validada arriba.
-	// El nombre original se devuelve solo como basename (sin segmentos de ruta).
 	const safeFilename = path.basename(file.name);
 	const tempPath = path.join(
 		tmpdir(),
@@ -53,7 +48,6 @@ elpxAdminRoutes.post("/analyze", requireRole("author"), async (c) => {
 	try {
 		const buffer = await file.arrayBuffer();
 		await writeFile(tempPath, Buffer.from(buffer));
-
 		const metadata = await parseElpxMetadata(tempPath);
 		return c.json({ ok: true, metadata, filename: safeFilename });
 	} catch (err: unknown) {
@@ -65,10 +59,6 @@ elpxAdminRoutes.post("/analyze", requireRole("author"), async (c) => {
 	}
 });
 
-/**
- * Upload an .elpx file directly to a resource (single-request, no tus).
- * Used by the creation flow to attach the .elpx right after creating the resource.
- */
 elpxAdminRoutes.post(
 	"/upload/:resourceId",
 	requireRole("author"),
@@ -79,22 +69,20 @@ elpxAdminRoutes.post(
 
 		const resource = await repo.getResourceById(getDb().db, resourceId);
 		if (!resource) return c.json({ error: "Recurso no encontrado" }, 404);
-		if (!canManageResource(user, resource))
+		if (!canManageResource(user, resource)) {
 			return c.json({ error: "Permisos insuficientes" }, 403);
+		}
 
 		const body = await c.req.parseBody();
 		const file = body.file;
 		if (!file || !(file instanceof File)) {
 			return c.json({ error: "Se requiere un archivo .elpx" }, 400);
 		}
-
 		if (!isElpxFile(file.name)) {
 			return c.json({ error: "El archivo debe ser .elpx" }, 400);
 		}
 
 		const config = getUploadConfig();
-
-		// Remove any existing .elpx media items for this resource before uploading the new one
 		const existingMediaRows = await repo.listMediaItemsForResource(
 			getDb().db,
 			resourceId,
@@ -106,7 +94,6 @@ elpxAdminRoutes.post(
 		await Promise.all(
 			prevElpxItems.map(async (m) => {
 				if (m.uploadId) {
-					// Conserva archivo y sesión si pertenecen a una versión publicada (issue #31)
 					await retireUploadArtifacts(getDb().db, m.uploadId, config);
 				}
 				await repo.deleteMediaItem(getDb().db, m.id).catch(() => {});
@@ -114,17 +101,12 @@ elpxAdminRoutes.post(
 		);
 
 		const uploadId = crypto.randomUUID();
-
-		// Save the raw file to tus storage (so the existing download endpoints work)
 		const storagePath = path.join(config.storageDir, uploadId);
 		await mkdir(path.dirname(storagePath), { recursive: true });
-
 		const buffer = Buffer.from(await file.arrayBuffer());
 		await writeFile(storagePath, buffer);
-
 		const checksum = await computeFileSha256(storagePath);
 
-		// Create upload session + media item
 		await repo.createUploadSession(getDb().db, {
 			id: uploadId,
 			resourceId,
@@ -135,7 +117,6 @@ elpxAdminRoutes.post(
 			declaredSize: file.size,
 			expiresAt: null,
 		});
-
 		const media = await repo.createMediaItem(getDb().db, {
 			resourceId,
 			type: "file",
@@ -145,7 +126,6 @@ elpxAdminRoutes.post(
 			filename: file.name,
 			isPrimary: true,
 		});
-
 		await repo.completeUploadSession(getDb().db, uploadId, {
 			receivedBytes: file.size,
 			publicUrl: buildUploadPublicUrl(uploadId),
@@ -153,8 +133,6 @@ elpxAdminRoutes.post(
 			finalChecksum: checksum,
 		});
 
-		// Retira la copia de trabajo anterior; si está publicada como versión,
-		// se conserva (historial, issue #31)
 		const existingElpx = await repo.getElpxProjectByResourceId(
 			getDb().db,
 			resourceId,
@@ -163,9 +141,8 @@ elpxAdminRoutes.post(
 			await retireWorkingCopyProject(getDb().db, existingElpx);
 		}
 
-		// Process the .elpx (extract + metadata)
 		const result = await processElpxUpload(storagePath, config.storageDir);
-		await repo.createElpxProject(getDb().db, {
+		const { id: elpxProjectId } = await repo.createElpxProject(getDb().db, {
 			resourceId,
 			hash: result.hash,
 			extractPath: result.extractPath,
@@ -175,6 +152,11 @@ elpxAdminRoutes.post(
 			hasPreview: result.hasPreview,
 			elpxMetadata: result.metadata,
 		});
+		const version = await repo.publishResourceVersion(getDb().db, {
+			resourceId,
+			elpxProjectId,
+			createdBy: user.id,
+		});
 
 		return c.json({
 			ok: true,
@@ -183,15 +165,11 @@ elpxAdminRoutes.post(
 			elpxHash: result.hash,
 			hasPreview: result.hasPreview,
 			previewUrl: result.hasPreview ? `/api/v1/elpx/${result.hash}/` : null,
+			versionNumber: version.versionNumber,
 		});
 	},
 );
 
-/**
- * Save an edited .elpx file back to a resource (from the eXeLearning editor).
- * Replaces the existing elpx project, upload session, and media item.
- * Same flow as wp-exelearning's save endpoint.
- */
 elpxAdminRoutes.post("/save/:resourceId", requireRole("author"), async (c) => {
 	const user = getCurrentUser(c);
 	const resourceId = c.req.param("resourceId");
@@ -199,8 +177,9 @@ elpxAdminRoutes.post("/save/:resourceId", requireRole("author"), async (c) => {
 
 	const resource = await repo.getResourceById(getDb().db, resourceId);
 	if (!resource) return c.json({ error: "Recurso no encontrado" }, 404);
-	if (!canManageResource(user, resource))
+	if (!canManageResource(user, resource)) {
 		return c.json({ error: "Permisos insuficientes" }, 403);
+	}
 
 	const body = await c.req.parseBody();
 	const file = body.file;
@@ -210,8 +189,6 @@ elpxAdminRoutes.post("/save/:resourceId", requireRole("author"), async (c) => {
 
 	const config = getUploadConfig();
 	const filename = file.name || "project.elpx";
-
-	// Retira la copia de trabajo anterior; las versiones publicadas se conservan (issue #31)
 	const existingElpx = await repo.getElpxProjectByResourceId(
 		getDb().db,
 		resourceId,
@@ -220,15 +197,12 @@ elpxAdminRoutes.post("/save/:resourceId", requireRole("author"), async (c) => {
 		await retireWorkingCopyProject(getDb().db, existingElpx);
 	}
 
-	// Save new .elpx file to storage
 	const uploadId = crypto.randomUUID();
 	const storagePath = path.join(config.storageDir, uploadId);
 	const buffer = Buffer.from(await file.arrayBuffer());
 	await writeFile(storagePath, buffer);
-
 	const checksum = await computeFileSha256(storagePath);
 
-	// Create media item + completed upload session (so download works)
 	const media = await repo.createMediaItem(getDb().db, {
 		resourceId,
 		type: "file",
@@ -238,7 +212,6 @@ elpxAdminRoutes.post("/save/:resourceId", requireRole("author"), async (c) => {
 		filename,
 		isPrimary: true,
 	});
-
 	await repo.createUploadSession(getDb().db, {
 		id: uploadId,
 		resourceId,
@@ -249,7 +222,6 @@ elpxAdminRoutes.post("/save/:resourceId", requireRole("author"), async (c) => {
 		declaredSize: buffer.byteLength,
 		expiresAt: null,
 	});
-
 	await repo.completeUploadSession(getDb().db, uploadId, {
 		receivedBytes: buffer.byteLength,
 		publicUrl: buildUploadPublicUrl(uploadId),
@@ -257,11 +229,8 @@ elpxAdminRoutes.post("/save/:resourceId", requireRole("author"), async (c) => {
 		finalChecksum: checksum,
 	});
 
-	// Process the new .elpx (extract + metadata)
 	const result = await processElpxUpload(storagePath, config.storageDir);
-
-	// Create new elpx project record
-	await repo.createElpxProject(getDb().db, {
+	const { id: elpxProjectId } = await repo.createElpxProject(getDb().db, {
 		resourceId,
 		hash: result.hash,
 		extractPath: result.extractPath,
@@ -271,6 +240,11 @@ elpxAdminRoutes.post("/save/:resourceId", requireRole("author"), async (c) => {
 		hasPreview: result.hasPreview,
 		elpxMetadata: result.metadata,
 	});
+	const version = await repo.publishResourceVersion(getDb().db, {
+		resourceId,
+		elpxProjectId,
+		createdBy: user.id,
+	});
 
 	return c.json({
 		ok: true,
@@ -278,20 +252,10 @@ elpxAdminRoutes.post("/save/:resourceId", requireRole("author"), async (c) => {
 		hasPreview: result.hasPreview,
 		previewUrl: result.hasPreview ? `/api/v1/elpx/${result.hash}/` : null,
 		elpxFileUrl: `/api/admin/uploads/${uploadId}/content`,
+		versionNumber: version.versionNumber,
 	});
 });
 
-/**
- * Generate an .elpx package automatically from the media items already attached to a resource.
- *
- * The generated package includes:
- * - content.xml  with the resource title and basic metadata
- * - index.html   with relative links to all bundled files
- * - All media files bundled in the ZIP root
- *
- * If an elpx_project already exists it is replaced (same behaviour as /save/:resourceId).
- * RF-001..RF-008 (issue #70).
- */
 elpxAdminRoutes.post(
 	"/generate/:resourceId",
 	requireRole("author"),
@@ -302,17 +266,15 @@ elpxAdminRoutes.post(
 
 		const resource = await repo.getResourceById(getDb().db, resourceId);
 		if (!resource) return c.json({ error: "Recurso no encontrado" }, 404);
-		if (!canManageResource(user, resource))
+		if (!canManageResource(user, resource)) {
 			return c.json({ error: "Permisos insuficientes" }, 403);
+		}
 
 		const config = getUploadConfig();
-
-		// Collect completed media items with their upload IDs
 		const mediaRows = await repo.listMediaItemsForResource(
 			getDb().db,
 			resourceId,
 		);
-		// Filter out .elpx/.elp files (avoid recursive bundling) and items without a local file
 		const filesToBundle = mediaRows
 			.filter((m) => {
 				if (!m.uploadId) return false;
@@ -324,7 +286,6 @@ elpxAdminRoutes.post(
 				filePath: resolveStoredFilePath(config, m.uploadId as string),
 			}));
 
-		// Generate the .elpx ZIP to a temp file
 		const tempOutput = path.join(
 			tmpdir(),
 			`procomun-generated-${crypto.randomUUID()}.elpx`,
@@ -346,8 +307,6 @@ elpxAdminRoutes.post(
 			return c.json({ error: message }, 500);
 		}
 
-		// Replace existing elpx project if any (RF-007); las versiones publicadas
-		// se conservan (issue #31)
 		const existingElpx = await repo.getElpxProjectByResourceId(
 			getDb().db,
 			resourceId,
@@ -356,34 +315,27 @@ elpxAdminRoutes.post(
 			await retireWorkingCopyProject(getDb().db, existingElpx);
 		}
 
-		// Remove any previously generated recurso-generado.elpx media items
-		// (file on disk + upload session + media item record)
 		const prevGenerated = mediaRows.filter(
 			(m) => m.filename === "recurso-generado.elpx",
 		);
 		await Promise.all(
 			prevGenerated.map(async (m) => {
 				if (m.uploadId) {
-					// Conserva archivo y sesión si pertenecen a una versión publicada (issue #31)
 					await retireUploadArtifacts(getDb().db, m.uploadId, config);
 				}
 				await repo.deleteMediaItem(getDb().db, m.id).catch(() => {});
 			}),
 		);
 
-		// Save file to upload storage (so download endpoints work)
 		const uploadId = crypto.randomUUID();
 		const storagePath = path.join(config.storageDir, uploadId);
 		await mkdir(path.dirname(storagePath), { recursive: true });
-
 		const buffer = Buffer.from(await Bun.file(tempOutput).arrayBuffer());
 		await unlink(tempOutput).catch(() => {});
 		await writeFile(storagePath, buffer);
-
 		const checksum = await computeFileSha256(storagePath);
 		const generatedFilename = "recurso-generado.elpx";
 
-		// Create upload session + media item (primary)
 		await repo.createUploadSession(getDb().db, {
 			id: uploadId,
 			resourceId,
@@ -394,7 +346,6 @@ elpxAdminRoutes.post(
 			declaredSize: buffer.byteLength,
 			expiresAt: null,
 		});
-
 		const media = await repo.createMediaItem(getDb().db, {
 			resourceId,
 			type: "file",
@@ -404,7 +355,6 @@ elpxAdminRoutes.post(
 			filename: generatedFilename,
 			isPrimary: true,
 		});
-
 		await repo.completeUploadSession(getDb().db, uploadId, {
 			receivedBytes: buffer.byteLength,
 			publicUrl: buildUploadPublicUrl(uploadId),
@@ -412,11 +362,10 @@ elpxAdminRoutes.post(
 			finalChecksum: checksum,
 		});
 
-		// Process .elpx: extract, detect preview, register elpx_project
 		const result = await processElpxUpload(storagePath, config.storageDir, {
 			hash: crypto.randomUUID(),
 		});
-		await repo.createElpxProject(getDb().db, {
+		const { id: elpxProjectId } = await repo.createElpxProject(getDb().db, {
 			resourceId,
 			hash: result.hash,
 			extractPath: result.extractPath,
@@ -425,6 +374,11 @@ elpxAdminRoutes.post(
 			version: 3,
 			hasPreview: result.hasPreview,
 			elpxMetadata: result.metadata,
+		});
+		const version = await repo.publishResourceVersion(getDb().db, {
+			resourceId,
+			elpxProjectId,
+			createdBy: user.id,
 		});
 
 		return c.json({
@@ -435,6 +389,7 @@ elpxAdminRoutes.post(
 			hasPreview: result.hasPreview,
 			previewUrl: result.hasPreview ? `/api/v1/elpx/${result.hash}/` : null,
 			elpxFileUrl: `/api/admin/uploads/${uploadId}/content`,
+			versionNumber: version.versionNumber,
 		});
 	},
 );
