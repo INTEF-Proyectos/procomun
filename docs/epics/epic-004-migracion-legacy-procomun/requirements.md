@@ -59,21 +59,21 @@ Se implementa `import:legacy-users` para crear cuentas de `procomun-ng` desde es
 ### Requisitos funcionales
 
 - Leer un JSON cuyo nivel raíz sea un array y aislar el error de cada registro mal formado.
-- Importar `uid`, `name`, `mail`, `roles` y `status`; el resto de atributos permanece fuera del modelo inicial.
+- Importar `uid`, `name`, `mail` y `roles`; `status` se conserva únicamente como dato de origen y no desactiva la cuenta destino.
 - Reejecutar el mismo archivo sin crear duplicados: el ID destino es estable y namespaced por `uid` legacy; un correo ya existente tampoco se reemplaza.
 - Emitir un informe por ejecución con importados, omisiones por UID/correo y errores.
 
 ### Seguridad, privacidad y autenticación
 
 - No se copia `pass`: los hashes Drupal observados no son compatibles ni se deben reutilizar como credenciales Better Auth.
-- Las cuentas importadas quedan sin cuenta `credential` y con `email_verified = false`; requerirán un flujo futuro de verificación/restablecimiento o un proveedor de identidad antes de iniciar sesión.
-- El rol `administrator` se traduce a `admin`; el marcador `-` y los roles no reconocidos se traducen a `author` (estos últimos generan warning).
-- `status` 1/`"1"`/`true` se traduce a cuenta activa; cualquier otro valor queda inactivo.
+- Las cuentas importadas quedan sin cuenta `credential` y con `email_verified = false`; deberán recuperar/establecer contraseña mediante correo o usar un proveedor de identidad antes de iniciar sesión.
+- El rol `administrator` se traduce a `admin`; el resto de usuarios se traduce a `editor` para conservar la capacidad de publicación directa existente en Procomún legacy.
+- Todas las cuentas que superan la validación y se importan quedan con `is_active = true`, independientemente del valor legacy de `status`.
 
 ### Riesgos abiertos
 
 - El formato se ha inferido de `exportados-usuarios/usuarios.json` (muestra de cuatro registros), no de una especificación contractual.
-- La equivalencia definitiva de roles Drupal y la asociación de autorías requieren decisión de INTEF en una iteración posterior.
+- La asociación de autorías y la futura exclusión del buscador de recursos publicados directamente por editores requieren una iteración posterior.
 
 ### Actualización de política de rol (2026-08-06)
 
@@ -81,4 +81,8 @@ Por decisión de producto posterior a la implementación inicial, todos los usua
 
 ### Corrección de política de rol (2026-08-06)
 
-La política anterior se corrige: los registros con `roles: "administrator"` se importan como `admin`; el resto se importa como `editor`. No se aplican otras equivalencias de roles legacy.
+La política anterior se corrige: los registros con `roles: "administrator"` se importan como `admin`; el resto se importa como `editor`. Esta equivalencia conserva el comportamiento de Procomún legacy, donde las personas registradas pueden crear recursos sin revisión previa. La exclusión del buscador de los recursos publicados directamente por editores se abordará en una iteración posterior.
+
+### Decisión de activación de cuentas migradas (2026-08-12)
+
+Por decisión funcional confirmada en la revisión del PR #309, toda cuenta legacy que supere la validación del importador se crea activa (`user.is_active = true`) aunque el origen tenga `status = 0`, otro valor o no incluya el campo. El objetivo es que las personas migradas puedan recuperar la contraseña mediante su correo y continuar usando la cuenta. El hash `pass` de Drupal no se migra y `email_verified` permanece en `false`; la recuperación/establecimiento de credenciales se resolverá mediante el flujo habitual de contraseña olvidada o el proveedor de identidad que corresponda.
