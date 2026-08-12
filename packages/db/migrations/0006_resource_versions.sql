@@ -1,4 +1,4 @@
--- Versionado de recursos (issue #31 / ADR-0038)
+-- Versionado de recursos (issue #31 / ADR-0039)
 -- Cada .elpx publicado es una versión inmutable; resources mantiene la
 -- proyección de la versión vigente vía current_version_id.
 

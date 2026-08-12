@@ -16,7 +16,7 @@ function buildDownloadUrl(uploadSessionId: string | null): string | null {
 }
 
 /**
- * Historial de versiones de recursos (issue #31 / ADR-0038).
+ * Historial de versiones de recursos (issue #31 / ADR-0039).
  * Se registran sobre el router de /api/admin/resources.
  */
 export function registerResourceVersionRoutes(routes: Hono<AuthEnv>) {

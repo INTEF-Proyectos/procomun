@@ -243,15 +243,15 @@ ADR-0037:
     contraseñas, DNI, fecha de nacimiento y sexo. No autoriza implementar ni cargar
     perfiles hasta revisión de Producto, Arquitectura, Metadatos y Privacidad.
 
-ADR-0038:
+ADR-0039:
   title: "Versionado mínimo de recursos (MVP): resource_versions + proyección vigente reutilizando elpx_projects"
   status: Aceptado
   date: 2026-08-11
-  file: 0038-versionado-recursos-mvp.md
+  file: 0039-versionado-recursos-mvp.md
   related: ["#31", "ADR-0028", "ADR-0032"]
   notes: >
     Concreta el MVP del requisito #31: una tabla resource_versions y el puntero
     resources.current_version_id, reutilizando elpx_projects y el SHA-256 de
     upload_sessions. Aplaza content_blobs, deduplicación y GC de ADR-0032 como
     optimización posterior. ADR-0035 permanece reservada para el trabajo de preview.
-    Renumerada a ADR-0038 porque ADR-0037 quedó asignada al modelo de perfil legacy.
+    Renumerada a ADR-0039 para evitar colisión con ADR-0038 (topología preview del PR #317); ADR-0037 es el modelo de perfil legacy.

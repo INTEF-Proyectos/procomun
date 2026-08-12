@@ -2327,27 +2327,40 @@ tasks:
   T-2026-08-11-20261542:
     date: 2026-08-11
     agent: "arquitectura-solucion + backend-api-servicios + frontend-ux-accesibilidad + qa-validacion"
-    task: "Implementar el sistema de versionado de recursos (issue #31) con el modelo mínimo de ADR-0038"
+    task: "Implementar el sistema de versionado de recursos (issue #31) con el modelo mínimo de ADR-0039"
     status: Done
-    related: ["#31", "ADR-0028", "ADR-0032", "ADR-0038"]
+    related: ["#31", "ADR-0028", "ADR-0032", "ADR-0039"]
     notes: >
       Cada .elpx publicado es una versión inmutable: tabla resource_versions +
       resources.current_version_id, reutilizando elpx_projects y el SHA-256 de
-      upload_sessions (sin content_blobs ni GC, aplazados según ADR-0038). Publicación
+      upload_sessions (sin content_blobs ni GC, aplazados según ADR-0039). Publicación
       transaccional con bloqueo y número secuencial, historial con notas y autoría,
       restauración no destructiva que aplica el snapshot a la proyección, protección
       FK RESTRICT + guardas de retirada en los flujos de reemplazo, resolución pública
       por versión vigente y panel de historial en la página de edición. Parser ELPX
       ampliado con odeId/odeVersionId/exe_version. Suite completa en verde (989 tests,
-      cobertura 90,79 %). ADR renumerada a 0038 tras merge de main (0037 = perfiles legacy).
+      cobertura 90,79 %). Tras merges posteriores el MVP de versionado queda como ADR-0039
+      (0037 = perfiles legacy; 0038 = topología preview del PR #317).
 
   T-2026-08-12-06493314:
     date: 2026-08-12
     agent: "documentacion-y-roadmap"
-    task: "Resolver conflictos de merge del PR #322 con main (renumerar ADR de versionado a 0038)"
+    task: "Resolver conflictos de merge del PR #322 con main (renumerar ADR de versionado)"
     status: Done
-    related: ["#322", "#31", "ADR-0037", "ADR-0038"]
+    related: ["#322", "#31", "ADR-0037", "ADR-0039"]
     notes: >
       Se integra origin/main. ADR-0037 queda para el modelo de perfil legacy (main);
-      el MVP de versionado se renumera a ADR-0038 y se actualizan decision-log,
-      épica-005, comentarios de schema/rutas y status.yaml.
+      el MVP de versionado se renumeró primero a ADR-0038 y, al colisionar con la
+      topología preview del PR #317, a ADR-0039. Se actualizan decision-log, épica-005,
+      comentarios de schema/rutas y status.yaml.
+
+  T-2026-08-12-06550191:
+    date: 2026-08-12
+    agent: "documentacion-y-roadmap"
+    task: "Renumerar ADR de versionado del PR #322 de 0038 a 0039 (colisión con PR #317)"
+    status: Done
+    related: ["#322", "#317", "#31", "ADR-0038", "ADR-0039"]
+    notes: >
+      ADR-0038 queda para la topología del preview HTTP (PR #317). El MVP de versionado
+      de recursos pasa a ADR-0039 (fichero 0039-versionado-recursos-mvp.md) con referencias
+      actualizadas en decision-log, épica-005, schema, rutas y status.

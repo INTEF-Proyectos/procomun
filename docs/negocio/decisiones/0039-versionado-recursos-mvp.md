@@ -1,4 +1,4 @@
-# ADR-0038 Versionado mínimo de recursos (MVP): `resource_versions` + proyección vigente reutilizando `elpx_projects`
+# ADR-0039 Versionado mínimo de recursos (MVP): `resource_versions` + proyección vigente reutilizando `elpx_projects`
 
 * Estado: Aceptado
 * Fecha: 2026-08-11

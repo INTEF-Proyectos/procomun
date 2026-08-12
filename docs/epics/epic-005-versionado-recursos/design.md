@@ -143,10 +143,10 @@ Diseño propuesto (F1–F3). La implementación queda condicionada a aceptar ADR
 
 ---
 
-## Adenda 2026-08-11 — Diseño MVP implementado (ADR-0038)
+## Adenda 2026-08-11 — Diseño MVP implementado (ADR-0039)
 
 La implementación inicial (PR del issue #31) adopta el recorte de alcance
-decidido en [ADR-0038](../../negocio/decisiones/0038-versionado-recursos-mvp.md):
+decidido en [ADR-0039](../../negocio/decisiones/0039-versionado-recursos-mvp.md):
 el modelo de esta página se conserva como referencia para la fase de
 optimización de almacenamiento, pero la F1+F2 entregadas usan el modelo mínimo:
 
@@ -190,7 +190,7 @@ optimización de almacenamiento, pero la F1+F2 entregadas usan el modelo mínimo
 ### Trazabilidad
 - RF-001..RF-007 y RF-010 cubiertos; RF-008 se mantiene por construcción (solo
   la proyección se indexa/expone); RF-009 queda en política "conservar todo"
-  documentada en ADR-0038 (GC diferido).
+  documentada en ADR-0039 (GC diferido).
 - Tests: `packages/db/src/repository/resource-versions.integration.test.ts`,
   `apps/api/src/routes/admin/versions.unit.test.ts`,
   `apps/api/src/routes/admin/elpx-versioning.unit.test.ts`,

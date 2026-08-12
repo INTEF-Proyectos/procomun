@@ -1,6 +1,6 @@
 # Validation — Épica 005: versionado de recursos
 
-## 2026-08-11 — Validación del MVP (issue #31 / ADR-0038)
+## 2026-08-11 — Validación del MVP (issue #31 / ADR-0039)
 
 Validación automatizada con `bun test` (regla 14 de AGENTS.md). Evidencia por requisito:
 
@@ -14,7 +14,7 @@ Validación automatizada con `bun test` (regla 14 de AGENTS.md). Evidencia por r
 | RF-006 descarga de versiones previas | `versions.unit.test.ts` (`downloadUrl`); `elpx-versioning.unit.test.ts` (descarga pública sobrevive al reemplazo del media item) |
 | RF-007 rollback no destructivo | `resource-versions.integration.test.ts` («restaurar crea una versión nueva…», «restaurar aplica el snapshot a la proyección»); `versions.unit.test.ts` (curador restaura; autor 403) |
 | RF-008 sin duplicados en búsqueda/feeds | Por construcción: solo se indexa/expone la proyección `resources` (sin cambios de contrato); resolución vigente cubierta por tests de ficha pública |
-| RF-009 política de retención | Documentada en ADR-0038 (conservar todo; purga explícita futura); protección activa validada en `elpx-retire.unit.test.ts` y `elpx-versioning.unit.test.ts` |
+| RF-009 política de retención | Documentada en ADR-0039 (conservar todo; purga explícita futura); protección activa validada en `elpx-retire.unit.test.ts` y `elpx-versioning.unit.test.ts` |
 | RF-010 auditoría | Rutas registran `resource_version_published` / `resource_version_restored` (logActivity, fire-and-forget) |
 | Concurrencia (ADR-0032 §3) | «dos publicaciones concurrentes obtienen números distintos y consecutivos»; «UNIQUE(resource_id, version_number) impide duplicados» |
 | Integridad del historial | «no se puede borrar un elpx_project referenciado por una versión» (FK RESTRICT); guardas de retirada («conserva proyecto…», «conserva archivo y sesión…») |
