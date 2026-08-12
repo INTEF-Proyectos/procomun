@@ -32,12 +32,13 @@ export function ResourceVersionPanel() {
 
 	useEffect(() => {
 		if (!resourceId || isNew) return;
+		const id = resourceId;
 		let cancelled = false;
 
 		async function load() {
 			const api = await getApiClient();
 			const [history, session] = await Promise.all([
-				api.listResourceVersions(resourceId).catch(() => []),
+				api.listResourceVersions(id).catch(() => []),
 				api.getSession().catch(() => null),
 			]);
 			if (cancelled) return;
@@ -52,6 +53,7 @@ export function ResourceVersionPanel() {
 	}, [resourceId, isNew]);
 
 	if (!target || !resourceId || isNew) return null;
+	const id = resourceId;
 
 	async function restore(version: ResourceVersionRecord) {
 		if (busy) return;
@@ -64,7 +66,7 @@ export function ResourceVersionPanel() {
 		setError("");
 		try {
 			const api = await getApiClient();
-			const result = await api.restoreResourceVersion(resourceId, version.id);
+			const result = await api.restoreResourceVersion(id, version.id);
 			if (!result.ok) {
 				setError(result.error ?? "Error al restaurar la versión");
 				return;
