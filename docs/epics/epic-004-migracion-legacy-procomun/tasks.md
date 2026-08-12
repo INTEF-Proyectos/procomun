@@ -54,4 +54,4 @@ Los JSON/`.elpx` de `ode-export/` contienen datos personales reales (nombres y e
 - [x] Precisar que `display_name`, `bio` e `image` del legado pertenecen a `user_profile` y permanecen privados por defecto; `user` no alimenta representaciones públicas de autor.
 - [x] Definir procedencia por campo y rollback por `migration_batch_id` que no sobrescribe ediciones posteriores.
 - [x] Fijar política de reimportación: `null` se omite y los cambios de origen o usuarios existentes no se sobrescriben.
-- [ ] Corregir en GitHub la descripción del PR #315 y el comentario de la issue #312 para que mencionen ADR-0037, si su autor lo autoriza.
+- [x] Corregir en GitHub la descripción del PR #315 y el comentario de la issue #312 para que mencionen ADR-0037.
