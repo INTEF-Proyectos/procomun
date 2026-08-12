@@ -90,3 +90,9 @@ Ambos bugs eran preexistentes en la infraestructura reutilizada, no introducidos
 
 - `bun test apps/cli/src/commands/import-legacy-users.unit.test.ts packages/db/src/repository/legacy-users-import.unit.test.ts packages/db/src/repository.unit.test.ts` ✅. Cubre conflictos de `dry-run` existentes y dentro del JSON, colisiones de email por mayúsculas/minúsculas, restricción única en base de datos y una importación concurrente.
 - `bun run check-types` ✅ (0 errores).
+
+### Segunda revisión del PR #309 (2026-08-12)
+
+- La prueba de migraciones verifica que `0006_user_email_case_insensitive` figura en el journal, sustituye el nombre duplicado `0005` y contiene la comprobación previa de duplicados por `lower(email)`.
+- La prueba del comando verifica que el cliente PGlite se cierra incluso si falla la lectura del JSON antes de generar el informe.
+- Las pruebas de `--dry-run` verifican que `wouldImport` cuenta los registros importables y `imported` permanece en cero.

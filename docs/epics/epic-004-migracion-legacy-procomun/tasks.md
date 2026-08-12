@@ -65,3 +65,8 @@ Los JSON/`.elpx` de `ode-export/` contienen datos personales reales (nombres y e
 - [x] Hacer que `--dry-run` consulte los conflictos existentes y detecte ID/correo duplicados dentro del propio lote.
 - [x] Normalizar emails en los flujos de creación y garantizar su unicidad sin distinción de mayúsculas mediante `lower(email)`.
 - [x] Distinguir inserciones propias de conflictos concurrentes con `RETURNING`.
+
+### Segunda revisión del PR #309 (2026-08-12)
+- [x] Registrar la migración `0006_user_email_case_insensitive` en el journal de Drizzle y bloquear el despliegue si existen correos que solo difieren en mayúsculas/minúsculas.
+- [x] Cerrar PGlite en `finally` también ante fallo de lectura, conexión o escritura del informe.
+- [x] Separar `wouldImport` de `imported` y mostrar `importables` en `--dry-run`.

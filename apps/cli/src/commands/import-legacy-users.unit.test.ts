@@ -7,6 +7,7 @@ import {
 	closeCliDb,
 	type loadImportLegacyUsersDependencies,
 	runImportLegacyUsers,
+	runImportLegacyUsersCommand,
 } from "./import-legacy-users.ts";
 
 type Deps = Awaited<ReturnType<typeof loadImportLegacyUsersDependencies>>;
@@ -68,7 +69,8 @@ describe("runImportLegacyUsers", () => {
 
 		expect(persisted).toBeFalse();
 		expect(report.totals).toMatchObject({
-			imported: 1,
+			imported: 0,
+			wouldImport: 1,
 			skippedExistingId: 1,
 			skippedExistingEmail: 2,
 		});
@@ -117,6 +119,7 @@ describe("runImportLegacyUsers", () => {
 			found: 3,
 			processed: 3,
 			imported: 2,
+			wouldImport: 0,
 			skippedExistingId: 0,
 			skippedExistingEmail: 0,
 			errored: 1,
@@ -151,6 +154,34 @@ describe("runImportLegacyUsers", () => {
 		expect(persisted).toBeFalse();
 		expect(report.totals.processed).toBe(1);
 		expect(report.records[0]?.outcome).toBe("would_import");
+	});
+
+	test("cierra PGlite si la lectura del JSON falla antes de crear el informe", async () => {
+		let closed = false;
+		const missingSourceFile = path.join(dir, "missing.json");
+		await expect(
+			runImportLegacyUsersCommand(
+				{
+					sourceFile: missingSourceFile,
+					dryRun: false,
+					limit: undefined,
+					reportDir: path.join(dir, "reports"),
+				},
+				buildDeps({
+					getDb: () => ({
+						db: {
+							$client: {
+								close: async () => {
+									closed = true;
+								},
+							},
+						} as unknown as ReturnType<Deps["getDb"]>["db"],
+						provider: "pg",
+					}),
+				}),
+			),
+		).rejects.toThrow();
+		expect(closed).toBeTrue();
 	});
 });
 

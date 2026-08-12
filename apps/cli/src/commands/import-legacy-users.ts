@@ -55,6 +55,7 @@ export interface ImportLegacyUsersReport {
 		found: number;
 		processed: number;
 		imported: number;
+		wouldImport: number;
 		skippedExistingId: number;
 		skippedExistingEmail: number;
 		errored: number;
@@ -117,22 +118,32 @@ export async function closeCliDb(db: unknown): Promise<void> {
 export async function importLegacyUsers(args: string[]) {
 	const options = parseCliArgs(args);
 	const deps = await loadImportLegacyUsersDependencies();
-	const report = await runImportLegacyUsers(options, deps);
-	await mkdir(options.reportDir, { recursive: true });
-	const reportPath = path.join(
-		options.reportDir,
-		`informe_usuarios-${options.dryRun ? "dryrun-" : ""}${report.runId}.json`,
-	);
-	await Bun.write(reportPath, JSON.stringify(report, null, 2));
-	console.log(`[import:legacy-users] Informe escrito en ${reportPath}`);
-	console.log(
-		`[import:legacy-users] Completado. ${options.dryRun ? "(dry-run) " : ""}` +
-			`importados=${report.totals.imported} omitidos_id=${report.totals.skippedExistingId} ` +
-			`omitidos_email=${report.totals.skippedExistingEmail} errores=${report.totals.errored}`,
-	);
-	const exitCode = report.totals.errored > 0 ? 1 : 0;
-	await closeCliDb(deps.getDb().db);
+	const exitCode = await runImportLegacyUsersCommand(options, deps);
 	process.exit(exitCode);
+}
+
+export async function runImportLegacyUsersCommand(
+	options: ReturnType<typeof parseCliArgs>,
+	deps: Deps,
+): Promise<number> {
+	try {
+		const report = await runImportLegacyUsers(options, deps);
+		await mkdir(options.reportDir, { recursive: true });
+		const reportPath = path.join(
+			options.reportDir,
+			`informe_usuarios-${options.dryRun ? "dryrun-" : ""}${report.runId}.json`,
+		);
+		await Bun.write(reportPath, JSON.stringify(report, null, 2));
+		console.log(`[import:legacy-users] Informe escrito en ${reportPath}`);
+		console.log(
+			`[import:legacy-users] Completado. ${options.dryRun ? "(dry-run) " : ""}` +
+				`${options.dryRun ? "importables" : "importados"}=${options.dryRun ? report.totals.wouldImport : report.totals.imported} ` +
+				`omitidos_id=${report.totals.skippedExistingId} omitidos_email=${report.totals.skippedExistingEmail} errores=${report.totals.errored}`,
+		);
+		return report.totals.errored > 0 ? 1 : 0;
+	} finally {
+		await closeCliDb(deps.getDb().db);
+	}
 }
 
 export async function runImportLegacyUsers(
@@ -149,6 +160,7 @@ export async function runImportLegacyUsers(
 	const db = deps.getDb().db;
 	const records: RecordOutcome[] = [];
 	let imported = 0;
+	let wouldImport = 0;
 	let skippedExistingId = 0;
 	let skippedExistingEmail = 0;
 	let errored = 0;
@@ -195,7 +207,7 @@ export async function runImportLegacyUsers(
 
 				plannedIds.set(mapped.id, mapped.id);
 				plannedEmails.set(mapped.email.toLowerCase(), mapped.id);
-				imported++;
+				wouldImport++;
 				records.push({
 					outcome: "would_import",
 					legacyUid: mapped.legacyUid,
@@ -247,6 +259,7 @@ export async function runImportLegacyUsers(
 			found: raw.length,
 			processed: users.length,
 			imported,
+			wouldImport,
 			skippedExistingId,
 			skippedExistingEmail,
 			errored,

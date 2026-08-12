@@ -2359,3 +2359,15 @@ tasks:
       Se integra main conservando las correcciones de dry-run, unicidad de email y concurrencia
       del importador de usuarios legacy, junto con el historial reciente de la rama base. Las
       pruebas específicas del CLI y repositorio pasan.
+
+  T-2026-08-12-06342142:
+    date: 2026-08-12
+    agent: "ingestas-y-migraciones + backend-api-servicios + qa-validacion + documentacion-y-roadmap"
+    task: "Atender segunda revisión de migración y cierre CLI del PR #309"
+    status: Done
+    related: ["#309", "epic-004-migracion-legacy-procomun"]
+    notes: >
+      La migración de unicidad case-insensitive pasa a 0006 y queda registrada en el
+      journal de Drizzle, con preflight no destructivo ante emails históricos duplicados.
+      El CLI cierra PGlite en finally y dry-run informa importables en lugar de importados.
+      Pruebas PGlite, CLI, typecheck, Biome y check-test-files pasan.
