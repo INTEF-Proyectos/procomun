@@ -118,9 +118,7 @@ export default function EditarPage() {
 	);
 	const [resource, setResource] = useState<Resource | null>(null);
 	const [elpx, setElpx] = useState<ElpxProject>(null);
-	// Historial de versiones publicadas (issue #31)
 	const [versions, setVersions] = useState<ResourceVersionRecord[]>([]);
-	const [versionNotes, setVersionNotes] = useState("");
 	const [versionBusy, setVersionBusy] = useState(false);
 	const [userRole, setUserRole] = useState("reader");
 	const [errorMsg, setErrorMsg] = useState("");
@@ -131,8 +129,6 @@ export default function EditarPage() {
 		isNew ? "Crear recurso" : "Guardar cambios",
 	);
 	const [applyMetaDone, setApplyMetaDone] = useState(false);
-
-	// eXeLearning editor state
 	const [exeModalVisible, setExeModalVisible] = useState(false);
 	const [exeStatus, setExeStatus] = useState("Cargando...");
 	const [exeSaveBtnDisabled, setExeSaveBtnDisabled] = useState(true);
@@ -147,8 +143,6 @@ export default function EditarPage() {
 	const exeResourceIdRef = useRef<string | null>(null);
 	const reqCounterRef = useRef(0);
 	const exeIframeRef = useRef<HTMLIFrameElement>(null);
-
-	// Form field refs
 	const titleRef = useRef<HTMLInputElement>(null);
 	const descriptionRef = useRef<HTMLTextAreaElement>(null);
 	const authorRef = useRef<HTMLInputElement>(null);
@@ -184,10 +178,7 @@ export default function EditarPage() {
 			return;
 		setExeModalVisible(false);
 		document.body.style.overflow = "";
-		// Reset iframe src to stop the editor
-		if (exeIframeRef.current) {
-			exeIframeRef.current.src = "about:blank";
-		}
+		if (exeIframeRef.current) exeIframeRef.current.src = "about:blank";
 		exeHasChangesRef.current = false;
 	}, []);
 
@@ -305,8 +296,6 @@ export default function EditarPage() {
 			setState("notfound");
 			return;
 		}
-		// Capturado tras la guarda: dentro de `init` (un closure) el narrowing
-		// del `if` de arriba ya no aplica.
 		const id = resourceId;
 
 		async function init() {
@@ -316,7 +305,6 @@ export default function EditarPage() {
 					api.getSession().catch(() => null),
 					api.getResourceById(id).catch(() => null),
 				]);
-
 				if (!session?.user) {
 					setState("auth");
 					return;
@@ -327,8 +315,7 @@ export default function EditarPage() {
 				}
 
 				const role = session.user.role ?? "reader";
-				const level = ROLE_LEVELS[role] ?? 0;
-				if (level < 1) {
+				if ((ROLE_LEVELS[role] ?? 0) < 1) {
 					setState("auth");
 					return;
 				}
@@ -340,12 +327,8 @@ export default function EditarPage() {
 						previewUrl: elpxData.previewUrl,
 					};
 				}
-
 				if (!isNew) {
-					const versionData = await api
-						.listResourceVersions(id)
-						.catch(() => []);
-					setVersions(versionData);
+					setVersions(await api.listResourceVersions(id).catch(() => []));
 				}
 
 				setResource(resourceData);
@@ -353,60 +336,49 @@ export default function EditarPage() {
 				setUserRole(role);
 				setState("ready");
 
-				// Initialize multi-file uploader after state settles
 				setTimeout(async () => {
 					const uploadPanel = document.getElementById("edit-multiupload-panel");
-					if (uploadPanel) {
-						const { initResourceUploader } = await import(
-							"../lib/resource-uploader.ts"
-						);
-						await initResourceUploader({
-							resourceId: id,
-							root: uploadPanel,
-							api,
-							onUploadComplete: isNew
-								? undefined
-								: async (count) => {
-										const statusEl =
-											document.getElementById("elpx-auto-status");
-										if (!statusEl) return;
-										statusEl.textContent = "Generando paquete .elpx...";
-										statusEl.className =
-											"edit-upload-status edit-upload-loading";
-										statusEl.style.display = "block";
-										try {
-											const result = await api.generateElpx(id);
-											statusEl.textContent =
-												count > 0
-													? `${count} archivo${count !== 1 ? "s" : ""} subido${count !== 1 ? "s" : ""}. Paquete .elpx actualizado.`
-													: "Paquete .elpx actualizado.";
-											statusEl.className =
-												"edit-upload-status edit-upload-success";
-											setTimeout(() => {
-												statusEl.style.display = "none";
-											}, 5000);
-
-											// Refresh the preview iframe with the new URL so deleted
-											// files disappear without a full page reload (DEF-008).
-											const iframe = document.querySelector<HTMLIFrameElement>(
-												".edit-preview-iframe",
-											);
-											if (iframe && result.previewUrl) {
-												iframe.src = result.previewUrl;
-											} else if (iframe && !result.previewUrl) {
-												// No preview available anymore – hide the section
-												const section = iframe.closest(".edit-preview-section");
-												if (section)
-													(section as HTMLElement).style.display = "none";
-											}
-										} catch (err) {
-											statusEl.textContent = `Error al generar .elpx: ${(err as Error).message || "Error desconocido"}`;
-											statusEl.className =
-												"edit-upload-status edit-upload-error";
+					if (!uploadPanel) return;
+					const { initResourceUploader } = await import(
+						"../lib/resource-uploader.ts"
+					);
+					await initResourceUploader({
+						resourceId: id,
+						root: uploadPanel,
+						api,
+						onUploadComplete: isNew
+							? undefined
+							: async (count) => {
+									const statusEl = document.getElementById("elpx-auto-status");
+									if (!statusEl) return;
+									statusEl.textContent = "Generando paquete .elpx...";
+									statusEl.className = "edit-upload-status edit-upload-loading";
+									statusEl.style.display = "block";
+									try {
+										const result = await api.generateElpx(id);
+										statusEl.textContent =
+											count > 0
+												? `${count} archivo${count !== 1 ? "s" : ""} subido${count !== 1 ? "s" : ""}. Paquete .elpx actualizado.`
+												: "Paquete .elpx actualizado.";
+										statusEl.className = "edit-upload-status edit-upload-success";
+										setTimeout(() => {
+											statusEl.style.display = "none";
+										}, 5000);
+										const iframe = document.querySelector<HTMLIFrameElement>(
+											".edit-preview-iframe",
+										);
+										if (iframe && result.previewUrl) {
+											iframe.src = result.previewUrl;
+										} else if (iframe && !result.previewUrl) {
+											const section = iframe.closest(".edit-preview-section");
+											if (section) (section as HTMLElement).style.display = "none";
 										}
-									},
-						});
-					}
+									} catch (err) {
+										statusEl.textContent = `Error al generar .elpx: ${(err as Error).message || "Error desconocido"}`;
+										statusEl.className = "edit-upload-status edit-upload-error";
+									}
+								},
+					});
 				}, 0);
 			} catch {
 				setState("notfound");
@@ -419,8 +391,6 @@ export default function EditarPage() {
 
 	async function handleFormSubmit(e: React.FormEvent) {
 		e.preventDefault();
-		// El formulario solo se renderiza con state === "ready", que implica
-		// resource != null, pero TypeScript no puede correlacionar ambos estados.
 		if (!resource) return;
 		setErrorMsg("");
 		setSuccessMsg("");
@@ -439,7 +409,6 @@ export default function EditarPage() {
 				author: authorRef.current?.value || undefined,
 				keywords: keywordsRef.current?.value || undefined,
 			});
-
 			if (!result.ok) {
 				if (result.details) {
 					const errs: Record<string, string> = {};
@@ -460,7 +429,6 @@ export default function EditarPage() {
 				);
 				return;
 			}
-
 			setSuccessMsg("Cambios guardados correctamente");
 			setTimeout(() => setSuccessMsg(""), 3000);
 		} catch {
@@ -487,31 +455,6 @@ export default function EditarPage() {
 		}
 	}
 
-	// --- Historial de versiones (issue #31) ---
-
-	async function handlePublishVersion() {
-		if (!resource || versionBusy) return;
-		setVersionBusy(true);
-		setErrorMsg("");
-		setSuccessMsg("");
-		try {
-			const api = await getApiClient();
-			const result = await api.publishResourceVersion(
-				resource.id,
-				versionNotes.trim() || undefined,
-			);
-			if (!result.ok) {
-				setErrorMsg(result.error ?? "Error al publicar la versión");
-				return;
-			}
-			setSuccessMsg(`Versión ${result.versionNumber} publicada`);
-			setVersionNotes("");
-			setVersions(await api.listResourceVersions(resource.id).catch(() => []));
-		} finally {
-			setVersionBusy(false);
-		}
-	}
-
 	async function handleRestoreVersion(version: ResourceVersionRecord) {
 		if (!resource || versionBusy) return;
 		if (
@@ -532,7 +475,6 @@ export default function EditarPage() {
 				setVersionBusy(false);
 				return;
 			}
-			// La restauración cambia metadatos y previsualización: recarga completa.
 			window.location.reload();
 		} catch {
 			setErrorMsg("Error al restaurar la versión");
@@ -548,15 +490,11 @@ export default function EditarPage() {
 			descriptionRef.current.value = m.description;
 		if (m.author && authorRef.current) authorRef.current.value = m.author;
 		if (m.language && languageRef.current) {
-			const opt = languageRef.current.querySelector(
-				`option[value="${m.language}"]`,
-			);
+			const opt = languageRef.current.querySelector(`option[value="${m.language}"]`);
 			if (opt) languageRef.current.value = m.language;
 		}
 		if (m.license && licenseRef.current) {
-			const opt = licenseRef.current.querySelector(
-				`option[value="${m.license}"]`,
-			);
+			const opt = licenseRef.current.querySelector(`option[value="${m.license}"]`);
 			if (opt) licenseRef.current.value = m.license;
 		}
 		setApplyMetaDone(true);
@@ -613,9 +551,7 @@ export default function EditarPage() {
 			});
 			if (!res.ok) {
 				const err = await res.json().catch(() => ({}));
-				throw new Error(
-					(err as Record<string, string>).error || "Error al subir",
-				);
+				throw new Error((err as Record<string, string>).error || "Error al subir");
 			}
 			statusEl.textContent = `Archivo "${file.name}" subido correctamente. Recargando...`;
 			statusEl.className = "edit-upload-status edit-upload-success";
@@ -627,63 +563,42 @@ export default function EditarPage() {
 	}
 
 	if (state === "loading") {
-		return (
-			<div id="edit-page" className="edit-page">
-				<div className="edit-loading">Cargando recurso...</div>
-			</div>
-		);
+		return <div id="edit-page" className="edit-page"><div className="edit-loading">Cargando recurso...</div></div>;
 	}
-
 	if (state === "auth") {
 		return (
 			<div id="edit-page" className="edit-page">
 				<div className="edit-auth">
-					<span className="material-symbols-outlined" aria-hidden="true">
-						lock
-					</span>
-					<p>
-						Necesitas <a href={url("login")}>iniciar sesión</a> para editar
-						recursos.
-					</p>
+					<span className="material-symbols-outlined" aria-hidden="true">lock</span>
+					<p>Necesitas <a href={url("login")}>iniciar sesión</a> para editar recursos.</p>
 				</div>
 			</div>
 		);
 	}
-
 	if (state === "notfound") {
 		return (
 			<div id="edit-page" className="edit-page">
 				<div className="edit-auth">
-					<span className="material-symbols-outlined" aria-hidden="true">
-						search_off
-					</span>
-					<p>
-						Recurso no encontrado. <a href="/">Volver al inicio</a>
-					</p>
+					<span className="material-symbols-outlined" aria-hidden="true">search_off</span>
+					<p>Recurso no encontrado. <a href="/">Volver al inicio</a></p>
 				</div>
 			</div>
 		);
 	}
-
-	// state === "ready"
-	// state solo pasa a "ready" después de setResource(), pero eso TypeScript no
-	// lo sabe: la guarda lo hace explícito en vez de afirmarlo con `!`.
 	if (!resource) return null;
+
 	const res = resource;
-	const resourceTypeOptions = getResourceTypeOptions(
-		isNew ? null : res.resourceType,
-	);
-	const st =
-		STATUS_LABELS[res.editorialStatus] ??
-		STATUS_LABELS.draft ??
-		({ label: res.editorialStatus, cssClass: "" } as const);
+	const resourceTypeOptions = getResourceTypeOptions(isNew ? null : res.resourceType);
+	const st = STATUS_LABELS[res.editorialStatus] ?? STATUS_LABELS.draft ?? {
+		label: res.editorialStatus,
+		cssClass: "",
+	};
 	const date = formatDate(res.updatedAt || res.createdAt);
 	const previewUrl = res.elpxPreview?.previewUrl ?? "";
 	const userLevel = ROLE_LEVELS[userRole] ?? 0;
 	const isAutoGenerated = elpx?.originalFilename === "recurso-generado.elpx";
 	const showMultiUpload = isNew || !elpx || isAutoGenerated;
 	const showDirectUpload = !isNew && elpx !== null && !isAutoGenerated;
-
 	const transitions = TRANSITION_RULES[res.editorialStatus] ?? [];
 	const allowedTransitions = transitions.filter(
 		(t) => userLevel >= (ROLE_LEVELS[t.minRole] ?? 99),
@@ -692,281 +607,83 @@ export default function EditarPage() {
 	return (
 		<>
 			<div id="edit-page" className="edit-page">
-				{/* Header */}
 				<div className="edit-header">
 					<div className="edit-header-top">
 						<span className={`edit-badge ${st.cssClass}`}>{st.label}</span>
-						{date && (
-							<span className="edit-date">
-								<span className="material-symbols-outlined">
-									calendar_today
-								</span>
-								{date}
-							</span>
-						)}
+						{date && <span className="edit-date"><span className="material-symbols-outlined">calendar_today</span>{date}</span>}
 					</div>
-					<a href={url(`recurso?slug=${res.slug}`)} className="edit-view-link">
-						<span className="material-symbols-outlined">visibility</span>
-						Ver ficha pública
-					</a>
+					<a href={url(`recurso?slug=${res.slug}`)} className="edit-view-link"><span className="material-symbols-outlined">visibility</span>Ver ficha pública</a>
 				</div>
-
-				{errorMsg && (
-					<div className="edit-msg edit-msg-error" role="alert">
-						{errorMsg}
-					</div>
-				)}
-				{successMsg && (
-					<div className="edit-msg edit-msg-success" role="status">
-						{successMsg}
-					</div>
-				)}
+				{errorMsg && <div className="edit-msg edit-msg-error" role="alert">{errorMsg}</div>}
+				{successMsg && <div className="edit-msg edit-msg-success" role="status">{successMsg}</div>}
 
 				<form className="edit-grid" onSubmit={handleFormSubmit} noValidate>
-					{/* Left column */}
 					<div className="edit-main">
 						<div className="edit-field edit-field-title">
 							<label htmlFor="ed-title">Título</label>
-							<input
-								type="text"
-								id="ed-title"
-								ref={titleRef}
-								defaultValue={isNew ? "" : res.title}
-								required
-								placeholder="Título del recurso"
-								aria-invalid={fieldErrors.title ? "true" : undefined}
-							/>
-							<span id="ed-title-error" className="edit-field-error">
-								{fieldErrors.title ?? ""}
-							</span>
+							<input type="text" id="ed-title" ref={titleRef} defaultValue={isNew ? "" : res.title} required placeholder="Título del recurso" aria-invalid={fieldErrors.title ? "true" : undefined} />
+							<span id="ed-title-error" className="edit-field-error">{fieldErrors.title ?? ""}</span>
 						</div>
 
 						{previewUrl && (
 							<div className="edit-preview-section">
 								<div className="edit-preview-header">
 									<h3>Previsualización</h3>
-									<button
-										type="button"
-										className="edit-exe-btn"
-										onClick={async () => {
-											try {
-												const api = await getApiClient();
-												const elpxData = await api.getElpxProject(res.id);
-												if (elpxData) {
-													openExeEditor(
-														res.id,
-														elpxData.hash,
-														elpxData.elpxFileUrl,
-														elpxData.originalFilename,
-													);
-												}
-											} catch {
-												// ignore
-											}
-										}}
-									>
-										<span className="material-symbols-outlined">edit_note</span>
-										Editar en eXeLearning
-									</button>
+									<button type="button" className="edit-exe-btn" onClick={async () => {
+										try {
+											const api = await getApiClient();
+											const elpxData = await api.getElpxProject(res.id);
+											if (elpxData) openExeEditor(res.id, elpxData.hash, elpxData.elpxFileUrl, elpxData.originalFilename);
+										} catch { /* ignore */ }
+									}}><span className="material-symbols-outlined">edit_note</span>Editar en eXeLearning</button>
 								</div>
-								<div className="edit-preview-wrapper">
-									<iframe
-										src={previewUrl}
-										className="edit-preview-iframe"
-										sandbox="allow-scripts allow-popups allow-popups-to-escape-sandbox"
-										loading="lazy"
-										title="Vista previa"
-									/>
-								</div>
+								<div className="edit-preview-wrapper"><iframe src={previewUrl} className="edit-preview-iframe" sandbox="allow-scripts allow-popups allow-popups-to-escape-sandbox" loading="lazy" title="Vista previa" /></div>
 							</div>
 						)}
 
-						{/* Multi-file uploader */}
 						{showMultiUpload && (
 							<div id="edit-multiupload-panel" className="edit-files-section">
 								<h3>Archivos adjuntos</h3>
-								<div
-									data-upload-dropzone
-									className="edit-dropzone"
-									id="edit-multi-dropzone"
-								>
-									<label className="edit-file-label">
-										<span className="material-symbols-outlined">
-											upload_file
-										</span>
-										<span>Seleccionar archivos</span>
-										<input data-upload-input type="file" multiple />
-									</label>
-									<p className="edit-drop-hint">
-										o arrastra aquí (PDF, DOCX, imágenes, vídeo…)
-									</p>
+								<div data-upload-dropzone className="edit-dropzone" id="edit-multi-dropzone">
+									<label className="edit-file-label"><span className="material-symbols-outlined">upload_file</span><span>Seleccionar archivos</span><input data-upload-input type="file" multiple /></label>
+									<p className="edit-drop-hint">o arrastra aquí (PDF, DOCX, imágenes, vídeo…)</p>
 								</div>
-								<div
-									data-upload-feedback
-									className="edit-upload-status"
-									aria-live="polite"
-								></div>
-								<div className="edit-upload-progress-row">
-									<progress
-										data-global-progress
-										max={100}
-										value={0}
-										style={{ width: "100%" }}
-									/>
-									<span
-										data-global-progress-label
-										style={{ fontSize: "0.85rem", color: "#555" }}
-									>
-										Sin subidas activas
-									</span>
-								</div>
-								<ul data-upload-queue className="edit-upload-queue">
-									<li style={{ color: "#888", fontSize: "0.9rem" }}>
-										No hay archivos en cola.
-									</li>
-								</ul>
+								<div data-upload-feedback className="edit-upload-status" aria-live="polite"></div>
+								<div className="edit-upload-progress-row"><progress data-global-progress max={100} value={0} style={{ width: "100%" }} /><span data-global-progress-label style={{ fontSize: "0.85rem", color: "#555" }}>Sin subidas activas</span></div>
+								<ul data-upload-queue className="edit-upload-queue"><li style={{ color: "#888", fontSize: "0.9rem" }}>No hay archivos en cola.</li></ul>
 								<ul data-persisted-uploads style={{ display: "none" }} />
-								<div className="edit-files-list-header">
-									<span>Archivos del recurso</span>
-								</div>
-								<ul data-media-list className="edit-media-list">
-									<li style={{ color: "#888", fontSize: "0.9rem" }}>
-										No hay archivos adjuntos todavía.
-									</li>
-								</ul>
-								<div
-									id="elpx-auto-status"
-									className="edit-upload-status"
-									style={{ display: "none" }}
-									aria-live="polite"
-								/>
+								<div className="edit-files-list-header"><span>Archivos del recurso</span></div>
+								<ul data-media-list className="edit-media-list"><li style={{ color: "#888", fontSize: "0.9rem" }}>No hay archivos adjuntos todavía.</li></ul>
+								<div id="elpx-auto-status" className="edit-upload-status" style={{ display: "none" }} aria-live="polite" />
 							</div>
 						)}
 
-						{/* Direct .elpx upload */}
 						{showDirectUpload && (
 							<div className="edit-upload-section">
-								<h3>
-									{previewUrl
-										? "Actualizar archivo .elpx"
-										: "Subir archivo .elpx directamente"}
-								</h3>
-								<section
-									ref={dropzoneRef}
-									aria-label="Zona para arrastrar el archivo .elpx"
-									className="edit-dropzone"
-									onDragOver={(e) => {
-										e.preventDefault();
-										dropzoneRef.current?.classList.add("is-dragover");
-									}}
-									onDragLeave={() => {
-										dropzoneRef.current?.classList.remove("is-dragover");
-									}}
-									onDrop={(e) => {
-										e.preventDefault();
-										dropzoneRef.current?.classList.remove("is-dragover");
-										const f = e.dataTransfer?.files[0];
-										if (f) handleFileUpload(f);
-									}}
-								>
-									<label className="edit-file-label">
-										<span className="material-symbols-outlined">
-											upload_file
-										</span>
-										<span>Seleccionar archivo .elpx</span>
-										<input
-											type="file"
-											id="edit-file-input"
-											ref={fileInputRef}
-											accept=".elpx,.elp"
-											onChange={() => {
-												const f = fileInputRef.current?.files?.[0];
-												if (f) handleFileUpload(f);
-											}}
-										/>
-									</label>
+								<h3>{previewUrl ? "Actualizar archivo .elpx" : "Subir archivo .elpx directamente"}</h3>
+								<section ref={dropzoneRef} aria-label="Zona para arrastrar el archivo .elpx" className="edit-dropzone" onDragOver={(e) => { e.preventDefault(); dropzoneRef.current?.classList.add("is-dragover"); }} onDragLeave={() => dropzoneRef.current?.classList.remove("is-dragover")} onDrop={(e) => { e.preventDefault(); dropzoneRef.current?.classList.remove("is-dragover"); const f = e.dataTransfer?.files[0]; if (f) handleFileUpload(f); }}>
+									<label className="edit-file-label"><span className="material-symbols-outlined">upload_file</span><span>Seleccionar archivo .elpx</span><input type="file" id="edit-file-input" ref={fileInputRef} accept=".elpx,.elp" onChange={() => { const f = fileInputRef.current?.files?.[0]; if (f) handleFileUpload(f); }} /></label>
 									<p className="edit-drop-hint">o arrastra aquí</p>
 								</section>
-								<div
-									ref={uploadStatusRef}
-									id="edit-upload-status"
-									className="edit-upload-status"
-									style={{ display: "none" }}
-								/>
+								<div ref={uploadStatusRef} id="edit-upload-status" className="edit-upload-status" style={{ display: "none" }} />
 							</div>
 						)}
 
-						{/* Historial de versiones (issue #31) */}
 						{!isNew && (elpx !== null || versions.length > 0) && (
 							<div className="edit-files-section" id="edit-versions-panel">
 								<h3>Historial de versiones</h3>
-								<div className="edit-field">
-									<label htmlFor="ed-version-notes">
-										Notas de cambio (opcional)
-									</label>
-									<input
-										type="text"
-										id="ed-version-notes"
-										value={versionNotes}
-										onChange={(e) => setVersionNotes(e.target.value)}
-										placeholder="Qué cambia en esta entrega…"
-										disabled={versionBusy}
-									/>
-								</div>
-								<button
-									type="button"
-									className="edit-exe-btn"
-									onClick={handlePublishVersion}
-									disabled={versionBusy}
-								>
-									<span className="material-symbols-outlined">
-										new_releases
-									</span>
-									Publicar nueva versión
-								</button>
 								{versions.length === 0 ? (
-									<p className="edit-drop-hint">
-										Aún no hay versiones publicadas. Al publicar, el .elpx
-										actual y sus metadatos quedan registrados como versión 1.
-									</p>
+									<p className="edit-drop-hint">Aún no hay versiones. Se creará una automáticamente al generar, guardar o subir un nuevo archivo .elpx.</p>
 								) : (
 									<ul className="edit-media-list" data-versions-list>
 										{versions.map((version) => (
 											<li key={version.id}>
 												<strong>v{version.versionNumber}</strong>
-												{version.isCurrent && (
-													<span className="edit-badge edit-badge-published">
-														Vigente
-													</span>
-												)}{" "}
-												<span className="edit-date">
-													{formatDate(version.createdAt)}
-												</span>
-												{version.createdByName && (
-													<span> — {version.createdByName}</span>
-												)}
-												{version.changeNotes && (
-													<em> · {version.changeNotes}</em>
-												)}{" "}
-												{version.downloadUrl && (
-													<a
-														href={url(version.downloadUrl.replace(/^\//, ""))}
-														download={version.originalFilename ?? undefined}
-													>
-														Descargar
-													</a>
-												)}{" "}
-												{!version.isCurrent &&
-													userLevel >= (ROLE_LEVELS.curator ?? 99) && (
-														<button
-															type="button"
-															className="edit-wf-btn-outline"
-															onClick={() => handleRestoreVersion(version)}
-															disabled={versionBusy}
-														>
-															Restaurar
-														</button>
-													)}
+												{version.isCurrent && <span className="edit-badge edit-badge-published">Vigente</span>}{" "}
+												<span className="edit-date">{formatDate(version.createdAt)}</span>
+												{version.createdByName && <span> — {version.createdByName}</span>}{" "}
+												{version.downloadUrl && <a href={url(version.downloadUrl.replace(/^\//, ""))} download={version.originalFilename ?? undefined}>Descargar</a>}{" "}
+												{!version.isCurrent && userLevel >= (ROLE_LEVELS.curator ?? 99) && <button type="button" className="edit-wf-btn-outline" onClick={() => handleRestoreVersion(version)} disabled={versionBusy}>Restaurar</button>}
 											</li>
 										))}
 									</ul>
@@ -976,241 +693,49 @@ export default function EditarPage() {
 
 						<div className="edit-field">
 							<label htmlFor="ed-description">Descripción</label>
-							<textarea
-								id="ed-description"
-								ref={descriptionRef}
-								rows={6}
-								required
-								placeholder="Describe el contenido, objetivos y destinatarios..."
-								defaultValue={isNew ? "" : res.description}
-								aria-invalid={fieldErrors.description ? "true" : undefined}
-							/>
-							<span id="ed-description-error" className="edit-field-error">
-								{fieldErrors.description ?? ""}
-							</span>
+							<textarea id="ed-description" ref={descriptionRef} rows={6} required placeholder="Describe el contenido, objetivos y destinatarios..." defaultValue={isNew ? "" : res.description} aria-invalid={fieldErrors.description ? "true" : undefined} />
+							<span id="ed-description-error" className="edit-field-error">{fieldErrors.description ?? ""}</span>
 						</div>
 
 						{isNew && (
 							<>
 								<div className="edit-form-row">
-									<div className="edit-field">
-										<label htmlFor="ed-language">Idioma</label>
-										<select
-											id="ed-language"
-											ref={languageRef}
-											defaultValue="es"
-										>
-											<option value="es">Español</option>
-											<option value="en">Inglés</option>
-											<option value="ca">Catalán</option>
-											<option value="eu">Euskera</option>
-											<option value="gl">Gallego</option>
-										</select>
-									</div>
-									<div className="edit-field">
-										<label htmlFor="ed-license">Licencia</label>
-										<select
-											id="ed-license"
-											ref={licenseRef}
-											defaultValue="cc-by"
-										>
-											<option value="cc-by">CC BY</option>
-											<option value="cc-by-sa">CC BY-SA</option>
-											<option value="cc-by-nc">CC BY-NC</option>
-											<option value="cc-by-nc-sa">CC BY-NC-SA</option>
-											<option value="cc0">CC0</option>
-										</select>
-									</div>
+									<div className="edit-field"><label htmlFor="ed-language">Idioma</label><select id="ed-language" ref={languageRef} defaultValue="es"><option value="es">Español</option><option value="en">Inglés</option><option value="ca">Catalán</option><option value="eu">Euskera</option><option value="gl">Gallego</option></select></div>
+									<div className="edit-field"><label htmlFor="ed-license">Licencia</label><select id="ed-license" ref={licenseRef} defaultValue="cc-by"><option value="cc-by">CC BY</option><option value="cc-by-sa">CC BY-SA</option><option value="cc-by-nc">CC BY-NC</option><option value="cc-by-nc-sa">CC BY-NC-SA</option><option value="cc0">CC0</option></select></div>
 								</div>
-								<div className="edit-field">
-									<label htmlFor="ed-resourceType">Tipo de recurso</label>
-									<select
-										id="ed-resourceType"
-										ref={resourceTypeRef}
-										defaultValue="actividad-interactiva"
-									>
-										{resourceTypeOptions.map((option) => (
-											<option key={option.value} value={option.value}>
-												{option.label}
-											</option>
-										))}
-									</select>
-								</div>
+								<div className="edit-field"><label htmlFor="ed-resourceType">Tipo de recurso</label><select id="ed-resourceType" ref={resourceTypeRef} defaultValue="actividad-interactiva">{resourceTypeOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select></div>
 							</>
 						)}
-
-						<div className="edit-field">
-							<label htmlFor="ed-author">Autor</label>
-							<input
-								type="text"
-								id="ed-author"
-								ref={authorRef}
-								defaultValue={res.author ?? ""}
-								placeholder="Nombre del autor"
-							/>
-						</div>
-
-						<div className="edit-field">
-							<label htmlFor="ed-keywords">
-								Palabras clave (separadas por comas)
-							</label>
-							<input
-								type="text"
-								id="ed-keywords"
-								ref={keywordsRef}
-								defaultValue={res.keywords ?? ""}
-								placeholder="matemáticas, fracciones, visual"
-							/>
-						</div>
+						<div className="edit-field"><label htmlFor="ed-author">Autor</label><input type="text" id="ed-author" ref={authorRef} defaultValue={res.author ?? ""} placeholder="Nombre del autor" /></div>
+						<div className="edit-field"><label htmlFor="ed-keywords">Palabras clave (separadas por comas)</label><input type="text" id="ed-keywords" ref={keywordsRef} defaultValue={res.keywords ?? ""} placeholder="matemáticas, fracciones, visual" /></div>
 					</div>
 
-					{/* Right sidebar */}
 					<aside className="edit-sidebar">
 						<div className="edit-sidebar-card">
 							<h3 className="edit-sidebar-title">Acciones</h3>
-							<button
-								type="submit"
-								className="edit-save-btn"
-								disabled={saveBtnDisabled}
-							>
-								<span className="material-symbols-outlined">save</span>
-								{saveBtnText}
-							</button>
-							{allowedTransitions.length > 0 && (
-								<div className="edit-wf-actions">
-									{allowedTransitions.map((t) => (
-										<button
-											key={t.to}
-											type="button"
-											className={`edit-wf-btn ${t.cssClass}`}
-											onClick={() => handleWorkflowBtn(t.to)}
-										>
-											<span className="material-symbols-outlined">
-												{t.icon}
-											</span>
-											{t.label}
-										</button>
-									))}
-								</div>
-							)}
-							{elpx?.metadata &&
-								(elpx.metadata.title || elpx.metadata.description) && (
-									<button
-										type="button"
-										className="edit-wf-btn edit-wf-btn-outline"
-										disabled={applyMetaDone}
-										onClick={handleApplyElpxMeta}
-									>
-										<span className="material-symbols-outlined">
-											{applyMetaDone ? "check" : "auto_awesome"}
-										</span>
-										{applyMetaDone
-											? "Metadatos aplicados"
-											: "Aplicar metadatos del .elpx"}
-									</button>
-								)}
+							<button type="submit" className="edit-save-btn" disabled={saveBtnDisabled}><span className="material-symbols-outlined">save</span>{saveBtnText}</button>
+							{allowedTransitions.length > 0 && <div className="edit-wf-actions">{allowedTransitions.map((t) => <button key={t.to} type="button" className={`edit-wf-btn ${t.cssClass}`} onClick={() => handleWorkflowBtn(t.to)}><span className="material-symbols-outlined">{t.icon}</span>{t.label}</button>)}</div>}
+							{elpx?.metadata && (elpx.metadata.title || elpx.metadata.description) && <button type="button" className="edit-wf-btn edit-wf-btn-outline" disabled={applyMetaDone} onClick={handleApplyElpxMeta}><span className="material-symbols-outlined">{applyMetaDone ? "check" : "auto_awesome"}</span>{applyMetaDone ? "Metadatos aplicados" : "Aplicar metadatos del .elpx"}</button>}
 						</div>
-
-						{/* Metadata card — hidden in creation mode */}
 						{!isNew && (
 							<div className="edit-sidebar-card">
 								<h3 className="edit-sidebar-title">Metadatos</h3>
-
-								<div className="edit-field">
-									<label htmlFor="ed-language">Idioma</label>
-									<select
-										id="ed-language"
-										ref={languageRef}
-										defaultValue={res.language ?? "es"}
-									>
-										<option value="es">Español</option>
-										<option value="en">Inglés</option>
-										<option value="ca">Catalán</option>
-										<option value="eu">Euskera</option>
-										<option value="gl">Gallego</option>
-									</select>
-								</div>
-
-								<div className="edit-field">
-									<label htmlFor="ed-license">Licencia</label>
-									<select
-										id="ed-license"
-										ref={licenseRef}
-										defaultValue={res.license ?? "cc-by"}
-									>
-										<option value="cc-by">CC BY</option>
-										<option value="cc-by-sa">CC BY-SA</option>
-										<option value="cc-by-nc">CC BY-NC</option>
-										<option value="cc-by-nc-sa">CC BY-NC-SA</option>
-										<option value="cc0">CC0</option>
-									</select>
-								</div>
-
-								<div className="edit-field">
-									<label htmlFor="ed-resourceType">Tipo de recurso</label>
-									<select
-										id="ed-resourceType"
-										ref={resourceTypeRef}
-										defaultValue={res.resourceType ?? "documento"}
-									>
-										{resourceTypeOptions.map((option) => (
-											<option key={option.value} value={option.value}>
-												{option.label}
-											</option>
-										))}
-									</select>
-								</div>
+								<div className="edit-field"><label htmlFor="ed-language">Idioma</label><select id="ed-language" ref={languageRef} defaultValue={res.language ?? "es"}><option value="es">Español</option><option value="en">Inglés</option><option value="ca">Catalán</option><option value="eu">Euskera</option><option value="gl">Gallego</option></select></div>
+								<div className="edit-field"><label htmlFor="ed-license">Licencia</label><select id="ed-license" ref={licenseRef} defaultValue={res.license ?? "cc-by"}><option value="cc-by">CC BY</option><option value="cc-by-sa">CC BY-SA</option><option value="cc-by-nc">CC BY-NC</option><option value="cc-by-nc-sa">CC BY-NC-SA</option><option value="cc0">CC0</option></select></div>
+								<div className="edit-field"><label htmlFor="ed-resourceType">Tipo de recurso</label><select id="ed-resourceType" ref={resourceTypeRef} defaultValue={res.resourceType ?? "documento"}>{resourceTypeOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select></div>
 							</div>
 						)}
 					</aside>
 				</form>
 			</div>
 
-			{/* eXeLearning editor modal */}
-			<div
-				id="exe-editor-modal"
-				className="exe-modal"
-				style={{ display: exeModalVisible ? "flex" : "none" }}
-			>
+			<div id="exe-editor-modal" className="exe-modal" style={{ display: exeModalVisible ? "flex" : "none" }}>
 				<div className="exe-modal-bar">
-					<div className="exe-modal-bar-left">
-						<span className="material-symbols-outlined" aria-hidden="true">
-							edit_note
-						</span>
-						<span className="exe-modal-title">Editor eXeLearning</span>
-						<span className="exe-modal-status">{exeStatus}</span>
-					</div>
-					<div className="exe-modal-bar-right">
-						<button
-							type="button"
-							className="exe-save-btn"
-							disabled={exeSaveBtnDisabled}
-							onClick={handleExeSaveBtnClick}
-						>
-							<span className="material-symbols-outlined">save</span>
-							Guardar
-						</button>
-						<button
-							type="button"
-							className="exe-close-btn"
-							onClick={() => closeExeEditor()}
-						>
-							<span className="material-symbols-outlined">close</span>
-						</button>
-					</div>
+					<div className="exe-modal-bar-left"><span className="material-symbols-outlined" aria-hidden="true">edit_note</span><span className="exe-modal-title">Editor eXeLearning</span><span className="exe-modal-status">{exeStatus}</span></div>
+					<div className="exe-modal-bar-right"><button type="button" className="exe-save-btn" disabled={exeSaveBtnDisabled} onClick={handleExeSaveBtnClick}><span className="material-symbols-outlined">save</span>Guardar</button><button type="button" className="exe-close-btn" onClick={() => closeExeEditor()}><span className="material-symbols-outlined">close</span></button></div>
 				</div>
-				<iframe
-					id="exe-iframe"
-					ref={exeIframeRef}
-					className="exe-modal-iframe"
-					src="about:blank"
-					title="Editor eXeLearning"
-				/>
-				{exeSavingOverlayVisible && (
-					<div className="exe-saving-overlay">
-						<span>Guardando cambios...</span>
-					</div>
-				)}
+				<iframe id="exe-iframe" ref={exeIframeRef} className="exe-modal-iframe" src="about:blank" title="Editor eXeLearning" />
+				{exeSavingOverlayVisible && <div className="exe-saving-overlay"><span>Guardando cambios...</span></div>}
 			</div>
 		</>
 	);
