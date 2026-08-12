@@ -13,7 +13,7 @@ import { elpxProjects } from "./elpx.ts";
 import { resources } from "./resources.ts";
 
 /**
- * Historial de versiones publicadas de un recurso (issue #31, ADR-0037).
+ * Historial de versiones publicadas de un recurso (issue #31, ADR-0038).
  * Cada fila es un snapshot inmutable: archivo (.elpx vía elpx_projects) +
  * metadatos vigentes en el momento de publicar. `resources` mantiene la
  * proyección de la versión vigente a través de `current_version_id`.

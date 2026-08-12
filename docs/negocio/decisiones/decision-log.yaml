@@ -232,13 +232,26 @@ ADR-0036:
     ADR-0035 permanece reservada para el trabajo de preview.
 
 ADR-0037:
+  title: "Modelo de perfil y migración de usuarios legacy"
+  status: Propuesto
+  date: 2026-08-06
+  file: 0037-modelo-migracion-perfil-usuarios-legacy.md
+  notes: >
+    Define un perfil de dominio separado de Better Auth y clasifica los campos del
+    exportador legacy por finalidad. La propuesta conserva identidad y contexto
+    educativo de utilidad potencial con visibilidad privada por defecto, y excluye
+    contraseñas, DNI, fecha de nacimiento y sexo. No autoriza implementar ni cargar
+    perfiles hasta revisión de Producto, Arquitectura, Metadatos y Privacidad.
+
+ADR-0038:
   title: "Versionado mínimo de recursos (MVP): resource_versions + proyección vigente reutilizando elpx_projects"
   status: Aceptado
   date: 2026-08-11
-  file: 0037-versionado-recursos-mvp.md
+  file: 0038-versionado-recursos-mvp.md
   related: ["#31", "ADR-0028", "ADR-0032"]
   notes: >
     Concreta el MVP del requisito #31: una tabla resource_versions y el puntero
     resources.current_version_id, reutilizando elpx_projects y el SHA-256 de
     upload_sessions. Aplaza content_blobs, deduplicación y GC de ADR-0032 como
     optimización posterior. ADR-0035 permanece reservada para el trabajo de preview.
+    Renumerada a ADR-0038 porque ADR-0037 quedó asignada al modelo de perfil legacy.

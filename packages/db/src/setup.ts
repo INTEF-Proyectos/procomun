@@ -315,7 +315,7 @@ export const SCHEMA_STATEMENTS = [
 	`CREATE INDEX IF NOT EXISTS idx_reports_resource_id ON reports(resource_id)`,
 	`CREATE INDEX IF NOT EXISTS idx_reports_status ON reports(status)`,
 	`CREATE INDEX IF NOT EXISTS idx_reports_reporter_id ON reports(reporter_id)`,
-	// Versionado de recursos (issue #31 / ADR-0037)
+	// Versionado de recursos (issue #31 / ADR-0038)
 	// Un recurso puede tener varios proyectos elpx (historial): se elimina la
 	// unicidad de resource_id en BDs creadas antes de este cambio.
 	`ALTER TABLE "elpx_projects" DROP CONSTRAINT IF EXISTS "elpx_projects_resource_id_key"`,
