@@ -39,6 +39,10 @@ export function withFavoriteCount(
 	};
 }
 
+export function hasEmailVerificationSuccess(search: string): boolean {
+	return new URLSearchParams(search).get("verified") === "1";
+}
+
 function FavoritesTab({
 	favorites,
 	favoritesLoaded,
@@ -347,6 +351,8 @@ export function PublicDashboardIsland() {
 	});
 	const [saving, setSaving] = useState(false);
 	const [saveMessage, setSaveMessage] = useState("");
+	const [emailVerificationSuccess, setEmailVerificationSuccess] =
+		useState(false);
 	const [badgeConfig, setBadgeConfig] =
 		useState<import("../../lib/api-client.ts").BadgeConfig>(
 			DEFAULT_BADGE_CONFIG,
@@ -367,6 +373,10 @@ export function PublicDashboardIsland() {
 			}
 
 			const { user } = session;
+			if (hasEmailVerificationSuccess(window.location.search)) {
+				setEmailVerificationSuccess(true);
+				window.history.replaceState({}, "", url("perfil"));
+			}
 
 			// Fetch dashboard data + badge config + perfil persistido (DEF-004: incluye bio)
 			const [dashData, config, profile] = await Promise.all([
@@ -671,6 +681,18 @@ export function PublicDashboardIsland() {
 
 	return (
 		<div className="dashboard-public">
+			{emailVerificationSuccess && (
+				<div
+					className="dashboard-save-message"
+					role="status"
+					aria-live="polite"
+				>
+					<span className="material-symbols-outlined" aria-hidden="true">
+						verified
+					</span>
+					{m.auth_email_verified_signed_in({ name: user.name })}
+				</div>
+			)}
 			{/* Profile header */}
 			<div className="dashboard-profile">
 				<div className="dashboard-profile-left">

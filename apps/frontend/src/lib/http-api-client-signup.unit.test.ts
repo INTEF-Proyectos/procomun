@@ -53,7 +53,7 @@ describe("HttpApiClient.signUp", () => {
 		globalThis.fetch = originalFetch;
 	});
 
-	test("calls /api/auth/sign-up/email with name, email and password", async () => {
+	test("calls /api/auth/sign-up/email with name, email, password and verification callback", async () => {
 		let capturedUrl = "";
 		let capturedInit: RequestInit | undefined;
 
@@ -72,6 +72,7 @@ describe("HttpApiClient.signUp", () => {
 			"Test User",
 			"test@example.com",
 			"password123",
+			"/perfil?verified=1",
 		);
 
 		expect(result.ok).toBe(true);
@@ -82,6 +83,7 @@ describe("HttpApiClient.signUp", () => {
 		expect(body.name).toBe("Test User");
 		expect(body.email).toBe("test@example.com");
 		expect(body.password).toBe("password123");
+		expect(body.callbackURL).toBe("/perfil?verified=1");
 	});
 
 	test("returns error when sign-up fails (e.g. email already exists)", async () => {
@@ -135,7 +137,7 @@ describe("HttpApiClient", () => {
 			jsonResponse({ data: [{ id: "c1" }], total: 1 }),
 			jsonResponse({ id: "c1", slug: "stem" }),
 			emptyResponse(404),
-			jsonResponse({ oidcEnabled: true }),
+			jsonResponse({ oidcEnabled: true, emailVerificationRequired: false }),
 			jsonResponse({ users: 7 }),
 		]);
 		const client = new HttpApiClient();

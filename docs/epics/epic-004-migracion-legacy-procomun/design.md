@@ -133,3 +133,46 @@ Tras persistir cada recurso con éxito, el comando llama a `updateSearchVector(d
 `ode-export/` no está versionado. Se copian fixtures reducidas y versionadas:
 - `packages/db/src/test-fixtures/legacy-procomun/*.json` — 3-4 ejemplos cubriendo ambas generaciones (nativos MEC `es_...` y legacy Agrega numéricos).
 - `apps/api/src/test-fixtures/elpx/*.elpx` — 2-3 `.elpx` pequeños del mismo origen, añadidos al directorio ya existente.
+
+## Ampliación — importador de usuarios legacy (2026-08-06)
+
+### Flujo
+
+```
+usuarios.json
+  └─ apps/cli/src/commands/import-legacy-users.ts
+       ├─ packages/db/src/legacy-import/users.ts       (validación y mapeo puro)
+       └─ packages/db/src/repository/legacy-users-import.ts
+            └─ user                                   (sin fila en account)
+```
+
+### Mapeo
+
+| Origen | Destino | Regla |
+|---|---|---|
+| `uid` | `user.id` | `legacy-procomun:user:<uid>`; estable para reejecuciones |
+| `mail` | `user.email` | trim y minúsculas; obligatorio y con validación básica |
+| `name` | `user.name` | trim; opcional |
+| `roles` = `administrator` | `user.role` | `admin` |
+| `roles` = `-` u otro | `user.role` | `author`; el valor no reconocido deja warning |
+| `status` | `user.is_active` | activo solo para `1`, `"1"` o `true` |
+| — | `user.email_verified` | `false`, para no asumir la vigencia del correo legacy |
+| `pass` | — | no se importa |
+
+`importLegacyUser()` comprueba primero el ID namespaced y después el email. La inserción usa `onConflictDoNothing()` y vuelve a consultar, de modo que una carrera entre dos procesos no crea duplicados ni sobrescribe cuentas existentes. Una colisión por email se informa como `skipped_existing_email`; nunca se fusionan automáticamente identidades.
+
+### Actualización de política de rol (2026-08-06)
+
+La tabla de mapeo anterior queda sustituida para `roles`: el importador ignora el valor Drupal y persiste siempre `user.role = "editor"`. No se eleva ningún `administrator` legacy a `admin`; los permisos administrativos se concederán mediante una revisión posterior explícita.
+
+### Corrección de política de rol (2026-08-06)
+
+La actualización anterior queda reemplazada por la decisión vigente: `roles = "administrator"` se persiste como `user.role = "admin"`; cualquier otro valor, incluido `-`, se persiste como `editor`. No hay otras elevaciones automáticas.
+
+### Cierre de PGlite en CLI (2026-08-06)
+
+Antes de salir, `import:legacy-users` cierra el cliente PGlite expuesto como `$client` por Drizzle, cuando el driver lo proporciona. Es necesario en ejecuciones CLI cortas: sin `close()`, el runtime WASM puede abortar durante la terminación del proceso. En PostgreSQL remoto no hay `$client.close()` compatible y el paso es un no-op seguro.
+
+### Comando y rollback
+
+`import:legacy-users --source-file <usuarios.json> [--dry-run] [--limit <n>] [--report-dir <ruta>]` escribe `informe_usuarios-<runId>.json` (o `informe_usuarios-dryrun-<runId>.json`). Cada registro importado incorpora el `userId` exacto; el rollback manual debe usar esa lista, comprobar que conserva el prefijo `legacy-procomun:user:` y no tiene asociaciones antes de eliminarlo. No se ofrece borrado automático en esta fase.

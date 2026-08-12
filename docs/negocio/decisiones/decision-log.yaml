@@ -194,6 +194,16 @@ ADR-0030:
     indexar (0023-feeds, 0024-api-tokens, 0025-jsonb, 0026-fts); su regularización
     requiere decisión humana.
 
+ADR-0031:
+  title: "Verificación de correo en el registro y capa de envío de email"
+  status: Aceptado
+  date: 2026-06-23
+  file: 0031-verificacion-email-registro.md
+  notes: >
+    Renumerado desde ADR-0030 al integrar main: ADR-0030 en main es la estrategia
+    de modernización (Aceptado/Propuesto vía #271/#272). LogEmailTransport solo en
+    development/test/CI; SMTP obligatorio al activar el flag en el resto de entornos.
+
 ADR-0032:
   title: "Modelo de versionado de recursos (snapshots inmutables + puntero a versión vigente)"
   status: Propuesto
@@ -204,7 +214,7 @@ ADR-0032:
     (aceptado). ADR-0028 permanece como estudio de alternativas; esta ADR concreta
     el modelo (snapshots + proyección vigente). La épica documental vive en
     docs/epics/epic-005-versionado-recursos/ (epic-004 ya es migracion-legacy).
-    ADR-0030 en main es modernización; ADR-0031 queda reservada para #235.
+    ADR-0030 en main es modernización; ADR-0031 es verificación de email (#235).
 
 ADR-0033:
   title: "Publicación segura de capturas visuales de pull requests mediante workflow_run"
@@ -212,7 +222,8 @@ ADR-0033:
   date: 2026-07-17
   file: 0033-capturas-visuales-pr-workflow-run.md
   notes: >
-    ADR-0031 permanece reservada por el PR abierto #235 (verificación de email).
+    ADR-0031 (verificación de email, #235) y ADR-0032 (versionado de recursos, #236)
+    ya están registradas en el índice; ADR-0035 cubre preview por snapshot.
 
 ADR-0034:
   title: "Sistema de etiquetado atomizado (tags)"
@@ -262,3 +273,13 @@ ADR-0038:
   notes: >
     Renumerada a ADR-0038 porque ADR-0037 quedó asignada al modelo de perfil legacy.
     ADR-0035 enmienda puntos 1 y 10 de esta topología (snapshot en lugar de protocolo v2).
+
+ADR-0039:
+  title: "Versionado mínimo de recursos: historial ELPX automático y proyección vigente"
+  status: Aceptado
+  date: 2026-08-11
+  file: 0039-versionado-recursos-mvp.md
+  notes: >
+    Issue #31. Cada nuevo .elpx crea automáticamente la siguiente versión y actualiza
+    current_version_id. No hay publicación manual de versiones ni notas de versión;
+    se conservan historial, descarga y restauración no destructiva.

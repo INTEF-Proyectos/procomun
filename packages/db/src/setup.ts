@@ -126,7 +126,7 @@ export const SCHEMA_STATEMENTS = [
 	)`,
 	`CREATE TABLE IF NOT EXISTS "elpx_projects" (
 		id TEXT PRIMARY KEY,
-		resource_id TEXT NOT NULL REFERENCES "resources"(id) ON DELETE CASCADE UNIQUE,
+		resource_id TEXT NOT NULL REFERENCES "resources"(id) ON DELETE CASCADE,
 		hash VARCHAR(64) NOT NULL UNIQUE,
 		extract_path TEXT NOT NULL,
 		original_filename TEXT NOT NULL,
@@ -232,6 +232,7 @@ export const SCHEMA_STATEMENTS = [
 	`CREATE INDEX IF NOT EXISTS idx_resources_slug ON resources(slug)`,
 	`CREATE INDEX IF NOT EXISTS idx_resources_status ON resources(editorial_status)`,
 	`CREATE INDEX IF NOT EXISTS idx_resources_type ON resources(resource_type)`,
+	`CREATE UNIQUE INDEX IF NOT EXISTS user_email_lower_unique ON "user" (lower(email))`,
 	`CREATE UNIQUE INDEX IF NOT EXISTS resources_import_source_external_id_idx ON resources(import_source, external_id) WHERE external_id IS NOT NULL`,
 	`CREATE INDEX IF NOT EXISTS idx_upload_sessions_resource_id ON upload_sessions(resource_id)`,
 	`CREATE INDEX IF NOT EXISTS idx_upload_sessions_owner_id ON upload_sessions(owner_id)`,
@@ -315,6 +316,33 @@ export const SCHEMA_STATEMENTS = [
 	`CREATE INDEX IF NOT EXISTS idx_reports_resource_id ON reports(resource_id)`,
 	`CREATE INDEX IF NOT EXISTS idx_reports_status ON reports(status)`,
 	`CREATE INDEX IF NOT EXISTS idx_reports_reporter_id ON reports(reporter_id)`,
+	// Versionado de recursos (issue #31 / ADR-0039)
+	// Un recurso puede tener varios proyectos elpx (historial): se elimina la
+	// unicidad de resource_id en BDs creadas antes de este cambio.
+	`ALTER TABLE "elpx_projects" DROP CONSTRAINT IF EXISTS "elpx_projects_resource_id_key"`,
+	`ALTER TABLE "elpx_projects" DROP CONSTRAINT IF EXISTS "elpx_projects_resource_id_unique"`,
+	`CREATE TABLE IF NOT EXISTS "resource_versions" (
+		id TEXT PRIMARY KEY,
+		resource_id TEXT NOT NULL REFERENCES "resources"(id) ON DELETE CASCADE,
+		version_number INTEGER NOT NULL,
+		elpx_project_id TEXT NOT NULL REFERENCES "elpx_projects"(id) ON DELETE RESTRICT,
+		file_sha256 VARCHAR(64) NOT NULL,
+		metadata_snapshot JSONB NOT NULL,
+		created_by TEXT REFERENCES "user"(id),
+		created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+		UNIQUE(resource_id, version_number)
+	)`,
+	`CREATE INDEX IF NOT EXISTS idx_resource_versions_resource_id ON resource_versions(resource_id)`,
+	`CREATE INDEX IF NOT EXISTS idx_resource_versions_elpx_project_id ON resource_versions(elpx_project_id)`,
+	`DO $$ BEGIN
+		ALTER TABLE "resources" ADD COLUMN current_version_id TEXT;
+	EXCEPTION WHEN duplicate_column THEN NULL;
+	END $$`,
+	`DO $$ BEGIN
+		ALTER TABLE "resources" ADD CONSTRAINT resources_current_version_id_fk
+			FOREIGN KEY (current_version_id) REFERENCES resource_versions(id) ON DELETE SET NULL;
+	EXCEPTION WHEN duplicate_object THEN NULL;
+	END $$`,
 ] as const;
 
 const SEED_TAXONOMIES = `

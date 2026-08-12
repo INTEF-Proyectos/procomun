@@ -5,12 +5,17 @@ import { createAuthMiddleware } from "better-auth/api";
 import { admin as adminPlugin, genericOAuth } from "better-auth/plugins";
 import { logActivity } from "../activity/log.ts";
 import { getDb } from "../db.ts";
+import {
+	buildEmailVerificationOptions,
+	resolveEmailVerificationConfig,
+} from "../email/transport.ts";
 import { AUTH_DEFAULT_COOKIE_ATTRIBUTES } from "./cookie-config.ts";
 import { ac, admin, author, curator, editor, reader } from "./permissions.ts";
 import { getAuthBaseUrl, getFrontendUrl } from "./urls.ts";
 
 const frontendUrl = getFrontendUrl();
 const oidcEnabled = process.env.OIDC_ENABLED === "true";
+const emailVerificationConfig = resolveEmailVerificationConfig(process.env);
 
 export const auth = betterAuth({
 	baseURL: getAuthBaseUrl(),
@@ -21,6 +26,16 @@ export const auth = betterAuth({
 		defaultCookieAttributes: AUTH_DEFAULT_COOKIE_ATTRIBUTES,
 	},
 	databaseHooks: {
+		user: {
+			create: {
+				before: async (user) => ({
+					data: {
+						...user,
+						email: user.email.trim().toLowerCase(),
+					},
+				}),
+			},
+		},
 		session: {
 			create: {
 				after: async (session) => {
@@ -49,9 +64,11 @@ export const auth = betterAuth({
 			}
 		}),
 	},
+	emailVerification: buildEmailVerificationOptions(emailVerificationConfig),
 	emailAndPassword: {
 		enabled: true,
 		minPasswordLength: 8,
+		requireEmailVerification: emailVerificationConfig.enabled,
 	},
 	session: {
 		expiresIn: 60 * 60 * 24 * 7,

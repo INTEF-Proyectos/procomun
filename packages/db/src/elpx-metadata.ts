@@ -5,6 +5,12 @@ export type ElpxMetadata = {
 	license: string;
 	language: string;
 	learningResourceType: string;
+	/** Identificador estable del proyecto eXeLearning (no cambia entre exportaciones). */
+	odeId: string;
+	/** Identificador de exportación de eXeLearning; informativo, no fiable como versión editorial. */
+	odeVersionId: string;
+	/** Versión de eXeLearning que generó el paquete (clave exe_version). */
+	exeVersion: string;
 };
 
 export const METADATA_KEYS: Record<string, keyof ElpxMetadata> = {
@@ -18,6 +24,14 @@ export const METADATA_KEYS: Record<string, keyof ElpxMetadata> = {
 	pp_learningResourceType: "learningResourceType",
 };
 
+// Identificadores que eXeLearning serializa como <odeResource> (no <odeProperty>).
+// Ver doc/elpx-format/ids.md del repositorio exelearning/exelearning.
+export const RESOURCE_KEYS: Record<string, keyof ElpxMetadata> = {
+	odeId: "odeId",
+	odeVersionId: "odeVersionId",
+	exe_version: "exeVersion",
+};
+
 export function emptyMetadata(): ElpxMetadata {
 	return {
 		title: "",
@@ -26,6 +40,9 @@ export function emptyMetadata(): ElpxMetadata {
 		license: "",
 		language: "",
 		learningResourceType: "",
+		odeId: "",
+		odeVersionId: "",
+		exeVersion: "",
 	};
 }
 
@@ -40,6 +57,18 @@ export function parseContentXml(xml: string): ElpxMetadata {
 		const key = match[1]?.trim() ?? "";
 		const value = match[2]?.trim() ?? "";
 		const field = METADATA_KEYS[key];
+		if (field) {
+			metadata[field] = value;
+		}
+	}
+
+	const resourceRegex =
+		/<odeResource>\s*<key>([^<]*)<\/key>\s*<value>([^<]*)<\/value>\s*<\/odeResource>/gs;
+
+	for (const match of xml.matchAll(resourceRegex)) {
+		const key = match[1]?.trim() ?? "";
+		const value = match[2]?.trim() ?? "";
+		const field = RESOURCE_KEYS[key];
 		if (field) {
 			metadata[field] = value;
 		}
