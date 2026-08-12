@@ -11,6 +11,7 @@ export * from "./repository/elpx-projects.ts";
 export * from "./repository/legacy-import.ts";
 export * from "./repository/legacy-users-import.ts";
 export * from "./repository/reports.ts";
+export * from "./repository/resource-versions.ts";
 export * from "./repository/resources.ts";
 export * from "./repository/settings.ts";
 export type { AppSchema, DrizzleDB, DrizzleTX } from "./repository/shared.ts";

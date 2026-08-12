@@ -2546,3 +2546,60 @@ tasks:
       El conflicto afectaba únicamente status.yaml; se conservan las entradas de la
       verificación por correo, de la importación legacy y de las demás líneas de trabajo.
       Se mantiene el feedback accesible al enviar la activación y al completar el enlace.
+
+  T-2026-08-12-11173899:
+    date: 2026-08-12
+    agent: "frontend-ux-accesibilidad + qa-validacion + documentacion-y-roadmap"
+    task: "Corregir el renderizado del historial de versiones del PR #322"
+    status: Done
+    related: ["#322", "#31", "ADR-0039", "epic-005-versionado-recursos"]
+    notes: >
+      El panel se montaba antes de que EditarPageBase renderizara .edit-main y
+      conservaba un destino nulo. Se integra en el árbol del editor, se elimina
+      el portal frágil y se añaden regresiones para edición existente y alta.
+
+  T-2026-08-12-11245720:
+    date: 2026-08-12
+    agent: "backend-api-servicios + qa-validacion + documentacion-y-roadmap"
+    task: "Corregir la restauración de versiones en el editor del PR #322"
+    status: Done
+    related: ["#322", "#31", "ADR-0039", "epic-005-versionado-recursos"]
+    notes: >
+      La restauración ya creaba una versión vigente correcta, pero el endpoint
+      del editor consultaba el proyecto ELPX más reciente por fecha en vez del
+      asociado a current_version_id. Se alinea con la versión vigente y se
+      añade una regresión HTTP que comprueba el ELPX expuesto al editor.
+
+  T-2026-08-12-11342245:
+    date: 2026-08-12
+    agent: "frontend-ux-accesibilidad + backend-api-servicios + qa-validacion + documentacion-y-roadmap"
+    task: "Añadir la previsualización de versiones históricas del PR #322"
+    status: Done
+    related: ["#322", "#31", "ADR-0039", "epic-005-versionado-recursos"]
+    notes: >
+      Cada versión histórica con ELPX renderizable expone su URL de preview y
+      muestra la acción «Ver» junto a «Restaurar». La modal reutiliza el diálogo
+      accesible de la aplicación y aplica el mismo sandbox de origen opaco que
+      la ficha pública. Hay regresiones de API y de renderizado del iframe.
+
+  T-2026-08-12-11370412:
+    date: 2026-08-12
+    agent: "frontend-ux-accesibilidad + qa-validacion + documentacion-y-roadmap"
+    task: "Afinar las acciones Ver y Restaurar del historial del PR #322"
+    status: Done
+    related: ["#322", "#31", "ADR-0039", "epic-005-versionado-recursos"]
+    notes: >
+      «Ver» pasa a ser una acción principal compacta con icono de visibilidad;
+      «Restaurar» conserva menor prominencia con icono de retorno. Ambas incluyen
+      estados hover, foco visible y deshabilitado acordes al editor.
+
+  T-2026-08-12-11450099:
+    date: 2026-08-12
+    agent: "backend-api-servicios + qa-validacion + documentacion-y-roadmap"
+    task: "Corregir las etiquetas al restaurar versiones del PR #322"
+    status: Done
+    related: ["#322", "#31", "ADR-0039", "epic-005-versionado-recursos"]
+    notes: >
+      La restauración sincroniza las etiquetas incluso si el snapshot tiene
+      keywords nulo, eliminando las etiquetas residuales de la versión posterior.
+      Se añade una regresión con una v1 sin etiquetas y una v2 etiquetada.

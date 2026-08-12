@@ -1,0 +1,86 @@
+import * as repo from "@procomun/db/repository";
+import type { Hono } from "hono";
+import { logActivity } from "../../activity/log.ts";
+import type { AuthEnv } from "../../auth/middleware.ts";
+import { getCurrentUser, hasMinRole } from "../../auth/roles.ts";
+import { getDb } from "../../db.ts";
+import { updateSearchVector } from "../../fts/search.ts";
+import { requireManageableResource } from "./guards.ts";
+
+const db = () => getDb().db;
+
+function buildDownloadUrl(uploadSessionId: string | null): string | null {
+	return uploadSessionId
+		? `/api/admin/uploads/${uploadSessionId}/content`
+		: null;
+}
+
+function buildPreviewUrl(
+	hash: string | null,
+	hasPreview: boolean | null,
+): string | null {
+	return hash && hasPreview ? `/api/v1/elpx/${hash}/` : null;
+}
+
+/** Historial de versiones de recursos (issue #31 / ADR-0039). */
+export function registerResourceVersionRoutes(routes: Hono<AuthEnv>) {
+	routes.get("/:id/versions", async (c) => {
+		const id = c.req.param("id");
+		if (!id) return c.json({ error: "Falta id" }, 400);
+		const check = await requireManageableResource(c, id);
+		if ("response" in check) return check.response;
+
+		const versions = await repo.listResourceVersions(db(), id);
+		return c.json(
+			versions.map((version) => ({
+				...version,
+				downloadUrl: buildDownloadUrl(version.uploadSessionId),
+				previewUrl: buildPreviewUrl(version.elpxHash, version.hasPreview),
+			})),
+		);
+	});
+
+	// Restauración no destructiva: solo curador/admin. Crea una nueva versión
+	// desde la seleccionada; nunca reescribe el historial.
+	routes.post("/:id/versions/:versionId/restore", async (c) => {
+		const user = getCurrentUser(c);
+		const id = c.req.param("id");
+		const versionId = c.req.param("versionId");
+		if (!id || !versionId) return c.json({ error: "Falta id" }, 400);
+		const check = await requireManageableResource(c, id);
+		if ("response" in check) return check.response;
+		const resource = check.data;
+
+		if (!hasMinRole(user.role, "curator")) {
+			return c.json({ error: "Permisos insuficientes" }, 403);
+		}
+
+		const target = await repo.getResourceVersionById(db(), versionId);
+		if (!target || target.resourceId !== id) {
+			return c.json({ error: "Versión no encontrada" }, 404);
+		}
+
+		const restored = await repo.restoreResourceVersion(db(), {
+			resourceId: id,
+			versionId,
+			createdBy: user.id,
+		});
+
+		await updateSearchVector(db(), id);
+
+		await logActivity({
+			userId: user.id,
+			type: "resource_version_restored",
+			resourceId: id,
+			resourceTitle: resource.title,
+			resourceSlug: resource.slug,
+			description: `Restauraste «${resource.title}» a la versión ${restored.restoredFromVersionNumber}`,
+			metadata: {
+				versionNumber: restored.versionNumber,
+				restoredFromVersionNumber: restored.restoredFromVersionNumber,
+			},
+		});
+
+		return c.json(restored);
+	});
+}
