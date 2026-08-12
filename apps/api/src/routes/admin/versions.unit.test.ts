@@ -40,11 +40,12 @@ async function seedVersion(resourceId: string, hash: string) {
 		extractPath: `/tmp/${crypto.randomUUID()}`,
 		originalFilename: `recurso-${hash.slice(0, 6)}.elpx`,
 	});
-	return repo.publishResourceVersion(getDb().db, {
+	const version = await repo.publishResourceVersion(getDb().db, {
 		resourceId,
 		elpxProjectId,
 		createdBy: "1",
 	});
+	return { ...version, elpxProjectId };
 }
 
 describe("resource version admin API", () => {
