@@ -21,7 +21,7 @@ describe("mapLegacyUser", () => {
 		});
 	});
 
-	test("asigna editor al marcador de rol y conserva un usuario inactivo", () => {
+	test("asigna editor al resto y mantiene activa la cuenta aunque status sea 0", () => {
 		const mapped = mapLegacyUser({
 			uid: "7",
 			mail: "reader@example.test",
@@ -30,8 +30,18 @@ describe("mapLegacyUser", () => {
 		});
 
 		expect(mapped.role).toBe("editor");
-		expect(mapped.isActive).toBeFalse();
+		expect(mapped.isActive).toBeTrue();
 		expect(mapped.warnings).toEqual([]);
+	});
+
+	test("mantiene activa la cuenta aunque status esté ausente", () => {
+		const mapped = mapLegacyUser({
+			uid: "8",
+			mail: "active@example.test",
+			roles: "-",
+		});
+
+		expect(mapped.isActive).toBeTrue();
 	});
 
 	test("rechaza uid o email no utilizables", () => {
