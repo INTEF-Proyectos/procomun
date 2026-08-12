@@ -55,7 +55,10 @@ async function seedResource() {
 	});
 }
 
-async function uploadFixture(app: ReturnType<typeof createApp>, resourceId: string) {
+async function uploadFixture(
+	app: ReturnType<typeof createApp>,
+	resourceId: string,
+) {
 	const form = new FormData();
 	form.append(
 		"file",

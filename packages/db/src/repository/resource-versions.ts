@@ -279,13 +279,17 @@ export async function restoreResourceVersion(
 			.delete(resourceSubjects)
 			.where(eq(resourceSubjects.resourceId, input.resourceId));
 		for (const subject of snapshot.subjects) {
-			await tx.insert(resourceSubjects).values({ resourceId: input.resourceId, subject });
+			await tx
+				.insert(resourceSubjects)
+				.values({ resourceId: input.resourceId, subject });
 		}
 		await tx
 			.delete(resourceLevels)
 			.where(eq(resourceLevels.resourceId, input.resourceId));
 		for (const level of snapshot.levels) {
-			await tx.insert(resourceLevels).values({ resourceId: input.resourceId, level });
+			await tx
+				.insert(resourceLevels)
+				.values({ resourceId: input.resourceId, level });
 		}
 
 		if (typeof snapshot.keywords === "string") {

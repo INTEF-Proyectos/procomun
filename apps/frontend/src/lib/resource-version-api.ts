@@ -1,25 +1,21 @@
 import type { ApiClient } from "./api-client.ts";
 
-declare module "./api-client.ts" {
-	export interface ResourceVersionRecord {
-		id: string;
-		versionNumber: number;
-		fileSha256: string;
-		elpxProjectId: string | null;
-		createdBy: string | null;
-		createdByName: string | null;
-		createdAt: string | number | Date | null;
-		originalFilename: string | null;
-		uploadSessionId: string | null;
-		isCurrent: boolean;
-		downloadUrl: string | null;
-	}
+export interface ResourceVersionRecord {
+	id: string;
+	versionNumber: number;
+	fileSha256: string;
+	elpxProjectId: string | null;
+	createdBy: string | null;
+	createdByName: string | null;
+	createdAt: string | number | Date | null;
+	originalFilename: string | null;
+	uploadSessionId: string | null;
+	isCurrent: boolean;
+	downloadUrl: string | null;
 }
 
 export interface ResourceVersionApi {
-	listResourceVersions(
-		resourceId: string,
-	): Promise<import("./api-client.ts").ResourceVersionRecord[]>;
+	listResourceVersions(resourceId: string): Promise<ResourceVersionRecord[]>;
 	restoreResourceVersion(
 		resourceId: string,
 		versionId: string,
