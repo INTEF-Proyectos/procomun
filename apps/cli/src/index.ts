@@ -7,6 +7,7 @@ export const CLI_COMMANDS = [
 	"seed:resources",
 	"fts:reindex",
 	"import:legacy-procomun",
+	"import:legacy-users",
 ] as const;
 
 const commandLoaders: Record<
@@ -23,6 +24,8 @@ const commandLoaders: Record<
 		(await import("./commands/fts-reindex.ts")).ftsReindex(),
 	"import:legacy-procomun": async () =>
 		(await import("./commands/import-legacy-procomun.ts")).importLegacyProcomun,
+	"import:legacy-users": async () =>
+		(await import("./commands/import-legacy-users.ts")).importLegacyUsers,
 };
 
 export function printHelp(log: Pick<typeof console, "log"> = console) {
@@ -44,6 +47,9 @@ export function printHelp(log: Pick<typeof console, "log"> = console) {
 	);
 	log.log(
 		"                    Importa recursos legacy de Procomún (pares .json+.elpx), ver ADR-0029",
+	);
+	log.log(
+		"  import:legacy-users --source-file <usuarios.json> [--dry-run] [--limit <n>] [--report-dir <ruta>]",
 	);
 }
 

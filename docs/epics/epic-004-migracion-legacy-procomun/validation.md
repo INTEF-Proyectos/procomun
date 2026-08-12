@@ -64,3 +64,35 @@ Ambos bugs eran preexistentes en la infraestructura reutilizada, no introducidos
 ### Pendiente
 - Verificación visual en el backoffice admin (UI) por parte del usuario — pendiente de confirmación tras aplicar estos dos fixes.
 - Considerar si `elpx-safe-extract.ts` debería drenar/loguear stdout de `unzip` en vez de ignorarlo del todo, si en el futuro se necesita diagnosticar fallos de extracción con más detalle (fuera de alcance de esta épica).
+
+## Ampliación — importador de usuarios legacy (2026-08-06)
+
+- `bun test packages/db/src/legacy-import/users.unit.test.ts packages/db/src/repository/legacy-users-import.unit.test.ts apps/cli/src/commands/import-legacy-users.unit.test.ts apps/cli/src/index.unit.test.ts` → **10 pass, 0 fail**.
+- `bun run scripts/check-test-files.ts` → **OK**, todos los archivos TypeScript productivos tienen prueba asociada.
+- Casos cubiertos: mapeo de `administrator`/`-`, estado activo e inactivo, rechazo de UID/correo inválidos, ausencia deliberada de credenciales, idempotencia por UID, colisión de email, errores aislados, `--dry-run` y `--limit`.
+- `bun run check-types` no pudo completar por 16 errores ya presentes en artefactos locales bajo `local-data/uploads/elpx/**`; la salida no atribuye errores a archivos de esta ampliación.
+- Dry-run real aislado: `import:legacy-users --source-file <ruta-absoluta>/exportados-usuarios/usuarios.json --dry-run --limit 4 --report-dir /tmp/...` → **4 importables, 0 errores, salida 0**. No se escribieron usuarios ni se usó el almacenamiento local del repositorio.
+- Pendiente: piloto de importación real autorizado y prueba del flujo de activación de cuentas antes de tratar el lote completo.
+
+### Actualización de política de rol (2026-08-06)
+
+- La prueba de mapeo verifica que incluso un usuario legacy con `roles: "administrator"` queda como `editor`.
+
+### Corrección de política de rol (2026-08-06)
+
+- La prueba de mapeo verifica `administrator` → `admin` y `-` → `editor`.
+
+### Cierre de PGlite en CLI (2026-08-06)
+
+- Se añaden pruebas del cierre del cliente PGlite y de las rutas sin método `close()` o con error de cierre.
+
+### Correcciones de revisión del PR #309 (2026-08-07)
+
+- `bun test apps/cli/src/commands/import-legacy-users.unit.test.ts packages/db/src/repository/legacy-users-import.unit.test.ts packages/db/src/repository.unit.test.ts` ✅. Cubre conflictos de `dry-run` existentes y dentro del JSON, colisiones de email por mayúsculas/minúsculas, restricción única en base de datos y una importación concurrente.
+- `bun run check-types` ✅ (0 errores).
+
+### Segunda revisión del PR #309 (2026-08-12)
+
+- La prueba de migraciones verifica que `0006_user_email_case_insensitive` figura en el journal, sustituye el nombre duplicado `0005` y contiene la comprobación previa de duplicados por `lower(email)`.
+- La prueba del comando verifica que el cliente PGlite se cierra incluso si falla la lectura del JSON antes de generar el informe.
+- Las pruebas de `--dry-run` verifican que `wouldImport` cuenta los registros importables y `imported` permanece en cero.

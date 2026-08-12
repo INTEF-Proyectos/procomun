@@ -42,6 +42,38 @@ Los JSON/`.elpx` de `ode-export/` contienen datos personales reales (nombres y e
 - [x] Actualizar `docs/producto/roadmap.md` (fila "Migración desde Procomún").
 - [x] Actualizar `status.yaml` con la tarea de esta épica (`T-2026-07-10-001`).
 
+## Ampliación — importador de usuarios legacy (2026-08-06)
+- [x] Analizar el formato real `exportados-usuarios/usuarios.json` (array de objetos Drupal).
+- [x] Implementar el mapeo puro y validado de usuarios legacy, sin contraseñas ni asociaciones de recursos.
+- [x] Implementar persistencia idempotente por UID namespaced y omisión segura ante colisión de correo.
+- [x] Registrar `import:legacy-users` con `--source-file`, `--dry-run`, `--limit` e informe.
+- [x] Añadir pruebas unitarias del mapeo, persistencia, ejecución de lote y registro del CLI.
+- [x] Ejecutar pruebas automatizadas y comprobar la paridad archivo–test.
+- [x] Ejecutar `--dry-run --limit 4` sobre el JSON exportado facilitado, en PGlite e informe aislados en `/tmp`.
+- [ ] Ejecutar un piloto autorizado sobre un extracto representativo y definir el procedimiento de activación/restablecimiento de cuentas.
+
+### Actualización de política de rol (2026-08-06)
+- [x] Asignar el rol `editor` a todos los usuarios importados e ignorar los privilegios Drupal de origen.
+
+### Corrección de política de rol (2026-08-06)
+- [x] Restaurar el mapeo controlado `administrator` → `admin`; todos los demás usuarios quedan como `editor`.
+
+### Cierre de PGlite en CLI (2026-08-06)
+- [x] Cerrar PGlite explícitamente tras escribir el informe para evitar abortos del runtime al terminar.
+
+### Correcciones de revisión del PR #309 (2026-08-07)
+- [x] Hacer que `--dry-run` consulte los conflictos existentes y detecte ID/correo duplicados dentro del propio lote.
+- [x] Normalizar emails en los flujos de creación y garantizar su unicidad sin distinción de mayúsculas mediante `lower(email)`.
+- [x] Distinguir inserciones propias de conflictos concurrentes con `RETURNING`.
+
+### Segunda revisión del PR #309 (2026-08-12)
+- [x] Registrar la migración `0006_user_email_case_insensitive` en el journal de Drizzle y bloquear el despliegue si existen correos que solo difieren en mayúsculas/minúsculas.
+- [x] Cerrar PGlite en `finally` también ante fallo de lectura, conexión o escritura del informe.
+- [x] Separar `wouldImport` de `imported` y mostrar `importables` en `--dry-run`.
+
+### Seguimiento de CI del PR #309 (2026-08-12)
+- [x] Formatear con Biome el snapshot de Drizzle `0004_snapshot.json` para que respete la indentación configurada y no bloquee `make lint`.
+
 ## Propuesta de perfil de usuarios legacy — 2026-08-06 (issue #312)
 
 - [x] Inventariar los grupos de campos presentes en `exportados-usuarios/usuarios.json` sin incorporar datos personales de ejemplo en la documentación.
