@@ -96,9 +96,7 @@ export function ResourceVersionPanel() {
 						<li key={version.id}>
 							<strong>v{version.versionNumber}</strong>{" "}
 							{version.isCurrent && (
-								<span className="edit-badge edit-badge-published">
-									Vigente
-								</span>
+								<span className="edit-badge edit-badge-published">Vigente</span>
 							)}{" "}
 							<span className="edit-date">{formatDate(version.createdAt)}</span>
 							{version.createdByName && <span> — {version.createdByName}</span>}{" "}
