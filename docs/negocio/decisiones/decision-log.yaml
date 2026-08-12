@@ -253,3 +253,13 @@ ADR-0037:
     educativo de utilidad potencial con visibilidad privada por defecto, y excluye
     contraseñas, DNI, fecha de nacimiento y sexo. No autoriza implementar ni cargar
     perfiles hasta revisión de Producto, Arquitectura, Metadatos y Privacidad.
+
+ADR-0039:
+  title: "Versionado mínimo de recursos: historial ELPX automático y proyección vigente"
+  status: Aceptado
+  date: 2026-08-11
+  file: 0039-versionado-recursos-mvp.md
+  notes: >
+    Issue #31. Cada nuevo .elpx crea automáticamente la siguiente versión y actualiza
+    current_version_id. No hay publicación manual de versiones ni notas de versión;
+    se conservan historial, descarga y restauración no destructiva.
