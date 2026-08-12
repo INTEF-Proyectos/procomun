@@ -2166,6 +2166,19 @@ tasks:
       misma base de commits de la feature. Se conserva la entrada de #306
       (colecciones admin) añadida después del merge.
 
+  T-2026-08-06-09443371:
+    date: 2026-08-06
+    agent: "empresa-y-producto + arquitectura-solucion + ingestas-y-migraciones + metadatos-y-curacion + seguridad-privacidad-legal + documentacion-y-roadmap"
+    task: "Proponer el modelo y la migración de perfiles de usuarios legacy (issue #312)"
+    status: Done
+    related: ["#312", "ADR-0037", "epic-004-migracion-legacy-procomun"]
+    notes: >
+      Se propone ADR-0037: perfil de dominio separado de Better Auth, campos de
+      identidad y contexto educativo clasificados por finalidad y visibilidad privada
+      por defecto. Se excluyen hash de contraseña, DNI, fecha de nacimiento y sexo.
+      No se implementa ni carga el perfil hasta aceptación conjunta de Producto,
+      Arquitectura, Metadatos y Seguridad/Privacidad; la migración de cuentas actual
+      mantiene su alcance mínimo.
   T-2026-08-06-08191097:
     date: 2026-08-06
     agent: "seguridad-privacidad-legal + backend-api-servicios"
@@ -2286,3 +2299,38 @@ tasks:
       Se integra main conservando las guardas que bloquean el dashboard interno fuera de
       desarrollo. La prueba de serving del frontend cubre rutas /dev codificadas, variantes
       de mayúsculas y bytes nulos.
+
+  T-2026-08-07-08584892:
+    date: 2026-08-07
+    agent: "documentacion-y-roadmap"
+    task: "Resolver los conflictos de merge del PR #315"
+    status: Done
+    related: ["#315", "#312", "ADR-0037"]
+    notes: >
+      Se integra main preservando ADR-0034 para el sistema de etiquetas aceptado y
+      renumerando la propuesta sobre perfiles legacy como ADR-0037. Se actualizan el
+      índice de decisiones, las tareas de la épica de migración y la trazabilidad para
+      impedir que dos decisiones compartan identificador.
+
+  T-2026-08-12-06152789:
+    date: 2026-08-12
+    agent: "documentacion-y-roadmap + seguridad-privacidad-legal"
+    task: "Atender revisión de privacidad, rollback y reimportación de ADR-0037 (PR #315)"
+    status: Done
+    related: ["#315", "#312", "ADR-0037"]
+    notes: >
+      Se añade una adenda que traslada nombre visible, biografía e imagen legacy a
+      user_profile con privacidad por defecto; define procedencia de campo y rollback
+      por migration_batch_id sin sobrescribir ediciones posteriores; y fija que null
+      se omite y las reimportaciones no actualizan usuarios ya importados.
+
+  T-2026-08-12-06503938:
+    date: 2026-08-12
+    agent: "documentacion-y-roadmap"
+    task: "Resolver conflictos de merge del PR #317 con main (renumerar topología preview a ADR-0038)"
+    status: Done
+    related: ["#317", "ADR-0035", "ADR-0037", "ADR-0038"]
+    notes: >
+      Se integra origin/main. ADR-0037 queda para el modelo de perfil legacy;
+      la topología del preview HTTP se renumera a ADR-0038 y se actualizan las
+      referencias en ADR-0035 y decision-log.yaml.

@@ -6,7 +6,7 @@
 
 ## Contexto y Problema
 
-El preview HTTP v2 (ADR-0037) definía una API de gestión de cuatro operaciones —crear sesión, subir assets inmutables por clave, publicar revisiones incrementales del documento y borrar— más una capa de recursos fijos resuelta contra el manifiesto del editor instalado. Toda esa maquinaria existía por una única razón: no reenviar bytes que no habían cambiado entre refrescos.
+El preview HTTP v2 (ADR-0038) definía una API de gestión de cuatro operaciones —crear sesión, subir assets inmutables por clave, publicar revisiones incrementales del documento y borrar— más una capa de recursos fijos resuelta contra el manifiesto del editor instalado. Toda esa maquinaria existía por una única razón: no reenviar bytes que no habían cambiado entre refrescos.
 
 El editor de eXeLearning dejó de hablar ese protocolo. La comprobación es directa y reproducible: un bundle construido desde la rama actual del editor **no contiene ninguna referencia** a `previewHttp` ni a `protocolVersion`, y sí lee `previewSnapshot` con `managementUrl`, `servingBaseUrl` y `deleteUrlTemplate`. El editor publica ahora el proyecto **completo como un ZIP** en cada refresco opaco.
 
@@ -28,7 +28,7 @@ Es el mismo desajuste detectado y corregido en los adaptadores de WordPress, Moo
 4. **La verificación del archivo es la frontera de confianza.** Se comprueban todas las entradas antes de descomprimir nada (rutas seguras, método de compresión soportado, número de ficheros, `index.html` presente) y el tope de bytes se aplica sobre los **bytes realmente inflados**, no sobre los tamaños declarados en el directorio central, que los elige quien construye el ZIP.
 5. **Publicación no destructiva.** El mapa nuevo solo sustituye al anterior cuando el archivo ha pasado toda la verificación, de modo que una subida rechazada deja intacta la previsualización que ya funcionaba.
 6. **El ETag incorpora una secuencia de publicación.** Al reemplazar se conserva el id de capability, así que un ETag derivado solo del id devolvería un 304 con bytes viejos tras cada refresco.
-7. **Se mantiene la topología de ADR-0037**: store en memoria por proceso, recuperación por recreación ante un 404, una réplica por defecto, afinidad coherente en multi-réplica con acuse operativo, y cuotas locales al proceso (TTL de 30 min, 4 snapshots por usuario, presupuesto global con desalojo LRU).
+7. **Se mantiene la topología de ADR-0038**: store en memoria por proceso, recuperación por recreación ante un 404, una réplica por defecto, afinidad coherente en multi-réplica con acuse operativo, y cuotas locales al proceso (TTL de 30 min, 4 snapshots por usuario, presupuesto global con desalojo LRU).
 
 ## Consecuencias
 
@@ -50,5 +50,5 @@ Es el mismo desajuste detectado y corregido en los adaptadores de WordPress, Moo
 * Nuevo: `apps/api/src/services/preview-snapshot-store.ts`, `preview-snapshot-archive.ts` y `preview-snapshot-test-zip.ts` (constructor de ZIP para fixtures, incluidos archivos que mienten sobre su tamaño).
 * Retirado: `preview-session-store.ts`, `preview-fixed-resources.ts`, `preview-contract.unit.test.ts` y `apps/api/test/preview-contract/`.
 * `apps/api/src/routes/preview.ts` conserva íntegra la política de servido —cabeceras de endurecimiento, CSP sandbox byte a byte idéntica al core, ETag/304, rangos 206/416 y la redirección relativa de la URL desnuda—; solo pierde la capa fija.
-* Enmienda ADR-0037 en sus puntos 1 y 10; el resto de su topología sigue vigente.
+* Enmienda ADR-0038 en sus puntos 1 y 10; el resto de su topología sigue vigente.
 * Contrato actualizado en `docs/preview-serving-contract.md`.

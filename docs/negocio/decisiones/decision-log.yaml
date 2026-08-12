@@ -227,7 +227,7 @@ ADR-0035:
   date: 2026-07-25
   file: 0035-preview-snapshot-en-lugar-de-protocolo-v2.md
   notes: >
-    Enmienda los puntos 1 y 10 de ADR-0037. El editor dejó de hablar el protocolo
+    Enmienda los puntos 1 y 10 de ADR-0038. El editor dejó de hablar el protocolo
     v2 (un bundle actual no referencia previewHttp ni protocolVersion), por lo que
     la previsualización opaca era inalcanzable: se inyectaba un contrato que nadie
     leía y se omitía el que sí se lee.
@@ -240,10 +240,25 @@ ADR-0036:
   notes: >
     Issue #72. Content-based híbrido: metadatos, keywords, autor, colecciones y FTS.
     Collaborative filtering (fase 3) diferido. ADR-0034 corresponde al sistema de tags;
-    ADR-0035 permanece reservada para el trabajo de preview.
+    ADR-0035/0038 cubren preview (snapshot y topología).
 
 ADR-0037:
+  title: "Modelo de perfil y migración de usuarios legacy"
+  status: Propuesto
+  date: 2026-08-06
+  file: 0037-modelo-migracion-perfil-usuarios-legacy.md
+  notes: >
+    Define un perfil de dominio separado de Better Auth y clasifica los campos del
+    exportador legacy por finalidad. La propuesta conserva identidad y contexto
+    educativo de utilidad potencial con visibilidad privada por defecto, y excluye
+    contraseñas, DNI, fecha de nacimiento y sexo. No autoriza implementar ni cargar
+    perfiles hasta revisión de Producto, Arquitectura, Metadatos y Privacidad.
+
+ADR-0038:
   title: "Topología del preview HTTP y cableado del editor embebido"
   status: Aceptado
   date: 2026-07-11
-  file: 0037-topologia-store-preview-http.md
+  file: 0038-topologia-store-preview-http.md
+  notes: >
+    Renumerada a ADR-0038 porque ADR-0037 quedó asignada al modelo de perfil legacy.
+    ADR-0035 enmienda puntos 1 y 10 de esta topología (snapshot en lugar de protocolo v2).

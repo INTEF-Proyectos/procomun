@@ -1,4 +1,4 @@
-# ADR-0037 Topología del preview HTTP y cableado del editor embebido
+# ADR-0038 Topología del preview HTTP y cableado del editor embebido
 
 * Estado: Aceptado
 * Fecha: 2026-07-11
@@ -67,7 +67,7 @@ El editor se sirve desde la API y puede estar embebido por un frontend en otro o
 * Regresión de `Content-Length`: límite exacto aceptado y un byte adicional rechazado antes de parsear multipart.
 * E2E con un artefacto de editor compatible antes de activar el transporte en producción.
 
-ADR-0037 complementa la migración del bridge compartido de medios externos y resuelve el preview efímero del editor.
+ADR-0038 complementa la migración del bridge compartido de medios externos y resuelve el preview efímero del editor.
 
 ## Enmienda 2026-07-25 (ADR-0035)
 
