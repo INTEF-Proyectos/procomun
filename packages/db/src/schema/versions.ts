@@ -13,10 +13,10 @@ import { elpxProjects } from "./elpx.ts";
 import { resources } from "./resources.ts";
 
 /**
- * Historial de versiones publicadas de un recurso (issue #31, ADR-0039).
+ * Historial de versiones de un recurso (issue #31, ADR-0039).
  * Cada fila es un snapshot inmutable: archivo (.elpx vía elpx_projects) +
- * metadatos vigentes en el momento de publicar. `resources` mantiene la
- * proyección de la versión vigente a través de `current_version_id`.
+ * metadatos vigentes en el momento de crear la versión. `resources` mantiene
+ * la proyección de la versión vigente a través de `current_version_id`.
  */
 export const resourceVersions = pgTable(
 	"resource_versions",
@@ -36,7 +36,6 @@ export const resourceVersions = pgTable(
 		// tiene, se conserva elpx_projects.hash como identificador del contenido.
 		fileSha256: varchar("file_sha256", { length: 64 }).notNull(),
 		metadataSnapshot: jsonb("metadata_snapshot").notNull(),
-		changeNotes: text("change_notes"),
 		createdBy: text("created_by").references(() => user.id),
 		createdAt: timestamp("created_at").notNull().defaultNow(),
 	},
