@@ -2615,3 +2615,17 @@ tasks:
       versión vigente. Las históricas siguen descargándose y previsualizándose
       desde administración, con sandbox sin allow-same-origin. Restaurar vuelve
       a exponer el ELPX restaurado como vigente.
+
+  T-2026-08-13-11414543:
+    date: 2026-08-13
+    agent: "backend-api-servicios + seguridad-privacidad-legal + qa-validacion"
+    task: "Permitir la visualización de PDF blob en el editor eXeLearning incrustado"
+    status: Done
+    related: []
+    notes: >
+      La CSP del bootstrap del editor bloqueaba object-src por completo, aunque
+      eXeLearning usa <embed src="blob:..."> para la previsualización de PDF.
+      Se limita object-src al esquema blob:; se mantienen base-uri 'self' y
+      frame-ancestors 'self'. Regresión añadida en exelearning-editor.unit.test.ts.
+      Validación: bun test apps/api/src/routes/exelearning-editor.unit.test.ts
+      (14 pass, 0 fail).
