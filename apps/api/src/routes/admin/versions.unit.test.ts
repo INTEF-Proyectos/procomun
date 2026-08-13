@@ -70,7 +70,10 @@ describe("resource version admin API", () => {
 		expect(history[0]?.versionNumber).toBe(2);
 		expect(history[0]?.isCurrent).toBe(true);
 		expect(history[1]?.versionNumber).toBe(1);
-		expect(history[1]?.previewUrl).toBe(`/api/v1/elpx/${"a".repeat(64)}/`);
+		expect(history[1]?.previewUrl).toBe(
+			`/api/admin/resources/${id}/versions/${history[1]?.id}/preview/`,
+		);
+		expect(history[0]?.previewUrl).toBe(`/api/v1/elpx/${"b".repeat(64)}/`);
 		expect("changeNotes" in (history[0] ?? {})).toBe(false);
 	});
 

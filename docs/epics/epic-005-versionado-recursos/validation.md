@@ -11,5 +11,7 @@
 | ELPX históricos protegidos | `resource-versions.integration.test.ts`, `elpx-retire.unit.test.ts` |
 | Metadatos ELPX adicionales | `elpx-metadata.unit.test.ts` |
 | Cliente frontend sin publish/changeNotes | `resource-version-api.unit.test.ts` |
+| API pública no expone versiones históricas (RF-008 / #323) | `public-version-access.unit.test.ts`, `resource-versions.integration.test.ts` |
+| Preview histórica autenticada con sandbox | `public-version-access.unit.test.ts`, `ResourceVersionPanel.unit.test.tsx` |
 
 La validación completa se delega al CI del PR: tests, typecheck, lint y checks de tracking deben ejecutarse sobre la rama ya actualizada con `main`.

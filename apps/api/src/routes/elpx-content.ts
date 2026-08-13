@@ -1,6 +1,8 @@
 import { realpath } from "node:fs/promises";
 import path from "node:path";
+import * as repo from "@procomun/db/repository";
 import { type Context, Hono } from "hono";
+import { getDb } from "../db.ts";
 import { getUploadConfig } from "../uploads/config.ts";
 
 const MIME_TYPES: Record<string, string> = {
@@ -126,10 +128,9 @@ function resolveRelativePath(baseDir: string, relativePath: string): string {
 
 function rewriteRelativeUrls(
 	html: string,
-	hash: string,
+	baseUrl: string,
 	currentFile: string,
 ): string {
-	const baseUrl = `/api/v1/elpx/${hash}/`;
 	const currentDir = path.dirname(currentFile);
 	const dir = currentDir === "." ? "" : currentDir;
 
@@ -155,10 +156,9 @@ function rewriteRelativeUrls(
 
 function rewriteCssUrls(
 	css: string,
-	hash: string,
+	baseUrl: string,
 	currentFile: string,
 ): string {
-	const baseUrl = `/api/v1/elpx/${hash}/`;
 	const currentDir = path.dirname(currentFile);
 	const dir = currentDir === "." ? "" : currentDir;
 
@@ -206,29 +206,34 @@ function authorAssetHeaders(contentType: string): Record<string, string> {
 	};
 }
 
+/** Alias de main (#323): el valor canónico es CONTENT_HTML_CSP (sin escape de sandbox). */
+export const ELPX_HTML_CSP = CONTENT_HTML_CSP;
+
 export const elpxContentRoutes = new Hono();
 
-async function handleContent(c: Context) {
-	const hash = c.req.param("hash");
-	if (!hash || !HASH_PATTERN.test(hash)) {
-		return c.json({ error: "Identificador no válido" }, 404);
-	}
+export function remainingPathAfter(pathname: string, segment: string): string {
+	const parts = pathname.split("/").filter(Boolean);
+	const idx = parts.indexOf(segment);
+	if (idx === -1) return "index.html";
+	return parts.slice(idx + 1).join("/") || "index.html";
+}
 
-	const url = new URL(c.req.url);
-	const pathParts = url.pathname.split("/");
-	const hashIndex = pathParts.indexOf(hash);
-	const rawFile = pathParts.slice(hashIndex + 1).join("/") || "index.html";
-
-	const file = sanitizePath(rawFile);
-	if (!file) return c.json({ error: "Ruta no válida" }, 404);
+export async function serveElpxExtractedContent(options: {
+	hash: string;
+	rawFile: string;
+	rewriteBaseUrl: string;
+	corsLocalScripts?: boolean;
+}): Promise<Response> {
+	const file = sanitizePath(options.rawFile);
+	if (!file) return Response.json({ error: "Ruta no válida" }, { status: 404 });
 
 	const config = getUploadConfig();
-	const basePath = path.join(config.storageDir, "elpx", hash);
+	const basePath = path.join(config.storageDir, "elpx", options.hash);
 	const fullPath = path.join(basePath, file);
 
 	const bunFile = Bun.file(fullPath);
 	if (!(await bunFile.exists())) {
-		return c.json({ error: "Archivo no encontrado" }, 404);
+		return Response.json({ error: "Archivo no encontrado" }, { status: 404 });
 	}
 
 	try {
@@ -237,7 +242,7 @@ async function handleContent(c: Context) {
 		// Comparación con frontera de separador: evita que un prefijo común
 		// (…/elpx/ab vs …/elpx/abc) se confunda con contención real.
 		if (real !== realBase && !real.startsWith(realBase + path.sep)) {
-			return c.json({ error: "Acceso denegado" }, 403);
+			return Response.json({ error: "Acceso denegado" }, { status: 403 });
 		}
 	} catch {
 		// realpath may fail for edge cases; file existence already confirmed
@@ -248,9 +253,12 @@ async function handleContent(c: Context) {
 
 	if (ext === "html" || ext === "htm") {
 		const html = await Bun.file(fullPath).text();
-		const rewritten = addCrossOriginToLocalScripts(
-			injectEmbedShim(rewriteRelativeUrls(html, hash, file)),
+		let rewritten = injectEmbedShim(
+			rewriteRelativeUrls(html, options.rewriteBaseUrl, file),
 		);
+		if (options.corsLocalScripts !== false) {
+			rewritten = addCrossOriginToLocalScripts(rewritten);
+		}
 		return new Response(rewritten, {
 			headers: {
 				"Content-Type": "text/html",
@@ -273,7 +281,7 @@ async function handleContent(c: Context) {
 
 	if (ext === "css") {
 		const css = await Bun.file(fullPath).text();
-		const rewritten = rewriteCssUrls(css, hash, file);
+		const rewritten = rewriteCssUrls(css, options.rewriteBaseUrl, file);
 		return new Response(rewritten, {
 			headers: authorAssetHeaders("text/css"),
 		});
@@ -281,6 +289,29 @@ async function handleContent(c: Context) {
 
 	return new Response(Bun.file(fullPath), {
 		headers: authorAssetHeaders(mimeType),
+	});
+}
+
+async function handleContent(c: Context) {
+	const hash = c.req.param("hash");
+	if (!hash || !HASH_PATTERN.test(hash)) {
+		return c.json({ error: "Identificador no válido" }, 404);
+	}
+
+	// RF-008 / issue #323: un hash extraído de una versión histórica no
+	// se sirve por la API pública ordinaria.
+	if (await repo.isElpxHashHistorical(getDb().db, hash)) {
+		return c.json({ error: "Archivo no encontrado" }, 404);
+	}
+
+	const url = new URL(c.req.url);
+	const rawFile = remainingPathAfter(url.pathname, hash);
+
+	return serveElpxExtractedContent({
+		hash,
+		rawFile,
+		rewriteBaseUrl: `/api/v1/elpx/${hash}/`,
+		corsLocalScripts: true,
 	});
 }
 

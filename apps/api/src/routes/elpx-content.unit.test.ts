@@ -7,8 +7,10 @@ import {
 	AUTHOR_ASSET_CSP,
 	CONTENT_ASSET_CSP,
 	CONTENT_HTML_CSP,
+	ELPX_HTML_CSP,
 	elpxContentRoutes,
 	readEmbedShimForTest,
+	remainingPathAfter,
 } from "./elpx-content.ts";
 
 // Hash de 40 hex (estilo SHA-1) que satisface /^[a-f0-9-]{8,64}$/i.
@@ -70,6 +72,8 @@ describe("elpx-content CSP (audit H-1)", () => {
 		// The escape token would let an author popup run at the platform origin.
 		expect(CONTENT_HTML_CSP).not.toContain("allow-popups-to-escape-sandbox");
 		expect(CONTENT_HTML_CSP).not.toContain("allow-same-origin");
+		// #323 extracted ELPX_HTML_CSP on main; it must stay the hardened value.
+		expect(ELPX_HTML_CSP).toBe(CONTENT_HTML_CSP);
 	});
 
 	test("non-HTML assets are served with an opaque-origin sandbox", () => {
@@ -152,5 +156,31 @@ describe("embed shim = artefacto canónico vendorizado", () => {
 		expect(served).toContain("exeMediaBridge");
 		// Y la nota legal que ADR-0018 exige que sobreviva al minificado.
 		expect(served).toContain("Dual-licensed");
+	});
+});
+
+describe("remainingPathAfter", () => {
+	test("resuelve index.html cuando el segmento es el último", () => {
+		expect(remainingPathAfter(`/api/v1/elpx/${HASH}/`, HASH)).toBe(
+			"index.html",
+		);
+		expect(
+			remainingPathAfter(
+				"/api/admin/resources/r1/versions/v1/preview/",
+				"preview",
+			),
+		).toBe("index.html");
+	});
+
+	test("conserva la ruta relativa posterior al segmento", () => {
+		expect(remainingPathAfter(`/api/v1/elpx/${HASH}/css/style.css`, HASH)).toBe(
+			"css/style.css",
+		);
+		expect(
+			remainingPathAfter(
+				"/api/admin/resources/r1/versions/v1/preview/css/style.css",
+				"preview",
+			),
+		).toBe("css/style.css");
 	});
 });

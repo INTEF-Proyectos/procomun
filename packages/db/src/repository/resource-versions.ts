@@ -333,3 +333,62 @@ export async function isUploadSessionReferencedByVersions(
 		.where(eq(elpxProjects.uploadSessionId, uploadSessionId));
 	return Number(row?.count ?? 0) > 0;
 }
+
+/**
+ * True si la sesión de upload es el `.elpx` de `resources.current_version_id`.
+ * Tras restaurar una versión, el upload histórico reutilizado vuelve a ser vigente.
+ */
+export async function isUploadSessionOfCurrentVersion(
+	db: DrizzleDB,
+	uploadSessionId: string,
+): Promise<boolean> {
+	const [row] = await db
+		.select({ id: elpxProjects.id })
+		.from(resources)
+		.innerJoin(
+			resourceVersions,
+			eq(resources.currentVersionId, resourceVersions.id),
+		)
+		.innerJoin(
+			elpxProjects,
+			eq(resourceVersions.elpxProjectId, elpxProjects.id),
+		)
+		.where(eq(elpxProjects.uploadSessionId, uploadSessionId))
+		.limit(1);
+	return Boolean(row);
+}
+
+/**
+ * True si el hash pertenece a un proyecto versionado que ya no es el vigente.
+ * Un hash desconocido o el de la versión vigente no se consideran históricos.
+ */
+export async function isElpxHashHistorical(
+	db: DrizzleDB,
+	hash: string,
+): Promise<boolean> {
+	const [project] = await db
+		.select({
+			resourceId: elpxProjects.resourceId,
+			hash: elpxProjects.hash,
+		})
+		.from(elpxProjects)
+		.where(eq(elpxProjects.hash, hash))
+		.limit(1);
+	if (!project) return false;
+
+	const [current] = await db
+		.select({ hash: elpxProjects.hash })
+		.from(resources)
+		.innerJoin(
+			resourceVersions,
+			eq(resources.currentVersionId, resourceVersions.id),
+		)
+		.innerJoin(
+			elpxProjects,
+			eq(resourceVersions.elpxProjectId, elpxProjects.id),
+		)
+		.where(eq(resources.id, project.resourceId))
+		.limit(1);
+	if (!current) return false;
+	return current.hash !== hash;
+}
