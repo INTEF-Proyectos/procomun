@@ -35,3 +35,10 @@
 ## Corrección de etiquetas al restaurar — 2026-08-12
 - [x] Sincronizar también las etiquetas cuando el snapshot restaurado no tiene palabras clave, para eliminar las heredadas de la versión posterior.
 - [x] Cubrir la restauración de una versión sin etiquetas después de otra que sí las tenía.
+
+## Acceso público solo a la versión vigente — 2026-08-13 (issue #323)
+- [x] Impedir la descarga pública de un upload referenciado solo por versiones históricas.
+- [x] Impedir la previsualización pública `/api/v1/elpx/:hash/` de hashes históricos.
+- [x] Servir la previsualización histórica desde un endpoint admin autenticado con el mismo sandbox.
+- [x] Mantener descarga admin y restauración no destructiva.
+- [x] Añadir regresiones de repositorio, API pública y panel de historial.

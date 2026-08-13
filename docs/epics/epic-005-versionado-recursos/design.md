@@ -37,3 +37,14 @@ Se conserva todo el historial en el MVP. Las FK y las guardas de retirada impide
 
 ## Búsqueda y publicación editorial
 El versionado del archivo es independiente del estado editorial del recurso. Si el recurso está publicado, la ficha pública resuelve el ELPX mediante `current_version_id`; búsqueda y feeds siguen trabajando sobre la proyección `resources`, evitando duplicados.
+
+## Acceso público a artefactos — 2026-08-13 (issue #323)
+
+Solo la versión vigente se expone en la API pública ordinaria (RF-008):
+
+- `GET /api/v1/uploads/:id/content` permite descargar un `.elpx` sin `media_item` únicamente si esa sesión pertenece al `elpx_project` de `resources.current_version_id`. Una URL conocida de una versión histórica responde `404`.
+- `GET /api/v1/elpx/:hash/` no sirve extracciones cuyo hash ya no es el de la versión vigente. Las extracciones históricas se conservan en disco para administración.
+- El historial admin sigue descargando por `GET /api/admin/uploads/:id/content`.
+- La previsualización histórica usa `GET /api/admin/resources/:resourceId/versions/:versionId/preview/*`, autenticada y con el mismo aislamiento `sandbox` (sin `allow-same-origin`) que el endpoint público. Los subrecursos se reescriben a esa ruta para no reabrir el hash público.
+
+Restaurar una versión anterior crea una nueva versión vigente que reutiliza el ELPX histórico; a partir de ese momento su hash y su upload vuelven a ser públicos.

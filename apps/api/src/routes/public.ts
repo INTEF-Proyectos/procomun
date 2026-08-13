@@ -111,10 +111,16 @@ publicRoutes.get("/uploads/:id/content", async (c) => {
 	// Sin media item la sesión solo es descargable si su .elpx forma parte del
 	// historial de versiones (issue #31): al reemplazar un archivo, el media item
 	// se borra pero la entrega publicada debe seguir descargable.
-	if (
-		!session.mediaItemId &&
-		!(await repo.isUploadSessionReferencedByVersions(getDb().db, id))
-	) {
+	// RF-008 / issue #323: solo la versión vigente se expone en la API pública.
+	const referencedByVersions = await repo.isUploadSessionReferencedByVersions(
+		getDb().db,
+		id,
+	);
+	if (referencedByVersions) {
+		if (!(await repo.isUploadSessionOfCurrentVersion(getDb().db, id))) {
+			return c.json({ error: "Archivo no encontrado" }, 404);
+		}
+	} else if (!session.mediaItemId) {
 		return c.json({ error: "Archivo no encontrado" }, 404);
 	}
 

@@ -11,6 +11,8 @@ import {
 	getCurrentElpxProjectByResourceId,
 } from "./elpx-projects.ts";
 import {
+	isElpxHashHistorical,
+	isUploadSessionOfCurrentVersion,
 	listResourceVersions,
 	publishResourceVersion,
 	restoreResourceVersion,
@@ -18,6 +20,7 @@ import {
 import { createResource, getResourceById } from "./resources.ts";
 import type { DrizzleDB } from "./shared.ts";
 import { listResourceTags, syncTagsFromKeywords } from "./tags.ts";
+import { createUploadSession } from "./uploads.ts";
 
 let db: DrizzleDB;
 
@@ -208,5 +211,109 @@ describe("resource versions", () => {
 		});
 		const current = await getCurrentElpxProjectByResourceId(db, resourceId);
 		expect(current?.id).toBe(project2.id);
+	});
+
+	test("marks only the current-version upload and hash as public", async () => {
+		const resourceId = await seedResource();
+		const historicalUploadId = `hist-${crypto.randomUUID()}`;
+		const currentUploadId = `curr-${crypto.randomUUID()}`;
+		await createUploadSession(db, {
+			id: historicalUploadId,
+			resourceId,
+			ownerId: "autora",
+			originalFilename: "v1.elpx",
+			storageKey: `resource/${resourceId}/${historicalUploadId}/v1.elpx`,
+		});
+		await createUploadSession(db, {
+			id: currentUploadId,
+			resourceId,
+			ownerId: "autora",
+			originalFilename: "v2.elpx",
+			storageKey: `resource/${resourceId}/${currentUploadId}/v2.elpx`,
+		});
+
+		const historicalHash = "i".repeat(64);
+		const currentHash = "j".repeat(64);
+		const project1 = await createElpxProject(db, {
+			resourceId,
+			hash: historicalHash,
+			extractPath: `/data/elpx/${historicalHash}`,
+			originalFilename: "v1.elpx",
+			uploadSessionId: historicalUploadId,
+		});
+		await publishResourceVersion(db, {
+			resourceId,
+			elpxProjectId: project1.id,
+			createdBy: "autora",
+		});
+		const project2 = await createElpxProject(db, {
+			resourceId,
+			hash: currentHash,
+			extractPath: `/data/elpx/${currentHash}`,
+			originalFilename: "v2.elpx",
+			uploadSessionId: currentUploadId,
+		});
+		await publishResourceVersion(db, {
+			resourceId,
+			elpxProjectId: project2.id,
+			createdBy: "autora",
+		});
+
+		expect(await isUploadSessionOfCurrentVersion(db, historicalUploadId)).toBe(
+			false,
+		);
+		expect(await isUploadSessionOfCurrentVersion(db, currentUploadId)).toBe(
+			true,
+		);
+		expect(await isElpxHashHistorical(db, historicalHash)).toBe(true);
+		expect(await isElpxHashHistorical(db, currentHash)).toBe(false);
+		expect(await isElpxHashHistorical(db, "k".repeat(64))).toBe(false);
+	});
+
+	test("restoring a version makes its hash and upload current again", async () => {
+		const resourceId = await seedResource();
+		const firstUploadId = `rest-${crypto.randomUUID()}`;
+		await createUploadSession(db, {
+			id: firstUploadId,
+			resourceId,
+			ownerId: "autora",
+			originalFilename: "v1.elpx",
+			storageKey: `resource/${resourceId}/${firstUploadId}/v1.elpx`,
+		});
+		const firstHash = "m".repeat(64);
+		const laterHash = "n".repeat(64);
+		const project1 = await createElpxProject(db, {
+			resourceId,
+			hash: firstHash,
+			extractPath: `/data/elpx/${firstHash}`,
+			originalFilename: "v1.elpx",
+			uploadSessionId: firstUploadId,
+		});
+		const v1 = await publishResourceVersion(db, {
+			resourceId,
+			elpxProjectId: project1.id,
+			createdBy: "autora",
+		});
+		const project2 = await seedProject(resourceId, laterHash);
+		await publishResourceVersion(db, {
+			resourceId,
+			elpxProjectId: project2.id,
+			createdBy: "autora",
+		});
+
+		expect(await isElpxHashHistorical(db, firstHash)).toBe(true);
+		expect(await isUploadSessionOfCurrentVersion(db, firstUploadId)).toBe(
+			false,
+		);
+
+		await restoreResourceVersion(db, {
+			resourceId,
+			versionId: v1.id,
+			createdBy: "curadora",
+		});
+
+		expect(await isElpxHashHistorical(db, firstHash)).toBe(false);
+		expect(await isElpxHashHistorical(db, laterHash)).toBe(true);
+		expect(await isUploadSessionOfCurrentVersion(db, firstUploadId)).toBe(true);
 	});
 });

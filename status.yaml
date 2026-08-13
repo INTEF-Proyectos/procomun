@@ -2603,3 +2603,15 @@ tasks:
       La restauración sincroniza las etiquetas incluso si el snapshot tiene
       keywords nulo, eliminando las etiquetas residuales de la versión posterior.
       Se añade una regresión con una v1 sin etiquetas y una v2 etiquetada.
+
+  T-2026-08-13-07572702:
+    date: 2026-08-13
+    agent: "backend-api-servicios + seguridad-privacidad-legal + qa-validacion + documentacion-y-roadmap"
+    task: "Impedir el acceso público a versiones históricas no vigentes"
+    status: Done
+    related: ["#323", "#322", "#31", "ADR-0039", "epic-005-versionado-recursos"]
+    notes: >
+      RF-008: la API pública ordinaria solo sirve el upload y el hash de la
+      versión vigente. Las históricas siguen descargándose y previsualizándose
+      desde administración, con sandbox sin allow-same-origin. Restaurar vuelve
+      a exponer el ELPX restaurado como vigente.
