@@ -10,7 +10,7 @@ describe("migración de unicidad de email", () => {
 		const journal = JSON.parse(
 			await readFile(path.join(migrationsDir, "meta/_journal.json"), "utf8"),
 		) as { entries: Array<{ tag: string }> };
-		expect(journal.entries.at(-1)?.tag).toBe(
+		expect(journal.entries.map((entry) => entry.tag)).toContain(
 			"0006_user_email_case_insensitive",
 		);
 

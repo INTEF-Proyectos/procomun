@@ -43,7 +43,7 @@ describe("ResourceVersionPanel", () => {
 					uploadSessionId: null,
 					isCurrent: false,
 					downloadUrl: null,
-					previewUrl: "/api/v1/elpx/aaaa/",
+					previewUrl: "/api/admin/resources/res-22/versions/v1/preview/",
 				}}
 				onClose={() => undefined}
 			/>,
@@ -51,7 +51,9 @@ describe("ResourceVersionPanel", () => {
 
 		expect(html).toContain("Vista previa de la versión 1");
 		expect(html).toContain("resource-version-preview-dialog");
-		expect(html).toContain('src="/api/v1/elpx/aaaa/"');
+		expect(html).toContain(
+			'src="/api/admin/resources/res-22/versions/v1/preview/"',
+		);
 		expect(html).toContain(
 			'sandbox="allow-scripts allow-popups allow-popups-to-escape-sandbox"',
 		);

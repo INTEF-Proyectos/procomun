@@ -3,7 +3,11 @@ import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { Hono } from "hono";
-import { AUTHOR_ASSET_CSP, elpxContentRoutes } from "./elpx-content.ts";
+import {
+	AUTHOR_ASSET_CSP,
+	elpxContentRoutes,
+	remainingPathAfter,
+} from "./elpx-content.ts";
 
 // Hash de 40 hex (estilo SHA-1) que satisface /^[a-f0-9-]{8,64}$/i.
 const HASH = "0123456789abcdef0123456789abcdef01234567";
@@ -89,5 +93,31 @@ describe("elpx-content CSP (XSS almacenado vía SVG)", () => {
 		expect(res.status).toBe(200);
 		expect(res.headers.get("content-type")).toBe("application/xml");
 		expectStrictAssetSandbox(res.headers.get("content-security-policy"));
+	});
+});
+
+describe("remainingPathAfter", () => {
+	test("resuelve index.html cuando el segmento es el último", () => {
+		expect(remainingPathAfter(`/api/v1/elpx/${HASH}/`, HASH)).toBe(
+			"index.html",
+		);
+		expect(
+			remainingPathAfter(
+				"/api/admin/resources/r1/versions/v1/preview/",
+				"preview",
+			),
+		).toBe("index.html");
+	});
+
+	test("conserva la ruta relativa posterior al segmento", () => {
+		expect(remainingPathAfter(`/api/v1/elpx/${HASH}/css/style.css`, HASH)).toBe(
+			"css/style.css",
+		);
+		expect(
+			remainingPathAfter(
+				"/api/admin/resources/r1/versions/v1/preview/css/style.css",
+				"preview",
+			),
+		).toBe("css/style.css");
 	});
 });
