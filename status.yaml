@@ -15,7 +15,7 @@
 metadata:
   phase: "Fase 1 — MVP de catálogo"
   epic: "Catalogo MVP operativo; flujo editorial completo; busqueda facetada implementada; backoffice con CRUD unificado; entidades (tipos, idiomas, licencias) gestionables desde admin; uploads con IndexedDB en preview mode"
-  current_agent: "@.agents/skills/qa-validacion + @.agents/skills/documentacion-y-roadmap"
+  current_agent: "@.agents/skills/evaluacion-tecnologica + @.agents/skills/devops-sre + @.agents/skills/qa-validacion + @.agents/skills/documentacion-y-roadmap"
   instructions: >
     Todos los agentes deben leer este archivo antes de comenzar cualquier tarea para entender
     el contexto global y el progreso del proyecto. Al finalizar una tarea, deben actualizar
@@ -2629,3 +2629,15 @@ tasks:
       frame-ancestors 'self'. Regresión añadida en exelearning-editor.unit.test.ts.
       Validación: bun test apps/api/src/routes/exelearning-editor.unit.test.ts
       (14 pass, 0 fail).
+
+  T-2026-08-18-12321152:
+    date: 2026-08-18
+    agent: "evaluacion-tecnologica + devops-sre + qa-validacion + documentacion-y-roadmap"
+    task: "Pasar Dependabot a ecosistema bun y fijar los workspaces del monorepo"
+    status: Done
+    related: ["ADR-0040"]
+    notes: >
+      Context7 y la documentación de GitHub confirman package-ecosystem bun
+      (GA, actualiza bun.lock) y que Bun no tiene security updates. npm queda
+      con open-pull-requests-limit: 0. Los cinco package.json no se unifican.
+      Tests en scripts/check-dependabot-workspaces.unit.test.ts.
