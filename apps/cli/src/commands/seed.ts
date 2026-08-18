@@ -11,6 +11,7 @@ import {
 	DEMO_USERS,
 } from "@procomun/db/seed-data";
 import { hashPassword } from "better-auth/crypto";
+import { applySuccessfulCliExit } from "../exit-code.ts";
 
 type SeedLog = Pick<typeof console, "log">;
 type SeedQueryResult = { rows?: unknown[] } | unknown[];
@@ -627,6 +628,7 @@ export async function seed() {
 			);
 		}
 		await seedPostgres(databaseUrl);
+		applySuccessfulCliExit();
 		return;
 	}
 
@@ -645,6 +647,7 @@ export async function seed() {
 		},
 		{ successTarget: `Directorio PGlite: ${dataDir}` },
 	);
+	applySuccessfulCliExit();
 }
 
 async function seedPostgres(databaseUrl: string) {
@@ -664,4 +667,5 @@ async function seedPostgres(databaseUrl: string) {
 		},
 		{ now, successTarget: formatPostgresSeedTarget(databaseUrl) },
 	);
+	applySuccessfulCliExit();
 }
