@@ -23,7 +23,7 @@
         "@electric-sql/pglite": "0.5.4",
         "@procomun/db": "workspace:*",
         "@tus/file-store": "2.1.1",
-        "@tus/server": "2.4.3",
+        "@tus/server": "2.4.4",
         "better-auth": "1.6.26",
         "cheerio": "^1.2.0",
         "drizzle-orm": "0.45.2",
@@ -288,7 +288,7 @@
 
     "@tus/file-store": ["@tus/file-store@2.1.1", "", { "dependencies": { "@tus/utils": "^0.7.1", "debug": "^4.3.4" }, "optionalDependencies": { "@redis/client": "^5.0.0" } }, "sha512-/uXV3Ibb4Upirrsj7lSrX+o08H7IKYEkPHV8TKAPPK6CYUcOMTilluOkwPrb9JZydLSYlIBQkhZZVS9sPEfDwQ=="],
 
-    "@tus/server": ["@tus/server@2.4.3", "", { "dependencies": { "@tus/utils": "^0.7.1", "debug": "^4.3.4", "lodash.throttle": "^4.1.1", "set-cookie-parser": "^2.7.1", "srvx": "~0.11.15" }, "optionalDependencies": { "@redis/client": "^5.0.0", "ioredis": "^5.4.1" } }, "sha512-bS0nyuc0xyK+fal9+hawnY3eMfoTSij4LqE328lKEmkl0HLDg4ld6/o5sdYMgzuNvVbvwKb7PdveDvEdqJOsYw=="],
+    "@tus/server": ["@tus/server@2.4.4", "", { "dependencies": { "@tus/utils": "^0.7.1", "debug": "^4.3.4", "lodash.throttle": "^4.1.1", "set-cookie-parser": "^2.7.1", "srvx": "~0.11.15" }, "optionalDependencies": { "@redis/client": "^5.0.0", "ioredis": "^5.4.1" } }, "sha512-Qqhu4IqRKHP3ycGc/fjmzTqrytJjpnHt4BChljla0FZgTU4kxSAS52Z++GlSw/6qlNwkd7vHAf5YQphn+nfewQ=="],
 
     "@tus/utils": ["@tus/utils@0.7.1", "", {}, "sha512-KXKK6mhsRto7cApRtJFoIovd6rAXJBUd1qR6S1ynVXApdd+jT1eBHprKP0D9oZtJwwD/B8+n3DLAm68DYPqfuQ=="],
 

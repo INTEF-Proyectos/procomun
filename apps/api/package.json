@@ -12,7 +12,7 @@
 		"@electric-sql/pglite": "0.5.4",
 		"@procomun/db": "workspace:*",
 		"@tus/file-store": "2.1.1",
-		"@tus/server": "2.4.3",
+		"@tus/server": "2.4.4",
 		"better-auth": "1.6.26",
 		"cheerio": "^1.2.0",
 		"drizzle-orm": "0.45.2",
