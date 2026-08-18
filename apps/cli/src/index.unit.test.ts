@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test";
 
+import { applySuccessfulCliExit } from "./exit-code.ts";
 import { CLI_COMMANDS, loadCommand, printHelp } from "./index.ts";
 
 describe("CLI dispatcher", () => {
@@ -23,5 +24,15 @@ describe("CLI dispatcher", () => {
 		expect(lines.join("\n")).toContain("fts:reindex");
 		expect(lines.join("\n")).toContain("import:legacy-procomun");
 		expect(lines.join("\n")).toContain("import:legacy-users");
+	});
+
+	test("un comando que termina bien no propaga el 99 residual de PGlite", () => {
+		process.exitCode = 99;
+		try {
+			expect(applySuccessfulCliExit()).toBe(0);
+			expect(process.exitCode).toBe(0);
+		} finally {
+			process.exitCode = 0;
+		}
 	});
 });
