@@ -13,7 +13,7 @@
 		"@procomun/db": "workspace:*",
 		"@tus/file-store": "2.1.1",
 		"@tus/server": "2.4.4",
-		"better-auth": "1.6.26",
+		"better-auth": "1.6.29",
 		"cheerio": "^1.2.0",
 		"drizzle-orm": "0.45.2",
 		"feed": "^6.0.0",
