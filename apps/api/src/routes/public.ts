@@ -125,7 +125,7 @@ publicRoutes.get("/uploads/:id/content", async (c) => {
 	}
 
 	const resource = await repo.getResourceById(getDb().db, session.resourceId);
-	if (!resource || resource.editorialStatus !== "published") {
+	if (resource?.editorialStatus !== "published") {
 		return c.json({ error: "Archivo no encontrado" }, 404);
 	}
 

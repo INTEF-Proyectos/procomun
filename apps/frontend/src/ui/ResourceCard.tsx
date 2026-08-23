@@ -14,7 +14,7 @@ export interface ResourceCardProps {
 	}[];
 	onToggleFavorite?: (
 		resourceId: string,
-	) => Promise<{ favorited: boolean }> | void;
+	) => Promise<{ favorited: boolean }> | undefined;
 	isFavorited?: boolean;
 	className?: string;
 }
