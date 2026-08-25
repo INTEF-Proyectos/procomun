@@ -283,3 +283,14 @@ ADR-0039:
     Issue #31. Cada nuevo .elpx crea automáticamente la siguiente versión y actualiza
     current_version_id. No hay publicación manual de versiones ni notas de versión;
     se conservan historial, descarga y restauración no destructiva.
+
+ADR-0040:
+  title: "Dependabot con ecosistema Bun y workspaces del monorepo"
+  status: Aceptado
+  date: 2026-08-18
+  file: 0040-dependabot-bun-y-workspaces-monorepo.md
+  notes: >
+    Version updates con package-ecosystem bun (GA, actualiza bun.lock). npm se
+    conserva solo para security updates (open-pull-requests-limit: 0) porque
+    GitHub aún no las ofrece para Bun. Los cinco package.json del monorepo no
+    se unifican: son workspaces con grafos distintos.

@@ -1,3 +1,5 @@
+import { applySuccessfulCliExit } from "./exit-code.ts";
+
 type CliHandler = (args: string[]) => Promise<void>;
 
 export const CLI_COMMANDS = [
@@ -77,11 +79,16 @@ export async function runCli(argv = process.argv.slice(2)) {
 	}
 
 	await handler(args);
+	applySuccessfulCliExit();
 }
 
 if (import.meta.main) {
-	runCli().catch((err) => {
-		console.error("Error:", err.message ?? err);
-		process.exit(1);
-	});
+	runCli()
+		.then(() => {
+			process.exit(applySuccessfulCliExit());
+		})
+		.catch((err) => {
+			console.error("Error:", err.message ?? err);
+			process.exit(1);
+		});
 }

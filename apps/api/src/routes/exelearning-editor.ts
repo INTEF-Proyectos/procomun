@@ -120,9 +120,10 @@ exelearningEditorRoutes.get("/index.html", async (c) => {
 			// Evita que el navegador reinterprete el bootstrap como otro MIME.
 			"X-Content-Type-Options": "nosniff",
 			// Defense-in-depth: el escape de buildEditorConfigScript es el fix
-			// principal de XSS; esta CSP limita plugins y el ancestro del frame.
+			// principal de XSS; solo se permiten objetos PDF temporales creados por
+			// eXeLearning (blob:), nunca recursos de red ni plugins externos.
 			"Content-Security-Policy":
-				"object-src 'none'; base-uri 'self'; frame-ancestors 'self'",
+				"object-src blob:; base-uri 'self'; frame-ancestors 'self'",
 		},
 	});
 });

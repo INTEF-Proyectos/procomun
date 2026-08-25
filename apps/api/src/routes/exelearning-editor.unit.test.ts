@@ -142,11 +142,14 @@ describe("GET /api/v1/exelearning-editor/index.html", () => {
 		expect(html).not.toContain("<img src=x");
 		// El cierre de script del atacante queda como escape unicode JSON.
 		expect(html).toContain("\\u003c/script\\u003e");
-		// Defensa en profundidad: CSP + nosniff del bootstrap presentes.
+		// Defensa en profundidad: CSP + nosniff del bootstrap presentes. El
+		// editor usa <embed src="blob:..."> para mostrar PDFs durante la edición;
+		// la política permite solo ese esquema, no objetos de red.
 		const csp = res.headers.get("content-security-policy");
 		expect(csp).not.toBeNull();
 		expect(csp).toContain("frame-ancestors");
-		expect(csp).toContain("object-src 'none'");
+		expect(csp).toContain("object-src blob:");
+		expect(csp).not.toContain("object-src 'self'");
 		expect(res.headers.get("x-content-type-options")).toBe("nosniff");
 	});
 });

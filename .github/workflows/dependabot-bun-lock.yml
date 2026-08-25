@@ -1,5 +1,10 @@
 name: Sync bun.lock on Dependabot PRs
 
+# El ecosistema nativo `bun` (ADR-0040) ya regenera bun.lock en version
+# updates. Este workflow sigue haciendo falta para los security updates
+# del ecosistema `npm` (open-pull-requests-limit: 0): GitHub aún no
+# publica security updates para `bun`, y npm solo toca package.json.
+#
 # OJO con `pull_request_target`: corre con los secretos del repo base y con
 # contents: write, y este workflow hace checkout del head de la PR y ejecuta
 # `bun install` sobre él. La guarda `github.actor == 'dependabot[bot]'` de abajo

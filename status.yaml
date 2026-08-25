@@ -15,7 +15,7 @@
 metadata:
   phase: "Fase 1 — MVP de catálogo"
   epic: "Catalogo MVP operativo; flujo editorial completo; busqueda facetada implementada; backoffice con CRUD unificado; entidades (tipos, idiomas, licencias) gestionables desde admin; uploads con IndexedDB en preview mode"
-  current_agent: "@.agents/skills/qa-validacion + @.agents/skills/documentacion-y-roadmap"
+  current_agent: "@.agents/skills/devops-sre + @.agents/skills/qa-validacion"
   instructions: >
     Todos los agentes deben leer este archivo antes de comenzar cualquier tarea para entender
     el contexto global y el progreso del proyecto. Al finalizar una tarea, deben actualizar
@@ -2631,3 +2631,55 @@ tasks:
       CONTENT_HTML_CSP. status.yaml auto-mergeó. Validación: bun test de
       elpx-content, versions, public-version-access, ResourceVersionPanel y
       resource-versions.integration (32 pass).
+
+  T-2026-08-13-11414543:
+    date: 2026-08-13
+    agent: "backend-api-servicios + seguridad-privacidad-legal + qa-validacion"
+    task: "Permitir la visualización de PDF blob en el editor eXeLearning incrustado"
+    status: Done
+    related: []
+    notes: >
+      La CSP del bootstrap del editor bloqueaba object-src por completo, aunque
+      eXeLearning usa <embed src="blob:..."> para la previsualización de PDF.
+      Se limita object-src al esquema blob:; se mantienen base-uri 'self' y
+      frame-ancestors 'self'. Regresión añadida en exelearning-editor.unit.test.ts.
+      Validación: bun test apps/api/src/routes/exelearning-editor.unit.test.ts
+      (14 pass, 0 fail).
+
+  T-2026-08-18-12321152:
+    date: 2026-08-18
+    agent: "evaluacion-tecnologica + devops-sre + qa-validacion + documentacion-y-roadmap"
+    task: "Pasar Dependabot a ecosistema bun y fijar los workspaces del monorepo"
+    status: Done
+    related: ["ADR-0040"]
+    notes: >
+      Context7 y la documentación de GitHub confirman package-ecosystem bun
+      (GA, actualiza bun.lock) y que Bun no tiene security updates. npm queda
+      con open-pull-requests-limit: 0. Los cinco package.json no se unifican.
+      Tests en scripts/check-dependabot-workspaces.unit.test.ts.
+
+  T-2026-08-18-13385456:
+    date: 2026-08-18
+    agent: "backend-api-servicios + devops-sre + qa-validacion"
+    task: "Arreglar e2e en main y PRs #333/#328: seed CLI sale con código 99"
+    status: Done
+    related: ["#333", "#328", "#329"]
+    notes: >
+      Causa: el bump de PGlite 0.5.4 → 0.5.5 (#329) hace que close() preserve
+      process.exitCode. El runtime WASM deja 99 (quit_()) y el seed de e2e,
+      aunque completa, falla el job en Linux. CI Pipeline en main y e2e-chromium
+      de #333 y #328 mueren en "Seed database" con exit 99. El CLI fuerza 0
+      tras un comando exitoso. Validación: bun test de exit-code, index y seed
+      (13 pass, 0 fail); check-test-files y biome check OK.
+
+  T-2026-08-18-13553929:
+    date: 2026-08-18
+    agent: "devops-sre + qa-validacion"
+    task: "Congelar bun.lock en CI para no volver a publicar con lockfile sucio"
+    status: Done
+    related: ["#338", "#328", "#327", "ADR-0040"]
+    notes: >
+      Mezclar PRs npm/bun dejó hono 4.13.2 en package.json y 4.13.1 en bun.lock.
+      El job docker de main falló con frozen-lockfile. #328 regeneró el lockfile;
+      CI y e2e pasan a bun install --frozen-lockfile para pillar el desfase en
+      el build. Validación: bun install --frozen-lockfile exit 0 sobre main.
