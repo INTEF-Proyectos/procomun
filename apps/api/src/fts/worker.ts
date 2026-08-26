@@ -60,7 +60,7 @@ export async function processExtraction(
 
 	// Get upload session to find file details
 	const session = await repo.getUploadSessionById(db, uploadId);
-	if (!session || session.status !== "completed") {
+	if (session?.status !== "completed") {
 		await saveExtractionResult(db, resourceId, {
 			text: "",
 			status: "skipped",
