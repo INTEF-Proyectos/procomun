@@ -39,8 +39,7 @@ export function resolveEmbedMessage(
 
 	const data = event.data as EmbedMessage | null;
 	if (
-		!data ||
-		data.source !== "procomun-elpx-embed" ||
+		data?.source !== "procomun-elpx-embed" ||
 		data.action !== "play" ||
 		typeof data.url !== "string"
 	) {

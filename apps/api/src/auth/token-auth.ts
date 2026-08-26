@@ -40,7 +40,7 @@ function checkRateLimit(userId: string): {
  */
 export async function tokenAuthMiddleware(c: Context<AuthEnv>, next: Next) {
 	const authHeader = c.req.header("Authorization");
-	if (!authHeader || !authHeader.startsWith("Bearer ")) {
+	if (!authHeader?.startsWith("Bearer ")) {
 		return c.json(
 			{
 				error:
@@ -78,7 +78,7 @@ export async function tokenAuthMiddleware(c: Context<AuthEnv>, next: Next) {
 
 	// Load the user
 	const user = await repo.getUserById(db, result.userId);
-	if (!user || !user.isActive) {
+	if (!user?.isActive) {
 		return c.json({ error: "Usuario no activo" }, 403);
 	}
 
