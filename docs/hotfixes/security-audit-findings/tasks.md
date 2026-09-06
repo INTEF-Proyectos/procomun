@@ -9,4 +9,4 @@
 - [x] Aplicar cuota acumulada de uploads.
 - [x] Ejecutar `bun test`, comprobación de tipos y lint.
 - [x] Crear ADR y actualizar estado.
-- [ ] Abrir PR.
+- [x] Abrir PR #350.
