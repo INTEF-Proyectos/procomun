@@ -66,6 +66,17 @@ blocking_adrs:
 
 tasks:
 
+  T-2026-09-06-08510442:
+    date: 2026-09-06
+    agent: "seguridad-privacidad-legal + arquitectura-solucion + backend-api-servicios + qa-validacion + documentacion-y-roadmap"
+    task: "Corregir cinco hallazgos confirmados de la auditoría de seguridad y abrir PR"
+    status: Done
+    related: [ADR-0041]
+    notes: >
+      Auditoría realizada con Codex GPT-6 y el skill security-audit. Corregidos autorización de tokens,
+      privacidad de borradores, límites ELPX, abuso de métricas de descarga y cuotas de uploads.
+      Validación: bun test 1091 pass, check-types 0 errores y lint correcto.
+
   T-2026-03-25-001:
     date: 2026-03-25
     agent: "Director de Producto"

@@ -143,22 +143,30 @@ async function getTusServer() {
 					role: user.role ?? "reader",
 				});
 
-				await repo.createUploadSession(getDb().db, {
-					id: upload.id,
-					resourceId,
-					ownerId: user.id,
-					originalFilename,
-					mimeType,
-					storageKey: buildUploadStorageKey(
+				const reserved = await repo.createUploadSessionWithinQuota(
+					getDb().db,
+					{
+						id: upload.id,
 						resourceId,
-						upload.id,
+						ownerId: user.id,
 						originalFilename,
-					),
-					checksumAlgorithm,
-					finalChecksum,
-					declaredSize: upload.size ?? null,
-					expiresAt: new Date(Date.now() + config.sessionTtlMs),
-				});
+						mimeType,
+						storageKey: buildUploadStorageKey(
+							resourceId,
+							upload.id,
+							originalFilename,
+						),
+						checksumAlgorithm,
+						finalChecksum,
+						// Upload-Defer-Length reserva el peor caso hasta conocer el tamaño.
+						declaredSize: upload.size ?? config.maxFileSizeBytes,
+						expiresAt: new Date(Date.now() + config.sessionTtlMs),
+					},
+					config.maxTotalBytesPerUser,
+				);
+				if (!reserved) {
+					throw { status_code: 413, body: "Cuota de almacenamiento superada" };
+				}
 
 				return {
 					metadata: {

@@ -12,7 +12,13 @@ export async function resolveResourceBySlug(slug: string) {
 			editorialStatus: resources.editorialStatus,
 		})
 		.from(resources)
-		.where(and(eq(resources.slug, slug), isNull(resources.deletedAt)))
+		.where(
+			and(
+				eq(resources.slug, slug),
+				eq(resources.editorialStatus, "published"),
+				isNull(resources.deletedAt),
+			),
+		)
 		.limit(1);
 	return rows[0] ?? null;
 }
