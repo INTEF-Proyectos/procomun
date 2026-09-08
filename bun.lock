@@ -5,7 +5,7 @@
     "": {
       "name": "procomun",
       "dependencies": {
-        "@electric-sql/pglite": "0.5.5",
+        "@electric-sql/pglite": "0.5.8",
         "drizzle-orm": "^0.45.2",
       },
       "devDependencies": {
@@ -20,7 +20,7 @@
       "name": "@procomun/api",
       "version": "0.1.0",
       "dependencies": {
-        "@electric-sql/pglite": "0.5.5",
+        "@electric-sql/pglite": "0.5.8",
         "@procomun/db": "workspace:*",
         "@tus/file-store": "2.1.1",
         "@tus/server": "2.4.4",
@@ -41,7 +41,7 @@
       "name": "@procomun/cli",
       "version": "0.1.0",
       "dependencies": {
-        "@electric-sql/pglite": "0.5.5",
+        "@electric-sql/pglite": "0.5.8",
         "@procomun/db": "workspace:*",
         "better-auth": "1.6.29",
         "hono": "4.13.2",
@@ -73,7 +73,7 @@
       "name": "@procomun/db",
       "version": "0.1.0",
       "dependencies": {
-        "@electric-sql/pglite": "0.5.5",
+        "@electric-sql/pglite": "0.5.8",
         "@faker-js/faker": "10.6.0",
         "drizzle-orm": "0.45.2",
       },
@@ -124,7 +124,7 @@
 
     "@drizzle-team/brocli": ["@drizzle-team/brocli@0.10.2", "", {}, "sha512-z33Il7l5dKjUgGULTqBsQBQwckHh5AbIuxhdsIxDDiZAzBOrZO6q9ogcWC65kU382AfynTfgNumVcNIjuIua6w=="],
 
-    "@electric-sql/pglite": ["@electric-sql/pglite@0.5.5", "", {}, "sha512-QeZ+oB7QaU4EJj2awrB8hwFZ5TXxLRBQ9Gfq0dQauYDdWsRtuWRCERgtri35vRfL07KQHlVlc/4Qxvn7a5AXeA=="],
+    "@electric-sql/pglite": ["@electric-sql/pglite@0.5.8", "", {}, "sha512-n9tsbUOhwx2epK1V0ZG9Ar4SHWUju04dhmzZXiSBXwBoleOvIfals33NAaWgagQVAL4Rbvx/Ptsu3P+pA09f6Q=="],
 
     "@esbuild-kit/core-utils": ["@esbuild-kit/core-utils@3.3.2", "", { "dependencies": { "esbuild": "~0.18.20", "source-map-support": "^0.5.21" } }, "sha512-sPRAnw9CdSsRmEtnsl2WXWdyquogVpB3yZ3dgwJfe8zrOzTsV7cJvmwrKVa+0ma5BoiGJ+BoqkMvawbayKUsqQ=="],
 
