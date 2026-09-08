@@ -9,7 +9,7 @@
 		"test": "bun test"
 	},
 	"dependencies": {
-		"@electric-sql/pglite": "0.5.5",
+		"@electric-sql/pglite": "0.5.8",
 		"@procomun/db": "workspace:*",
 		"@tus/file-store": "2.1.1",
 		"@tus/server": "2.4.4",
@@ -17,7 +17,7 @@
 		"cheerio": "^1.2.0",
 		"drizzle-orm": "0.45.2",
 		"feed": "^6.0.0",
-		"hono": "4.13.2",
+		"hono": "4.13.7",
 		"mammoth": "^1.12.2",
 		"nodemailer": "^9.0.5",
 		"pdf-parse": "^2.4.5"
