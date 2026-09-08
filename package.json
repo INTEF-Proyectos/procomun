@@ -42,7 +42,7 @@
 		"typescript": "7.0.2"
 	},
 	"dependencies": {
-		"@electric-sql/pglite": "0.5.5",
+		"@electric-sql/pglite": "0.5.8",
 		"drizzle-orm": "^0.45.2"
 	}
 }
