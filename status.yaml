@@ -2678,3 +2678,25 @@ tasks:
       El job docker de main falló con frozen-lockfile. #328 regeneró el lockfile;
       CI y e2e pasan a bun install --frozen-lockfile para pillar el desfase en
       el build. Validación: bun install --frozen-lockfile exit 0 sobre main.
+
+  T-2026-09-10-18363469:
+    date: 2026-09-10
+    agent: "devops-sre + qa-validacion"
+    task: "Imagen Docker publicada sin dependencias: bucle de reinicio al desplegar"
+    status: Done
+    related: ["#267"]
+    notes: >
+      La imagen ghcr.io/intef-proyectos/procomun:main entraba en bucle de
+      reinicio con "Cannot find package 'hono' from apps/api/src/app.ts" y
+      "Cannot find package '@procomun/db'". Causa real: Bun instala con linker
+      aislado (node_modules/.bun + granja de symlinks por workspace) y las
+      etapas api, seed y app solo copiaban /app/node_modules del builder, sin
+      apps/api, apps/cli ni packages/db. #267 lo arregló solo para
+      frontend-build. Además .dockerignore ignoraba únicamente el node_modules
+      raíz, así que el COPY del código podía superponer los del host. Se copian
+      los node_modules de cada workspace después del código y se pasa a
+      **/node_modules. Validación: docker build --target app + docker compose up
+      sin el apaño de entrypoint → HTTP 200, 0 reinicios, seed OK, e import de
+      apps/api/src/app.ts y apps/cli/src/commands/seed.ts sin fallo de
+      resolución. Guard de regresión en
+      scripts/check-dockerfile-workspaces.unit.test.ts.
