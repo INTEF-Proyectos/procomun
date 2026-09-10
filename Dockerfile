@@ -35,11 +35,12 @@ RUN RELEASE_URL=$(curl -s "https://api.github.com/repos/exelearning/exelearning/
 # --- Build frontend (Vite SPA) ---
 FROM base AS frontend-build
 
-COPY --from=install /app/node_modules ./node_modules
-COPY --from=install /app/apps/frontend/node_modules ./apps/frontend/node_modules
 COPY package.json tsconfig.json ./
 COPY apps/frontend/ apps/frontend/
 COPY packages/db/ packages/db/
+COPY --from=install /app/node_modules ./node_modules
+COPY --from=install /app/apps/frontend/node_modules ./apps/frontend/node_modules
+COPY --from=install /app/packages/db/node_modules ./packages/db/node_modules
 
 ENV NODE_ENV=production
 RUN cd apps/frontend && bun run build
@@ -64,11 +65,18 @@ RUN mkdir -p /app/apps/frontend/dist/dev/data \
 # --- API (produccion) ---
 FROM base AS api
 
-COPY --from=install /app/node_modules ./node_modules
 COPY package.json tsconfig.json ./
 COPY apps/api/ apps/api/
 COPY apps/cli/ apps/cli/
 COPY packages/db/ packages/db/
+COPY --from=install /app/node_modules ./node_modules
+
+# Bun usa linker aislado: las dependencias reales estan en node_modules/.bun y
+# cada workspace tiene su granja de symlinks. Sin estos COPY faltan hono,
+# better-auth, drizzle-orm y el enlace @procomun/db en runtime.
+COPY --from=install /app/apps/api/node_modules ./apps/api/node_modules
+COPY --from=install /app/apps/cli/node_modules ./apps/cli/node_modules
+COPY --from=install /app/packages/db/node_modules ./packages/db/node_modules
 COPY --from=exelearning-editor /exelearning-editor ./apps/api/static/exelearning-editor
 
 ENV NODE_ENV=production
@@ -79,11 +87,18 @@ CMD ["bun", "run", "apps/api/src/index.ts"]
 # --- Seed (one-shot) ---
 FROM base AS seed
 
-COPY --from=install /app/node_modules ./node_modules
 COPY package.json tsconfig.json ./
 COPY apps/api/ apps/api/
 COPY apps/cli/ apps/cli/
 COPY packages/db/ packages/db/
+COPY --from=install /app/node_modules ./node_modules
+
+# Bun usa linker aislado: las dependencias reales estan en node_modules/.bun y
+# cada workspace tiene su granja de symlinks. Sin estos COPY faltan hono,
+# better-auth, drizzle-orm y el enlace @procomun/db en runtime.
+COPY --from=install /app/apps/api/node_modules ./apps/api/node_modules
+COPY --from=install /app/apps/cli/node_modules ./apps/cli/node_modules
+COPY --from=install /app/packages/db/node_modules ./packages/db/node_modules
 
 ENV NODE_ENV=production
 
@@ -100,11 +115,18 @@ EXPOSE 80/tcp
 # --- All-in-one (API + frontend + seed) ---
 FROM base AS app
 
-COPY --from=install /app/node_modules ./node_modules
 COPY package.json tsconfig.json ./
 COPY apps/api/ apps/api/
 COPY apps/cli/ apps/cli/
 COPY packages/db/ packages/db/
+COPY --from=install /app/node_modules ./node_modules
+
+# Bun usa linker aislado: las dependencias reales estan en node_modules/.bun y
+# cada workspace tiene su granja de symlinks. Sin estos COPY faltan hono,
+# better-auth, drizzle-orm y el enlace @procomun/db en runtime.
+COPY --from=install /app/apps/api/node_modules ./apps/api/node_modules
+COPY --from=install /app/apps/cli/node_modules ./apps/cli/node_modules
+COPY --from=install /app/packages/db/node_modules ./packages/db/node_modules
 COPY --from=exelearning-editor /exelearning-editor ./apps/api/static/exelearning-editor
 COPY --from=frontend-build /app/apps/frontend/dist ./frontend-dist
 COPY docker-entrypoint.sh ./
