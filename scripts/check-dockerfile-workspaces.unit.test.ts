@@ -13,9 +13,9 @@ type Stage = { name: string; lines: string[] };
 function parseStages(dockerfile: string): Stage[] {
 	const stages: Stage[] = [];
 	for (const line of dockerfile.split("\n")) {
-		const from = line.match(/^FROM\s+\S+\s+AS\s+(\S+)/i);
-		if (from) stages.push({ name: from[1], lines: [] });
-		else if (stages.length > 0) stages.at(-1)?.lines.push(line.trim());
+		const name = line.match(/^FROM\s+\S+\s+AS\s+(\S+)/i)?.[1];
+		if (name) stages.push({ name, lines: [] });
+		else stages.at(-1)?.lines.push(line.trim());
 	}
 	return stages;
 }
