@@ -10,7 +10,7 @@
 		"test": "bun test"
 	},
 	"dependencies": {
-		"@inlang/paraglide-js": "^2.25.0",
+		"@inlang/paraglide-js": "^2.25.2",
 		"@procomun/db": "workspace:*",
 		"@uppy/core": "5.2.0",
 		"@uppy/dashboard": "6.0.0",
