@@ -33,6 +33,7 @@ export const SCHEMA_STATEMENTS = [
 		token TEXT NOT NULL UNIQUE,
 		ip_address TEXT,
 		user_agent TEXT,
+		impersonated_by TEXT,
 		created_at TIMESTAMP NOT NULL DEFAULT NOW(),
 		updated_at TIMESTAMP NOT NULL DEFAULT NOW()
 	)`,
@@ -272,6 +273,10 @@ export const SCHEMA_STATEMENTS = [
 	END $$`,
 	`DO $$ BEGIN
 		ALTER TABLE "user" ADD COLUMN deleted_at TIMESTAMP;
+	EXCEPTION WHEN duplicate_column THEN NULL;
+	END $$`,
+	`DO $$ BEGIN
+		ALTER TABLE "session" ADD COLUMN impersonated_by TEXT;
 	EXCEPTION WHEN duplicate_column THEN NULL;
 	END $$`,
 	`DO $$ BEGIN
