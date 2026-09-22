@@ -51,6 +51,8 @@ export const session = pgTable("session", {
 	token: text("token").notNull().unique(),
 	ipAddress: text("ip_address"),
 	userAgent: text("user_agent"),
+	// Plugin admin de better-auth (impersonación); 1.7 exige que exista.
+	impersonatedBy: text("impersonated_by"),
 	createdAt: timestamp("created_at").notNull().defaultNow(),
 	updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });

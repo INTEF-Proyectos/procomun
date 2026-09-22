@@ -10,7 +10,7 @@
 	"dependencies": {
 		"@electric-sql/pglite": "0.5.8",
 		"@procomun/db": "workspace:*",
-		"better-auth": "1.6.29",
+		"better-auth": "1.7.4",
 		"hono": "4.13.7",
 		"postgres": "3.4.9"
 	}
