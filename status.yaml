@@ -2700,3 +2700,26 @@ tasks:
       apps/api/src/app.ts y apps/cli/src/commands/seed.ts sin fallo de
       resolución. Guard de regresión en
       scripts/check-dockerfile-workspaces.unit.test.ts.
+
+  T-2026-09-15-17302086:
+    date: 2026-09-15
+    agent: "backend-api-servicios + qa-validacion"
+    task: "better-auth 1.6.29 → 1.7.4: el login devolvía 500 por columna session.impersonated_by ausente"
+    status: Done
+    related: ["#361"]
+    notes: >
+      El bump de dependabot (#361) rompía todos los e2e con login: la página se
+      quedaba en /login. Causa real: desde 1.7 el adaptador Drizzle de
+      better-auth valida el esquema al primer uso y lanza SchemaMismatchError
+      (500 en /api/auth/sign-in/email) porque el plugin admin declara
+      session.impersonatedBy y ni el esquema Drizzle ni las tablas PGlite ni
+      las migraciones la tenían (en 1.6 se ignoraba en silencio). Se añade la
+      columna en packages/db/src/schema/auth.ts, en SCHEMA_STATEMENTS de
+      setup.ts (CREATE TABLE + retrofit idempotente para directorios PGlite ya
+      existentes) y en la migración 0008_session_impersonated_by para Postgres.
+      Validación: sign-in local con 1.7.4 pasa de 500 a 200 con cookie de
+      sesión; guardas de regresión en
+      apps/api/src/auth/schema-parity.unit.test.ts (compara los campos del
+      plugin admin con getTableColumns) y en
+      packages/db/src/migrations.unit.test.ts (migración 0008 y createTables
+      sobre BD nueva y previa). Sustituye a #361.
