@@ -12,14 +12,14 @@ export function getCurrentUser(c: Context<AuthEnv>) {
 }
 
 export function hasMinRole(
-	role: string | undefined,
+	role: string | null | undefined,
 	minRole: keyof typeof ROLE_LEVELS,
 ) {
 	return (ROLE_LEVELS[role ?? "reader"] ?? 0) >= (ROLE_LEVELS[minRole] ?? 0);
 }
 
 export function canManageResource(
-	user: { id: string; role?: string },
+	user: { id: string; role?: string | null },
 	resource: {
 		createdBy?: string | null;
 		assignedCuratorId?: string | null;

@@ -2,7 +2,11 @@ import { access, mkdir, readFile, rm } from "node:fs/promises";
 import path from "node:path";
 import type { ElpxMetadata } from "@procomun/db/elpx-metadata";
 import { parseContentXml } from "@procomun/db/elpx-metadata";
-import { safeExtractElpx } from "./elpx-safe-extract.ts";
+import {
+	DEFAULT_ELPX_EXTRACT_LIMITS,
+	type ElpxExtractLimits,
+	safeExtractElpx,
+} from "./elpx-safe-extract.ts";
 
 export type { ElpxMetadata };
 
@@ -60,6 +64,7 @@ async function validateElpxFile(filePath: string): Promise<void> {
 
 export async function parseElpxMetadata(
 	filePath: string,
+	limits: ElpxExtractLimits = DEFAULT_ELPX_EXTRACT_LIMITS,
 ): Promise<ElpxMetadata> {
 	await validateElpxFile(filePath);
 
@@ -72,14 +77,7 @@ export async function parseElpxMetadata(
 	await mkdir(tempDir, { recursive: true });
 
 	try {
-		const proc = Bun.spawn(
-			["unzip", "-o", "-q", filePath, "content.xml", "-d", tempDir],
-			{
-				stdout: "ignore",
-				stderr: "ignore",
-			},
-		);
-		await proc.exited;
+		await safeExtractElpx(filePath, tempDir, limits);
 
 		const contentPath = path.join(tempDir, "content.xml");
 		if (!(await fileExists(contentPath))) {

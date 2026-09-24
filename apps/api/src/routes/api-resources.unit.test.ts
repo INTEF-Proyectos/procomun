@@ -183,4 +183,46 @@ describe("API Resources — permisos", () => {
 		);
 		expect(updateRes.status).toBe(403);
 	});
+
+	test("curator no puede leer, modificar ni eliminar un borrador ajeno", async () => {
+		const ownerId = `owner-${crypto.randomUUID()}`;
+		const ownerApp = createApiApp({
+			id: ownerId,
+			role: "author",
+			email: `${ownerId}@test.com`,
+			name: "Owner",
+		});
+		const createRes = await ownerApp.request("/api/v1/publish/resources", {
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify(validResource),
+		});
+		const { id } = (await createRes.json()) as { id: string };
+		const curatorApp = createApiApp({
+			id: `curator-${crypto.randomUUID()}`,
+			role: "curator",
+			email: "curator@test.com",
+			name: "Curator",
+		});
+
+		expect(
+			(await curatorApp.request(`/api/v1/publish/resources/${id}`)).status,
+		).toBe(404);
+		expect(
+			(
+				await curatorApp.request(`/api/v1/publish/resources/${id}`, {
+					method: "PUT",
+					headers: { "Content-Type": "application/json" },
+					body: JSON.stringify({ title: "Intento de cambio" }),
+				})
+			).status,
+		).toBe(403);
+		expect(
+			(
+				await curatorApp.request(`/api/v1/publish/resources/${id}`, {
+					method: "DELETE",
+				})
+			).status,
+		).toBe(403);
+	});
 });

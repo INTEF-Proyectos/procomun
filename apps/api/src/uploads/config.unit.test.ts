@@ -16,7 +16,12 @@ describe("upload config helpers", () => {
 		expect(config.maxFileSizeBytes).toBe(10 * 1024 * 1024 * 1024);
 		expect(config.maxFilesPerBatch).toBe(20);
 		expect(config.maxConcurrentPerUser).toBe(3);
+		expect(config.maxTotalBytesPerUser).toBe(50 * 1024 * 1024 * 1024);
 		expect(config.allowedExtensions.includes(".pdf")).toBe(true);
+		expect(
+			getUploadConfig({ UPLOAD_MAX_TOTAL_BYTES_PER_USER: "2048" })
+				.maxTotalBytesPerUser,
+		).toBe(2048);
 	});
 
 	test("sanitiza nombres de archivo para storage", () => {
@@ -60,6 +65,13 @@ describe("upload config helpers", () => {
 			validateUploadCandidate(config, { filename: "video.mp4", fileSize: 1024 })
 				.ok,
 		).toBe(false);
+		expect(
+			validateUploadCandidate(config, {
+				filename: "video.mp4",
+				mimeType: "video/mp4",
+				fileSize: null,
+			}).ok,
+		).toBe(true);
 		expect(
 			validateUploadCandidate(config, {
 				filename: "dataset.csv",

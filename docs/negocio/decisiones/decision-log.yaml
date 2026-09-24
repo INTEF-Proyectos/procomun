@@ -294,3 +294,13 @@ ADR-0040:
     conserva solo para security updates (open-pull-requests-limit: 0) porque
     GitHub aún no las ofrece para Bun. Los cinco package.json del monorepo no
     se unifican: son workspaces con grafos distintos.
+
+ADR-0041:
+  title: "Controles de seguridad en recursos, ELPX y uploads"
+  status: Aceptado
+  date: 2026-09-06
+  file: 0041-controles-seguridad-recursos-uploads.md
+  notes: >
+    Auditoría realizada con Codex GPT-6 y el skill security-audit. Unifica RBAC,
+    protege borradores, adelanta límites anti ZIP bomb y añade controles contra
+    abuso de descargas y almacenamiento.

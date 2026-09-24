@@ -81,6 +81,10 @@ export function getUploadConfig(
 		),
 		maxFilesPerBatch: parseNumberEnv(env.UPLOAD_MAX_FILES_PER_BATCH, 20),
 		maxConcurrentPerUser: parseNumberEnv(env.UPLOAD_MAX_CONCURRENT_PER_USER, 3),
+		maxTotalBytesPerUser: parseNumberEnv(
+			env.UPLOAD_MAX_TOTAL_BYTES_PER_USER,
+			50 * 1024 * 1024 * 1024,
+		),
 		chunkSizeBytes: parseNumberEnv(
 			env.UPLOAD_CHUNK_SIZE_BYTES,
 			5 * 1024 * 1024,
@@ -207,7 +211,7 @@ export function validateUploadCandidate(
 		return { ok: false, error: `Tipo MIME no permitido: ${data.mimeType}` };
 	}
 
-	if (data.fileSize && data.fileSize > config.maxFileSizeBytes) {
+	if (data.fileSize != null && data.fileSize > config.maxFileSizeBytes) {
 		return { ok: false, error: "El archivo supera el límite configurado" };
 	}
 
