@@ -248,6 +248,21 @@ describe("parseElpxMetadata", () => {
 			"no contiene content.xml",
 		);
 	});
+
+	it("aplica los límites de extracción antes de leer content.xml", async () => {
+		const zipBombPath = path.join(tempDir, "content-xml-bomb.elpx");
+		await createZipFile(zipBombPath, {
+			"content.xml": `<ode>${" ".repeat(4096)}</ode>`,
+		});
+
+		await expect(
+			parseElpxMetadata(zipBombPath, {
+				maxEntries: 10,
+				maxTotalUncompressed: 1024,
+				maxCompressionRatio: Number.MAX_SAFE_INTEGER,
+			}),
+		).rejects.toThrow(/tamaño máximo permitido/i);
+	});
 });
 
 // ---------------------------------------------------------------------------

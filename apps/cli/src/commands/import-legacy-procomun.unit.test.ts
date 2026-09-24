@@ -70,6 +70,7 @@ function buildMockDeps(
 			maxFileSizeBytes: 0,
 			maxFilesPerBatch: 0,
 			maxConcurrentPerUser: 0,
+			maxTotalBytesPerUser: 0,
 			chunkSizeBytes: 0,
 			sessionTtlMs: 0,
 			allowedMimeTypes: [],

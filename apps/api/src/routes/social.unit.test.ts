@@ -265,7 +265,7 @@ describe("Social — Downloads", () => {
 		});
 		expect(res.status).toBe(200);
 		const body = (await res.json()) as { count: number };
-		expect(body.count).toBe(3);
+		expect(body.count).toBe(1);
 	});
 
 	test("POST /resources/:slug/download → stats reflect download count after tracking", async () => {
@@ -280,7 +280,7 @@ describe("Social — Downloads", () => {
 		const statsRes = await anonApp.request(`/api/v1/resources/${slug}/stats`);
 		expect(statsRes.status).toBe(200);
 		const stats = (await statsRes.json()) as { downloadCount: number };
-		expect(stats.downloadCount).toBe(2);
+		expect(stats.downloadCount).toBe(1);
 	});
 
 	test("POST /resources/:slug/download → 404 for non-existent resource", async () => {

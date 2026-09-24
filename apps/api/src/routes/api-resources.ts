@@ -6,6 +6,7 @@ import {
 import { Hono } from "hono";
 import { logActivity } from "../activity/log.ts";
 import type { AuthEnv } from "../auth/middleware.ts";
+import { canManageResource } from "../auth/roles.ts";
 import { getDb } from "../db.ts";
 
 const apiResourceRoutes = new Hono<AuthEnv>();
@@ -83,11 +84,7 @@ apiResourceRoutes.get("/:id", async (c) => {
 		return c.json({ error: "Recurso no encontrado" }, 404);
 	}
 
-	// Only own resources or admin/curator
-	if (
-		resource.createdBy !== user.id &&
-		!["admin", "curator"].includes(user.role ?? "")
-	) {
+	if (!canManageResource(user, resource)) {
 		return c.json({ error: "Recurso no encontrado" }, 404);
 	}
 
@@ -121,10 +118,7 @@ apiResourceRoutes.put("/:id", async (c) => {
 		return c.json({ error: "Recurso no encontrado" }, 404);
 	}
 
-	if (
-		resource.createdBy !== user.id &&
-		!["admin", "curator"].includes(user.role ?? "")
-	) {
+	if (!canManageResource(user, resource)) {
 		return c.json(
 			{ error: "No tienes permisos para modificar este recurso" },
 			403,
@@ -190,10 +184,7 @@ apiResourceRoutes.delete("/:id", async (c) => {
 		return c.json({ error: "Recurso no encontrado" }, 404);
 	}
 
-	if (
-		resource.createdBy !== user.id &&
-		!["admin", "curator"].includes(user.role ?? "")
-	) {
+	if (!canManageResource(user, resource)) {
 		return c.json(
 			{ error: "No tienes permisos para eliminar este recurso" },
 			403,

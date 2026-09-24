@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, notInArray } from "drizzle-orm";
+import { and, asc, desc, eq, notInArray, sql } from "drizzle-orm";
 import { uploadSessions } from "../schema/uploads.ts";
 import type { DrizzleDB } from "./shared.ts";
 
@@ -34,6 +34,38 @@ export async function createUploadSession(
 		...(data.finalChecksum ? { finalChecksum: data.finalChecksum } : {}),
 		...(data.declaredSize != null ? { declaredSize: data.declaredSize } : {}),
 		...(data.expiresAt ? { expiresAt: data.expiresAt } : {}),
+	});
+}
+
+export async function createUploadSessionWithinQuota(
+	db: DrizzleDB,
+	data: Parameters<typeof createUploadSession>[1],
+	maxTotalBytes: number,
+): Promise<boolean> {
+	const declaredSize = data.declaredSize;
+	if (declaredSize == null || declaredSize < 0) return false;
+
+	return db.transaction(async (tx: DrizzleDB) => {
+		await tx.execute(
+			sql`select pg_advisory_xact_lock(hashtext(${`upload-quota:${data.ownerId}`}))`,
+		);
+		const [usage] = await tx
+			.select({
+				bytes: sql<number>`coalesce(sum(${uploadSessions.declaredSize}), 0)`,
+			})
+			.from(uploadSessions)
+			.where(
+				and(
+					eq(uploadSessions.ownerId, data.ownerId),
+					notInArray(uploadSessions.status, ["cancelled", "failed"]),
+				),
+			);
+
+		if (Number(usage?.bytes ?? 0) + declaredSize > maxTotalBytes) {
+			return false;
+		}
+		await createUploadSession(tx, data);
+		return true;
 	});
 }
 

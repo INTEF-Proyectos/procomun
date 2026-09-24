@@ -102,21 +102,28 @@ elpxAdminRoutes.post(
 
 		const uploadId = crypto.randomUUID();
 		const storagePath = path.join(config.storageDir, uploadId);
+		const reserved = await repo.createUploadSessionWithinQuota(
+			getDb().db,
+			{
+				id: uploadId,
+				resourceId,
+				ownerId: user.id,
+				originalFilename: file.name,
+				mimeType: "application/zip",
+				storageKey: `resource/${resourceId}/${uploadId}/${file.name}`,
+				declaredSize: file.size,
+				expiresAt: null,
+			},
+			config.maxTotalBytesPerUser,
+		);
+		if (!reserved) {
+			return c.json({ error: "Cuota de almacenamiento superada" }, 413);
+		}
 		await mkdir(path.dirname(storagePath), { recursive: true });
 		const buffer = Buffer.from(await file.arrayBuffer());
 		await writeFile(storagePath, buffer);
 		const checksum = await computeFileSha256(storagePath);
 
-		await repo.createUploadSession(getDb().db, {
-			id: uploadId,
-			resourceId,
-			ownerId: user.id,
-			originalFilename: file.name,
-			mimeType: "application/zip",
-			storageKey: `resource/${resourceId}/${uploadId}/${file.name}`,
-			declaredSize: file.size,
-			expiresAt: null,
-		});
 		const media = await repo.createMediaItem(getDb().db, {
 			resourceId,
 			type: "file",
@@ -200,6 +207,23 @@ elpxAdminRoutes.post("/save/:resourceId", requireRole("author"), async (c) => {
 	const uploadId = crypto.randomUUID();
 	const storagePath = path.join(config.storageDir, uploadId);
 	const buffer = Buffer.from(await file.arrayBuffer());
+	const reserved = await repo.createUploadSessionWithinQuota(
+		getDb().db,
+		{
+			id: uploadId,
+			resourceId,
+			ownerId: user.id,
+			originalFilename: filename,
+			mimeType: "application/zip",
+			storageKey: `resource/${resourceId}/${uploadId}/${filename}`,
+			declaredSize: buffer.byteLength,
+			expiresAt: null,
+		},
+		config.maxTotalBytesPerUser,
+	);
+	if (!reserved) {
+		return c.json({ error: "Cuota de almacenamiento superada" }, 413);
+	}
 	await writeFile(storagePath, buffer);
 	const checksum = await computeFileSha256(storagePath);
 
@@ -211,16 +235,6 @@ elpxAdminRoutes.post("/save/:resourceId", requireRole("author"), async (c) => {
 		fileSize: buffer.byteLength,
 		filename,
 		isPrimary: true,
-	});
-	await repo.createUploadSession(getDb().db, {
-		id: uploadId,
-		resourceId,
-		ownerId: user.id,
-		originalFilename: filename,
-		mimeType: "application/zip",
-		storageKey: `resource/${resourceId}/${uploadId}/${filename}`,
-		declaredSize: buffer.byteLength,
-		expiresAt: null,
 	});
 	await repo.completeUploadSession(getDb().db, uploadId, {
 		receivedBytes: buffer.byteLength,
@@ -332,20 +346,26 @@ elpxAdminRoutes.post(
 		await mkdir(path.dirname(storagePath), { recursive: true });
 		const buffer = Buffer.from(await Bun.file(tempOutput).arrayBuffer());
 		await unlink(tempOutput).catch(() => {});
+		const generatedFilename = "recurso-generado.elpx";
+		const reserved = await repo.createUploadSessionWithinQuota(
+			getDb().db,
+			{
+				id: uploadId,
+				resourceId,
+				ownerId: user.id,
+				originalFilename: generatedFilename,
+				mimeType: "application/zip",
+				storageKey: `resource/${resourceId}/${uploadId}/${generatedFilename}`,
+				declaredSize: buffer.byteLength,
+				expiresAt: null,
+			},
+			config.maxTotalBytesPerUser,
+		);
+		if (!reserved) {
+			return c.json({ error: "Cuota de almacenamiento superada" }, 413);
+		}
 		await writeFile(storagePath, buffer);
 		const checksum = await computeFileSha256(storagePath);
-		const generatedFilename = "recurso-generado.elpx";
-
-		await repo.createUploadSession(getDb().db, {
-			id: uploadId,
-			resourceId,
-			ownerId: user.id,
-			originalFilename: generatedFilename,
-			mimeType: "application/zip",
-			storageKey: `resource/${resourceId}/${uploadId}/${generatedFilename}`,
-			declaredSize: buffer.byteLength,
-			expiresAt: null,
-		});
 		const media = await repo.createMediaItem(getDb().db, {
 			resourceId,
 			type: "file",

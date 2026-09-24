@@ -1,5 +1,5 @@
 import { downloads, favorites, ratings } from "@procomun/db/schema";
-import { eq, sql } from "drizzle-orm";
+import { and, eq, gte, isNull, sql } from "drizzle-orm";
 import { getDb } from "../db.ts";
 import { getUserFavoriteState } from "./favorites-service.ts";
 import { roundRatingAverage } from "./resource-card.ts";
@@ -8,22 +8,52 @@ export async function incrementDownload(
 	resourceId: string,
 	userId?: string,
 	format = "direct",
+	options: { now?: Date; dedupWindowMs?: number } = {},
 ) {
 	const db = getDb().db;
-	await db.insert(downloads).values({
-		id: crypto.randomUUID(),
-		resourceId,
-		userId: userId ?? null,
-		format,
-		createdAt: new Date(),
+	const now = options.now ?? new Date();
+	const configuredWindow = Number(process.env.DOWNLOAD_DEDUP_WINDOW_MS);
+	const dedupWindowMs =
+		options.dedupWindowMs ??
+		(Number.isFinite(configuredWindow) && configuredWindow > 0
+			? configuredWindow
+			: 60_000);
+
+	return db.transaction(async (tx: typeof db) => {
+		const actor = userId ?? "anonymous";
+		await tx.execute(
+			sql`select pg_advisory_xact_lock(hashtext(${`${resourceId}:${actor}:${format}`}))`,
+		);
+		const recent = await tx
+			.select({ id: downloads.id })
+			.from(downloads)
+			.where(
+				and(
+					eq(downloads.resourceId, resourceId),
+					eq(downloads.format, format),
+					userId ? eq(downloads.userId, userId) : isNull(downloads.userId),
+					gte(downloads.createdAt, new Date(now.getTime() - dedupWindowMs)),
+				),
+			)
+			.limit(1);
+
+		if (!recent[0]) {
+			await tx.insert(downloads).values({
+				id: crypto.randomUUID(),
+				resourceId,
+				userId: userId ?? null,
+				format,
+				createdAt: now,
+			});
+		}
+
+		const countResult = await tx
+			.select({ count: sql<number>`count(*)` })
+			.from(downloads)
+			.where(eq(downloads.resourceId, resourceId));
+
+		return Number(countResult[0]?.count ?? 0);
 	});
-
-	const countResult = await db
-		.select({ count: sql<number>`count(*)` })
-		.from(downloads)
-		.where(eq(downloads.resourceId, resourceId));
-
-	return Number(countResult[0]?.count ?? 0);
 }
 
 export async function getResourceSocialStats(
