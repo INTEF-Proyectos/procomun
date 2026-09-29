@@ -28,7 +28,7 @@
         "cheerio": "^1.2.0",
         "drizzle-orm": "0.45.3",
         "feed": "^6.0.0",
-        "hono": "4.13.7",
+        "hono": "4.13.9",
         "mammoth": "^1.12.3",
         "nodemailer": "^10.0.8",
         "pdf-parse": "^2.4.5",
@@ -44,7 +44,7 @@
         "@electric-sql/pglite": "0.5.8",
         "@procomun/db": "workspace:*",
         "better-auth": "1.7.4",
-        "hono": "4.13.7",
+        "hono": "4.13.9",
         "postgres": "3.4.9",
       },
     },
@@ -536,7 +536,7 @@
 
     "graceful-fs": ["graceful-fs@4.2.11", "", {}, "sha512-RbJ5/jmFcNNCcDV5o9eTnBLJ/HszWV0P73bc+Ff4nS/rJj+YaS6IGyiOL0VoBYX+l1Wrl3k63h/KrH+nhJ0XvQ=="],
 
-    "hono": ["hono@4.13.7", "", {}, "sha512-c8/gF9ac8Y78/agExVocyLevgR+JlpNB444Py0FSX8pJoPdYUfUzRcXtYEYGwt6l19qIlVZPN5Mfsw9jFShmQQ=="],
+    "hono": ["hono@4.13.9", "", {}, "sha512-7dMkQmZoC4E6F7AtaQSPhlWAdnBti+j7rreMZl8QB4jFiEhP9TWbGWUMi8WYzBCgmgulxuvLQupKqo+Co6Omyg=="],
 
     "htmlparser2": ["htmlparser2@10.1.0", "", { "dependencies": { "domelementtype": "^2.3.0", "domhandler": "^5.0.3", "domutils": "^3.2.2", "entities": "^7.0.1" } }, "sha512-VTZkM9GWRAtEpveh7MSF6SjjrpNVNNVJfFup7xTY3UpFtm67foy9HDVXneLtFVt4pMz5kZtgNcvCniNFb1hlEQ=="],
 

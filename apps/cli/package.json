@@ -11,7 +11,7 @@
 		"@electric-sql/pglite": "0.5.8",
 		"@procomun/db": "workspace:*",
 		"better-auth": "1.7.4",
-		"hono": "4.13.7",
+		"hono": "4.13.9",
 		"postgres": "3.4.9"
 	}
 }
