@@ -18,6 +18,7 @@ import { KEYWORD_MESSAGES } from "../tags/keyword-catalog.ts";
 import {
 	createCatalogKeyword,
 	listResourceCatalogKeywords,
+	mapLegacyKeywords,
 	searchCatalogKeywords,
 	setResourceCatalogKeywords,
 } from "./keyword-catalog.ts";
@@ -226,5 +227,68 @@ describe("repositorio del catálogo de palabras clave (#384)", () => {
 		await expect(mergeTags(db, free.id, "matematicas")).rejects.toBeInstanceOf(
 			TagMergeError,
 		);
+	});
+
+	test("la correspondencia asigna por identidad y alias, informa y es idempotente", async () => {
+		const mapped = await newResource({ keywords: "Geometría,ángulos,Scratch" });
+		const six = await newResource({
+			keywords: "Historia,Geografía,Música,Física,Química,Biología",
+		});
+		const full = await newResource({
+			keywords: "Química,Biología",
+			keywordIds: ["historia", "geografia", "musica", "fisica"],
+		});
+		await newResource({ keywords: "ABP" });
+		await newResource({ keywords: "recurso,scratch" });
+
+		let selects = 0;
+		const counted = new Proxy(db, {
+			get(target, prop, receiver) {
+				const value = Reflect.get(target, prop, receiver);
+				if (prop !== "select") return value;
+				return (...args: unknown[]) => {
+					selects += 1;
+					return value.apply(target, args);
+				};
+			},
+		});
+		const dryRun = await mapLegacyKeywords(counted, { dryRun: true });
+		// Catálogo, alias, recursos y enlaces: nada por recurso.
+		expect(selects).toBe(4);
+		expect(dryRun.totals).toEqual({
+			resources: 5,
+			withMatch: 3,
+			coverage: 0.6,
+			assigned: 1,
+			alreadyAssigned: 0,
+			overLimit: 2,
+		});
+		expect(dryRun.assigned).toEqual([
+			{ resourceId: mapped.id, added: ["geometria"] },
+		]);
+		expect(dryRun.overLimit.map((item) => item.resourceId).sort()).toEqual(
+			[six.id, full.id].sort(),
+		);
+		expect(dryRun.unmatched).toEqual([
+			{ label: "Scratch", resources: 2 },
+			{ label: "recurso", resources: 1 },
+		]);
+		expect(dryRun.ambiguous).toEqual([{ label: "ABP", resources: 1 }]);
+		expect(await listResourceCatalogKeywords(db, mapped.id)).toEqual([]);
+
+		const applied = await mapLegacyKeywords(db, { dryRun: false });
+		expect(applied.totals.assigned).toBe(1);
+		expect(
+			(await listResourceCatalogKeywords(db, mapped.id)).map((k) => k.id),
+		).toEqual(["geometria"]);
+		expect(await listResourceCatalogKeywords(db, six.id)).toEqual([]);
+		expect(await listResourceCatalogKeywords(db, full.id)).toHaveLength(4);
+		expect((await getResourceById(db, mapped.id))?.keywords).toBe(
+			"Geometría,ángulos,Scratch",
+		);
+
+		const again = await mapLegacyKeywords(db, { dryRun: false });
+		expect(again.totals.assigned).toBe(0);
+		expect(again.totals.alreadyAssigned).toBe(1);
 	});
 });

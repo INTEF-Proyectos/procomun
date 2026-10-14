@@ -2753,3 +2753,18 @@ tasks:
       etiquetas anteriores. La correspondencia de etiquetas antiguas pasa a un
       PR apilado. Pendiente de producto: cobertura del fondo, relación con
       «Materias» y gestión (fusionar/desactivar). Mergear después de #394.
+
+  T-2026-10-14-11192880:
+    date: 2026-10-14
+    agent: "ingestas-y-migraciones + metadatos-y-curacion + qa-validacion"
+    task: "Correspondencia de etiquetas antiguas con el catálogo de palabras clave (#384, apartado 5)"
+    status: Done
+    related: ["#384", "#397", ADR-0042]
+    notes: >
+      Comando import:legacy-keywords con --dry-run e informe JSON (cobertura,
+      sin correspondencia, ambiguas, más de 5 y asignaciones). Coincidencia por
+      identidad y por alias; los alias ambiguos y los casos que superarían 5
+      términos quedan en el informe sin asignar. Lee catálogo, recursos y
+      enlaces una vez, inserta por lotes, reindexa FTS de lo asignado y es
+      idempotente. Apilado sobre #397. Pendiente de producto: revisar el listado
+      sin correspondencia (cobertura del fondo) antes de aplicarlo en producción.
