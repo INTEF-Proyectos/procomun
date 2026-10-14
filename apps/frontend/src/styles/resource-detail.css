@@ -260,53 +260,87 @@
 	color: var(--color-primary);
 }
 
-.detail-export-group {
+.detail-download {
+	position: relative;
+	flex: 1 1 180px;
+	min-width: min(100%, 180px);
+}
+
+.detail-download > .detail-action-outline {
+	flex: none;
+	width: 100%;
+}
+
+.detail-download-trigger:focus-visible {
+	outline: 2px solid var(--color-primary);
+	outline-offset: 2px;
+}
+
+.detail-download-menu {
+	position: absolute;
+	z-index: 30;
+	top: calc(100% + 0.4rem);
+	left: 0;
 	display: flex;
-	flex: 1 1 100%;
 	flex-direction: column;
-	gap: var(--space-3);
-}
-
-.detail-export-label {
-	font-size: var(--text-body-sm);
-	font-weight: var(--weight-semibold);
-	color: var(--color-on-surface-variant);
-}
-
-.detail-export-buttons {
-	display: flex;
-	flex-wrap: wrap;
-	gap: var(--space-2);
-}
-
-.detail-export-pill {
-	padding: 0.7rem 1rem;
-	border: 1px solid var(--color-outline-variant);
-	border-radius: var(--radius-full);
+	gap: 0.25rem;
+	width: 100%;
+	min-width: 12rem;
+	max-width: calc(100vw - 1.5rem);
+	padding: 0.4rem;
 	background: var(--color-surface-container-lowest);
+	border: 1px solid var(--color-outline-variant);
+	border-radius: var(--radius-lg);
+	box-shadow: 0 12px 32px rgba(18, 28, 40, 0.16);
+}
+
+.detail-download-item {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 0.75rem;
+	width: 100%;
+	min-height: 2.75rem;
+	padding: 0.65rem 0.9rem;
+	border: 0;
+	border-radius: var(--radius-md);
+	background: transparent;
 	color: var(--color-on-surface);
 	font-family: var(--font-display);
+	font-size: 1rem;
 	font-weight: var(--weight-semibold);
+	text-align: start;
 	cursor: pointer;
-	transition:
-		transform var(--transition-fast),
-		border-color var(--transition-fast),
-		background-color var(--transition-fast);
 }
 
-.detail-export-pill:hover:not(:disabled) {
-	transform: translateY(-1px);
-	border-color: var(--color-primary);
-	background: var(--color-surface-bright);
+.detail-download-item:hover:not(:disabled),
+.detail-download-item:focus-visible {
+	background: var(--color-surface-container);
+	outline: 2px solid var(--color-primary);
+	outline-offset: -2px;
 }
 
-.detail-export-pill:disabled {
+.detail-download-item:disabled {
 	cursor: wait;
 	opacity: 0.7;
 }
 
+@media (max-width: 640px) {
+	.detail-download {
+		flex: 1 1 100%;
+	}
+
+	.detail-download-menu {
+		right: 0;
+		width: auto;
+		min-width: 100%;
+		max-width: none;
+	}
+}
+
 .detail-export-status {
 	margin: 0;
+	flex: 1 1 100%;
 	font-size: var(--text-body-sm);
 	color: #b3261e;
 }

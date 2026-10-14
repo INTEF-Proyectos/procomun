@@ -4,6 +4,7 @@ import {
 	getElpxMediaItem,
 	getResourceElpxFileUrl,
 	isElpxFilename,
+	listDownloadMenuOptions,
 	RESOURCE_EXPORT_OPTIONS,
 } from "./resource-export.ts";
 
@@ -108,5 +109,55 @@ describe("resource-export", () => {
 		expect(buildExportFilename("Éducación & Ciência!", "web")).toBe(
 			"educacion-ciencia_web.zip",
 		);
+	});
+
+	test("lista ELPX y las exportaciones, con IMS visible como LMS", () => {
+		const options = listDownloadMenuOptions({
+			hasDirectFile: true,
+			hasExports: true,
+		});
+
+		expect(options.map((option) => option.id)).toEqual([
+			"elpx",
+			"scorm",
+			"ims",
+			"web",
+			"epub",
+		]);
+		expect(options.find((option) => option.id === "ims")?.label).toBe("LMS");
+		expect(options.map((option) => option.label)).toEqual([
+			"ELPX",
+			"SCORM",
+			"LMS",
+			"Web",
+			"EPUB",
+		]);
+		expect(options.map((option) => option.label)).not.toContain("Ver online");
+		expect(options.map((option) => option.label)).not.toContain("Ver Online");
+	});
+
+	test("omite ELPX cuando no hay fichero y deja fuera Ver online", () => {
+		const options = listDownloadMenuOptions({
+			hasDirectFile: false,
+			hasExports: true,
+		});
+
+		expect(options.map((option) => option.id)).toEqual([
+			"scorm",
+			"ims",
+			"web",
+			"epub",
+		]);
+		expect(options.some((option) => option.id === "elpx")).toBe(false);
+		expect(options.find((option) => option.id === "ims")?.label).toBe("LMS");
+		expect(options.some((option) => /ver online/i.test(option.label))).toBe(
+			false,
+		);
+	});
+
+	test("no ofrece formatos si no hay fichero ni exportación", () => {
+		expect(
+			listDownloadMenuOptions({ hasDirectFile: false, hasExports: false }),
+		).toEqual([]);
 	});
 });

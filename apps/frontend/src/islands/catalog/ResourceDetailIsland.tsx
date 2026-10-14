@@ -1,4 +1,11 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import {
+	type KeyboardEvent,
+	useCallback,
+	useEffect,
+	useId,
+	useRef,
+	useState,
+} from "react";
 import { useElpxEmbedRelay } from "../../hooks/use-elpx-embed-relay.ts";
 import type {
 	RelatedResource,
@@ -16,6 +23,7 @@ import {
 import {
 	buildExportFilename,
 	getResourceElpxFileUrl,
+	listDownloadMenuOptions,
 	RESOURCE_EXPORT_OPTIONS,
 	type ResourceExportKind,
 } from "../../lib/resource-export.ts";
@@ -177,6 +185,195 @@ function getStatusBadgeClass(editorialStatus: string): string {
 	}
 }
 
+function DownloadMenu({
+	hasDirectFile,
+	hasExports,
+	totalFileSize,
+	downloadCount,
+	exportCounts,
+	exportReady,
+	exportingFormat,
+	onDirectDownload,
+	onExport,
+}: {
+	hasDirectFile: boolean;
+	hasExports: boolean;
+	totalFileSize: number;
+	downloadCount: number;
+	exportCounts?: ResourceStats["exportCounts"];
+	exportReady: boolean;
+	exportingFormat: ResourceExportKind | null;
+	onDirectDownload: () => void;
+	onExport: (format: ResourceExportKind) => void;
+}) {
+	const options = listDownloadMenuOptions({ hasDirectFile, hasExports });
+	const [open, setOpen] = useState(false);
+	const rootRef = useRef<HTMLDivElement>(null);
+	const triggerRef = useRef<HTMLButtonElement>(null);
+	const pendingFocus = useRef<"start" | "end" | null>(null);
+	const menuId = useId();
+	const preparingLabel = options.find(
+		(option) => option.kind === "export" && option.id === exportingFormat,
+	)?.label;
+
+	const menuItems = useCallback(() => {
+		return Array.from(
+			rootRef.current?.querySelectorAll<HTMLButtonElement>(
+				'[role="menuitem"]:not(:disabled)',
+			) ?? [],
+		);
+	}, []);
+
+	const focusEdge = useCallback(
+		(edge: "start" | "end") => {
+			const items = menuItems();
+			const target = edge === "end" ? items.at(-1) : items[0];
+			target?.focus();
+		},
+		[menuItems],
+	);
+
+	useEffect(() => {
+		if (!open) return;
+		const edge = pendingFocus.current;
+		if (!edge) return;
+		pendingFocus.current = null;
+		focusEdge(edge);
+	}, [open, focusEdge]);
+
+	useEffect(() => {
+		if (!open) return;
+		function handlePointerDown(event: PointerEvent) {
+			if (!rootRef.current?.contains(event.target as Node)) setOpen(false);
+		}
+		function handleEscape(event: globalThis.KeyboardEvent) {
+			if (event.key !== "Escape") return;
+			setOpen(false);
+			triggerRef.current?.focus();
+		}
+		document.addEventListener("pointerdown", handlePointerDown);
+		document.addEventListener("keydown", handleEscape);
+		return () => {
+			document.removeEventListener("pointerdown", handlePointerDown);
+			document.removeEventListener("keydown", handleEscape);
+		};
+	}, [open]);
+
+	if (options.length === 0) return null;
+
+	function handleTriggerKeyDown(event: KeyboardEvent<HTMLButtonElement>) {
+		if (event.key !== "ArrowDown" && event.key !== "ArrowUp") return;
+		event.preventDefault();
+		const edge = event.key === "ArrowUp" ? "end" : "start";
+		if (open) {
+			focusEdge(edge);
+			return;
+		}
+		pendingFocus.current = edge;
+		setOpen(true);
+	}
+
+	function handleMenuKeyDown(event: KeyboardEvent<HTMLDivElement>) {
+		if (
+			event.key !== "ArrowDown" &&
+			event.key !== "ArrowUp" &&
+			event.key !== "Home" &&
+			event.key !== "End"
+		) {
+			return;
+		}
+		const items = menuItems();
+		if (items.length === 0) return;
+		event.preventDefault();
+		if (event.key === "Home") {
+			items[0]?.focus();
+			return;
+		}
+		if (event.key === "End") {
+			items.at(-1)?.focus();
+			return;
+		}
+		const current = items.indexOf(document.activeElement as HTMLButtonElement);
+		const delta = event.key === "ArrowDown" ? 1 : -1;
+		const next =
+			current === -1 ? 0 : (current + delta + items.length) % items.length;
+		items[next]?.focus();
+	}
+
+	return (
+		<div className="detail-download" ref={rootRef}>
+			<button
+				ref={triggerRef}
+				type="button"
+				className="detail-action-outline detail-download-trigger"
+				aria-expanded={open}
+				aria-haspopup="menu"
+				aria-controls={menuId}
+				onClick={() => setOpen((value) => !value)}
+				onKeyDown={handleTriggerKeyDown}
+			>
+				<span className="material-symbols-outlined" aria-hidden="true">
+					download
+				</span>
+				{exportingFormat && preparingLabel
+					? `Preparando ${preparingLabel}...`
+					: m.detail_download()}
+				{downloadCount > 0 ? (
+					<span className="detail-action-count">{downloadCount}</span>
+				) : null}
+				<span className="material-symbols-outlined" aria-hidden="true">
+					{open ? "expand_less" : "expand_more"}
+				</span>
+			</button>
+			{open ? (
+				<div
+					id={menuId}
+					className="detail-download-menu"
+					role="menu"
+					aria-label={m.detail_download()}
+					onKeyDown={handleMenuKeyDown}
+				>
+					{options.map((option) => {
+						const unavailable =
+							option.kind === "export" &&
+							(!exportReady || exportingFormat !== null);
+						const label =
+							option.kind === "export" && exportingFormat === option.id
+								? `Preparando ${option.label}...`
+								: option.kind === "direct" && totalFileSize > 0
+									? `${option.label} (${formatBytes(totalFileSize)})`
+									: option.label;
+						const count =
+							option.kind === "export" ? exportCounts?.[option.id] : 0;
+						return (
+							<button
+								key={option.id}
+								type="button"
+								role="menuitem"
+								className="detail-download-item"
+								disabled={unavailable}
+								onClick={() => {
+									if (option.kind === "direct") {
+										onDirectDownload();
+										setOpen(false);
+										return;
+									}
+									onExport(option.id);
+								}}
+							>
+								<span>{label}</span>
+								{count ? (
+									<span className="detail-action-count">{count}</span>
+								) : null}
+							</button>
+						);
+					})}
+				</div>
+			) : null}
+		</div>
+	);
+}
+
 function ResourceDetailContent({
 	resource,
 	session,
@@ -334,6 +531,26 @@ function ResourceDetailContent({
 		[exportReady, resource.title],
 	);
 
+	const handleDirectDownload = useCallback(() => {
+		if (!firstFileUrl) return;
+		const href = firstFileUrl;
+		getApiClient()
+			.then((api) => api.trackDownload(resource.slug, "direct"))
+			.then((result) => {
+				if (onDownloadTracked) onDownloadTracked(result.count, "direct");
+			})
+			.catch(() => {})
+			.finally(() => {
+				const a = document.createElement("a");
+				a.href = href;
+				a.download = "";
+				a.style.display = "none";
+				document.body.appendChild(a);
+				a.click();
+				document.body.removeChild(a);
+			});
+	}, [firstFileUrl, onDownloadTracked, resource.slug]);
+
 	const editorUrl = exportSourceUrl
 		? `${url("api/v1/exelearning-editor/index.html")}?elpxUrl=${encodeURIComponent(exportSourceUrl)}`
 		: null;
@@ -415,43 +632,18 @@ function ResourceDetailContent({
 								{m.detail_view_online()}
 							</a>
 						) : null}
-						{hasFiles && firstFileUrl ? (
-							<a
-								href={firstFileUrl}
-								download
-								className="detail-action-outline"
-								onClick={(e) => {
-									e.preventDefault();
-									const href = firstFileUrl;
-									getApiClient()
-										.then((api) => api.trackDownload(resource.slug, "direct"))
-										.then((result) => {
-											if (onDownloadTracked)
-												onDownloadTracked(result.count, "direct");
-										})
-										.catch(() => {})
-										.finally(() => {
-											const a = document.createElement("a");
-											a.href = href;
-											a.download = "";
-											a.style.display = "none";
-											document.body.appendChild(a);
-											a.click();
-											document.body.removeChild(a);
-										});
-								}}
-							>
-								<span className="material-symbols-outlined">download</span>
-								{m.detail_download()}
-								{totalFileSize > 0 ? ` (${formatBytes(totalFileSize)})` : ""}
-								{stats?.downloadCount ? (
-									<span className="detail-action-count">
-										{stats.downloadCount}
-									</span>
-								) : null}
-							</a>
-						) : null}
-						{!hasPreview && !hasFiles ? (
+						<DownloadMenu
+							hasDirectFile={Boolean(hasFiles && firstFileUrl)}
+							hasExports={Boolean(editorUrl)}
+							totalFileSize={totalFileSize}
+							downloadCount={stats?.downloadCount ?? 0}
+							exportCounts={stats?.exportCounts}
+							exportReady={exportReady}
+							exportingFormat={exportingFormat}
+							onDirectDownload={handleDirectDownload}
+							onExport={handleExport}
+						/>
+						{!hasPreview && !hasFiles && !editorUrl ? (
 							<span
 								style={{
 									color: "var(--color-on-surface-variant)",
@@ -461,35 +653,10 @@ function ResourceDetailContent({
 								{m.detail_no_files()}
 							</span>
 						) : null}
-						{editorUrl ? (
-							<div className="detail-export-group">
-								<span className="detail-export-label">Exportar como</span>
-								<div className="detail-export-buttons">
-									{RESOURCE_EXPORT_OPTIONS.map((option) => (
-										<button
-											key={option.id}
-											type="button"
-											className="detail-export-pill"
-											onClick={() => handleExport(option.id)}
-											disabled={!exportReady || exportingFormat !== null}
-										>
-											{exportingFormat === option.id
-												? `Preparando ${option.label}...`
-												: option.label}
-											{stats?.exportCounts?.[option.id] ? (
-												<span className="detail-action-count">
-													{stats.exportCounts[option.id]}
-												</span>
-											) : null}
-										</button>
-									))}
-								</div>
-								{exportError ? (
-									<p className="detail-export-status" role="alert">
-										{exportError}
-									</p>
-								) : null}
-							</div>
+						{exportError ? (
+							<p className="detail-export-status" role="alert">
+								{exportError}
+							</p>
 						) : null}
 					</div>
 					{editorUrl ? (
