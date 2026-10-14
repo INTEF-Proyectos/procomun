@@ -700,6 +700,17 @@ describe("Rutas admin — subida de recursos por author/editor/curator (DEF-221)
 		expect(res.status).toBe(201);
 	});
 
+	test("el borrador precarga el autor con el nombre del usuario", async () => {
+		const userId = `author-n-${crypto.randomUUID()}`;
+		const app = await setupUser(userId, "author");
+		const res = await app.request("/api/admin/resources/draft", {
+			method: "POST",
+		});
+		const { id } = await res.json();
+		const getRes = await app.request(`/api/admin/resources/${id}`);
+		expect((await getRes.json()).author).toBe(`User ${userId}`);
+	});
+
 	test("curator puede crear un recurso y acceder a su propio borrador (no 'Recurso no encontrado')", async () => {
 		const id = `curator-${crypto.randomUUID()}`;
 		const app = await setupUser(id, "curator");

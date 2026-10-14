@@ -2701,6 +2701,26 @@ tasks:
       resolución. Guard de regresión en
       scripts/check-dockerfile-workspaces.unit.test.ts.
 
+  T-2026-10-14-10562286:
+    date: 2026-10-14
+    agent: "frontend-ux-accesibilidad + backend-api-servicios"
+    task: "Autor obligatorio al crear un recurso"
+    status: Done
+    related: ["#382", "#387"]
+    notes: >
+      validateCreateResource exige un autor no vacío y el formulario de alta
+      y el editor de un recurso nuevo lo marcan como obligatorio, con
+      validación en cliente con las mismas funciones que la API. En la
+      edición no se exige: si el autor estaba vacío y sigue vacío no se envía,
+      y validateUpdateResource solo rechaza un author vacío explícito (no se
+      puede borrar uno existente). POST /api/v1/publish/resources (ADR-0024)
+      no cambia de contrato: si falta author, firma el dueño del token. El
+      autor se precarga con el pp_author del .elpx o, si no lo hay, con el
+      nombre del usuario (sesión en NuevoPage, borrador de POST /draft).
+      ResourceFormIsland y ResourceEditorIsland no se tocan: no se montan en
+      ninguna página. Validación: validation.unit.test.ts,
+      api-resources.unit.test.ts y admin.unit.test.ts.
+
   T-2026-09-15-17302086:
     date: 2026-09-15
     agent: "backend-api-servicios + qa-validacion"

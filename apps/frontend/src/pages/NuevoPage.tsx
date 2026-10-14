@@ -103,6 +103,11 @@ export default function NuevoPage() {
 					setShowAuthCheck(true);
 					return;
 				}
+				// Precarga editable del autor; el pp_author del .elpx tiene prioridad.
+				setForm((current) => ({
+					...current,
+					author: current.author || session.user.name || "",
+				}));
 				setShowElpxDrawer(true);
 			} catch {
 				setShowAuthCheck(true);

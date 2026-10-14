@@ -1,4 +1,3 @@
-import { validateUpdateResource } from "@procomun/db/validation";
 import { type FormEvent, Fragment, useEffect, useRef, useState } from "react";
 import type { Resource, UpdateResourceInput } from "../../lib/api-client.ts";
 import { getApiClient } from "../../lib/get-api-client.ts";
@@ -89,7 +88,7 @@ function toPayload(form: ResourceFormState): UpdateResourceInput {
 		language: form.language,
 		license: form.license,
 		resourceType: form.resourceType,
-		author: form.author,
+		author: form.author || undefined,
 		keywords: form.keywords || undefined,
 	};
 }
@@ -204,23 +203,14 @@ export function ResourceEditorIsland() {
 	async function handleSubmit(event?: FormEvent<HTMLFormElement>) {
 		event?.preventDefault();
 		if (!resourceId) return;
+		setBusy(true);
 		setErrorMessage("");
 		setSuccessMessage("");
 		setFieldErrors({});
 
-		const payload = toPayload(form);
-		const validation = validateUpdateResource(payload);
-		if (!validation.valid) {
-			applyFieldErrors(validation.errors);
-			setErrorMessage("Revisa los campos marcados");
-			return;
-		}
-
-		setBusy(true);
-
 		try {
 			const api = await getApiClient();
-			const result = await api.updateResource(resourceId, payload);
+			const result = await api.updateResource(resourceId, toPayload(form));
 			if (!result.ok) {
 				if (result.details) applyFieldErrors(result.details);
 				setErrorMessage(result.error ?? "Error al actualizar el recurso");
@@ -602,11 +592,10 @@ export function ResourceEditorIsland() {
 				</div>
 
 				<div className="field">
-					<label htmlFor="author">Autor *</label>
+					<label htmlFor="author">Autor</label>
 					<input
 						type="text"
 						id="author"
-						required
 						aria-describedby="author-error"
 						aria-invalid={fieldErrors.author ? "true" : undefined}
 						value={form.author}

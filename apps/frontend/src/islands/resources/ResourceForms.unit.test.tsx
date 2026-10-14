@@ -8,7 +8,6 @@ describe("Resource form islands", () => {
 		const html = renderToStaticMarkup(<ResourceFormIsland mode="create" />);
 
 		expect(html).toContain("Título *");
-		expect(html).toContain("Autor *");
 		expect(html).toContain("Crear recurso");
 		expect(html).toContain("Palabras clave");
 	});

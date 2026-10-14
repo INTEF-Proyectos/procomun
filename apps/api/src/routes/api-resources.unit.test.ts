@@ -30,7 +30,6 @@ const validResource = {
 	language: "es",
 	license: "cc-by",
 	resourceType: "documento",
-	author: "Autora de prueba",
 };
 
 describe("API Resources — sin autenticación", () => {
@@ -96,6 +95,18 @@ describe("API Resources — con autenticación", () => {
 		expect(body.details.length).toBeGreaterThan(0);
 	});
 
+	test("POST /api/v1/publish/resources conserva el author enviado", async () => {
+		const createRes = await app.request("/api/v1/publish/resources", {
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({ ...validResource, author: "Autora del recurso" }),
+		});
+		expect(createRes.status).toBe(201);
+		const { id } = await createRes.json();
+		const getRes = await app.request(`/api/v1/publish/resources/${id}`);
+		expect((await getRes.json()).author).toBe("Autora del recurso");
+	});
+
 	test("POST /api/v1/publish/resources → 400 sin JSON", async () => {
 		const res = await app.request("/api/v1/publish/resources", {
 			method: "POST",
@@ -126,6 +137,8 @@ describe("API Resources — con autenticación", () => {
 		const resource = await getRes.json();
 		expect(resource.title).toBe(validResource.title);
 		expect(resource.editorialStatus).toBe("draft");
+		// Sin author en el cuerpo firma el dueño del token (ADR-0024).
+		expect(resource.author).toBe("Test");
 
 		// Update
 		const updateRes = await app.request(`/api/v1/publish/resources/${id}`, {
