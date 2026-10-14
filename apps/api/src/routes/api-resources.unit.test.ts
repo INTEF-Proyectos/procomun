@@ -30,6 +30,7 @@ const validResource = {
 	language: "es",
 	license: "cc-by",
 	resourceType: "documento",
+	author: "Autora de prueba",
 };
 
 describe("API Resources — sin autenticación", () => {
