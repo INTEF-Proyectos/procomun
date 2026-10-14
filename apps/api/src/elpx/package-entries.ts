@@ -4,7 +4,11 @@ import { getUploadConfig } from "../uploads/config.ts";
 import { buildElpxPreview } from "./preview.ts";
 
 async function walk(root: string, dir: string, out: string[]): Promise<void> {
-	let entries: { name: string; isDirectory: () => boolean; isFile: () => boolean }[];
+	let entries: {
+		name: string;
+		isDirectory: () => boolean;
+		isFile: () => boolean;
+	}[];
 	try {
 		entries = await readdir(dir, { withFileTypes: true });
 	} catch {
