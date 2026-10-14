@@ -1,10 +1,10 @@
-import { type Dirent, readdir } from "node:fs/promises";
+import { readdir } from "node:fs/promises";
 import path from "node:path";
 import { getUploadConfig } from "../uploads/config.ts";
 import { buildElpxPreview } from "./preview.ts";
 
 async function walk(root: string, dir: string, out: string[]): Promise<void> {
-	let entries: Dirent[];
+	let entries: { name: string; isDirectory: () => boolean; isFile: () => boolean }[];
 	try {
 		entries = await readdir(dir, { withFileTypes: true });
 	} catch {
