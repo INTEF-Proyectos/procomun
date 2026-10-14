@@ -14,6 +14,7 @@
 		"./elpx-metadata": "./src/elpx-metadata.ts",
 		"./legacy-import": "./src/legacy-import/index.ts",
 		"./resource-types": "./src/resource-types.ts",
+		"./educational-areas": "./src/educational-areas.ts",
 		"./tags": "./src/tags/normalize.ts"
 	},
 	"scripts": {

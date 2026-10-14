@@ -12,6 +12,8 @@ export async function listPublishedResources(opts: {
 	license?: string;
 	/** Atomized tag slug (issue #310). */
 	tag?: string;
+	educationalCategory?: string;
+	educationalOption?: string;
 }) {
 	const db = getDb().db;
 	const result = await repo.listResources(db, {
@@ -22,6 +24,8 @@ export async function listPublishedResources(opts: {
 		language: opts.language,
 		license: opts.license,
 		tagSlug: opts.tag,
+		educationalCategory: opts.educationalCategory,
+		educationalOption: opts.educationalOption,
 		status: "published",
 	});
 

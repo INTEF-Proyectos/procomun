@@ -1,3 +1,5 @@
+import { validateEducationalAssignments } from "./educational-areas.ts";
+
 export const VALID_TAXONOMY_TYPES = [
 	"category",
 	"tag",
@@ -158,6 +160,10 @@ export function validateCreateResource(body: unknown): ValidationResult {
 		});
 	}
 
+	if (b.educationalAreas !== undefined) {
+		errors.push(...validateEducationalAssignments(b.educationalAreas));
+	}
+
 	return { valid: errors.length === 0, errors };
 }
 
@@ -181,6 +187,7 @@ export function validateUpdateResource(body: unknown): ValidationResult {
 		"author",
 		"keywords",
 		"publisher",
+		"educationalAreas",
 	];
 	const hasAtLeastOne = updatableFields.some((f) => b[f] !== undefined);
 	if (!hasAtLeastOne) {
@@ -260,6 +267,10 @@ export function validateUpdateResource(body: unknown): ValidationResult {
 			field: "resourceType",
 			message: "El tipo de recurso no puede estar vacío",
 		});
+	}
+
+	if (b.educationalAreas !== undefined) {
+		errors.push(...validateEducationalAssignments(b.educationalAreas));
 	}
 
 	return { valid: errors.length === 0, errors };

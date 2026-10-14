@@ -115,6 +115,26 @@ export const resourceLevels = pgTable("resource_levels", {
 	level: varchar("level", { length: 100 }).notNull(),
 });
 
+// Categorización educativa de dos niveles (issue #380). option_id null = solo categoría.
+export const resourceEducationalAreas = pgTable(
+	"resource_educational_areas",
+	{
+		resourceId: text("resource_id")
+			.notNull()
+			.references(() => resources.id, { onDelete: "cascade" }),
+		categoryId: varchar("category_id", { length: 64 }).notNull(),
+		optionId: varchar("option_id", { length: 64 }),
+	},
+	(table) => [
+		uniqueIndex("resource_educational_areas_category_only_uidx")
+			.on(table.resourceId, table.categoryId)
+			.where(sql`${table.optionId} IS NULL`),
+		uniqueIndex("resource_educational_areas_option_uidx")
+			.on(table.resourceId, table.categoryId, table.optionId)
+			.where(sql`${table.optionId} IS NOT NULL`),
+	],
+);
+
 // Relaciones
 export const resourcesRelations = relations(resources, ({ one, many }) => ({
 	curator: one(user, {
@@ -124,6 +144,7 @@ export const resourcesRelations = relations(resources, ({ one, many }) => ({
 	mediaItems: many(mediaItems),
 	subjects: many(resourceSubjects),
 	levels: many(resourceLevels),
+	educationalAreas: many(resourceEducationalAreas),
 }));
 
 export const mediaItemsRelations = relations(mediaItems, ({ one }) => ({
@@ -149,3 +170,13 @@ export const resourceLevelsRelations = relations(resourceLevels, ({ one }) => ({
 		references: [resources.id],
 	}),
 }));
+
+export const resourceEducationalAreasRelations = relations(
+	resourceEducationalAreas,
+	({ one }) => ({
+		resource: one(resources, {
+			fields: [resourceEducationalAreas.resourceId],
+			references: [resources.id],
+		}),
+	}),
+);

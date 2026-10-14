@@ -105,6 +105,9 @@ const resourceRoutes = buildCrudRoutes({
 			...repo.pickEditableResourceFields(body),
 			subjects: Array.isArray(body.subjects) ? body.subjects : undefined,
 			levels: Array.isArray(body.levels) ? body.levels : undefined,
+			educationalAreas: Array.isArray(body.educationalAreas)
+				? body.educationalAreas
+				: undefined,
 			createdBy: user.id,
 		};
 	},

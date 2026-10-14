@@ -115,3 +115,52 @@ describe("migración session.impersonated_by (better-auth 1.7)", () => {
 		}
 	});
 });
+
+describe("migración de categorización educativa", () => {
+	test("registra 0009 sin sustituir 0000–0008 y crea la tabla con unicidad", async () => {
+		const journal = JSON.parse(
+			await readFile(path.join(migrationsDir, "meta/_journal.json"), "utf8"),
+		) as { entries: Array<{ tag: string }> };
+		const tags = journal.entries.map((entry) => entry.tag);
+		expect(tags).toContain("0009_educational_areas");
+		for (const previous of [
+			"0000_slippery_mongoose",
+			"0001_needy_stellaris",
+			"0005_atomized_tags",
+			"0006_user_email_case_insensitive",
+			"0007_resource_versions",
+			"0008_session_impersonated_by",
+		]) {
+			expect(tags).toContain(previous);
+		}
+		const files = await readdir(migrationsDir);
+		expect(files).toContain("0008_session_impersonated_by.sql");
+		expect(files).toContain("0009_educational_areas.sql");
+
+		const migration = (
+			await readFile(
+				path.join(migrationsDir, "0009_educational_areas.sql"),
+				"utf8",
+			)
+		).replaceAll("--> statement-breakpoint", "");
+		const db = new PGlite();
+		try {
+			await db.exec('CREATE TABLE "resources" (id text PRIMARY KEY)');
+			await db.exec(`INSERT INTO "resources" (id) VALUES ('r1')`);
+			await db.exec(migration);
+			await db.exec(migration);
+			await db.exec(
+				`INSERT INTO resource_educational_areas (resource_id, category_id, option_id)
+				 VALUES ('r1', 'bachillerato', NULL)`,
+			);
+			await expect(
+				db.exec(
+					`INSERT INTO resource_educational_areas (resource_id, category_id, option_id)
+					 VALUES ('r1', 'bachillerato', NULL)`,
+				),
+			).rejects.toThrow();
+		} finally {
+			await db.close();
+		}
+	});
+});

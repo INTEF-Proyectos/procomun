@@ -66,6 +66,17 @@ blocking_adrs:
 
 tasks:
 
+  T-2026-10-14-07410518:
+    date: 2026-10-14
+    agent: "metadatos-y-curacion + backend-api-servicios + frontend-ux-accesibilidad + busqueda-y-descubrimiento + qa-validacion"
+    task: "Categorización educativa de dos niveles (#380)"
+    status: Done
+    related: ["#380"]
+    notes: >
+      Tabla resource_educational_areas y catálogo cerrado de 12 categorías.
+      Formulario, ficha y filtros del buscador comparten ids y etiquetas.
+      La correspondencia de categorías antiguas queda en #383.
+
   T-2026-09-06-08510442:
     date: 2026-09-06
     agent: "seguridad-privacidad-legal + arquitectura-solucion + backend-api-servicios + qa-validacion + documentacion-y-roadmap"

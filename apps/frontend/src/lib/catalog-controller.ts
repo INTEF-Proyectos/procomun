@@ -122,6 +122,8 @@ export function initCatalog() {
 	let language = "";
 	let license = "";
 	let tag = "";
+	let educationalCategory = "";
+	let educationalOption = "";
 	let viewMode = localStorage.getItem("catalog-view") || "grid";
 
 	function setView(mode: string) {
@@ -142,6 +144,8 @@ export function initCatalog() {
 		language = s.language;
 		license = s.license;
 		tag = s.tag;
+		educationalCategory = s.educationalCategory;
+		educationalOption = s.educationalOption;
 		if (searchInput) searchInput.value = query;
 		typeFilter.value = resourceType;
 		langFilter.value = language;
@@ -159,6 +163,8 @@ export function initCatalog() {
 				language,
 				license,
 				tag,
+				educationalCategory,
+				educationalOption,
 			}),
 			mode,
 		);
@@ -191,6 +197,8 @@ export function initCatalog() {
 				language: language || undefined,
 				license: license || undefined,
 				tag: tag || undefined,
+				educationalCategory: educationalCategory || undefined,
+				educationalOption: educationalOption || undefined,
 			});
 
 			const { data, total, limit } = result;

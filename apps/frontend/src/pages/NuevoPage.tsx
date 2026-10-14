@@ -1,10 +1,15 @@
 import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { EducationalClassificationEditor } from "../islands/resources/EducationalClassificationFields.tsx";
 import {
 	LANGUAGE_OPTIONS,
 	LICENSE_OPTIONS,
 	RESOURCE_TYPE_OPTIONS,
 } from "../islands/resources/resource-form-options.ts";
+import {
+	type EducationalSelection,
+	selectionsToAssignments,
+} from "../lib/educational-classification.ts";
 import { getApiClient } from "../lib/get-api-client.ts";
 import { url } from "../lib/paths.ts";
 import "../styles/nuevo.css";
@@ -84,6 +89,9 @@ export default function NuevoPage() {
 	const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 	const [invalidFields, setInvalidFields] = useState<Set<string>>(new Set());
 	const [form, setForm] = useState<ResourceFormState>(EMPTY_FORM);
+	const [educationalSelections, setEducationalSelections] = useState<
+		EducationalSelection[]
+	>([]);
 
 	const fileInputRef = useRef<HTMLInputElement>(null);
 	const storedElpxFileRef = useRef<File | null>(null);
@@ -219,6 +227,7 @@ export default function NuevoPage() {
 			resourceType: form.resourceType,
 			author: form.author || undefined,
 			keywords: form.keywords || undefined,
+			educationalAreas: selectionsToAssignments(educationalSelections),
 		};
 
 		setSubmitBtnDisabled(true);
@@ -474,6 +483,12 @@ export default function NuevoPage() {
 							{fieldErrors.author ?? ""}
 						</span>
 					</div>
+
+					<EducationalClassificationEditor
+						idPrefix="new-educational"
+						selections={educationalSelections}
+						onChange={setEducationalSelections}
+					/>
 
 					<div className="form-field">
 						<label htmlFor="keywords">

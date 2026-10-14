@@ -1,7 +1,13 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
+import { EducationalClassificationEditor } from "../islands/resources/EducationalClassificationFields.tsx";
 import { getResourceTypeOptions } from "../islands/resources/resource-form-options.ts";
 import type { Resource } from "../lib/api-client.ts";
+import {
+	assignmentsToSelections,
+	type EducationalSelection,
+	selectionsToAssignments,
+} from "../lib/educational-classification.ts";
 import { getApiClient } from "../lib/get-api-client.ts";
 import { url } from "../lib/paths.ts";
 import { ResourceVersionPanel } from "./ResourceVersionPanel.tsx";
@@ -128,6 +134,9 @@ export default function EditarPage() {
 		isNew ? "Crear recurso" : "Guardar cambios",
 	);
 	const [applyMetaDone, setApplyMetaDone] = useState(false);
+	const [educationalSelections, setEducationalSelections] = useState<
+		EducationalSelection[]
+	>([]);
 
 	// eXeLearning editor state
 	const [exeModalVisible, setExeModalVisible] = useState(false);
@@ -339,6 +348,9 @@ export default function EditarPage() {
 				}
 
 				setResource(resourceData);
+				setEducationalSelections(
+					assignmentsToSelections(resourceData.educationalAreas),
+				);
 				setElpx(elpxData);
 				setUserRole(role);
 				setState("ready");
@@ -428,6 +440,7 @@ export default function EditarPage() {
 				resourceType: resourceTypeRef.current?.value ?? "documento",
 				author: authorRef.current?.value || undefined,
 				keywords: keywordsRef.current?.value || undefined,
+				educationalAreas: selectionsToAssignments(educationalSelections),
 			});
 
 			if (!result.ok) {
@@ -908,6 +921,12 @@ export default function EditarPage() {
 								placeholder="Nombre del autor"
 							/>
 						</div>
+
+						<EducationalClassificationEditor
+							idPrefix="ed-educational"
+							selections={educationalSelections}
+							onChange={setEducationalSelections}
+						/>
 
 						<div className="edit-field">
 							<label htmlFor="ed-keywords">

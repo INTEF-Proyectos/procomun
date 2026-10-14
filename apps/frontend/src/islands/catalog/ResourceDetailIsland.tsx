@@ -24,6 +24,7 @@ import { ResourceCard } from "../../ui/ResourceCard.tsx";
 import { FavoriteIsland } from "../social/FavoriteIsland.tsx";
 import { RatingIsland } from "../social/RatingIsland.tsx";
 import { ReportButton } from "../social/ReportButton.tsx";
+import { EducationalClassificationList } from "./EducationalClassificationList.tsx";
 import { EmbedModal } from "./EmbedModal.tsx";
 import "../../lib/paraglide-client.ts";
 import { hasMinRole } from "../../lib/shared-utils.ts";
@@ -675,6 +676,8 @@ function ResourceDetailContent({
 								</div>
 							</div>
 						) : null}
+
+						<EducationalClassificationList areas={resource.educationalAreas} />
 
 						{/* Actions: Favorite + Share + Report */}
 						<div className="meta-section">
