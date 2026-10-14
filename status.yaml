@@ -66,6 +66,21 @@ blocking_adrs:
 
 tasks:
 
+  T-2026-10-14-07281145:
+    date: 2026-10-14
+    agent: "backend-api-servicios + seguridad-privacidad-legal + qa-validacion"
+    task: "Presentaciones eXeLearning sin «localhost rechazó la conexión» en cada diapositiva"
+    status: Done
+    related: ["#391", ADR-0026]
+    notes: >
+      El ODE 1535372179937 no apunta el iframe a localhost: cada página embebe
+      otro HTML del paquete. El padre es origen opaco y frame-ancestors 'self'
+      hacía que Chrome pintara ERR_BLOCKED_BY_RESPONSE. Se permite anidar ese
+      HTML con frame-ancestors * sin allow-same-origin ni allow-top-navigation,
+      y las URLs de loopback o {{context_path}} que sí deje el editor se
+      reescriben a /api/v1/elpx/ o se elimina el iframe. Test en
+      elpx-content.unit.test.ts.
+
   T-2026-09-06-08510442:
     date: 2026-09-06
     agent: "seguridad-privacidad-legal + arquitectura-solucion + backend-api-servicios + qa-validacion + documentacion-y-roadmap"

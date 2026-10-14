@@ -119,6 +119,106 @@ function resolveRelativePath(baseDir: string, relativePath: string): string {
 	return result.join("/");
 }
 
+function isLoopbackHost(hostname: string): boolean {
+	const host = hostname.toLowerCase().replace(/^\[|\]$/g, "");
+	return host === "localhost" || host === "127.0.0.1" || host === "::1";
+}
+
+function rawPathHasTraversal(url: string): boolean {
+	return /(?:^|[\\/])\.\.(?:[\\/]|$)|%2e%2e/i.test(url);
+}
+
+/** Ruta interna del paquete, o null si no es segura de servir bajo /api/v1/elpx/. */
+function safePackagePathWithSuffix(value: string): string | null {
+	const match = /^([^?#]*)([?#].*)?$/.exec(value);
+	const pathPart = match?.[1] ?? value;
+	const suffix = match?.[2] ?? "";
+	if (rawPathHasTraversal(suffix)) return null;
+
+	let decoded = pathPart;
+	try {
+		decoded = decodeURIComponent(pathPart);
+	} catch {
+		return null;
+	}
+	decoded = decoded.replace(/\\/g, "/").replace(/^\/+/, "");
+	if (!decoded || decoded.includes("\0") || decoded.includes(":")) return null;
+
+	const segments = decoded.split("/");
+	if (
+		segments.some(
+			(seg) => seg === "" || seg === "." || seg === ".." || seg.includes(".."),
+		)
+	) {
+		return null;
+	}
+	return `${segments.join("/")}${suffix}`;
+}
+
+/**
+ * El editor eXe deja el recurso embebido en `http://localhost`,
+ * `127.0.0.1` o `{{context_path}}`. Si la ruta es relativa y no sale del
+ * paquete, se devuelve para servirla bajo el visor; si no, null y el
+ * iframe se elimina.
+ */
+function packagePathFromEditorUrl(url: string): string | null {
+	if (rawPathHasTraversal(url)) return null;
+
+	const context = /^\{\{\s*context_path\s*\}\}(\S*)$/i.exec(url);
+	if (context) return safePackagePathWithSuffix(context[1] ?? "");
+
+	let parsed: URL;
+	try {
+		parsed = new URL(url);
+	} catch {
+		return null;
+	}
+	if (parsed.protocol !== "http:" && parsed.protocol !== "https:") return null;
+	if (!isLoopbackHost(parsed.hostname)) return null;
+	return safePackagePathWithSuffix(
+		`${parsed.pathname}${parsed.search}${parsed.hash}`,
+	);
+}
+
+function isEditorLoopbackUrl(url: string): boolean {
+	if (/^\{\{\s*context_path\s*\}\}/i.test(url)) return true;
+	try {
+		const parsed = new URL(url);
+		return (
+			(parsed.protocol === "http:" || parsed.protocol === "https:") &&
+			isLoopbackHost(parsed.hostname)
+		);
+	} catch {
+		return false;
+	}
+}
+
+function rewriteEditorUrls(html: string, baseUrl: string): string {
+	html = html.replace(
+		/(<[^>]+\s)(src|href|poster)(\s*=\s*["'])([^"']+)(["'])/gi,
+		(match, prefix, attr, eq, url, quote) => {
+			const mapped = packagePathFromEditorUrl(url.trim());
+			if (mapped === null) return match;
+			return `${prefix}${attr}${eq}${baseUrl}${mapped}${quote}`;
+		},
+	);
+
+	// Lo que sigue apuntando al loopback no está en el paquete: quitar el
+	// iframe evita la página «localhost rechazó la conexión» de Chrome.
+	html = html.replace(
+		/<iframe\b[^>]*\bsrc\s*=\s*(["'])([^"']+)\1[^>]*>(?:\s*<\/iframe>)?/gi,
+		(full, _quote, url: string) =>
+			isEditorLoopbackUrl(url.trim()) ? "" : full,
+	);
+	html = html.replace(
+		/<script\b[^>]*\bsrc\s*=\s*(["'])([^"']+)\1[^>]*>(?:\s*<\/script>)?/gi,
+		(full, _quote, url: string) =>
+			isEditorLoopbackUrl(url.trim()) ? "" : full,
+	);
+
+	return html;
+}
+
 function rewriteRelativeUrls(
 	html: string,
 	baseUrl: string,
@@ -128,7 +228,7 @@ function rewriteRelativeUrls(
 	const dir = currentDir === "." ? "" : currentDir;
 
 	const attrPattern =
-		/(<[^>]+\s)(src|href|poster)(\s*=\s*["'])(?!https?:\/\/|data:|\/\/|#|javascript:)([^"']+)(["'])/gi;
+		/(<[^>]+\s)(src|href|poster)(\s*=\s*["'])(?!https?:\/\/|data:|\/\/|#|javascript:|\{\{)([^"']+)(["'])/gi;
 	html = html.replace(attrPattern, (match, prefix, attr, eq, url, quote) => {
 		if (!url || url.startsWith("/")) return match;
 		const resolved = resolveRelativePath(dir, url);
@@ -144,7 +244,7 @@ function rewriteRelativeUrls(
 		},
 	);
 
-	return html;
+	return rewriteEditorUrls(html, baseUrl);
 }
 
 function rewriteCssUrls(
@@ -186,8 +286,15 @@ function authorAssetHeaders(contentType: string): Record<string, string> {
 	};
 }
 
+// `frame-ancestors *` (no `'self'`): el HTML del .elpx ya es origen opaco
+// (sandbox sin `allow-same-origin`). Una presentación de eXeLearning mete
+// cada diapositiva en un iframe a otro HTML del mismo paquete. El ancestro
+// de ese hijo es el origen `null`, que no coincide con `'self'`, y Chrome
+// descarta la respuesta con «localhost rechazó la conexión»
+// (ERR_BLOCKED_BY_RESPONSE). `*` deja anidar ese HTML sin devolver el origen
+// de la plataforma y sin `allow-same-origin` ni `allow-top-navigation`.
 export const ELPX_HTML_CSP =
-	"default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; media-src 'self' data: blob: https:; font-src 'self' data:; connect-src 'self'; frame-src 'self' https:; frame-ancestors 'self'; form-action 'self'; base-uri 'self'; sandbox allow-scripts allow-popups allow-forms allow-popups-to-escape-sandbox";
+	"default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; media-src 'self' data: blob: https:; font-src 'self' data:; connect-src 'self'; frame-src 'self' https:; frame-ancestors *; form-action 'self'; base-uri 'self'; sandbox allow-scripts allow-popups allow-forms allow-popups-to-escape-sandbox";
 
 export const elpxContentRoutes = new Hono();
 

@@ -96,6 +96,84 @@ describe("elpx-content CSP (XSS almacenado vía SVG)", () => {
 	});
 });
 
+describe("presentaciones eXeLearning (issue #391)", () => {
+	test("reescribe iframes y scripts de localhost al HTML empaquetado y permite enmarcarlos", async () => {
+		const storage = process.env.UPLOAD_STORAGE_DIR;
+		if (!storage) throw new Error("UPLOAD_STORAGE_DIR no fijado");
+		const elpxDir = path.join(storage, "elpx", HASH);
+		await mkdir(path.join(elpxDir, "html"), { recursive: true });
+		await mkdir(path.join(elpxDir, "content", "resources"), {
+			recursive: true,
+		});
+		await mkdir(path.join(elpxDir, "libs"), { recursive: true });
+		await writeFile(
+			path.join(elpxDir, "content", "resources", "pagina.html"),
+			"<!doctype html><title>Tema y justificación</title><p>Contenido de la diapositiva</p>",
+			"utf8",
+		);
+		await writeFile(
+			path.join(elpxDir, "content", "resources", "relativa.html"),
+			"<!doctype html><p>relativa</p>",
+			"utf8",
+		);
+		await writeFile(
+			path.join(elpxDir, "libs", "common.js"),
+			"/* paquete */",
+			"utf8",
+		);
+		await writeFile(
+			path.join(elpxDir, "html", "diapositiva.html"),
+			`<!doctype html><head></head><body>
+<iframe src="http://localhost:8080/content/resources/pagina.html" style="width:100%;height:85vh;border:none;"></iframe>
+<iframe src="http://127.0.0.1:51235/content/resources/pagina.html"></iframe>
+<iframe src="{{context_path}}/content/resources/pagina.html"></iframe>
+<iframe src="../content/resources/relativa.html"></iframe>
+<iframe src="http://localhost:9/"></iframe>
+<iframe src="http://localhost:8080/../../etc/passwd"></iframe>
+<script src="http://localhost:8080/libs/common.js"></script>
+<iframe src="https://www.youtube.com/embed/dQw4w9WgXcQ"></iframe>
+<a href="https://example.com/externo">externo</a>
+</body>`,
+			"utf8",
+		);
+
+		const res = await app.request(`/api/v1/elpx/${HASH}/html/diapositiva.html`);
+		expect(res.status).toBe(200);
+		const html = await res.text();
+		const base = `/api/v1/elpx/${HASH}/`;
+
+		// El editor eXe deja el iframe contra localhost o {{context_path}}.
+		// En el visor tiene que apuntar al HTML que ya viaja en el paquete.
+		expect(html).not.toMatch(/https?:\/\/(localhost|127\.0\.0\.1)\b/i);
+		expect(html).not.toContain("{{context_path}}");
+		expect(html).not.toContain("etc/passwd");
+		expect(html).toContain(`src="${base}content/resources/pagina.html"`);
+		expect(html).toContain(`src="${base}content/resources/relativa.html"`);
+		expect(html).toContain(`src="${base}libs/common.js"`);
+		expect(html).toContain('src="https://www.youtube.com/embed/dQw4w9WgXcQ"');
+		expect(html).toContain('href="https://example.com/externo"');
+
+		const parentCsp = res.headers.get("content-security-policy") ?? "";
+		expect(parentCsp).toContain("sandbox");
+		expect(parentCsp).not.toContain("allow-same-origin");
+		expect(parentCsp).not.toContain("allow-top-navigation");
+
+		// El hijo es otro HTML del paquete. El padre ya es origen opaco: con
+		// frame-ancestors 'self' Chrome lo descarta y pinta «localhost rechazó
+		// la conexión» en cada diapositiva.
+		const child = await app.request(
+			`/api/v1/elpx/${HASH}/content/resources/pagina.html`,
+		);
+		expect(child.status).toBe(200);
+		const childCsp = child.headers.get("content-security-policy") ?? "";
+		expect(childCsp).toContain("frame-ancestors *");
+		expect(childCsp).not.toContain("frame-ancestors 'self'");
+		expect(childCsp).toContain("sandbox");
+		expect(childCsp).not.toContain("allow-same-origin");
+		expect(childCsp).not.toContain("allow-top-navigation");
+	});
+});
+
 describe("remainingPathAfter", () => {
 	test("resuelve index.html cuando el segmento es el último", () => {
 		expect(remainingPathAfter(`/api/v1/elpx/${HASH}/`, HASH)).toBe(

@@ -57,3 +57,9 @@ Se adopta la **Opción 2** (defensa en profundidad A + B).
 * Punto de extensión de renderizado: la cabecera `Content-Security-Policy` en `apps/api/src/routes/elpx-content.ts`.
 * Validación (regla 14): tests en `apps/api/src/services/elpx-safe-extract.unit.test.ts` (zip slip, symlink, zip bomb por número/tamaño/ratio, contención y rollback) y aserción de la directiva `sandbox` en `elpx-processor.unit.test.ts`. Verificar con `bun test`.
 * Evolución futura: evaluar la Opción 3 (`fflate`) para eliminar el subproceso `unzip`.
+
+## Addendum 2026-10-14 — iframes a otro HTML del mismo paquete
+
+Una presentación exportada por eXeLearning (p. ej. el ODE `1535372179937`) mete cada diapositiva en un `<iframe>` cuyo `src` es otro HTML del propio paquete, no un host externo. El documento padre ya es origen opaco (`sandbox` sin `allow-same-origin`). Con `frame-ancestors 'self'` el ancestro `null` no coincide y Chrome descarta al hijo mostrando «localhost rechazó la conexión» (`ERR_BLOCKED_BY_RESPONSE`).
+
+Se mantiene el origen opaco. La CSP del HTML pasa a `frame-ancestors *` para poder anidar ese HTML. No se añaden `allow-same-origin` ni `allow-top-navigation`. Las URLs que el editor deja como `http://localhost`, `http://127.0.0.1` o `{{context_path}}` y cuya ruta no sale del paquete se reescriben a `/api/v1/elpx/{hash}/…`; si la ruta no es segura, el iframe se elimina.
