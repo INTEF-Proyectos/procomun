@@ -199,6 +199,12 @@ describe("acceso público a versiones históricas (issue #323)", () => {
 		expect(res.headers.get("content-security-policy")).not.toContain(
 			"allow-same-origin",
 		);
+		// Origen opaco: con frame-ancestors o X-Frame-Options, Chromium bloquea
+		// los iframes hijos del propio paquete (#379, #381, #391).
+		expect(res.headers.get("content-security-policy")).not.toContain(
+			"frame-ancestors",
+		);
+		expect(res.headers.get("x-frame-options")).toBeNull();
 	});
 
 	test("la versión histórica se descarga desde administración", async () => {
@@ -220,6 +226,10 @@ describe("acceso público a versiones históricas (issue #323)", () => {
 		expect(res.headers.get("content-security-policy")).not.toContain(
 			"allow-same-origin",
 		);
+		expect(res.headers.get("content-security-policy")).not.toContain(
+			"frame-ancestors",
+		);
+		expect(res.headers.get("x-frame-options")).toBeNull();
 
 		const css = await authorApp.request(`${previewPath}style.css`);
 		expect(css.status).toBe(200);
