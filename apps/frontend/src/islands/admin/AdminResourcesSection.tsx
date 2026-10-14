@@ -66,6 +66,142 @@ function getInitials(name: string): string {
 		.toUpperCase();
 }
 
+/** Admin, o curator solo si el recurso está en revisión. No ampliar la edición. */
+export function canEditAdminResource(
+	role: string,
+	resource: { editorialStatus: string },
+): boolean {
+	return (
+		role === "admin" ||
+		(role === "curator" && resource.editorialStatus === "review")
+	);
+}
+
+export function buildAdminResourceColumns(options: {
+	role: string;
+	busyDelete: boolean;
+	onDelete: (resource: Resource) => void;
+}): Column<Resource>[] {
+	const { role, busyDelete, onDelete } = options;
+	return [
+		{
+			key: "title",
+			label: "Titulo del Recurso",
+			render: (r) => {
+				const iconInfo = getResourceIcon(r.resourceType);
+				const destination = canEditAdminResource(role, r)
+					? url(`editar?id=${r.id}`)
+					: url(`recurso?slug=${r.slug}`);
+				return (
+					<div className="admin-resource-cell">
+						<div className={`admin-resource-icon ${iconInfo.className}`}>
+							<span className="material-symbols-outlined">{iconInfo.icon}</span>
+						</div>
+						<div>
+							<a href={destination} className="admin-resource-title">
+								{r.title}
+							</a>
+							<div className="admin-resource-id">ID: {r.id.slice(0, 12)}</div>
+						</div>
+					</div>
+				);
+			},
+		},
+		{
+			key: "type",
+			label: "Tipo",
+			render: (r) => (
+				<span className={`type-badge ${getTypeBadgeClass(r.resourceType)}`}>
+					{r.resourceType || "-"}
+				</span>
+			),
+		},
+		{
+			key: "language",
+			label: "Idioma",
+			render: (r) => (
+				<span style={{ fontSize: "0.875rem", fontWeight: 500 }}>
+					{r.language || "-"}
+				</span>
+			),
+		},
+		{
+			key: "status",
+			label: "Estado",
+			render: (r) => {
+				const s = STATUS_MAP[r.editorialStatus] ?? {
+					label: r.editorialStatus,
+					className: "status-draft",
+				};
+				return (
+					<div className={`status-badge ${s.className}`}>
+						<span className="status-badge-dot" />
+						{s.label}
+					</div>
+				);
+			},
+		},
+		{
+			key: "author",
+			label: "Autor",
+			render: (r) => {
+				const name = r.createdByName || r.author || "Sin autor";
+				return (
+					<div className="admin-author-cell">
+						<div className="admin-author-avatar">{getInitials(name)}</div>
+						<span className="admin-author-name">{name}</span>
+					</div>
+				);
+			},
+		},
+		{
+			key: "updatedAt",
+			label: "Ultima Act.",
+			render: (r) => (
+				<span className="admin-date-cell">{formatDate(r.updatedAt)}</span>
+			),
+		},
+		{
+			key: "actions",
+			label: "Acciones",
+			headerClassName: "admin-table-th-right",
+			className: "",
+			render: (r) => (
+				<div className="admin-actions-cell">
+					{canEditAdminResource(role, r) ? (
+						<>
+							<a
+								href={url(`editar?id=${r.id}`)}
+								className="admin-action-btn admin-action-btn--edit"
+								aria-label={`Editar ${r.title}`}
+							>
+								<span className="material-symbols-outlined">edit</span>
+							</a>
+							<button
+								type="button"
+								className="admin-action-btn admin-action-btn--delete"
+								disabled={busyDelete}
+								onClick={() => onDelete(r)}
+								aria-label={`Eliminar ${r.title}`}
+							>
+								<span className="material-symbols-outlined">delete</span>
+							</button>
+						</>
+					) : (
+						<a
+							href={url(`recurso?slug=${r.slug}`)}
+							className="admin-resource-readonly"
+							aria-label={`Solo lectura: ${r.title}`}
+						>
+							Solo lectura
+						</a>
+					)}
+				</div>
+			),
+		},
+	];
+}
+
 export function AdminResourcesSection() {
 	const [rows, setRows] = useState<Resource[]>([]);
 	const [session, setSession] = useState<SessionData | null>(null);
@@ -144,9 +280,6 @@ export function AdminResourcesSection() {
 	}, [loadStats, loadResources]);
 
 	const currentRole = session?.user.role ?? "reader";
-	const canEditResource = (resource: Resource) =>
-		currentRole === "admin" ||
-		(currentRole === "curator" && resource.editorialStatus === "review");
 
 	function applySearch() {
 		void loadResources(1, search.trim(), statusFilter);
@@ -177,112 +310,11 @@ export function AdminResourcesSection() {
 	const publishedPct =
 		statTotal > 0 ? Math.round((statPublished / statTotal) * 100) : 0;
 
-	const columns: Column<Resource>[] = [
-		{
-			key: "title",
-			label: "Titulo del Recurso",
-			render: (r) => {
-				const iconInfo = getResourceIcon(r.resourceType);
-				return (
-					<div className="admin-resource-cell">
-						<div className={`admin-resource-icon ${iconInfo.className}`}>
-							<span className="material-symbols-outlined">{iconInfo.icon}</span>
-						</div>
-						<div>
-							<div className="admin-resource-title">{r.title}</div>
-							<div className="admin-resource-id">ID: {r.id.slice(0, 12)}</div>
-						</div>
-					</div>
-				);
-			},
-		},
-		{
-			key: "type",
-			label: "Tipo",
-			render: (r) => (
-				<span className={`type-badge ${getTypeBadgeClass(r.resourceType)}`}>
-					{r.resourceType || "-"}
-				</span>
-			),
-		},
-		{
-			key: "language",
-			label: "Idioma",
-			render: (r) => (
-				<span style={{ fontSize: "0.875rem", fontWeight: 500 }}>
-					{r.language || "-"}
-				</span>
-			),
-		},
-		{
-			key: "status",
-			label: "Estado",
-			render: (r) => {
-				const s = STATUS_MAP[r.editorialStatus] ?? {
-					label: r.editorialStatus,
-					className: "status-draft",
-				};
-				return (
-					<div className={`status-badge ${s.className}`}>
-						<span className="status-badge-dot" />
-						{s.label}
-					</div>
-				);
-			},
-		},
-		{
-			key: "author",
-			label: "Autor",
-			render: (r) => {
-				const name = r.createdByName || r.author || "Sin autor";
-				return (
-					<div className="admin-author-cell">
-						<div className="admin-author-avatar">{getInitials(name)}</div>
-						<span className="admin-author-name">{name}</span>
-					</div>
-				);
-			},
-		},
-		{
-			key: "updatedAt",
-			label: "Ultima Act.",
-			render: (r) => (
-				<span className="admin-date-cell">{formatDate(r.updatedAt)}</span>
-			),
-		},
-		{
-			key: "actions",
-			label: "Acciones",
-			headerClassName: "admin-table-th-right",
-			className: "",
-			render: (r) => (
-				<div className="admin-actions-cell">
-					{canEditResource(r) ? (
-						<>
-							<a
-								href={url(`editar?id=${r.id}`)}
-								className="admin-action-btn admin-action-btn--edit"
-								aria-label={`Editar ${r.title}`}
-							>
-								<span className="material-symbols-outlined">edit</span>
-							</a>
-							<button
-								type="button"
-								className="admin-action-btn admin-action-btn--delete"
-								disabled={busyDelete}
-								onClick={() => setDeleteTarget(r)}
-								aria-label={`Eliminar ${r.title}`}
-							>
-								<span className="material-symbols-outlined">delete</span>
-							</button>
-						</>
-					) : (
-						<span className="admin-date-cell">Solo lectura</span>
-					)}
-				</div>
-			),
-		},
-	];
+	const columns = buildAdminResourceColumns({
+		role: currentRole,
+		busyDelete,
+		onDelete: setDeleteTarget,
+	});
 
 	return (
 		<>
