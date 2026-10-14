@@ -121,7 +121,9 @@ export function validateCreateResource(body: unknown): ValidationResult {
 
 	if (b.author !== undefined && typeof b.author !== "string") {
 		errors.push({ field: "author", message: "El autor debe ser texto" });
-	} else if (typeof b.author === "string" && b.author.length > 500) {
+	} else if (!isNonEmptyString(b.author)) {
+		errors.push({ field: "author", message: "El autor es obligatorio" });
+	} else if (b.author.length > 500) {
 		errors.push({
 			field: "author",
 			message: "El autor no puede superar 500 caracteres",
@@ -260,6 +262,22 @@ export function validateUpdateResource(body: unknown): ValidationResult {
 			field: "resourceType",
 			message: "El tipo de recurso no puede estar vacío",
 		});
+	}
+
+	if (b.author !== undefined) {
+		if (typeof b.author !== "string") {
+			errors.push({ field: "author", message: "El autor debe ser texto" });
+		} else if (!isNonEmptyString(b.author)) {
+			errors.push({
+				field: "author",
+				message: "El autor no puede estar vacío",
+			});
+		} else if (b.author.length > 500) {
+			errors.push({
+				field: "author",
+				message: "El autor no puede superar 500 caracteres",
+			});
+		}
 	}
 
 	return { valid: errors.length === 0, errors };

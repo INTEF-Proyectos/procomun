@@ -1,3 +1,7 @@
+import {
+	validateCreateResource,
+	validateUpdateResource,
+} from "@procomun/db/validation";
 import { type FormEvent, useEffect, useState } from "react";
 import type {
 	CreateResourceInput,
@@ -71,7 +75,7 @@ function toPayload(
 		language: form.language,
 		license: form.license,
 		resourceType: form.resourceType,
-		author: form.author || undefined,
+		author: form.author,
 		keywords: form.keywords || undefined,
 	};
 }
@@ -159,10 +163,22 @@ export function ResourceFormIsland({
 
 	async function handleSubmit(event: FormEvent<HTMLFormElement>) {
 		event.preventDefault();
-		setBusy(true);
 		setErrorMessage("");
 		setSuccessMessage("");
 		setFieldErrors({});
+
+		const payload = toPayload(form);
+		const validation =
+			mode === "create"
+				? validateCreateResource(payload)
+				: validateUpdateResource(payload);
+		if (!validation.valid) {
+			applyFieldErrors(validation.errors);
+			setErrorMessage("Revisa los campos marcados");
+			return;
+		}
+
+		setBusy(true);
 
 		try {
 			const api = await getApiClient();
@@ -359,10 +375,11 @@ export function ResourceFormIsland({
 				</div>
 
 				<div className="field">
-					<label htmlFor="author">Autor</label>
+					<label htmlFor="author">Autor *</label>
 					<input
 						type="text"
 						id="author"
+						required
 						aria-describedby="author-error"
 						aria-invalid={fieldErrors.author ? "true" : undefined}
 						value={form.author}

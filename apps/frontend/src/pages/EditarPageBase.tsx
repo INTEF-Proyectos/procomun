@@ -1,3 +1,4 @@
+import { validateUpdateResource } from "@procomun/db/validation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { getResourceTypeOptions } from "../islands/resources/resource-form-options.ts";
@@ -415,20 +416,33 @@ export default function EditarPage() {
 		setErrorMsg("");
 		setSuccessMsg("");
 		setFieldErrors({});
+
+		const payload = {
+			title: titleRef.current?.value ?? "",
+			description: descriptionRef.current?.value ?? "",
+			language: languageRef.current?.value ?? "es",
+			license: licenseRef.current?.value ?? "cc-by",
+			resourceType: resourceTypeRef.current?.value ?? "documento",
+			author: authorRef.current?.value ?? "",
+			keywords: keywordsRef.current?.value || undefined,
+		};
+		const validation = validateUpdateResource(payload);
+		if (!validation.valid) {
+			const errs: Record<string, string> = {};
+			for (const detail of validation.errors) {
+				errs[detail.field] = detail.message;
+			}
+			setFieldErrors(errs);
+			setErrorMsg("Revisa los campos marcados");
+			return;
+		}
+
 		setSaveBtnDisabled(true);
 		setSaveBtnText("Guardando...");
 
 		try {
 			const api = await getApiClient();
-			const result = await api.updateResource(resource.id, {
-				title: titleRef.current?.value ?? "",
-				description: descriptionRef.current?.value ?? "",
-				language: languageRef.current?.value ?? "es",
-				license: licenseRef.current?.value ?? "cc-by",
-				resourceType: resourceTypeRef.current?.value ?? "documento",
-				author: authorRef.current?.value || undefined,
-				keywords: keywordsRef.current?.value || undefined,
-			});
+			const result = await api.updateResource(resource.id, payload);
 
 			if (!result.ok) {
 				if (result.details) {
@@ -899,14 +913,20 @@ export default function EditarPage() {
 						)}
 
 						<div className="edit-field">
-							<label htmlFor="ed-author">Autor</label>
+							<label htmlFor="ed-author">Autor *</label>
 							<input
 								type="text"
 								id="ed-author"
 								ref={authorRef}
+								required
+								aria-describedby="ed-author-error"
+								aria-invalid={fieldErrors.author ? "true" : undefined}
 								defaultValue={res.author ?? ""}
 								placeholder="Nombre del autor"
 							/>
+							<span id="ed-author-error" className="field-error" role="alert">
+								{fieldErrors.author ?? ""}
+							</span>
 						</div>
 
 						<div className="edit-field">
