@@ -186,8 +186,14 @@ function authorAssetHeaders(contentType: string): Record<string, string> {
 	};
 }
 
+// `frame-ancestors *` (no `'self'`): el documento ya es origen opaco por
+// `sandbox` sin `allow-same-origin`. Un iframe hijo del propio paquete (el
+// reproductor HTML5 de eXeLearning, p. ej.) tiene como ancestro ese origen
+// `null`, que no coincide con `'self'`, y Chrome descarta el hijo: el
+// `<audio>` no carga y los controles salen bloqueados, sin barra de tiempo.
+// `*` deja anidar ese HTML sin devolver el origen de la plataforma.
 export const ELPX_HTML_CSP =
-	"default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; media-src 'self' data: blob: https:; font-src 'self' data:; connect-src 'self'; frame-src 'self' https:; frame-ancestors 'self'; form-action 'self'; base-uri 'self'; sandbox allow-scripts allow-popups allow-forms allow-popups-to-escape-sandbox";
+	"default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; media-src 'self' data: blob: https:; font-src 'self' data:; connect-src 'self'; frame-src 'self' https:; frame-ancestors *; form-action 'self'; base-uri 'self'; sandbox allow-scripts allow-popups allow-forms allow-popups-to-escape-sandbox";
 
 export const elpxContentRoutes = new Hono();
 

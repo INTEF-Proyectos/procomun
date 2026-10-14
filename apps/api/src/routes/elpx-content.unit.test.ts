@@ -5,6 +5,7 @@ import path from "node:path";
 import { Hono } from "hono";
 import {
 	AUTHOR_ASSET_CSP,
+	ELPX_HTML_CSP,
 	elpxContentRoutes,
 	remainingPathAfter,
 } from "./elpx-content.ts";
@@ -41,6 +42,8 @@ beforeAll(async () => {
 	await writeFile(path.join(elpxDir, "evil.svg"), SVG_BODY, "utf8");
 	await writeFile(path.join(elpxDir, "styles.css"), "body{color:red}", "utf8");
 	await writeFile(path.join(elpxDir, "data.bin"), "binario", "utf8");
+	await writeFile(path.join(elpxDir, "sonido.mp3"), "mp3", "utf8");
+	await writeFile(path.join(elpxDir, "sonido.ogg"), "ogg", "utf8");
 	// XML también puede interpretarse como documento activo en algunos contextos.
 	await writeFile(
 		path.join(elpxDir, "payload.xml"),
@@ -93,6 +96,40 @@ describe("elpx-content CSP (XSS almacenado vía SVG)", () => {
 		expect(res.status).toBe(200);
 		expect(res.headers.get("content-type")).toBe("application/xml");
 		expectStrictAssetSandbox(res.headers.get("content-security-policy"));
+	});
+});
+
+describe("audio anidado en el visor (issue #379)", () => {
+	test("el HTML sigue en origen opaco pero un iframe del propio paquete puede montarse", () => {
+		// El reproductor de eXeLearning va en un HTML hijo (`<audio controls>`
+		// dentro de un iframe). El padre ya es origen opaco (sandbox sin
+		// allow-same-origin): su origen es `null` y NO coincide con
+		// `frame-ancestors 'self'`, así que el navegador descarta el hijo y
+		// el audio no llega a cargar (botón de play inactivo, sin duración).
+		// `frame-ancestors *` permite ese anidado sin devolver el origen real.
+		expect(ELPX_HTML_CSP).toContain("sandbox");
+		expect(ELPX_HTML_CSP).toContain("allow-scripts");
+		expect(ELPX_HTML_CSP).not.toContain("allow-same-origin");
+		expect(ELPX_HTML_CSP).toContain("frame-ancestors *");
+		expect(ELPX_HTML_CSP).not.toContain("frame-ancestors 'self'");
+		expect(ELPX_HTML_CSP).toContain("media-src");
+	});
+
+	test("mp3 y ogg se sirven con el tipo MIME de audio y CORS", async () => {
+		const mp3 = await app.request(`/api/v1/elpx/${HASH}/sonido.mp3`);
+		const ogg = await app.request(`/api/v1/elpx/${HASH}/sonido.ogg`);
+
+		expect(mp3.status).toBe(200);
+		expect(mp3.headers.get("content-type")).toBe("audio/mpeg");
+		expect(ogg.status).toBe(200);
+		expect(ogg.headers.get("content-type")).toBe("audio/ogg");
+		expect(mp3.headers.get("access-control-allow-origin")).toBe("*");
+		expect(ogg.headers.get("access-control-allow-origin")).toBe("*");
+		// El aislamiento de activos no abre el origen del HTML.
+		expectStrictAssetSandbox(mp3.headers.get("content-security-policy"));
+		expect(mp3.headers.get("content-security-policy")).not.toContain(
+			"allow-same-origin",
+		);
 	});
 });
 
