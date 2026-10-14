@@ -1,5 +1,9 @@
-import { and, eq } from "drizzle-orm";
-import { mapLegacyEducationalCategories } from "../legacy-import/educational-category-map.ts";
+import { and, eq, isNull, sql } from "drizzle-orm";
+import {
+	type EducationalImportResourceNote,
+	mapLegacyEducationalCategories,
+} from "../legacy-import/educational-category-map.ts";
+import { IMPORT_SOURCE } from "../legacy-import/field-mapper.ts";
 import { elpxProjects } from "../schema/elpx.ts";
 import {
 	mediaItems,
@@ -202,4 +206,58 @@ export async function importLegacyResourceWithElpx(
 
 		return { resourceId, slug, mediaItemId, elpxProjectId };
 	});
+}
+
+/**
+ * Relleno de la categorización educativa (#383) para los recursos legacy
+ * importados antes de la correspondencia: aplica las mismas reglas a su
+ * resource_levels, que guarda el learningContext original. Solo toca recursos
+ * sin ninguna clasificación, así que repetirlo no cambia nada y no pisa lo
+ * editado a mano. Devuelve las notas para el mismo informe que la importación.
+ */
+export async function backfillLegacyEducationalAreas(
+	db: DrizzleDB,
+	options: { dryRun: boolean },
+): Promise<EducationalImportResourceNote[]> {
+	const rows = await db
+		.select({
+			id: resources.id,
+			externalId: resources.externalId,
+			level: resourceLevels.level,
+		})
+		.from(resources)
+		.leftJoin(resourceLevels, eq(resourceLevels.resourceId, resources.id))
+		.where(
+			and(
+				eq(resources.importSource, IMPORT_SOURCE),
+				isNull(resources.deletedAt),
+				sql`not exists (
+					select 1 from resource_educational_areas ea
+					where ea.resource_id = ${resources.id}
+				)`,
+			),
+		)
+		.orderBy(resources.externalId);
+
+	const byResource = new Map<string, EducationalImportResourceNote>();
+	for (const row of rows) {
+		const note = byResource.get(row.id) ?? {
+			externalId: row.externalId ?? row.id,
+			sourceCategories: [],
+		};
+		if (row.level)
+			note.sourceCategories = [...note.sourceCategories, row.level];
+		byResource.set(row.id, note);
+	}
+
+	for (const [resourceId, note] of byResource) {
+		const { assignments } = mapLegacyEducationalCategories(
+			note.sourceCategories,
+		);
+		if (options.dryRun || assignments.length === 0) continue;
+		await db
+			.insert(resourceEducationalAreas)
+			.values(assignments.map((area) => ({ resourceId, ...area })));
+	}
+	return [...byResource.values()];
 }

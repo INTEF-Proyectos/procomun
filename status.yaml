@@ -66,6 +66,19 @@ blocking_adrs:
 
 tasks:
 
+  T-2026-10-14-11131328:
+    date: 2026-10-14
+    agent: "ingestas-y-migraciones + metadatos-y-curacion + qa-validacion + documentacion-y-roadmap"
+    task: "Revisión de la correspondencia de categorías antiguas (#383, PR #396)"
+    status: Done
+    related: ["#383", "#396", "#380"]
+    notes: >
+      import:legacy-procomun --backfill-categories aplica la correspondencia a
+      resource_levels de los recursos legacy ya importados sin clasificar.
+      Idempotente, con --dry-run y el mismo informe de categorización. Se quita
+      la eliminación de recuentos entre paréntesis al normalizar. design.md de
+      epic-004 actualizado. Pendiente: ELE A/B/C en recursos que no son de español.
+
   T-2026-10-14-07510643:
     date: 2026-10-14
     agent: "ingestas-y-migraciones + metadatos-y-curacion + qa-validacion"

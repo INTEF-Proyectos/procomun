@@ -6,13 +6,14 @@ import {
 	getElpxProjectByResourceId,
 	listMediaItemsForResource,
 } from "@procomun/db/repository";
-import { resources } from "@procomun/db/schema";
-import { eq } from "drizzle-orm";
+import { resourceEducationalAreas, resources } from "@procomun/db/schema";
+import { eq, inArray } from "drizzle-orm";
 import { Hono } from "hono";
 import { elpxContentRoutes } from "../../../api/src/routes/elpx-content.ts";
 import { computeFileSha256 } from "../../../api/src/uploads/config.ts";
 import {
 	loadImportLegacyProcomunDependencies,
+	runBackfillLegacyEducationalAreas,
 	runImportLegacyProcomun,
 } from "./import-legacy-procomun.ts";
 
@@ -231,6 +232,71 @@ describe("import:legacy-procomun (integración, PGlite en memoria vía test-setu
 		expect(report.totals.skippedExisting).toBe(3);
 		expect(report.totals.blocked).toBe(0);
 		expect(report.totals.errored).toBe(0);
+	});
+
+	test("--backfill-categories clasifica lo ya importado: en seco no escribe y repetirlo no cambia nada", async () => {
+		const db = deps.getDb().db;
+		const externalIds = [
+			"1615293421477",
+			"es_2024052212_9181312",
+			"es_2025101012_9102834",
+		];
+		const ids: string[] = [];
+		for (const externalId of externalIds) {
+			const found = await deps.repo.findLegacyResourceByExternalId(
+				db,
+				"legacy-procomun",
+				externalId,
+			);
+			if (found) ids.push(found.id);
+		}
+		expect(ids).toHaveLength(3);
+		const areasOf = () =>
+			db
+				.select({
+					categoryId: resourceEducationalAreas.categoryId,
+					optionId: resourceEducationalAreas.optionId,
+				})
+				.from(resourceEducationalAreas)
+				.where(inArray(resourceEducationalAreas.resourceId, ids))
+				.orderBy(
+					resourceEducationalAreas.categoryId,
+					resourceEducationalAreas.optionId,
+				);
+		const fromImport = await areasOf();
+		expect(fromImport).toEqual([
+			{ categoryId: "educacion-secundaria-obligatoria", optionId: "eso-3-4" },
+			{ categoryId: "educacion-secundaria-obligatoria", optionId: null },
+			{ categoryId: "formacion-profesional", optionId: "grado-basico" },
+		]);
+		// Simula que se importaron antes de la correspondencia (#383).
+		await db
+			.delete(resourceEducationalAreas)
+			.where(inArray(resourceEducationalAreas.resourceId, ids));
+
+		const dry = await runBackfillLegacyEducationalAreas({ dryRun: true }, deps);
+		expect(dry.dryRun).toBe(true);
+		const ours = (report: typeof dry) =>
+			report.categorizacionEducativa.categoriasNoReconocidas.filter((row) =>
+				row.recursos.some((id) => externalIds.includes(id)),
+			);
+		expect(ours(dry)).toEqual([]);
+		expect(dry.totals.processed).toBeGreaterThanOrEqual(3);
+		expect(await areasOf()).toEqual([]);
+
+		const real = await runBackfillLegacyEducationalAreas(
+			{ dryRun: false },
+			deps,
+		);
+		expect(real.categorizacionEducativa).toEqual(dry.categorizacionEducativa);
+		expect(await areasOf()).toEqual(fromImport);
+
+		const again = await runBackfillLegacyEducationalAreas(
+			{ dryRun: false },
+			deps,
+		);
+		expect(again.totals.processed).toBe(real.totals.processed - 3);
+		expect(await areasOf()).toEqual(fromImport);
 	});
 
 	test("--only reprocesa un único externalId ya importado como omitido", async () => {

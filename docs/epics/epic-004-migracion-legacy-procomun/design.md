@@ -176,3 +176,22 @@ Antes de salir, `import:legacy-users` cierra el cliente PGlite expuesto como `$c
 ### Comando y rollback
 
 `import:legacy-users --source-file <usuarios.json> [--dry-run] [--limit <n>] [--report-dir <ruta>]` escribe `informe_usuarios-<runId>.json` (o `informe_usuarios-dryrun-<runId>.json`). Cada registro importado incorpora el `userId` exacto; el rollback manual debe usar esa lista, comprobar que conserva el prefijo `legacy-procomun:user:` y no tiene asociaciones antes de eliminarlo. No se ofrece borrado automático en esta fase.
+
+## Ampliación — categorización educativa al importar (2026-10-14)
+
+Sustituye, para `learningContext[]`, la fila de la tabla de mapeo que decía que solo va a `resource_levels`.
+
+- `learningContext[]` se sigue guardando tal cual en `resource_levels`: es el dato de origen y no se filtra por él.
+- En la misma transacción del alta, `mapLegacyEducationalCategories()` (`packages/db/src/legacy-import/educational-category-map.ts`) traduce esas cadenas al catálogo de la issue #380 (ADR-0043) con las 31 reglas de la issue #383 y escribe `resource_educational_areas`.
+- La comparación ignora mayúsculas, espacios sobrantes y guiones tipográficos. No hay coincidencias parciales. Una categoría sin regla no se asigna ni bloquea el recurso.
+- El informe (`categorizacionEducativa`) cuenta, sobre recursos únicos, cuántos tienen todas sus categorías transformadas, cuántos quedan pendientes de revisión, cuántos no traen categorización y qué categorías no se reconocieron.
+
+### Relleno de lo ya importado
+
+Reimportar omite los recursos existentes (`skipped_existing`), así que lo importado antes de este cambio no tendría categorización. `import:legacy-procomun --backfill-categories [--dry-run] [--report-dir <ruta>]` no lee ficheros: aplica la misma correspondencia a `resource_levels` de los recursos con `import_source = 'legacy-procomun'`, no borrados y sin ninguna fila en `resource_educational_areas`.
+
+- Es idempotente: un recurso ya clasificado, por la importación o a mano, no se toca, y repetir la pasada no cambia nada.
+- `--dry-run` no escribe y devuelve las mismas cifras.
+- Escribe `informe_relleno-categorias-<runId>.json` (o `informe_relleno-categorias-dryrun-<runId>.json`) con `totals.processed` y el mismo bloque `categorizacionEducativa`. Los recursos que solo tienen categorías sin regla, o ninguna, siguen sin clasificar y vuelven a aparecer en cada pasada.
+
+Pendiente de decisión en #383: la correspondencia de los niveles A/B/C a ELE en recursos que no son de español.

@@ -111,7 +111,6 @@ describe("correspondencia de categorías antiguas", () => {
 			"Nivel avanzado (C)",
 			"Nivel avanzado ( C )",
 			"6 – 7 años / Primer curso",
-			"Educación Infantil (1.234)",
 		];
 		expect(
 			mapLegacyEducationalCategories([variants[0] ?? ""]).assignments,
@@ -147,22 +146,23 @@ describe("correspondencia de categorías antiguas", () => {
 		expect(
 			mapLegacyEducationalCategories([variants[7] ?? ""]).assignments,
 		).toEqual([{ categoryId: "educacion-primaria", optionId: "primer-tramo" }]);
-		expect(
-			mapLegacyEducationalCategories([variants[8] ?? ""]).assignments,
-		).toEqual([{ categoryId: "educacion-infantil", optionId: null }]);
 	});
 
 	test("no usa coincidencias parciales ni asigna PDC", () => {
+		// Los datos de cada recurso no traen recuentos entre paréntesis: un texto
+		// así no es una variante de escritura y no se asigna.
 		const mapped = mapLegacyEducationalCategories([
 			"Primer curso",
 			"PDC - Programa de Diversificación Curricular",
 			"Ámbito lingüístico y social",
+			"Educación Infantil (1.234)",
 		]);
 		expect(mapped.assignments).toEqual([]);
 		expect(mapped.unrecognized).toEqual([
 			"Primer curso",
 			"PDC - Programa de Diversificación Curricular",
 			"Ámbito lingüístico y social",
+			"Educación Infantil (1.234)",
 		]);
 	});
 

@@ -18,7 +18,7 @@ const MAX_RESOURCE_TYPE_LENGTH = 100; // resources.resource_type varchar(100)
 const MAX_SUBJECT_LENGTH = 255; // resource_subjects.subject varchar(255)
 const MAX_LEVEL_LENGTH = 100; // resource_levels.level varchar(100)
 const MAX_KEYWORDS_LENGTH = 1000; // límite de aplicación en validateCreateResource
-const IMPORT_SOURCE = "legacy-procomun";
+export const IMPORT_SOURCE = "legacy-procomun";
 
 function firstNonEmpty(values: (string | null | undefined)[]): string {
 	for (const value of values) {

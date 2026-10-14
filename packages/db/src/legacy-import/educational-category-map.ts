@@ -203,9 +203,7 @@ export function normalizeLegacyEducationalCategory(value: string): string {
 		.toLowerCase()
 		.replace(/\s*-\s*/g, "-")
 		.replace(/\(\s+/g, "(")
-		.replace(/\s+\)/g, ")")
-		.replace(/\s*\(\s*\d[\d.\s]*\)\s*$/g, "")
-		.trim();
+		.replace(/\s+\)/g, ")");
 }
 
 const RULES_BY_KEY = new Map<string, LegacyEducationalCategoryRule>();

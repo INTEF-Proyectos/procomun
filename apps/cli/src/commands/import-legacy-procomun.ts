@@ -5,6 +5,7 @@
  *
  * Uso:
  *   bun run apps/cli/src/index.ts import:legacy-procomun --source-dir <ruta> [--dry-run] [--limit <n>] [--only <externalId>] [--report-dir <ruta>]
+ *   bun run apps/cli/src/index.ts import:legacy-procomun --backfill-categories [--dry-run] [--report-dir <ruta>]
  */
 import { mkdir, readdir, rename, rm, stat, unlink } from "node:fs/promises";
 import path from "node:path";
@@ -58,6 +59,7 @@ export async function loadImportLegacyProcomunDependencies() {
 		// módulo completo forzaría a los mocks de unit test a implementar ~60
 		// exports irrelevantes y haría frágil el contrato de dependencias.
 		repo: {
+			backfillLegacyEducationalAreas: repo.backfillLegacyEducationalAreas,
 			findLegacyResourceByExternalId: repo.findLegacyResourceByExternalId,
 			getElpxProjectByHash: repo.getElpxProjectByHash,
 			importLegacyResourceWithElpx: repo.importLegacyResourceWithElpx,
@@ -184,6 +186,7 @@ function parseCliArgs(args: string[]) {
 		args,
 		options: {
 			"source-dir": { type: "string" },
+			"backfill-categories": { type: "boolean", default: false },
 			"dry-run": { type: "boolean", default: false },
 			limit: { type: "string" },
 			only: { type: "string" },
@@ -192,7 +195,9 @@ function parseCliArgs(args: string[]) {
 		strict: true,
 	});
 
-	if (!values["source-dir"]) {
+	const backfillCategories = Boolean(values["backfill-categories"]);
+	const sourceDir = values["source-dir"];
+	if (!sourceDir && !backfillCategories) {
 		throw new Error(
 			"Falta --source-dir. Uso: import:legacy-procomun --source-dir <ruta> [--dry-run] [--limit <n>] [--only <externalId>] [--report-dir <ruta>]",
 		);
@@ -204,7 +209,8 @@ function parseCliArgs(args: string[]) {
 	}
 
 	return {
-		sourceDir: path.resolve(values["source-dir"]),
+		sourceDir: sourceDir ? path.resolve(sourceDir) : "",
+		backfillCategories,
 		dryRun: Boolean(values["dry-run"]),
 		limit,
 		only: values.only,
@@ -222,20 +228,24 @@ export async function importLegacyProcomun(args: string[]) {
 	const options = parseCliArgs(args);
 	const deps = await loadImportLegacyProcomunDependencies();
 
-	const report = await runImportLegacyProcomun(options, deps);
+	const report = options.backfillCategories
+		? await runBackfillLegacyEducationalAreas(options, deps)
+		: await runImportLegacyProcomun(options, deps);
 
 	await mkdir(options.reportDir, { recursive: true });
 	const reportPath = path.join(
 		options.reportDir,
-		`informe_ingesta-${options.dryRun ? "dryrun-" : ""}${report.runId}.json`,
+		`informe_${options.backfillCategories ? "relleno-categorias" : "ingesta"}-${options.dryRun ? "dryrun-" : ""}${report.runId}.json`,
 	);
 	await Bun.write(reportPath, JSON.stringify(report, null, 2));
 	console.log(`[import:legacy-procomun] Informe escrito en ${reportPath}`);
 
 	console.log(
 		`[import:legacy-procomun] Completado. ${options.dryRun ? "(dry-run) " : ""}` +
-			`importados=${report.totals.imported} omitidos_ya_existentes=${report.totals.skippedExisting} ` +
-			`bloqueados=${report.totals.blocked} errores=${report.totals.errored} incompletos=${report.totals.incompletePairs} ` +
+			("imported" in report.totals
+				? `importados=${report.totals.imported} omitidos_ya_existentes=${report.totals.skippedExisting} ` +
+					`bloqueados=${report.totals.blocked} errores=${report.totals.errored} incompletos=${report.totals.incompletePairs} `
+				: `sin_clasificar_revisados=${report.totals.processed} `) +
 			`categorias_ok=${report.categorizacionEducativa.recursosConTodasTransformadas} ` +
 			`categorias_revision=${report.categorizacionEducativa.recursosPendientesDeRevision} ` +
 			`sin_categoria=${report.categorizacionEducativa.recursosSinCategorizacionDeOrigen}`,
@@ -244,7 +254,8 @@ export async function importLegacyProcomun(args: string[]) {
 	// Calculado ANTES de cerrar la conexión: el runtime WASM de PGlite puede
 	// mutar process.exitCode de forma asíncrona en background (ver comentario
 	// más abajo), así que no hay que confiar en su valor en este punto.
-	const exitCode = report.totals.errored > 0 ? 1 : 0;
+	const exitCode =
+		"errored" in report.totals && report.totals.errored > 0 ? 1 : 0;
 
 	// La conexión PGlite compartida (apps/api/src/db.ts) está pensada para un
 	// proceso servidor de larga vida y nunca se cierra explícitamente. En un
@@ -270,6 +281,33 @@ export async function importLegacyProcomun(args: string[]) {
 	}
 
 	process.exit(exitCode);
+}
+
+/**
+ * `--backfill-categories`: la reimportación omite los recursos ya existentes,
+ * así que lo importado antes de #383 se quedaría sin clasificar. Esta pasada
+ * aplica la correspondencia a su resource_levels (el learningContext original)
+ * y devuelve el mismo informe de categorización que la importación.
+ */
+export async function runBackfillLegacyEducationalAreas(
+	options: { dryRun: boolean },
+	deps: Deps,
+) {
+	const startedAt = new Date().toISOString();
+	await deps.waitForDb();
+	assertLegacyCategoryDestinations();
+	const notes = await deps.repo.backfillLegacyEducationalAreas(
+		deps.getDb().db,
+		{ dryRun: options.dryRun },
+	);
+	return {
+		runId: crypto.randomUUID(),
+		dryRun: options.dryRun,
+		startedAt,
+		finishedAt: new Date().toISOString(),
+		totals: { processed: notes.length },
+		categorizacionEducativa: summarizeLegacyEducationalImport(notes),
+	};
 }
 
 /**

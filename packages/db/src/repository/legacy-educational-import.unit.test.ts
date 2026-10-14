@@ -3,10 +3,13 @@ import { PGlite } from "@electric-sql/pglite";
 import { eq } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/pglite";
 import {
+	backfillLegacyEducationalAreas,
+	createResource,
 	ensureUser,
 	getResourceById,
 	importLegacyResourceWithElpx,
 	listResources,
+	updateResource,
 } from "../repository.ts";
 import * as schema from "../schema/index.ts";
 import { createTables } from "../setup.ts";
@@ -124,5 +127,64 @@ describe("importación legacy de categorización educativa", () => {
 		const rows = await db.select().from(schema.resourceEducationalAreas);
 		expect(rows).toHaveLength(1);
 		expect(rows[0]?.optionId).toBeNull();
+	});
+
+	test("el relleno clasifica lo importado antes, en seco no escribe y repetirlo no cambia nada", async () => {
+		const primaria = await importLegacyResourceWithElpx(
+			db,
+			legacyInput(["6 -7 años / Primer curso", "Taller inventado"], "es_a"),
+		);
+		const fp = await importLegacyResourceWithElpx(
+			db,
+			legacyInput(["Formación Profesional"], "es_b"),
+		);
+		await importLegacyResourceWithElpx(db, legacyInput([], "es_c"));
+		// Simula recursos importados antes de la correspondencia.
+		await db.delete(schema.resourceEducationalAreas);
+		// Uno ya clasificado a mano no se toca.
+		await updateResource(db, fp.resourceId, {
+			educationalAreas: [{ categoryId: "bachillerato", optionId: null }],
+		});
+		// Un recurso que no es legacy tampoco.
+		await createResource(db, {
+			title: "Propio",
+			description: "Recurso propio",
+			language: "es",
+			license: "cc-by",
+			resourceType: "documento",
+			levels: ["Bachillerato"],
+		});
+
+		const expectedNotes = [
+			{
+				externalId: "es_a",
+				sourceCategories: ["6 -7 años / Primer curso", "Taller inventado"],
+			},
+			{ externalId: "es_c", sourceCategories: [] },
+		];
+		expect(await backfillLegacyEducationalAreas(db, { dryRun: true })).toEqual(
+			expectedNotes,
+		);
+		expect(
+			await db.select().from(schema.resourceEducationalAreas),
+		).toHaveLength(1);
+
+		expect(await backfillLegacyEducationalAreas(db, { dryRun: false })).toEqual(
+			expectedNotes,
+		);
+		expect(
+			(await getResourceById(db, primaria.resourceId))?.educationalAreas,
+		).toEqual([{ categoryId: "educacion-primaria", optionId: "primer-tramo" }]);
+		expect(
+			(await getResourceById(db, fp.resourceId))?.educationalAreas,
+		).toEqual([{ categoryId: "bachillerato", optionId: null }]);
+
+		const before = await db.select().from(schema.resourceEducationalAreas);
+		expect(await backfillLegacyEducationalAreas(db, { dryRun: false })).toEqual(
+			[{ externalId: "es_c", sourceCategories: [] }],
+		);
+		expect(await db.select().from(schema.resourceEducationalAreas)).toEqual(
+			before,
+		);
 	});
 });
