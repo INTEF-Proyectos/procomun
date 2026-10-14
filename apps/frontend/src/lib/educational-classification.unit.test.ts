@@ -136,9 +136,15 @@ describe("categorización educativa en formulario, ficha y buscador", () => {
 		expect(editor).toContain("Bachillerato");
 		expect(editor).not.toContain("Sin segundo selector");
 		expect(editor).not.toContain('type="text"');
-		expect(
-			editor.match(/<legend>Ciclo, tramo, nivel o ámbito<\/legend>/g)?.length,
-		).toBe(1);
+		// Un fieldset por categoría, con su nombre como leyenda.
+		expect(editor).toContain("<legend>Bachillerato</legend>");
+		expect(editor).toContain(
+			"<legend>PDC - Programa de Diversificación Curricular</legend>",
+		);
+		expect(editor).not.toContain(
+			`<legend>${EDUCATIONAL_OPTION_LABEL}</legend>`,
+		);
+		expect(editor).toContain("Quitar Bachillerato");
 
 		const detail = renderToStaticMarkup(
 			createElement(EducationalClassificationList, {

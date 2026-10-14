@@ -66,6 +66,21 @@ blocking_adrs:
 
 tasks:
 
+  T-2026-10-14-10544218:
+    date: 2026-10-14
+    agent: "metadatos-y-curacion + backend-api-servicios + frontend-ux-accesibilidad + qa-validacion + documentacion-y-roadmap"
+    task: "Revisión de la categorización educativa (#380, PR #394)"
+    status: Done
+    related: ["#380", "#394", "ADR-0043"]
+    notes: >
+      Test del journal de migraciones (when creciente, idx y prefijos únicos).
+      ADR-0043 sobre el catálogo en código. La clasificación entra en el snapshot
+      de versiones y se restaura. Formulario con un fieldset por categoría, estilos
+      y foco tras «Quitar». Accesos rápidos de la portada conectados al filtro.
+      Seed de demo con categorías. Limpieza del repositorio (transacción en la
+      edición, orden del catálogo, índice en el esquema). Pendiente de producto:
+      tramos de Primaria, ocultar «Niveles educativos» en la ficha y traducciones.
+
   T-2026-10-14-07410518:
     date: 2026-10-14
     agent: "metadatos-y-curacion + backend-api-servicios + frontend-ux-accesibilidad + busqueda-y-descubrimiento + qa-validacion"

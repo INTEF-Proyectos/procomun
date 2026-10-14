@@ -9,9 +9,9 @@ export interface ListingState {
 	/** Atomized tag slug filter (issue #310). */
 	tag: string;
 	/** Categoría educativa principal (issue #380). */
-	educationalCategory: string;
+	educationalCategory?: string;
 	/** Opción secundaria de esa categoría. Vacía si no se concreta. */
-	educationalOption: string;
+	educationalOption?: string;
 }
 
 interface HistoryLike {

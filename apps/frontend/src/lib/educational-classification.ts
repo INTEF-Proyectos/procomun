@@ -131,8 +131,8 @@ export function classificationLineText(
 }
 
 export function sanitizeEducationalFilter(
-	categoryId: string,
-	optionId: string,
+	categoryId = "",
+	optionId = "",
 ): EducationalFilterState {
 	if (!categoryId || !getEducationalCategory(categoryId)) {
 		return { categoryId: "", optionId: "" };

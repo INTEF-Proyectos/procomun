@@ -2,6 +2,7 @@ import { relations, sql } from "drizzle-orm";
 import {
 	boolean,
 	customType,
+	index,
 	integer,
 	pgTable,
 	text,
@@ -132,6 +133,10 @@ export const resourceEducationalAreas = pgTable(
 		uniqueIndex("resource_educational_areas_option_uidx")
 			.on(table.resourceId, table.categoryId, table.optionId)
 			.where(sql`${table.optionId} IS NOT NULL`),
+		index("resource_educational_areas_lookup_idx").on(
+			table.categoryId,
+			table.optionId,
+		),
 	],
 );
 

@@ -6,12 +6,16 @@ import {
 	educationalOptionsFor,
 	getEducationalCategory,
 } from "@procomun/db/educational-areas";
+import { useEffect, useRef, useState } from "react";
 import {
 	addEducationalCategory,
 	type EducationalSelection,
 	removeEducationalCategory,
 	toggleEducationalOption,
 } from "../../lib/educational-classification.ts";
+import { Button } from "../../ui/Button.tsx";
+import { Checkbox } from "../../ui/Checkbox.tsx";
+import "./EducationalClassificationFields.css";
 
 export function EducationalClassificationEditor({
 	selections,
@@ -22,15 +26,25 @@ export function EducationalClassificationEditor({
 	onChange: (selections: EducationalSelection[]) => void;
 	idPrefix: string;
 }) {
+	const addSelectRef = useRef<HTMLSelectElement>(null);
+	const [focusAddSelect, setFocusAddSelect] = useState(false);
 	const used = new Set(selections.map((selection) => selection.categoryId));
 	const available = EDUCATIONAL_CATEGORIES.filter(
 		(category) => !used.has(category.id),
 	);
 
+	// Tras «Quitar», el botón desaparece: el foco pasa al selector de categoría,
+	// que siempre existe porque la categoría quitada vuelve a estar disponible.
+	useEffect(() => {
+		if (!focusAddSelect) return;
+		addSelectRef.current?.focus();
+		setFocusAddSelect(false);
+	}, [focusAddSelect]);
+
 	return (
 		<fieldset className="educational-classification">
 			<legend>{EDUCATIONAL_SECTION_TITLE}</legend>
-			<p>
+			<p className="educational-classification-help">
 				Un recurso puede asociarse a varias categorías.{" "}
 				{EDUCATIONAL_OPTION_LABEL} es opcional y solo aparece cuando la
 				categoría lo tiene.
@@ -40,57 +54,55 @@ export function EducationalClassificationEditor({
 				const options = educationalOptionsFor(selection.categoryId);
 				const label = category?.label ?? selection.categoryId;
 				return (
-					<div
+					<fieldset
 						key={selection.categoryId}
-						className="educational-classification-card"
+						className="educational-classification-group"
 					>
-						<div>
-							<strong>{label}</strong>
-							<button
-								type="button"
-								onClick={() =>
-									onChange(
-										removeEducationalCategory(selections, selection.categoryId),
-									)
-								}
-							>
-								Quitar {label}
-							</button>
-						</div>
+						<legend>{label}</legend>
+						<Button
+							type="button"
+							variant="ghost"
+							size="sm"
+							onClick={() => {
+								onChange(
+									removeEducationalCategory(selections, selection.categoryId),
+								);
+								setFocusAddSelect(true);
+							}}
+						>
+							Quitar {label}
+						</Button>
 						{options.length > 0 ? (
-							<fieldset>
-								<legend>{EDUCATIONAL_OPTION_LABEL}</legend>
-								{options.map((option) => {
-									const inputId = `${idPrefix}-${selection.categoryId}-${option.id}`;
-									return (
-										<label key={option.id} htmlFor={inputId}>
-											<input
-												id={inputId}
-												type="checkbox"
-												checked={selection.optionIds.includes(option.id)}
-												onChange={() =>
-													onChange(
-														toggleEducationalOption(
-															selections,
-															selection.categoryId,
-															option.id,
-														),
-													)
-												}
-											/>
-											{option.label}
-										</label>
-									);
-								})}
-							</fieldset>
+							<div className="educational-classification-options">
+								{options.map((option) => (
+									<Checkbox
+										key={option.id}
+										id={`${idPrefix}-${selection.categoryId}-${option.id}`}
+										label={option.label}
+										checked={selection.optionIds.includes(option.id)}
+										onChange={() =>
+											onChange(
+												toggleEducationalOption(
+													selections,
+													selection.categoryId,
+													option.id,
+												),
+											)
+										}
+									/>
+								))}
+							</div>
 						) : null}
-					</div>
+					</fieldset>
 				);
 			})}
 			{available.length > 0 ? (
-				<label htmlFor={`${idPrefix}-add-category`}>
-					{EDUCATIONAL_CATEGORY_LABEL}
+				<div className="educational-classification-add">
+					<label htmlFor={`${idPrefix}-add-category`}>
+						{EDUCATIONAL_CATEGORY_LABEL}
+					</label>
 					<select
+						ref={addSelectRef}
 						id={`${idPrefix}-add-category`}
 						value=""
 						onChange={(event) => {
@@ -106,7 +118,7 @@ export function EducationalClassificationEditor({
 							</option>
 						))}
 					</select>
-				</label>
+				</div>
 			) : null}
 		</fieldset>
 	);

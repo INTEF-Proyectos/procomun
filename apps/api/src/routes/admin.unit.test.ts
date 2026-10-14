@@ -71,9 +71,9 @@ describe("Rutas admin — con sesión de admin", () => {
 		const got = await app.request(`/api/admin/resources/${created.id}`);
 		const body = await got.json();
 		expect(body.educationalAreas).toEqual([
-			{ categoryId: "bachillerato", optionId: null },
 			{ categoryId: "educacion-primaria", optionId: "primer-tramo" },
 			{ categoryId: "educacion-primaria", optionId: "segundo-tramo" },
+			{ categoryId: "bachillerato", optionId: null },
 		]);
 
 		const updated = await app.request(`/api/admin/resources/${created.id}`, {

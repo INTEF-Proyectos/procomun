@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import { PGlite } from "@electric-sql/pglite";
 import { eq } from "drizzle-orm";
+import { getTableConfig } from "drizzle-orm/pg-core";
 import { drizzle } from "drizzle-orm/pglite";
 import { EducationalAreaValidationError } from "../educational-areas.ts";
 import {
@@ -43,7 +44,7 @@ describe("resource_educational_areas", () => {
 		await pglite.close();
 	});
 
-	test("guarda solo categoría y varias opciones, y las recupera al editar", async () => {
+	test("guarda solo categoría y varias opciones, y las devuelve en el orden del catálogo", async () => {
 		const created = await published(db, "Recurso mixto", {
 			educationalAreas: [
 				{ categoryId: "bachillerato", optionId: null },
@@ -61,12 +62,13 @@ describe("resource_educational_areas", () => {
 		const stored = await getResourceById(db, created.id);
 		expect(stored?.subjects).toEqual(["Matemáticas"]);
 		expect(stored?.levels).toEqual(["nivel libre"]);
+		// ESO va antes que Bachillerato en el catálogo, aunque su id sea mayor.
 		expect(stored?.educationalAreas).toEqual([
-			{ categoryId: "bachillerato", optionId: null },
 			{
 				categoryId: "educacion-secundaria-obligatoria",
 				optionId: "eso-3-4",
 			},
+			{ categoryId: "bachillerato", optionId: null },
 			{ categoryId: "pdc", optionId: "ambito-linguistico-social" },
 			{ categoryId: "pdc", optionId: "otro-ambito" },
 		]);
@@ -99,6 +101,34 @@ describe("resource_educational_areas", () => {
 		const stored = await getResourceById(db, created.id);
 		expect(stored?.educationalAreas).toEqual([
 			{ categoryId: "educacion-especial", optionId: null },
+		]);
+	});
+
+	test("si falla el reemplazo de áreas no se guarda el resto de la edición", async () => {
+		const created = await published(db, "Título original");
+		await pglite.exec("DROP TABLE resource_educational_areas");
+		await expect(
+			updateResource(db, created.id, {
+				title: "Título nuevo",
+				educationalAreas: [{ categoryId: "bachillerato", optionId: null }],
+			}),
+		).rejects.toThrow();
+		const [row] = await db
+			.select({ title: schema.resources.title })
+			.from(schema.resources)
+			.where(eq(schema.resources.id, created.id));
+		expect(row?.title).toBe("Título original");
+	});
+
+	test("el esquema Drizzle declara los mismos índices que la migración", () => {
+		expect(
+			getTableConfig(schema.resourceEducationalAreas)
+				.indexes.map((index) => index.config.name)
+				.sort(),
+		).toEqual([
+			"resource_educational_areas_category_only_uidx",
+			"resource_educational_areas_lookup_idx",
+			"resource_educational_areas_option_uidx",
 		]);
 	});
 

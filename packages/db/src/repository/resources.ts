@@ -9,7 +9,10 @@ import {
 } from "../schema/resources.ts";
 import { resourceTags, tags } from "../schema/tags.ts";
 import { uploadSessions } from "../schema/uploads.ts";
-import { listResourceEducationalAreas } from "./educational-areas.ts";
+import {
+	listResourceEducationalAreas,
+	replaceResourceEducationalAreas,
+} from "./educational-areas.ts";
 import {
 	andWhere,
 	buildSearchTerm,
@@ -301,10 +304,7 @@ export async function createResource(
 		}
 	}
 
-	if (educationalAreas && educationalAreas.length > 0) {
-		const { replaceResourceEducationalAreas } = await import(
-			"./educational-areas.ts"
-		);
+	if (educationalAreas?.length) {
 		await replaceResourceEducationalAreas(db, id, educationalAreas);
 	}
 
@@ -367,30 +367,26 @@ export async function updateResource(
 	// clave del cuerpo (editorialStatus, createdBy, slug, assignedCuratorId,
 	// featuredAt, deletedAt, …) se descarta para evitar mass assignment.
 	const raw = data as Record<string, unknown>;
-	const hasEducationalAreas = "educationalAreas" in raw;
-	const educationalAreas = hasEducationalAreas
-		? normalizeEducationalAssignments(raw.educationalAreas)
-		: undefined;
+	const educationalAreas =
+		"educationalAreas" in raw
+			? normalizeEducationalAssignments(raw.educationalAreas)
+			: undefined;
 	const safe = pickEditableResourceFields(raw);
 
 	// Evita un UPDATE vacío si el cuerpo solo traía claves sensibles filtradas.
-	if (Object.keys(safe).length === 0 && !hasEducationalAreas) {
+	if (Object.keys(safe).length === 0 && !educationalAreas) {
 		return;
 	}
 
-	if (Object.keys(safe).length > 0 || hasEducationalAreas) {
-		await db
+	await db.transaction(async (tx: DrizzleDB) => {
+		await tx
 			.update(resources)
 			.set({ ...safe, updatedAt: new Date() })
 			.where(and(eq(resources.id, id), isNull(resources.deletedAt)));
-	}
-
-	if (hasEducationalAreas) {
-		const { replaceResourceEducationalAreas } = await import(
-			"./educational-areas.ts"
-		);
-		await replaceResourceEducationalAreas(db, id, educationalAreas ?? []);
-	}
+		if (educationalAreas) {
+			await replaceResourceEducationalAreas(tx, id, educationalAreas);
+		}
+	});
 
 	// Dual-write keywords → tags when the free-text field is updated (#76)
 	if (typeof safe.keywords === "string") {

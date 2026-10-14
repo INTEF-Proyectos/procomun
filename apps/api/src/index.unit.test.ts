@@ -346,9 +346,10 @@ describe("Rutas públicas /api/v1", () => {
 
 		const detail = await app.request(`/api/v1/resources/${both.slug}`);
 		const detailBody = await detail.json();
+		// Orden del catálogo: Música va antes que Danza.
 		expect(detailBody.educationalAreas).toEqual([
-			{ categoryId: "ensenanzas-regimen-especial", optionId: "danza" },
 			{ categoryId: "ensenanzas-regimen-especial", optionId: "musica" },
+			{ categoryId: "ensenanzas-regimen-especial", optionId: "danza" },
 		]);
 	});
 

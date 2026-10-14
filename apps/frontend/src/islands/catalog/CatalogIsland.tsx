@@ -538,8 +538,8 @@ export function CatalogIsland() {
 				<h2 className="sidebar-title">{m.catalog_advanced_filters()}</h2>
 
 				<EducationalSearchFilters
-					categoryId={listingState.educationalCategory}
-					optionId={listingState.educationalOption}
+					categoryId={listingState.educationalCategory ?? ""}
+					optionId={listingState.educationalOption ?? ""}
 					onChange={(next) => {
 						void applyListingState(
 							{

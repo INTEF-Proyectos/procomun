@@ -164,3 +164,42 @@ describe("migración de categorización educativa", () => {
 		}
 	});
 });
+
+// El migrador de drizzle solo aplica migraciones con `when` mayor que el de la
+// última aplicada: si dos ramas registran el mismo número o el mismo `when`,
+// una de ellas se salta en silencio en las bases que ya tengan la otra.
+describe("journal de migraciones", () => {
+	// Historial previo a esta regla. Ya está aplicado, así que no se reescribe.
+	const LEGACY_WHEN_OUT_OF_ORDER = new Set(["0002_text_to_jsonb_metadata"]);
+	const LEGACY_FILES_OUTSIDE_JOURNAL = new Set([
+		"0002_add_downloads_format.sql",
+		"0003_add_reports_table.sql",
+		"0004_resources_import_dedup_index.sql",
+	]);
+
+	test("idx igual a la posición, when creciente y un fichero por número", async () => {
+		const journal = JSON.parse(
+			await readFile(path.join(migrationsDir, "meta/_journal.json"), "utf8"),
+		) as { entries: Array<{ idx: number; when: number; tag: string }> };
+
+		let lastWhen = 0;
+		journal.entries.forEach((entry, position) => {
+			expect(entry.idx).toBe(position);
+			if (LEGACY_WHEN_OUT_OF_ORDER.has(entry.tag)) return;
+			expect(entry.when).toBeGreaterThan(lastWhen);
+			lastWhen = entry.when;
+		});
+
+		const prefixes = journal.entries.map((entry) => entry.tag.slice(0, 4));
+		expect(prefixes).toEqual([...new Set(prefixes)].sort());
+
+		const files = (await readdir(migrationsDir))
+			.filter((file) => file.endsWith(".sql"))
+			.filter((file) => !LEGACY_FILES_OUTSIDE_JOURNAL.has(file));
+		expect(files.sort()).toEqual(
+			journal.entries.map((entry) => `${entry.tag}.sql`).sort(),
+		);
+		const filePrefixes = files.map((file) => file.slice(0, 4));
+		expect(new Set(filePrefixes).size).toBe(filePrefixes.length);
+	});
+});
