@@ -81,6 +81,18 @@ describe("validateCreateResource", () => {
 		}
 	});
 
+	test("tipo y autor vacíos se informan en la misma validación", () => {
+		const r = validateCreateResource({
+			...validPayload,
+			resourceType: "",
+			author: "",
+		});
+		expect(r.errors.map((e) => e.field).sort()).toEqual([
+			"author",
+			"resourceType",
+		]);
+	});
+
 	test("title excede 500 caracteres", () => {
 		const r = validateCreateResource({
 			...validPayload,
