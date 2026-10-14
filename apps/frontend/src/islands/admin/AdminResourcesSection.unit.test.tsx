@@ -1,17 +1,17 @@
 import { describe, expect, test } from "bun:test";
 import type { ReactElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import type { Resource } from "../../lib/api-client.ts";
+import type { Resource, SessionUser } from "../../lib/api-client.ts";
 import { url } from "../../lib/paths.ts";
 import {
 	ADMIN_RESOURCE_STATUS_FILTERS,
 	AdminResourcesSection,
 	buildAdminResourceColumns,
-	canEditAdminResource,
 } from "./AdminResourcesSection.tsx";
 
 function resource(
-	partial: Pick<Resource, "id" | "slug" | "title" | "editorialStatus">,
+	partial: Pick<Resource, "id" | "slug" | "title" | "editorialStatus"> &
+		Partial<Resource>,
 ): Resource {
 	return {
 		description: "",
@@ -30,13 +30,19 @@ function resource(
 	};
 }
 
+function user(id: string, role: string): SessionUser {
+	return { id, role, email: `${id}@example.org`, name: id };
+}
+
+const curator = user("curator-1", "curator");
+
 function renderColumn(
-	role: string,
+	who: SessionUser,
 	item: Resource,
 	key: "title" | "actions",
 ): string {
 	const columns = buildAdminResourceColumns({
-		role,
+		user: who,
 		busyDelete: false,
 		onDelete: () => undefined,
 	});
@@ -80,8 +86,8 @@ describe("AdminResourcesSection — el curator abre el listado (#399)", () => {
 
 	test("en revisión el título y la acción van al editor y se conserva eliminar", () => {
 		const editHref = url(`editar?id=${inReview.id}`);
-		const titleHtml = renderColumn("curator", inReview, "title");
-		const actionsHtml = renderColumn("curator", inReview, "actions");
+		const titleHtml = renderColumn(curator, inReview, "title");
+		const actionsHtml = renderColumn(curator, inReview, "actions");
 
 		expect(titleHtml).toContain(`href="${editHref}"`);
 		expect(titleHtml).toContain(inReview.title);
@@ -101,8 +107,8 @@ describe("AdminResourcesSection — el curator abre el listado (#399)", () => {
 				editorialStatus: status,
 			});
 			const viewHref = url(`recurso?slug=${item.slug}`);
-			const titleHtml = renderColumn("curator", item, "title");
-			const actionsHtml = renderColumn("curator", item, "actions");
+			const titleHtml = renderColumn(curator, item, "title");
+			const actionsHtml = renderColumn(curator, item, "actions");
 
 			expect(actionsHtml).not.toMatch(/<span[^>]*>Solo lectura<\/span>/);
 			expect(actionsHtml).toContain(`href="${viewHref}"`);
@@ -117,30 +123,56 @@ describe("AdminResourcesSection — el curator abre el listado (#399)", () => {
 		}
 	});
 
-	test("el curator no gana edición sobre lo que hoy solo consulta", () => {
-		expect(canEditAdminResource("curator", { editorialStatus: "review" })).toBe(
-			true,
-		);
-		for (const status of ["published", "draft", "archived"]) {
-			expect(canEditAdminResource("curator", { editorialStatus: status })).toBe(
-				false,
+	test("el curator edita lo que ha creado o curado, como canManageResource", () => {
+		const own = resource({
+			id: "res-own",
+			slug: "propio",
+			title: "Borrador propio",
+			editorialStatus: "draft",
+			createdBy: curator.id,
+		});
+		const curated = resource({
+			id: "res-curated",
+			slug: "curado",
+			title: "Publicado que curó",
+			editorialStatus: "published",
+			assignedCuratorId: curator.id,
+		});
+		for (const item of [own, curated]) {
+			const editHref = url(`editar?id=${item.id}`);
+			expect(renderColumn(curator, item, "title")).toContain(
+				`href="${editHref}"`,
 			);
+			const actionsHtml = renderColumn(curator, item, "actions");
+			expect(actionsHtml).toContain(`aria-label="Editar ${item.title}"`);
+			expect(actionsHtml).not.toContain("Solo lectura");
 		}
-		expect(
-			canEditAdminResource("admin", { editorialStatus: "published" }),
-		).toBe(true);
-		expect(canEditAdminResource("editor", { editorialStatus: "review" })).toBe(
-			false,
-		);
-		expect(canEditAdminResource("reader", { editorialStatus: "review" })).toBe(
-			false,
+
+		const otherCurator = resource({
+			id: "res-other",
+			slug: "de-otro",
+			title: "Curado por otro",
+			editorialStatus: "published",
+			createdBy: "author-1",
+			assignedCuratorId: "curator-2",
+		});
+		expect(renderColumn(curator, otherCurator, "actions")).toContain(
+			">Solo lectura</a>",
 		);
 	});
 
 	test("un admin conserva editar y eliminar un recurso publicado", () => {
 		const editHref = url(`editar?id=${published.id}`);
-		const titleHtml = renderColumn("admin", published, "title");
-		const actionsHtml = renderColumn("admin", published, "actions");
+		const titleHtml = renderColumn(
+			user("admin-1", "admin"),
+			published,
+			"title",
+		);
+		const actionsHtml = renderColumn(
+			user("admin-1", "admin"),
+			published,
+			"actions",
+		);
 
 		expect(titleHtml).toContain(`href="${editHref}"`);
 		expect(titleHtml).not.toContain("recurso?slug=");

@@ -1,3 +1,4 @@
+import { canManageResource } from "@procomun/db/validation";
 import { startTransition, useCallback, useEffect, useState } from "react";
 import type { Resource, SessionData } from "../../lib/api-client.ts";
 import { getApiClient } from "../../lib/get-api-client.ts";
@@ -66,30 +67,20 @@ function getInitials(name: string): string {
 		.toUpperCase();
 }
 
-/** Admin, o curator solo si el recurso está en revisión. No ampliar la edición. */
-export function canEditAdminResource(
-	role: string,
-	resource: { editorialStatus: string },
-): boolean {
-	return (
-		role === "admin" ||
-		(role === "curator" && resource.editorialStatus === "review")
-	);
-}
-
 export function buildAdminResourceColumns(options: {
-	role: string;
+	user: SessionData["user"] | null;
 	busyDelete: boolean;
 	onDelete: (resource: Resource) => void;
 }): Column<Resource>[] {
-	const { role, busyDelete, onDelete } = options;
+	const { user, busyDelete, onDelete } = options;
+	const canEdit = (r: Resource) => !!user && canManageResource(user, r);
 	return [
 		{
 			key: "title",
 			label: "Titulo del Recurso",
 			render: (r) => {
 				const iconInfo = getResourceIcon(r.resourceType);
-				const destination = canEditAdminResource(role, r)
+				const destination = canEdit(r)
 					? url(`editar?id=${r.id}`)
 					: url(`recurso?slug=${r.slug}`);
 				return (
@@ -168,7 +159,7 @@ export function buildAdminResourceColumns(options: {
 			className: "",
 			render: (r) => (
 				<div className="admin-actions-cell">
-					{canEditAdminResource(role, r) ? (
+					{canEdit(r) ? (
 						<>
 							<a
 								href={url(`editar?id=${r.id}`)}
@@ -279,8 +270,6 @@ export function AdminResourcesSection() {
 		})();
 	}, [loadStats, loadResources]);
 
-	const currentRole = session?.user.role ?? "reader";
-
 	function applySearch() {
 		void loadResources(1, search.trim(), statusFilter);
 	}
@@ -311,7 +300,7 @@ export function AdminResourcesSection() {
 		statTotal > 0 ? Math.round((statPublished / statTotal) * 100) : 0;
 
 	const columns = buildAdminResourceColumns({
-		role: currentRole,
+		user: session?.user ?? null,
 		busyDelete,
 		onDelete: setDeleteTarget,
 	});
