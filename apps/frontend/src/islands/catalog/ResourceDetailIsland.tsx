@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useId, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useElpxEmbedRelay } from "../../hooks/use-elpx-embed-relay.ts";
 import type {
 	RelatedResource,
@@ -156,28 +156,6 @@ function EmbedSection({
 	);
 }
 
-function resourceDate(dateValue: Resource["createdAt"]) {
-	if (!dateValue) return "";
-	return new Date(dateValue).toLocaleDateString(getLocale(), {
-		year: "numeric",
-		month: "long",
-		day: "numeric",
-	});
-}
-
-function getStatusBadgeClass(editorialStatus: string): string {
-	switch (editorialStatus) {
-		case "draft":
-			return "detail-status-badge draft";
-		case "review":
-			return "detail-status-badge review";
-		case "archived":
-			return "detail-status-badge archived";
-		default:
-			return "detail-status-badge";
-	}
-}
-
 // Disclosure, no menú ARIA: un botón con aria-expanded y una lista de enlaces y
 // botones que se recorre con Tab. Escape, clic fuera o salir con Tab la cierran.
 function DownloadMenu({
@@ -202,7 +180,6 @@ function DownloadMenu({
 	const [open, setOpen] = useState(false);
 	const rootRef = useRef<HTMLDivElement>(null);
 	const triggerRef = useRef<HTMLButtonElement>(null);
-	const listId = useId();
 	const preparingLabel = RESOURCE_EXPORT_OPTIONS.find(
 		(option) => option.id === exportingFormat,
 	)?.label;
@@ -247,7 +224,7 @@ function DownloadMenu({
 				type="button"
 				className="detail-action-outline detail-download-trigger"
 				aria-expanded={open}
-				aria-controls={listId}
+				aria-controls="detail-download-menu"
 				onClick={() => setOpen((value) => !value)}
 			>
 				<span className="material-symbols-outlined" aria-hidden="true">
@@ -263,7 +240,11 @@ function DownloadMenu({
 					{open ? "expand_less" : "expand_more"}
 				</span>
 			</button>
-			<ul id={listId} className="detail-download-menu" hidden={!open}>
+			<ul
+				id="detail-download-menu"
+				className="detail-download-menu"
+				hidden={!open}
+			>
 				{direct ? (
 					<li>
 						<a
@@ -308,6 +289,28 @@ function DownloadMenu({
 			</ul>
 		</div>
 	);
+}
+
+function resourceDate(dateValue: Resource["createdAt"]) {
+	if (!dateValue) return "";
+	return new Date(dateValue).toLocaleDateString(getLocale(), {
+		year: "numeric",
+		month: "long",
+		day: "numeric",
+	});
+}
+
+function getStatusBadgeClass(editorialStatus: string): string {
+	switch (editorialStatus) {
+		case "draft":
+			return "detail-status-badge draft";
+		case "review":
+			return "detail-status-badge review";
+		case "archived":
+			return "detail-status-badge archived";
+		default:
+			return "detail-status-badge";
+	}
 }
 
 export function ResourceDetailContent({

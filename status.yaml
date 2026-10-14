@@ -2701,6 +2701,28 @@ tasks:
       resolución. Guard de regresión en
       scripts/check-dockerfile-workspaces.unit.test.ts.
 
+  T-2026-10-14-11055569:
+    date: 2026-10-14
+    agent: "frontend-ux-accesibilidad + qa-validacion"
+    task: "Agrupar los formatos de descarga en el botón Descargar de la ficha (propuesta de #395)"
+    status: Pending
+    related: ["#395", "#401", "ADR-0024"]
+    notes: >
+      Pendiente de la decisión de producto en #395; no se mezcla sin ella.
+      «Descargar» pasa a ser un disclosure (botón con aria-expanded y
+      aria-controls y una lista de enlaces y botones, sin role="menu" ni
+      flechas). Escape cierra y devuelve el foco al botón, y también cierran un
+      clic fuera y salir con Tab. Al exportar se cierra la lista y el foco
+      vuelve al botón, que muestra «Preparando…». La descarga directa es el
+      .elpx si existe (getElpxMediaItem) con su tamaño. Si no, es el primer
+      fichero con su extensión real como etiqueta; sigue siendo un
+      <a href download>. Las exportaciones usan RESOURCE_EXPORT_OPTIONS (IMS,
+      no «LMS»). Tests: resource-export.unit.test.ts (getDirectDownload),
+      ResourceDetailIsland.unit.test.tsx (opciones con solo PDF y con ELPX
+      más otros ficheros) y e2e/tests/public/resource-detail.e2e.ts (Escape,
+      Tab, clic fuera y foco al exportar). ADR-0024 recoge el cambio como
+      propuesta condicionada a #395.
+
   T-2026-09-15-17302086:
     date: 2026-09-15
     agent: "backend-api-servicios + qa-validacion"
@@ -2723,25 +2745,3 @@ tasks:
       plugin admin con getTableColumns) y en
       packages/db/src/migrations.unit.test.ts (migración 0008 y createTables
       sobre BD nueva y previa). Sustituye a #361.
-
-  T-2026-10-14-11055569:
-    date: 2026-10-14
-    agent: "frontend-ux-accesibilidad + qa-validacion"
-    task: "Agrupar los formatos de descarga en el botón Descargar de la ficha (propuesta de #395)"
-    status: Pending
-    related: ["#395", "#401", "ADR-0024"]
-    notes: >
-      Pendiente de la decisión de producto en #395; no se mezcla sin ella.
-      «Descargar» pasa a ser un disclosure (botón con aria-expanded y
-      aria-controls y una lista de enlaces y botones, sin role="menu" ni
-      flechas). Escape cierra y devuelve el foco al botón, y también cierran un
-      clic fuera y salir con Tab. Al exportar se cierra la lista y el foco
-      vuelve al botón, que muestra «Preparando…». La descarga directa es el
-      .elpx si existe (getElpxMediaItem) con su tamaño. Si no, es el primer
-      fichero con su extensión real como etiqueta; sigue siendo un
-      <a href download>. Las exportaciones usan RESOURCE_EXPORT_OPTIONS (IMS,
-      no «LMS»). Tests: resource-export.unit.test.ts (getDirectDownload),
-      ResourceDetailIsland.unit.test.tsx (opciones con solo PDF y con ELPX
-      más otros ficheros) y e2e/tests/public/resource-detail.e2e.ts (Escape,
-      Tab, clic fuera y foco al exportar). ADR-0024 recoge el cambio como
-      propuesta condicionada a #395.
