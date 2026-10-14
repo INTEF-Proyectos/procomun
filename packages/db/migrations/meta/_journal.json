@@ -50,6 +50,13 @@
 			"when": 1786550000000,
 			"tag": "0008_session_impersonated_by",
 			"breakpoints": true
+		},
+		{
+			"idx": 8,
+			"version": "7",
+			"when": 1786650000000,
+			"tag": "0010_keyword_catalog",
+			"breakpoints": true
 		}
 	]
 }

@@ -77,6 +77,33 @@ describe("buildFeed", () => {
 		expect(atom).toContain("primaria");
 	});
 
+	test("añade las palabras clave del catálogo sin repetir (ADR-0042)", () => {
+		const feed = buildFeed({
+			...baseOpts,
+			resources: [
+				{
+					id: "res-3",
+					title: "Recurso de Astronomía",
+					slug: "recurso-de-astronomia",
+					description: "Sistema solar",
+					author: null,
+					createdAt: "2026-01-13T08:00:00Z",
+					resourceType: "documento",
+					language: "es",
+					license: "cc-by",
+					keywords: "Astronomía, planetas",
+					catalogLabels: "Astronomía,Física",
+				},
+			],
+		});
+		expect(feed.items[0]?.category?.map((c) => c.name)).toEqual([
+			"documento",
+			"Astronomía",
+			"planetas",
+			"Física",
+		]);
+	});
+
 	test("uses createdByName as fallback author", () => {
 		const feed = buildFeed({ ...baseOpts, resources: sampleResources });
 		const atom = feed.atom1();

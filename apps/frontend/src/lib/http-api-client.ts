@@ -3,10 +3,12 @@ import type {
 	ApiTokenRecord,
 	ApiTokenStats,
 	AppConfig,
+	CatalogKeyword,
 	CollectionDetailRecord,
 	CollectionRecord,
 	CollectionResourceRecord,
 	CreateResourceInput,
+	KeywordSuggestion,
 	MediaItemRecord,
 	PaginatedResult,
 	RelatedResourcesResult,
@@ -68,6 +70,31 @@ export class HttpApiClient implements ApiClient {
 		const res = await fetch(`/api/v1/tags/popular?limit=${limit}`);
 		const body = await res.json();
 		return Array.isArray(body.data) ? body.data : [];
+	}
+
+	async searchKeywords(
+		query: string,
+		includeTags = false,
+	): Promise<KeywordSuggestion[]> {
+		const params = new URLSearchParams({ q: query });
+		if (includeTags) params.set("tags", "1");
+		const res = await fetch(`/api/v1/keywords?${params}`);
+		if (!res.ok) return [];
+		const body = await res.json();
+		return Array.isArray(body.data) ? body.data : [];
+	}
+
+	async createCatalogKeyword(input: { label: string; aliases: string[] }) {
+		const res = await fetch("/api/admin/keywords", {
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			credentials: "include",
+			body: JSON.stringify({ ...input, confirm: true }),
+		});
+		const body = await res.json().catch(() => ({}));
+		return res.status === 201
+			? { status: 201, keyword: body as CatalogKeyword }
+			: { status: res.status, error: body.error, keyword: body.keyword };
 	}
 
 	async getPublicTagBySlug(slug: string): Promise<TagRecord | null> {

@@ -284,3 +284,15 @@ ADR-0041:
     Auditoría realizada con Codex GPT-6 y el skill security-audit. Unifica RBAC,
     protege borradores, adelanta límites anti ZIP bomb y añade controles contra
     abuso de descargas y almacenamiento.
+
+ADR-0042:
+  title: "Catálogo controlado de palabras clave"
+  status: Aceptado
+  date: 2026-10-14
+  file: 0042-catalogo-controlado-palabras-clave.md
+  notes: >
+    Issue #384. Extiende tags (ADR-0034) con catalog, created_by y tag_aliases.
+    Máximo 5 por recurso y alta solo para admin y curator con confirmación.
+    Actualizada el 2026-10-14: sembrado en la migración 0010, la vía antigua no
+    toca el catálogo y lo elegido llega a FTS, feeds, API v1 y recomendaciones.
+    La correspondencia de etiquetas antiguas va en un PR aparte.

@@ -1,9 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
+import { KeywordCatalogField } from "../islands/resources/KeywordCatalogField.tsx";
 import { getResourceTypeOptions } from "../islands/resources/resource-form-options.ts";
-import type { Resource } from "../lib/api-client.ts";
+import type { CatalogKeyword, Resource } from "../lib/api-client.ts";
 import { getApiClient } from "../lib/get-api-client.ts";
 import { url } from "../lib/paths.ts";
+import { hasMinRole } from "../lib/shared-utils.ts";
 import { ResourceVersionPanel } from "./ResourceVersionPanel.tsx";
 import "../styles/editar.css";
 
@@ -120,6 +122,7 @@ export default function EditarPage() {
 	const [resource, setResource] = useState<Resource | null>(null);
 	const [elpx, setElpx] = useState<ElpxProject>(null);
 	const [userRole, setUserRole] = useState("reader");
+	const [catalogKeywords, setCatalogKeywords] = useState<CatalogKeyword[]>([]);
 	const [errorMsg, setErrorMsg] = useState("");
 	const [successMsg, setSuccessMsg] = useState("");
 	const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
@@ -152,7 +155,6 @@ export default function EditarPage() {
 	const languageRef = useRef<HTMLSelectElement>(null);
 	const licenseRef = useRef<HTMLSelectElement>(null);
 	const resourceTypeRef = useRef<HTMLSelectElement>(null);
-	const keywordsRef = useRef<HTMLInputElement>(null);
 	const fileInputRef = useRef<HTMLInputElement>(null);
 	const dropzoneRef = useRef<HTMLElement>(null);
 	const uploadStatusRef = useRef<HTMLDivElement>(null);
@@ -339,6 +341,7 @@ export default function EditarPage() {
 				}
 
 				setResource(resourceData);
+				setCatalogKeywords(resourceData.catalogKeywords ?? []);
 				setElpx(elpxData);
 				setUserRole(role);
 				setState("ready");
@@ -427,7 +430,7 @@ export default function EditarPage() {
 				license: licenseRef.current?.value ?? "cc-by",
 				resourceType: resourceTypeRef.current?.value ?? "documento",
 				author: authorRef.current?.value || undefined,
-				keywords: keywordsRef.current?.value || undefined,
+				keywordIds: catalogKeywords.map((keyword) => keyword.id),
 			});
 
 			if (!result.ok) {
@@ -910,15 +913,11 @@ export default function EditarPage() {
 						</div>
 
 						<div className="edit-field">
-							<label htmlFor="ed-keywords">
-								Palabras clave (separadas por comas)
-							</label>
-							<input
-								type="text"
+							<KeywordCatalogField
 								id="ed-keywords"
-								ref={keywordsRef}
-								defaultValue={res.keywords ?? ""}
-								placeholder="matemáticas, fracciones, visual"
+								selected={catalogKeywords}
+								onChange={setCatalogKeywords}
+								canCreate={hasMinRole(userRole, "curator")}
 							/>
 						</div>
 

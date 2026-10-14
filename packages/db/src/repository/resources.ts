@@ -9,6 +9,12 @@ import {
 import { resourceTags, tags } from "../schema/tags.ts";
 import { uploadSessions } from "../schema/uploads.ts";
 import {
+	assertCatalogKeywordIds,
+	catalogLabelsSql,
+	listResourceCatalogKeywords,
+	setResourceCatalogKeywords,
+} from "./keyword-catalog.ts";
+import {
 	andWhere,
 	buildSearchTerm,
 	buildSlug,
@@ -43,6 +49,8 @@ type ResourceMutationInput = {
 	publisher?: string;
 	subjects?: string[];
 	levels?: string[];
+	/** Ids del catálogo de palabras clave (ADR-0042). */
+	keywordIds?: unknown;
 	createdBy?: string;
 	editorialStatus?: string;
 };
@@ -76,6 +84,7 @@ const resourceListSelection = {
 	favoriteCount: sql<number>`(SELECT count(*) FROM favorites WHERE favorites.resource_id = ${resources.id})`,
 	ratingAvg: sql<number>`(SELECT coalesce(avg(score), 0) FROM ratings WHERE ratings.resource_id = ${resources.id})`,
 	ratingCount: sql<number>`(SELECT count(*) FROM ratings WHERE ratings.resource_id = ${resources.id})`,
+	catalogLabels: catalogLabelsSql(resources.id),
 };
 
 const resourceDetailSelection = {
@@ -85,7 +94,7 @@ const resourceDetailSelection = {
 };
 
 async function listResourceTaxonomyValues(db: DrizzleDB, resourceId: string) {
-	const [subjects, levels] = await Promise.all([
+	const [subjects, levels, catalogKeywords] = await Promise.all([
 		db
 			.select({ subject: resourceSubjects.subject })
 			.from(resourceSubjects)
@@ -94,11 +103,13 @@ async function listResourceTaxonomyValues(db: DrizzleDB, resourceId: string) {
 			.select({ level: resourceLevels.level })
 			.from(resourceLevels)
 			.where(eq(resourceLevels.resourceId, resourceId)),
+		listResourceCatalogKeywords(db, resourceId),
 	]);
 
 	return {
 		subjects: subjects.map((subject: { subject: string }) => subject.subject),
 		levels: levels.map((level: { level: string }) => level.level),
+		catalogKeywords,
 	};
 }
 
@@ -231,6 +242,10 @@ export async function createResource(
 	db: DrizzleDB,
 	data: ResourceMutationInput,
 ) {
+	// Antes de insertar: una selección inválida (400) no deja un recurso creado.
+	if (data.keywordIds !== undefined) {
+		await assertCatalogKeywordIds(db, data.keywordIds);
+	}
 	const id = crypto.randomUUID();
 	const slug = `${buildSlug(data.title)}-${id.slice(0, 8)}`;
 	const now = new Date();
@@ -268,6 +283,10 @@ export async function createResource(
 	if (data.keywords) {
 		const { syncTagsFromKeywords } = await import("./tags.ts");
 		await syncTagsFromKeywords(db, id, data.keywords);
+	}
+
+	if (data.keywordIds !== undefined) {
+		await setResourceCatalogKeywords(db, id, data.keywordIds);
 	}
 
 	return { id, slug };
@@ -323,6 +342,12 @@ export async function updateResource(
 	// clave del cuerpo (editorialStatus, createdBy, slug, assignedCuratorId,
 	// featuredAt, deletedAt, …) se descarta para evitar mass assignment.
 	const safe = pickEditableResourceFields(data as Record<string, unknown>);
+
+	// Va primero: una selección inválida (400) no deja el recurso a medias.
+	const { keywordIds } = data as { keywordIds?: unknown };
+	if (keywordIds !== undefined) {
+		await setResourceCatalogKeywords(db, id, keywordIds);
+	}
 
 	// Evita un UPDATE vacío si el cuerpo solo traía claves sensibles filtradas.
 	if (Object.keys(safe).length === 0) {

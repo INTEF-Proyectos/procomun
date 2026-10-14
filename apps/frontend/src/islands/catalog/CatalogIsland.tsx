@@ -33,6 +33,7 @@ import {
 	computeResourceBadges,
 	DEFAULT_BADGE_CONFIG,
 } from "../../lib/shared-utils.ts";
+import { KeywordCatalogField } from "../resources/KeywordCatalogField.tsx";
 import "../../lib/paraglide-client.ts";
 import * as m from "../../paraglide/messages.js";
 
@@ -281,9 +282,7 @@ export function CatalogIsland() {
 		useState<FilterOption[]>(LANGUAGE_OPTIONS);
 	const [licenseOptions, setLicenseOptions] =
 		useState<FilterOption[]>(LICENSE_OPTIONS);
-	const [tagOptions, setTagOptions] = useState<FilterOption[]>([
-		{ value: "", label: "Todas las etiquetas" },
-	]);
+	const [tagLabel, setTagLabel] = useState("");
 	const [resources, setResources] = useState<Resource[]>([]);
 	const [total, setTotal] = useState(0);
 	const [loading, setLoading] = useState(true);
@@ -302,6 +301,22 @@ export function CatalogIsland() {
 	useEffect(() => {
 		listingStateRef.current = listingState;
 	}, [listingState]);
+
+	// Al recargar ?tag=<slug> se muestra la denominación, no el slug.
+	useEffect(() => {
+		const slug = listingState.tag;
+		if (!slug) return;
+		let cancelled = false;
+		void getApiClient()
+			.then((api) => api.getPublicTagBySlug(slug))
+			.then((tag) => {
+				if (!cancelled && tag) setTagLabel(tag.label);
+			})
+			.catch(() => {});
+		return () => {
+			cancelled = true;
+		};
+	}, [listingState.tag]);
 
 	const loadResources = useCallback(
 		async (nextState: ListingState, mode?: HistoryMode) => {
@@ -414,17 +429,10 @@ export function CatalogIsland() {
 				LANGUAGE_OPTIONS,
 			),
 			loadFilterOptions("license", m.catalog_all_licenses(), LICENSE_OPTIONS),
-			getApiClient()
-				.then((api) => api.listPopularTags(40))
-				.catch(() => [] as { slug: string; label: string }[]),
-		]).then(([types, languages, licenses, popularTags]) => {
+		]).then(([types, languages, licenses]) => {
 			setResourceTypeOptions(types);
 			setLanguageOptions(languages);
 			setLicenseOptions(licenses);
-			setTagOptions([
-				{ value: "", label: "Todas las etiquetas" },
-				...popularTags.map((t) => ({ value: t.slug, label: t.label })),
-			]);
 		});
 
 		void loadResources(nextState);
@@ -589,27 +597,30 @@ export function CatalogIsland() {
 				</div>
 
 				<div className="filter-group">
-					<label htmlFor="filter-tag">Etiqueta</label>
-					<select
+					<KeywordCatalogField
 						id="filter-tag"
-						value={listingState.tag}
-						onChange={(event) => {
+						filter
+						selected={
+							listingState.tag
+								? [
+										{
+											id: listingState.tag,
+											slug: listingState.tag,
+											label: tagLabel || listingState.tag,
+										},
+									]
+								: []
+						}
+						onChange={(next) => {
+							// Un solo valor: la última palabra elegida sustituye a la anterior.
+							const keyword = next.at(-1);
+							setTagLabel(keyword?.label ?? "");
 							void applyListingState(
-								{
-									...listingState,
-									tag: event.currentTarget.value,
-									page: 1,
-								},
+								{ ...listingState, tag: keyword?.slug ?? "", page: 1 },
 								"replace",
 							);
 						}}
-					>
-						{tagOptions.map((option) => (
-							<option key={option.value || "all-tags"} value={option.value}>
-								{option.label}
-							</option>
-						))}
-					</select>
+					/>
 					{listingState.tag ? (
 						<p className="filter-tag-link">
 							<a href={url(`tags/${listingState.tag}`)}>

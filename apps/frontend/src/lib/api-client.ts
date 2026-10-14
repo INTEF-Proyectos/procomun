@@ -12,6 +12,8 @@ export interface Resource {
 	license: string;
 	resourceType: string;
 	keywords: string | null;
+	/** Palabras clave del catálogo (ADR-0042). */
+	catalogKeywords?: CatalogKeyword[];
 	author: string | null;
 	publisher: string | null;
 	editorialStatus: string;
@@ -122,6 +124,18 @@ export interface TaxonomyRecord {
 	parentId?: string | null;
 	createdAt?: string | number | Date | null;
 	updatedAt?: string | number | Date | null;
+}
+
+/** Palabra clave del catálogo controlado (ADR-0042 / #384). */
+export interface CatalogKeyword {
+	id: string;
+	slug: string;
+	label: string;
+}
+
+export interface KeywordSuggestion extends CatalogKeyword {
+	/** `tag`: etiqueta libre anterior (solo en el filtro del buscador). */
+	match: "label" | "alias" | "tag";
 }
 
 /** Atomized educational tag (ADR-0034 / #76 / #310). */
@@ -290,6 +304,8 @@ export interface CreateResourceInput {
 	publisher?: string;
 	subjects?: string[];
 	levels?: string[];
+	/** Ids del catálogo; van en el mismo alta o edición (guardado atómico). */
+	keywordIds?: string[];
 }
 
 export type UpdateResourceInput = Partial<CreateResourceInput>;
@@ -316,6 +332,15 @@ export interface ApiClient {
 		offset?: number;
 	}): Promise<PaginatedResult<TagRecord>>;
 	listPopularTags(limit?: number): Promise<TagRecord[]>;
+	searchKeywords(
+		query: string,
+		includeTags?: boolean,
+	): Promise<KeywordSuggestion[]>;
+	createCatalogKeyword(input: { label: string; aliases: string[] }): Promise<{
+		status: number;
+		error?: string;
+		keyword?: CatalogKeyword;
+	}>;
 	getPublicTagBySlug(slug: string): Promise<TagRecord | null>;
 	listPublicTagResources(
 		slug: string,
