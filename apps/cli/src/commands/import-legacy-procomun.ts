@@ -9,7 +9,12 @@
 import { mkdir, readdir, rename, rm, stat, unlink } from "node:fs/promises";
 import path from "node:path";
 import { parseArgs } from "node:util";
-import type { LegacyOdeJson } from "@procomun/db/legacy-import";
+import {
+	assertLegacyCategoryDestinations,
+	type EducationalImportResourceNote,
+	type LegacyOdeJson,
+	summarizeLegacyEducationalImport,
+} from "@procomun/db/legacy-import";
 
 export async function loadImportLegacyProcomunDependencies() {
 	const [
@@ -171,6 +176,7 @@ export interface ImportLegacyProcomunReport {
 	};
 	incompletePairs: string[];
 	records: RecordOutcome[];
+	categorizacionEducativa: ReturnType<typeof summarizeLegacyEducationalImport>;
 }
 
 function parseCliArgs(args: string[]) {
@@ -229,7 +235,10 @@ export async function importLegacyProcomun(args: string[]) {
 	console.log(
 		`[import:legacy-procomun] Completado. ${options.dryRun ? "(dry-run) " : ""}` +
 			`importados=${report.totals.imported} omitidos_ya_existentes=${report.totals.skippedExisting} ` +
-			`bloqueados=${report.totals.blocked} errores=${report.totals.errored} incompletos=${report.totals.incompletePairs}`,
+			`bloqueados=${report.totals.blocked} errores=${report.totals.errored} incompletos=${report.totals.incompletePairs} ` +
+			`categorias_ok=${report.categorizacionEducativa.recursosConTodasTransformadas} ` +
+			`categorias_revision=${report.categorizacionEducativa.recursosPendientesDeRevision} ` +
+			`sin_categoria=${report.categorizacionEducativa.recursosSinCategorizacionDeOrigen}`,
 	);
 
 	// Calculado ANTES de cerrar la conexión: el runtime WASM de PGlite puede
@@ -307,7 +316,10 @@ export async function runImportLegacyProcomun(
 		);
 	}
 
+	assertLegacyCategoryDestinations();
+
 	const records: RecordOutcome[] = [];
+	const educationalNotes: EducationalImportResourceNote[] = [];
 	let processed = 0;
 	let imported = 0;
 	let skippedExisting = 0;
@@ -391,6 +403,10 @@ export async function runImportLegacyProcomun(
 					);
 				} else if (options.dryRun) {
 					imported++;
+					educationalNotes.push({
+						externalId: mapping.externalId,
+						sourceCategories: mapping.resource.levels,
+					});
 					records.push({
 						outcome: "would_import",
 						externalId: mapping.externalId,
@@ -407,7 +423,13 @@ export async function runImportLegacyProcomun(
 						warningMessages,
 						systemUser,
 						records,
-						onImported: () => imported++,
+						onImported: () => {
+							imported++;
+							educationalNotes.push({
+								externalId: mapping.externalId,
+								sourceCategories: mapping.resource.levels,
+							});
+						},
 						onErrored: () => errored++,
 					});
 				}
@@ -435,6 +457,7 @@ export async function runImportLegacyProcomun(
 		},
 		incompletePairs: incomplete,
 		records,
+		categorizacionEducativa: summarizeLegacyEducationalImport(educationalNotes),
 	};
 }
 

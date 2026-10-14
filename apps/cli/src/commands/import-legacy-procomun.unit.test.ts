@@ -386,6 +386,58 @@ describe("runImportLegacyProcomun (deps mockeadas)", () => {
 		expect(report.records[0]).toMatchObject({ outcome: "would_import" });
 		expect(processCalled).toBe(false);
 		expect(importCalled).toBe(false);
+		expect(report.categorizacionEducativa).toEqual({
+			recursosConTodasTransformadas: 0,
+			recursosPendientesDeRevision: 0,
+			recursosSinCategorizacionDeOrigen: 1,
+			categoriasNoReconocidas: [],
+		});
+	});
+
+	test("el informe cuenta la correspondencia por recurso y no bloquea lo no reconocido", async () => {
+		const deps = buildMockDeps(storageDir, {
+			mapLegacyRecord: (() => ({
+				externalId: "es_mock",
+				blocking: false,
+				blockingErrors: [],
+				warnings: [],
+				resource: {
+					externalId: "es_mock",
+					importSource: "legacy-procomun",
+					sourceUri: null,
+					title: "Mock",
+					description: "Mock description",
+					language: "es",
+					license: "cc-by",
+					resourceType: "documento",
+					subjects: [],
+					levels: [
+						"Formación Profesional",
+						"Formación Profesional Básica (más de 15 años)",
+						"Categoría sin regla",
+					],
+					author: null,
+					publisher: null,
+					keywords: null,
+					importedAt: null,
+				},
+			})) as Deps["mapLegacyRecord"],
+		});
+
+		const report = await runImportLegacyProcomun(
+			{ sourceDir: dir, dryRun: true },
+			deps,
+		);
+
+		expect(report.totals.imported).toBe(1);
+		expect(report.categorizacionEducativa).toEqual({
+			recursosConTodasTransformadas: 0,
+			recursosPendientesDeRevision: 1,
+			recursosSinCategorizacionDeOrigen: 0,
+			categoriasNoReconocidas: [
+				{ categoria: "Categoría sin regla", recursos: ["es_mock"] },
+			],
+		});
 	});
 
 	test("un registro importable llama a processElpxUpload y persiste vía el repositorio", async () => {

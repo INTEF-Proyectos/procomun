@@ -66,6 +66,17 @@ blocking_adrs:
 
 tasks:
 
+  T-2026-10-14-07510643:
+    date: 2026-10-14
+    agent: "ingestas-y-migraciones + metadatos-y-curacion + qa-validacion"
+    task: "Correspondencia de categorías antiguas al importar (#383)"
+    status: Done
+    related: ["#383", "#380"]
+    notes: >
+      Al importar, learningContext se traduce a resource_educational_areas
+      con las 31 reglas. Lo que no tiene regla queda en el informe y no se
+      asigna. El texto original sigue en resource_levels. PDC no se asigna.
+
   T-2026-10-14-10544218:
     date: 2026-10-14
     agent: "metadatos-y-curacion + backend-api-servicios + frontend-ux-accesibilidad + qa-validacion + documentacion-y-roadmap"

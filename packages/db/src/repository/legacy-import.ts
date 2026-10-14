@@ -1,7 +1,9 @@
 import { and, eq } from "drizzle-orm";
+import { mapLegacyEducationalCategories } from "../legacy-import/educational-category-map.ts";
 import { elpxProjects } from "../schema/elpx.ts";
 import {
 	mediaItems,
+	resourceEducationalAreas,
 	resourceLevels,
 	resourceSubjects,
 	resources,
@@ -137,6 +139,20 @@ export async function importLegacyResourceWithElpx(
 			await tx
 				.insert(resourceLevels)
 				.values(input.resource.levels.map((level) => ({ resourceId, level })));
+		}
+		// learningContext se conserva en resource_levels. La categorización
+		// nueva sale de esas mismas cadenas; lo no reconocido no se asigna.
+		const educationalAreas = mapLegacyEducationalCategories(
+			input.resource.levels,
+		).assignments;
+		if (educationalAreas.length > 0) {
+			await tx.insert(resourceEducationalAreas).values(
+				educationalAreas.map((area) => ({
+					resourceId,
+					categoryId: area.categoryId,
+					optionId: area.optionId,
+				})),
+			);
 		}
 
 		const mediaItemId = crypto.randomUUID();
