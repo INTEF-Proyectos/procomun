@@ -27,15 +27,26 @@ interface ElpxMetadata {
 	license?: string;
 }
 
-const EMPTY_FORM: ResourceFormState = {
+export const RESOURCE_TYPE_PLACEHOLDER = "Selecciona un tipo de recurso";
+
+export const EMPTY_FORM: ResourceFormState = {
 	title: "",
 	description: "",
 	author: "",
 	language: "es",
 	license: "cc-by",
-	resourceType: "documento",
+	resourceType: "",
 	keywords: "",
 };
+
+/** El placeholder y el vacío no son un tipo de recurso. */
+export function resourceTypeSelectionError(value: string): string | null {
+	const trimmed = value.trim();
+	if (!trimmed || trimmed === RESOURCE_TYPE_PLACEHOLDER) {
+		return RESOURCE_TYPE_PLACEHOLDER;
+	}
+	return null;
+}
 
 const ALLOWED_LANGUAGES = new Set<string>(
 	LANGUAGE_OPTIONS.map((option) => option.value),
@@ -61,7 +72,6 @@ export function applyElpxMetadataToForm(
 			metadata.license && ALLOWED_LICENSES.has(metadata.license)
 				? metadata.license
 				: current.license,
-		resourceType: "actividad-interactiva",
 	};
 }
 
@@ -210,6 +220,13 @@ export default function NuevoPage() {
 		setErrorMsg("");
 		setSuccessMsg("");
 		clearFieldErrors();
+
+		const typeError = resourceTypeSelectionError(form.resourceType);
+		if (typeError) {
+			showFieldErrors([{ field: "resourceType", message: typeError }]);
+			setErrorMsg(typeError);
+			return;
+		}
 
 		const body = {
 			title: form.title,
@@ -437,7 +454,6 @@ export default function NuevoPage() {
 						<label htmlFor="resourceType">Tipo de recurso *</label>
 						<select
 							id="resourceType"
-							required
 							aria-describedby="resourceType-error"
 							aria-invalid={
 								invalidFields.has("resourceType") ? "true" : undefined
@@ -447,6 +463,9 @@ export default function NuevoPage() {
 								setFieldValue("resourceType", event.currentTarget.value)
 							}
 						>
+							<option value="" disabled>
+								{RESOURCE_TYPE_PLACEHOLDER}
+							</option>
 							{RESOURCE_TYPE_OPTIONS.map((option) => (
 								<option key={option.value} value={option.value}>
 									{option.label}

@@ -1,7 +1,22 @@
 import { describe, expect, test } from "bun:test";
-import { applyElpxMetadataToForm } from "./NuevoPage.tsx";
+import {
+	applyElpxMetadataToForm,
+	EMPTY_FORM,
+	resourceTypeSelectionError,
+} from "./NuevoPage.tsx";
 
 describe("NuevoPage helpers", () => {
+	test("el alta empieza sin tipo de recurso y el placeholder no vale", () => {
+		expect(EMPTY_FORM.resourceType).toBe("");
+		expect(resourceTypeSelectionError("")).toBe(
+			"Selecciona un tipo de recurso",
+		);
+		expect(resourceTypeSelectionError("Selecciona un tipo de recurso")).toBe(
+			"Selecciona un tipo de recurso",
+		);
+		expect(resourceTypeSelectionError("documento")).toBeNull();
+	});
+
 	test("applyElpxMetadataToForm precarga los campos extraidos del .elpx", () => {
 		const result = applyElpxMetadataToForm(
 			{
@@ -28,7 +43,7 @@ describe("NuevoPage helpers", () => {
 			author: "Equipo docente",
 			language: "en",
 			license: "cc0",
-			resourceType: "actividad-interactiva",
+			resourceType: "documento",
 			keywords: "fracciones, primaria",
 		});
 	});
@@ -53,9 +68,26 @@ describe("NuevoPage helpers", () => {
 			author: "Autor manual",
 			language: "gl",
 			license: "cc-by-sa",
-			resourceType: "actividad-interactiva",
+			resourceType: "documento",
 			keywords: "manual",
 		});
+	});
+
+	test("applyElpxMetadataToForm no preselecciona tipo de recurso", () => {
+		const result = applyElpxMetadataToForm(
+			{
+				title: "",
+				description: "",
+				author: "",
+				language: "es",
+				license: "cc-by",
+				resourceType: "",
+				keywords: "",
+			},
+			{ title: "Proyecto eXe" },
+		);
+
+		expect(result.resourceType).toBe("");
 	});
 
 	test("applyElpxMetadataToForm conserva defaults si el .elpx trae language o license no validos", () => {
@@ -81,7 +113,7 @@ describe("NuevoPage helpers", () => {
 			author: "",
 			language: "es",
 			license: "cc-by",
-			resourceType: "actividad-interactiva",
+			resourceType: "documento",
 			keywords: "",
 		});
 	});

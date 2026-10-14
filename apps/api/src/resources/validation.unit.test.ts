@@ -67,7 +67,19 @@ describe("validateCreateResource", () => {
 		const { resourceType, ...rest } = validPayload;
 		const r = validateCreateResource(rest);
 		expect(r.valid).toBe(false);
-		expect(r.errors.find((e) => e.field === "resourceType")).toBeTruthy();
+		expect(r.errors.find((e) => e.field === "resourceType")?.message).toBe(
+			"Selecciona un tipo de recurso",
+		);
+	});
+
+	test("resourceType vacio o el placeholder no son valores validos", () => {
+		for (const resourceType of ["", "   ", "Selecciona un tipo de recurso"]) {
+			const r = validateCreateResource({ ...validPayload, resourceType });
+			expect(r.valid).toBe(false);
+			expect(r.errors.find((e) => e.field === "resourceType")?.message).toBe(
+				"Selecciona un tipo de recurso",
+			);
+		}
 	});
 
 	test("title excede 500 caracteres", () => {

@@ -112,10 +112,13 @@ export function validateCreateResource(body: unknown): ValidationResult {
 		});
 	}
 
-	if (!isNonEmptyString(b.resourceType)) {
+	if (
+		!isNonEmptyString(b.resourceType) ||
+		b.resourceType.trim() === "Selecciona un tipo de recurso"
+	) {
 		errors.push({
 			field: "resourceType",
-			message: "El tipo de recurso es obligatorio",
+			message: "Selecciona un tipo de recurso",
 		});
 	}
 
