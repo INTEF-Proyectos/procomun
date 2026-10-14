@@ -69,9 +69,13 @@
 		return /^[0-9]+$/.test(attr) ? `${attr}px` : attr;
 	}
 
+	function sourceOf(el) {
+		return el.getAttribute(el.tagName === "OBJECT" ? "data" : "src");
+	}
+
 	function makeFacade(frame) {
 		var doc = frame.ownerDocument;
-		var url = absolute(frame.getAttribute("src"));
+		var url = absolute(sourceOf(frame));
 		var btn = doc.createElement("button");
 		btn.type = "button";
 		btn.className = "procomun-embed-facade";
@@ -99,12 +103,15 @@
 	}
 
 	function promote(root) {
-		var frames = root.querySelectorAll("iframe[src]");
+		// `object` y `embed` solo con PDF (#378): el visor de PDF no pinta en
+		// origen opaco, sea cual sea la etiqueta.
+		var frames = root.querySelectorAll("iframe[src], object[data], embed[src]");
 		for (let i = 0; i < frames.length; i++) {
 			const frame = frames[i];
 			if (frame.getAttribute("data-procomun-embed")) continue;
-			const src = frame.getAttribute("src");
-			if (!src || !isPromotable(src)) continue;
+			const src = sourceOf(frame);
+			const promotable = frame.tagName === "IFRAME" ? isPromotable : isPdf;
+			if (!src || !promotable(src)) continue;
 			frame.setAttribute("data-procomun-embed", "1");
 			const facade = makeFacade(frame);
 			if (frame.parentNode) frame.parentNode.replaceChild(facade, frame);

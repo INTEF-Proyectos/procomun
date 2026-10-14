@@ -11,6 +11,7 @@ import {
 
 // Hash de 40 hex (estilo SHA-1) que satisface /^[a-f0-9-]{8,64}$/i.
 const HASH = "0123456789abcdef0123456789abcdef01234567";
+const RES = "content/resources/70e98e3c-2014-4bf0-b691-ddca3cb3c6db";
 const SVG_BODY =
 	'<svg xmlns="http://www.w3.org/2000/svg"><script>alert(1)</script></svg>';
 
@@ -45,6 +46,23 @@ beforeAll(async () => {
 	await writeFile(
 		path.join(elpxDir, "payload.xml"),
 		'<?xml version="1.0"?><x><script>alert(1)</script></x>',
+		"utf8",
+	);
+	// Estructura de un .elpx exportado: páginas en html/ y medios en
+	// content/resources/<uuid>/ (#378).
+	await mkdir(path.join(elpxDir, "html"), { recursive: true });
+	await mkdir(path.join(elpxDir, RES), { recursive: true });
+	for (const file of ["clip.mp4", "clip.webm", "son.mp3", "son.ogg"]) {
+		await writeFile(path.join(elpxDir, RES, file), "medio", "utf8");
+	}
+	await writeFile(path.join(elpxDir, RES, "guia.pdf"), "%PDF-1.4", "utf8");
+	await writeFile(path.join(elpxDir, RES, "foto.jpg"), "jpg", "utf8");
+	await writeFile(
+		path.join(elpxDir, "html", "pagina.html"),
+		`<!doctype html><html><head></head><body>
+<div class="idevice_node text" data-idevice-path="../idevices/text/" data-idevice-type="text">
+<object data="../${RES}/guia.pdf" type="application/pdf"></object>
+</div></body></html>`,
 		"utf8",
 	);
 });
@@ -93,6 +111,42 @@ describe("elpx-content CSP (XSS almacenado vía SVG)", () => {
 		expect(res.status).toBe(200);
 		expect(res.headers.get("content-type")).toBe("application/xml");
 		expectStrictAssetSandbox(res.headers.get("content-security-policy"));
+	});
+});
+
+describe("medios del paquete (#378)", () => {
+	test("audio y vídeo se sirven sin CSP, con nosniff y su tipo MIME", async () => {
+		// Con `sandbox; default-src 'none'`, `<iframe src=clip.mp4>` y `<embed>`
+		// no llegan a reproducir en Chrome (readyState 0).
+		for (const [file, mime] of [
+			["clip.mp4", "video/mp4"],
+			["clip.webm", "video/webm"],
+			["son.mp3", "audio/mpeg"],
+			["son.ogg", "audio/ogg"],
+		] as const) {
+			const res = await app.request(`/api/v1/elpx/${HASH}/${RES}/${file}`);
+			expect(res.status).toBe(200);
+			expect(res.headers.get("content-type")).toBe(mime);
+			expect(res.headers.get("x-content-type-options")).toBe("nosniff");
+			expect(res.headers.get("content-security-policy")).toBeNull();
+		}
+	});
+
+	test("PDF e imagen conservan la CSP sandbox", async () => {
+		for (const file of ["guia.pdf", "foto.jpg"]) {
+			const res = await app.request(`/api/v1/elpx/${HASH}/${RES}/${file}`);
+			expect(res.status).toBe(200);
+			expectStrictAssetSandbox(res.headers.get("content-security-policy"));
+		}
+	});
+
+	test("reescribe `data` de <object> a la ruta del paquete, no los data-*", async () => {
+		const res = await app.request(`/api/v1/elpx/${HASH}/html/pagina.html`);
+		const html = await res.text();
+
+		expect(html).toContain(`data="/api/v1/elpx/${HASH}/${RES}/guia.pdf"`);
+		expect(html).toContain('data-idevice-path="../idevices/text/"');
+		expect(html).toContain('data-idevice-type="text"');
 	});
 });
 

@@ -66,6 +66,25 @@ blocking_adrs:
 
 tasks:
 
+  T-2026-10-14-06310894:
+    date: 2026-10-14
+    agent: "backend-api-servicios + seguridad-privacidad-legal + qa-validacion"
+    task: "Vídeo y PDF incrustados de un ODE en la previsualización (#378)"
+    status: In Progress
+    related: ["#378", "#389", "ADR-0026", "ADR-0027"]
+    notes: >
+      Audio y vídeo del paquete se sirven sin la CSP sandbox; default-src
+      'none', que dejaba <iframe src=clip.mp4> y <embed> en readyState 0. Siguen
+      con nosniff y su MIME; PDF, imágenes, SVG y el resto conservan la CSP. La
+      reescritura de atributos incluye data (<object data>). embed-shim.js
+      promociona también object[data] y embed[src] con PDF a la fachada con
+      modal de ADR-0027. Validación: elpx-content.unit.test.ts (cabeceras y
+      reescritura con la estructura html/ + content/resources/ de un .elpx),
+      e2e/tests/public/elpx-embed-shim.e2e.ts y Chrome 155 con un paquete de
+      prueba en la ficha (vídeo en iframe y embed con readyState 4, PDF en
+      object a la fachada, PDF pintado en iframe sin sandbox). Pendiente:
+      validar con el .elpx real de #378.
+
   T-2026-09-06-08510442:
     date: 2026-09-06
     agent: "seguridad-privacidad-legal + arquitectura-solucion + backend-api-servicios + qa-validacion + documentacion-y-roadmap"

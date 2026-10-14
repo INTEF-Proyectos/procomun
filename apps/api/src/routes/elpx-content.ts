@@ -128,7 +128,7 @@ function rewriteRelativeUrls(
 	const dir = currentDir === "." ? "" : currentDir;
 
 	const attrPattern =
-		/(<[^>]+\s)(src|href|poster)(\s*=\s*["'])(?!https?:\/\/|data:|\/\/|#|javascript:)([^"']+)(["'])/gi;
+		/(<[^>]+\s)(src|href|poster|data)(\s*=\s*["'])(?!https?:\/\/|data:|\/\/|#|javascript:)([^"']+)(["'])/gi;
 	html = html.replace(attrPattern, (match, prefix, attr, eq, url, quote) => {
 		if (!url || url.startsWith("/")) return match;
 		const resolved = resolveRelativePath(dir, url);
@@ -177,13 +177,19 @@ function rewriteCssUrls(
 export const AUTHOR_ASSET_CSP = "sandbox; default-src 'none'";
 
 function authorAssetHeaders(contentType: string): Record<string, string> {
-	return {
+	const headers: Record<string, string> = {
 		"Content-Type": contentType,
 		"X-Content-Type-Options": "nosniff",
 		"Cache-Control": "public, max-age=3600",
 		"Access-Control-Allow-Origin": "*",
-		"Content-Security-Policy": AUTHOR_ASSET_CSP,
 	};
+	// Audio y vídeo, sin CSP (#378): con `default-src 'none'` Chrome no
+	// reproduce el medio cuando es el documento de un `<iframe>` o `<embed>`.
+	// No ejecutan script y `nosniff` impide que se interpreten como HTML.
+	if (!/^(audio|video)\//.test(contentType)) {
+		headers["Content-Security-Policy"] = AUTHOR_ASSET_CSP;
+	}
+	return headers;
 }
 
 export const ELPX_HTML_CSP =
