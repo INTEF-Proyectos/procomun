@@ -7,6 +7,7 @@ import {
 } from "./listing-history.ts";
 import { DEFAULT_PAGE_SIZE, getPaginationState } from "./pagination.ts";
 import { url } from "./paths.ts";
+import { resourceCoverSrc } from "./resource-cover.ts";
 import { escapeHtml, TYPE_ICONS } from "./resource-display.ts";
 import {
 	LANGUAGE_OPTIONS,
@@ -20,17 +21,18 @@ function renderCard(r: Resource): string {
 	const desc = (r.description || "").slice(0, 140);
 	const ellipsis = (r.description || "").length > 140 ? "..." : "";
 
-	const preview = r.elpxPreview?.previewUrl
+	const coverSrc = resourceCoverSrc({
+		coverImageUrl: r.elpxPreview?.coverImageUrl,
+	});
+	const preview = coverSrc
 		? `<div class="card-preview">
-			<iframe src="${r.elpxPreview.previewUrl}" loading="lazy" tabindex="-1"
-				sandbox="allow-scripts"
-				title="Vista previa"></iframe>
+			<img src="${escapeHtml(coverSrc)}" alt="">
 			<div class="card-preview-overlay"></div>
 		</div>`
-		: `<div class="card-icon">${icon}</div>`;
+		: `<div class="card-icon" role="img" aria-label="Sin imagen">${icon}</div>`;
 
 	return `
-		<a href="${url(`recurso?slug=${r.slug}`)}" class="resource-card${r.elpxPreview ? " has-preview" : ""}">
+		<a href="${url(`recurso?slug=${r.slug}`)}" class="resource-card${coverSrc ? " has-preview" : ""}">
 			${preview}
 			<div class="card-body">
 				<h3>${escapeHtml(r.title || "")}</h3>

@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { useElpxEmbedRelay } from "../../hooks/use-elpx-embed-relay.ts";
 import type {
 	RelatedResource,
 	RelatedResourcesResult,
@@ -8,6 +7,7 @@ import type {
 } from "../../lib/api-client.ts";
 import { getApiClient } from "../../lib/get-api-client.ts";
 import { url } from "../../lib/paths.ts";
+import { resourceCoverSrc } from "../../lib/resource-cover.ts";
 import {
 	FILE_ICONS,
 	formatBytes,
@@ -24,7 +24,6 @@ import { ResourceCard } from "../../ui/ResourceCard.tsx";
 import { FavoriteIsland } from "../social/FavoriteIsland.tsx";
 import { RatingIsland } from "../social/RatingIsland.tsx";
 import { ReportButton } from "../social/ReportButton.tsx";
-import { EmbedModal } from "./EmbedModal.tsx";
 import "../../lib/paraglide-client.ts";
 import { hasMinRole } from "../../lib/shared-utils.ts";
 import * as m from "../../paraglide/messages.js";
@@ -219,6 +218,10 @@ function ResourceDetailContent({
 	// dentro de un closure. Con el valor ya extraído, el narrowing es real.
 	const previewUrl = resource.elpxPreview?.previewUrl;
 	const hasPreview = !!previewUrl;
+	const coverSrc = resourceCoverSrc({
+		thumbnailUrl: resource.thumbnailUrl,
+		coverImageUrl: resource.elpxPreview?.coverImageUrl,
+	});
 	const mediaItems = resource.mediaItems ?? [];
 	const hasFiles = mediaItems.length > 0;
 	const firstFileUrl = mediaItems[0]?.url;
@@ -228,13 +231,6 @@ function ResourceDetailContent({
 	);
 	const exportSourceUrl = getResourceElpxFileUrl(resource);
 	const iframeRef = useRef<HTMLIFrameElement | null>(null);
-	// Relay de embeds del preview: vídeos/PDF promocionados a un player de
-	// confianza en el frame principal sin perder el origen opaco (ADR-0027).
-	const previewIframeRef = useRef<HTMLIFrameElement | null>(null);
-	const { activeEmbed, close: closeEmbed } = useElpxEmbedRelay(
-		previewIframeRef,
-		resource.elpxPreview?.previewUrl,
-	);
 	const [exportReady, setExportReady] = useState(false);
 	const [exportingFormat, setExportingFormat] =
 		useState<ResourceExportKind | null>(null);
@@ -504,23 +500,20 @@ function ResourceDetailContent({
 					) : null}
 
 					{/* Preview */}
-					{hasPreview ? (
-						<section className="elpx-preview-section">
-							<h2>{m.detail_preview_title()}</h2>
-							<div className="elpx-preview-wrapper">
-								<iframe
-									ref={previewIframeRef}
-									src={previewUrl}
+					<section className="elpx-preview-section">
+						<h2>{m.detail_preview_title()}</h2>
+						<div className="elpx-preview-wrapper">
+							{coverSrc ? (
+								<img src={coverSrc} alt="" className="elpx-preview-iframe" />
+							) : (
+								<div
 									className="elpx-preview-iframe"
-									sandbox="allow-scripts allow-popups allow-popups-to-escape-sandbox"
-									referrerPolicy="no-referrer"
-									loading="lazy"
-									title={m.detail_preview_iframe()}
+									role="img"
+									aria-label="Sin imagen"
 								/>
-							</div>
-							<EmbedModal embed={activeEmbed} onClose={closeEmbed} />
-						</section>
-					) : null}
+							)}
+						</div>
+					</section>
 
 					{/* Embed / Ponlo en tu web */}
 					{hasPreview ? (

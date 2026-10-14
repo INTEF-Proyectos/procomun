@@ -24,8 +24,13 @@ export interface Resource {
 	subjects?: string[];
 	levels?: string[];
 	mediaItems?: MediaItemRecord[];
-	elpxPreview?: { hash: string; previewUrl: string } | null;
+	elpxPreview?: {
+		hash: string;
+		previewUrl: string;
+		coverImageUrl?: string | null;
+	} | null;
 	elpxFileUrl?: string | null;
+	thumbnailUrl?: string | null;
 	rating?: { average: number; count: number };
 	favoriteCount?: number;
 	featuredAt?: string | null;
@@ -107,7 +112,11 @@ export interface CollectionResourceRecord {
 	author: string | null;
 	createdByName?: string | null;
 	editorialStatus: string;
-	elpxPreview?: { hash: string; previewUrl: string } | null;
+	elpxPreview?: {
+		hash: string;
+		previewUrl: string;
+		coverImageUrl?: string | null;
+	} | null;
 }
 
 export interface CollectionDetailRecord extends CollectionRecord {

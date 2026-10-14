@@ -1,8 +1,17 @@
+import { selectElpxCoverImage } from "@procomun/db/elpx-cover";
+
 export function buildElpxPreview(
 	elpx: { hash?: string; hasPreview?: boolean } | null | undefined,
-): { hash: string; previewUrl: string } | null {
+	entryNames: readonly string[] = [],
+): { hash: string; previewUrl: string; coverImageUrl: string | null } | null {
 	if (!elpx?.hasPreview || !elpx.hash) return null;
-	return { hash: elpx.hash, previewUrl: `/api/v1/elpx/${elpx.hash}/` };
+	const previewUrl = `/api/v1/elpx/${elpx.hash}/`;
+	const cover = selectElpxCoverImage(entryNames);
+	return {
+		hash: elpx.hash,
+		previewUrl,
+		coverImageUrl: cover ? `${previewUrl}${cover}` : null,
+	};
 }
 
 export type ElpxRow = { resourceId: string; hash: string; hasPreview: boolean };

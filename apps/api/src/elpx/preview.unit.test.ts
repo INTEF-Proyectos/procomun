@@ -12,7 +12,24 @@ describe("elpx preview helpers", () => {
 		expect(buildElpxPreview({ hash: "abc123", hasPreview: true })).toEqual({
 			hash: "abc123",
 			previewUrl: "/api/v1/elpx/abc123/",
+			coverImageUrl: null,
 		});
+		expect(
+			buildElpxPreview({ hash: "abc123", hasPreview: true }, [
+				"theme/screenshot.png",
+				"content/resources/b00039.ogg",
+			]),
+		).toEqual({
+			hash: "abc123",
+			previewUrl: "/api/v1/elpx/abc123/",
+			coverImageUrl: null,
+		});
+		expect(
+			buildElpxPreview({ hash: "abc123", hasPreview: true }, [
+				"theme/icons/file.png",
+				"content/resources/cover.png",
+			])?.coverImageUrl,
+		).toBe("/api/v1/elpx/abc123/content/resources/cover.png");
 	});
 
 	test("buildElpxMap indexes rows by resourceId", () => {

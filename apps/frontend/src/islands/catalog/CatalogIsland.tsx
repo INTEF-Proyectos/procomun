@@ -5,7 +5,6 @@ import {
 	useRef,
 	useState,
 } from "react";
-import { useIframeScale } from "../../hooks/use-iframe-scale.ts";
 import type { BadgeConfig, Resource } from "../../lib/api-client.ts";
 import {
 	CATALOG_QUERY_CHANGE_EVENT,
@@ -21,6 +20,7 @@ import {
 } from "../../lib/listing-history.ts";
 import { DEFAULT_PAGE_SIZE, getPaginationState } from "../../lib/pagination.ts";
 import { url } from "../../lib/paths.ts";
+import { resourceCoverSrc } from "../../lib/resource-cover.ts";
 import { TYPE_ICONS } from "../../lib/resource-display.ts";
 import {
 	type FilterOption,
@@ -91,11 +91,9 @@ function ResourceCard({
 	const description = resource.description || "";
 	const clipped =
 		description.length > 140 ? `${description.slice(0, 140)}...` : description;
-	const previewUrl = resource.elpxPreview?.previewUrl;
-	const hasPreview = !!previewUrl;
-	const previewRef = useIframeScale<HTMLDivElement>({
-		iframeWidth: 1200,
-		iframeHeight: 675,
+	const coverSrc = resourceCoverSrc({
+		thumbnailUrl: resource.thumbnailUrl,
+		coverImageUrl: resource.elpxPreview?.coverImageUrl,
 	});
 	const authorInitial = (resource.createdByName || resource.author || "?")
 		.charAt(0)
@@ -164,17 +162,11 @@ function ResourceCard({
 	return (
 		<a
 			href={url(`recurso?slug=${resource.slug}`)}
-			className={`resource-card${hasPreview ? " has-preview" : ""}`}
+			className={`resource-card${coverSrc ? " has-preview" : ""}`}
 		>
-			{hasPreview ? (
-				<div className="card-preview" ref={previewRef}>
-					<iframe
-						src={previewUrl}
-						loading="lazy"
-						tabIndex={-1}
-						sandbox="allow-scripts"
-						title={m.catalog_preview()}
-					/>
+			{coverSrc ? (
+				<div className="card-preview">
+					<img src={coverSrc} alt="" />
 					<div className="card-preview-overlay" />
 					{badgeOverlay}
 				</div>
@@ -185,8 +177,14 @@ function ResourceCard({
 						background: `linear-gradient(135deg, var(--color-surface-container-low) 0%, var(--color-surface-container-high) 100%)`,
 					}}
 				>
-					<div style={{ fontSize: "3rem", opacity: 0.4 }} aria-hidden="true">
-						{getResourceIcon(resource.resourceType)}
+					<div
+						style={{ fontSize: "3rem", opacity: 0.4 }}
+						role="img"
+						aria-label="Sin imagen"
+					>
+						<span aria-hidden="true">
+							{getResourceIcon(resource.resourceType)}
+						</span>
 					</div>
 					{badgeOverlay}
 				</div>

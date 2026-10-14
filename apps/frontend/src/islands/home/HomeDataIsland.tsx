@@ -1,5 +1,4 @@
 import { useEffect, useRef, useState } from "react";
-import { useIframeScale } from "../../hooks/use-iframe-scale.ts";
 import type {
 	BadgeConfig,
 	CollectionRecord,
@@ -7,6 +6,7 @@ import type {
 } from "../../lib/api-client.ts";
 import { getApiClient } from "../../lib/get-api-client.ts";
 import { url } from "../../lib/paths.ts";
+import { resourceCoverSrc } from "../../lib/resource-cover.ts";
 import { DEFAULT_BADGE_CONFIG, timeAgo } from "../../lib/shared-utils.ts";
 import "./HomeDataIsland.css";
 
@@ -34,36 +34,31 @@ function shuffleAndPick<T>(arr: T[], n: number): T[] {
 // Scaled iframe preview component (uses shared hook)
 // ---------------------------------------------------------------------------
 
-function IframePreview({
-	src,
-	className,
-	iframeWidth = 1024,
-	iframeHeight = 768,
-	fillWidth = false,
+function CoverPreview({
+	resource,
+	emptyClassName,
 }: {
-	src: string;
-	className?: string;
-	iframeWidth?: number;
-	iframeHeight?: number;
-	fillWidth?: boolean;
+	resource: Resource;
+	emptyClassName: string;
 }) {
-	const ref = useIframeScale<HTMLDivElement>({
-		iframeWidth,
-		iframeHeight,
-		fillWidth,
+	const src = resourceCoverSrc({
+		thumbnailUrl: resource.thumbnailUrl,
+		coverImageUrl: resource.elpxPreview?.coverImageUrl,
 	});
-
-	return (
-		<div className={`home-iframe-wrap ${className ?? ""}`} ref={ref}>
-			<iframe
-				src={src}
-				loading="lazy"
-				tabIndex={-1}
-				sandbox="allow-scripts"
-				title="Vista previa"
-			/>
-		</div>
-	);
+	if (!src) {
+		return (
+			<div className={emptyClassName} role="img" aria-label="Sin imagen">
+				<span
+					className="material-symbols-outlined"
+					aria-hidden="true"
+					style={{ fontSize: "3rem", opacity: 0.3 }}
+				>
+					image
+				</span>
+			</div>
+		);
+	}
+	return <img src={src} alt="" className="home-cover-img" />;
 }
 
 // ---------------------------------------------------------------------------
@@ -96,32 +91,18 @@ function FeaturedSection({
 	if (!hero) return null;
 
 	const heroRating = hero.rating;
-	const heroPreview = hero.elpxPreview?.previewUrl;
 
 	const secRating = secondary?.rating;
-	const secPreview = secondary?.elpxPreview?.previewUrl;
 
 	return (
 		<div className="home-featured-grid">
 			{/* Hero card */}
 			<a href={url(`recurso?slug=${hero.slug}`)} className="home-featured-hero">
 				<div className="home-featured-hero-preview">
-					{heroPreview ? (
-						<IframePreview
-							src={heroPreview}
-							className="home-featured-iframe"
-							fillWidth
-						/>
-					) : (
-						<div className="home-featured-placeholder">
-							<span
-								className="material-symbols-outlined"
-								style={{ fontSize: "4rem", opacity: 0.3 }}
-							>
-								description
-							</span>
-						</div>
-					)}
+					<CoverPreview
+						resource={hero}
+						emptyClassName="home-featured-placeholder"
+					/>
 				</div>
 				<div className="home-featured-hero-content">
 					<div className="home-featured-badges">
@@ -158,22 +139,10 @@ function FeaturedSection({
 					className="home-featured-secondary"
 				>
 					<div className="home-featured-sec-preview">
-						{secPreview ? (
-							<IframePreview
-								src={secPreview}
-								className="home-featured-iframe"
-								fillWidth
-							/>
-						) : (
-							<div className="home-featured-placeholder">
-								<span
-									className="material-symbols-outlined"
-									style={{ fontSize: "3rem", opacity: 0.3 }}
-								>
-									description
-								</span>
-							</div>
-						)}
+						<CoverPreview
+							resource={secondary}
+							emptyClassName="home-featured-placeholder"
+						/>
 					</div>
 					<div className="home-featured-badges">
 						<span className="home-badge home-badge-level">
@@ -328,7 +297,6 @@ function NewsSection({ resources }: { resources: Resource[] }) {
 	return (
 		<div className="home-news-grid">
 			{resources.slice(0, 4).map((r) => {
-				const previewUrl = r.elpxPreview?.previewUrl;
 				return (
 					<a
 						key={r.id}
@@ -336,22 +304,10 @@ function NewsSection({ resources }: { resources: Resource[] }) {
 						className="home-news-card"
 					>
 						<div className="home-news-preview">
-							{previewUrl ? (
-								<IframePreview
-									src={previewUrl}
-									className="home-news-iframe"
-									fillWidth
-								/>
-							) : (
-								<div className="home-news-placeholder">
-									<span
-										className="material-symbols-outlined"
-										style={{ fontSize: "2rem", opacity: 0.3 }}
-									>
-										description
-									</span>
-								</div>
-							)}
+							<CoverPreview
+								resource={r}
+								emptyClassName="home-news-placeholder"
+							/>
 						</div>
 						<span className="home-news-timestamp">{timeAgo(r.createdAt)}</span>
 						<h5 className="home-news-title">{r.title}</h5>

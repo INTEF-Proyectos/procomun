@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useIframeScale } from "../hooks/use-iframe-scale.ts";
+import { resourceCoverSrc } from "../lib/resource-cover.ts";
 import type { ResourceSummary } from "../lib/types/resource-extended.ts";
 import "./ResourceCard.css";
 
@@ -34,11 +34,9 @@ export function ResourceCard({
 		description.length > 140 ? `${description.slice(0, 140)}...` : description;
 	// Se deriva el valor, no solo el booleano: así TypeScript lo estrecha en el
 	// JSX sin necesidad de afirmarlo.
-	const previewUrl = resource.elpxPreview?.previewUrl;
-	const hasPreview = !!previewUrl;
-	const previewRef = useIframeScale<HTMLDivElement>({
-		iframeWidth: 1200,
-		iframeHeight: 675,
+	const coverSrc = resourceCoverSrc({
+		thumbnailUrl: resource.thumbnailUrl,
+		coverImageUrl: resource.elpxPreview?.coverImageUrl,
 	});
 	const [favorited, setFavorited] = useState(isFavorited);
 	const [favCount, setFavCount] = useState(resource.favoriteCount ?? 0);
@@ -86,26 +84,17 @@ export function ResourceCard({
 	return (
 		<a href={href} className={`rc-card ${className}`.trim()}>
 			<div className="rc-image">
-				{hasPreview ? (
-					<div className="rc-preview-wrapper" ref={previewRef}>
-						<iframe
-							src={previewUrl}
-							loading="lazy"
-							tabIndex={-1}
-							sandbox="allow-scripts"
-							title="Vista previa"
-						/>
-					</div>
-				) : resource.thumbnailUrl ? (
-					<img
-						src={resource.thumbnailUrl}
-						alt=""
-						className="rc-image-img"
-						loading="lazy"
-					/>
+				{coverSrc ? (
+					<img src={coverSrc} alt="" className="rc-image-img" loading="lazy" />
 				) : (
-					<div className="rc-image-placeholder">
-						<span className="material-symbols-outlined">description</span>
+					<div
+						className="rc-image-placeholder"
+						role="img"
+						aria-label="Sin imagen"
+					>
+						<span className="material-symbols-outlined" aria-hidden="true">
+							image
+						</span>
 					</div>
 				)}
 				{(overlayBadge || (badges && badges.length > 0)) && (

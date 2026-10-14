@@ -5,13 +5,13 @@ import {
 	useEffect,
 	useState,
 } from "react";
-import { useIframeScale } from "../../hooks/use-iframe-scale.ts";
 import type {
 	CollectionDetailRecord,
 	CollectionRecord,
 } from "../../lib/api-client.ts";
 import { getApiClient } from "../../lib/get-api-client.ts";
 import { url } from "../../lib/paths.ts";
+import { resourceCoverSrc } from "../../lib/resource-cover.ts";
 import { formatDateLong } from "../../lib/shared-utils.ts";
 import "./PublicCollectionsIsland.css";
 
@@ -28,20 +28,16 @@ function truncate(text: string, maxLength: number) {
 	return `${text.slice(0, maxLength)}...`;
 }
 
-function CollectionIframePreview({ src }: { src: string }) {
-	const ref = useIframeScale<HTMLDivElement>({
-		iframeWidth: 1024,
-		fillWidth: true,
-	});
+function CollectionCover({ coverImageUrl }: { coverImageUrl?: string | null }) {
+	const src = resourceCoverSrc({ coverImageUrl });
+	if (!src) {
+		return (
+			<div className="col-res-preview" role="img" aria-label="Sin imagen" />
+		);
+	}
 	return (
-		<div className="col-res-preview" ref={ref}>
-			<iframe
-				src={src}
-				loading="lazy"
-				tabIndex={-1}
-				sandbox="allow-scripts"
-				title="Vista previa"
-			/>
+		<div className="col-res-preview">
+			<img src={src} alt="" />
 		</div>
 	);
 }
@@ -237,11 +233,9 @@ export function PublicCollectionsIsland() {
 									href={url(`recurso?slug=${resource.slug}`)}
 									className="collection-resource-card"
 								>
-									{resource.elpxPreview && (
-										<CollectionIframePreview
-											src={resource.elpxPreview.previewUrl}
-										/>
-									)}
+									<CollectionCover
+										coverImageUrl={resource.elpxPreview?.coverImageUrl}
+									/>
 									<p className="collection-resource-type">
 										{resource.resourceType}
 									</p>

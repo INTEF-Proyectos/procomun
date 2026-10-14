@@ -12,6 +12,7 @@
 		"./seed-data": "./src/seed-data.ts",
 		"./seed-random": "./src/seed-random.ts",
 		"./elpx-metadata": "./src/elpx-metadata.ts",
+		"./elpx-cover": "./src/elpx-cover.ts",
 		"./legacy-import": "./src/legacy-import/index.ts",
 		"./resource-types": "./src/resource-types.ts",
 		"./tags": "./src/tags/normalize.ts"

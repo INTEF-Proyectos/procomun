@@ -3,7 +3,7 @@ import { user } from "@procomun/db/schema";
 import { sql } from "drizzle-orm";
 import { Hono } from "hono";
 import { getDb } from "../db.ts";
-import { buildElpxPreview } from "../elpx/preview.ts";
+import { buildStoredElpxPreview } from "../elpx/package-entries.ts";
 import { searchResources } from "../fts/search.ts";
 import { parsePagination } from "../http/pagination.ts";
 import { canViewResource, getSessionUser } from "../public/access.ts";
@@ -97,7 +97,7 @@ publicRoutes.get("/resources/:slug", async (c) => {
 
 	return c.json({
 		...resource,
-		elpxPreview: buildElpxPreview(elpx),
+		elpxPreview: await buildStoredElpxPreview(elpx),
 		elpxFileUrl,
 	});
 });

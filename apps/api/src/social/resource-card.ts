@@ -2,7 +2,8 @@ import * as repo from "@procomun/db/repository";
 import { favorites, ratings } from "@procomun/db/schema";
 import { inArray, sql } from "drizzle-orm";
 import { getDb } from "../db.ts";
-import { buildElpxMap, buildElpxPreview } from "../elpx/preview.ts";
+import { buildStoredElpxPreview } from "../elpx/package-entries.ts";
+import { buildElpxMap } from "../elpx/preview.ts";
 
 type ResourceWithId = { id: string };
 
@@ -73,11 +74,13 @@ export async function enrichResourceCards<T extends ResourceWithId>(rows: T[]) {
 		]),
 	);
 
-	return rows.map((row) =>
-		buildResourceCard(row, {
-			elpxPreview: buildElpxPreview(elpxMap.get(row.id)),
-			favoriteCount: favoriteMap.get(row.id) ?? 0,
-			rating: ratingMap.get(row.id) ?? { average: 0, count: 0 },
-		}),
+	return Promise.all(
+		rows.map(async (row) =>
+			buildResourceCard(row, {
+				elpxPreview: await buildStoredElpxPreview(elpxMap.get(row.id)),
+				favoriteCount: favoriteMap.get(row.id) ?? 0,
+				rating: ratingMap.get(row.id) ?? { average: 0, count: 0 },
+			}),
+		),
 	);
 }

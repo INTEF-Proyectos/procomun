@@ -1,6 +1,7 @@
 import * as repo from "@procomun/db/repository";
 import { getDb } from "../db.ts";
-import { buildElpxMap, buildElpxPreview } from "../elpx/preview.ts";
+import { buildStoredElpxPreview } from "../elpx/package-entries.ts";
+import { buildElpxMap } from "../elpx/preview.ts";
 import { buildResourceCard } from "../social/resource-card.ts";
 
 export async function listPublishedResources(opts: {
@@ -34,15 +35,22 @@ export async function listPublishedResources(opts: {
 
 	return {
 		...result,
-		data: result.data.map((resource: Record<string, unknown>) =>
-			buildResourceCard(resource as { id: string } & Record<string, unknown>, {
-				elpxPreview: buildElpxPreview(elpxMap.get(resource.id as string)),
-				favoriteCount: Number(resource.favoriteCount ?? 0),
-				rating: {
-					average: Number(resource.ratingAvg ?? 0),
-					count: Number(resource.ratingCount ?? 0),
-				},
-			}),
+		data: await Promise.all(
+			result.data.map(async (resource: Record<string, unknown>) =>
+				buildResourceCard(
+					resource as { id: string } & Record<string, unknown>,
+					{
+						elpxPreview: await buildStoredElpxPreview(
+							elpxMap.get(resource.id as string),
+						),
+						favoriteCount: Number(resource.favoriteCount ?? 0),
+						rating: {
+							average: Number(resource.ratingAvg ?? 0),
+							count: Number(resource.ratingCount ?? 0),
+						},
+					},
+				),
+			),
 		),
 	};
 }
@@ -94,15 +102,17 @@ export async function listPublishedCollections(opts: {
 
 	return {
 		...result,
-		data: result.data.map((collection: { id: string }) => {
-			const resourceId = firstResourceByCollection.get(collection.id);
-			return {
-				...collection,
-				elpxPreview: buildElpxPreview(
-					resourceId ? elpxMap.get(resourceId) : null,
-				),
-			};
-		}),
+		data: await Promise.all(
+			result.data.map(async (collection: { id: string }) => {
+				const resourceId = firstResourceByCollection.get(collection.id);
+				return {
+					...collection,
+					elpxPreview: await buildStoredElpxPreview(
+						resourceId ? elpxMap.get(resourceId) : null,
+					),
+				};
+			}),
+		),
 	};
 }
 
@@ -124,8 +134,12 @@ export async function listPublishedCollectionResources(collectionId: string) {
 	const elpxMap = buildElpxMap(
 		await repo.listElpxProjectsByResourceIds(db, resourceIds),
 	);
-	return resources.map((resource: { resourceId: string }) => ({
-		...resource,
-		elpxPreview: buildElpxPreview(elpxMap.get(resource.resourceId)),
-	}));
+	return Promise.all(
+		resources.map(async (resource: { resourceId: string }) => ({
+			...resource,
+			elpxPreview: await buildStoredElpxPreview(
+				elpxMap.get(resource.resourceId),
+			),
+		})),
+	);
 }
