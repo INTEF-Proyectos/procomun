@@ -1,11 +1,4 @@
-import {
-	type KeyboardEvent,
-	useCallback,
-	useEffect,
-	useId,
-	useRef,
-	useState,
-} from "react";
+import { useCallback, useEffect, useId, useRef, useState } from "react";
 import { useElpxEmbedRelay } from "../../hooks/use-elpx-embed-relay.ts";
 import type {
 	RelatedResource,
@@ -22,8 +15,8 @@ import {
 } from "../../lib/resource-display.ts";
 import {
 	buildExportFilename,
+	getDirectDownload,
 	getResourceElpxFileUrl,
-	listDownloadMenuOptions,
 	RESOURCE_EXPORT_OPTIONS,
 	type ResourceExportKind,
 } from "../../lib/resource-export.ts";
@@ -185,10 +178,11 @@ function getStatusBadgeClass(editorialStatus: string): string {
 	}
 }
 
+// Disclosure, no menú ARIA: un botón con aria-expanded y una lista de enlaces y
+// botones que se recorre con Tab. Escape, clic fuera o salir con Tab la cierran.
 function DownloadMenu({
-	hasDirectFile,
+	direct,
 	hasExports,
-	totalFileSize,
 	downloadCount,
 	exportCounts,
 	exportReady,
@@ -196,9 +190,8 @@ function DownloadMenu({
 	onDirectDownload,
 	onExport,
 }: {
-	hasDirectFile: boolean;
+	direct: ReturnType<typeof getDirectDownload>;
 	hasExports: boolean;
-	totalFileSize: number;
 	downloadCount: number;
 	exportCounts?: ResourceStats["exportCounts"];
 	exportReady: boolean;
@@ -206,99 +199,46 @@ function DownloadMenu({
 	onDirectDownload: () => void;
 	onExport: (format: ResourceExportKind) => void;
 }) {
-	const options = listDownloadMenuOptions({ hasDirectFile, hasExports });
 	const [open, setOpen] = useState(false);
 	const rootRef = useRef<HTMLDivElement>(null);
 	const triggerRef = useRef<HTMLButtonElement>(null);
-	const pendingFocus = useRef<"start" | "end" | null>(null);
-	const menuId = useId();
-	const preparingLabel = options.find(
-		(option) => option.kind === "export" && option.id === exportingFormat,
+	const listId = useId();
+	const preparingLabel = RESOURCE_EXPORT_OPTIONS.find(
+		(option) => option.id === exportingFormat,
 	)?.label;
 
-	const menuItems = useCallback(() => {
-		return Array.from(
-			rootRef.current?.querySelectorAll<HTMLButtonElement>(
-				'[role="menuitem"]:not(:disabled)',
-			) ?? [],
-		);
-	}, []);
-
-	const focusEdge = useCallback(
-		(edge: "start" | "end") => {
-			const items = menuItems();
-			const target = edge === "end" ? items.at(-1) : items[0];
-			target?.focus();
-		},
-		[menuItems],
-	);
+	function closeAndFocusTrigger() {
+		setOpen(false);
+		triggerRef.current?.focus();
+	}
 
 	useEffect(() => {
 		if (!open) return;
-		const edge = pendingFocus.current;
-		if (!edge) return;
-		pendingFocus.current = null;
-		focusEdge(edge);
-	}, [open, focusEdge]);
-
-	useEffect(() => {
-		if (!open) return;
+		const root = rootRef.current;
 		function handlePointerDown(event: PointerEvent) {
-			if (!rootRef.current?.contains(event.target as Node)) setOpen(false);
+			if (!root?.contains(event.target as Node)) setOpen(false);
 		}
-		function handleEscape(event: globalThis.KeyboardEvent) {
-			if (event.key !== "Escape") return;
-			setOpen(false);
-			triggerRef.current?.focus();
+		function handleKeyDown(event: KeyboardEvent) {
+			if (event.key === "Escape") {
+				setOpen(false);
+				triggerRef.current?.focus();
+			} else if (event.key === "Tab") {
+				// Tras mover el foco. No vale focusout: Firefox no lo emite al
+				// tabular hacia el iframe de la vista previa.
+				setTimeout(() => {
+					if (!root?.contains(document.activeElement)) setOpen(false);
+				});
+			}
 		}
 		document.addEventListener("pointerdown", handlePointerDown);
-		document.addEventListener("keydown", handleEscape);
+		document.addEventListener("keydown", handleKeyDown);
 		return () => {
 			document.removeEventListener("pointerdown", handlePointerDown);
-			document.removeEventListener("keydown", handleEscape);
+			document.removeEventListener("keydown", handleKeyDown);
 		};
 	}, [open]);
 
-	if (options.length === 0) return null;
-
-	function handleTriggerKeyDown(event: KeyboardEvent<HTMLButtonElement>) {
-		if (event.key !== "ArrowDown" && event.key !== "ArrowUp") return;
-		event.preventDefault();
-		const edge = event.key === "ArrowUp" ? "end" : "start";
-		if (open) {
-			focusEdge(edge);
-			return;
-		}
-		pendingFocus.current = edge;
-		setOpen(true);
-	}
-
-	function handleMenuKeyDown(event: KeyboardEvent<HTMLDivElement>) {
-		if (
-			event.key !== "ArrowDown" &&
-			event.key !== "ArrowUp" &&
-			event.key !== "Home" &&
-			event.key !== "End"
-		) {
-			return;
-		}
-		const items = menuItems();
-		if (items.length === 0) return;
-		event.preventDefault();
-		if (event.key === "Home") {
-			items[0]?.focus();
-			return;
-		}
-		if (event.key === "End") {
-			items.at(-1)?.focus();
-			return;
-		}
-		const current = items.indexOf(document.activeElement as HTMLButtonElement);
-		const delta = event.key === "ArrowDown" ? 1 : -1;
-		const next =
-			current === -1 ? 0 : (current + delta + items.length) % items.length;
-		items[next]?.focus();
-	}
+	if (!direct && !hasExports) return null;
 
 	return (
 		<div className="detail-download" ref={rootRef}>
@@ -307,15 +247,13 @@ function DownloadMenu({
 				type="button"
 				className="detail-action-outline detail-download-trigger"
 				aria-expanded={open}
-				aria-haspopup="menu"
-				aria-controls={menuId}
+				aria-controls={listId}
 				onClick={() => setOpen((value) => !value)}
-				onKeyDown={handleTriggerKeyDown}
 			>
 				<span className="material-symbols-outlined" aria-hidden="true">
 					download
 				</span>
-				{exportingFormat && preparingLabel
+				{preparingLabel
 					? `Preparando ${preparingLabel}...`
 					: m.detail_download()}
 				{downloadCount > 0 ? (
@@ -325,56 +263,54 @@ function DownloadMenu({
 					{open ? "expand_less" : "expand_more"}
 				</span>
 			</button>
-			{open ? (
-				<div
-					id={menuId}
-					className="detail-download-menu"
-					role="menu"
-					aria-label={m.detail_download()}
-					onKeyDown={handleMenuKeyDown}
-				>
-					{options.map((option) => {
-						const unavailable =
-							option.kind === "export" &&
-							(!exportReady || exportingFormat !== null);
-						const label =
-							option.kind === "export" && exportingFormat === option.id
-								? `Preparando ${option.label}...`
-								: option.kind === "direct" && totalFileSize > 0
-									? `${option.label} (${formatBytes(totalFileSize)})`
-									: option.label;
-						const count =
-							option.kind === "export" ? exportCounts?.[option.id] : 0;
-						return (
-							<button
-								key={option.id}
-								type="button"
-								role="menuitem"
-								className="detail-download-item"
-								disabled={unavailable}
-								onClick={() => {
-									if (option.kind === "direct") {
-										onDirectDownload();
-										setOpen(false);
-										return;
-									}
-									onExport(option.id);
-								}}
-							>
-								<span>{label}</span>
-								{count ? (
-									<span className="detail-action-count">{count}</span>
-								) : null}
-							</button>
-						);
-					})}
-				</div>
-			) : null}
+			<ul id={listId} className="detail-download-menu" hidden={!open}>
+				{direct ? (
+					<li>
+						<a
+							href={direct.file.url}
+							download
+							className="detail-download-item"
+							onClick={(event) => {
+								event.preventDefault();
+								closeAndFocusTrigger();
+								onDirectDownload();
+							}}
+						>
+							{direct.label || m.detail_file_default()}
+							{direct.file.fileSize
+								? ` (${formatBytes(direct.file.fileSize)})`
+								: ""}
+						</a>
+					</li>
+				) : null}
+				{hasExports
+					? RESOURCE_EXPORT_OPTIONS.map((option) => (
+							<li key={option.id}>
+								<button
+									type="button"
+									className="detail-download-item"
+									disabled={!exportReady || exportingFormat !== null}
+									onClick={() => {
+										closeAndFocusTrigger();
+										onExport(option.id);
+									}}
+								>
+									{option.label}
+									{exportCounts?.[option.id] ? (
+										<span className="detail-action-count">
+											{exportCounts[option.id]}
+										</span>
+									) : null}
+								</button>
+							</li>
+						))
+					: null}
+			</ul>
 		</div>
 	);
 }
 
-function ResourceDetailContent({
+export function ResourceDetailContent({
 	resource,
 	session,
 	stats,
@@ -418,11 +354,7 @@ function ResourceDetailContent({
 	const hasPreview = !!previewUrl;
 	const mediaItems = resource.mediaItems ?? [];
 	const hasFiles = mediaItems.length > 0;
-	const firstFileUrl = mediaItems[0]?.url;
-	const totalFileSize = mediaItems.reduce(
-		(sum, item) => sum + (item.fileSize ?? 0),
-		0,
-	);
+	const directDownload = getDirectDownload(mediaItems);
 	const exportSourceUrl = getResourceElpxFileUrl(resource);
 	const iframeRef = useRef<HTMLIFrameElement | null>(null);
 	// Relay de embeds del preview: vídeos/PDF promocionados a un player de
@@ -531,9 +463,9 @@ function ResourceDetailContent({
 		[exportReady, resource.title],
 	);
 
-	const handleDirectDownload = useCallback(() => {
-		if (!firstFileUrl) return;
-		const href = firstFileUrl;
+	function handleDirectDownload() {
+		if (!directDownload) return;
+		const href = directDownload.file.url;
 		getApiClient()
 			.then((api) => api.trackDownload(resource.slug, "direct"))
 			.then((result) => {
@@ -549,7 +481,7 @@ function ResourceDetailContent({
 				a.click();
 				document.body.removeChild(a);
 			});
-	}, [firstFileUrl, onDownloadTracked, resource.slug]);
+	}
 
 	const editorUrl = exportSourceUrl
 		? `${url("api/v1/exelearning-editor/index.html")}?elpxUrl=${encodeURIComponent(exportSourceUrl)}`
@@ -633,9 +565,8 @@ function ResourceDetailContent({
 							</a>
 						) : null}
 						<DownloadMenu
-							hasDirectFile={Boolean(hasFiles && firstFileUrl)}
+							direct={directDownload}
 							hasExports={Boolean(editorUrl)}
-							totalFileSize={totalFileSize}
 							downloadCount={stats?.downloadCount ?? 0}
 							exportCounts={stats?.exportCounts}
 							exportReady={exportReady}

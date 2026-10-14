@@ -118,3 +118,18 @@ Se adopta la **Opción B**: cargar el bundle `exporters.bundle.js` de eXeLearnin
 - Extender bridge script para soportar `WP_REQUEST_EXPORT`.
 - Crear componente UI "Exportar" en la ficha de recurso (feature futura, fuera de esta ADR).
 - Documentar en el roadmap la disponibilidad del botón de exportación por rol.
+
+## Actualización 2026-10-14 — Formatos agrupados en «Descargar» (propuesta, pendiente de #395)
+
+Estado: propuesta. Solo se aplica si se aprueba en #395. La implementación está en el PR #401.
+
+La ficha muestra hoy «Descargar» y, debajo, una fila «Exportar como» con SCORM, IMS, Web y EPUB. En #395 se propone agrupar todo en «Descargar»:
+
+* Un botón disclosure (`aria-expanded` y `aria-controls`) abre una lista con la descarga directa y las exportaciones.
+* La descarga directa es el `.elpx` si el recurso lo tiene. Si no, es el primer fichero, etiquetado con su extensión real (PDF, DOCX…) y con su tamaño.
+* Las exportaciones son las de `RESOURCE_EXPORT_OPTIONS`, con sus etiquetas (IMS, no «LMS»).
+* «Ver online» sigue aparte.
+
+Esto cambia la consecuencia positiva «Un solo clic en la ficha de recurso genera el paquete listo para LMS»: pasan a ser dos clics (abrir «Descargar» y elegir el formato) y SCORM e IMS dejan de verse sin abrir la lista.
+
+Criterio para decidir: los contadores de descarga por formato que ya se registran. Si SCORM e IMS se usan poco frente a la descarga directa, agrupar compensa. Si se usan mucho, conviene dejarlos visibles y compactar la fila.

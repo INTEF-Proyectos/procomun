@@ -1,10 +1,10 @@
 import { describe, expect, test } from "bun:test";
 import {
 	buildExportFilename,
+	getDirectDownload,
 	getElpxMediaItem,
 	getResourceElpxFileUrl,
 	isElpxFilename,
-	listDownloadMenuOptions,
 	RESOURCE_EXPORT_OPTIONS,
 } from "./resource-export.ts";
 
@@ -111,53 +111,49 @@ describe("resource-export", () => {
 		);
 	});
 
-	test("lista ELPX y las exportaciones, con IMS visible como LMS", () => {
-		const options = listDownloadMenuOptions({
-			hasDirectFile: true,
-			hasExports: true,
-		});
+	test("la descarga directa usa el ELPX y su tamaño aunque haya otros ficheros", () => {
+		const direct = getDirectDownload([
+			{
+				id: "1",
+				resourceId: "r1",
+				type: "file",
+				url: "/guia.pdf",
+				filename: "guia.pdf",
+				fileSize: 1000,
+				isPrimary: 1,
+			},
+			{
+				id: "2",
+				resourceId: "r1",
+				type: "file",
+				url: "/proyecto.elpx",
+				filename: "proyecto.elpx",
+				fileSize: 2048,
+				isPrimary: 0,
+			},
+		]);
 
-		expect(options.map((option) => option.id)).toEqual([
-			"elpx",
-			"scorm",
-			"ims",
-			"web",
-			"epub",
-		]);
-		expect(options.find((option) => option.id === "ims")?.label).toBe("LMS");
-		expect(options.map((option) => option.label)).toEqual([
-			"ELPX",
-			"SCORM",
-			"LMS",
-			"Web",
-			"EPUB",
-		]);
-		expect(options.map((option) => option.label)).not.toContain("Ver online");
-		expect(options.map((option) => option.label)).not.toContain("Ver Online");
+		expect(direct?.label).toBe("ELPX");
+		expect(direct?.file.url).toBe("/proyecto.elpx");
+		expect(direct?.file.fileSize).toBe(2048);
 	});
 
-	test("omite ELPX cuando no hay fichero y deja fuera Ver online", () => {
-		const options = listDownloadMenuOptions({
-			hasDirectFile: false,
-			hasExports: true,
-		});
+	test("sin ELPX, la descarga directa se etiqueta con la extensión real", () => {
+		const pdf = {
+			id: "1",
+			resourceId: "r1",
+			type: "file",
+			url: "/guia.pdf",
+			filename: "Guía final.PDF",
+			fileSize: 1000,
+			isPrimary: 1,
+		};
 
-		expect(options.map((option) => option.id)).toEqual([
-			"scorm",
-			"ims",
-			"web",
-			"epub",
-		]);
-		expect(options.some((option) => option.id === "elpx")).toBe(false);
-		expect(options.find((option) => option.id === "ims")?.label).toBe("LMS");
-		expect(options.some((option) => /ver online/i.test(option.label))).toBe(
-			false,
-		);
-	});
-
-	test("no ofrece formatos si no hay fichero ni exportación", () => {
+		expect(getDirectDownload([pdf])).toEqual({ file: pdf, label: "PDF" });
 		expect(
-			listDownloadMenuOptions({ hasDirectFile: false, hasExports: false }),
-		).toEqual([]);
+			getDirectDownload([{ ...pdf, filename: "sin-extension" }])?.label,
+		).toBe("");
+		expect(getDirectDownload([])).toBeNull();
+		expect(getDirectDownload(undefined)).toBeNull();
 	});
 });

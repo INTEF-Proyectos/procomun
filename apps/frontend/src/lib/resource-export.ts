@@ -15,39 +15,6 @@ export const RESOURCE_EXPORT_OPTIONS: ResourceExportOption[] = [
 	{ id: "epub", label: "EPUB", editorFormat: "epub3" },
 ];
 
-export type DownloadMenuOption =
-	| { kind: "direct"; id: "elpx"; label: "ELPX" }
-	| { kind: "export"; id: ResourceExportKind; label: string };
-
-const DOWNLOAD_MENU_EXPORT_LABELS: Record<ResourceExportKind, string> = {
-	scorm: "SCORM",
-	// La ficha muestra «LMS»; el id interno sigue siendo ims.
-	ims: "LMS",
-	web: "Web",
-	epub: "EPUB",
-};
-
-/** Opciones del menú Descargar. «Ver online» no forma parte de esta lista. */
-export function listDownloadMenuOptions(input: {
-	hasDirectFile: boolean;
-	hasExports: boolean;
-}): DownloadMenuOption[] {
-	const options: DownloadMenuOption[] = [];
-	if (input.hasDirectFile) {
-		options.push({ kind: "direct", id: "elpx", label: "ELPX" });
-	}
-	if (input.hasExports) {
-		for (const option of RESOURCE_EXPORT_OPTIONS) {
-			options.push({
-				kind: "export",
-				id: option.id,
-				label: DOWNLOAD_MENU_EXPORT_LABELS[option.id],
-			});
-		}
-	}
-	return options;
-}
-
 export function isElpxFilename(filename?: string | null): boolean {
 	if (!filename) return false;
 	const normalized = filename.toLowerCase();
@@ -61,6 +28,20 @@ export function getElpxMediaItem(
 	return (
 		mediaItems.find((mediaItem) => isElpxFilename(mediaItem.filename)) ?? null
 	);
+}
+
+/**
+ * Fichero de la descarga directa del menú Descargar: el ELPX si lo hay y, si no,
+ * el primero. La etiqueta es su extensión real (ELPX, PDF, DOCX…), vacía si no
+ * tiene.
+ */
+export function getDirectDownload(
+	mediaItems?: MediaItemRecord[] | null,
+): { file: MediaItemRecord; label: string } | null {
+	const file = getElpxMediaItem(mediaItems) ?? mediaItems?.[0];
+	if (!file) return null;
+	const extension = file.filename?.match(/\.([^./]+)$/)?.[1] ?? "";
+	return { file, label: extension.toUpperCase() };
 }
 
 export function getResourceElpxFileUrl(
