@@ -1,4 +1,4 @@
-import { desc, eq, sql } from "drizzle-orm";
+import { and, desc, eq, sql } from "drizzle-orm";
 import { elpxProjects } from "../schema/elpx.ts";
 import { resources } from "../schema/resources.ts";
 import { resourceVersions } from "../schema/versions.ts";
@@ -75,6 +75,15 @@ export async function getCurrentElpxProjectByResourceId(
 		.where(eq(resources.id, resourceId))
 		.limit(1);
 	if (rows[0]) return rows[0].project;
+	// Borrador sin historial: la copia de trabajo sigue siendo lo vigente.
+	// Si hay versiones pero ninguna es la vigente (ODE retirado), no reexponer
+	// un proyecto histórico como si fuera la previsualización actual.
+	const [version] = await db
+		.select({ id: resourceVersions.id })
+		.from(resourceVersions)
+		.where(eq(resourceVersions.resourceId, resourceId))
+		.limit(1);
+	if (version) return null;
 	return getElpxProjectByResourceId(db, resourceId);
 }
 
@@ -115,10 +124,22 @@ export async function listElpxProjectsByResourceIds(
 			eq(resources.currentVersionId, resourceVersions.id),
 		)
 		.where(
-			sql`${elpxProjects.resourceId} IN (${sql.join(
-				resourceIds.map((id) => sql`${id}`),
-				sql`, `,
-			)})`,
+			and(
+				sql`${elpxProjects.resourceId} IN (${sql.join(
+					resourceIds.map((id) => sql`${id}`),
+					sql`, `,
+				)})`,
+				// Sin versión vigente no se lista un proyecto que solo vive en el
+				// historial. Los borradores (sin filas en resource_versions) siguen
+				// usando la copia de trabajo más reciente.
+				sql`(
+					${resourceVersions.elpxProjectId} = ${elpxProjects.id}
+					OR NOT EXISTS (
+						SELECT 1 FROM resource_versions AS retired_versions
+						WHERE retired_versions.resource_id = ${elpxProjects.resourceId}
+					)
+				)`,
+			),
 		);
 
 	const byResource = new Map<

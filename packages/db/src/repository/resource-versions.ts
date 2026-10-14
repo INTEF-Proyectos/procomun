@@ -359,8 +359,24 @@ export async function isUploadSessionOfCurrentVersion(
 }
 
 /**
+ * Deja el recurso sin versión vigente. No borra filas del historial: el ODE
+ * deja de previsualizarse y de servirse en público, pero se puede restaurar.
+ */
+export async function withdrawCurrentResourceVersion(
+	db: DrizzleDB,
+	resourceId: string,
+): Promise<void> {
+	await db
+		.update(resources)
+		.set({ currentVersionId: null, updatedAt: new Date() })
+		.where(eq(resources.id, resourceId));
+}
+
+/**
  * True si el hash pertenece a un proyecto versionado que ya no es el vigente.
- * Un hash desconocido o el de la versión vigente no se consideran históricos.
+ * Sin versión vigente, cualquier proyecto referenciado por el historial se
+ * considera histórico y no vuelve a la API pública. Un hash desconocido o el
+ * de una copia de trabajo sin versiones no se consideran históricos.
  */
 export async function isElpxHashHistorical(
 	db: DrizzleDB,
@@ -368,6 +384,7 @@ export async function isElpxHashHistorical(
 ): Promise<boolean> {
 	const [project] = await db
 		.select({
+			id: elpxProjects.id,
 			resourceId: elpxProjects.resourceId,
 			hash: elpxProjects.hash,
 		})
@@ -375,6 +392,9 @@ export async function isElpxHashHistorical(
 		.where(eq(elpxProjects.hash, hash))
 		.limit(1);
 	if (!project) return false;
+
+	const references = await countVersionsReferencingElpxProject(db, project.id);
+	if (references === 0) return false;
 
 	const [current] = await db
 		.select({ hash: elpxProjects.hash })
@@ -389,6 +409,6 @@ export async function isElpxHashHistorical(
 		)
 		.where(eq(resources.id, project.resourceId))
 		.limit(1);
-	if (!current) return false;
+	if (!current) return true;
 	return current.hash !== hash;
 }

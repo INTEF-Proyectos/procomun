@@ -3,6 +3,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import * as repo from "@procomun/db/repository";
 import { Hono } from "hono";
+import { logActivity } from "../../activity/log.ts";
 import { type AuthEnv, requireRole } from "../../auth/middleware.ts";
 import { canManageResource, getCurrentUser } from "../../auth/roles.ts";
 import { getDb } from "../../db.ts";
@@ -413,3 +414,68 @@ elpxAdminRoutes.post(
 		});
 	},
 );
+
+/**
+ * Retira el ODE visible del recurso (issue #393). No borra la ficha.
+ * La copia de trabajo sin historial se elimina con retireWorkingCopyProject.
+ * Si el proyecto es una versión, se conserva el historial y deja de ser vigente,
+ * así la previsualización desaparece sin reabrir el hash en la API pública.
+ */
+elpxAdminRoutes.delete("/:resourceId", requireRole("author"), async (c) => {
+	const user = getCurrentUser(c);
+	const resourceId = c.req.param("resourceId");
+	if (!resourceId) return c.json({ error: "Falta resourceId" }, 400);
+
+	const resource = await repo.getResourceById(getDb().db, resourceId);
+	if (!resource) return c.json({ error: "Recurso no encontrado" }, 404);
+	if (!canManageResource(user, resource)) {
+		return c.json({ error: "Permisos insuficientes" }, 403);
+	}
+
+	const project = await repo.getCurrentElpxProjectByResourceId(
+		getDb().db,
+		resourceId,
+	);
+	if (!project) {
+		return c.json(
+			{ error: "Este recurso no tiene un proyecto eXeLearning asociado" },
+			404,
+		);
+	}
+
+	const { retired } = await retireWorkingCopyProject(getDb().db, project);
+	if (!retired) {
+		await repo.withdrawCurrentResourceVersion(getDb().db, resourceId);
+	}
+
+	const config = getUploadConfig();
+	const mediaRows = await repo.listMediaItemsForResource(
+		getDb().db,
+		resourceId,
+	);
+	const elpxMedia = mediaRows.filter((item) => isElpxFile(item.filename ?? ""));
+	const uploadIds = new Set<string>();
+	if (project.uploadSessionId) uploadIds.add(project.uploadSessionId);
+	for (const item of elpxMedia) {
+		if (item.uploadId) uploadIds.add(item.uploadId);
+	}
+	for (const uploadId of uploadIds) {
+		await retireUploadArtifacts(getDb().db, uploadId, config);
+	}
+	await Promise.all(
+		elpxMedia.map((item) =>
+			repo.deleteMediaItem(getDb().db, item.id).catch(() => {}),
+		),
+	);
+
+	await logActivity({
+		userId: user.id,
+		type: "ode_retired",
+		resourceId,
+		resourceTitle: resource.title,
+		resourceSlug: resource.slug,
+		description: `Retiraste el ODE «${project.originalFilename}» de «${resource.title}»`,
+	});
+
+	return c.json({ ok: true, retired, withdrawn: !retired });
+});

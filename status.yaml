@@ -15,7 +15,7 @@
 metadata:
   phase: "Fase 1 — MVP de catálogo"
   epic: "Catalogo MVP operativo; flujo editorial completo; busqueda facetada implementada; backoffice con CRUD unificado; entidades (tipos, idiomas, licencias) gestionables desde admin; uploads con IndexedDB en preview mode"
-  current_agent: "@.agents/skills/devops-sre + @.agents/skills/qa-validacion"
+  current_agent: "@.agents/skills/frontend-ux-accesibilidad + @.agents/skills/backend-api-servicios + @.agents/skills/qa-validacion"
   instructions: >
     Todos los agentes deben leer este archivo antes de comenzar cualquier tarea para entender
     el contexto global y el progreso del proyecto. Al finalizar una tarea, deben actualizar
@@ -65,6 +65,19 @@ blocking_adrs:
     notes: "Todavía no documentada. ADR pendiente de formalización."
 
 tasks:
+
+  T-2026-10-14-09223048:
+    date: 2026-10-14
+    agent: "frontend-ux-accesibilidad + backend-api-servicios + qa-validacion"
+    task: "Hacer visible «Borrar ODE» en la edición del recurso (issue #393)"
+    status: Done
+    related: ["#393"]
+    notes: >
+      La edición no ofrecía retirar el ODE ya subido; «Eliminar» en Administrar borra la ficha.
+      Botón «Borrar ODE» (peligro) solo con rol de autor o superior y ODE presente, con confirmación
+      que nombra el paquete. DELETE /api/admin/elpx/:resourceId reutiliza retireWorkingCopyProject
+      y, si hay versión vigente, la retira de la publicación sin borrar la ficha ni el historial.
+      Validación: bun run test 1069 pass / 0 fail, cobertura de líneas 91.14%.
 
   T-2026-09-06-08510442:
     date: 2026-09-06
