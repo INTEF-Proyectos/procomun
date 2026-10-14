@@ -886,14 +886,23 @@ export default function EditarPage() {
 									<select
 										id="ed-resourceType"
 										ref={resourceTypeRef}
-										defaultValue="actividad-interactiva"
+										defaultValue=""
+										required
+										aria-describedby="ed-resourceType-error"
+										aria-invalid={fieldErrors.resourceType ? "true" : undefined}
 									>
+										<option value="" disabled>
+											Selecciona un tipo de recurso
+										</option>
 										{resourceTypeOptions.map((option) => (
 											<option key={option.value} value={option.value}>
 												{option.label}
 											</option>
 										))}
 									</select>
+									<span id="ed-resourceType-error" className="edit-field-error">
+										{fieldErrors.resourceType ?? ""}
+									</span>
 								</div>
 							</>
 						)}
@@ -1013,13 +1022,22 @@ export default function EditarPage() {
 										id="ed-resourceType"
 										ref={resourceTypeRef}
 										defaultValue={res.resourceType ?? "documento"}
+										required
+										aria-describedby="ed-resourceType-error"
+										aria-invalid={fieldErrors.resourceType ? "true" : undefined}
 									>
+										<option value="" disabled>
+											Selecciona un tipo de recurso
+										</option>
 										{resourceTypeOptions.map((option) => (
 											<option key={option.value} value={option.value}>
 												{option.label}
 											</option>
 										))}
 									</select>
+									<span id="ed-resourceType-error" className="edit-field-error">
+										{fieldErrors.resourceType ?? ""}
+									</span>
 								</div>
 							</div>
 						)}

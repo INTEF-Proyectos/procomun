@@ -158,7 +158,8 @@ resourceRoutes.post("/draft", requireRole("author"), async (c) => {
 		description: " ",
 		language: "es",
 		license: "cc-by",
-		resourceType: "actividad-interactiva",
+		// Sin tipo: quien publica lo elige en el editor (issue #385).
+		resourceType: "",
 		editorialStatus: "draft",
 		createdBy: user.id,
 	});

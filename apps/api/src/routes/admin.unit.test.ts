@@ -687,6 +687,17 @@ describe("Rutas admin — subida de recursos por author/editor/curator (DEF-221)
 			method: "POST",
 		});
 		expect(res.status).toBe(201);
+		const { id } = await res.json();
+
+		// El borrador no trae tipo preseleccionado y no se guarda sin elegirlo.
+		const getRes = await app.request(`/api/admin/resources/${id}`);
+		expect((await getRes.json()).resourceType).toBe("");
+		const patchRes = await app.request(`/api/admin/resources/${id}`, {
+			method: "PATCH",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({ title: "Recurso manual", resourceType: "" }),
+		});
+		expect(patchRes.status).toBe(400);
 	});
 
 	test("editor puede crear un recurso", async () => {

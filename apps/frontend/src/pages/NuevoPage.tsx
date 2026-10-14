@@ -1,3 +1,4 @@
+import { validateCreateResource } from "@procomun/db/validation";
 import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
@@ -27,8 +28,6 @@ interface ElpxMetadata {
 	license?: string;
 }
 
-export const RESOURCE_TYPE_PLACEHOLDER = "Selecciona un tipo de recurso";
-
 export const EMPTY_FORM: ResourceFormState = {
 	title: "",
 	description: "",
@@ -38,15 +37,6 @@ export const EMPTY_FORM: ResourceFormState = {
 	resourceType: "",
 	keywords: "",
 };
-
-/** El placeholder y el vacío no son un tipo de recurso. */
-export function resourceTypeSelectionError(value: string): string | null {
-	const trimmed = value.trim();
-	if (!trimmed || trimmed === RESOURCE_TYPE_PLACEHOLDER) {
-		return RESOURCE_TYPE_PLACEHOLDER;
-	}
-	return null;
-}
 
 const ALLOWED_LANGUAGES = new Set<string>(
 	LANGUAGE_OPTIONS.map((option) => option.value),
@@ -221,13 +211,6 @@ export default function NuevoPage() {
 		setSuccessMsg("");
 		clearFieldErrors();
 
-		const typeError = resourceTypeSelectionError(form.resourceType);
-		if (typeError) {
-			showFieldErrors([{ field: "resourceType", message: typeError }]);
-			setErrorMsg(typeError);
-			return;
-		}
-
 		const body = {
 			title: form.title,
 			description: form.description,
@@ -237,6 +220,13 @@ export default function NuevoPage() {
 			author: form.author || undefined,
 			keywords: form.keywords || undefined,
 		};
+
+		const validation = validateCreateResource(body);
+		if (!validation.valid) {
+			showFieldErrors(validation.errors);
+			setErrorMsg("Revisa los campos marcados");
+			return;
+		}
 
 		setSubmitBtnDisabled(true);
 		setSubmitBtnText("Creando recurso…");
@@ -454,6 +444,7 @@ export default function NuevoPage() {
 						<label htmlFor="resourceType">Tipo de recurso *</label>
 						<select
 							id="resourceType"
+							required
 							aria-describedby="resourceType-error"
 							aria-invalid={
 								invalidFields.has("resourceType") ? "true" : undefined
@@ -464,7 +455,7 @@ export default function NuevoPage() {
 							}
 						>
 							<option value="" disabled>
-								{RESOURCE_TYPE_PLACEHOLDER}
+								Selecciona un tipo de recurso
 							</option>
 							{RESOURCE_TYPE_OPTIONS.map((option) => (
 								<option key={option.value} value={option.value}>

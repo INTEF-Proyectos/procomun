@@ -1,3 +1,8 @@
+import {
+	RESOURCE_TYPE_VALUES,
+	type ResourceTypeValue,
+} from "./resource-types.ts";
+
 export const VALID_TAXONOMY_TYPES = [
 	"category",
 	"tag",
@@ -112,13 +117,17 @@ export function validateCreateResource(body: unknown): ValidationResult {
 		});
 	}
 
-	if (
-		!isNonEmptyString(b.resourceType) ||
-		b.resourceType.trim() === "Selecciona un tipo de recurso"
+	if (!isNonEmptyString(b.resourceType)) {
+		errors.push({
+			field: "resourceType",
+			message: "El tipo de recurso es obligatorio",
+		});
+	} else if (
+		!RESOURCE_TYPE_VALUES.includes(b.resourceType as ResourceTypeValue)
 	) {
 		errors.push({
 			field: "resourceType",
-			message: "Selecciona un tipo de recurso",
+			message: `Tipo de recurso no válido. Valores permitidos: ${RESOURCE_TYPE_VALUES.join(", ")}`,
 		});
 	}
 

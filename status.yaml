@@ -2723,3 +2723,23 @@ tasks:
       plugin admin con getTableColumns) y en
       packages/db/src/migrations.unit.test.ts (migración 0008 y createTables
       sobre BD nueva y previa). Sustituye a #361.
+
+  T-2026-10-14-10512681:
+    date: 2026-10-14
+    agent: "frontend-ux-accesibilidad + backend-api-servicios"
+    task: "Tipo de recurso sin valor por defecto al crear un recurso"
+    status: Done
+    related: ["#385", "#386"]
+    notes: >
+      El alta forzaba «actividad-interactiva» tras analizar un .elpx y
+      «Crear recurso manualmente» creaba el borrador con ese mismo tipo. El
+      formulario y el editor de un recurso nuevo empiezan sin tipo (opción
+      vacía deshabilitada con required) y el borrador de POST /draft guarda
+      resource_type vacío (la columna es NOT NULL, igual que la descripción
+      " " del borrador). validateCreateResource valida el tipo contra
+      RESOURCE_TYPE_VALUES, como idioma y licencia; validateUpdateResource
+      sigue aceptando valores legacy y rechaza el vacío. El formulario de
+      alta reutiliza validateCreateResource y el banner dice «Revisa los
+      campos marcados». Validación: validation.unit.test.ts,
+      NuevoPage.unit.test.tsx y el test de borrador de admin.unit.test.ts.
+      Pendiente (issue aparte): exigir los obligatorios al enviar a revisión.

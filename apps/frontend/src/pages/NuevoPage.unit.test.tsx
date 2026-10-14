@@ -1,20 +1,9 @@
 import { describe, expect, test } from "bun:test";
-import {
-	applyElpxMetadataToForm,
-	EMPTY_FORM,
-	resourceTypeSelectionError,
-} from "./NuevoPage.tsx";
+import { applyElpxMetadataToForm, EMPTY_FORM } from "./NuevoPage.tsx";
 
 describe("NuevoPage helpers", () => {
-	test("el alta empieza sin tipo de recurso y el placeholder no vale", () => {
+	test("el alta empieza sin tipo de recurso", () => {
 		expect(EMPTY_FORM.resourceType).toBe("");
-		expect(resourceTypeSelectionError("")).toBe(
-			"Selecciona un tipo de recurso",
-		);
-		expect(resourceTypeSelectionError("Selecciona un tipo de recurso")).toBe(
-			"Selecciona un tipo de recurso",
-		);
-		expect(resourceTypeSelectionError("documento")).toBeNull();
 	});
 
 	test("applyElpxMetadataToForm precarga los campos extraidos del .elpx", () => {

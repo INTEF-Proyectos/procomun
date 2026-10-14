@@ -68,18 +68,32 @@ describe("validateCreateResource", () => {
 		const r = validateCreateResource(rest);
 		expect(r.valid).toBe(false);
 		expect(r.errors.find((e) => e.field === "resourceType")?.message).toBe(
-			"Selecciona un tipo de recurso",
+			"El tipo de recurso es obligatorio",
 		);
 	});
 
-	test("resourceType vacio o el placeholder no son valores validos", () => {
-		for (const resourceType of ["", "   ", "Selecciona un tipo de recurso"]) {
+	test("resourceType vacío o solo espacios es obligatorio", () => {
+		for (const resourceType of ["", "   "]) {
 			const r = validateCreateResource({ ...validPayload, resourceType });
-			expect(r.valid).toBe(false);
 			expect(r.errors.find((e) => e.field === "resourceType")?.message).toBe(
-				"Selecciona un tipo de recurso",
+				"El tipo de recurso es obligatorio",
 			);
 		}
+	});
+
+	test("resourceType fuera de la lista canónica falla al crear", () => {
+		for (const resourceType of ["lesson", "Selecciona un tipo de recurso"]) {
+			const r = validateCreateResource({ ...validPayload, resourceType });
+			expect(r.valid).toBe(false);
+			expect(
+				r.errors.find((e) => e.field === "resourceType")?.message,
+			).toStartWith("Tipo de recurso no válido");
+		}
+	});
+
+	test("resourceType legacy se conserva al actualizar", () => {
+		const r = validateUpdateResource({ resourceType: "webquest" });
+		expect(r.valid).toBe(true);
 	});
 
 	test("title excede 500 caracteres", () => {
