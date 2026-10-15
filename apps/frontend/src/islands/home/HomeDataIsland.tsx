@@ -7,6 +7,7 @@ import type {
 } from "../../lib/api-client.ts";
 import { getApiClient } from "../../lib/get-api-client.ts";
 import { url } from "../../lib/paths.ts";
+import { resourceCardMedia } from "../../lib/resource-card-media.ts";
 import { DEFAULT_BADGE_CONFIG, timeAgo } from "../../lib/shared-utils.ts";
 import "./HomeDataIsland.css";
 
@@ -96,19 +97,21 @@ function FeaturedSection({
 	if (!hero) return null;
 
 	const heroRating = hero.rating;
-	const heroPreview = hero.elpxPreview?.previewUrl;
+	const heroMedia = resourceCardMedia(hero);
 
 	const secRating = secondary?.rating;
-	const secPreview = secondary?.elpxPreview?.previewUrl;
+	const secMedia = secondary ? resourceCardMedia(secondary) : null;
 
 	return (
 		<div className="home-featured-grid">
 			{/* Hero card */}
 			<a href={url(`recurso?slug=${hero.slug}`)} className="home-featured-hero">
 				<div className="home-featured-hero-preview">
-					{heroPreview ? (
+					{heroMedia.kind === "image" ? (
+						<img src={heroMedia.url} alt="" />
+					) : heroMedia.kind === "preview" ? (
 						<IframePreview
-							src={heroPreview}
+							src={heroMedia.url}
 							className="home-featured-iframe"
 							fillWidth
 						/>
@@ -158,9 +161,11 @@ function FeaturedSection({
 					className="home-featured-secondary"
 				>
 					<div className="home-featured-sec-preview">
-						{secPreview ? (
+						{secMedia?.kind === "image" ? (
+							<img src={secMedia.url} alt="" />
+						) : secMedia?.kind === "preview" ? (
 							<IframePreview
-								src={secPreview}
+								src={secMedia.url}
 								className="home-featured-iframe"
 								fillWidth
 							/>
@@ -328,7 +333,7 @@ function NewsSection({ resources }: { resources: Resource[] }) {
 	return (
 		<div className="home-news-grid">
 			{resources.slice(0, 4).map((r) => {
-				const previewUrl = r.elpxPreview?.previewUrl;
+				const media = resourceCardMedia(r);
 				return (
 					<a
 						key={r.id}
@@ -336,9 +341,11 @@ function NewsSection({ resources }: { resources: Resource[] }) {
 						className="home-news-card"
 					>
 						<div className="home-news-preview">
-							{previewUrl ? (
+							{media.kind === "image" ? (
+								<img src={media.url} alt="" />
+							) : media.kind === "preview" ? (
 								<IframePreview
-									src={previewUrl}
+									src={media.url}
 									className="home-news-iframe"
 									fillWidth
 								/>

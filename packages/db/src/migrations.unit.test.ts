@@ -115,3 +115,33 @@ describe("migración session.impersonated_by (better-auth 1.7)", () => {
 		}
 	});
 });
+
+describe("migración resources.thumbnail_url (issue #407)", () => {
+	const COLUMN_QUERY = `SELECT column_name FROM information_schema.columns
+		WHERE table_name = 'resources' AND column_name = 'thumbnail_url'`;
+
+	test("registra la migración 0009 y añade la columna a una tabla resources previa", async () => {
+		const journal = JSON.parse(
+			await readFile(path.join(migrationsDir, "meta/_journal.json"), "utf8"),
+		) as { entries: Array<{ tag: string }> };
+		expect(journal.entries.map((entry) => entry.tag)).toContain(
+			"0009_resource_thumbnail_url",
+		);
+
+		const migration = await readFile(
+			path.join(migrationsDir, "0009_resource_thumbnail_url.sql"),
+			"utf8",
+		);
+		const db = new PGlite();
+		try {
+			await db.exec(
+				'CREATE TABLE "resources" (id TEXT PRIMARY KEY, title TEXT NOT NULL)',
+			);
+			await db.exec(migration);
+			await db.exec(migration);
+			expect((await db.query(COLUMN_QUERY)).rows).toHaveLength(1);
+		} finally {
+			await db.close();
+		}
+	});
+});

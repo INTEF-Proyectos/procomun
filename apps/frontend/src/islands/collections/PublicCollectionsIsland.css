@@ -230,6 +230,12 @@
 	margin-bottom: 1rem;
 }
 /* Iframe +20px extra para ocultar scrollbar (ver HomeDataIsland.css) */
+.col-res-preview img {
+	width: 100%;
+	height: 100%;
+	object-fit: cover;
+	display: block;
+}
 .col-res-preview iframe {
 	position: absolute;
 	top: 0;

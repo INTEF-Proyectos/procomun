@@ -2809,3 +2809,20 @@ tasks:
       T-2026-10-14-10535343 de la PR #388 y T-2026-10-14-10510346 de la PR
       #400. No hubo conflicto en código ni cambió la solución funcional.
       Validación: bun test (1118 pass), check-tracking y check-test-files.
+
+  T-2026-10-15-20402918:
+    date: 2026-10-15
+    agent: "ingestas-y-migraciones + frontend-ux-accesibilidad + qa-validacion"
+    task: "La importación legacy guarda la imagen preview y la tarjeta la muestra"
+    status: Done
+    related: ["#407"]
+    notes: >
+      El JSON legacy trae la miniatura en preview y el mapeo la ignoraba. La
+      tabla resources no tenía columna. Ahora una URL http(s) se guarda en
+      thumbnail_url (esquema Drizzle, setup.ts y migración 0009) y el listado
+      público la devuelve. En catálogo, portada, colecciones y tarjetas de
+      recurso esa imagen sustituye al iframe del .elpx. La ficha sigue
+      abriendo el paquete en Ver online. Una reimportación no actualiza filas
+      ya importadas. Tests: field-mapper.unit.test.ts,
+      repository.unit.test.ts, migrations.unit.test.ts,
+      resource-card-media.unit.test.ts y CatalogIslands.unit.test.tsx.

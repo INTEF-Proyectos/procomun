@@ -14,6 +14,7 @@ export interface Resource {
 	keywords: string | null;
 	author: string | null;
 	publisher: string | null;
+	thumbnailUrl?: string | null;
 	editorialStatus: string;
 	createdBy: string | null;
 	createdByName: string | null;
@@ -107,6 +108,7 @@ export interface CollectionResourceRecord {
 	author: string | null;
 	createdByName?: string | null;
 	editorialStatus: string;
+	thumbnailUrl?: string | null;
 	elpxPreview?: { hash: string; previewUrl: string } | null;
 }
 
