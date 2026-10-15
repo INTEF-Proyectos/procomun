@@ -108,7 +108,7 @@ describe("Catalog islands", () => {
 	// #399: «Editar» solo si la API lo permite (canManageResource); antes cualquier
 	// curator lo veía y el editor respondía «Recurso no encontrado» por el 403.
 	test("la ficha muestra la imagen de la licencia Creative Commons (#404)", () => {
-		const html = renderDetail({ license: "cc-by-sa" });
+		const html = renderDetail({ license: "cc-by-sa" }, "reader");
 
 		expect(html).toContain("licenses/cc-by-sa.png");
 		expect(html).toContain("https://creativecommons.org/licenses/by-sa/4.0/");
@@ -120,7 +120,7 @@ describe("Catalog islands", () => {
 	});
 
 	test("una licencia sin imagen oficial sigue viéndose como texto (#404)", () => {
-		const html = renderDetail({ license: "mit-custom" });
+		const html = renderDetail({ license: "mit-custom" }, "reader");
 
 		expect(html).toContain("mit-custom");
 		expect(html).not.toContain("licenses/");
