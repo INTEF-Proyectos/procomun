@@ -115,6 +115,7 @@ function buildMockDeps(
 				publisher: null,
 				keywords: null,
 				importedAt: null,
+				previewImageUrl: null,
 			},
 		})) as Deps["mapLegacyRecord"],
 		ensureLegacyImportSystemUser: async () => ({
@@ -428,6 +429,7 @@ describe("runImportLegacyProcomun (deps mockeadas)", () => {
 					publisher: null,
 					keywords: null,
 					importedAt: null,
+					previewImageUrl: null,
 				},
 			})) as Deps["mapLegacyRecord"],
 			repo: {
@@ -499,6 +501,7 @@ describe("runImportLegacyProcomun (deps mockeadas)", () => {
 					publisher: null,
 					keywords: null,
 					importedAt: null,
+					previewImageUrl: null,
 				},
 			})) as Deps["mapLegacyRecord"],
 			// computeFileSha256 (heredado del base mock) devuelve siempre

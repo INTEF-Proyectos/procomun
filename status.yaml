@@ -2826,3 +2826,16 @@ tasks:
       ya importadas. Tests: field-mapper.unit.test.ts,
       repository.unit.test.ts, migrations.unit.test.ts,
       resource-card-media.unit.test.ts y CatalogIslands.unit.test.tsx.
+
+  T-2026-10-15-21014350:
+    date: 2026-10-15
+    agent: "qa-validacion"
+    task: "El typecheck del importador legacy vuelve a pasar tras exigir previewImageUrl"
+    status: Done
+    related: ["#407", "#425"]
+    notes: >
+      El CI de la PR #425 falló en build: tres errores de tipos en
+      import-legacy-procomun.unit.test.ts. MappedLegacyResource exige
+      previewImageUrl y los tres mocks del comando no lo declaraban. Se añade
+      null, que es lo que produce un JSON legacy sin miniatura. La imagen
+      visible no cambia. e2e-chromium ya estaba en verde.
