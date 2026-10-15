@@ -2744,6 +2744,27 @@ tasks:
       packages/db/src/migrations.unit.test.ts (migración 0008 y createTables
       sobre BD nueva y previa). Sustituye a #361.
 
+  T-2026-10-14-10535343:
+    date: 2026-10-14
+    agent: "seguridad-privacidad-legal + backend-api-servicios + qa-validacion"
+    task: "Iframes hijos de un .elpx bloqueados en Chromium: audio (#379), cuadro gris (#381) y diapositivas (#391)"
+    status: Done
+    related: ["#379", "#381", "#391", "#388", "ADR-0026", "ADR-0027"]
+    notes: >
+      El HTML del paquete es origen opaco (sandbox sin allow-same-origin) y se
+      servía con frame-ancestors 'self'. Chromium y WebKit no casan un ancestro
+      opaco con ninguna fuente, tampoco con *, y bloqueaban el iframe hijo del
+      propio paquete (reproductor de audio, diapositiva). Se quita
+      frame-ancestors de ELPX_HTML_CSP y nginx.conf da a /api/v1/elpx/ su propio
+      location sin X-Frame-Options (con ^~, que además evita que la regex de
+      estáticos se quede con sus .css y .js). Adenda en ADR-0026. Validación:
+      e2e/tests/public/elpx-nested-frame.e2e.ts (paquete sintético anidado en el
+      visor de la ficha; rojo con 'self' y con *, verde sin la directiva),
+      cabeceras sobre la app completa en public-version-access.unit.test.ts,
+      nginx:alpine en Docker (sin X-Frame-Options solo en /api/v1/elpx/) y
+      Chrome 155 con los paquetes reales de #379 (audio readyState 4, 7 s) y
+      #391 (diapositiva cargada) en la ficha y detrás de nginx.
+
   T-2026-10-14-10510346:
     date: 2026-10-14
     agent: "frontend-ux-accesibilidad + qa-validacion"
@@ -2763,3 +2784,16 @@ tasks:
       el 403. Tests: AdminResourcesSection.unit.test.tsx y
       CatalogIslands.unit.test.tsx cubren createdBy y assignedCuratorId en el
       listado y en la ficha; roles.unit.test.ts sigue cubriendo las reglas.
+
+  T-2026-10-15-07185577:
+    date: 2026-10-15
+    agent: "resolución de conflictos"
+    task: "Integrar main en la PR #388 antes de su revisión"
+    status: Done
+    related: ["#388", "#400"]
+    notes: >
+      El merge de main en fix/issue-379-audio-importado solo produjo un
+      conflicto textual en status.yaml. Se conservaron completas las entradas
+      T-2026-10-14-10535343 de la PR #388 y T-2026-10-14-10510346 de la PR
+      #400. No hubo conflicto en código ni cambió la solución funcional.
+      Validación: bun test (1118 pass), check-tracking y check-test-files.

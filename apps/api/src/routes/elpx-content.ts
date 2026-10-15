@@ -186,8 +186,13 @@ function authorAssetHeaders(contentType: string): Record<string, string> {
 	};
 }
 
+// Sin `frame-ancestors` a propósito (ADR-0026, adenda 2026-10-14). Este HTML
+// es origen opaco y un iframe hijo del propio paquete (el reproductor de audio
+// de eXeLearning, una diapositiva…) tiene ese origen como ancestro. Chromium y
+// WebKit no lo casan con ninguna fuente, ni con `'self'` ni con `*`, y
+// bloquean el hijo. Sin la directiva carga, y «Ponlo en tu web» también.
 export const ELPX_HTML_CSP =
-	"default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; media-src 'self' data: blob: https:; font-src 'self' data:; connect-src 'self'; frame-src 'self' https:; frame-ancestors 'self'; form-action 'self'; base-uri 'self'; sandbox allow-scripts allow-popups allow-forms allow-popups-to-escape-sandbox";
+	"default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; media-src 'self' data: blob: https:; font-src 'self' data:; connect-src 'self'; frame-src 'self' https:; form-action 'self'; base-uri 'self'; sandbox allow-scripts allow-popups allow-forms allow-popups-to-escape-sandbox";
 
 export const elpxContentRoutes = new Hono();
 
