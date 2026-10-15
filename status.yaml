@@ -2809,3 +2809,20 @@ tasks:
       T-2026-10-14-10535343 de la PR #388 y T-2026-10-14-10510346 de la PR
       #400. No hubo conflicto en código ni cambió la solución funcional.
       Validación: bun test (1118 pass), check-tracking y check-test-files.
+
+  T-2026-10-15-20402973:
+    date: 2026-10-15
+    agent: "backend-api-servicios + qa-validacion"
+    task: "El HTML de un ODE Descartes se sirve con las entidades bien escritas"
+    status: Done
+    related: ["#406"]
+    notes: >
+      El paquete de ejemplo carga la escena HTML5 de Descartes dentro del
+      iframe del propio .elpx, sin allow-same-origin. El título de eXe se veía
+      como texto «&Iacute;» porque el export escapa dos veces la entidad. Al
+      servir el HTML se deshace un solo nivel, y solo cuando &amp; abre una
+      entidad completa. También se reescriben los atributos background
+      relativos y el 404 de un fichero ausente lleva Access-Control-Allow-Origin
+      para que el origen opaco no lo pinte como un fallo de CORS. Tests:
+      elpx-content.unit.test.ts, rojos por la entidad doble y el 404 sin CORS,
+      verdes después. No se ha tocado el diccionario de tipos de recurso.
