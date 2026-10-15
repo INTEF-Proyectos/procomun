@@ -1,3 +1,7 @@
+import {
+	validateCreateResource,
+	validateUpdateResource,
+} from "@procomun/db/validation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { getResourceTypeOptions } from "../islands/resources/resource-form-options.ts";
@@ -415,20 +419,38 @@ export default function EditarPage() {
 		setErrorMsg("");
 		setSuccessMsg("");
 		setFieldErrors({});
+
+		const author = authorRef.current?.value ?? "";
+		const payload = {
+			title: titleRef.current?.value ?? "",
+			description: descriptionRef.current?.value ?? "",
+			language: languageRef.current?.value ?? "es",
+			license: licenseRef.current?.value ?? "cc-by",
+			resourceType: resourceTypeRef.current?.value ?? "documento",
+			// Al crear el autor es obligatorio y uno existente no se puede borrar,
+			// pero un recurso antiguo sin autor se sigue guardando sin él.
+			author: isNew || resource.author || author.trim() ? author : undefined,
+			keywords: keywordsRef.current?.value || undefined,
+		};
+		const validation = isNew
+			? validateCreateResource(payload)
+			: validateUpdateResource(payload);
+		if (!validation.valid) {
+			const errs: Record<string, string> = {};
+			for (const detail of validation.errors) {
+				errs[detail.field] = detail.message;
+			}
+			setFieldErrors(errs);
+			setErrorMsg("Revisa los campos marcados");
+			return;
+		}
+
 		setSaveBtnDisabled(true);
 		setSaveBtnText("Guardando...");
 
 		try {
 			const api = await getApiClient();
-			const result = await api.updateResource(resource.id, {
-				title: titleRef.current?.value ?? "",
-				description: descriptionRef.current?.value ?? "",
-				language: languageRef.current?.value ?? "es",
-				license: licenseRef.current?.value ?? "cc-by",
-				resourceType: resourceTypeRef.current?.value ?? "documento",
-				author: authorRef.current?.value || undefined,
-				keywords: keywordsRef.current?.value || undefined,
-			});
+			const result = await api.updateResource(resource.id, payload);
 
 			if (!result.ok) {
 				if (result.details) {
@@ -610,6 +632,7 @@ export default function EditarPage() {
 	const resourceTypeOptions = getResourceTypeOptions(
 		isNew ? null : res.resourceType,
 	);
+	const authorRequired = isNew || Boolean(res.author);
 	const st =
 		STATUS_LABELS[res.editorialStatus] ??
 		STATUS_LABELS.draft ??
@@ -899,14 +922,22 @@ export default function EditarPage() {
 						)}
 
 						<div className="edit-field">
-							<label htmlFor="ed-author">Autor</label>
+							<label htmlFor="ed-author">
+								{authorRequired ? "Autor *" : "Autor"}
+							</label>
 							<input
 								type="text"
 								id="ed-author"
 								ref={authorRef}
+								required={authorRequired}
+								aria-describedby="ed-author-error"
+								aria-invalid={fieldErrors.author ? "true" : undefined}
 								defaultValue={res.author ?? ""}
 								placeholder="Nombre del autor"
 							/>
+							<span id="ed-author-error" className="edit-field-error">
+								{fieldErrors.author ?? ""}
+							</span>
 						</div>
 
 						<div className="edit-field">

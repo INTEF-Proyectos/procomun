@@ -60,6 +60,7 @@ const validResource = {
 	language: "es",
 	license: "cc-by",
 	resourceType: "documento",
+	author: "Autora de prueba",
 };
 
 async function createPublishedResource(
