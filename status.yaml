@@ -66,6 +66,18 @@ blocking_adrs:
 
 tasks:
 
+  T-2026-10-14-12351075:
+    date: 2026-10-14
+    agent: "devops-sre + qa-validacion"
+    task: "Ejecutar en CI los tests *.unit.test.tsx de las islas React"
+    status: Done
+    notes: >
+      run-bun-suite solo buscaba .unit.test.ts e .integration.test.ts, así que los 18 *.unit.test.tsx
+      del frontend no se ejecutaban ni en CI ni en `bun run test`. Nueva suite `ui` (test:ui, make test-ui)
+      con paso propio en ci.yml, sin coverage: metida en check-coverage bajaba la media por fichero
+      del 90,99 % al 56,67 % (76,65 % excluyendo paraglide) por cargar islas y mensajes generados.
+      Validación: make test-ui 41 pass / 0 fail en 18 ficheros; check-coverage 90,99 %; tests del runner en verde.
+
   T-2026-09-06-08510442:
     date: 2026-09-06
     agent: "seguridad-privacidad-legal + arquitectura-solucion + backend-api-servicios + qa-validacion + documentacion-y-roadmap"
