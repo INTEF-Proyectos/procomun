@@ -2743,3 +2743,23 @@ tasks:
       plugin admin con getTableColumns) y en
       packages/db/src/migrations.unit.test.ts (migración 0008 y createTables
       sobre BD nueva y previa). Sustituye a #361.
+
+  T-2026-10-14-10510346:
+    date: 2026-10-14
+    agent: "frontend-ux-accesibilidad + qa-validacion"
+    task: "El curator abre los recursos de Gestionar recursos y solo ve Editar donde la API se lo permite"
+    status: Done
+    related: ["#399", "#400"]
+    notes: >
+      El listado de Gestionar recursos no enlazaba títulos ni «Solo lectura».
+      Ahora el título y la acción llevan al editor si el usuario puede
+      gestionar el recurso y, si no, a la ficha pública. El predicado de
+      edición es el mismo canManageResource de la API (admin; author o superior
+      si lo creó; curator si está en revisión o si lo curó), movido de
+      apps/api/src/auth/roles.ts a @procomun/db/validation para que API y
+      frontend compartan una sola implementación (roles.ts lo reexporta). La
+      ficha (ResourceDetailIsland) usa el mismo predicado: antes cualquier
+      curator veía «Editar» y el editor respondía «Recurso no encontrado» por
+      el 403. Tests: AdminResourcesSection.unit.test.tsx y
+      CatalogIslands.unit.test.tsx cubren createdBy y assignedCuratorId en el
+      listado y en la ficha; roles.unit.test.ts sigue cubriendo las reglas.
