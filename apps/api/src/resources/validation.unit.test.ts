@@ -14,6 +14,7 @@ const validPayload = {
 	language: "es",
 	license: "cc-by",
 	resourceType: "documento",
+	author: "Autor de ejemplo",
 };
 
 describe("validateCreateResource", () => {
@@ -68,6 +69,28 @@ describe("validateCreateResource", () => {
 		const r = validateCreateResource(rest);
 		expect(r.valid).toBe(false);
 		expect(r.errors.find((e) => e.field === "resourceType")).toBeTruthy();
+	});
+
+	test("author ausente, vacío o solo espacios se rechaza al crear", () => {
+		for (const author of [undefined, "", "   "]) {
+			const r = validateCreateResource({ ...validPayload, author });
+			expect(r.valid).toBe(false);
+			expect(r.errors.find((e) => e.field === "author")?.message).toBe(
+				"El autor es obligatorio",
+			);
+		}
+	});
+
+	test("tipo y autor vacíos se informan en la misma validación", () => {
+		const r = validateCreateResource({
+			...validPayload,
+			resourceType: "",
+			author: "",
+		});
+		expect(r.errors.map((e) => e.field).sort()).toEqual([
+			"author",
+			"resourceType",
+		]);
 	});
 
 	test("title excede 500 caracteres", () => {
@@ -182,6 +205,21 @@ describe("validateUpdateResource", () => {
 		const r = validateUpdateResource({ resourceType: "" });
 		expect(r.valid).toBe(false);
 		expect(r.errors.find((e) => e.field === "resourceType")).toBeTruthy();
+	});
+
+	test("author vacío o solo espacios se rechaza al actualizar", () => {
+		for (const author of ["", "   "]) {
+			const r = validateUpdateResource({ author });
+			expect(r.valid).toBe(false);
+			expect(r.errors.find((e) => e.field === "author")?.message).toBe(
+				"El autor no puede estar vacío",
+			);
+		}
+	});
+
+	test("actualizar otros campos sin enviar author sigue siendo válido", () => {
+		const r = validateUpdateResource({ title: "Nuevo título" });
+		expect(r.valid).toBe(true);
 	});
 
 	test("body null falla", () => {
