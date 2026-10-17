@@ -2809,3 +2809,23 @@ tasks:
       T-2026-10-14-10535343 de la PR #388 y T-2026-10-14-10510346 de la PR
       #400. No hubo conflicto en código ni cambió la solución funcional.
       Validación: bun test (1118 pass), check-tracking y check-test-files.
+
+  T-2026-10-17-09435869:
+    date: 2026-10-17
+    agent: "frontend-ux-accesibilidad + seguridad-privacidad-legal + qa-validacion"
+    task: "PDF, Padlet y otros embeds de un ODE que no se ven en la ficha ni en «Ver online» (#378)"
+    status: Done
+    related: ["#378", "#429", "#317", "ADR-0026", "ADR-0027"]
+    notes: >
+      Con el .elpx real de #378, en «Ver online» el shim no actuaba (documento
+      de nivel superior) y Padlet, PDF, Canva y Genially quedaban en blanco
+      por el sandbox heredado. En la ficha la fachada del PDF no abría el
+      modal: classifyEmbed no resolvía la previewUrl relativa y además exigía
+      https. La fachada pasa a ser un enlace que dice qué abre y lo abre en una
+      pestaña nueva fuera del sandbox; si el relay de la ficha contesta al
+      saludo del shim, abre el modal. classifyEmbed resuelve la base y acepta
+      el PDF del propio paquete también en http. Modal «Contenido externo» para
+      lo que no es PDF. Adenda en ADR-0027. Validación: elpx-embed-facade.e2e.ts
+      (rojo en main, verde aquí), unit de política, relay y modal, e2e público
+      en chromium y Chrome con el paquete de la issue. La solución de fondo,
+      un origen separado para el contenido, queda propuesta en #429.

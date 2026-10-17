@@ -4,8 +4,10 @@
  * Se inyecta en el HTML del .elpx servido por la API y se ejecuta DENTRO del
  * iframe de origen opaco (sandbox sin allow-same-origin, ADR-0026). Como el
  * sandbox se hereda, los embeds anidados de YouTube/Vimeo/PDF se rompen. Este
- * shim los sustituye por una fachada clicable y, al pulsar, pide al frame
- * principal (Procomún) que abra el contenido en un player de confianza.
+ * shim los sustituye por una fachada: un enlace que abre el contenido en una
+ * pestaña nueva, que sale del sandbox («Ver online», «Ponlo en tu web»). Si el
+ * padre es el relay de Procomún y contesta al saludo, la fachada le pide en
+ * cambio que abra el contenido en un player de confianza (modal de la ficha).
  *
  * Detección "coarse" a propósito: la validación autoritativa la hace el padre
  * (apps/frontend/src/lib/elpx-embed-policy.ts). Aquí no se confía en nada.
@@ -30,7 +32,23 @@
 	if (!isOpaqueOrigin()) return;
 
 	var PARENT = window.parent;
-	if (!PARENT || PARENT === window) return;
+	var relayReady = false;
+	if (PARENT && PARENT !== window) {
+		// Sin comprobar el origen: un padre ajeno que conteste solo se queda con
+		// el clic de su propia incrustación, y el contenido ya es público.
+		window.addEventListener("message", (event) => {
+			var data = event.data;
+			if (
+				event.source === PARENT &&
+				data &&
+				data.source === "procomun-elpx-relay" &&
+				data.action === "ready"
+			) {
+				relayReady = true;
+			}
+		});
+		PARENT.postMessage({ source: "procomun-elpx-embed", action: "hello" }, "*");
+	}
 
 	function isCrossOriginHttps(src) {
 		try {
@@ -69,33 +87,48 @@
 		return /^[0-9]+$/.test(attr) ? `${attr}px` : attr;
 	}
 
+	// Dice qué hay detrás: «Ver PDF: mapa.pdf», «Ver contenido de padlet.com».
+	function facadeLabel(url) {
+		try {
+			const u = new URL(url);
+			if (isPdf(url)) {
+				return `Ver PDF: ${decodeURIComponent(u.pathname.split("/").pop())}`;
+			}
+			return `Ver contenido de ${u.hostname.replace(/^www\./, "")}`;
+		} catch {
+			return "Ver contenido externo";
+		}
+	}
+
 	function makeFacade(frame) {
 		var doc = frame.ownerDocument;
 		var url = absolute(frame.getAttribute("src"));
-		var btn = doc.createElement("button");
-		btn.type = "button";
-		btn.className = "procomun-embed-facade";
-		btn.setAttribute("data-procomun-embed-url", url);
-		btn.setAttribute("aria-label", "Reproducir contenido externo");
-		btn.style.cssText =
-			"display:flex;align-items:center;justify-content:center;border:0;cursor:pointer;" +
-			"background:#000;color:#fff;font:600 14px/1.3 system-ui,sans-serif;max-width:100%;" +
+		var link = doc.createElement("a");
+		link.href = url;
+		link.target = "_blank";
+		link.rel = "noopener";
+		link.className = "procomun-embed-facade";
+		link.setAttribute("data-procomun-embed-url", url);
+		// Alto acotado al viewport: en un PDF de 1000px el texto quedaba fuera.
+		link.style.cssText =
+			"display:flex;align-items:center;justify-content:center;box-sizing:border-box;padding:1em;" +
+			"text-align:center;text-decoration:underline;background:#000;color:#fff;" +
+			"font:600 14px/1.3 system-ui,sans-serif;max-width:100%;" +
 			"width:" +
 			cssSize(frame.getAttribute("width"), "100%") +
-			";height:" +
+			";height:min(" +
 			cssSize(frame.getAttribute("height"), "240px") +
-			";";
-		var span = doc.createElement("span");
-		span.style.pointerEvents = "none";
-		span.textContent = "▶ Ver contenido externo";
-		btn.appendChild(span);
-		btn.addEventListener("click", () => {
+			",60vh);";
+		link.textContent = facadeLabel(url);
+		link.addEventListener("click", (event) => {
+			if (!relayReady) return;
+			event.preventDefault();
 			PARENT.postMessage(
 				{ source: "procomun-elpx-embed", action: "play", url: url },
 				"*",
 			);
 		});
-		return btn;
+		return link;
 	}
 
 	function promote(root) {

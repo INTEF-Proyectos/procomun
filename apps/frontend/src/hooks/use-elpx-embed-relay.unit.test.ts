@@ -119,6 +119,24 @@ describe("createEmbedMessageHandler", () => {
 		expect((seen[0] as { kind: string }).kind).toBe("video");
 	});
 
+	test("responde al saludo del shim del iframe de confianza", () => {
+		const sent: unknown[] = [];
+		const frame = {
+			postMessage: (data: unknown, target: string) => sent.push([data, target]),
+		} as unknown as Window;
+		const handler = createEmbedMessageHandler(
+			() => ({ trustedSource: frame, pageOrigin: PAGE_ORIGIN }),
+			() => {},
+		);
+		const hello = { source: "procomun-elpx-embed", action: "hello" };
+		handler(msg(other, hello) as MessageEvent);
+		handler(msg(frame, hello) as MessageEvent);
+		// El iframe es origen opaco: no hay otro targetOrigin posible que "*".
+		expect(sent).toEqual([
+			[{ source: "procomun-elpx-relay", action: "ready" }, "*"],
+		]);
+	});
+
 	test("no llama a onEmbed cuando el mensaje es inválido", () => {
 		let called = 0;
 		const handler = createEmbedMessageHandler(

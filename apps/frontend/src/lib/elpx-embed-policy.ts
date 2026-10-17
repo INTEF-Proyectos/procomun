@@ -48,6 +48,19 @@ function safeUrl(raw: string): URL | null {
 	}
 }
 
+// La ficha pasa `previewUrl` tal cual la da la API, relativa (#378).
+function resolveBase(
+	raw: string | undefined,
+	pageOrigin: string,
+): string | undefined {
+	if (!raw) return undefined;
+	try {
+		return new URL(raw, pageOrigin).href;
+	} catch {
+		return undefined;
+	}
+}
+
 function hostOf(rawOrigin: string | undefined): string | null {
 	if (!rawOrigin) return null;
 	try {
@@ -101,20 +114,25 @@ export function classifyEmbed(
 	// Rechaza credenciales en la URL (https://evil@youtube.com/…).
 	if (url.username || url.password) return null;
 
+	const contentBase = resolveBase(opts.contentBaseUrl, opts.pageOrigin);
+
+	// PDF del propio paquete: mismo origen que el contenido, que puede ir por
+	// http (desarrollo o un despliegue sin TLS).
+	if (PDF_PATH_RE.test(url.pathname) && isUnderPackageBase(url, contentBase)) {
+		return { kind: "pdf", url: url.href };
+	}
+
 	// Solo https.
 	if (url.protocol !== "https:") return null;
 
 	const pageHost = hostOf(opts.pageOrigin);
-	const contentHost = hostOf(opts.contentBaseUrl);
+	const contentHost = hostOf(contentBase);
 	const host = url.hostname.toLowerCase();
 
-	// --- PDF ---
+	// --- PDF remoto ---
 	if (PDF_PATH_RE.test(url.pathname)) {
 		const crossOrigin = host !== pageHost && host !== contentHost;
-		if (crossOrigin || isUnderPackageBase(url, opts.contentBaseUrl)) {
-			return { kind: "pdf", url: url.href };
-		}
-		return null;
+		return crossOrigin ? { kind: "pdf", url: url.href } : null;
 	}
 
 	// --- Vídeo (cualquier iframe https cross-origin: modo abierto) ---
