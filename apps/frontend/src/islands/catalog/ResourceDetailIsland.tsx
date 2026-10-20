@@ -21,6 +21,7 @@ import {
 	type ResourceExportKind,
 } from "../../lib/resource-export.ts";
 import type { ResourceSummary } from "../../lib/types/resource-extended.ts";
+import { LicenseBadge } from "../../ui/LicenseBadge.tsx";
 import { ResourceCard } from "../../ui/ResourceCard.tsx";
 import { FavoriteIsland } from "../social/FavoriteIsland.tsx";
 import { RatingIsland } from "../social/RatingIsland.tsx";
@@ -380,8 +381,7 @@ export function ResourceDetailContent({
 					>
 						{resource.license ? (
 							<div className="detail-license">
-								<span className="material-symbols-outlined">copyright</span>
-								<span className="detail-license-text">{resource.license}</span>
+								<LicenseBadge license={resource.license} />
 							</div>
 						) : null}
 						{canEdit ? (
