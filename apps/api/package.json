@@ -19,7 +19,7 @@
 		"feed": "^6.0.0",
 		"hono": "4.13.9",
 		"mammoth": "^1.13.0",
-		"nodemailer": "^10.0.13",
+		"nodemailer": "^10.1.2",
 		"pdf-parse": "^2.4.5"
 	},
 	"devDependencies": {
