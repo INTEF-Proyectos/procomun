@@ -2810,6 +2810,18 @@ tasks:
       #400. No hubo conflicto en código ni cambió la solución funcional.
       Validación: bun test (1118 pass), check-tracking y check-test-files.
 
+  T-2026-10-15-20195779:
+    date: 2026-10-15
+    agent: "frontend-ux-accesibilidad + qa-validacion"
+    task: "El buscador superior de las páginas interiores tiene botón Buscar"
+    status: Done
+    related: ["#403"]
+    notes: >
+      En Explorar, Colecciones y Ayuda el formulario ya enviaba la búsqueda
+      con Intro, pero la lupa era un icono con pointer-events: none y no había
+      otro control visible. Se añade un botón de envío «Buscar», el mismo
+      texto que el de la portada, dentro del formulario GET existente. Enter
+      sigue enviando. Test: AppShellIslands.unit.test.tsx.
   T-2026-10-15-20402973:
     date: 2026-10-15
     agent: "backend-api-servicios + qa-validacion"
