@@ -2829,3 +2829,72 @@ tasks:
       (rojo en main, verde aquí), unit de política, relay y modal, e2e público
       en chromium y Chrome con el paquete de la issue. La solución de fondo,
       un origen separado para el contenido, queda propuesta en #429.
+  T-2026-10-15-20195779:
+    date: 2026-10-15
+    agent: "frontend-ux-accesibilidad + qa-validacion"
+    task: "El buscador superior de las páginas interiores tiene botón Buscar"
+    status: Done
+    related: ["#403"]
+    notes: >
+      En Explorar, Colecciones y Ayuda el formulario ya enviaba la búsqueda
+      con Intro, pero la lupa era un icono con pointer-events: none y no había
+      otro control visible. Se añade un botón de envío «Buscar», el mismo
+      texto que el de la portada, dentro del formulario GET existente. Enter
+      sigue enviando. Test: AppShellIslands.unit.test.tsx.
+  T-2026-10-15-20402973:
+    date: 2026-10-15
+    agent: "backend-api-servicios + qa-validacion"
+    task: "El HTML de un ODE Descartes se sirve con las entidades bien escritas"
+    status: Done
+    related: ["#406"]
+    notes: >
+      El paquete de ejemplo carga la escena HTML5 de Descartes dentro del
+      iframe del propio .elpx, sin allow-same-origin. El título de eXe se veía
+      como texto «&Iacute;» porque el export escapa dos veces la entidad. Al
+      servir el HTML se deshace un solo nivel, y solo cuando &amp; abre una
+      entidad completa. También se reescriben los atributos background
+      relativos y el 404 de un fichero ausente lleva Access-Control-Allow-Origin
+      para que el origen opaco no lo pinte como un fallo de CORS. Tests:
+      elpx-content.unit.test.ts, rojos por la entidad doble y el 404 sin CORS,
+      verdes después. No se ha tocado el diccionario de tipos de recurso.
+
+  T-2026-10-15-20195721:
+    date: 2026-10-15
+    agent: "frontend-ux-accesibilidad + qa-validacion"
+    task: "La ficha muestra el botón oficial de la licencia Creative Commons"
+    status: Done
+    related: ["#404"]
+    notes: >
+      Al importar, la licencia quedaba bien (cc-by-sa) pero la ficha pintaba
+      el icono copyright y el código, sin la imagen. LicenseBadge sustituye
+      ese icono por el botón oficial 88×31 de las licencias del catálogo
+      (cc-by, cc-by-sa, cc-by-nc, cc-by-nc-sa, cc-by-nd, cc-by-nc-nd y cc0),
+      enlazado a la escritura de la licencia. Un código desconocido sigue
+      viéndose como texto. Imágenes en apps/frontend/public/licenses/.
+      Tests: LicenseBadge.unit.test.tsx y CatalogIslands.unit.test.tsx.
+
+  T-2026-10-15-20542711:
+    date: 2026-10-15
+    agent: "qa-validacion"
+    task: "La ficha con imagen de licencia vuelve a pasar tipos y e2e"
+    status: Done
+    related: ["#404", "#422"]
+    notes: >
+      CI de la PR #422: check-types fallaba porque los dos tests nuevos de
+      CatalogIslands llamaban a renderDetail con un solo argumento, y
+      e2e-chromium buscaba el texto cc-by. La licencia del catálogo ahora es
+      una imagen cuyo nombre accesible dice «Licencia…», así que el e2e mira
+      ese enlace y, si no hay imagen, el texto. No cambia lo que se ve.
+
+  T-2026-10-20-07102121:
+    date: 2026-10-20
+    agent: "resolución de conflictos"
+    task: "Integrar main en la PR #424"
+    status: Done
+    related: ["#424", "#422"]
+    notes: >
+      Se integró main en fix/issue-406-descartes. El único conflicto textual
+      estaba en status.yaml; se conservaron las entradas de la corrección
+      Descartes y de la imagen de licencia, sin cambios en el código de la PR.
+      Validación: bun test (1125 pass), check-types, check-tracking y
+      check-test-files.

@@ -1,0 +1,16 @@
+.license-badge {
+	display: inline-flex;
+	line-height: 0;
+	border-radius: 3px;
+}
+
+.license-badge:focus-visible {
+	outline: 2px solid var(--color-primary);
+	outline-offset: 2px;
+}
+
+.license-badge img {
+	display: block;
+	width: 88px;
+	height: 31px;
+}
