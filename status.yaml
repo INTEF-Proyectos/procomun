@@ -2826,3 +2826,44 @@ tasks:
       para que el origen opaco no lo pinte como un fallo de CORS. Tests:
       elpx-content.unit.test.ts, rojos por la entidad doble y el 404 sin CORS,
       verdes después. No se ha tocado el diccionario de tipos de recurso.
+
+  T-2026-10-15-20195721:
+    date: 2026-10-15
+    agent: "frontend-ux-accesibilidad + qa-validacion"
+    task: "La ficha muestra el botón oficial de la licencia Creative Commons"
+    status: Done
+    related: ["#404"]
+    notes: >
+      Al importar, la licencia quedaba bien (cc-by-sa) pero la ficha pintaba
+      el icono copyright y el código, sin la imagen. LicenseBadge sustituye
+      ese icono por el botón oficial 88×31 de las licencias del catálogo
+      (cc-by, cc-by-sa, cc-by-nc, cc-by-nc-sa, cc-by-nd, cc-by-nc-nd y cc0),
+      enlazado a la escritura de la licencia. Un código desconocido sigue
+      viéndose como texto. Imágenes en apps/frontend/public/licenses/.
+      Tests: LicenseBadge.unit.test.tsx y CatalogIslands.unit.test.tsx.
+
+  T-2026-10-15-20542711:
+    date: 2026-10-15
+    agent: "qa-validacion"
+    task: "La ficha con imagen de licencia vuelve a pasar tipos y e2e"
+    status: Done
+    related: ["#404", "#422"]
+    notes: >
+      CI de la PR #422: check-types fallaba porque los dos tests nuevos de
+      CatalogIslands llamaban a renderDetail con un solo argumento, y
+      e2e-chromium buscaba el texto cc-by. La licencia del catálogo ahora es
+      una imagen cuyo nombre accesible dice «Licencia…», así que el e2e mira
+      ese enlace y, si no hay imagen, el texto. No cambia lo que se ve.
+
+  T-2026-10-20-07102121:
+    date: 2026-10-20
+    agent: "resolución de conflictos"
+    task: "Integrar main en la PR #424"
+    status: Done
+    related: ["#424", "#422"]
+    notes: >
+      Se integró main en fix/issue-406-descartes. El único conflicto textual
+      estaba en status.yaml; se conservaron las entradas de la corrección
+      Descartes y de la imagen de licencia, sin cambios en el código de la PR.
+      Validación: bun test (1125 pass), check-types, check-tracking y
+      check-test-files.
