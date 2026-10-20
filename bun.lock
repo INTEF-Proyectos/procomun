@@ -54,7 +54,7 @@
       "dependencies": {
         "@inlang/paraglide-js": "^2.29.0",
         "@procomun/db": "workspace:*",
-        "@uppy/core": "6.2.0",
+        "@uppy/core": "6.3.0",
         "@uppy/dashboard": "6.0.1",
         "@uppy/tus": "6.0.0",
         "react": "^19.3.0",
@@ -414,7 +414,7 @@
 
     "@typescript/typescript-win32-x64": ["@typescript/typescript-win32-x64@7.0.2", "", { "os": "win32", "cpu": "x64" }, "sha512-0BQ3HkAHHlKLSp1qRvf3SUhGpGsDuhB/jgFw75guyqbxJqEaS0Cw/VFO8i2nHglJUzQCRtMMR/IBAKE3ETMC4g=="],
 
-    "@uppy/core": ["@uppy/core@6.2.0", "", { "dependencies": { "@transloadit/prettier-bytes": "^2.0.0", "classnames": "^2.5.1", "lodash": "^4.18.1", "mime-match": "^1.0.2", "namespace-emitter": "^2.0.1", "nanoid": "^6.0.1", "p-queue": "^9.3.3", "p-retry": "^8.0.0", "preact": "^10.29.2" } }, "sha512-GujQtHazyHM2jjoNZyZlB+R3mUf1bynx0D+sPRt4IfLEfV09LbqA1kzwabL+WEKFdfqls15T+a/4u3XGV4n/oQ=="],
+    "@uppy/core": ["@uppy/core@6.3.0", "", { "dependencies": { "@transloadit/prettier-bytes": "^2.0.0", "classnames": "^2.5.1", "lodash": "^4.18.1", "mime-match": "^1.0.2", "namespace-emitter": "^2.0.1", "nanoid": "^6.0.1", "p-queue": "^9.3.3", "p-retry": "^8.0.0", "preact": "^10.29.2" } }, "sha512-D6+iERQrI194UZO9dOIJWrT5GtOtyR9k4Wh6VU7cXThEaRNvMQDqXj1GzHDs2TffnZ5pRxufwB84Os8uH3+bVA=="],
 
     "@uppy/dashboard": ["@uppy/dashboard@6.0.1", "", { "dependencies": { "@transloadit/prettier-bytes": "^2.0.0", "@uppy/thumbnail-generator": "^6.0.1", "classnames": "^2.5.1", "lodash": "^4.18.1", "nanoid": "^6.0.1", "preact": "^10.29.2", "shallow-equal": "^3.1.0" }, "peerDependencies": { "@uppy/core": "^6.2.0" } }, "sha512-nss7xYzh6zXly03Tz/j9Lclm8rOkBOp0wPSQuAYkrtTzJrRsahemrOXwYRQTW2hyN+hDdjVtU9Ouo2NMcPzkVQ=="],
 
