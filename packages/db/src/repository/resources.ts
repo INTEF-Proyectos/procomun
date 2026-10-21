@@ -1,4 +1,5 @@
 import { and, asc, desc, eq, isNull, or, sql } from "drizzle-orm";
+import { normalizeEducationalAssignments } from "../educational-areas.ts";
 import { user } from "../schema/auth.ts";
 import {
 	mediaItems,
@@ -8,6 +9,10 @@ import {
 } from "../schema/resources.ts";
 import { resourceTags, tags } from "../schema/tags.ts";
 import { uploadSessions } from "../schema/uploads.ts";
+import {
+	listResourceEducationalAreas,
+	replaceResourceEducationalAreas,
+} from "./educational-areas.ts";
 import {
 	andWhere,
 	buildSearchTerm,
@@ -28,6 +33,10 @@ type ResourceListOptions = {
 	license?: string;
 	/** Filter by atomized tag slug (canonical or synonym). Issue #310. */
 	tagSlug?: string;
+	/** Categoría educativa principal (issue #380). Incluye recursos con y sin opción. */
+	educationalCategory?: string;
+	/** Opción secundaria. Solo aplica junto a educationalCategory y exige la combinación exacta. */
+	educationalOption?: string;
 	createdBy?: string;
 	visibleToUserId?: string;
 };
@@ -43,6 +52,7 @@ type ResourceMutationInput = {
 	publisher?: string;
 	subjects?: string[];
 	levels?: string[];
+	educationalAreas?: unknown;
 	createdBy?: string;
 	editorialStatus?: string;
 };
@@ -86,7 +96,7 @@ const resourceDetailSelection = {
 };
 
 async function listResourceTaxonomyValues(db: DrizzleDB, resourceId: string) {
-	const [subjects, levels] = await Promise.all([
+	const [subjects, levels, educationalAreas] = await Promise.all([
 		db
 			.select({ subject: resourceSubjects.subject })
 			.from(resourceSubjects)
@@ -95,11 +105,13 @@ async function listResourceTaxonomyValues(db: DrizzleDB, resourceId: string) {
 			.select({ level: resourceLevels.level })
 			.from(resourceLevels)
 			.where(eq(resourceLevels.resourceId, resourceId)),
+		listResourceEducationalAreas(db, resourceId),
 	]);
 
 	return {
 		subjects: subjects.map((subject: { subject: string }) => subject.subject),
 		levels: levels.map((level: { level: string }) => level.level),
+		educationalAreas,
 	};
 }
 
@@ -135,6 +147,30 @@ export async function listResources(db: DrizzleDB, opts: ResourceListOptions) {
 		conditions.push(eq(resources.resourceType, opts.resourceType));
 	if (opts.language) conditions.push(eq(resources.language, opts.language));
 	if (opts.license) conditions.push(eq(resources.license, opts.license));
+	if (opts.educationalCategory) {
+		const categoryId = opts.educationalCategory;
+		if (opts.educationalOption) {
+			const optionId = opts.educationalOption;
+			conditions.push(
+				sql`exists (
+					select 1
+					from resource_educational_areas ea
+					where ea.resource_id = ${resources.id}
+						and ea.category_id = ${categoryId}
+						and ea.option_id = ${optionId}
+				)`,
+			);
+		} else {
+			conditions.push(
+				sql`exists (
+					select 1
+					from resource_educational_areas ea
+					where ea.resource_id = ${resources.id}
+						and ea.category_id = ${categoryId}
+				)`,
+			);
+		}
+	}
 	if (opts.tagSlug) {
 		const slug = opts.tagSlug;
 		// Match resources linked to the tag or its canonical / synonyms (#76 / #310).
@@ -232,6 +268,10 @@ export async function createResource(
 	db: DrizzleDB,
 	data: ResourceMutationInput,
 ) {
+	const educationalAreas =
+		data.educationalAreas === undefined
+			? undefined
+			: normalizeEducationalAssignments(data.educationalAreas);
 	const id = crypto.randomUUID();
 	const slug = `${buildSlug(data.title)}-${id.slice(0, 8)}`;
 	const now = new Date();
@@ -263,6 +303,10 @@ export async function createResource(
 		for (const level of data.levels) {
 			await db.insert(resourceLevels).values({ resourceId: id, level });
 		}
+	}
+
+	if (educationalAreas?.length) {
+		await replaceResourceEducationalAreas(db, id, educationalAreas);
 	}
 
 	// Dual-write: free-text keywords → atomized tags (ADR-0034 / #76)
@@ -323,17 +367,27 @@ export async function updateResource(
 	// Whitelist explícito: solo persistimos campos descriptivos. Cualquier otra
 	// clave del cuerpo (editorialStatus, createdBy, slug, assignedCuratorId,
 	// featuredAt, deletedAt, …) se descarta para evitar mass assignment.
-	const safe = pickEditableResourceFields(data as Record<string, unknown>);
+	const raw = data as Record<string, unknown>;
+	const educationalAreas =
+		"educationalAreas" in raw
+			? normalizeEducationalAssignments(raw.educationalAreas)
+			: undefined;
+	const safe = pickEditableResourceFields(raw);
 
 	// Evita un UPDATE vacío si el cuerpo solo traía claves sensibles filtradas.
-	if (Object.keys(safe).length === 0) {
+	if (Object.keys(safe).length === 0 && !educationalAreas) {
 		return;
 	}
 
-	await db
-		.update(resources)
-		.set({ ...safe, updatedAt: new Date() })
-		.where(and(eq(resources.id, id), isNull(resources.deletedAt)));
+	await db.transaction(async (tx: DrizzleDB) => {
+		await tx
+			.update(resources)
+			.set({ ...safe, updatedAt: new Date() })
+			.where(and(eq(resources.id, id), isNull(resources.deletedAt)));
+		if (educationalAreas) {
+			await replaceResourceEducationalAreas(tx, id, educationalAreas);
+		}
+	});
 
 	// Dual-write keywords → tags when the free-text field is updated (#76)
 	if (typeof safe.keywords === "string") {

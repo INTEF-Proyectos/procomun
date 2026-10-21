@@ -1,4 +1,5 @@
 import path from "node:path";
+import { getEducationalCategory } from "@procomun/db/educational-areas";
 import {
 	ALL_SEED_COLLECTION_IDS,
 	ALL_SEED_RESOURCE_IDS,
@@ -271,6 +272,14 @@ export async function seedWithClient(
 					`INSERT INTO "resource_levels" (resource_id, level) VALUES ($1, $2)`,
 					[r.id, l],
 				);
+				// Los niveles de demo que son ids del catálogo (#380) también se
+				// guardan como categoría, para que el filtro de Explorar encuentre algo.
+				if (getEducationalCategory(l)) {
+					await client.query(
+						`INSERT INTO "resource_educational_areas" (resource_id, category_id) VALUES ($1, $2)`,
+						[r.id, l],
+					);
+				}
 			}
 
 			// Attach .elpx if generated

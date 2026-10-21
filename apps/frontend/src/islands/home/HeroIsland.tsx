@@ -4,12 +4,13 @@ import { url } from "../../lib/paths.ts";
 import * as m from "../../paraglide/messages.js";
 import "./HeroIsland.css";
 
+// value: id de categoría del catálogo educativo (filtro educationalCategory).
 const QUICK_FILTERS = [
-	{ key: "infantil" as const, value: "Infantil" },
-	{ key: "primaria" as const, value: "Primaria" },
-	{ key: "secundaria" as const, value: "Secundaria" },
-	{ key: "bachillerato" as const, value: "Bachillerato" },
-	{ key: "fp" as const, value: "FP" },
+	{ key: "infantil" as const, value: "educacion-infantil" },
+	{ key: "primaria" as const, value: "educacion-primaria" },
+	{ key: "secundaria" as const, value: "educacion-secundaria-obligatoria" },
+	{ key: "bachillerato" as const, value: "bachillerato" },
+	{ key: "fp" as const, value: "formacion-profesional" },
 ];
 
 const FILTER_LABELS = {
@@ -60,7 +61,7 @@ export function HeroIsland() {
 	}
 
 	function handleFilterClick(value: string) {
-		window.location.href = `${url("explorar")}?level=${encodeURIComponent(value)}`;
+		window.location.href = `${url("explorar")}?educationalCategory=${encodeURIComponent(value)}`;
 	}
 
 	return (
