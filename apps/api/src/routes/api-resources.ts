@@ -23,6 +23,18 @@ apiResourceRoutes.post("/", async (c) => {
 		return c.json({ error: "El cuerpo debe ser JSON válido" }, 400);
 	}
 
+	// En esta API (ADR-0024) author era opcional: si falta o viene vacío, firma
+	// el dueño del token para no romper a los clientes que ya publican.
+	if (body && typeof body === "object") {
+		const input = body as Record<string, unknown>;
+		if (
+			input.author == null ||
+			(typeof input.author === "string" && !input.author.trim())
+		) {
+			input.author = user.name;
+		}
+	}
+
 	const validation = validateCreateResource(body);
 	if (!validation.valid) {
 		return c.json(

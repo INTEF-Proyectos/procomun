@@ -123,7 +123,9 @@ export function validateCreateResource(body: unknown): ValidationResult {
 
 	if (b.author !== undefined && typeof b.author !== "string") {
 		errors.push({ field: "author", message: "El autor debe ser texto" });
-	} else if (typeof b.author === "string" && b.author.length > 500) {
+	} else if (!isNonEmptyString(b.author)) {
+		errors.push({ field: "author", message: "El autor es obligatorio" });
+	} else if (b.author.length > 500) {
 		errors.push({
 			field: "author",
 			message: "El autor no puede superar 500 caracteres",
@@ -269,6 +271,22 @@ export function validateUpdateResource(body: unknown): ValidationResult {
 		});
 	}
 
+	if (b.author !== undefined) {
+		if (typeof b.author !== "string") {
+			errors.push({ field: "author", message: "El autor debe ser texto" });
+		} else if (!isNonEmptyString(b.author)) {
+			errors.push({
+				field: "author",
+				message: "El autor no puede estar vacío",
+			});
+		} else if (b.author.length > 500) {
+			errors.push({
+				field: "author",
+				message: "El autor no puede superar 500 caracteres",
+			});
+		}
+	}
+
 	if (b.educationalAreas !== undefined) {
 		errors.push(...validateEducationalAssignments(b.educationalAreas));
 	}
@@ -283,6 +301,41 @@ export const ROLE_LEVELS: Record<string, number> = {
 	curator: 3,
 	admin: 4,
 } as const;
+
+export function hasMinRole(
+	role: string | null | undefined,
+	minRole: keyof typeof ROLE_LEVELS,
+) {
+	return (ROLE_LEVELS[role ?? "reader"] ?? 0) >= (ROLE_LEVELS[minRole] ?? 0);
+}
+
+export function canManageResource(
+	user: { id: string; role?: string | null },
+	resource: {
+		createdBy?: string | null;
+		assignedCuratorId?: string | null;
+		editorialStatus?: string | null;
+	},
+) {
+	if (hasMinRole(user.role, "admin")) return true;
+	// El creador siempre puede gestionar su propio recurso, en cualquier estado
+	// (DEF-221: un curator que crea un recurso debe poder ver/editar su borrador).
+	if (hasMinRole(user.role, "author") && resource.createdBy === user.id) {
+		return true;
+	}
+	// Un curator gestiona la cola de curación (recursos en revisión) y, además,
+	// cualquier recurso que él mismo haya curado. Al cambiar el estado de un recurso
+	// desde "review" queda registrado como assignedCuratorId (ver updateEditorialStatus),
+	// por lo que debe conservar el acceso aunque el recurso ya no esté en revisión
+	// (DEF-009 / #205: antes pasaba a "recurso no encontrado" tras publicarlo/devolverlo a borrador).
+	if (hasMinRole(user.role, "curator")) {
+		return (
+			resource.editorialStatus === "review" ||
+			resource.assignedCuratorId === user.id
+		);
+	}
+	return false;
+}
 
 export const TRANSITION_RULES: Record<
 	string,
