@@ -20,11 +20,12 @@ test.describe("Resource detail page", () => {
 
 	test("shows resource metadata fields", async ({ page }) => {
 		await page.goto(`/recurso?slug=${PUBLISHED_RESOURCE.slug}`);
-		// Should show metadata like license, type, level, etc. The license is
-		// rendered as its slug (e.g. "cc-by-nc-sa"), hence the cc-by matcher.
+		// Una licencia del catálogo se pinta como imagen. Su nombre accesible
+		// incluye «Licencia». Un código sin imagen sigue viéndose como texto.
 		await expect(
 			page
-				.getByText(/licencia|license|cc-by/i)
+				.getByRole("link", { name: /licencia|license|cc-by|cc by|cc0/i })
+				.or(page.getByText(/licencia|license|cc-by/i))
 				.or(page.getByText(/CC BY/i))
 				.first(),
 		).toBeVisible();
