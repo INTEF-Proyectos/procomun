@@ -94,6 +94,16 @@ describe("Catalog islands", () => {
 		expect(html).toContain('src="/api/v1/elpx/abc/"');
 	});
 
+	test("la ficha no muestra los niveles en texto libre del Procomún antiguo (#380)", () => {
+		const html = renderDetail(
+			{ levels: ["12 - 13 años / Primer curso"] },
+			"reader",
+		);
+
+		expect(html).not.toContain("Niveles educativos");
+		expect(html).not.toContain("12 - 13 años / Primer curso");
+	});
+
 	test("ResourceDetailIsland renderiza el estado de carga inicial", () => {
 		const html = renderToStaticMarkup(<ResourceDetailIsland />);
 

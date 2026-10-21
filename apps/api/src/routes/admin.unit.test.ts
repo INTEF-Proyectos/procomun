@@ -43,6 +43,56 @@ describe("Rutas admin — con sesión de admin", () => {
 		expect(body.slug).toBeDefined();
 	});
 
+	test("POST /api/admin/resources rechaza Bachillerato con Básico y guarda una clasificación válida", async () => {
+		const invalid = await app.request("/api/admin/resources", {
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({
+				...validResource,
+				educationalAreas: [{ categoryId: "bachillerato", optionId: "basico" }],
+			}),
+		});
+		expect(invalid.status).toBe(400);
+
+		const createdRes = await app.request("/api/admin/resources", {
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({
+				...validResource,
+				title: "Recurso con categorización",
+				educationalAreas: [
+					{ categoryId: "educacion-primaria", optionId: "primer-ciclo" },
+					{ categoryId: "educacion-primaria", optionId: "segundo-ciclo" },
+					{ categoryId: "bachillerato", optionId: null },
+				],
+			}),
+		});
+		expect(createdRes.status).toBe(201);
+		const created = await createdRes.json();
+		const got = await app.request(`/api/admin/resources/${created.id}`);
+		const body = await got.json();
+		expect(body.educationalAreas).toEqual([
+			{ categoryId: "educacion-primaria", optionId: "primer-ciclo" },
+			{ categoryId: "educacion-primaria", optionId: "segundo-ciclo" },
+			{ categoryId: "bachillerato", optionId: null },
+		]);
+
+		const updated = await app.request(`/api/admin/resources/${created.id}`, {
+			method: "PATCH",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({
+				educationalAreas: [{ categoryId: "bachillerato", optionId: null }],
+			}),
+		});
+		expect(updated.status).toBe(200);
+		const after = await (
+			await app.request(`/api/admin/resources/${created.id}`)
+		).json();
+		expect(after.educationalAreas).toEqual([
+			{ categoryId: "bachillerato", optionId: null },
+		]);
+	});
+
 	test("POST /api/admin/resources → 400 sin campos obligatorios", async () => {
 		const res = await app.request("/api/admin/resources", {
 			method: "POST",

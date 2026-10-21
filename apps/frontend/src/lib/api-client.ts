@@ -23,6 +23,7 @@ export interface Resource {
 	deletedAt: unknown;
 	subjects?: string[];
 	levels?: string[];
+	educationalAreas?: { categoryId: string; optionId: string | null }[];
 	mediaItems?: MediaItemRecord[];
 	elpxPreview?: { hash: string; previewUrl: string } | null;
 	elpxFileUrl?: string | null;
@@ -291,6 +292,7 @@ export interface CreateResourceInput {
 	publisher?: string;
 	subjects?: string[];
 	levels?: string[];
+	educationalAreas?: { categoryId: string; optionId: string | null }[];
 }
 
 export type UpdateResourceInput = Partial<CreateResourceInput>;
@@ -305,6 +307,8 @@ export interface ApiClient {
 		language?: string;
 		license?: string;
 		tag?: string;
+		educationalCategory?: string;
+		educationalOption?: string;
 	}): Promise<ResourceListResult>;
 	getResourceBySlug(slug: string): Promise<Resource | null>;
 	getRelatedResources(
