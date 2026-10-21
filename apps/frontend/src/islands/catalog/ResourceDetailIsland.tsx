@@ -42,6 +42,7 @@ function toResourceSummary(item: RelatedResource): ResourceSummary {
 		license: item.license,
 		author: item.author,
 		editorialStatus: item.editorialStatus ?? "published",
+		elpxPreview: item.elpxPreview ?? null,
 		// Related payload does not include timestamps; cards only need identity fields.
 		createdAt: "",
 	};

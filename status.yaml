@@ -66,6 +66,19 @@ blocking_adrs:
 
 tasks:
 
+  T-2026-10-21-07530473:
+    date: 2026-10-21
+    agent: "backend-api-servicios + frontend-ux-accesibilidad + qa-validacion"
+    task: "Previsualización en las tarjetas de «También te puede interesar» (#426)"
+    status: Done
+    related: ["#426", ADR-0036]
+    notes: >
+      GET /api/v1/resources/:slug/related no devolvía elpxPreview y toResourceSummary tampoco lo
+      pasaba a ResourceCard, así que las recomendaciones y «Del mismo autor» salían con el icono
+      genérico. getRelatedResourcesById añade elpxPreview con buildElpxMap/buildElpxPreview, como el
+      listado público, y la ficha lo pasa a la tarjeta.
+      Validación: lint, check-types, test:unit, test:integration y test:ui en verde.
+
   T-2026-10-14-12351075:
     date: 2026-10-14
     agent: "devops-sre + qa-validacion"

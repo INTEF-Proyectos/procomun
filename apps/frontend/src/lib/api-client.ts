@@ -51,6 +51,7 @@ export interface RelatedResource {
 	author: string | null;
 	editorialStatus?: string;
 	score: number;
+	elpxPreview?: { hash: string; previewUrl: string } | null;
 	signals?: {
 		sharedSubjects: number;
 		sharedLevels: number;

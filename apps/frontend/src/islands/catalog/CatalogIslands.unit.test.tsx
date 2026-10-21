@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { renderToStaticMarkup } from "react-dom/server";
-import type { Resource } from "../../lib/api-client.ts";
+import type { RelatedResourcesResult, Resource } from "../../lib/api-client.ts";
 import { url } from "../../lib/paths.ts";
 import { CatalogIsland } from "./CatalogIsland.tsx";
 import { CatalogSearchIsland } from "./CatalogSearchIsland.tsx";
@@ -10,7 +10,11 @@ import {
 	updateStatsAfterDownload,
 } from "./ResourceDetailIsland.tsx";
 
-function renderDetail(resource: Partial<Resource>, role: string): string {
+function renderDetail(
+	resource: Partial<Resource>,
+	role: string,
+	related: RelatedResourcesResult | null = null,
+): string {
 	return renderToStaticMarkup(
 		<ResourceDetailContent
 			resource={{
@@ -37,7 +41,7 @@ function renderDetail(resource: Partial<Resource>, role: string): string {
 			}}
 			stats={null}
 			isFavorited={false}
-			related={null}
+			related={related}
 		/>,
 	);
 }
@@ -66,6 +70,28 @@ describe("Catalog islands", () => {
 		expect(html).toContain("Cargando recursos...");
 		expect(html).toContain("Limpiar filtros");
 		expect(html).toContain("chevron_right");
+	});
+
+	test("las tarjetas de recomendados muestran la previsualización del recurso (#426)", () => {
+		const card = {
+			id: "rel-1",
+			slug: "relacionado",
+			title: "Relacionado",
+			description: "",
+			resourceType: "proyecto",
+			language: "es",
+			license: "cc-by",
+			author: null,
+			score: 1,
+			elpxPreview: { hash: "abc", previewUrl: "/api/v1/elpx/abc/" },
+		};
+		const html = renderDetail({}, "reader", {
+			data: [card],
+			sameAuthor: [],
+			limit: 6,
+		});
+
+		expect(html).toContain('src="/api/v1/elpx/abc/"');
 	});
 
 	test("ResourceDetailIsland renderiza el estado de carga inicial", () => {
