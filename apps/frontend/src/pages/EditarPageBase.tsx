@@ -7,12 +7,12 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { EducationalClassificationEditor } from "../islands/resources/EducationalClassificationFields.tsx";
 import { getResourceTypeOptions } from "../islands/resources/resource-form-options.ts";
 import type { Resource } from "../lib/api-client.ts";
-import { CONTENT_IFRAME_SANDBOX } from "../lib/embed-sandbox.ts";
 import {
 	assignmentsToSelections,
 	type EducationalSelection,
 	selectionsToAssignments,
 } from "../lib/educational-classification.ts";
+import { CONTENT_IFRAME_SANDBOX } from "../lib/embed-sandbox.ts";
 import { getApiClient } from "../lib/get-api-client.ts";
 import { url } from "../lib/paths.ts";
 import { ResourceVersionPanel } from "./ResourceVersionPanel.tsx";
