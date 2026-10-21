@@ -56,7 +56,7 @@ describe("GET /api/v1/exelearning-editor/index.html", () => {
 		expect(res.headers.get("content-type")).toContain("text/html");
 		expect(res.headers.get("cache-control")).toBe("no-cache");
 		expect(res.headers.get("content-security-policy")).toContain(
-			"object-src 'none'",
+			"object-src blob:",
 		);
 	});
 

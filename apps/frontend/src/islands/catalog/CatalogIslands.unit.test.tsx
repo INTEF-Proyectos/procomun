@@ -37,6 +37,7 @@ function renderDetail(resource: Partial<Resource>, role: string): string {
 			}}
 			stats={null}
 			isFavorited={false}
+			related={null}
 		/>,
 	);
 }
