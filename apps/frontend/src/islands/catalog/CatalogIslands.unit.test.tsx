@@ -139,6 +139,25 @@ describe("Catalog islands", () => {
 
 	// #399: «Editar» solo si la API lo permite (canManageResource); antes cualquier
 	// curator lo veía y el editor respondía «Recurso no encontrado» por el 403.
+	test("la ficha muestra la imagen de la licencia Creative Commons (#404)", () => {
+		const html = renderDetail({ license: "cc-by-sa" }, "reader");
+
+		expect(html).toContain("licenses/cc-by-sa.png");
+		expect(html).toContain("https://creativecommons.org/licenses/by-sa/4.0/");
+		expect(html).toContain('rel="license noopener noreferrer"');
+		expect(html).toContain(
+			"Licencia Creative Commons Reconocimiento-CompartirIgual 4.0",
+		);
+		expect(html).not.toContain(">copyright<");
+	});
+
+	test("una licencia sin imagen oficial sigue viéndose como texto (#404)", () => {
+		const html = renderDetail({ license: "mit-custom" }, "reader");
+
+		expect(html).toContain("mit-custom");
+		expect(html).not.toContain("licenses/");
+	});
+
 	test("ResourceDetailIsland muestra Editar al curator solo si puede gestionarlo", () => {
 		const editHref = `href="${url("editar?id=res-1")}"`;
 		expect(renderDetail({}, "curator")).not.toContain("Editar recurso");

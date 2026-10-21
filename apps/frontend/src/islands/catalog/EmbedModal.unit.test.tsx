@@ -26,7 +26,8 @@ describe("EmbedModal", () => {
 		expect(html).toContain(
 			'allow="autoplay; encrypted-media; fullscreen; picture-in-picture"',
 		);
-		expect(html).toContain("Vídeo");
+		// Cualquier embed https cross-origin, no solo vídeo: Padlet, Canva… (#378).
+		expect(html).toContain("Contenido externo");
 	});
 
 	test("renderiza un visor de PDF sin sandbox y sin referrer", () => {
