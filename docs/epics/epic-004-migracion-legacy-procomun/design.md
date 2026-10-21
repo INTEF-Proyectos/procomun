@@ -195,3 +195,10 @@ Reimportar omite los recursos existentes (`skipped_existing`), así que lo impor
 - Escribe `informe_relleno-categorias-<runId>.json` (o `informe_relleno-categorias-dryrun-<runId>.json`) con `totals.processed` y el mismo bloque `categorizacionEducativa`. Los recursos que solo tienen categorías sin regla, o ninguna, siguen sin clasificar y vuelven a aparecer en cada pasada.
 
 Pendiente de decisión en #383: la correspondencia de los niveles A/B/C a ELE en recursos que no son de español.
+
+## Actualización — Primaria por ciclos y ELE solo en español (2026-10-21)
+
+Cierra lo pendiente de la sección anterior con lo que decidió Producto en #380, #383 y #394:
+
+- Los cursos de Primaria van a los tres ciclos del catálogo (ADR-0043, adenda 2026-10-21): 1.º y 2.º al primer ciclo, 3.º y 4.º al segundo, y 5.º y 6.º al tercero.
+- «Nivel básico (A)», «Nivel intermedio (B)» y «Nivel avanzado ( C )» solo se asignan a ELE si el idioma del recurso es `es`. En otro idioma no se asignan y el recurso cuenta como pendiente de revisión. El informe lo lista en `categorizacionEducativa.eleEnOtroIdioma` (y en el log como `ele_otro_idioma`). El relleno aplica la misma regla con el idioma guardado.

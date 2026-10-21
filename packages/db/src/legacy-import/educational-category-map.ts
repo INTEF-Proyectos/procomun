@@ -30,32 +30,32 @@ export const LEGACY_EDUCATIONAL_CATEGORY_RULES: readonly LegacyEducationalCatego
 		{
 			source: "6 -7 años / Primer curso",
 			categoryId: "educacion-primaria",
-			optionId: "primer-tramo",
+			optionId: "primer-ciclo",
 		},
 		{
 			source: "7 - 8 años / Segundo curso",
 			categoryId: "educacion-primaria",
-			optionId: "primer-tramo",
+			optionId: "primer-ciclo",
 		},
 		{
 			source: "8 - 9 años / Tercer curso",
 			categoryId: "educacion-primaria",
-			optionId: "primer-tramo",
+			optionId: "segundo-ciclo",
 		},
 		{
 			source: "9 - 10 años / Cuarto curso",
 			categoryId: "educacion-primaria",
-			optionId: "segundo-tramo",
+			optionId: "segundo-ciclo",
 		},
 		{
 			source: "10 - 11 años / Quinto curso",
 			categoryId: "educacion-primaria",
-			optionId: "segundo-tramo",
+			optionId: "tercer-ciclo",
 		},
 		{
 			source: "11 - 12 / Sexto curso",
 			categoryId: "educacion-primaria",
-			optionId: "segundo-tramo",
+			optionId: "tercer-ciclo",
 		},
 		{
 			source: "Educación Secundaria Obligatoria",
@@ -177,12 +177,15 @@ export const LEGACY_EDUCATIONAL_CATEGORY_RULES: readonly LegacyEducationalCatego
 export interface LegacyEducationalCategoryMapping {
 	assignments: EducationalAssignment[];
 	unrecognized: string[];
+	/** Niveles A/B/C de un recurso que no está en español: quedan para revisión. */
+	eleOutsideSpanish: string[];
 	empty: boolean;
 }
 
 export interface EducationalImportResourceNote {
 	externalId: string;
 	sourceCategories: readonly string[];
+	language?: string | null;
 }
 
 export interface CategorizacionEducativaInforme {
@@ -190,6 +193,7 @@ export interface CategorizacionEducativaInforme {
 	recursosPendientesDeRevision: number;
 	recursosSinCategorizacionDeOrigen: number;
 	categoriasNoReconocidas: Array<{ categoria: string; recursos: string[] }>;
+	eleEnOtroIdioma: string[];
 }
 
 const DASHES = /[\u2010\u2011\u2012\u2013\u2014\u2212]/g;
@@ -235,17 +239,28 @@ export function assertLegacyCategoryDestinations(
 	}
 }
 
+// A, B y C son niveles del MCER, no exclusivos del español: solo son ELE
+// cuando el recurso está en español (decisión de Producto en #383).
+const ELE_CATEGORY_ID = "ele";
+
 export function mapLegacyEducationalCategories(
 	rawCategories: readonly string[] | null | undefined,
+	language?: string | null,
 ): LegacyEducationalCategoryMapping {
 	const sources = (rawCategories ?? [])
 		.map((value) => value.trim())
 		.filter((value) => value.length > 0);
 	if (sources.length === 0) {
-		return { assignments: [], unrecognized: [], empty: true };
+		return {
+			assignments: [],
+			unrecognized: [],
+			eleOutsideSpanish: [],
+			empty: true,
+		};
 	}
 
 	const unrecognized: string[] = [];
+	const eleOutsideSpanish: string[] = [];
 	const seenUnknown = new Set<string>();
 	const byCategory = new Map<string, Set<string | null>>();
 
@@ -257,6 +272,10 @@ export function mapLegacyEducationalCategories(
 				seenUnknown.add(key);
 				unrecognized.push(source);
 			}
+			continue;
+		}
+		if (rule.categoryId === ELE_CATEGORY_ID && language !== "es") {
+			if (!eleOutsideSpanish.includes(source)) eleOutsideSpanish.push(source);
 			continue;
 		}
 		const options = byCategory.get(rule.categoryId) ?? new Set();
@@ -278,7 +297,7 @@ export function mapLegacyEducationalCategories(
 		return (a.optionId ?? "").localeCompare(b.optionId ?? "");
 	});
 
-	return { assignments, unrecognized, empty: false };
+	return { assignments, unrecognized, eleOutsideSpanish, empty: false };
 }
 
 export function summarizeLegacyEducationalImport(
@@ -288,17 +307,28 @@ export function summarizeLegacyEducationalImport(
 	let recursosPendientesDeRevision = 0;
 	let recursosSinCategorizacionDeOrigen = 0;
 	const unrecognized = new Map<string, string[]>();
-	const byResource = new Map<string, string[]>();
+	const eleEnOtroIdioma: string[] = [];
+	const byResource = new Map<
+		string,
+		{ categories: string[]; language: string | null | undefined }
+	>();
 	for (const note of notes) {
-		const categories = byResource.get(note.externalId) ?? [];
-		byResource.set(note.externalId, [...categories, ...note.sourceCategories]);
+		const previous = byResource.get(note.externalId);
+		byResource.set(note.externalId, {
+			categories: [...(previous?.categories ?? []), ...note.sourceCategories],
+			language: note.language ?? previous?.language,
+		});
 	}
 
-	for (const [externalId, sourceCategories] of byResource) {
-		const mapped = mapLegacyEducationalCategories(sourceCategories);
+	for (const [externalId, { categories, language }] of byResource) {
+		const mapped = mapLegacyEducationalCategories(categories, language);
+		if (mapped.eleOutsideSpanish.length > 0) eleEnOtroIdioma.push(externalId);
 		if (mapped.empty) {
 			recursosSinCategorizacionDeOrigen++;
-		} else if (mapped.unrecognized.length > 0) {
+		} else if (
+			mapped.unrecognized.length > 0 ||
+			mapped.eleOutsideSpanish.length > 0
+		) {
 			recursosPendientesDeRevision++;
 		} else {
 			recursosConTodasTransformadas++;
@@ -317,5 +347,6 @@ export function summarizeLegacyEducationalImport(
 		categoriasNoReconocidas: [...unrecognized.entries()].map(
 			([categoria, recursos]) => ({ categoria, recursos }),
 		),
+		eleEnOtroIdioma,
 	};
 }

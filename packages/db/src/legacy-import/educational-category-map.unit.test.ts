@@ -10,12 +10,12 @@ import {
 const EXPECTED: Array<[string, string, string | null]> = [
 	["Educación Infantil", "educacion-infantil", null],
 	["Educación Primaria", "educacion-primaria", null],
-	["6 -7 años / Primer curso", "educacion-primaria", "primer-tramo"],
-	["7 - 8 años / Segundo curso", "educacion-primaria", "primer-tramo"],
-	["8 - 9 años / Tercer curso", "educacion-primaria", "primer-tramo"],
-	["9 - 10 años / Cuarto curso", "educacion-primaria", "segundo-tramo"],
-	["10 - 11 años / Quinto curso", "educacion-primaria", "segundo-tramo"],
-	["11 - 12 / Sexto curso", "educacion-primaria", "segundo-tramo"],
+	["6 -7 años / Primer curso", "educacion-primaria", "primer-ciclo"],
+	["7 - 8 años / Segundo curso", "educacion-primaria", "primer-ciclo"],
+	["8 - 9 años / Tercer curso", "educacion-primaria", "segundo-ciclo"],
+	["9 - 10 años / Cuarto curso", "educacion-primaria", "segundo-ciclo"],
+	["10 - 11 años / Quinto curso", "educacion-primaria", "tercer-ciclo"],
+	["11 - 12 / Sexto curso", "educacion-primaria", "tercer-ciclo"],
 	[
 		"Educación Secundaria Obligatoria",
 		"educacion-secundaria-obligatoria",
@@ -88,7 +88,7 @@ describe("correspondencia de categorías antiguas", () => {
 		assertLegacyCategoryDestinations();
 
 		for (const [source, categoryId, optionId] of EXPECTED) {
-			const mapped = mapLegacyEducationalCategories([source]);
+			const mapped = mapLegacyEducationalCategories([source], "es");
 			expect(mapped.unrecognized).toEqual([]);
 			expect(mapped.assignments).toEqual([{ categoryId, optionId }]);
 			const category = getEducationalCategory(categoryId);
@@ -138,14 +138,14 @@ describe("correspondencia de categorías antiguas", () => {
 			mapLegacyEducationalCategories([variants[4] ?? ""]).assignments,
 		).toEqual([{ categoryId: "educacion-especial", optionId: null }]);
 		expect(
-			mapLegacyEducationalCategories([variants[5] ?? ""]).assignments,
+			mapLegacyEducationalCategories([variants[5] ?? ""], "es").assignments,
 		).toEqual([{ categoryId: "ele", optionId: "avanzado" }]);
 		expect(
-			mapLegacyEducationalCategories([variants[6] ?? ""]).assignments,
+			mapLegacyEducationalCategories([variants[6] ?? ""], "es").assignments,
 		).toEqual([{ categoryId: "ele", optionId: "avanzado" }]);
 		expect(
 			mapLegacyEducationalCategories([variants[7] ?? ""]).assignments,
-		).toEqual([{ categoryId: "educacion-primaria", optionId: "primer-tramo" }]);
+		).toEqual([{ categoryId: "educacion-primaria", optionId: "primer-ciclo" }]);
 	});
 
 	test("no usa coincidencias parciales ni asigna PDC", () => {
@@ -166,39 +166,58 @@ describe("correspondencia de categorías antiguas", () => {
 		]);
 	});
 
-	test("colapsa la categoría general si hay un tramo y conserva tramos distintos", () => {
+	test("colapsa la categoría general si hay un ciclo y conserva ciclos distintos", () => {
 		expect(
 			mapLegacyEducationalCategories([
 				"Educación Primaria",
 				"10 - 11 años / Quinto curso",
 				"Educación Primaria",
 			]).assignments,
-		).toEqual([
-			{ categoryId: "educacion-primaria", optionId: "segundo-tramo" },
-		]);
+		).toEqual([{ categoryId: "educacion-primaria", optionId: "tercer-ciclo" }]);
 		expect(
 			mapLegacyEducationalCategories([
 				"8 - 9 años / Tercer curso",
 				"9 - 10 años / Cuarto curso",
 			]).assignments,
 		).toEqual([
-			{ categoryId: "educacion-primaria", optionId: "primer-tramo" },
-			{ categoryId: "educacion-primaria", optionId: "segundo-tramo" },
+			{ categoryId: "educacion-primaria", optionId: "segundo-ciclo" },
 		]);
 	});
 
 	test("conserva idiomas y ELE a la vez y no inventa clasificación si no hay categorías", () => {
 		expect(
-			mapLegacyEducationalCategories([
-				"Enseñanza oficial de idiomas",
-				"Nivel básico (A)",
-			]).assignments,
+			mapLegacyEducationalCategories(
+				["Enseñanza oficial de idiomas", "Nivel básico (A)"],
+				"es",
+			).assignments,
 		).toEqual([
 			{ categoryId: "ele", optionId: "basico" },
 			{ categoryId: "ensenanzas-regimen-especial", optionId: "idiomas" },
 		]);
 		expect(mapLegacyEducationalCategories([]).empty).toBe(true);
 		expect(mapLegacyEducationalCategories(["  "]).assignments).toEqual([]);
+	});
+
+	test("ELE solo se asigna a recursos en español; el resto queda para revisión (#383)", () => {
+		// A, B y C son niveles del MCER: en un recurso de inglés no son ELE.
+		const english = mapLegacyEducationalCategories(
+			["Educación Secundaria Obligatoria", "Nivel intermedio (B)"],
+			"en",
+		);
+		expect(english.assignments).toEqual([
+			{ categoryId: "educacion-secundaria-obligatoria", optionId: null },
+		]);
+		expect(english.unrecognized).toEqual([]);
+		expect(english.eleOutsideSpanish).toEqual(["Nivel intermedio (B)"]);
+
+		const spanish = mapLegacyEducationalCategories(
+			["Nivel intermedio (B)"],
+			"es",
+		);
+		expect(spanish.assignments).toEqual([
+			{ categoryId: "ele", optionId: "medio" },
+		]);
+		expect(spanish.eleOutsideSpanish).toEqual([]);
 	});
 
 	test("una categoría no reconocida no descarta las que sí tienen regla", () => {
@@ -222,18 +241,26 @@ describe("correspondencia de categorías antiguas", () => {
 			{
 				externalId: "r2",
 				sourceCategories: ["Nivel intermedio (B)", "Categoría inventada"],
+				language: "es",
 			},
 			{ externalId: "r3", sourceCategories: [] },
 			{
 				externalId: "r2",
 				sourceCategories: ["Nivel intermedio (B)", "Categoría inventada"],
+				language: "es",
+			},
+			{
+				externalId: "r4",
+				sourceCategories: ["Nivel básico (A)"],
+				language: "en",
 			},
 		]);
 		expect(informe.recursosConTodasTransformadas).toBe(1);
-		expect(informe.recursosPendientesDeRevision).toBe(1);
+		expect(informe.recursosPendientesDeRevision).toBe(2);
 		expect(informe.recursosSinCategorizacionDeOrigen).toBe(1);
 		expect(informe.categoriasNoReconocidas).toEqual([
 			{ categoria: "Categoría inventada", recursos: ["r2"] },
 		]);
+		expect(informe.eleEnOtroIdioma).toEqual(["r4"]);
 	});
 });

@@ -148,6 +148,7 @@ export async function importLegacyResourceWithElpx(
 		// nueva sale de esas mismas cadenas; lo no reconocido no se asigna.
 		const educationalAreas = mapLegacyEducationalCategories(
 			input.resource.levels,
+			input.resource.language,
 		).assignments;
 		if (educationalAreas.length > 0) {
 			await tx.insert(resourceEducationalAreas).values(
@@ -223,6 +224,7 @@ export async function backfillLegacyEducationalAreas(
 		.select({
 			id: resources.id,
 			externalId: resources.externalId,
+			language: resources.language,
 			level: resourceLevels.level,
 		})
 		.from(resources)
@@ -244,6 +246,7 @@ export async function backfillLegacyEducationalAreas(
 		const note = byResource.get(row.id) ?? {
 			externalId: row.externalId ?? row.id,
 			sourceCategories: [],
+			language: row.language,
 		};
 		if (row.level)
 			note.sourceCategories = [...note.sourceCategories, row.level];
@@ -253,6 +256,7 @@ export async function backfillLegacyEducationalAreas(
 	for (const [resourceId, note] of byResource) {
 		const { assignments } = mapLegacyEducationalCategories(
 			note.sourceCategories,
+			note.language,
 		);
 		if (options.dryRun || assignments.length === 0) continue;
 		await db

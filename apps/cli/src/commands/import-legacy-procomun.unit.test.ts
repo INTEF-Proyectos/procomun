@@ -396,6 +396,7 @@ describe("runImportLegacyProcomun (deps mockeadas)", () => {
 			recursosPendientesDeRevision: 0,
 			recursosSinCategorizacionDeOrigen: 1,
 			categoriasNoReconocidas: [],
+			eleEnOtroIdioma: [],
 		});
 	});
 
@@ -442,6 +443,7 @@ describe("runImportLegacyProcomun (deps mockeadas)", () => {
 			categoriasNoReconocidas: [
 				{ categoria: "Categoría sin regla", recursos: ["es_mock"] },
 			],
+			eleEnOtroIdioma: [],
 		});
 	});
 
@@ -750,6 +752,7 @@ describe("runBackfillLegacyEducationalAreas (deps mockeadas)", () => {
 			categoriasNoReconocidas: [
 				{ categoria: "Categoría sin regla", recursos: ["es_2"] },
 			],
+			eleEnOtroIdioma: [],
 		});
 	});
 });

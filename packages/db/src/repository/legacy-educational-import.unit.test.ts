@@ -15,7 +15,11 @@ import * as schema from "../schema/index.ts";
 import { createTables } from "../setup.ts";
 import type { DrizzleDB } from "./shared.ts";
 
-function legacyInput(levels: string[], externalId = "es_cat_1") {
+function legacyInput(
+	levels: string[],
+	externalId = "es_cat_1",
+	language = "es",
+) {
 	return {
 		resource: {
 			externalId,
@@ -23,7 +27,7 @@ function legacyInput(levels: string[], externalId = "es_cat_1") {
 			sourceUri: null,
 			title: "Recurso legacy",
 			description: "Descripción",
-			language: "es",
+			language,
 			license: "cc-by",
 			resourceType: "proyecto",
 			subjects: ["Matemáticas"],
@@ -82,7 +86,7 @@ describe("importación legacy de categorización educativa", () => {
 		const created = await importLegacyResourceWithElpx(db, input);
 		const stored = await getResourceById(db, created.resourceId);
 		expect(stored?.educationalAreas).toEqual([
-			{ categoryId: "educacion-primaria", optionId: "segundo-tramo" },
+			{ categoryId: "educacion-primaria", optionId: "tercer-ciclo" },
 			{ categoryId: "ele", optionId: "basico" },
 			{ categoryId: "ensenanzas-regimen-especial", optionId: "idiomas" },
 		]);
@@ -92,16 +96,16 @@ describe("importación legacy de categorización educativa", () => {
 			.where(eq(schema.resourceLevels.resourceId, created.resourceId));
 		expect(levels.map((row) => row.level)).toEqual(input.resource.levels);
 
-		const byTramo = await listResources(db, {
+		const byCiclo = await listResources(db, {
 			status: "published",
 			educationalCategory: "educacion-primaria",
-			educationalOption: "segundo-tramo",
+			educationalOption: "tercer-ciclo",
 		});
-		expect(byTramo.data.map((row) => row.id)).toEqual([created.resourceId]);
+		expect(byCiclo.data.map((row) => row.id)).toEqual([created.resourceId]);
 		const byOther = await listResources(db, {
 			status: "published",
 			educationalCategory: "educacion-primaria",
-			educationalOption: "primer-tramo",
+			educationalOption: "primer-ciclo",
 		});
 		expect(byOther.data).toHaveLength(0);
 		const pdc = await listResources(db, {
@@ -109,6 +113,22 @@ describe("importación legacy de categorización educativa", () => {
 			educationalCategory: "pdc",
 		});
 		expect(pdc.total).toBe(0);
+	});
+
+	test("A/B/C solo son ELE en un recurso en español, también en el relleno (#383)", async () => {
+		const english = await importLegacyResourceWithElpx(
+			db,
+			legacyInput(["Bachillerato", "Nivel intermedio (B)"], "en_b", "en"),
+		);
+		expect(
+			(await getResourceById(db, english.resourceId))?.educationalAreas,
+		).toEqual([{ categoryId: "bachillerato", optionId: null }]);
+
+		await db.delete(schema.resourceEducationalAreas);
+		await backfillLegacyEducationalAreas(db, { dryRun: false });
+		expect(
+			(await getResourceById(db, english.resourceId))?.educationalAreas,
+		).toEqual([{ categoryId: "bachillerato", optionId: null }]);
 	});
 
 	test("sin categorías de origen no inventa una clasificación", async () => {
@@ -159,8 +179,9 @@ describe("importación legacy de categorización educativa", () => {
 			{
 				externalId: "es_a",
 				sourceCategories: ["6 -7 años / Primer curso", "Taller inventado"],
+				language: "es",
 			},
-			{ externalId: "es_c", sourceCategories: [] },
+			{ externalId: "es_c", sourceCategories: [], language: "es" },
 		];
 		expect(await backfillLegacyEducationalAreas(db, { dryRun: true })).toEqual(
 			expectedNotes,
@@ -174,14 +195,14 @@ describe("importación legacy de categorización educativa", () => {
 		);
 		expect(
 			(await getResourceById(db, primaria.resourceId))?.educationalAreas,
-		).toEqual([{ categoryId: "educacion-primaria", optionId: "primer-tramo" }]);
+		).toEqual([{ categoryId: "educacion-primaria", optionId: "primer-ciclo" }]);
 		expect(
 			(await getResourceById(db, fp.resourceId))?.educationalAreas,
 		).toEqual([{ categoryId: "bachillerato", optionId: null }]);
 
 		const before = await db.select().from(schema.resourceEducationalAreas);
 		expect(await backfillLegacyEducationalAreas(db, { dryRun: false })).toEqual(
-			[{ externalId: "es_c", sourceCategories: [] }],
+			[{ externalId: "es_c", sourceCategories: [], language: "es" }],
 		);
 		expect(await db.select().from(schema.resourceEducationalAreas)).toEqual(
 			before,

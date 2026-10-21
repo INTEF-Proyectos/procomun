@@ -66,6 +66,19 @@ blocking_adrs:
 
 tasks:
 
+  T-2026-10-21-07480192:
+    date: 2026-10-21
+    agent: "ingestas-y-migraciones + metadatos-y-curacion + qa-validacion"
+    task: "Correspondencia al importar: Primaria por ciclos y ELE solo en español (#383)"
+    status: Done
+    related: ["#383", "#396", "#394", ADR-0043]
+    notes: >
+      Los cursos de Primaria se asignan a los tres ciclos (1-2, 3-4, 5-6). Los niveles A/B/C solo
+      son ELE si el recurso está en español; en otro idioma no se asignan, el recurso queda pendiente
+      de revisión y el informe lo lista en eleEnOtroIdioma. Alta, relleno (--backfill-categories) e
+      informe del CLI reciben el idioma. Actualización fechada en el design.md de la épica 004.
+      Validación: lint, check-types, test:unit, test:integration y test:ui en verde.
+
   T-2026-10-14-11131328:
     date: 2026-10-14
     agent: "ingestas-y-migraciones + metadatos-y-curacion + qa-validacion + documentacion-y-roadmap"

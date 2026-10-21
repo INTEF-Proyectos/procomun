@@ -248,7 +248,8 @@ export async function importLegacyProcomun(args: string[]) {
 				: `sin_clasificar_revisados=${report.totals.processed} `) +
 			`categorias_ok=${report.categorizacionEducativa.recursosConTodasTransformadas} ` +
 			`categorias_revision=${report.categorizacionEducativa.recursosPendientesDeRevision} ` +
-			`sin_categoria=${report.categorizacionEducativa.recursosSinCategorizacionDeOrigen}`,
+			`sin_categoria=${report.categorizacionEducativa.recursosSinCategorizacionDeOrigen} ` +
+			`ele_otro_idioma=${report.categorizacionEducativa.eleEnOtroIdioma.length}`,
 	);
 
 	// Calculado ANTES de cerrar la conexión: el runtime WASM de PGlite puede
@@ -444,6 +445,7 @@ export async function runImportLegacyProcomun(
 					educationalNotes.push({
 						externalId: mapping.externalId,
 						sourceCategories: mapping.resource.levels,
+						language: mapping.resource.language,
 					});
 					records.push({
 						outcome: "would_import",
@@ -466,6 +468,7 @@ export async function runImportLegacyProcomun(
 							educationalNotes.push({
 								externalId: mapping.externalId,
 								sourceCategories: mapping.resource.levels,
+								language: mapping.resource.language,
 							});
 						},
 						onErrored: () => errored++,
