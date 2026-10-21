@@ -128,7 +128,7 @@ function rewriteRelativeUrls(
 	const dir = currentDir === "." ? "" : currentDir;
 
 	const attrPattern =
-		/(<[^>]+\s)(src|href|poster)(\s*=\s*["'])(?!https?:\/\/|data:|\/\/|#|javascript:)([^"']+)(["'])/gi;
+		/(<[^>]+\s)(src|href|poster|background)(\s*=\s*["'])(?!https?:\/\/|data:|\/\/|#|javascript:)([^"']+)(["'])/gi;
 	html = html.replace(attrPattern, (match, prefix, attr, eq, url, quote) => {
 		if (!url || url.startsWith("/")) return match;
 		const resolved = resolveRelativePath(dir, url);
@@ -144,7 +144,17 @@ function rewriteRelativeUrls(
 		},
 	);
 
-	return html;
+	return decodeDoubleEscapedEntities(html);
+}
+
+// eXe vuelve a escapar un título que ya venía escapado (`&amp;Iacute;` se ve
+// como el texto `&Iacute;`). Se quita un solo `amp;` y solo cuando abre una
+// entidad completa. Un `&amp;` suelto se queda, y `&amp;lt;` pasa a `&lt;`,
+// que el navegador pinta como texto y no como una etiqueta.
+const DOUBLE_ESCAPED_ENTITY = /&amp;(#\d+|#x[0-9a-fA-F]+|[a-zA-Z]+);/g;
+
+export function decodeDoubleEscapedEntities(html: string): string {
+	return html.replace(DOUBLE_ESCAPED_ENTITY, "&$1;");
 }
 
 function rewriteCssUrls(
@@ -186,8 +196,13 @@ function authorAssetHeaders(contentType: string): Record<string, string> {
 	};
 }
 
+// Sin `frame-ancestors` a propósito (ADR-0026, adenda 2026-10-14). Este HTML
+// es origen opaco y un iframe hijo del propio paquete (el reproductor de audio
+// de eXeLearning, una diapositiva…) tiene ese origen como ancestro. Chromium y
+// WebKit no lo casan con ninguna fuente, ni con `'self'` ni con `*`, y
+// bloquean el hijo. Sin la directiva carga, y «Ponlo en tu web» también.
 export const ELPX_HTML_CSP =
-	"default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; media-src 'self' data: blob: https:; font-src 'self' data:; connect-src 'self'; frame-src 'self' https:; frame-ancestors 'self'; form-action 'self'; base-uri 'self'; sandbox allow-scripts allow-popups allow-forms allow-popups-to-escape-sandbox";
+	"default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; media-src 'self' data: blob: https:; font-src 'self' data:; connect-src 'self'; frame-src 'self' https:; form-action 'self'; base-uri 'self'; sandbox allow-scripts allow-popups allow-forms allow-popups-to-escape-sandbox";
 
 export const elpxContentRoutes = new Hono();
 
@@ -198,6 +213,16 @@ export function remainingPathAfter(pathname: string, segment: string): string {
 	return parts.slice(idx + 1).join("/") || "index.html";
 }
 
+function elpxJsonError(error: string, status: number): Response {
+	return Response.json(
+		{ error },
+		{
+			status,
+			headers: { "Access-Control-Allow-Origin": "*" },
+		},
+	);
+}
+
 export async function serveElpxExtractedContent(options: {
 	hash: string;
 	rawFile: string;
@@ -205,7 +230,7 @@ export async function serveElpxExtractedContent(options: {
 	corsLocalScripts?: boolean;
 }): Promise<Response> {
 	const file = sanitizePath(options.rawFile);
-	if (!file) return Response.json({ error: "Ruta no válida" }, { status: 404 });
+	if (!file) return elpxJsonError("Ruta no válida", 404);
 
 	const config = getUploadConfig();
 	const basePath = path.join(config.storageDir, "elpx", options.hash);
@@ -213,7 +238,7 @@ export async function serveElpxExtractedContent(options: {
 
 	const bunFile = Bun.file(fullPath);
 	if (!(await bunFile.exists())) {
-		return Response.json({ error: "Archivo no encontrado" }, { status: 404 });
+		return elpxJsonError("Archivo no encontrado", 404);
 	}
 
 	try {
@@ -222,7 +247,7 @@ export async function serveElpxExtractedContent(options: {
 		// Comparación con frontera de separador: evita que un prefijo común
 		// (…/elpx/ab vs …/elpx/abc) se confunda con contención real.
 		if (real !== realBase && !real.startsWith(realBase + path.sep)) {
-			return Response.json({ error: "Acceso denegado" }, { status: 403 });
+			return elpxJsonError("Acceso denegado", 403);
 		}
 	} catch {
 		// realpath may fail for edge cases; file existence already confirmed
