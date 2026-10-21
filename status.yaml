@@ -66,6 +66,19 @@ blocking_adrs:
 
 tasks:
 
+  T-2026-10-21-07301313:
+    date: 2026-10-21
+    agent: "frontend-ux-accesibilidad + qa-validacion"
+    task: "Actualizar #317 con main: recursos relacionados y test de CSP del editor"
+    status: Done
+    related: ["#317", "#325", "#430", ADR-0036]
+    notes: >
+      La reapertura había dejado la ficha sin «Recursos relacionados» (ADR-0036): se restaura igual que en main.
+      El test del editor seguía esperando object-src 'none'; #325 lo cambió a blob: para los PDF.
+      Del arreglo de #430 (fachada de Padlet/Canva/Genially y «Ver online») solo se trae la CSP sin frame-ancestors;
+      el resto vive en el shim que este PR sustituye por el artefacto vendorizado de eXe y debe resolverse aguas arriba.
+      Validación: lint, check-types, test:unit, test:integration y test:ui en verde.
+
   T-2026-10-14-12351075:
     date: 2026-10-14
     agent: "devops-sre + qa-validacion"
