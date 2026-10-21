@@ -78,6 +78,44 @@ tasks:
       que nombra el paquete. DELETE /api/admin/elpx/:resourceId reutiliza retireWorkingCopyProject
       y, si hay versión vigente, la retira de la publicación sin borrar la ficha ni el historial.
       Validación: bun run test 1069 pass / 0 fail, cobertura de líneas 91.14%.
+  T-2026-10-21-07404523:
+    date: 2026-10-21
+    agent: "metadatos-y-curacion + frontend-ux-accesibilidad + qa-validacion"
+    task: "Categorización educativa: Primaria por ciclos y ficha sin «Niveles educativos» (#380)"
+    status: Done
+    related: ["#380", "#394", ADR-0043]
+    notes: >
+      Decisión de Producto en #394: Primaria pasa de dos tramos a los tres ciclos LOMLOE
+      (primer-ciclo, segundo-ciclo, tercer-ciclo), sin migración porque el catálogo no está publicado.
+      La ficha deja de mostrar resource_levels, que queda como dato de origen; se retira detail_levels
+      de los mensajes. Denominaciones sin traducir por ahora. Adenda 2026-10-21 en ADR-0043.
+      Validación: lint, check-types, test:unit, test:integration y test:ui en verde.
+
+  T-2026-10-14-10544218:
+    date: 2026-10-14
+    agent: "metadatos-y-curacion + backend-api-servicios + frontend-ux-accesibilidad + qa-validacion + documentacion-y-roadmap"
+    task: "Revisión de la categorización educativa (#380, PR #394)"
+    status: Done
+    related: ["#380", "#394", "ADR-0043"]
+    notes: >
+      Test del journal de migraciones (when creciente, idx y prefijos únicos).
+      ADR-0043 sobre el catálogo en código. La clasificación entra en el snapshot
+      de versiones y se restaura. Formulario con un fieldset por categoría, estilos
+      y foco tras «Quitar». Accesos rápidos de la portada conectados al filtro.
+      Seed de demo con categorías. Limpieza del repositorio (transacción en la
+      edición, orden del catálogo, índice en el esquema). Pendiente de producto:
+      tramos de Primaria, ocultar «Niveles educativos» en la ficha y traducciones.
+
+  T-2026-10-14-07410518:
+    date: 2026-10-14
+    agent: "metadatos-y-curacion + backend-api-servicios + frontend-ux-accesibilidad + busqueda-y-descubrimiento + qa-validacion"
+    task: "Categorización educativa de dos niveles (#380)"
+    status: Done
+    related: ["#380"]
+    notes: >
+      Tabla resource_educational_areas y catálogo cerrado de 12 categorías.
+      Formulario, ficha y filtros del buscador comparten ids y etiquetas.
+      La correspondencia de categorías antiguas queda en #383.
 
   T-2026-10-14-12351075:
     date: 2026-10-14

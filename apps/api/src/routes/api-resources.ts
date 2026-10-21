@@ -67,6 +67,7 @@ apiResourceRoutes.post("/", async (c) => {
 		publisher: (data.publisher as string) ?? undefined,
 		subjects: (data.subjects as string[]) ?? undefined,
 		levels: (data.levels as string[]) ?? undefined,
+		educationalAreas: data.educationalAreas,
 		createdBy: user.id,
 		editorialStatus,
 	});
@@ -112,6 +113,7 @@ apiResourceRoutes.get("/:id", async (c) => {
 		author: resource.author,
 		publisher: resource.publisher,
 		editorialStatus: resource.editorialStatus,
+		educationalAreas: resource.educationalAreas,
 		createdAt: resource.createdAt,
 		updatedAt: resource.updatedAt,
 	});
@@ -153,23 +155,7 @@ apiResourceRoutes.put("/:id", async (c) => {
 	}
 
 	const data = body as Record<string, unknown>;
-	const updateData: Record<string, string> = {};
-	for (const field of [
-		"title",
-		"description",
-		"language",
-		"license",
-		"resourceType",
-		"keywords",
-		"author",
-		"publisher",
-	]) {
-		if (data[field] !== undefined) {
-			updateData[field] = data[field] as string;
-		}
-	}
-
-	await repo.updateResource(db, id, updateData);
+	await repo.updateResource(db, id, data);
 
 	await logActivity({
 		userId: user.id,
