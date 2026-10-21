@@ -56,6 +56,7 @@ async function createOwnedResource(
 			language: "es",
 			license: "cc-by",
 			resourceType: "documento",
+			author: "Autora de prueba",
 		}),
 	});
 	expect(res.status).toBe(201);

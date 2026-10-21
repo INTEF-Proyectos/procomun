@@ -53,15 +53,31 @@ export function resolveEmbedMessage(
 }
 
 /**
- * Crea el manejador de `message` (lógica pura, testeable sin DOM): resuelve el
- * mensaje y, si es un embed válido, lo entrega a `onEmbed`.
+ * Crea el manejador de `message` (lógica pura, testeable sin DOM): contesta al
+ * saludo del shim y, si el mensaje es un embed válido, lo entrega a `onEmbed`.
  */
 export function createEmbedMessageHandler(
 	getContext: () => ResolveEmbedContext,
 	onEmbed: (embed: EmbedClassification) => void,
 ): (event: MessageEvent) => void {
 	return (event: MessageEvent) => {
-		const resolved = resolveEmbedMessage(event, getContext());
+		const ctx = getContext();
+		const data = event.data as EmbedMessage | null;
+		// Con la respuesta, las fachadas del shim abren el modal en vez de una
+		// pestaña nueva. El iframe es origen opaco: solo vale "*".
+		if (
+			ctx.trustedSource &&
+			event.source === ctx.trustedSource &&
+			data?.source === "procomun-elpx-embed" &&
+			data.action === "hello"
+		) {
+			ctx.trustedSource.postMessage(
+				{ source: "procomun-elpx-relay", action: "ready" },
+				"*",
+			);
+			return;
+		}
+		const resolved = resolveEmbedMessage(event, ctx);
 		if (resolved) onEmbed(resolved);
 	};
 }

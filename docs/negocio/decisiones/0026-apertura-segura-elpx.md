@@ -57,3 +57,19 @@ Se adopta la **Opción 2** (defensa en profundidad A + B).
 * Punto de extensión de renderizado: la cabecera `Content-Security-Policy` en `apps/api/src/routes/elpx-content.ts`.
 * Validación (regla 14): tests en `apps/api/src/services/elpx-safe-extract.unit.test.ts` (zip slip, symlink, zip bomb por número/tamaño/ratio, contención y rollback) y aserción de la directiva `sandbox` en `elpx-processor.unit.test.ts`. Verificar con `bun test`.
 * Evolución futura: evaluar la Opción 3 (`fflate`) para eliminar el subproceso `unzip`.
+
+## Adenda 2026-10-14 — sin `frame-ancestors` ni `X-Frame-Options` en el HTML del paquete (#379, #381, #391)
+
+**Problema.** El HTML del `.elpx` se servía con `frame-ancestors 'self'`. Ese documento es origen opaco (sandbox sin `allow-same-origin`). Cuando el paquete anida otro HTML propio en un iframe (el reproductor `cargaSonidoHTML5.html` de eXeLearning en #379, la diapositiva de #391, el «cuadro gris» de #381), el ancestro del hijo es ese origen opaco. Chromium y WebKit no casan un ancestro opaco con ninguna fuente: bloquean el hijo con `'self'`, con el origen explícito y también con `*`. Solo Firefox acepta `*`. Lo mismo pasa con `X-Frame-Options: SAMEORIGIN`, que `nginx.conf` añadía a todo `/api/`. Comprobado en Chrome 155 con los paquetes reales de #379 y #391: el hijo solo carga si la respuesta no lleva `frame-ancestors` ni `X-Frame-Options`.
+
+**Decisión.** Se quita `frame-ancestors` de `ELPX_HTML_CSP` (`apps/api/src/routes/elpx-content.ts`) y `/api/v1/elpx/` tiene su propio `location` en `nginx.conf`, sin `X-Frame-Options`. El resto de rutas conserva sus cabeceras. El `sandbox` no cambia: sigue sin `allow-same-origin`. La previsualización de versiones históricas (`admin/versions.ts`) usa la misma CSP; en `nginx.conf` sigue bajo `location /api/`, con `X-Frame-Options`, porque solo se libera `/api/v1/elpx/`. La imagen publicada (etapa `app`, Bun sin nginx) no añade `X-Frame-Options` en ninguna ruta.
+
+**Por qué el riesgo es bajo.**
+* El contenido es público: cualquiera puede verlo o descargarlo. Enmarcarlo fuera no expone nada nuevo.
+* Se ejecuta en origen opaco, así que su JavaScript no lee la sesión ni el almacenamiento de Procomún, lo enmarque quien lo enmarque.
+* La cookie de sesión es `SameSite=Lax` (`apps/api/src/auth/cookie-config.ts`): no viaja en un iframe de otro sitio, de modo que el clickjacking sobre una vista autenticada no tiene sesión que usar. La previsualización histórica de administración enmarcada desde fuera responde sin sesión.
+* «Ponlo en tu web» necesita justo esto: con `'self'` el iframe en webs de terceros también quedaba bloqueado.
+
+**Largo plazo.** La solución de fondo es la opción 3 de la [ADR-0027](0027-reproduccion-segura-embeds-elpx.md): servir los `.elpx` desde un origen separado sin cookies y quitar el sandbox.
+
+**Validación.** `e2e/tests/public/elpx-nested-frame.e2e.ts` monta un paquete sintético con un HTML que anida otro en el visor de la ficha y comprueba que el hijo carga (falla con `'self'` y con `*`). `apps/api/src/routes/public-version-access.unit.test.ts` comprueba sobre la app completa que ni la ruta pública ni la previsualización histórica devuelven `frame-ancestors` ni `X-Frame-Options`.

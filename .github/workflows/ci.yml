@@ -66,6 +66,11 @@ jobs:
     - name: Run Tests & Coverage
       run: make check-coverage
 
+    # Los *.unit.test.tsx (islas React) no entraban en check-coverage y no se
+    # ejecutaban en ningún sitio. Van sin coverage: ver SUITE_DEFINITIONS.ui.
+    - name: Run UI Tests
+      run: make test-ui
+
   # De momento solo se publica en push a main con tags main y latest.
   # Cuando haya releases se añadirán tags semánticos (vX.Y.Z).
   # E2E sobre el resultado ya fusionado. Antes solo corrían en pull_request, así
