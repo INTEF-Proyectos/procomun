@@ -90,6 +90,19 @@ tasks:
       con las 31 reglas. Lo que no tiene regla queda en el informe y no se
       asigna. El texto original sigue en resource_levels. PDC no se asigna.
 
+  T-2026-10-21-07404523:
+    date: 2026-10-21
+    agent: "metadatos-y-curacion + frontend-ux-accesibilidad + qa-validacion"
+    task: "Categorización educativa: Primaria por ciclos y ficha sin «Niveles educativos» (#380)"
+    status: Done
+    related: ["#380", "#394", ADR-0043]
+    notes: >
+      Decisión de Producto en #394: Primaria pasa de dos tramos a los tres ciclos LOMLOE
+      (primer-ciclo, segundo-ciclo, tercer-ciclo), sin migración porque el catálogo no está publicado.
+      La ficha deja de mostrar resource_levels, que queda como dato de origen; se retira detail_levels
+      de los mensajes. Denominaciones sin traducir por ahora. Adenda 2026-10-21 en ADR-0043.
+      Validación: lint, check-types, test:unit, test:integration y test:ui en verde.
+
   T-2026-10-14-10544218:
     date: 2026-10-14
     agent: "metadatos-y-curacion + backend-api-servicios + frontend-ux-accesibilidad + qa-validacion + documentacion-y-roadmap"

@@ -178,8 +178,9 @@ describe("categorización educativa en formulario, ficha y buscador", () => {
 			}),
 		);
 		expect(primaria).toContain('id="filter-educational-option"');
-		expect(primaria).toContain("Primer tramo (1.º, 2.º y 3.º)");
-		expect(primaria).toContain("Segundo tramo (4.º, 5.º y 6.º)");
+		expect(primaria).toContain("Primer ciclo (1.º y 2.º)");
+		expect(primaria).toContain("Segundo ciclo (3.º y 4.º)");
+		expect(primaria).toContain("Tercer ciclo (5.º y 6.º)");
 
 		const bachillerato = renderToStaticMarkup(
 			createElement(EducationalSearchFilters, {

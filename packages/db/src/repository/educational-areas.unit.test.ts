@@ -77,8 +77,8 @@ describe("resource_educational_areas", () => {
 	test("borrar una categoría borra sus opciones y no las demás", async () => {
 		const created = await published(db, "Dos categorías", {
 			educationalAreas: [
-				{ categoryId: "educacion-primaria", optionId: "primer-tramo" },
-				{ categoryId: "educacion-primaria", optionId: "segundo-tramo" },
+				{ categoryId: "educacion-primaria", optionId: "primer-ciclo" },
+				{ categoryId: "educacion-primaria", optionId: "segundo-ciclo" },
 				{ categoryId: "ele", optionId: "avanzado" },
 			],
 		});
@@ -199,7 +199,7 @@ describe("resource_educational_areas", () => {
 		});
 		const primaria = await published(db, "Primaria concreto", {
 			educationalAreas: [
-				{ categoryId: "educacion-primaria", optionId: "segundo-tramo" },
+				{ categoryId: "educacion-primaria", optionId: "segundo-ciclo" },
 			],
 		});
 
@@ -244,7 +244,7 @@ describe("resource_educational_areas", () => {
 
 		const primariaOption = await listResources(db, {
 			educationalCategory: "educacion-primaria",
-			educationalOption: "primer-tramo",
+			educationalOption: "primer-ciclo",
 			status: "published",
 		});
 		expect(primariaOption.data.map((row) => row.id)).not.toContain(primaria.id);

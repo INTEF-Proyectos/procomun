@@ -630,20 +630,6 @@ export function ResourceDetailContent({
 									</div>
 								) : null}
 
-								{resource.levels?.length ? (
-									<div className="meta-row">
-										<div className="meta-row-icon">
-											<span className="material-symbols-outlined">school</span>
-										</div>
-										<div>
-											<p className="meta-row-label">{m.detail_levels()}</p>
-											<p className="meta-row-value">
-												{resource.levels.join(", ")}
-											</p>
-										</div>
-									</div>
-								) : null}
-
 								{publicationDate ? (
 									<div className="meta-row">
 										<div className="meta-row-icon">

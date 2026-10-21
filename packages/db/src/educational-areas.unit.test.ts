@@ -32,8 +32,9 @@ describe("catálogo de categorización educativa", () => {
 		expect(
 			byId.get("educacion-primaria")?.options.map((option) => option.label),
 		).toEqual([
-			"Primer tramo (1.º, 2.º y 3.º)",
-			"Segundo tramo (4.º, 5.º y 6.º)",
+			"Primer ciclo (1.º y 2.º)",
+			"Segundo ciclo (3.º y 4.º)",
+			"Tercer ciclo (5.º y 6.º)",
 		]);
 		expect(
 			byId
@@ -115,7 +116,7 @@ describe("catálogo de categorización educativa", () => {
 		expect(
 			validateEducationalAssignments([
 				{ categoryId: "educacion-primaria", optionId: null },
-				{ categoryId: "educacion-primaria", optionId: "primer-tramo" },
+				{ categoryId: "educacion-primaria", optionId: "primer-ciclo" },
 			]).length,
 		).toBeGreaterThan(0);
 	});

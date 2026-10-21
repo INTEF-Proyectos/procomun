@@ -6,7 +6,7 @@
 
 export const EDUCATIONAL_SECTION_TITLE = "Categorización educativa";
 export const EDUCATIONAL_CATEGORY_LABEL = "Etapa, programa o ámbito educativo";
-export const EDUCATIONAL_OPTION_LABEL = "Ciclo, tramo, nivel o ámbito";
+export const EDUCATIONAL_OPTION_LABEL = "Ciclo, curso, nivel o ámbito";
 
 export interface EducationalOption {
 	id: string;
@@ -55,8 +55,9 @@ export const EDUCATIONAL_CATEGORIES: readonly EducationalCategory[] = [
 		id: "educacion-primaria",
 		label: "Educación Primaria",
 		options: [
-			{ id: "primer-tramo", label: "Primer tramo (1.º, 2.º y 3.º)" },
-			{ id: "segundo-tramo", label: "Segundo tramo (4.º, 5.º y 6.º)" },
+			{ id: "primer-ciclo", label: "Primer ciclo (1.º y 2.º)" },
+			{ id: "segundo-ciclo", label: "Segundo ciclo (3.º y 4.º)" },
+			{ id: "tercer-ciclo", label: "Tercer ciclo (5.º y 6.º)" },
 		],
 	},
 	{

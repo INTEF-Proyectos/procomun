@@ -61,8 +61,8 @@ describe("Rutas admin — con sesión de admin", () => {
 				...validResource,
 				title: "Recurso con categorización",
 				educationalAreas: [
-					{ categoryId: "educacion-primaria", optionId: "primer-tramo" },
-					{ categoryId: "educacion-primaria", optionId: "segundo-tramo" },
+					{ categoryId: "educacion-primaria", optionId: "primer-ciclo" },
+					{ categoryId: "educacion-primaria", optionId: "segundo-ciclo" },
 					{ categoryId: "bachillerato", optionId: null },
 				],
 			}),
@@ -72,8 +72,8 @@ describe("Rutas admin — con sesión de admin", () => {
 		const got = await app.request(`/api/admin/resources/${created.id}`);
 		const body = await got.json();
 		expect(body.educationalAreas).toEqual([
-			{ categoryId: "educacion-primaria", optionId: "primer-tramo" },
-			{ categoryId: "educacion-primaria", optionId: "segundo-tramo" },
+			{ categoryId: "educacion-primaria", optionId: "primer-ciclo" },
+			{ categoryId: "educacion-primaria", optionId: "segundo-ciclo" },
 			{ categoryId: "bachillerato", optionId: null },
 		]);
 
