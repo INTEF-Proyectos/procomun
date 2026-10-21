@@ -8,6 +8,10 @@ export interface ListingState {
 	license: string;
 	/** Atomized tag slug filter (issue #310). */
 	tag: string;
+	/** Categoría educativa principal (issue #380). */
+	educationalCategory?: string;
+	/** Opción secundaria de esa categoría. Vacía si no se concreta. */
+	educationalOption?: string;
 }
 
 interface HistoryLike {
@@ -25,6 +29,8 @@ export function readListingState(search: string): ListingState {
 		language: params.get("language") ?? "",
 		license: params.get("license") ?? "",
 		tag: params.get("tag") ?? "",
+		educationalCategory: params.get("educationalCategory") ?? "",
+		educationalOption: params.get("educationalOption") ?? "",
 	};
 }
 
@@ -68,6 +74,18 @@ export function buildListingUrl(
 		params.set("tag", state.tag);
 	} else {
 		params.delete("tag");
+	}
+
+	if (state.educationalCategory) {
+		params.set("educationalCategory", state.educationalCategory);
+	} else {
+		params.delete("educationalCategory");
+	}
+
+	if (state.educationalOption) {
+		params.set("educationalOption", state.educationalOption);
+	} else {
+		params.delete("educationalOption");
 	}
 
 	const queryString = params.toString();

@@ -290,6 +290,69 @@ describe("Rutas públicas /api/v1", () => {
 		expect(slugs).not.toContain(videoSlug);
 	});
 
+	test("GET /api/v1/resources filtra por categoría educativa sin duplicar y la ficha muestra la clasificación", async () => {
+		const both = await repo.createResource(getDb().db, {
+			title: "Régimen especial música y danza",
+			description: "Recurso de régimen especial",
+			language: "es",
+			license: "cc-by",
+			resourceType: "documento",
+			editorialStatus: "published",
+			educationalAreas: [
+				{ categoryId: "ensenanzas-regimen-especial", optionId: "musica" },
+				{ categoryId: "ensenanzas-regimen-especial", optionId: "danza" },
+			],
+		});
+		const categoryOnly = await repo.createResource(getDb().db, {
+			title: "Régimen especial sin opción",
+			description: "Solo la categoría",
+			language: "es",
+			license: "cc-by",
+			resourceType: "documento",
+			editorialStatus: "published",
+			educationalAreas: [
+				{ categoryId: "ensenanzas-regimen-especial", optionId: null },
+			],
+		});
+		await repo.createResource(getDb().db, {
+			title: "ELE avanzado en inglés",
+			description: "Nivel avanzado",
+			language: "en",
+			license: "cc-by",
+			resourceType: "documento",
+			editorialStatus: "published",
+			educationalAreas: [{ categoryId: "ele", optionId: "avanzado" }],
+		});
+
+		const byCategory = await app.request(
+			"/api/v1/resources?educationalCategory=ensenanzas-regimen-especial&language=es",
+		);
+		const categoryBody = await byCategory.json();
+		const categorySlugs = categoryBody.data.map(
+			(row: { slug: string }) => row.slug,
+		);
+		expect(categorySlugs.filter((slug: string) => slug === both.slug)).toEqual([
+			both.slug,
+		]);
+		expect(categorySlugs).toContain(categoryOnly.slug);
+
+		const byMusic = await app.request(
+			"/api/v1/resources?educationalCategory=ensenanzas-regimen-especial&educationalOption=musica",
+		);
+		const musicBody = await byMusic.json();
+		expect(musicBody.data.map((row: { slug: string }) => row.slug)).toEqual([
+			both.slug,
+		]);
+
+		const detail = await app.request(`/api/v1/resources/${both.slug}`);
+		const detailBody = await detail.json();
+		// Orden del catálogo: Música va antes que Danza.
+		expect(detailBody.educationalAreas).toEqual([
+			{ categoryId: "ensenanzas-regimen-especial", optionId: "musica" },
+			{ categoryId: "ensenanzas-regimen-especial", optionId: "danza" },
+		]);
+	});
+
 	test("GET /api/v1/resources combina texto y filtros", async () => {
 		const res = await app.request(
 			"/api/v1/resources?q=English&language=en&license=cc0",

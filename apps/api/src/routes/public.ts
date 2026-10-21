@@ -24,6 +24,8 @@ publicRoutes.get("/resources", async (c) => {
 	const language = c.req.query("language") ?? undefined;
 	const license = c.req.query("license") ?? undefined;
 	const tag = c.req.query("tag") ?? undefined;
+	const educationalCategory = c.req.query("educationalCategory") ?? undefined;
+	const educationalOption = c.req.query("educationalOption") ?? undefined;
 	return c.json(
 		await listPublishedResources({
 			limit,
@@ -33,6 +35,8 @@ publicRoutes.get("/resources", async (c) => {
 			language,
 			license,
 			tag,
+			educationalCategory,
+			educationalOption,
 		}),
 	);
 });
