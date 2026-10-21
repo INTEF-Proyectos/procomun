@@ -2898,3 +2898,17 @@ tasks:
       Descartes y de la imagen de licencia, sin cambios en el código de la PR.
       Validación: bun test (1125 pass), check-types, check-tracking y
       check-test-files.
+
+  T-2026-10-21-11012597:
+    date: 2026-10-21
+    agent: "frontend-ux-accesibilidad"
+    task: "La fachada de un embed adaptable de Canva ocupa su contenedor"
+    status: Done
+    related: ["#427", "ADR-0027"]
+    notes: >
+      El código adaptable de Canva mete el <iframe> con position:absolute en
+      un contenedor de alto 0 que reserva el hueco con padding-top y
+      overflow:hidden. El shim ponía la fachada en el flujo, fuera del hueco,
+      y solo se veía la caja vacía. Si el <iframe> va posicionado, la fachada
+      ahora ocupa el contenedor entero. Test e2e nuevo en
+      elpx-embed-facade.e2e.ts (rojo sin el cambio, verde con él).

@@ -119,6 +119,12 @@
 			";height:min(" +
 			cssSize(frame.getAttribute("height"), "240px") +
 			",60vh);";
+		// Embed adaptable (Canva): el <iframe> va posicionado sobre un contenedor
+		// de alto 0; en el flujo, la fachada caería fuera del hueco (#427).
+		if (/^(absolute|fixed)$/.test(getComputedStyle(frame).position)) {
+			link.style.cssText +=
+				"position:absolute;top:0;left:0;width:100%;height:100%;";
+		}
 		link.textContent = facadeLabel(url);
 		link.addEventListener("click", (event) => {
 			if (!relayReady) return;
