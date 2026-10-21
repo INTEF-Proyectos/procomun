@@ -4,9 +4,15 @@ import {
 } from "@procomun/db/validation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
+import { EducationalClassificationEditor } from "../islands/resources/EducationalClassificationFields.tsx";
 import { getResourceTypeOptions } from "../islands/resources/resource-form-options.ts";
 import type { Resource } from "../lib/api-client.ts";
 import { CONTENT_IFRAME_SANDBOX } from "../lib/embed-sandbox.ts";
+import {
+	assignmentsToSelections,
+	type EducationalSelection,
+	selectionsToAssignments,
+} from "../lib/educational-classification.ts";
 import { getApiClient } from "../lib/get-api-client.ts";
 import { url } from "../lib/paths.ts";
 import { ResourceVersionPanel } from "./ResourceVersionPanel.tsx";
@@ -133,6 +139,9 @@ export default function EditarPage() {
 		isNew ? "Crear recurso" : "Guardar cambios",
 	);
 	const [applyMetaDone, setApplyMetaDone] = useState(false);
+	const [educationalSelections, setEducationalSelections] = useState<
+		EducationalSelection[]
+	>([]);
 
 	// eXeLearning editor state
 	const [exeModalVisible, setExeModalVisible] = useState(false);
@@ -344,6 +353,9 @@ export default function EditarPage() {
 				}
 
 				setResource(resourceData);
+				setEducationalSelections(
+					assignmentsToSelections(resourceData.educationalAreas),
+				);
 				setElpx(elpxData);
 				setUserRole(role);
 				setState("ready");
@@ -432,6 +444,7 @@ export default function EditarPage() {
 			// pero un recurso antiguo sin autor se sigue guardando sin él.
 			author: isNew || resource.author || author.trim() ? author : undefined,
 			keywords: keywordsRef.current?.value || undefined,
+			educationalAreas: selectionsToAssignments(educationalSelections),
 		};
 		const validation = isNew
 			? validateCreateResource(payload)
@@ -939,6 +952,12 @@ export default function EditarPage() {
 								{fieldErrors.author ?? ""}
 							</span>
 						</div>
+
+						<EducationalClassificationEditor
+							idPrefix="ed-educational"
+							selections={educationalSelections}
+							onChange={setEducationalSelections}
+						/>
 
 						<div className="edit-field">
 							<label htmlFor="ed-keywords">

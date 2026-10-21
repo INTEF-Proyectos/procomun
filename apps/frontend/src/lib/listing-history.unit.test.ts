@@ -16,6 +16,8 @@ describe("listing history helpers", () => {
 				language: "",
 				license: "",
 				tag: "",
+				educationalCategory: "",
+				educationalOption: "",
 			}),
 		).toBe("/?q=matematicas&page=3");
 	});
@@ -29,6 +31,8 @@ describe("listing history helpers", () => {
 				language: "",
 				license: "",
 				tag: "",
+				educationalCategory: "",
+				educationalOption: "",
 			}),
 		).toBe("/?q=matematicas");
 	});
@@ -42,9 +46,11 @@ describe("listing history helpers", () => {
 				language: "es",
 				license: "cc-by",
 				tag: "robotica",
+				educationalCategory: "ele",
+				educationalOption: "avanzado",
 			}),
 		).toBe(
-			"/?q=scratch&page=2&resourceType=video&language=es&license=cc-by&tag=robotica",
+			"/?q=scratch&page=2&resourceType=video&language=es&license=cc-by&tag=robotica&educationalCategory=ele&educationalOption=avanzado",
 		);
 	});
 
@@ -60,6 +66,8 @@ describe("listing history helpers", () => {
 			language: "es",
 			license: "cc-by",
 			tag: "ia",
+			educationalCategory: "",
+			educationalOption: "",
 		});
 	});
 

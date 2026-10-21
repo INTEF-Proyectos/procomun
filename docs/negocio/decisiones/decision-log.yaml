@@ -304,3 +304,14 @@ ADR-0041:
     Auditoría realizada con Codex GPT-6 y el skill security-audit. Unifica RBAC,
     protege borradores, adelanta límites anti ZIP bomb y añade controles contra
     abuso de descargas y almacenamiento.
+
+ADR-0043:
+  title: "Catálogo de categorización educativa en código"
+  status: Propuesto
+  date: 2026-10-14
+  file: 0043-catalogo-categorizacion-educativa.md
+  notes: >
+    Issue #380. Catálogo cerrado con ids estables en packages/db/src/educational-areas.ts
+    y tabla resource_educational_areas, en lugar de la tabla taxonomies.
+    resource_levels queda como dato de origen. La correspondencia con LOM-ES se hará
+    en el exportador a partir de los ids.
