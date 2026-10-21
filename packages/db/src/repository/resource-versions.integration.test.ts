@@ -17,7 +17,11 @@ import {
 	publishResourceVersion,
 	restoreResourceVersion,
 } from "./resource-versions.ts";
-import { createResource, getResourceById } from "./resources.ts";
+import {
+	createResource,
+	getResourceById,
+	updateResource,
+} from "./resources.ts";
 import type { DrizzleDB } from "./shared.ts";
 import { listResourceTags, syncTagsFromKeywords } from "./tags.ts";
 import { createUploadSession } from "./uploads.ts";
@@ -153,6 +157,78 @@ describe("resource versions", () => {
 		expect(history[2]?.id).toBe(v1.id);
 		const resource = await getResourceById(db, resourceId);
 		expect(resource?.title).toBe("Título v1");
+	});
+
+	test("guarda la categorización educativa en el snapshot y la restaura", async () => {
+		const resourceId = await seedResource("Recurso clasificado");
+		const v1Areas = [
+			{ categoryId: "educacion-primaria", optionId: "primer-ciclo" },
+			{ categoryId: "bachillerato", optionId: null },
+		];
+		await updateResource(db, resourceId, { educationalAreas: v1Areas });
+		const project1 = await seedProject(resourceId, "p".repeat(64));
+		const v1 = await publishResourceVersion(db, {
+			resourceId,
+			elpxProjectId: project1.id,
+			createdBy: "autora",
+		});
+		const [version] = await db
+			.select()
+			.from(resourceVersions)
+			.where(eq(resourceVersions.id, v1.id));
+		expect(version?.metadataSnapshot).toMatchObject({
+			educationalAreas: v1Areas,
+		});
+
+		await updateResource(db, resourceId, {
+			educationalAreas: [{ categoryId: "ele", optionId: "avanzado" }],
+		});
+		const project2 = await seedProject(resourceId, "q".repeat(64));
+		await publishResourceVersion(db, {
+			resourceId,
+			elpxProjectId: project2.id,
+			createdBy: "autora",
+		});
+
+		await restoreResourceVersion(db, {
+			resourceId,
+			versionId: v1.id,
+			createdBy: "curadora",
+		});
+		expect((await getResourceById(db, resourceId))?.educationalAreas).toEqual(
+			v1Areas,
+		);
+	});
+
+	test("un snapshot anterior a la categorización conserva la actual", async () => {
+		const resourceId = await seedResource("Recurso con versión antigua");
+		const project = await seedProject(resourceId, "r".repeat(64));
+		const v1 = await publishResourceVersion(db, {
+			resourceId,
+			elpxProjectId: project.id,
+			createdBy: "autora",
+		});
+		const [version] = await db
+			.select()
+			.from(resourceVersions)
+			.where(eq(resourceVersions.id, v1.id));
+		const { educationalAreas: _, ...legacySnapshot } =
+			(version?.metadataSnapshot ?? {}) as Record<string, unknown>;
+		await db
+			.update(resourceVersions)
+			.set({ metadataSnapshot: legacySnapshot })
+			.where(eq(resourceVersions.id, v1.id));
+		const current = [{ categoryId: "formacion-profesorado", optionId: null }];
+		await updateResource(db, resourceId, { educationalAreas: current });
+
+		await restoreResourceVersion(db, {
+			resourceId,
+			versionId: v1.id,
+			createdBy: "curadora",
+		});
+		expect((await getResourceById(db, resourceId))?.educationalAreas).toEqual(
+			current,
+		);
 	});
 
 	test("clears newer tags when the restored snapshot has no keywords", async () => {

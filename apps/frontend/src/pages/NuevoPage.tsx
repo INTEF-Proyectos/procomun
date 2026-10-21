@@ -1,6 +1,7 @@
 import { validateCreateResource } from "@procomun/db/validation";
 import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { EducationalClassificationEditor } from "../islands/resources/EducationalClassificationFields.tsx";
 import { KeywordCatalogField } from "../islands/resources/KeywordCatalogField.tsx";
 import {
 	LANGUAGE_OPTIONS,
@@ -8,6 +9,10 @@ import {
 	RESOURCE_TYPE_OPTIONS,
 } from "../islands/resources/resource-form-options.ts";
 import type { CatalogKeyword } from "../lib/api-client.ts";
+import {
+	type EducationalSelection,
+	selectionsToAssignments,
+} from "../lib/educational-classification.ts";
 import { getApiClient } from "../lib/get-api-client.ts";
 import { url } from "../lib/paths.ts";
 import { hasMinRole } from "../lib/shared-utils.ts";
@@ -88,6 +93,9 @@ export default function NuevoPage() {
 	const [form, setForm] = useState<ResourceFormState>(EMPTY_FORM);
 	const [userRole, setUserRole] = useState("reader");
 	const [catalogKeywords, setCatalogKeywords] = useState<CatalogKeyword[]>([]);
+	const [educationalSelections, setEducationalSelections] = useState<
+		EducationalSelection[]
+	>([]);
 
 	const fileInputRef = useRef<HTMLInputElement>(null);
 	const storedElpxFileRef = useRef<File | null>(null);
@@ -229,6 +237,7 @@ export default function NuevoPage() {
 			resourceType: form.resourceType,
 			author: form.author,
 			keywordIds: catalogKeywords.map((keyword) => keyword.id),
+			educationalAreas: selectionsToAssignments(educationalSelections),
 		};
 
 		const validation = validateCreateResource(body);
@@ -493,6 +502,12 @@ export default function NuevoPage() {
 							{fieldErrors.author ?? ""}
 						</span>
 					</div>
+
+					<EducationalClassificationEditor
+						idPrefix="new-educational"
+						selections={educationalSelections}
+						onChange={setEducationalSelections}
+					/>
 
 					<div className="form-field">
 						<KeywordCatalogField

@@ -116,6 +116,94 @@ describe("migración session.impersonated_by (better-auth 1.7)", () => {
 	});
 });
 
+describe("migración de categorización educativa", () => {
+	test("registra 0009 sin sustituir 0000–0008 y crea la tabla con unicidad", async () => {
+		const journal = JSON.parse(
+			await readFile(path.join(migrationsDir, "meta/_journal.json"), "utf8"),
+		) as { entries: Array<{ tag: string }> };
+		const tags = journal.entries.map((entry) => entry.tag);
+		expect(tags).toContain("0009_educational_areas");
+		for (const previous of [
+			"0000_slippery_mongoose",
+			"0001_needy_stellaris",
+			"0005_atomized_tags",
+			"0006_user_email_case_insensitive",
+			"0007_resource_versions",
+			"0008_session_impersonated_by",
+		]) {
+			expect(tags).toContain(previous);
+		}
+		const files = await readdir(migrationsDir);
+		expect(files).toContain("0008_session_impersonated_by.sql");
+		expect(files).toContain("0009_educational_areas.sql");
+
+		const migration = (
+			await readFile(
+				path.join(migrationsDir, "0009_educational_areas.sql"),
+				"utf8",
+			)
+		).replaceAll("--> statement-breakpoint", "");
+		const db = new PGlite();
+		try {
+			await db.exec('CREATE TABLE "resources" (id text PRIMARY KEY)');
+			await db.exec(`INSERT INTO "resources" (id) VALUES ('r1')`);
+			await db.exec(migration);
+			await db.exec(migration);
+			await db.exec(
+				`INSERT INTO resource_educational_areas (resource_id, category_id, option_id)
+				 VALUES ('r1', 'bachillerato', NULL)`,
+			);
+			await expect(
+				db.exec(
+					`INSERT INTO resource_educational_areas (resource_id, category_id, option_id)
+					 VALUES ('r1', 'bachillerato', NULL)`,
+				),
+			).rejects.toThrow();
+		} finally {
+			await db.close();
+		}
+	});
+});
+
+// El migrador de drizzle solo aplica migraciones con `when` mayor que el de la
+// última aplicada: si dos ramas registran el mismo número o el mismo `when`,
+// una de ellas se salta en silencio en las bases que ya tengan la otra.
+describe("journal de migraciones", () => {
+	// Historial previo a esta regla. Ya está aplicado, así que no se reescribe.
+	const LEGACY_WHEN_OUT_OF_ORDER = new Set(["0002_text_to_jsonb_metadata"]);
+	const LEGACY_FILES_OUTSIDE_JOURNAL = new Set([
+		"0002_add_downloads_format.sql",
+		"0003_add_reports_table.sql",
+		"0004_resources_import_dedup_index.sql",
+	]);
+
+	test("idx igual a la posición, when creciente y un fichero por número", async () => {
+		const journal = JSON.parse(
+			await readFile(path.join(migrationsDir, "meta/_journal.json"), "utf8"),
+		) as { entries: Array<{ idx: number; when: number; tag: string }> };
+
+		let lastWhen = 0;
+		journal.entries.forEach((entry, position) => {
+			expect(entry.idx).toBe(position);
+			if (LEGACY_WHEN_OUT_OF_ORDER.has(entry.tag)) return;
+			expect(entry.when).toBeGreaterThan(lastWhen);
+			lastWhen = entry.when;
+		});
+
+		const prefixes = journal.entries.map((entry) => entry.tag.slice(0, 4));
+		expect(prefixes).toEqual([...new Set(prefixes)].sort());
+
+		const files = (await readdir(migrationsDir))
+			.filter((file) => file.endsWith(".sql"))
+			.filter((file) => !LEGACY_FILES_OUTSIDE_JOURNAL.has(file));
+		expect(files.sort()).toEqual(
+			journal.entries.map((entry) => `${entry.tag}.sql`).sort(),
+		);
+		const filePrefixes = files.map((file) => file.slice(0, 4));
+		expect(new Set(filePrefixes).size).toBe(filePrefixes.length);
+	});
+});
+
 // ADR-0042: catálogo de palabras clave. Va detrás de 0009 (#394) en el journal.
 describe("migración 0010_keyword_catalog", () => {
 	const OLD_SCHEMA = `CREATE TABLE "user" (id TEXT PRIMARY KEY);

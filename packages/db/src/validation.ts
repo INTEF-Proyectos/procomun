@@ -1,3 +1,5 @@
+import { validateEducationalAssignments } from "./educational-areas.ts";
+
 export const VALID_TAXONOMY_TYPES = [
 	"category",
 	"tag",
@@ -160,6 +162,10 @@ export function validateCreateResource(body: unknown): ValidationResult {
 		});
 	}
 
+	if (b.educationalAreas !== undefined) {
+		errors.push(...validateEducationalAssignments(b.educationalAreas));
+	}
+
 	return { valid: errors.length === 0, errors };
 }
 
@@ -184,6 +190,7 @@ export function validateUpdateResource(body: unknown): ValidationResult {
 		"keywords",
 		"publisher",
 		"keywordIds",
+		"educationalAreas",
 	];
 	const hasAtLeastOne = updatableFields.some((f) => b[f] !== undefined);
 	if (!hasAtLeastOne) {
@@ -279,6 +286,10 @@ export function validateUpdateResource(body: unknown): ValidationResult {
 				message: "El autor no puede superar 500 caracteres",
 			});
 		}
+	}
+
+	if (b.educationalAreas !== undefined) {
+		errors.push(...validateEducationalAssignments(b.educationalAreas));
 	}
 
 	return { valid: errors.length === 0, errors };
