@@ -12,6 +12,7 @@ import {
 	type CatalogQueryDetail,
 	dispatchCatalogQuerySync,
 } from "../../lib/catalog-events.ts";
+import { sanitizeEducationalFilter } from "../../lib/educational-classification.ts";
 import { getApiClient } from "../../lib/get-api-client.ts";
 import {
 	buildListingUrl,
@@ -34,6 +35,7 @@ import {
 	DEFAULT_BADGE_CONFIG,
 } from "../../lib/shared-utils.ts";
 import { KeywordCatalogField } from "../resources/KeywordCatalogField.tsx";
+import { EducationalSearchFilters } from "./EducationalSearchFilters.tsx";
 import "../../lib/paraglide-client.ts";
 import * as m from "../../paraglide/messages.js";
 
@@ -48,7 +50,22 @@ const DEFAULT_LISTING_STATE: ListingState = {
 	language: "",
 	license: "",
 	tag: "",
+	educationalCategory: "",
+	educationalOption: "",
 };
+
+function readCatalogListingState(search: string): ListingState {
+	const state = readListingState(search);
+	const educational = sanitizeEducationalFilter(
+		state.educationalCategory,
+		state.educationalOption,
+	);
+	return {
+		...state,
+		educationalCategory: educational.categoryId,
+		educationalOption: educational.optionId,
+	};
+}
 
 function getResourceIcon(type: string) {
 	return TYPE_ICONS[type] ?? "📄";
@@ -328,6 +345,10 @@ export function CatalogIsland() {
 			try {
 				const api = await getApiClient();
 				const offset = (nextState.page - 1) * DEFAULT_PAGE_SIZE;
+				const educational = sanitizeEducationalFilter(
+					nextState.educationalCategory,
+					nextState.educationalOption,
+				);
 				const result = await api.listResources({
 					q: nextState.query || undefined,
 					limit: DEFAULT_PAGE_SIZE,
@@ -336,6 +357,8 @@ export function CatalogIsland() {
 					language: nextState.language || undefined,
 					license: nextState.license || undefined,
 					tag: nextState.tag || undefined,
+					educationalCategory: educational.categoryId || undefined,
+					educationalOption: educational.optionId || undefined,
 				});
 
 				if (requestId !== requestIdRef.current) return;
@@ -411,7 +434,7 @@ export function CatalogIsland() {
 	useEffect(() => {
 		const nextViewMode =
 			localStorage.getItem("catalog-view") === "list" ? "list" : "grid";
-		const nextState = readListingState(window.location.search);
+		const nextState = readCatalogListingState(window.location.search);
 		setViewMode(nextViewMode);
 		setListingState(nextState);
 		listingStateRef.current = nextState;
@@ -457,7 +480,7 @@ export function CatalogIsland() {
 		})();
 
 		function handlePopState() {
-			const popState = readListingState(window.location.search);
+			const popState = readCatalogListingState(window.location.search);
 			setListingState(popState);
 			dispatchCatalogQuerySync(popState.query);
 			void loadResources(popState);
@@ -521,6 +544,22 @@ export function CatalogIsland() {
 		<div className="catalog">
 			<aside className={`sidebar${sidebarOpen ? " open" : ""}`} id="sidebar">
 				<h2 className="sidebar-title">{m.catalog_advanced_filters()}</h2>
+
+				<EducationalSearchFilters
+					categoryId={listingState.educationalCategory ?? ""}
+					optionId={listingState.educationalOption ?? ""}
+					onChange={(next) => {
+						void applyListingState(
+							{
+								...listingState,
+								educationalCategory: next.categoryId,
+								educationalOption: next.optionId,
+								page: 1,
+							},
+							"replace",
+						);
+					}}
+				/>
 
 				<div className="filter-group">
 					<label htmlFor="filter-resource-type">

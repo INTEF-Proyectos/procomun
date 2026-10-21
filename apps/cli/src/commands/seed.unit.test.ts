@@ -1,4 +1,5 @@
 import { describe, expect, test } from "bun:test";
+import { getEducationalCategory } from "@procomun/db/educational-areas";
 import {
 	DEMO_COLLECTIONS,
 	DEMO_FAVORITES,
@@ -110,6 +111,18 @@ describe("seedWithClient", () => {
 					c.statement.includes('INSERT INTO "resource_levels"'),
 				),
 			).toBe(true);
+			// Los niveles de demo que son ids del catálogo se guardan como categoría.
+			const areaInserts = calls.filter((c) =>
+				c.statement.includes('INSERT INTO "resource_educational_areas"'),
+			);
+			expect(areaInserts.map((c) => c.params)).toEqual(
+				DEMO_RESOURCES.flatMap((r) =>
+					r.levels
+						.filter((level) => getEducationalCategory(level))
+						.map((level) => [r.id, level]),
+				),
+			);
+			expect(areaInserts.length).toBeGreaterThan(0);
 			expect(
 				calls.filter((c) => c.statement.includes('INSERT INTO "collections" '))
 					.length,

@@ -1,4 +1,8 @@
 import { and, desc, eq, isNull, sql } from "drizzle-orm";
+import {
+	type EducationalAssignment,
+	inspectEducationalAssignments,
+} from "../educational-areas.ts";
 import { user } from "../schema/auth.ts";
 import { elpxProjects } from "../schema/elpx.ts";
 import {
@@ -8,6 +12,10 @@ import {
 } from "../schema/resources.ts";
 import { uploadSessions } from "../schema/uploads.ts";
 import { resourceVersions } from "../schema/versions.ts";
+import {
+	listResourceEducationalAreas,
+	replaceResourceEducationalAreas,
+} from "./educational-areas.ts";
 import type { DrizzleDB } from "./shared.ts";
 
 /** Snapshot de metadatos capturado al crear cada versión (issue #31). */
@@ -22,6 +30,8 @@ export type ResourceVersionSnapshot = {
 	publisher: string | null;
 	subjects: string[];
 	levels: string[];
+	/** Ausente en snapshots anteriores a la categorización educativa (#380). */
+	educationalAreas?: EducationalAssignment[];
 };
 
 function toStringOrNull(value: unknown): string | null {
@@ -48,6 +58,9 @@ export function parseVersionSnapshot(value: unknown): ResourceVersionSnapshot {
 		publisher: toStringOrNull(raw.publisher),
 		subjects: toStringArray(raw.subjects),
 		levels: toStringArray(raw.levels),
+		educationalAreas: Array.isArray(raw.educationalAreas)
+			? inspectEducationalAssignments(raw.educationalAreas).assignments
+			: undefined,
 	};
 }
 
@@ -72,7 +85,7 @@ async function buildResourceSnapshot(
 
 	if (!resource) throw new Error("Recurso no encontrado");
 
-	const [subjects, levels] = await Promise.all([
+	const [subjects, levels, educationalAreas] = await Promise.all([
 		tx
 			.select({ subject: resourceSubjects.subject })
 			.from(resourceSubjects)
@@ -81,12 +94,14 @@ async function buildResourceSnapshot(
 			.select({ level: resourceLevels.level })
 			.from(resourceLevels)
 			.where(eq(resourceLevels.resourceId, resourceId)),
+		listResourceEducationalAreas(tx, resourceId),
 	]);
 
 	return {
 		...resource,
 		subjects: subjects.map((row) => row.subject),
 		levels: levels.map((row) => row.level),
+		educationalAreas,
 	};
 }
 
@@ -292,6 +307,15 @@ export async function restoreResourceVersion(
 			await tx
 				.insert(resourceLevels)
 				.values({ resourceId: input.resourceId, level });
+		}
+		// Un snapshot sin el campo es anterior a la clasificación: no hay nada
+		// que restaurar y se conserva la actual.
+		if (snapshot.educationalAreas) {
+			await replaceResourceEducationalAreas(
+				tx,
+				input.resourceId,
+				snapshot.educationalAreas,
+			);
 		}
 
 		// También debe sincronizarse cuando el snapshot no tiene palabras clave:

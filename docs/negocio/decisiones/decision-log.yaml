@@ -296,3 +296,14 @@ ADR-0042:
     Actualizada el 2026-10-14: sembrado en la migración 0010, la vía antigua no
     toca el catálogo y lo elegido llega a FTS, feeds, API v1 y recomendaciones.
     La correspondencia de etiquetas antiguas va en un PR aparte.
+
+ADR-0043:
+  title: "Catálogo de categorización educativa en código"
+  status: Propuesto
+  date: 2026-10-14
+  file: 0043-catalogo-categorizacion-educativa.md
+  notes: >
+    Issue #380. Catálogo cerrado con ids estables en packages/db/src/educational-areas.ts
+    y tabla resource_educational_areas, en lugar de la tabla taxonomies.
+    resource_levels queda como dato de origen. La correspondencia con LOM-ES se hará
+    en el exportador a partir de los ids.

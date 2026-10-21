@@ -38,6 +38,8 @@ export class HttpApiClient implements ApiClient {
 		language?: string;
 		license?: string;
 		tag?: string;
+		educationalCategory?: string;
+		educationalOption?: string;
 	}): Promise<ResourceListResult> {
 		const params = new URLSearchParams();
 		if (opts?.q) params.set("q", opts.q);
@@ -47,6 +49,12 @@ export class HttpApiClient implements ApiClient {
 		if (opts?.language) params.set("language", opts.language);
 		if (opts?.license) params.set("license", opts.license);
 		if (opts?.tag) params.set("tag", opts.tag);
+		if (opts?.educationalCategory) {
+			params.set("educationalCategory", opts.educationalCategory);
+		}
+		if (opts?.educationalOption) {
+			params.set("educationalOption", opts.educationalOption);
+		}
 		const qs = params.toString();
 		const res = await fetch(`/api/v1/resources${qs ? `?${qs}` : ""}`);
 		return res.json();

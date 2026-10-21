@@ -26,6 +26,7 @@ import { ResourceCard } from "../../ui/ResourceCard.tsx";
 import { FavoriteIsland } from "../social/FavoriteIsland.tsx";
 import { RatingIsland } from "../social/RatingIsland.tsx";
 import { ReportButton } from "../social/ReportButton.tsx";
+import { EducationalClassificationList } from "./EducationalClassificationList.tsx";
 import { EmbedModal } from "./EmbedModal.tsx";
 import "../../lib/paraglide-client.ts";
 import * as m from "../../paraglide/messages.js";
@@ -632,20 +633,6 @@ export function ResourceDetailContent({
 									</div>
 								) : null}
 
-								{resource.levels?.length ? (
-									<div className="meta-row">
-										<div className="meta-row-icon">
-											<span className="material-symbols-outlined">school</span>
-										</div>
-										<div>
-											<p className="meta-row-label">{m.detail_levels()}</p>
-											<p className="meta-row-value">
-												{resource.levels.join(", ")}
-											</p>
-										</div>
-									</div>
-								) : null}
-
 								{publicationDate ? (
 									<div className="meta-row">
 										<div className="meta-row-icon">
@@ -684,6 +671,8 @@ export function ResourceDetailContent({
 								</div>
 							</div>
 						) : null}
+
+						<EducationalClassificationList areas={resource.educationalAreas} />
 
 						{/* Actions: Favorite + Share + Report */}
 						<div className="meta-section">

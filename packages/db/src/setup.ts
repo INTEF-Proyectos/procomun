@@ -266,6 +266,14 @@ export const SCHEMA_STATEMENTS = [
 		resource_id TEXT NOT NULL REFERENCES "resources"(id) ON DELETE CASCADE,
 		level VARCHAR(100) NOT NULL
 	)`,
+	`CREATE TABLE IF NOT EXISTS "resource_educational_areas" (
+		resource_id TEXT NOT NULL REFERENCES "resources"(id) ON DELETE CASCADE,
+		category_id VARCHAR(64) NOT NULL,
+		option_id VARCHAR(64)
+	)`,
+	`CREATE UNIQUE INDEX IF NOT EXISTS resource_educational_areas_category_only_uidx ON resource_educational_areas (resource_id, category_id) WHERE option_id IS NULL`,
+	`CREATE UNIQUE INDEX IF NOT EXISTS resource_educational_areas_option_uidx ON resource_educational_areas (resource_id, category_id, option_id) WHERE option_id IS NOT NULL`,
+	`CREATE INDEX IF NOT EXISTS resource_educational_areas_lookup_idx ON resource_educational_areas (category_id, option_id)`,
 	// Atomized tags (ADR-0034 / issue #76)
 	`CREATE TABLE IF NOT EXISTS "tags" (
 		id TEXT PRIMARY KEY,

@@ -52,6 +52,13 @@
 			"breakpoints": true
 		},
 		{
+			"idx": 7,
+			"version": "7",
+			"when": 1786600000000,
+			"tag": "0009_educational_areas",
+			"breakpoints": true
+		},
+		{
 			"idx": 8,
 			"version": "7",
 			"when": 1786650000000,
