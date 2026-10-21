@@ -66,6 +66,18 @@ blocking_adrs:
 
 tasks:
 
+  T-2026-10-14-12351075:
+    date: 2026-10-14
+    agent: "devops-sre + qa-validacion"
+    task: "Ejecutar en CI los tests *.unit.test.tsx de las islas React"
+    status: Done
+    notes: >
+      run-bun-suite solo buscaba .unit.test.ts e .integration.test.ts, así que los 18 *.unit.test.tsx
+      del frontend no se ejecutaban ni en CI ni en `bun run test`. Nueva suite `ui` (test:ui, make test-ui)
+      con paso propio en ci.yml, sin coverage: metida en check-coverage bajaba la media por fichero
+      del 90,99 % al 56,67 % (76,65 % excluyendo paraglide) por cargar islas y mensajes generados.
+      Validación: make test-ui 41 pass / 0 fail en 18 ficheros; check-coverage 90,99 %; tests del runner en verde.
+
   T-2026-09-06-08510442:
     date: 2026-09-06
     agent: "seguridad-privacidad-legal + arquitectura-solucion + backend-api-servicios + qa-validacion + documentacion-y-roadmap"
@@ -2701,6 +2713,26 @@ tasks:
       resolución. Guard de regresión en
       scripts/check-dockerfile-workspaces.unit.test.ts.
 
+  T-2026-10-14-10562286:
+    date: 2026-10-14
+    agent: "frontend-ux-accesibilidad + backend-api-servicios"
+    task: "Autor obligatorio al crear un recurso"
+    status: Done
+    related: ["#382", "#387"]
+    notes: >
+      validateCreateResource exige un autor no vacío y el formulario de alta
+      y el editor de un recurso nuevo lo marcan como obligatorio, con
+      validación en cliente con las mismas funciones que la API. En la
+      edición no se exige: si el autor estaba vacío y sigue vacío no se envía,
+      y validateUpdateResource solo rechaza un author vacío explícito (no se
+      puede borrar uno existente). POST /api/v1/publish/resources (ADR-0024)
+      no cambia de contrato: si falta author, firma el dueño del token. El
+      autor se precarga con el pp_author del .elpx o, si no lo hay, con el
+      nombre del usuario (sesión en NuevoPage, borrador de POST /draft).
+      ResourceFormIsland y ResourceEditorIsland no se tocan: no se montan en
+      ninguna página. Validación: validation.unit.test.ts,
+      api-resources.unit.test.ts y admin.unit.test.ts.
+
   T-2026-09-15-17302086:
     date: 2026-09-15
     agent: "backend-api-servicios + qa-validacion"
@@ -2753,3 +2785,146 @@ tasks:
       etiquetas anteriores. La correspondencia de etiquetas antiguas pasa a un
       PR apilado. Pendiente de producto: cobertura del fondo, relación con
       «Materias» y gestión (fusionar/desactivar). Mergear después de #394.
+
+  T-2026-10-14-10535343:
+    date: 2026-10-14
+    agent: "seguridad-privacidad-legal + backend-api-servicios + qa-validacion"
+    task: "Iframes hijos de un .elpx bloqueados en Chromium: audio (#379), cuadro gris (#381) y diapositivas (#391)"
+    status: Done
+    related: ["#379", "#381", "#391", "#388", "ADR-0026", "ADR-0027"]
+    notes: >
+      El HTML del paquete es origen opaco (sandbox sin allow-same-origin) y se
+      servía con frame-ancestors 'self'. Chromium y WebKit no casan un ancestro
+      opaco con ninguna fuente, tampoco con *, y bloqueaban el iframe hijo del
+      propio paquete (reproductor de audio, diapositiva). Se quita
+      frame-ancestors de ELPX_HTML_CSP y nginx.conf da a /api/v1/elpx/ su propio
+      location sin X-Frame-Options (con ^~, que además evita que la regex de
+      estáticos se quede con sus .css y .js). Adenda en ADR-0026. Validación:
+      e2e/tests/public/elpx-nested-frame.e2e.ts (paquete sintético anidado en el
+      visor de la ficha; rojo con 'self' y con *, verde sin la directiva),
+      cabeceras sobre la app completa en public-version-access.unit.test.ts,
+      nginx:alpine en Docker (sin X-Frame-Options solo en /api/v1/elpx/) y
+      Chrome 155 con los paquetes reales de #379 (audio readyState 4, 7 s) y
+      #391 (diapositiva cargada) en la ficha y detrás de nginx.
+
+  T-2026-10-14-10510346:
+    date: 2026-10-14
+    agent: "frontend-ux-accesibilidad + qa-validacion"
+    task: "El curator abre los recursos de Gestionar recursos y solo ve Editar donde la API se lo permite"
+    status: Done
+    related: ["#399", "#400"]
+    notes: >
+      El listado de Gestionar recursos no enlazaba títulos ni «Solo lectura».
+      Ahora el título y la acción llevan al editor si el usuario puede
+      gestionar el recurso y, si no, a la ficha pública. El predicado de
+      edición es el mismo canManageResource de la API (admin; author o superior
+      si lo creó; curator si está en revisión o si lo curó), movido de
+      apps/api/src/auth/roles.ts a @procomun/db/validation para que API y
+      frontend compartan una sola implementación (roles.ts lo reexporta). La
+      ficha (ResourceDetailIsland) usa el mismo predicado: antes cualquier
+      curator veía «Editar» y el editor respondía «Recurso no encontrado» por
+      el 403. Tests: AdminResourcesSection.unit.test.tsx y
+      CatalogIslands.unit.test.tsx cubren createdBy y assignedCuratorId en el
+      listado y en la ficha; roles.unit.test.ts sigue cubriendo las reglas.
+
+  T-2026-10-15-07185577:
+    date: 2026-10-15
+    agent: "resolución de conflictos"
+    task: "Integrar main en la PR #388 antes de su revisión"
+    status: Done
+    related: ["#388", "#400"]
+    notes: >
+      El merge de main en fix/issue-379-audio-importado solo produjo un
+      conflicto textual en status.yaml. Se conservaron completas las entradas
+      T-2026-10-14-10535343 de la PR #388 y T-2026-10-14-10510346 de la PR
+      #400. No hubo conflicto en código ni cambió la solución funcional.
+      Validación: bun test (1118 pass), check-tracking y check-test-files.
+
+  T-2026-10-17-09435869:
+    date: 2026-10-17
+    agent: "frontend-ux-accesibilidad + seguridad-privacidad-legal + qa-validacion"
+    task: "PDF, Padlet y otros embeds de un ODE que no se ven en la ficha ni en «Ver online» (#378)"
+    status: Done
+    related: ["#378", "#429", "#317", "ADR-0026", "ADR-0027"]
+    notes: >
+      Con el .elpx real de #378, en «Ver online» el shim no actuaba (documento
+      de nivel superior) y Padlet, PDF, Canva y Genially quedaban en blanco
+      por el sandbox heredado. En la ficha la fachada del PDF no abría el
+      modal: classifyEmbed no resolvía la previewUrl relativa y además exigía
+      https. La fachada pasa a ser un enlace que dice qué abre y lo abre en una
+      pestaña nueva fuera del sandbox; si el relay de la ficha contesta al
+      saludo del shim, abre el modal. classifyEmbed resuelve la base y acepta
+      el PDF del propio paquete también en http. Modal «Contenido externo» para
+      lo que no es PDF. Adenda en ADR-0027. Validación: elpx-embed-facade.e2e.ts
+      (rojo en main, verde aquí), unit de política, relay y modal, e2e público
+      en chromium y Chrome con el paquete de la issue. La solución de fondo,
+      un origen separado para el contenido, queda propuesta en #429.
+  T-2026-10-15-20195779:
+    date: 2026-10-15
+    agent: "frontend-ux-accesibilidad + qa-validacion"
+    task: "El buscador superior de las páginas interiores tiene botón Buscar"
+    status: Done
+    related: ["#403"]
+    notes: >
+      En Explorar, Colecciones y Ayuda el formulario ya enviaba la búsqueda
+      con Intro, pero la lupa era un icono con pointer-events: none y no había
+      otro control visible. Se añade un botón de envío «Buscar», el mismo
+      texto que el de la portada, dentro del formulario GET existente. Enter
+      sigue enviando. Test: AppShellIslands.unit.test.tsx.
+  T-2026-10-15-20402973:
+    date: 2026-10-15
+    agent: "backend-api-servicios + qa-validacion"
+    task: "El HTML de un ODE Descartes se sirve con las entidades bien escritas"
+    status: Done
+    related: ["#406"]
+    notes: >
+      El paquete de ejemplo carga la escena HTML5 de Descartes dentro del
+      iframe del propio .elpx, sin allow-same-origin. El título de eXe se veía
+      como texto «&Iacute;» porque el export escapa dos veces la entidad. Al
+      servir el HTML se deshace un solo nivel, y solo cuando &amp; abre una
+      entidad completa. También se reescriben los atributos background
+      relativos y el 404 de un fichero ausente lleva Access-Control-Allow-Origin
+      para que el origen opaco no lo pinte como un fallo de CORS. Tests:
+      elpx-content.unit.test.ts, rojos por la entidad doble y el 404 sin CORS,
+      verdes después. No se ha tocado el diccionario de tipos de recurso.
+
+  T-2026-10-15-20195721:
+    date: 2026-10-15
+    agent: "frontend-ux-accesibilidad + qa-validacion"
+    task: "La ficha muestra el botón oficial de la licencia Creative Commons"
+    status: Done
+    related: ["#404"]
+    notes: >
+      Al importar, la licencia quedaba bien (cc-by-sa) pero la ficha pintaba
+      el icono copyright y el código, sin la imagen. LicenseBadge sustituye
+      ese icono por el botón oficial 88×31 de las licencias del catálogo
+      (cc-by, cc-by-sa, cc-by-nc, cc-by-nc-sa, cc-by-nd, cc-by-nc-nd y cc0),
+      enlazado a la escritura de la licencia. Un código desconocido sigue
+      viéndose como texto. Imágenes en apps/frontend/public/licenses/.
+      Tests: LicenseBadge.unit.test.tsx y CatalogIslands.unit.test.tsx.
+
+  T-2026-10-15-20542711:
+    date: 2026-10-15
+    agent: "qa-validacion"
+    task: "La ficha con imagen de licencia vuelve a pasar tipos y e2e"
+    status: Done
+    related: ["#404", "#422"]
+    notes: >
+      CI de la PR #422: check-types fallaba porque los dos tests nuevos de
+      CatalogIslands llamaban a renderDetail con un solo argumento, y
+      e2e-chromium buscaba el texto cc-by. La licencia del catálogo ahora es
+      una imagen cuyo nombre accesible dice «Licencia…», así que el e2e mira
+      ese enlace y, si no hay imagen, el texto. No cambia lo que se ve.
+
+  T-2026-10-20-07102121:
+    date: 2026-10-20
+    agent: "resolución de conflictos"
+    task: "Integrar main en la PR #424"
+    status: Done
+    related: ["#424", "#422"]
+    notes: >
+      Se integró main en fix/issue-406-descartes. El único conflicto textual
+      estaba en status.yaml; se conservaron las entradas de la corrección
+      Descartes y de la imagen de licencia, sin cambios en el código de la PR.
+      Validación: bun test (1125 pass), check-types, check-tracking y
+      check-test-files.

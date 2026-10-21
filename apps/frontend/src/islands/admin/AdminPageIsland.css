@@ -771,6 +771,31 @@
 	font-size: 0.875rem;
 }
 
+a.admin-resource-title {
+	color: var(--color-primary);
+	text-decoration: underline;
+	text-underline-offset: 0.12em;
+}
+
+a.admin-resource-title:hover,
+.admin-resource-readonly:hover {
+	text-decoration-thickness: 2px;
+}
+
+a.admin-resource-title:focus-visible,
+.admin-resource-readonly:focus-visible {
+	outline: 2px solid var(--color-primary);
+	outline-offset: 2px;
+}
+
+.admin-resource-readonly {
+	font-size: 0.875rem;
+	font-weight: 600;
+	color: var(--color-primary);
+	text-decoration: underline;
+	text-underline-offset: 0.12em;
+}
+
 .admin-resource-id {
 	font-size: 0.75rem;
 	color: var(--color-on-surface-variant);

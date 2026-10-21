@@ -1,3 +1,4 @@
+import { validateCreateResource } from "@procomun/db/validation";
 import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { KeywordCatalogField } from "../islands/resources/KeywordCatalogField.tsx";
@@ -106,6 +107,11 @@ export default function NuevoPage() {
 					setShowAuthCheck(true);
 					return;
 				}
+				// Precarga editable del autor; el pp_author del .elpx tiene prioridad.
+				setForm((current) => ({
+					...current,
+					author: current.author || session.user.name || "",
+				}));
 				setShowElpxDrawer(true);
 			} catch {
 				setShowAuthCheck(true);
@@ -221,9 +227,16 @@ export default function NuevoPage() {
 			language: form.language,
 			license: form.license,
 			resourceType: form.resourceType,
-			author: form.author || undefined,
+			author: form.author,
 			keywordIds: catalogKeywords.map((keyword) => keyword.id),
 		};
+
+		const validation = validateCreateResource(body);
+		if (!validation.valid) {
+			showFieldErrors(validation.errors);
+			setErrorMsg("Revisa los campos marcados");
+			return;
+		}
 
 		setSubmitBtnDisabled(true);
 		setSubmitBtnText("Creando recurso…");
@@ -463,11 +476,13 @@ export default function NuevoPage() {
 					</div>
 
 					<div className="form-field">
-						<label htmlFor="author">Autor</label>
+						<label htmlFor="author">Autor *</label>
 						<input
 							type="text"
 							id="author"
+							required
 							aria-describedby="author-error"
+							aria-invalid={invalidFields.has("author") ? "true" : undefined}
 							placeholder="Nombre del autor"
 							value={form.author}
 							onChange={(event) =>

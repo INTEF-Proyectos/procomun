@@ -1,4 +1,4 @@
-.PHONY: deps up down clean format lint test test-unit test-integration test-e2e test-e2e-firefox test-e2e-postgres check-coverage cli seed up-docker down-docker seed-docker up-postgres download-exelearning-editor
+.PHONY: deps up down clean format lint test test-unit test-integration test-ui test-e2e test-e2e-firefox test-e2e-postgres check-coverage cli seed up-docker down-docker seed-docker up-postgres download-exelearning-editor
 
 # Variables
 BUN = bun
@@ -74,6 +74,10 @@ test-unit:
 test-integration:
 	@echo "Running integration tests..."
 	$(BUN) run test:integration
+
+test-ui:
+	@echo "Running UI tests..."
+	$(BUN) run test:ui
 
 test-all: test test-e2e
 

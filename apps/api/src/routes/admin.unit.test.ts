@@ -25,6 +25,7 @@ const validResource = {
 	language: "es",
 	license: "cc-by",
 	resourceType: "documento",
+	author: "Autora de prueba",
 };
 
 describe("Rutas admin — con sesión de admin", () => {
@@ -697,6 +698,17 @@ describe("Rutas admin — subida de recursos por author/editor/curator (DEF-221)
 			body: JSON.stringify(validResource),
 		});
 		expect(res.status).toBe(201);
+	});
+
+	test("el borrador precarga el autor con el nombre del usuario", async () => {
+		const userId = `author-n-${crypto.randomUUID()}`;
+		const app = await setupUser(userId, "author");
+		const res = await app.request("/api/admin/resources/draft", {
+			method: "POST",
+		});
+		const { id } = await res.json();
+		const getRes = await app.request(`/api/admin/resources/${id}`);
+		expect((await getRes.json()).author).toBe(`User ${userId}`);
 	});
 
 	test("curator puede crear un recurso y acceder a su propio borrador (no 'Recurso no encontrado')", async () => {
@@ -1441,6 +1453,7 @@ describe("Rutas admin FTS — con sesión de admin", () => {
 				language: "es",
 				license: "cc-by",
 				resourceType: "documento",
+				author: "Autora de prueba",
 			}),
 		});
 		const { id } = await createRes.json();
@@ -1464,6 +1477,7 @@ describe("Rutas admin FTS — con sesión de admin", () => {
 				language: "es",
 				license: "cc-by",
 				resourceType: "documento",
+				author: "Autora de prueba",
 			}),
 		});
 		const { id } = await createRes.json();
@@ -1500,6 +1514,7 @@ describe("Seguridad — mass assignment / bypass del flujo editorial (recursos)"
 		language: "es",
 		license: "cc-by",
 		resourceType: "documento",
+		author: "Autora de prueba",
 	};
 
 	test("POST /api/admin/resources ignora editorialStatus/featuredAt del cuerpo (un author no autopublica)", async () => {
