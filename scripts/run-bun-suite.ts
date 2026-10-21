@@ -1,7 +1,7 @@
 import { readdir } from "node:fs/promises";
 import { join, relative } from "node:path";
 
-export type SuiteName = "integration" | "unit";
+export type SuiteName = "integration" | "ui" | "unit";
 
 type SuiteDefinition = {
 	allowEmpty: boolean;
@@ -21,6 +21,14 @@ export const SUITE_DEFINITIONS: Record<SuiteName, SuiteDefinition> = {
 		allowEmpty: true,
 		label: "integration",
 		suffix: ".integration.test.ts",
+	},
+	// Tests de islas React. Van aparte de unit/integration y sin coverage: al
+	// renderizar islas cargan componentes y mensajes de paraglide que bajan la
+	// media por fichero del umbral, y antes no se ejecutaban en ningún sitio.
+	ui: {
+		allowEmpty: true,
+		label: "ui",
+		suffix: ".unit.test.tsx",
 	},
 };
 
@@ -121,7 +129,7 @@ export function getMissingRequiredSuiteMessage(suite: SuiteName): string {
 }
 
 export function isSuiteName(value: string | undefined): value is SuiteName {
-	return value === "unit" || value === "integration";
+	return value === "unit" || value === "integration" || value === "ui";
 }
 
 async function main() {
@@ -130,7 +138,7 @@ async function main() {
 
 	if (!isSuiteName(suiteArg)) {
 		console.error(
-			"Usage: bun run scripts/run-bun-suite.ts <unit|integration> [--coverage]",
+			"Usage: bun run scripts/run-bun-suite.ts <unit|integration|ui> [--coverage]",
 		);
 		process.exit(1);
 	}

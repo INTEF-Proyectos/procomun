@@ -1,11 +1,45 @@
 import { describe, expect, test } from "bun:test";
 import { renderToStaticMarkup } from "react-dom/server";
+import type { Resource } from "../../lib/api-client.ts";
+import { url } from "../../lib/paths.ts";
 import { CatalogIsland } from "./CatalogIsland.tsx";
 import { CatalogSearchIsland } from "./CatalogSearchIsland.tsx";
 import {
+	ResourceDetailContent,
 	ResourceDetailIsland,
 	updateStatsAfterDownload,
 } from "./ResourceDetailIsland.tsx";
+
+function renderDetail(resource: Partial<Resource>, role: string): string {
+	return renderToStaticMarkup(
+		<ResourceDetailContent
+			resource={{
+				id: "res-1",
+				slug: "recurso",
+				title: "Recurso",
+				description: "",
+				language: "es",
+				license: "cc-by",
+				resourceType: "document",
+				keywords: null,
+				author: null,
+				publisher: null,
+				editorialStatus: "published",
+				createdBy: "author-1",
+				createdByName: "Autora",
+				createdAt: null,
+				updatedAt: null,
+				deletedAt: null,
+				...resource,
+			}}
+			session={{
+				user: { id: "curator-1", email: "c@example.org", name: "C", role },
+			}}
+			stats={null}
+			isFavorited={false}
+		/>,
+	);
+}
 
 describe("Catalog islands", () => {
 	test("CatalogSearchIsland renderiza el buscador de cabecera", () => {
@@ -68,5 +102,47 @@ describe("Catalog islands", () => {
 			...stats,
 			downloadCount: 5,
 		});
+	});
+
+	// #399: «Editar» solo si la API lo permite (canManageResource); antes cualquier
+	// curator lo veía y el editor respondía «Recurso no encontrado» por el 403.
+	test("la ficha muestra la imagen de la licencia Creative Commons (#404)", () => {
+		const html = renderDetail({ license: "cc-by-sa" }, "reader");
+
+		expect(html).toContain("licenses/cc-by-sa.png");
+		expect(html).toContain("https://creativecommons.org/licenses/by-sa/4.0/");
+		expect(html).toContain('rel="license noopener noreferrer"');
+		expect(html).toContain(
+			"Licencia Creative Commons Reconocimiento-CompartirIgual 4.0",
+		);
+		expect(html).not.toContain(">copyright<");
+	});
+
+	test("una licencia sin imagen oficial sigue viéndose como texto (#404)", () => {
+		const html = renderDetail({ license: "mit-custom" }, "reader");
+
+		expect(html).toContain("mit-custom");
+		expect(html).not.toContain("licenses/");
+	});
+
+	test("ResourceDetailIsland muestra Editar al curator solo si puede gestionarlo", () => {
+		const editHref = `href="${url("editar?id=res-1")}"`;
+		expect(renderDetail({}, "curator")).not.toContain("Editar recurso");
+		expect(renderDetail({ editorialStatus: "review" }, "curator")).toContain(
+			"Editar recurso",
+		);
+		expect(
+			renderDetail(
+				{ editorialStatus: "draft", createdBy: "curator-1" },
+				"curator",
+			),
+		).toContain(editHref);
+		expect(
+			renderDetail({ assignedCuratorId: "curator-1" }, "curator"),
+		).toContain(editHref);
+		expect(
+			renderDetail({ assignedCuratorId: "curator-2" }, "curator"),
+		).not.toContain("Editar recurso");
+		expect(renderDetail({}, "admin")).toContain("Editar recurso");
 	});
 });

@@ -184,3 +184,42 @@ describe("remainingPathAfter", () => {
 		).toBe("css/style.css");
 	});
 });
+
+describe("HTML de Descartes y eXe (issue #406)", () => {
+	test("deshace un nivel de entidades doblemente escapadas y reescribe background", async () => {
+		const dir = path.join(process.env.UPLOAD_STORAGE_DIR ?? "", "elpx", HASH);
+		await writeFile(
+			path.join(dir, "indice.htm"),
+			[
+				"<html><head><title>&amp;Iacute;ndice</title></head><body",
+				' background="img/fondo.png">',
+				"<p>precio &amp; oferta</p>",
+				"<p>&amp;lt;script&amp;gt;</p>",
+				"</body></html>",
+			].join(""),
+			"utf8",
+		);
+
+		const res = await app.request(`/api/v1/elpx/${HASH}/indice.htm`);
+		const body = await res.text();
+
+		expect(res.status).toBe(200);
+		expect(body).toContain("&Iacute;ndice");
+		expect(body).not.toContain("&amp;Iacute;");
+		expect(body).toContain("precio &amp; oferta");
+		expect(body).toContain("&lt;script&gt;");
+		expect(body).not.toContain("<script>alert");
+		expect(body).toContain(`/api/v1/elpx/${HASH}/img/fondo.png`);
+		expect(res.headers.get("content-security-policy")).not.toContain(
+			"allow-same-origin",
+		);
+	});
+
+	test("un archivo que no está en el paquete responde 404 con CORS", async () => {
+		const res = await app.request(
+			`/api/v1/elpx/${HASH}/no-esta-en-el-paquete.js`,
+		);
+		expect(res.status).toBe(404);
+		expect(res.headers.get("access-control-allow-origin")).toBe("*");
+	});
+});

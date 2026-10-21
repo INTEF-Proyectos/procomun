@@ -65,3 +65,23 @@ Sin esto, los scripts clásicos del paquete fallan en el **dev server de Vite**,
 * El relay se monta en `ResourceDetailIsland` (ficha pública, superficie principal de consumo, cuyo preview se sirve vía `elpx-content`). `EditarPage` queda fuera si su preview es un blob cliente sin shim.
 * Validación (regla 14): tests en `elpx-embed-policy.unit.test.ts` (incl. drive sobre los 4 embeds reales de `remote-embeds.elpx`), `use-elpx-embed-relay.unit.test.ts` (autenticación por identidad + invariante), `EmbedModal.unit.test.tsx` (ramas vídeo/PDF) y aserción de inyección del shim en `elpx-processor.unit.test.ts`. El cuerpo del hook React (glue de DOM) no es ejercitable sin navegador; la lógica de seguridad está al 100%.
 * Evolución futura preferente: Opción 3 (origen separado sin cookies), que eliminaría el shim/relay/modal.
+
+## Adenda 2026-10-17 — fachada como enlace y PDF del propio paquete (#378)
+
+**Problema.** Con el `.elpx` real de #378 (cinco PDF del paquete y un Padlet en `<iframe>`, además de Canva, Genially y Symbaloo):
+* En «Ver online» el documento es de nivel superior y el shim no hacía nada (`window.parent === window`). Los iframes heredaban el sandbox: Padlet se quedaba en «Aún cargando…», el PDF en gris y el resto en blanco. En «Ponlo en tu web» la fachada mandaba el `postMessage` a una web que no lo escucha.
+* En la ficha, la fachada del PDF no abría nada: la ficha pasa `previewUrl` relativa (`/api/v1/elpx/<hash>/`), `classifyEmbed` no la resolvía y nunca reconocía el PDF del propio paquete. En http además lo rechazaba por no ser https.
+* La fachada decía «▶ Ver contenido externo» para todo y el modal se titulaba «Vídeo» aunque fuera un Padlet.
+
+**Decisión.**
+* La fachada es un enlace (`<a target="_blank" rel="noopener">`) que dice qué abre: «Ver PDF: <fichero>» o «Ver contenido de <host>». La pestaña nueva sale del sandbox (`allow-popups-to-escape-sandbox`), así que el contenido se ve.
+* Si el shim está en un iframe, saluda al padre (`action: "hello"`). El relay de la ficha contesta `ready` solo al iframe de confianza, y entonces el clic abre el modal en vez de la pestaña. El shim no comprueba el origen de la respuesta: un padre ajeno que conteste solo se queda con el clic de su propia incrustación, y el contenido es público.
+* `classifyEmbed` resuelve `contentBaseUrl` contra el origen de la página y acepta el PDF del propio paquete con el esquema del contenido, también en http. El resto de embeds sigue exigiendo https cross-origin; el invariante de vídeo no cambia.
+* El modal de los embeds que no son PDF se titula «Contenido externo».
+* La fachada limita su alto a `60vh` para que el texto no quede fuera del visor con un PDF de 1000 px.
+
+**Lo que no cambia.** El contenido del autor sigue en origen opaco y sin `allow-same-origin`. Las miniaturas de las tarjetas (`pointer-events: none` y sandbox sin `allow-popups`) siguen sin abrir nada.
+
+**Validación.** `e2e/tests/public/elpx-embed-facade.e2e.ts` (paquete sintético con PDF propio y Padlet: en «Ver online» son enlaces y la pestaña del Padlet tiene su origen; en la ficha el PDF abre el modal), `elpx-embed-policy.unit.test.ts` (PDF del paquete con base relativa y en http; PDF http fuera del paquete rechazado), `use-elpx-embed-relay.unit.test.ts` (respuesta al saludo solo al iframe de confianza) y `EmbedModal.unit.test.tsx`. Comprobado en Chrome con el paquete de #378.
+
+**Largo plazo.** Sigue siendo la opción 3 (origen separado); propuesta en #429.

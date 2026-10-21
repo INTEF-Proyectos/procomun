@@ -161,6 +161,9 @@ export function PublicLayout() {
 									</span>
 								</button>
 							) : null}
+							<button type="submit" className="public-nav-search-submit">
+								{m.hero_search_btn()}
+							</button>
 						</form>
 					</search>
 					<PublicNavIsland />

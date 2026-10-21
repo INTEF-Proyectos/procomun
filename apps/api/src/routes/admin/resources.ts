@@ -161,6 +161,8 @@ resourceRoutes.post("/draft", requireRole("author"), async (c) => {
 		resourceType: "actividad-interactiva",
 		editorialStatus: "draft",
 		createdBy: user.id,
+		// Precarga editable: el editor exige autor al crear (issue #382).
+		author: user.name,
 	});
 	return c.json(result, 201);
 });

@@ -1,3 +1,4 @@
+import { canManageResource } from "@procomun/db/validation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { Resource, SessionData } from "../../lib/api-client.ts";
 import { getApiClient } from "../../lib/get-api-client.ts";
@@ -13,6 +14,7 @@ import {
 	RESOURCE_EXPORT_OPTIONS,
 	type ResourceExportKind,
 } from "../../lib/resource-export.ts";
+import { LicenseBadge } from "../../ui/LicenseBadge.tsx";
 import { FavoriteIsland } from "../social/FavoriteIsland.tsx";
 import { RatingIsland } from "../social/RatingIsland.tsx";
 import { ReportButton } from "../social/ReportButton.tsx";
@@ -212,7 +214,7 @@ function getStatusBadgeClass(editorialStatus: string): string {
 	}
 }
 
-function ResourceDetailContent({
+export function ResourceDetailContent({
 	resource,
 	session,
 	stats,
@@ -238,12 +240,7 @@ function ResourceDetailContent({
 	const publicationDate = resourceDate(resource.createdAt);
 	const updatedDate = resourceDate(resource.updatedAt);
 	const currentUserId = session?.user?.id ?? null;
-	const userRole = session?.user?.role ?? "reader";
-	const isOwner =
-		currentUserId !== null && resource.createdBy === currentUserId;
-	const canEdit =
-		hasMinRole(userRole, "author") &&
-		(isOwner || hasMinRole(userRole, "curator"));
+	const canEdit = !!session?.user && canManageResource(session.user, resource);
 	const authorName =
 		resource.createdByName || resource.author || m.detail_unknown_author();
 	const authorInitial = authorName.charAt(0).toUpperCase();
@@ -457,8 +454,7 @@ function ResourceDetailContent({
 					>
 						{resource.license ? (
 							<div className="detail-license">
-								<span className="material-symbols-outlined">copyright</span>
-								<span className="detail-license-text">{resource.license}</span>
+								<LicenseBadge license={resource.license} />
 							</div>
 						) : null}
 						{canEdit ? (

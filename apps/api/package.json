@@ -9,17 +9,17 @@
 		"test": "bun test"
 	},
 	"dependencies": {
-		"@electric-sql/pglite": "0.5.8",
+		"@electric-sql/pglite": "0.5.10",
 		"@procomun/db": "workspace:*",
 		"@tus/file-store": "2.1.1",
-		"@tus/server": "2.4.4",
-		"better-auth": "1.7.4",
+		"@tus/server": "2.4.5",
+		"better-auth": "1.7.7",
 		"cheerio": "^1.2.0",
-		"drizzle-orm": "0.45.2",
+		"drizzle-orm": "0.45.3",
 		"feed": "^6.0.0",
-		"hono": "4.13.7",
-		"mammoth": "^1.12.2",
-		"nodemailer": "^10.0.8",
+		"hono": "4.13.9",
+		"mammoth": "^1.13.0",
+		"nodemailer": "^10.1.2",
 		"pdf-parse": "^2.4.5"
 	},
 	"devDependencies": {
