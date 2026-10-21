@@ -52,6 +52,7 @@ const resourceBody = {
 	language: "es",
 	license: "cc-by",
 	resourceType: "documento",
+	author: "Autora de prueba",
 };
 
 describe("Catálogo de palabras clave (#384)", () => {

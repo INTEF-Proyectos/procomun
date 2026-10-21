@@ -36,6 +36,10 @@ describe("run-bun-suite helpers", () => {
 			"",
 		);
 		await writeFile(join(rootDir, "apps", "api", "src", "ignore.spec.ts"), "");
+		await writeFile(
+			join(rootDir, "apps", "api", "src", "island.unit.test.tsx"),
+			"",
+		);
 
 		expect(await findSuiteFiles("unit", rootDir)).toEqual([
 			"apps/api/src/zeta.unit.test.ts",
@@ -43,6 +47,24 @@ describe("run-bun-suite helpers", () => {
 		]);
 		expect(await findSuiteFiles("integration", rootDir)).toEqual([
 			"packages/db/src/resource.integration.test.ts",
+		]);
+		expect(await findSuiteFiles("ui", rootDir)).toEqual([
+			"apps/api/src/island.unit.test.tsx",
+		]);
+	});
+
+	test("findStandardTestFiles leaves ui tests out of coverage", async () => {
+		const rootDir = await mkdtemp(join(tmpdir(), "procomun-ui-"));
+
+		await mkdir(join(rootDir, "apps", "frontend"), { recursive: true });
+		await writeFile(join(rootDir, "apps", "frontend", "lib.unit.test.ts"), "");
+		await writeFile(
+			join(rootDir, "apps", "frontend", "Island.unit.test.tsx"),
+			"",
+		);
+
+		expect(await findStandardTestFiles(rootDir)).toEqual([
+			"apps/frontend/lib.unit.test.ts",
 		]);
 	});
 

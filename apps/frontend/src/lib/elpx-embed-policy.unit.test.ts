@@ -57,6 +57,40 @@ describe("classifyEmbed", () => {
 		expect(r?.kind).toBe("pdf");
 	});
 
+	// #378: la ficha pasa `previewUrl` tal cual la da la API, relativa.
+	test("permite un .pdf del propio paquete con contentBaseUrl relativa", () => {
+		const url =
+			"https://procomun.example/api/v1/elpx/abc123/content/resources/mapa.pdf";
+		expect(
+			classifyEmbed(url, {
+				pageOrigin: PAGE_ORIGIN,
+				contentBaseUrl: "/api/v1/elpx/abc123/",
+			}),
+		).toEqual({ kind: "pdf", url });
+	});
+
+	test("permite un .pdf del propio paquete en http si el contenido va por http", () => {
+		const url =
+			"http://localhost:5173/api/v1/elpx/abc123/content/resources/mapa.pdf";
+		expect(
+			classifyEmbed(url, {
+				pageOrigin: "http://localhost:5173",
+				contentBaseUrl: "/api/v1/elpx/abc123/",
+			}),
+		).toEqual({ kind: "pdf", url });
+	});
+
+	test("rechaza un .pdf en http fuera del paquete", () => {
+		const opts = {
+			pageOrigin: "http://localhost:5173",
+			contentBaseUrl: "/api/v1/elpx/abc123/",
+		};
+		expect(
+			classifyEmbed("http://localhost:5173/api/v1/elpx/otro/a.pdf", opts),
+		).toBeNull();
+		expect(classifyEmbed("http://ejemplo.org/a.pdf", opts)).toBeNull();
+	});
+
 	// --- Invariantes de seguridad ---
 	test("NO promociona vídeo same-origin a la app (evita escape del aislamiento)", () => {
 		expect(

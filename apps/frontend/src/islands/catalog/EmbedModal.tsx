@@ -24,7 +24,7 @@ export function EmbedModal({
 		<Dialog
 			open={true}
 			onClose={onClose}
-			title={isVideo ? "Vídeo" : "Documento PDF"}
+			title={isVideo ? "Contenido externo" : "Documento PDF"}
 			size="lg"
 			className="embed-modal"
 		>
@@ -38,7 +38,7 @@ export function EmbedModal({
 				{isVideo ? (
 					<iframe
 						src={embed.url}
-						title="Reproductor de vídeo"
+						title="Contenido externo"
 						sandbox="allow-scripts allow-same-origin allow-popups allow-forms allow-presentation"
 						allow="autoplay; encrypted-media; fullscreen; picture-in-picture"
 						referrerPolicy="strict-origin-when-cross-origin"
