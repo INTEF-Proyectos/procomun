@@ -62,7 +62,7 @@ export function EducationalSearchFilters({
 							);
 						}}
 					>
-						<option value="">Cualquier ciclo, tramo, nivel o ámbito</option>
+						<option value="">Cualquier ciclo, curso, nivel o ámbito</option>
 						{options.map((option) => (
 							<option key={option.id} value={option.id}>
 								{option.label}

@@ -162,7 +162,7 @@ describe("resource versions", () => {
 	test("guarda la categorización educativa en el snapshot y la restaura", async () => {
 		const resourceId = await seedResource("Recurso clasificado");
 		const v1Areas = [
-			{ categoryId: "educacion-primaria", optionId: "primer-tramo" },
+			{ categoryId: "educacion-primaria", optionId: "primer-ciclo" },
 			{ categoryId: "bachillerato", optionId: null },
 		];
 		await updateResource(db, resourceId, { educationalAreas: v1Areas });

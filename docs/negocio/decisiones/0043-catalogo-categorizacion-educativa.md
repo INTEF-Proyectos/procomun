@@ -6,7 +6,7 @@
 
 ## Contexto y Problema
 
-La issue #380 pide clasificar los recursos por etapa, programa o ámbito educativo en dos niveles (categoría y, a veces, ciclo, tramo o nivel) y filtrar el catálogo por esa clasificación. La lista es cerrada: 12 categorías y sus opciones, definidas por Producto.
+La issue #380 pide clasificar los recursos por etapa, programa o ámbito educativo en dos niveles (categoría y, a veces, ciclo, curso o nivel) y filtrar el catálogo por esa clasificación. La lista es cerrada: 12 categorías y sus opciones, definidas por Producto.
 
 Ya existen dos sitios donde podría vivir:
 
@@ -48,3 +48,11 @@ Catálogo en código (`packages/db/src/educational-areas.ts`) con ids estables y
 * El seed de demo crea la categoría cuando el nivel de demo es un id del catálogo.
 * La correspondencia de los textos antiguos al catálogo es la issue #383.
 * La correspondencia con LOM-ES queda para cuando se aborde la exportación.
+
+## Adenda 2026-10-21: Primaria por ciclos y niveles solo como dato de origen
+
+Producto lo concreta en #394 y #380:
+
+* Educación Primaria se organiza en los tres ciclos de la LOMLOE: primer ciclo (1.º y 2.º), segundo (3.º y 4.º) y tercero (5.º y 6.º). Sustituyen a los dos tramos, con ids `primer-ciclo`, `segundo-ciclo` y `tercer-ciclo`. No hace falta migración de datos porque el catálogo aún no se había publicado.
+* La ficha deja de mostrar «Niveles educativos». `resource_levels` se conserva solo como dato de origen de la importación.
+* Por ahora, en catalán, euskera, gallego e inglés se mantienen las denominaciones actuales, en castellano. No se traducen hasta tener las oficiales.
