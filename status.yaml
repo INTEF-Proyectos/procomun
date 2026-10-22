@@ -3032,6 +3032,18 @@ tasks:
       ahora ocupa el contenedor entero. Test e2e nuevo en
       elpx-embed-facade.e2e.ts (rojo sin el cambio, verde con él).
 
+  T-2026-10-22-11341963:
+    date: 2026-10-22
+    agent: "ingestas-y-migraciones"
+    task: "El importador legacy respeta published del JSON"
+    status: Done
+    related: ["#447", "ADR-0029"]
+    notes: >
+      El importador publicaba todo. Ahora solo published 1 publica; 0, ausente
+      o desconocido entra como borrador, con aviso en el informe si no es 0 ni
+      1. Nuevo --fix-published (con --dry-run) que relee los JSON y pasa a
+      borrador lo ya importado sin revisión editorial. Tests de mapeo,
+      repositorio e integración (rojo sin el cambio, verde con él).
   T-2026-10-22-11275590:
     date: 2026-10-22
     agent: "frontend-ux-accesibilidad"

@@ -1,5 +1,6 @@
 import { normalizeLanguage } from "./normalize-language.ts";
 import { normalizeLicense } from "./normalize-license.ts";
+import { resolveLegacyPublicationStatus } from "./publication-status.ts";
 import { mapResourceType } from "./resource-type-map.ts";
 import type {
 	LegacyOdeJson,
@@ -361,6 +362,14 @@ export function mapLegacyRecord(
 		warnings.push({ field: "preview", message: previewImage.warning });
 	}
 
+	const publication = resolveLegacyPublicationStatus(json.published);
+	if (!publication.recognized) {
+		warnings.push({
+			field: "published",
+			message: `Valor de published ausente o no reconocido (${JSON.stringify(json.published ?? null)}); se importa como borrador`,
+		});
+	}
+
 	const resource: MappedLegacyResource = {
 		externalId,
 		importSource: IMPORT_SOURCE,
@@ -377,6 +386,8 @@ export function mapLegacyRecord(
 		keywords,
 		importedAt: parseImportedAt(json),
 		previewImageUrl: previewImage.url,
+		editorialStatus: publication.editorialStatus,
+		sourcePublished: publication.sourcePublished,
 	};
 
 	return {
