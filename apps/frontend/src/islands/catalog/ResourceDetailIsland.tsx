@@ -631,6 +631,20 @@ export function ResourceDetailContent({
 									</div>
 								) : null}
 
+								{resource.otherAuthors?.trim() ? (
+									<div className="meta-row">
+										<div className="meta-row-icon">
+											<span className="material-symbols-outlined">group</span>
+										</div>
+										<div>
+											<p className="meta-row-label">
+												{m.detail_other_authors()}
+											</p>
+											<p className="meta-row-value">{resource.otherAuthors}</p>
+										</div>
+									</div>
+								) : null}
+
 								{publicationDate ? (
 									<div className="meta-row">
 										<div className="meta-row-icon">

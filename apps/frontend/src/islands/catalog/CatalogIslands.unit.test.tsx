@@ -136,6 +136,21 @@ describe("Catalog islands", () => {
 		expect(html).not.toContain("12 - 13 años / Primer curso");
 	});
 
+	test("Detalles técnicos muestra «Otros autores» solo si tiene contenido (#417)", () => {
+		const html = renderDetail(
+			{ otherAuthors: "Luis Gómez, Marta Ruiz" },
+			"reader",
+		);
+		expect(html).toContain("Otros autores");
+		expect(html).toContain("Luis Gómez, Marta Ruiz");
+
+		for (const otherAuthors of [null, undefined, "", "   "]) {
+			expect(renderDetail({ otherAuthors }, "reader")).not.toContain(
+				"Otros autores",
+			);
+		}
+	});
+
 	test("ResourceDetailIsland renderiza el estado de carga inicial", () => {
 		const html = renderToStaticMarkup(<ResourceDetailIsland />);
 

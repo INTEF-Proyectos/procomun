@@ -1,4 +1,5 @@
 import {
+	MAX_OTHER_AUTHORS_LENGTH,
 	validateCreateResource,
 	validateUpdateResource,
 } from "@procomun/db/validation";
@@ -162,6 +163,7 @@ export default function EditarPage() {
 	const titleRef = useRef<HTMLInputElement>(null);
 	const descriptionRef = useRef<HTMLTextAreaElement>(null);
 	const authorRef = useRef<HTMLInputElement>(null);
+	const otherAuthorsRef = useRef<HTMLInputElement>(null);
 	const languageRef = useRef<HTMLSelectElement>(null);
 	const licenseRef = useRef<HTMLSelectElement>(null);
 	const resourceTypeRef = useRef<HTMLSelectElement>(null);
@@ -442,6 +444,8 @@ export default function EditarPage() {
 			// Al crear el autor es obligatorio y uno existente no se puede borrar,
 			// pero un recurso antiguo sin autor se sigue guardando sin él.
 			author: isNew || resource.author || author.trim() ? author : undefined,
+			// Opcional (issue #417): se envía siempre para poder vaciarlo.
+			otherAuthors: otherAuthorsRef.current?.value ?? "",
 			keywords: keywordsRef.current?.value || undefined,
 			educationalAreas: selectionsToAssignments(educationalSelections),
 		};
@@ -950,6 +954,24 @@ export default function EditarPage() {
 							/>
 							<span id="ed-author-error" className="edit-field-error">
 								{fieldErrors.author ?? ""}
+							</span>
+						</div>
+
+						<div className="edit-field">
+							<label htmlFor="ed-other-authors">
+								Otros autores (opcional, separados por comas)
+							</label>
+							<input
+								type="text"
+								id="ed-other-authors"
+								ref={otherAuthorsRef}
+								maxLength={MAX_OTHER_AUTHORS_LENGTH}
+								aria-describedby="ed-other-authors-error"
+								aria-invalid={fieldErrors.otherAuthors ? "true" : undefined}
+								defaultValue={res.otherAuthors ?? ""}
+							/>
+							<span id="ed-other-authors-error" className="edit-field-error">
+								{fieldErrors.otherAuthors ?? ""}
 							</span>
 						</div>
 

@@ -3043,3 +3043,18 @@ tasks:
       fixtures de test no lo tenían y check-types fallaba en main con 9
       errores. Se añade previewImageUrl: null a ambos. Validación:
       check-types limpio y los dos ficheros de test en verde.
+
+  T-2026-10-22-11391630:
+    date: 2026-10-22
+    agent: "backend-api-servicios"
+    task: "Campo «Otros autores» en el recurso"
+    status: Done
+    related: ["#417"]
+    notes: >
+      Nuevo campo resources.other_authors (migración 0011): texto libre
+      opcional, máximo 1000 caracteres, vacío se guarda como null. Va en el
+      alta (/nuevo), la edición, la API de publicación, el snapshot de
+      versiones (un snapshot antiguo sin el campo conserva el valor actual) y
+      una fila en Detalles técnicos que solo aparece si tiene contenido. El
+      importador legacy lo rellena con los autores de authorStr y de las vCard
+      de autor que no son el principal, sin repetir.

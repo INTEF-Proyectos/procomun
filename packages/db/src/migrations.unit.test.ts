@@ -146,6 +146,53 @@ describe("migración resources.thumbnail_url (issue #407)", () => {
 	});
 });
 
+describe("migración resources.other_authors (issue #417)", () => {
+	const COLUMN_QUERY = `SELECT column_name FROM information_schema.columns
+		WHERE table_name = 'resources' AND column_name = 'other_authors'`;
+
+	test("registra la migración 0011 y añade la columna a una tabla resources previa", async () => {
+		const journal = JSON.parse(
+			await readFile(path.join(migrationsDir, "meta/_journal.json"), "utf8"),
+		) as { entries: Array<{ tag: string }> };
+		expect(journal.entries.map((entry) => entry.tag)).toContain(
+			"0011_resource_other_authors",
+		);
+
+		const migration = await readFile(
+			path.join(migrationsDir, "0011_resource_other_authors.sql"),
+			"utf8",
+		);
+		const db = new PGlite();
+		try {
+			await db.exec(
+				'CREATE TABLE "resources" (id TEXT PRIMARY KEY, title TEXT NOT NULL)',
+			);
+			await db.exec(migration);
+			await db.exec(migration);
+			expect((await db.query(COLUMN_QUERY)).rows).toHaveLength(1);
+		} finally {
+			await db.close();
+		}
+	});
+
+	test("createTables añade la columna tanto en BD nueva como en una ya existente", async () => {
+		const { createTables } = await import("./setup.ts");
+		const fresh = new PGlite();
+		const existing = new PGlite();
+		try {
+			await createTables(fresh);
+			expect((await fresh.query(COLUMN_QUERY)).rows).toHaveLength(1);
+
+			await createTables(existing);
+			await existing.exec('ALTER TABLE "resources" DROP COLUMN other_authors');
+			await createTables(existing);
+			expect((await existing.query(COLUMN_QUERY)).rows).toHaveLength(1);
+		} finally {
+			await Promise.all([fresh.close(), existing.close()]);
+		}
+	});
+});
+
 describe("migración de categorización educativa", () => {
 	test("registra 0009 sin sustituir 0000–0008 y crea la tabla con unicidad", async () => {
 		const journal = JSON.parse(

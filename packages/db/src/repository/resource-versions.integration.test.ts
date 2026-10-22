@@ -231,6 +231,64 @@ describe("resource versions", () => {
 		);
 	});
 
+	test("guarda «Otros autores» en el snapshot y lo restaura (issue #417)", async () => {
+		const resourceId = await seedResource("Recurso con varios autores");
+		await updateResource(db, resourceId, { otherAuthors: "Luis Gómez" });
+		const project1 = await seedProject(resourceId, "s".repeat(64));
+		const v1 = await publishResourceVersion(db, {
+			resourceId,
+			elpxProjectId: project1.id,
+			createdBy: "autora",
+		});
+
+		await updateResource(db, resourceId, { otherAuthors: "Marta Ruiz" });
+		const project2 = await seedProject(resourceId, "t".repeat(64));
+		await publishResourceVersion(db, {
+			resourceId,
+			elpxProjectId: project2.id,
+			createdBy: "autora",
+		});
+
+		await restoreResourceVersion(db, {
+			resourceId,
+			versionId: v1.id,
+			createdBy: "curadora",
+		});
+		expect((await getResourceById(db, resourceId))?.otherAuthors).toBe(
+			"Luis Gómez",
+		);
+	});
+
+	test("un snapshot anterior a «Otros autores» conserva el valor actual", async () => {
+		const resourceId = await seedResource("Recurso con snapshot antiguo");
+		const project = await seedProject(resourceId, "u".repeat(64));
+		const v1 = await publishResourceVersion(db, {
+			resourceId,
+			elpxProjectId: project.id,
+			createdBy: "autora",
+		});
+		const [version] = await db
+			.select()
+			.from(resourceVersions)
+			.where(eq(resourceVersions.id, v1.id));
+		const { otherAuthors: _, ...legacySnapshot } = (version?.metadataSnapshot ??
+			{}) as Record<string, unknown>;
+		await db
+			.update(resourceVersions)
+			.set({ metadataSnapshot: legacySnapshot })
+			.where(eq(resourceVersions.id, v1.id));
+		await updateResource(db, resourceId, { otherAuthors: "Marta Ruiz" });
+
+		await restoreResourceVersion(db, {
+			resourceId,
+			versionId: v1.id,
+			createdBy: "curadora",
+		});
+		expect((await getResourceById(db, resourceId))?.otherAuthors).toBe(
+			"Marta Ruiz",
+		);
+	});
+
 	test("clears newer tags when the restored snapshot has no keywords", async () => {
 		const resourceId = await seedResource("Recurso sin etiquetas");
 		const project1 = await seedProject(resourceId, "g".repeat(64));

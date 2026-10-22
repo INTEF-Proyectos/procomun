@@ -13,6 +13,7 @@ export interface Resource {
 	resourceType: string;
 	keywords: string | null;
 	author: string | null;
+	otherAuthors?: string | null;
 	publisher: string | null;
 	thumbnailUrl?: string | null;
 	editorialStatus: string;
@@ -290,6 +291,7 @@ export interface CreateResourceInput {
 	license: string;
 	resourceType: string;
 	author?: string;
+	otherAuthors?: string;
 	keywords?: string;
 	publisher?: string;
 	subjects?: string[];
