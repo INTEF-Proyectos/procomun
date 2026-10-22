@@ -83,3 +83,7 @@ Sustituye a lo anterior donde lo contradiga. La correspondencia de etiquetas ant
 * Falta la gestión del catálogo (fusionar, desactivar, editar alias) antes de abrir el alta masiva. Si alguna vez se desactivaran todos los términos con `catalog = false`, el sembrado volvería a ejecutarse.
 * Producto debe decidir la relación entre los términos que son materias y el campo «Materias».
 * Las versiones del recurso no guardan los términos de catálogo; restaurar una versión conserva los actuales.
+
+## Actualización 2026-10-22 — renumeración de la migración
+
+* `main` incorporó `0010_resource_thumbnail_url` (#425) con idx 8. La migración del catálogo pasa a `0011_keyword_catalog` (idx 9, `when` 1792130000000), para ir detrás de ella. El contenido no cambia.

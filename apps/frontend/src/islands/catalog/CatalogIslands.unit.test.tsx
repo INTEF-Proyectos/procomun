@@ -1,8 +1,8 @@
 import { describe, expect, test } from "bun:test";
 import { renderToStaticMarkup } from "react-dom/server";
-import type { Resource } from "../../lib/api-client.ts";
+import type { RelatedResourcesResult, Resource } from "../../lib/api-client.ts";
 import { url } from "../../lib/paths.ts";
-import { CatalogIsland } from "./CatalogIsland.tsx";
+import { CatalogIsland, CatalogResourceCard } from "./CatalogIsland.tsx";
 import { CatalogSearchIsland } from "./CatalogSearchIsland.tsx";
 import {
 	ResourceDetailContent,
@@ -10,7 +10,11 @@ import {
 	updateStatsAfterDownload,
 } from "./ResourceDetailIsland.tsx";
 
-function renderDetail(resource: Partial<Resource>, role: string): string {
+function renderDetail(
+	resource: Partial<Resource>,
+	role: string,
+	related: RelatedResourcesResult | null = null,
+): string {
 	return renderToStaticMarkup(
 		<ResourceDetailContent
 			resource={{
@@ -37,7 +41,7 @@ function renderDetail(resource: Partial<Resource>, role: string): string {
 			}}
 			stats={null}
 			isFavorited={false}
-			related={null}
+			related={related}
 		/>,
 	);
 }
@@ -59,6 +63,38 @@ describe("Catalog islands", () => {
 		expect(html).not.toContain("Limpiar búsqueda");
 	});
 
+	test("la tarjeta muestra la imagen de metadatos y no el iframe del paquete", () => {
+		const html = renderToStaticMarkup(
+			<CatalogResourceCard
+				resource={{
+					id: "r1",
+					slug: "inventar-problemas",
+					title: "Inventar problemas",
+					description: "Una frase inicial",
+					language: "es",
+					license: "cc-by-nc-sa",
+					resourceType: "proyecto",
+					keywords: null,
+					author: "Autor",
+					publisher: null,
+					editorialStatus: "published",
+					createdBy: null,
+					createdByName: null,
+					createdAt: null,
+					updatedAt: null,
+					deletedAt: null,
+					thumbnailUrl:
+						"https://ode.educacion.es/INTEF/1416349635379/vistaPreviaAgrega.png",
+					elpxPreview: { hash: "abc", previewUrl: "/api/v1/elpx/abc/" },
+				}}
+			/>,
+		);
+
+		expect(html).toContain("vistaPreviaAgrega.png");
+		expect(html).not.toContain("/api/v1/elpx/abc/");
+		expect(html).not.toContain("<iframe");
+	});
+
 	test("CatalogIsland renderiza el shell inicial del catalogo", () => {
 		const html = renderToStaticMarkup(<CatalogIsland />);
 
@@ -66,6 +102,28 @@ describe("Catalog islands", () => {
 		expect(html).toContain("Cargando recursos...");
 		expect(html).toContain("Limpiar filtros");
 		expect(html).toContain("chevron_right");
+	});
+
+	test("las tarjetas de recomendados muestran la previsualización del recurso (#426)", () => {
+		const card = {
+			id: "rel-1",
+			slug: "relacionado",
+			title: "Relacionado",
+			description: "",
+			resourceType: "proyecto",
+			language: "es",
+			license: "cc-by",
+			author: null,
+			score: 1,
+			elpxPreview: { hash: "abc", previewUrl: "/api/v1/elpx/abc/" },
+		};
+		const html = renderDetail({}, "reader", {
+			data: [card],
+			sameAuthor: [],
+			limit: 6,
+		});
+
+		expect(html).toContain('src="/api/v1/elpx/abc/"');
 	});
 
 	test("la ficha no muestra los niveles en texto libre del Procomún antiguo (#380)", () => {

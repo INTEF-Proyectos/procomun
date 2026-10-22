@@ -3,9 +3,14 @@
  * SQL builds a feature vector per candidate; TypeScript applies pure scores.
  */
 
-import { catalogLabelsSql, type DrizzleDB } from "@procomun/db/repository";
+import {
+	catalogLabelsSql,
+	type DrizzleDB,
+	listElpxProjectsByResourceIds,
+} from "@procomun/db/repository";
 import { resources } from "@procomun/db/schema";
 import { and, eq, isNull, sql } from "drizzle-orm";
+import { buildElpxMap, buildElpxPreview } from "../elpx/preview.ts";
 import { rowsFromExecute } from "../fts/search.ts";
 import {
 	clampRelatedLimit,
@@ -29,6 +34,7 @@ export type RelatedResourceCard = {
 	updatedAt: Date | string | null;
 	score: number;
 	signals: RecommendationSignals;
+	elpxPreview: { hash: string; previewUrl: string } | null;
 };
 
 export type RelatedResourcesResult = {
@@ -285,6 +291,7 @@ function toCard(
 		updatedAt: row.updated_at,
 		score: scored.score,
 		signals: scored.signals,
+		elpxPreview: null,
 	};
 }
 
@@ -332,6 +339,17 @@ export async function getRelatedResourcesById(
 	for (const scored of sameAuthorScored) {
 		const row = byId.get(scored.id);
 		if (row) sameAuthor.push(toCard(row, scored));
+	}
+
+	// Las tarjetas pintan la previsualización como en el listado (#426).
+	const elpxMap = buildElpxMap(
+		await listElpxProjectsByResourceIds(
+			db,
+			[...data, ...sameAuthor].map((card) => card.id),
+		),
+	);
+	for (const card of [...data, ...sameAuthor]) {
+		card.elpxPreview = buildElpxPreview(elpxMap.get(card.id));
 	}
 
 	return { data, sameAuthor, limit };

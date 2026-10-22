@@ -66,6 +66,56 @@ blocking_adrs:
 
 tasks:
 
+  T-2026-10-21-07530473:
+    date: 2026-10-21
+    agent: "backend-api-servicios + frontend-ux-accesibilidad + qa-validacion"
+    task: "Previsualización en las tarjetas de «También te puede interesar» (#426)"
+    status: Done
+    related: ["#426", ADR-0036]
+    notes: >
+      GET /api/v1/resources/:slug/related no devolvía elpxPreview y toResourceSummary tampoco lo
+      pasaba a ResourceCard, así que las recomendaciones y «Del mismo autor» salían con el icono
+      genérico. getRelatedResourcesById añade elpxPreview con buildElpxMap/buildElpxPreview, como el
+      listado público, y la ficha lo pasa a la tarjeta.
+      Validación: lint, check-types, test:unit, test:integration y test:ui en verde.
+
+  T-2026-10-21-07480192:
+    date: 2026-10-21
+    agent: "ingestas-y-migraciones + metadatos-y-curacion + qa-validacion"
+    task: "Correspondencia al importar: Primaria por ciclos y ELE solo en español (#383)"
+    status: Done
+    related: ["#383", "#396", "#394", ADR-0043]
+    notes: >
+      Los cursos de Primaria se asignan a los tres ciclos (1-2, 3-4, 5-6). Los niveles A/B/C solo
+      son ELE si el recurso está en español; en otro idioma no se asignan, el recurso queda pendiente
+      de revisión y el informe lo lista en eleEnOtroIdioma. Alta, relleno (--backfill-categories) e
+      informe del CLI reciben el idioma. Actualización fechada en el design.md de la épica 004.
+      Validación: lint, check-types, test:unit, test:integration y test:ui en verde.
+
+  T-2026-10-14-11131328:
+    date: 2026-10-14
+    agent: "ingestas-y-migraciones + metadatos-y-curacion + qa-validacion + documentacion-y-roadmap"
+    task: "Revisión de la correspondencia de categorías antiguas (#383, PR #396)"
+    status: Done
+    related: ["#383", "#396", "#380"]
+    notes: >
+      import:legacy-procomun --backfill-categories aplica la correspondencia a
+      resource_levels de los recursos legacy ya importados sin clasificar.
+      Idempotente, con --dry-run y el mismo informe de categorización. Se quita
+      la eliminación de recuentos entre paréntesis al normalizar. design.md de
+      epic-004 actualizado. Pendiente: ELE A/B/C en recursos que no son de español.
+
+  T-2026-10-14-07510643:
+    date: 2026-10-14
+    agent: "ingestas-y-migraciones + metadatos-y-curacion + qa-validacion"
+    task: "Correspondencia de categorías antiguas al importar (#383)"
+    status: Done
+    related: ["#383", "#380"]
+    notes: >
+      Al importar, learningContext se traduce a resource_educational_areas
+      con las 31 reglas. Lo que no tiene regla queda en el informe y no se
+      asigna. El texto original sigue en resource_levels. PDC no se asigna.
+
   T-2026-10-21-07404523:
     date: 2026-10-21
     agent: "metadatos-y-curacion + frontend-ux-accesibilidad + qa-validacion"
@@ -2879,6 +2929,36 @@ tasks:
       #400. No hubo conflicto en código ni cambió la solución funcional.
       Validación: bun test (1118 pass), check-tracking y check-test-files.
 
+  T-2026-10-15-20402918:
+    date: 2026-10-15
+    agent: "ingestas-y-migraciones + frontend-ux-accesibilidad + qa-validacion"
+    task: "La importación legacy guarda la imagen preview y la tarjeta la muestra"
+    status: Done
+    related: ["#407"]
+    notes: >
+      El JSON legacy trae la miniatura en preview y el mapeo la ignoraba. La
+      tabla resources no tenía columna. Ahora una URL http(s) se guarda en
+      thumbnail_url (esquema Drizzle, setup.ts y migración 0009) y el listado
+      público la devuelve. En catálogo, portada, colecciones y tarjetas de
+      recurso esa imagen sustituye al iframe del .elpx. La ficha sigue
+      abriendo el paquete en Ver online. Una reimportación no actualiza filas
+      ya importadas. Tests: field-mapper.unit.test.ts,
+      repository.unit.test.ts, migrations.unit.test.ts,
+      resource-card-media.unit.test.ts y CatalogIslands.unit.test.tsx.
+
+  T-2026-10-15-21014350:
+    date: 2026-10-15
+    agent: "qa-validacion"
+    task: "El typecheck del importador legacy vuelve a pasar tras exigir previewImageUrl"
+    status: Done
+    related: ["#407", "#425"]
+    notes: >
+      El CI de la PR #425 falló en build: tres errores de tipos en
+      import-legacy-procomun.unit.test.ts. MappedLegacyResource exige
+      previewImageUrl y los tres mocks del comando no lo declaraban. Se añade
+      null, que es lo que produce un JSON legacy sin miniatura. La imagen
+      visible no cambia. e2e-chromium ya estaba en verde.
+
   T-2026-10-17-09435869:
     date: 2026-10-17
     agent: "frontend-ux-accesibilidad + seguridad-privacidad-legal + qa-validacion"
@@ -2967,3 +3047,30 @@ tasks:
       Descartes y de la imagen de licencia, sin cambios en el código de la PR.
       Validación: bun test (1125 pass), check-types, check-tracking y
       check-test-files.
+
+  T-2026-10-21-11012597:
+    date: 2026-10-21
+    agent: "frontend-ux-accesibilidad"
+    task: "La fachada de un embed adaptable de Canva ocupa su contenedor"
+    status: Done
+    related: ["#427", "ADR-0027"]
+    notes: >
+      El código adaptable de Canva mete el <iframe> con position:absolute en
+      un contenedor de alto 0 que reserva el hueco con padding-top y
+      overflow:hidden. El shim ponía la fachada en el flujo, fuera del hueco,
+      y solo se veía la caja vacía. Si el <iframe> va posicionado, la fachada
+      ahora ocupa el contenedor entero. Test e2e nuevo en
+      elpx-embed-facade.e2e.ts (rojo sin el cambio, verde con él).
+
+  T-2026-10-22-11250263:
+    date: 2026-10-22
+    agent: "resolución de conflictos"
+    task: "Integrar main en la PR #397"
+    status: Done
+    related: ["#397", "#384", "#425", "ADR-0042"]
+    notes: >
+      Se integró main en feat/issue-384-catalogo-palabras-clave. main ya traía
+      0010_resource_thumbnail_url (#425), así que la migración del catálogo
+      pasa a 0011_keyword_catalog (idx 9) sin cambiar su contenido. En
+      recommendations/service.ts se unieron los imports de catalogLabelsSql y
+      listElpxProjectsByResourceIds.

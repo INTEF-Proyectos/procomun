@@ -76,3 +76,7 @@ Ficha /recurso?slug=X
 
 * Unitarias puras: tokenización, pesos, score, clamp, orden, desempate.
 * Servicio con PGlite: fixtures de subjects/levels/keywords/autor/colección/FTS y asserts de orden.
+
+## Actualización — previsualización en las tarjetas (2026-10-21, #426)
+
+Cada elemento de `data` y `sameAuthor` lleva también `elpxPreview` (`{ "hash", "previewUrl" }` o `null`), calculado como en el listado público con `listElpxProjectsByResourceIds` y `buildElpxPreview`. La ficha lo pasa a `ResourceCard`, que pinta la misma previsualización que el catálogo en lugar del icono genérico.

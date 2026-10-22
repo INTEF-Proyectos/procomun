@@ -78,6 +78,7 @@ const resourceBaseSelection = {
 	keywords: resources.keywords,
 	author: resources.author,
 	publisher: resources.publisher,
+	thumbnailUrl: resources.thumbnailUrl,
 	createdBy: resources.createdBy,
 	createdByName: user.name,
 	editorialStatus: resources.editorialStatus,

@@ -13,12 +13,15 @@ const storageDir =
 const hash = randomUUID();
 const packageDir = path.join(storageDir, "elpx", hash);
 const PADLET = "https://padlet.com/embed/ix8ogfabl3vbz7wt/slideshow";
+// Código adaptable de Canva (#427): contenedor de alto 0 que reserva el hueco
+// con padding-top y el <iframe> posicionado encima.
+const CANVA = `<div id="canva" style="position:relative;width:100%;height:0;padding-top:141.4%;overflow:hidden"><iframe style="position:absolute;width:100%;height:100%;top:0;left:0;border:none" src="https://www.canva.com/design/DAG/view?embed"></iframe></div>`;
 
 test.beforeAll(async () => {
 	await mkdir(path.join(packageDir, "content"), { recursive: true });
 	await writeFile(
 		path.join(packageDir, "index.html"),
-		`<!doctype html><html lang="es"><head><meta charset="utf-8"><title>Paquete</title></head><body><iframe width="400" height="300" src="content/mapa.pdf"></iframe><iframe src="${PADLET}"></iframe></body></html>`,
+		`<!doctype html><html lang="es"><head><meta charset="utf-8"><title>Paquete</title></head><body><iframe width="400" height="300" src="content/mapa.pdf"></iframe><iframe src="${PADLET}"></iframe>${CANVA}</body></html>`,
 	);
 	await writeFile(
 		path.join(packageDir, "content", "mapa.pdf"),
@@ -55,6 +58,23 @@ test("en «Ver online» el PDF y el Padlet se abren en una pestaña nueva", asyn
 	const tab = await popup;
 	await expect(tab).toHaveURL(PADLET);
 	expect(await tab.evaluate(() => window.origin)).toBe("https://padlet.com");
+});
+
+test("la fachada de un embed adaptable de Canva ocupa su contenedor", async ({
+	page,
+}) => {
+	await page.goto(`/api/v1/elpx/${hash}/`);
+	await page.locator("#canva").scrollIntoViewIfNeeded();
+
+	// Con overflow:hidden y alto 0, un enlace en el flujo cae fuera del hueco.
+	const hit = await page.evaluate(() => {
+		const box = document.getElementById("canva")?.getBoundingClientRect();
+		if (!box) return null;
+		return document
+			.elementFromPoint(box.left + box.width / 2, box.top + 20)
+			?.closest("a")?.textContent;
+	});
+	expect(hit).toBe("Ver contenido de canva.com");
 });
 
 test("en la ficha el PDF del paquete se abre en el modal", async ({ page }) => {
