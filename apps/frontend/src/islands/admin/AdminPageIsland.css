@@ -1303,18 +1303,6 @@ a.admin-resource-title:focus-visible,
 }
 
 /* ---------- Dialog / Modal (new Stitch-style) ---------- */
-.admin-modal-overlay {
-	position: fixed;
-	inset: 0;
-	background: rgba(15, 23, 42, 0.45);
-	display: flex;
-	align-items: center;
-	justify-content: center;
-	padding: 1rem;
-	z-index: 1000;
-}
-
-.admin-confirm-dialog,
 .admin-edit-dialog {
 	background: white;
 	border-radius: 1rem;
@@ -1340,51 +1328,6 @@ a.admin-resource-title:focus-visible,
 	font-weight: 700;
 	margin-bottom: 1.25rem;
 	color: var(--color-on-surface);
-}
-
-.admin-dialog-actions {
-	display: flex;
-	gap: 0.5rem;
-	flex-wrap: wrap;
-	margin-top: 1.25rem;
-	justify-content: flex-end;
-}
-
-/* Reuse .admin-form-btn styles for dialog buttons */
-.admin-btn {
-	display: inline-flex;
-	align-items: center;
-	justify-content: center;
-	gap: 0.375rem;
-	padding: 0.625rem 1.25rem;
-	border-radius: 0.5rem;
-	font-size: 0.875rem;
-	font-weight: 600;
-	font-family: var(--font-body);
-	border: 1px solid var(--color-outline-variant);
-	background: white;
-	color: var(--color-on-surface);
-	cursor: pointer;
-	transition: all 200ms ease;
-}
-
-.admin-btn:hover {
-	background: #f8fafc;
-}
-
-.admin-btn:disabled {
-	opacity: 0.5;
-	cursor: not-allowed;
-}
-
-.admin-btn--danger {
-	background: var(--color-error);
-	color: var(--color-on-error);
-	border-color: var(--color-error);
-}
-
-.admin-btn--danger:hover {
-	opacity: 0.92;
 }
 
 /* ---------- User Role Select ---------- */
