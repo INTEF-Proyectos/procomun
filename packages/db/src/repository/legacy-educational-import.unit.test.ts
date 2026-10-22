@@ -35,6 +35,7 @@ function legacyInput(
 			author: null,
 			publisher: null,
 			keywords: null,
+			previewImageUrl: null,
 			importedAt: new Date("2020-01-02T00:00:00.000Z"),
 		},
 		elpx: {
