@@ -179,6 +179,38 @@ function parseImportedAt(json: LegacyOdeJson): Date | null {
 	return parseFechaRegistro(json.fechaRegistro);
 }
 
+const MAX_PREVIEW_URL_LENGTH = 2000;
+
+function mapPreviewImageUrl(raw: string | null | undefined): {
+	url: string | null;
+	warning: string | null;
+} {
+	const value = (raw ?? "").trim();
+	if (!value) return { url: null, warning: null };
+	if (value.length > MAX_PREVIEW_URL_LENGTH) {
+		return {
+			url: null,
+			warning: `preview supera ${MAX_PREVIEW_URL_LENGTH} caracteres y no se importa`,
+		};
+	}
+	let parsed: URL;
+	try {
+		parsed = new URL(value);
+	} catch {
+		return {
+			url: null,
+			warning: "preview no es una URL válida y no se importa",
+		};
+	}
+	if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
+		return {
+			url: null,
+			warning: "preview debe usar http o https y no se importa",
+		};
+	}
+	return { url: value, warning: null };
+}
+
 /**
  * Resuelve el identificador externo de un registro legacy (`idODE`, con
  * fallback a `id`). Se exporta para que el CLI pueda resolverlo de forma
@@ -324,6 +356,11 @@ export function mapLegacyRecord(
 		firstNonEmpty([json.rutaAccesoContenidos, json.technicalLocationStr]) ||
 		null;
 
+	const previewImage = mapPreviewImageUrl(json.preview);
+	if (previewImage.warning) {
+		warnings.push({ field: "preview", message: previewImage.warning });
+	}
+
 	const resource: MappedLegacyResource = {
 		externalId,
 		importSource: IMPORT_SOURCE,
@@ -339,6 +376,7 @@ export function mapLegacyRecord(
 		publisher,
 		keywords,
 		importedAt: parseImportedAt(json),
+		previewImageUrl: previewImage.url,
 	};
 
 	return {

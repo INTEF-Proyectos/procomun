@@ -31,6 +31,7 @@ export interface LegacyResourceInput {
 	publisher: string | null;
 	keywords: string | null;
 	importedAt: Date | null;
+	previewImageUrl: string | null;
 }
 
 export interface LegacyElpxInput {
@@ -117,6 +118,7 @@ export async function importLegacyResourceWithElpx(
 			keywords: input.resource.keywords,
 			author: input.resource.author,
 			publisher: input.resource.publisher,
+			thumbnailUrl: input.resource.previewImageUrl,
 			// Los recursos legacy ya estaban publicados y curados en la plataforma
 			// de origen; se importan directamente como "published" en vez de
 			// "draft" (decisión revisada, ver Actualización 2026-07-10 en ADR-0029).
