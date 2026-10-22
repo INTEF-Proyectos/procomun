@@ -8,6 +8,7 @@ import {
 	findLegacySourcePairs,
 	iterateResolvedPairs,
 	type loadImportLegacyProcomunDependencies,
+	runBackfillLegacyEducationalAreas,
 	runImportLegacyProcomun,
 } from "./import-legacy-procomun.ts";
 
@@ -128,6 +129,7 @@ function buildMockDeps(
 			updatedAt: new Date(0),
 		}),
 		repo: {
+			backfillLegacyEducationalAreas: async () => [],
 			findLegacyResourceByExternalId: async () => null,
 			importLegacyResourceWithElpx: async () => ({
 				resourceId: "mock-resource-id",
@@ -311,6 +313,7 @@ describe("runImportLegacyProcomun (deps mockeadas)", () => {
 				throw new Error("no debería llamarse");
 			}) as Deps["processElpxUpload"],
 			repo: {
+				backfillLegacyEducationalAreas: async () => [],
 				findLegacyResourceByExternalId: async () => null,
 				getElpxProjectByHash: async () => null,
 				importLegacyResourceWithElpx: async () => {
@@ -336,6 +339,7 @@ describe("runImportLegacyProcomun (deps mockeadas)", () => {
 		let importCalled = false;
 		const deps = buildMockDeps(storageDir, {
 			repo: {
+				backfillLegacyEducationalAreas: async () => [],
 				findLegacyResourceByExternalId: async () => ({
 					id: "existing-id",
 					slug: "existing",
@@ -367,6 +371,7 @@ describe("runImportLegacyProcomun (deps mockeadas)", () => {
 				throw new Error("no debería llamarse en dry-run");
 			}) as Deps["processElpxUpload"],
 			repo: {
+				backfillLegacyEducationalAreas: async () => [],
 				findLegacyResourceByExternalId: async () => null,
 				getElpxProjectByHash: async () => null,
 				importLegacyResourceWithElpx: async () => {
@@ -386,6 +391,60 @@ describe("runImportLegacyProcomun (deps mockeadas)", () => {
 		expect(report.records[0]).toMatchObject({ outcome: "would_import" });
 		expect(processCalled).toBe(false);
 		expect(importCalled).toBe(false);
+		expect(report.categorizacionEducativa).toEqual({
+			recursosConTodasTransformadas: 0,
+			recursosPendientesDeRevision: 0,
+			recursosSinCategorizacionDeOrigen: 1,
+			categoriasNoReconocidas: [],
+			eleEnOtroIdioma: [],
+		});
+	});
+
+	test("el informe cuenta la correspondencia por recurso y no bloquea lo no reconocido", async () => {
+		const deps = buildMockDeps(storageDir, {
+			mapLegacyRecord: (() => ({
+				externalId: "es_mock",
+				blocking: false,
+				blockingErrors: [],
+				warnings: [],
+				resource: {
+					externalId: "es_mock",
+					importSource: "legacy-procomun",
+					sourceUri: null,
+					title: "Mock",
+					description: "Mock description",
+					language: "es",
+					license: "cc-by",
+					resourceType: "documento",
+					subjects: [],
+					levels: [
+						"Formación Profesional",
+						"Formación Profesional Básica (más de 15 años)",
+						"Categoría sin regla",
+					],
+					author: null,
+					publisher: null,
+					keywords: null,
+					importedAt: null,
+				},
+			})) as Deps["mapLegacyRecord"],
+		});
+
+		const report = await runImportLegacyProcomun(
+			{ sourceDir: dir, dryRun: true },
+			deps,
+		);
+
+		expect(report.totals.imported).toBe(1);
+		expect(report.categorizacionEducativa).toEqual({
+			recursosConTodasTransformadas: 0,
+			recursosPendientesDeRevision: 1,
+			recursosSinCategorizacionDeOrigen: 0,
+			categoriasNoReconocidas: [
+				{ categoria: "Categoría sin regla", recursos: ["es_mock"] },
+			],
+			eleEnOtroIdioma: [],
+		});
 	});
 
 	test("un registro importable llama a processElpxUpload y persiste vía el repositorio", async () => {
@@ -431,6 +490,7 @@ describe("runImportLegacyProcomun (deps mockeadas)", () => {
 				},
 			})) as Deps["mapLegacyRecord"],
 			repo: {
+				backfillLegacyEducationalAreas: async () => [],
 				findLegacyResourceByExternalId: async () => null,
 				importLegacyResourceWithElpx: async () => {
 					calls++;
@@ -509,6 +569,7 @@ describe("runImportLegacyProcomun (deps mockeadas)", () => {
 				await rm(extractPath, { recursive: true, force: true });
 			}) as Deps["removeElpxExtraction"],
 			repo: {
+				backfillLegacyEducationalAreas: async () => [],
 				findLegacyResourceByExternalId: async () => null,
 				// Ambas ejecuciones ven "no existe" — la carrera pasa el pre-check.
 				getElpxProjectByHash: async () => null,
@@ -655,5 +716,43 @@ describe("runImportLegacyProcomun (deps mockeadas)", () => {
 
 		expect(report.totals.pairsFound).toBe(2);
 		expect(report.totals.processed).toBe(1);
+	});
+});
+
+describe("runBackfillLegacyEducationalAreas (deps mockeadas)", () => {
+	test("pasa --dry-run al repositorio y resume con el informe de la importación", async () => {
+		const dryRuns: boolean[] = [];
+		const base = buildMockDeps("");
+		const deps = buildMockDeps("", {
+			repo: {
+				...base.repo,
+				backfillLegacyEducationalAreas: async (_db, options) => {
+					dryRuns.push(options.dryRun);
+					return [
+						{ externalId: "es_1", sourceCategories: ["Bachillerato"] },
+						{ externalId: "es_2", sourceCategories: ["Categoría sin regla"] },
+						{ externalId: "es_3", sourceCategories: [] },
+					];
+				},
+			},
+		});
+
+		const report = await runBackfillLegacyEducationalAreas(
+			{ dryRun: true },
+			deps,
+		);
+
+		expect(dryRuns).toEqual([true]);
+		expect(report.dryRun).toBe(true);
+		expect(report.totals).toEqual({ processed: 3 });
+		expect(report.categorizacionEducativa).toEqual({
+			recursosConTodasTransformadas: 1,
+			recursosPendientesDeRevision: 1,
+			recursosSinCategorizacionDeOrigen: 1,
+			categoriasNoReconocidas: [
+				{ categoria: "Categoría sin regla", recursos: ["es_2"] },
+			],
+			eleEnOtroIdioma: [],
+		});
 	});
 });

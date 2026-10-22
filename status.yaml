@@ -66,6 +66,43 @@ blocking_adrs:
 
 tasks:
 
+  T-2026-10-21-07480192:
+    date: 2026-10-21
+    agent: "ingestas-y-migraciones + metadatos-y-curacion + qa-validacion"
+    task: "Correspondencia al importar: Primaria por ciclos y ELE solo en español (#383)"
+    status: Done
+    related: ["#383", "#396", "#394", ADR-0043]
+    notes: >
+      Los cursos de Primaria se asignan a los tres ciclos (1-2, 3-4, 5-6). Los niveles A/B/C solo
+      son ELE si el recurso está en español; en otro idioma no se asignan, el recurso queda pendiente
+      de revisión y el informe lo lista en eleEnOtroIdioma. Alta, relleno (--backfill-categories) e
+      informe del CLI reciben el idioma. Actualización fechada en el design.md de la épica 004.
+      Validación: lint, check-types, test:unit, test:integration y test:ui en verde.
+
+  T-2026-10-14-11131328:
+    date: 2026-10-14
+    agent: "ingestas-y-migraciones + metadatos-y-curacion + qa-validacion + documentacion-y-roadmap"
+    task: "Revisión de la correspondencia de categorías antiguas (#383, PR #396)"
+    status: Done
+    related: ["#383", "#396", "#380"]
+    notes: >
+      import:legacy-procomun --backfill-categories aplica la correspondencia a
+      resource_levels de los recursos legacy ya importados sin clasificar.
+      Idempotente, con --dry-run y el mismo informe de categorización. Se quita
+      la eliminación de recuentos entre paréntesis al normalizar. design.md de
+      epic-004 actualizado. Pendiente: ELE A/B/C en recursos que no son de español.
+
+  T-2026-10-14-07510643:
+    date: 2026-10-14
+    agent: "ingestas-y-migraciones + metadatos-y-curacion + qa-validacion"
+    task: "Correspondencia de categorías antiguas al importar (#383)"
+    status: Done
+    related: ["#383", "#380"]
+    notes: >
+      Al importar, learningContext se traduce a resource_educational_areas
+      con las 31 reglas. Lo que no tiene regla queda en el informe y no se
+      asigna. El texto original sigue en resource_levels. PDC no se asigna.
+
   T-2026-10-21-07404523:
     date: 2026-10-21
     agent: "metadatos-y-curacion + frontend-ux-accesibilidad + qa-validacion"
