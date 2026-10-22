@@ -22,6 +22,7 @@ import {
 } from "../../lib/listing-history.ts";
 import { DEFAULT_PAGE_SIZE, getPaginationState } from "../../lib/pagination.ts";
 import { url } from "../../lib/paths.ts";
+import { resourceCardMedia } from "../../lib/resource-card-media.ts";
 import { TYPE_ICONS } from "../../lib/resource-display.ts";
 import {
 	type FilterOption,
@@ -94,7 +95,7 @@ function renderPaginationPages(
 	return pages;
 }
 
-function ResourceCard({
+export function CatalogResourceCard({
 	resource,
 	initialFavorited = false,
 	isLoggedIn = false,
@@ -108,8 +109,8 @@ function ResourceCard({
 	const description = resource.description || "";
 	const clipped =
 		description.length > 140 ? `${description.slice(0, 140)}...` : description;
-	const previewUrl = resource.elpxPreview?.previewUrl;
-	const hasPreview = !!previewUrl;
+	const media = resourceCardMedia(resource);
+	const hasPreview = media.kind !== "empty";
 	const previewRef = useIframeScale<HTMLDivElement>({
 		iframeWidth: 1200,
 		iframeHeight: 675,
@@ -183,10 +184,15 @@ function ResourceCard({
 			href={url(`recurso?slug=${resource.slug}`)}
 			className={`resource-card${hasPreview ? " has-preview" : ""}`}
 		>
-			{hasPreview ? (
+			{media.kind === "image" ? (
+				<div className="card-preview">
+					<img src={media.url} alt="" />
+					{badgeOverlay}
+				</div>
+			) : media.kind === "preview" ? (
 				<div className="card-preview" ref={previewRef}>
 					<iframe
-						src={previewUrl}
+						src={media.url}
 						loading="lazy"
 						tabIndex={-1}
 						sandbox="allow-scripts"
@@ -754,7 +760,7 @@ export function CatalogIsland() {
 						resources.map((resource) => {
 							const cardBadges = computeResourceBadges(resource, badgeConfig);
 							return (
-								<ResourceCard
+								<CatalogResourceCard
 									key={resource.id}
 									resource={resource}
 									initialFavorited={favoritedSlugs.has(resource.slug)}

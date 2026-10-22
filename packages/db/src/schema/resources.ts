@@ -36,6 +36,7 @@ export const resources = pgTable(
 		keywords: text("keywords"),
 		author: text("author"),
 		publisher: text("publisher"),
+		thumbnailUrl: text("thumbnail_url"),
 		duration: integer("duration"),
 
 		// Accesibilidad

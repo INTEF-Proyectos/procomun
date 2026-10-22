@@ -1,3 +1,16 @@
+export type {
+	CategorizacionEducativaInforme,
+	EducationalImportResourceNote,
+	LegacyEducationalCategoryMapping,
+	LegacyEducationalCategoryRule,
+} from "./educational-category-map.ts";
+export {
+	assertLegacyCategoryDestinations,
+	LEGACY_EDUCATIONAL_CATEGORY_RULES,
+	mapLegacyEducationalCategories,
+	normalizeLegacyEducationalCategory,
+	summarizeLegacyEducationalImport,
+} from "./educational-category-map.ts";
 export { mapLegacyRecord, resolveLegacyExternalId } from "./field-mapper.ts";
 export type { LanguageNormalizationResult } from "./normalize-language.ts";
 export { normalizeLanguage } from "./normalize-language.ts";

@@ -73,6 +73,7 @@ export const SCHEMA_STATEMENTS = [
 		keywords TEXT,
 		author TEXT,
 		publisher TEXT,
+		thumbnail_url TEXT,
 		duration INTEGER,
 		accessibility_features TEXT,
 		accessibility_hazards TEXT,
@@ -349,6 +350,10 @@ export const SCHEMA_STATEMENTS = [
 	`CREATE INDEX IF NOT EXISTS idx_resource_versions_elpx_project_id ON resource_versions(elpx_project_id)`,
 	`DO $$ BEGIN
 		ALTER TABLE "resources" ADD COLUMN current_version_id TEXT;
+	EXCEPTION WHEN duplicate_column THEN NULL;
+	END $$`,
+	`DO $$ BEGIN
+		ALTER TABLE "resources" ADD COLUMN thumbnail_url TEXT;
 	EXCEPTION WHEN duplicate_column THEN NULL;
 	END $$`,
 	`DO $$ BEGIN
