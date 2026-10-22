@@ -3031,3 +3031,15 @@ tasks:
       y solo se veía la caja vacía. Si el <iframe> va posicionado, la fachada
       ahora ocupa el contenedor entero. Test e2e nuevo en
       elpx-embed-facade.e2e.ts (rojo sin el cambio, verde con él).
+
+  T-2026-10-22-11270414:
+    date: 2026-10-22
+    agent: "qa-validacion"
+    task: "Arreglar los tipos de main tras #425"
+    status: Done
+    related: ["#425"]
+    notes: >
+      #425 añadió previewImageUrl (obligatorio) a LegacyResourceInput, pero dos
+      fixtures de test no lo tenían y check-types fallaba en main con 9
+      errores. Se añade previewImageUrl: null a ambos. Validación:
+      check-types limpio y los dos ficheros de test en verde.
