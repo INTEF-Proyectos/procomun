@@ -27,6 +27,7 @@ import {
 	listCollectionResources,
 	listCollections,
 	listMediaItemsForResource,
+	listResources,
 	listTaxonomies,
 	listUsers,
 	removeResourceFromCollection,
@@ -506,6 +507,7 @@ describe("legacy import repository (epic-004-migracion-legacy-procomun)", () => 
 		publisher: "Editorial de prueba",
 		keywords: "geometria,areas",
 		importedAt: new Date("2024-05-22T20:07:51.000Z"),
+		previewImageUrl: null,
 	};
 
 	function buildMediaInput(uploadId: string) {
@@ -671,6 +673,30 @@ describe("legacy import repository (epic-004-migracion-legacy-procomun)", () => 
 			.where(eq(schema.uploadSessions.resourceId, result.resourceId));
 		expect(sessions[0]?.ownerId).toBe(systemUser.id);
 		expect(sessions[0]?.status).toBe("completed");
+	});
+
+	test("guarda la URL preview del JSON en resources.thumbnail_url (issue #407)", async () => {
+		const previewImageUrl =
+			"https://ode.educacion.es/INTEF/1416349635379/vistaPreviaAgrega.png";
+		const result = await importLegacyResourceWithElpx(db, {
+			resource: {
+				...baseResourceInput,
+				externalId: "es_test_preview",
+				previewImageUrl,
+			},
+			elpx: { ...elpxInput, hash: "hash-legacy-test-preview" },
+			media: buildMediaInput(crypto.randomUUID()),
+		});
+
+		const [row] = await db
+			.select({ thumbnailUrl: schema.resources.thumbnailUrl })
+			.from(schema.resources)
+			.where(eq(schema.resources.id, result.resourceId));
+		expect(row?.thumbnailUrl).toBe(previewImageUrl);
+
+		const listed = await listResources(db, { status: "published", limit: 20 });
+		const card = listed.data.find((item) => item.id === result.resourceId);
+		expect(card?.thumbnailUrl).toBe(previewImageUrl);
 	});
 
 	test("createdAt cae al instante de ejecución cuando no se pudo resolver una fecha de origen", async () => {

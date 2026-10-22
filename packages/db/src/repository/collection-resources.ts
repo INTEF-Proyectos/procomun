@@ -81,6 +81,7 @@ export async function listCollectionResources(
 			language: resources.language,
 			license: resources.license,
 			author: resources.author,
+			thumbnailUrl: resources.thumbnailUrl,
 			createdByName: user.name,
 			editorialStatus: resources.editorialStatus,
 		})

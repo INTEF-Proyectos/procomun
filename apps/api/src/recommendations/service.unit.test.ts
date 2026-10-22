@@ -238,6 +238,36 @@ describe("getRelatedResourcesBySlug", () => {
 		expect(result.limit).toBe(4);
 		expect(result.data.every((r) => r.id !== seed.id)).toBe(true);
 	});
+	test("incluye la previsualización del .elpx en cada tarjeta (#426)", async () => {
+		const seed = await publish({
+			title: `Preview seed ${crypto.randomUUID().slice(0, 8)}`,
+			subjects: ["astronomia-426"],
+		});
+		const withElpx = await publish({
+			title: `Preview peer ${crypto.randomUUID().slice(0, 8)}`,
+			subjects: ["astronomia-426"],
+		});
+		const without = await publish({
+			title: `Plain peer ${crypto.randomUUID().slice(0, 8)}`,
+			subjects: ["astronomia-426"],
+		});
+		const hash = `hash-426-${crypto.randomUUID().slice(0, 8)}`;
+		await repo.createElpxProject(db(), {
+			resourceId: withElpx.id,
+			hash,
+			extractPath: `/tmp/${hash}`,
+			originalFilename: "recomendado.elpx",
+			hasPreview: true,
+		});
+
+		const result = await getRelatedResourcesBySlug(db(), seed.slug, 6);
+		const cards = new Map(result?.data.map((card) => [card.id, card]));
+		expect(cards.get(withElpx.id)?.elpxPreview).toEqual({
+			hash,
+			previewUrl: `/api/v1/elpx/${hash}/`,
+		});
+		expect(cards.get(without.id)?.elpxPreview).toBeNull();
+	});
 });
 
 describe("GET /api/v1/resources/:slug/related", () => {

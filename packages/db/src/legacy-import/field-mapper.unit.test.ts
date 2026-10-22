@@ -274,6 +274,41 @@ describe("mapLegacyRecord", () => {
 			);
 		});
 
+		it("conserva la URL preview del JSON como imagen de la tarjeta (issue #407)", async () => {
+			const json = await loadFixture("es_2024052212_9181312");
+			const result = mapLegacyRecord(json, "fallback.elpx");
+
+			expect(result.blocking).toBe(false);
+			expect(result.resource.previewImageUrl).toBe(
+				"https://ode.educacion.es/INTEF/es_2024052212_9181312/vistaPreviaAgrega.png",
+			);
+		});
+
+		it("ignora un preview que no es http(s) y no bloquea la importación", async () => {
+			const json = await loadFixture("es_2024052212_9181312");
+			const result = mapLegacyRecord(
+				{ ...json, preview: "javascript:alert(1)" },
+				"fallback.elpx",
+			);
+
+			expect(result.blocking).toBe(false);
+			expect(result.resource.previewImageUrl).toBeNull();
+			expect(result.warnings.map((warning) => warning.field)).toContain(
+				"preview",
+			);
+		});
+
+		it("deja la miniatura vacía cuando el JSON no trae preview", async () => {
+			const json = await loadFixture("es_2024052212_9181312");
+			const { preview: _preview, ...withoutPreview } = json;
+			const result = mapLegacyRecord(withoutPreview, "fallback.elpx");
+
+			expect(result.resource.previewImageUrl).toBeNull();
+			expect(result.warnings.map((warning) => warning.field)).not.toContain(
+				"preview",
+			);
+		});
+
 		it("devuelve importedAt null cuando no hay ninguna fecha de origen utilizable", () => {
 			const result = mapLegacyRecord(
 				{

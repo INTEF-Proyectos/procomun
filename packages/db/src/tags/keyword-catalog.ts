@@ -1,7 +1,7 @@
 /**
  * Catálogo controlado de palabras clave (issue #384, ADR-0042).
  * Funciones puras, compartidas por la API y el frontend. Los 50 términos
- * iniciales se siembran por SQL (setup.ts y migración 0010_keyword_catalog).
+ * iniciales se siembran por SQL (setup.ts y migración 0011_keyword_catalog).
  */
 
 export const MAX_KEYWORD_SELECTIONS = 5;

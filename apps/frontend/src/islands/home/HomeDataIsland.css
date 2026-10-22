@@ -159,6 +159,14 @@
 .home-featured-hero-preview .home-iframe-wrap {
 	border-radius: 0;
 }
+.home-featured-hero-preview > img,
+.home-featured-sec-preview > img,
+.home-news-preview > img {
+	width: 100%;
+	height: 100%;
+	object-fit: cover;
+	display: block;
+}
 .home-featured-hero-content {
 	flex: 1;
 	padding: 1.75rem;

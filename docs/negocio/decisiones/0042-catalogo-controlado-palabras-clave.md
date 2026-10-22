@@ -94,3 +94,7 @@ Cubre el apartado 5 de #384, en el PR apilado sobre #397.
 * Rendimiento: catálogo, alias, recursos y enlaces se leen una vez; no hay consultas por recurso al catálogo. Los enlaces nuevos se insertan por lotes y se reindexa FTS solo en los recursos que cambian.
 * Es idempotente: solo añade los ids que faltan. No crea términos ni modifica `keywords`.
 * Informe JSON con totales (recursos, con correspondencia, cobertura, asignados, ya asignados, más de 5), etiquetas sin correspondencia y ambiguas con el número de recursos, casos de más de 5 y lo asignado. Los casos a revisar quedan en el informe y no en una tabla: no hay todavía interfaz para resolverlos, y repetir el comando tras ajustar alias o selecciones los recalcula.
+
+## Actualización 2026-10-22 — renumeración de la migración
+
+* `main` incorporó `0010_resource_thumbnail_url` (#425) con idx 8. La migración del catálogo pasa a `0011_keyword_catalog` (idx 9, `when` 1792130000000), para ir detrás de ella. El contenido no cambia.

@@ -61,8 +61,15 @@
 		{
 			"idx": 8,
 			"version": "7",
-			"when": 1786650000000,
-			"tag": "0010_keyword_catalog",
+			"when": 1792080000000,
+			"tag": "0010_resource_thumbnail_url",
+			"breakpoints": true
+		},
+		{
+			"idx": 9,
+			"version": "7",
+			"when": 1792130000000,
+			"tag": "0011_keyword_catalog",
 			"breakpoints": true
 		}
 	]

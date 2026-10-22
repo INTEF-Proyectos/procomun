@@ -54,6 +54,12 @@ export function printHelp(log: Pick<typeof console, "log"> = console) {
 		"                    Importa recursos legacy de Procomún (pares .json+.elpx), ver ADR-0029",
 	);
 	log.log(
+		"  import:legacy-procomun --backfill-categories [--dry-run] [--report-dir <ruta>]",
+	);
+	log.log(
+		"                    Clasifica los recursos legacy ya importados que no tienen categorización (#383)",
+	);
+	log.log(
 		"  import:legacy-users --source-file <usuarios.json> [--dry-run] [--limit <n>] [--report-dir <ruta>]",
 	);
 	log.log("  import:legacy-keywords [--dry-run] [--report-dir <ruta>]");

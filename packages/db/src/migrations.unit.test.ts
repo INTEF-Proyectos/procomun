@@ -116,6 +116,36 @@ describe("migración session.impersonated_by (better-auth 1.7)", () => {
 	});
 });
 
+describe("migración resources.thumbnail_url (issue #407)", () => {
+	const COLUMN_QUERY = `SELECT column_name FROM information_schema.columns
+		WHERE table_name = 'resources' AND column_name = 'thumbnail_url'`;
+
+	test("registra la migración 0010 y añade la columna a una tabla resources previa", async () => {
+		const journal = JSON.parse(
+			await readFile(path.join(migrationsDir, "meta/_journal.json"), "utf8"),
+		) as { entries: Array<{ tag: string }> };
+		expect(journal.entries.map((entry) => entry.tag)).toContain(
+			"0010_resource_thumbnail_url",
+		);
+
+		const migration = await readFile(
+			path.join(migrationsDir, "0010_resource_thumbnail_url.sql"),
+			"utf8",
+		);
+		const db = new PGlite();
+		try {
+			await db.exec(
+				'CREATE TABLE "resources" (id TEXT PRIMARY KEY, title TEXT NOT NULL)',
+			);
+			await db.exec(migration);
+			await db.exec(migration);
+			expect((await db.query(COLUMN_QUERY)).rows).toHaveLength(1);
+		} finally {
+			await db.close();
+		}
+	});
+});
+
 describe("migración de categorización educativa", () => {
 	test("registra 0009 sin sustituir 0000–0008 y crea la tabla con unicidad", async () => {
 		const journal = JSON.parse(
@@ -204,8 +234,8 @@ describe("journal de migraciones", () => {
 	});
 });
 
-// ADR-0042: catálogo de palabras clave. Va detrás de 0009 (#394) en el journal.
-describe("migración 0010_keyword_catalog", () => {
+// ADR-0042: catálogo de palabras clave. Va detrás de 0010 (#425) en el journal.
+describe("migración 0011_keyword_catalog", () => {
 	const OLD_SCHEMA = `CREATE TABLE "user" (id TEXT PRIMARY KEY);
 		CREATE TABLE "tags" (
 			id TEXT PRIMARY KEY,
@@ -224,21 +254,21 @@ describe("migración 0010_keyword_catalog", () => {
 			await readFile(path.join(migrationsDir, "meta/_journal.json"), "utf8"),
 		) as { entries: Array<{ idx: number; tag: string; when: number }> };
 		const entry = journal.entries.find(
-			(item) => item.tag === "0010_keyword_catalog",
+			(item) => item.tag === "0011_keyword_catalog",
 		);
-		expect(entry?.idx).toBe(8);
+		expect(entry?.idx).toBe(9);
 		const others = journal.entries.filter((item) => item !== entry);
 		expect(Math.max(...others.map((item) => item.when))).toBeLessThan(
 			entry?.when ?? 0,
 		);
-		// 0009_educational_areas (#394) usa when 1786600000000.
-		expect(entry?.when ?? 0).toBeGreaterThan(1786600000000);
+		// 0010_resource_thumbnail_url (#425) usa when 1792080000000.
+		expect(entry?.when ?? 0).toBeGreaterThan(1792080000000);
 	});
 
 	test("siembra el catálogo una vez sin renombrar etiquetas existentes", async () => {
 		const migration = (
 			await readFile(
-				path.join(migrationsDir, "0010_keyword_catalog.sql"),
+				path.join(migrationsDir, "0011_keyword_catalog.sql"),
 				"utf8",
 			)
 		).replaceAll("--> statement-breakpoint", "");
