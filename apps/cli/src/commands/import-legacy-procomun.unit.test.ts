@@ -3,7 +3,10 @@ import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import type { LegacyOdeJson } from "@procomun/db/legacy-import";
-import { resolveLegacyExternalId } from "@procomun/db/legacy-import";
+import {
+	resolveLegacyExternalId,
+	resolveLegacyPublicationStatus,
+} from "@procomun/db/legacy-import";
 import {
 	findLegacySourcePairs,
 	iterateResolvedPairs,
@@ -96,6 +99,7 @@ function buildMockDeps(
 		// fallback por baseName, preservando la identidad distinta de cada par
 		// que esperan los tests existentes.
 		resolveLegacyExternalId,
+		resolveLegacyPublicationStatus,
 		mapLegacyRecord: (() => ({
 			externalId: "es_mock",
 			blocking: false,
@@ -117,6 +121,8 @@ function buildMockDeps(
 				keywords: null,
 				importedAt: null,
 				previewImageUrl: null,
+				editorialStatus: "published",
+				sourcePublished: 1,
 			},
 		})) as Deps["mapLegacyRecord"],
 		ensureLegacyImportSystemUser: async () => ({
@@ -139,6 +145,10 @@ function buildMockDeps(
 				elpxProjectId: "mock-elpx-id",
 			}),
 			getElpxProjectByHash: async () => null,
+			unpublishUnreviewedLegacyResource: async () => ({
+				outcome: "not_found",
+				resourceId: null,
+			}),
 		},
 	};
 
@@ -317,6 +327,10 @@ describe("runImportLegacyProcomun (deps mockeadas)", () => {
 				backfillLegacyEducationalAreas: async () => [],
 				findLegacyResourceByExternalId: async () => null,
 				getElpxProjectByHash: async () => null,
+				unpublishUnreviewedLegacyResource: async () => ({
+					outcome: "not_found",
+					resourceId: null,
+				}),
 				importLegacyResourceWithElpx: async () => {
 					importCalled = true;
 					throw new Error("no debería llamarse");
@@ -346,6 +360,10 @@ describe("runImportLegacyProcomun (deps mockeadas)", () => {
 					slug: "existing",
 				}),
 				getElpxProjectByHash: async () => null,
+				unpublishUnreviewedLegacyResource: async () => ({
+					outcome: "not_found",
+					resourceId: null,
+				}),
 				importLegacyResourceWithElpx: async () => {
 					importCalled = true;
 					throw new Error("no debería llamarse");
@@ -375,6 +393,10 @@ describe("runImportLegacyProcomun (deps mockeadas)", () => {
 				backfillLegacyEducationalAreas: async () => [],
 				findLegacyResourceByExternalId: async () => null,
 				getElpxProjectByHash: async () => null,
+				unpublishUnreviewedLegacyResource: async () => ({
+					outcome: "not_found",
+					resourceId: null,
+				}),
 				importLegacyResourceWithElpx: async () => {
 					importCalled = true;
 					throw new Error("no debería llamarse en dry-run");
@@ -426,7 +448,10 @@ describe("runImportLegacyProcomun (deps mockeadas)", () => {
 					author: null,
 					publisher: null,
 					keywords: null,
+					previewImageUrl: null,
 					importedAt: null,
+					editorialStatus: "published",
+					sourcePublished: 1,
 				},
 			})) as Deps["mapLegacyRecord"],
 		});
@@ -489,6 +514,8 @@ describe("runImportLegacyProcomun (deps mockeadas)", () => {
 					keywords: null,
 					importedAt: null,
 					previewImageUrl: null,
+					editorialStatus: "published",
+					sourcePublished: 1,
 				},
 			})) as Deps["mapLegacyRecord"],
 			repo: {
@@ -506,6 +533,10 @@ describe("runImportLegacyProcomun (deps mockeadas)", () => {
 					};
 				},
 				getElpxProjectByHash: async () => null,
+				unpublishUnreviewedLegacyResource: async () => ({
+					outcome: "not_found",
+					resourceId: null,
+				}),
 			},
 		});
 
@@ -562,6 +593,8 @@ describe("runImportLegacyProcomun (deps mockeadas)", () => {
 					keywords: null,
 					importedAt: null,
 					previewImageUrl: null,
+					editorialStatus: "published",
+					sourcePublished: 1,
 				},
 			})) as Deps["mapLegacyRecord"],
 			// computeFileSha256 (heredado del base mock) devuelve siempre
@@ -576,6 +609,10 @@ describe("runImportLegacyProcomun (deps mockeadas)", () => {
 				findLegacyResourceByExternalId: async () => null,
 				// Ambas ejecuciones ven "no existe" — la carrera pasa el pre-check.
 				getElpxProjectByHash: async () => null,
+				unpublishUnreviewedLegacyResource: async () => ({
+					outcome: "not_found",
+					resourceId: null,
+				}),
 				importLegacyResourceWithElpx: async (
 					_db: Parameters<Deps["repo"]["importLegacyResourceWithElpx"]>[0],
 					input: Parameters<Deps["repo"]["importLegacyResourceWithElpx"]>[1],
