@@ -426,6 +426,7 @@ describe("runImportLegacyProcomun (deps mockeadas)", () => {
 					author: null,
 					publisher: null,
 					keywords: null,
+					previewImageUrl: null,
 					importedAt: null,
 				},
 			})) as Deps["mapLegacyRecord"],
