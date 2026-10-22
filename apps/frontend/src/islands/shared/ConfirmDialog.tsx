@@ -1,4 +1,5 @@
 import { ModalFrame } from "./ModalFrame.tsx";
+import "./ConfirmDialog.css";
 
 interface ConfirmDialogProps {
 	open: boolean;
@@ -34,6 +35,9 @@ export function ConfirmDialog({
 				method="dialog"
 				onSubmit={(event) => {
 					event.preventDefault();
+					// Puede colgar de otro <form> (edición del recurso): que el submit no
+					// burbujee hasta él.
+					event.stopPropagation();
 					onConfirm();
 				}}
 			>
