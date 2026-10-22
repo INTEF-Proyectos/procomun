@@ -3044,3 +3044,15 @@ tasks:
       1. Nuevo --fix-published (con --dry-run) que relee los JSON y pasa a
       borrador lo ya importado sin revisión editorial. Tests de mapeo,
       repositorio e integración (rojo sin el cambio, verde con él).
+
+  T-2026-10-22-11270414:
+    date: 2026-10-22
+    agent: "qa-validacion"
+    task: "Arreglar los tipos de main tras #425"
+    status: Done
+    related: ["#425"]
+    notes: >
+      #425 añadió previewImageUrl (obligatorio) a LegacyResourceInput, pero dos
+      fixtures de test no lo tenían y check-types fallaba en main con 9
+      errores. Se añade previewImageUrl: null a ambos. Validación:
+      check-types limpio y los dos ficheros de test en verde.
