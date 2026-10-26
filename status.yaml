@@ -2845,6 +2845,36 @@ tasks:
       packages/db/src/migrations.unit.test.ts (migración 0008 y createTables
       sobre BD nueva y previa). Sustituye a #361.
 
+  T-2026-10-14-07551028:
+    date: 2026-10-14
+    agent: "metadatos-y-curacion + arquitectura-solucion + backend-api-servicios + ingestas-y-migraciones + frontend-ux-accesibilidad + qa-validacion"
+    task: "Catálogo controlado de palabras clave con autocompletado (#384)"
+    status: Done
+    related: ["#384", ADR-0042]
+    notes: >
+      Extiende tags (ADR-0034) con catalog, created_by y tag_aliases. Máximo 5
+      por recurso, alta solo para admin y curator con confirmación, catálogo
+      inicial de 50 términos e importación limitada a la tabla de
+      correspondencias. Fuera de esta entrega: pantalla de gestión, renombrado,
+      edición de alias, fusión, desactivación y cierre de revisiones en UI.
+
+  T-2026-10-14-11112261:
+    date: 2026-10-14
+    agent: "arquitectura-solucion + backend-api-servicios + metadatos-y-curacion + qa-validacion"
+    task: "Revisión del PR #397: catálogo de palabras clave sin romper el fondo actual (#384)"
+    status: Done
+    related: ["#384", "#397", "#394", ADR-0042, ADR-0034]
+    notes: >
+      Sembrado de los 50 términos en la migración 0010_keyword_catalog y en
+      setup.ts, una sola vez y sin renombrar etiquetas libres (colisión de slug
+      → <slug>-catalogo). La vía antigua de keywords solo gestiona etiquetas
+      libres y no reescribe el texto de origen; máximo de 5 validado en el
+      servidor; keywordIds en el mismo alta/edición; lo elegido llega a FTS,
+      feeds, API v1 y recomendaciones; la ficha y el filtro conservan las
+      etiquetas anteriores. La correspondencia de etiquetas antiguas pasa a un
+      PR apilado. Pendiente de producto: cobertura del fondo, relación con
+      «Materias» y gestión (fusionar/desactivar). Mergear después de #394.
+
   T-2026-10-14-10535343:
     date: 2026-10-14
     agent: "seguridad-privacidad-legal + backend-api-servicios + qa-validacion"
@@ -3031,6 +3061,19 @@ tasks:
       y solo se veía la caja vacía. Si el <iframe> va posicionado, la fachada
       ahora ocupa el contenedor entero. Test e2e nuevo en
       elpx-embed-facade.e2e.ts (rojo sin el cambio, verde con él).
+
+  T-2026-10-22-11250263:
+    date: 2026-10-22
+    agent: "resolución de conflictos"
+    task: "Integrar main en la PR #397"
+    status: Done
+    related: ["#397", "#384", "#425", "ADR-0042"]
+    notes: >
+      Se integró main en feat/issue-384-catalogo-palabras-clave. main ya traía
+      0010_resource_thumbnail_url (#425), así que la migración del catálogo
+      pasa a 0011_keyword_catalog (idx 9) sin cambiar su contenido. En
+      recommendations/service.ts se unieron los imports de catalogLabelsSql y
+      listElpxProjectsByResourceIds.
 
   T-2026-10-22-11341963:
     date: 2026-10-22
