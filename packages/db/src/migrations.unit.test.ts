@@ -292,7 +292,9 @@ describe("migración 0011_keyword_catalog", () => {
 			(item) => item.tag === "0011_keyword_catalog",
 		);
 		expect(entry?.idx).toBe(9);
-		const others = journal.entries.filter((item) => item !== entry);
+		const others = journal.entries.filter(
+			(item) => item.idx < (entry?.idx ?? 0),
+		);
 		expect(Math.max(...others.map((item) => item.when))).toBeLessThan(
 			entry?.when ?? 0,
 		);

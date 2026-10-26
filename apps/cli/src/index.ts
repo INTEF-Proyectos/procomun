@@ -73,6 +73,7 @@ export function printHelp(log: Pick<typeof console, "log"> = console) {
 	);
 	log.log(
 		"  elpx:screenshots [--dry-run]  Detecta screenshot.png en los paquetes ya subidos (#409)",
+	);
 	log.log("  import:legacy-keywords [--dry-run] [--report-dir <ruta>]");
 	log.log(
 		"                    Asigna palabras del catálogo a las etiquetas de origen, ver ADR-0042",

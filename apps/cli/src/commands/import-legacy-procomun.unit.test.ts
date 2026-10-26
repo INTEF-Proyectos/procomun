@@ -532,6 +532,8 @@ describe("runImportLegacyProcomun (deps mockeadas)", () => {
 		await runImportLegacyProcomun({ sourceDir: dir, dryRun: false }, deps);
 
 		expect(hasScreenshot).toBe(true);
+	});
+
 	// #409: la imagen preview legacy se copia y no se enlaza en caliente.
 	describe("imagen preview legacy", () => {
 		const REMOTE =
