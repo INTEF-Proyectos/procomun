@@ -97,7 +97,9 @@ test("en la ficha el YouTube lo trata el artefacto, no la fachada", async ({
 		frame.locator('[data-exe-embed-provider="youtube"]'),
 	).toHaveCount(1);
 	await expect(
-		frame.locator('a.procomun-embed-facade[data-procomun-embed-url*="youtube"]'),
+		frame.locator(
+			'a.procomun-embed-facade[data-procomun-embed-url*="youtube"]',
+		),
 	).toHaveCount(0);
 });
 
