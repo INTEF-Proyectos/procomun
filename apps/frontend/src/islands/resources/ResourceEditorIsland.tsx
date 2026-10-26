@@ -3,6 +3,7 @@ import type { Resource, UpdateResourceInput } from "../../lib/api-client.ts";
 import { getApiClient } from "../../lib/get-api-client.ts";
 import { url } from "../../lib/paths.ts";
 import { hasMinRole, roleLevelOf } from "../../lib/shared-utils.ts";
+import { statusChangeFeedback } from "../../lib/status-change-errors.ts";
 import { AccessibleFeedback } from "../shared/AccessibleFeedback.tsx";
 import {
 	getResourceTypeOptions,
@@ -238,15 +239,7 @@ export function ResourceEditorIsland() {
 				`Estado cambiado a: ${STEP_LABELS[targetStatus] ?? "Archivado"}`,
 			);
 		} catch (error) {
-			const known = error as {
-				error?: string;
-				details?: { message: string }[];
-			};
-			setWorkflowError(
-				known?.details?.[0]?.message ??
-					known?.error ??
-					"Error al cambiar el estado",
-			);
+			setWorkflowError(statusChangeFeedback(error).message);
 		} finally {
 			setBusyTransition(null);
 		}

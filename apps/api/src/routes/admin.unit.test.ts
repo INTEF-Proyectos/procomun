@@ -302,6 +302,30 @@ describe("Rutas admin — con sesión de admin", () => {
 		expect(res.status).toBe(404);
 	});
 
+	test("PATCH /:id/status → 400 con los campos que faltan al enviar a revisión un borrador incompleto (#408)", async () => {
+		const draftRes = await app.request("/api/admin/resources/draft", {
+			method: "POST",
+		});
+		expect(draftRes.status).toBe(201);
+		const draft = await draftRes.json();
+
+		for (const status of ["review", "published"]) {
+			const res = await app.request(`/api/admin/resources/${draft.id}/status`, {
+				method: "PATCH",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify({ status }),
+			});
+			expect(res.status).toBe(400);
+			const body = await res.json();
+			const fields = body.details.map((d: { field: string }) => d.field);
+			expect(fields).toContain("description");
+			expect(fields).toContain("author");
+		}
+
+		const got = await app.request(`/api/admin/resources/${draft.id}`);
+		expect((await got.json()).editorialStatus).toBe("draft");
+	});
+
 	test("PATCH /api/admin/resources/:id/status → 400 sin status", async () => {
 		const res = await app.request("/api/admin/resources/res-2/status", {
 			method: "PATCH",

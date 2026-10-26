@@ -169,6 +169,42 @@ export function validateCreateResource(body: unknown): ValidationResult {
 	return { valid: errors.length === 0, errors };
 }
 
+/** Estados que exigen el recurso completo (issue #408). */
+const STATUSES_REQUIRING_COMPLETE_RESOURCE: readonly string[] = [
+	"review",
+	"published",
+];
+
+/** Campos que el alta exige y que se vuelven a comprobar al cambiar de estado. */
+const REQUIRED_RESOURCE_FIELDS = [
+	"title",
+	"description",
+	"language",
+	"license",
+	"resourceType",
+	"author",
+] as const;
+
+/**
+ * Comprueba un recurso guardado antes de pasarlo a `status` (issue #408).
+ * `review` y `published` exigen lo mismo que el alta; `draft` y `archived`,
+ * nada. Las reglas propias de la publicación (p. ej. el área obligatoria
+ * acordada en #448) se añaden aquí, a continuación de las del alta.
+ */
+export function validateResourceForStatus(
+	resource: Partial<Record<(typeof REQUIRED_RESOURCE_FIELDS)[number], unknown>>,
+	status: string,
+): ValidationResult {
+	if (!STATUSES_REQUIRING_COMPLETE_RESOURCE.includes(status)) {
+		return { valid: true, errors: [] };
+	}
+	const payload: Record<string, unknown> = {};
+	for (const field of REQUIRED_RESOURCE_FIELDS) {
+		payload[field] = resource[field] ?? undefined;
+	}
+	return validateCreateResource(payload);
+}
+
 export function validateUpdateResource(body: unknown): ValidationResult {
 	const errors: ValidationError[] = [];
 	if (!body || typeof body !== "object") {

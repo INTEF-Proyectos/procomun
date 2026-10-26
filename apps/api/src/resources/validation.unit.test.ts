@@ -2,6 +2,7 @@ import { describe, expect, test } from "bun:test";
 import {
 	validateCollection,
 	validateCreateResource,
+	validateResourceForStatus,
 	validateStatus,
 	validateTaxonomy,
 	validateTransition,
@@ -442,5 +443,37 @@ describe("validateStatusTransition", () => {
 		expect(r.errors.find((e) => e.field === "status")?.message).toContain(
 			"Rol insuficiente",
 		);
+	});
+});
+
+// Issue #408: al pasar a revisión o publicar se exige el recurso completo.
+describe("validateResourceForStatus", () => {
+	const stored = {
+		...validPayload,
+		keywords: null,
+		publisher: null,
+	};
+
+	test("review y published exigen los campos obligatorios del alta", () => {
+		const incomplete = { ...stored, description: " ", author: null };
+		for (const status of ["review", "published"]) {
+			const result = validateResourceForStatus(incomplete, status);
+			expect(result.valid).toBe(false);
+			expect(result.errors.map((e) => e.field).sort()).toEqual([
+				"author",
+				"description",
+			]);
+		}
+	});
+
+	test("un recurso completo puede ir a revisión y publicarse", () => {
+		expect(validateResourceForStatus(stored, "review").valid).toBe(true);
+		expect(validateResourceForStatus(stored, "published").valid).toBe(true);
+	});
+
+	test("draft y archived no exigen nada", () => {
+		const empty = { title: "", description: "", resourceType: null };
+		expect(validateResourceForStatus(empty, "draft").valid).toBe(true);
+		expect(validateResourceForStatus(empty, "archived").valid).toBe(true);
 	});
 });

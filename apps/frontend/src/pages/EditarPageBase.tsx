@@ -14,6 +14,7 @@ import {
 } from "../lib/educational-classification.ts";
 import { getApiClient } from "../lib/get-api-client.ts";
 import { url } from "../lib/paths.ts";
+import { statusChangeFeedback } from "../lib/status-change-errors.ts";
 import {
 	DeleteResourceAction,
 	deleteResourceRedirectPath,
@@ -506,6 +507,7 @@ export default function EditarPage() {
 		if (!resource) return;
 		setErrorMsg("");
 		setSuccessMsg("");
+		setFieldErrors({});
 		try {
 			const api = await getApiClient();
 			await api.updateResourceStatus(resource.id, newStatus);
@@ -513,8 +515,15 @@ export default function EditarPage() {
 				`Estado actualizado a "${STATUS_LABELS[newStatus]?.label ?? newStatus}"`,
 			);
 			setTimeout(() => window.location.reload(), 800);
-		} catch {
-			setErrorMsg("Error al cambiar el estado");
+		} catch (error) {
+			// Issue #408: el servidor valida lo guardado, no lo que hay en el formulario.
+			const feedback = statusChangeFeedback(error);
+			setFieldErrors(feedback.fieldErrors);
+			setErrorMsg(
+				Object.keys(feedback.fieldErrors).length > 0
+					? `${feedback.message} Completa los campos y guarda los cambios antes de volver a intentarlo.`
+					: feedback.message,
+			);
 		}
 	}
 
@@ -713,6 +722,7 @@ export default function EditarPage() {
 								defaultValue={isNew ? "" : res.title}
 								required
 								placeholder="Título del recurso"
+								aria-describedby="ed-title-error"
 								aria-invalid={fieldErrors.title ? "true" : undefined}
 							/>
 							<span id="ed-title-error" className="edit-field-error">
@@ -884,6 +894,7 @@ export default function EditarPage() {
 								required
 								placeholder="Describe el contenido, objetivos y destinatarios..."
 								defaultValue={isNew ? "" : res.description}
+								aria-describedby="ed-description-error"
 								aria-invalid={fieldErrors.description ? "true" : undefined}
 							/>
 							<span id="ed-description-error" className="edit-field-error">
