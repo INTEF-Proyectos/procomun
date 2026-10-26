@@ -3089,3 +3089,20 @@ tasks:
       por published y responde 404, también a admin); se añaden tests de
       regresión, incluido que las valoraciones se conservan al despublicar y
       vuelven al publicar. Tests UI nuevos rojo → verde.
+
+  T-2026-10-26-07295197:
+    date: 2026-10-26
+    agent: "analitica-y-observabilidad"
+    task: "Contador de visitas por recurso"
+    status: Done
+    related: ["#421", "#461", "ADR-0044"]
+    notes: >
+      Una visita por sesión al abrir la vista previa (carga del iframe lazy o
+      «Ver online»), solo en recursos publicados. UUID aleatorio por pestaña en
+      sessionStorage; POST /api/v1/resources/:slug/view guarda su SHA-256 24 h en
+      resource_view_sessions y suma en resource_view_counts. /stats devuelve
+      viewCount y la ficha lo muestra junto a la valoración. El importador legacy
+      acepta legacyViewCount opcional como valor inicial; falta leerlo del JSON
+      cuando el exportador lo incluya. Migración 0013_resource_views (0011 y
+      0012 reservadas para #397 y #457). Tests rojo → verde en API, servicio,
+      repositorio, cliente HTTP, helper de sesión y ficha.

@@ -15,6 +15,7 @@ function renderDetail(
 	resource: Partial<Resource>,
 	role: string,
 	related: RelatedResourcesResult | null = null,
+	stats: Parameters<typeof ResourceDetailContent>[0]["stats"] = null,
 ): string {
 	return renderToStaticMarkup(
 		<ResourceDetailContent
@@ -40,7 +41,7 @@ function renderDetail(
 			session={{
 				user: { id: "curator-1", email: "c@example.org", name: "C", role },
 			}}
-			stats={null}
+			stats={stats}
 			isFavorited={false}
 			related={related}
 		/>,
@@ -195,6 +196,26 @@ describe("Catalog islands", () => {
 				"detail-ratings-section",
 			);
 		}
+	});
+
+	test("la ficha muestra las visitas junto a la valoración solo si está publicada (#421)", () => {
+		const stats = {
+			downloadCount: 0,
+			favoriteCount: 0,
+			ratingAvg: 0,
+			ratingCount: 0,
+			viewCount: 1234,
+		};
+		const html = renderDetail({}, "reader", null, stats);
+		const ratings = html.slice(html.indexOf("detail-ratings-section"));
+		expect(ratings).toContain("detail-views");
+		expect(ratings).toContain("1234 visitas");
+
+		expect(
+			renderDetail({ editorialStatus: "draft" }, "admin", null, stats),
+		).not.toContain("detail-views");
+		// Sin estadísticas aún no se pinta un 0 provisional.
+		expect(renderDetail({}, "reader")).not.toContain("detail-views");
 	});
 
 	test("la tarjeta de un recurso no publicado no muestra su valoración (#461)", () => {

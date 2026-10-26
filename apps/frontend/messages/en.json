@@ -153,6 +153,8 @@
 	"detail_download": "Download",
 	"detail_no_files": "No files available for this resource.",
 	"detail_preview_title": "Resource Preview",
+	"detail_views_one": "1 view",
+	"detail_views_other": "{count} views",
 	"detail_preview_iframe": "eXeLearning resource preview",
 	"detail_embed_title": "Embed on your site",
 	"detail_embed_desc": "To embed this resource on your website, copy the following code:",
