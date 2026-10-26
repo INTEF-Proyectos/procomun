@@ -87,3 +87,12 @@ Los JSON/`.elpx` de `ode-export/` contienen datos personales reales (nombres y e
 - [x] Definir procedencia por campo y rollback por `migration_batch_id` que no sobrescribe ediciones posteriores.
 - [x] Fijar política de reimportación: `null` se omite y los cambios de origen o usuarios existentes no se sobrescriben.
 - [x] Corregir en GitHub la descripción del PR #315 y el comentario de la issue #312 para que mencionen ADR-0037.
+
+## Estado de publicación del origen — 2026-10-22 (issue #447)
+
+- [x] Leer `published` del JSON: 1 publica; 0, ausente o desconocido entra como borrador, con aviso si no es 0 ni 1.
+- [x] Guardar en el informe el estado asignado y el valor recibido (`editorialStatus`, `sourcePublished`, `totals.importedAsDraft`).
+- [x] Corrección única `--fix-published` con `--dry-run`, que no toca recursos con decisión editorial posterior.
+- [x] Tests de mapeo, repositorio e integración; ADR-0029 y README actualizados.
+- [ ] Ejecutar `--fix-published --dry-run` sobre el directorio de exportación real, revisar el informe y lanzar la corrección.
+- [ ] Valorar si la previsualización por hash debe comprobar el estado del recurso.

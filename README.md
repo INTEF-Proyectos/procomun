@@ -149,7 +149,7 @@ En desarrollo con Vite, el soporte para `/dev/` y `/dev/docs/*` está cableado e
 
 La empresa que mantiene la plataforma Procomún actual (legacy) dispone de una herramienta propia que exporta todos los tipos de recursos de su repositorio y los convierte a paquete eXeLearning. Cada recurso exportado genera dos ficheros con el mismo nombre base: un `.elpx` (el paquete eXeLearning) y un `.json` con los metadatos del recurso (título, descripción, autoría, licencia, materia, etapa educativa, etc.).
 
-`import:legacy-procomun` toma un directorio con esos pares `<id>.json` + `<id>.elpx`, mapea los metadatos al perfil mínimo de procomun-ng (ADR-0009) y persiste cada recurso como `published`. Reutiliza el pipeline de subida/extracción `.elpx` ya existente y es idempotente: reejecutarlo sobre el mismo directorio no duplica nada.
+`import:legacy-procomun` toma un directorio con esos pares `<id>.json` + `<id>.elpx`, mapea los metadatos al perfil mínimo de procomun-ng (ADR-0009) y persiste cada recurso como `published` si su JSON trae `published: 1`, o como `draft` en cualquier otro caso (issue #447). Reutiliza el pipeline de subida/extracción `.elpx` ya existente y es idempotente: reejecutarlo sobre el mismo directorio no duplica nada.
 
 ```bash
 make cli ARGS="import:legacy-procomun --source-dir <ruta-a-los-pares .json+.elpx> --dry-run"
@@ -157,6 +157,8 @@ make cli ARGS="import:legacy-procomun --source-dir <ruta>"
 ```
 
 Flags disponibles: `--source-dir <ruta>` (obligatorio), `--dry-run` (valida y mapea sin escribir en BD), `--limit <n>`, `--only <externalId>` (reintenta un único registro), `--report-dir <ruta>` (por defecto `local-data/legacy-import-reports/`).
+
+Para corregir lo importado antes de leer `published`: `make cli ARGS="import:legacy-procomun --fix-published --source-dir <ruta> --dry-run"` (y sin `--dry-run` para aplicarlo). Pasa a borrador los recursos cuyo JSON no trae `published: 1`, salvo los que un curator ya ha revisado o destacado.
 
 Al terminar escribe un `informe_ingesta-<runId>.json` con el desglose (importados, omitidos por ya existir, bloqueados por licencia no reconocida u otros motivos, y warnings tolerables).
 

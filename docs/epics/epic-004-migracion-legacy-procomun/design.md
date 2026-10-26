@@ -202,3 +202,9 @@ Cierra lo pendiente de la sección anterior con lo que decidió Producto en #380
 
 - Los cursos de Primaria van a los tres ciclos del catálogo (ADR-0043, adenda 2026-10-21): 1.º y 2.º al primer ciclo, 3.º y 4.º al segundo, y 5.º y 6.º al tercero.
 - «Nivel básico (A)», «Nivel intermedio (B)» y «Nivel avanzado ( C )» solo se asignan a ELE si el idioma del recurso es `es`. En otro idioma no se asignan y el recurso cuenta como pendiente de revisión. El informe lo lista en `categorizacionEducativa.eleEnOtroIdioma` (y en el log como `ele_otro_idioma`). El relleno aplica la misma regla con el idioma guardado.
+
+## Estado editorial desde `published` — 2026-10-22 (issue #447)
+
+`mapLegacyRecord` calcula `editorialStatus` con `resolveLegacyPublicationStatus`: solo `published` igual a 1 se publica; 0, ausente o desconocido entra como `draft` (con warning si no es 0 ni 1). El informe guarda `editorialStatus` y `sourcePublished` por registro y `totals.importedAsDraft`.
+
+Para lo importado antes, `import:legacy-procomun --fix-published --source-dir <ruta> [--dry-run]` relee los JSON y pasa a borrador los recursos publicados sin revisión editorial (sin `assignedCuratorId`, `curatedAt` ni `featuredAt`). Detalle en ADR-0029, actualización 2026-10-22.

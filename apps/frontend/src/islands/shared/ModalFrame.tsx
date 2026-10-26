@@ -1,4 +1,5 @@
 import { type ReactNode, useEffect, useRef } from "react";
+import "./ModalFrame.css";
 
 interface ModalFrameProps {
 	open: boolean;
@@ -16,6 +17,24 @@ export function ModalFrame({
 	children,
 }: ModalFrameProps) {
 	const contentRef = useRef<HTMLDivElement>(null);
+
+	// Foco al primer control del diálogo y, al cerrarlo, de vuelta a quien lo
+	// abrió. Va aparte para que un `onClose` nuevo en cada render no lo repita.
+	useEffect(() => {
+		if (!open) return;
+		const previousFocus =
+			document.activeElement instanceof HTMLElement
+				? document.activeElement
+				: null;
+		if (!contentRef.current?.contains(document.activeElement)) {
+			contentRef.current
+				?.querySelector<HTMLElement>(
+					"button:not([disabled]), [href], input, select, textarea, [tabindex]:not([tabindex='-1'])",
+				)
+				?.focus();
+		}
+		return () => previousFocus?.focus();
+	}, [open]);
 
 	useEffect(() => {
 		if (!open) return;

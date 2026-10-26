@@ -3075,6 +3075,36 @@ tasks:
       recommendations/service.ts se unieron los imports de catalogLabelsSql y
       listElpxProjectsByResourceIds.
 
+  T-2026-10-22-11341963:
+    date: 2026-10-22
+    agent: "ingestas-y-migraciones"
+    task: "El importador legacy respeta published del JSON"
+    status: Done
+    related: ["#447", "ADR-0029"]
+    notes: >
+      El importador publicaba todo. Ahora solo published 1 publica; 0, ausente
+      o desconocido entra como borrador, con aviso en el informe si no es 0 ni
+      1. Nuevo --fix-published (con --dry-run) que relee los JSON y pasa a
+      borrador lo ya importado sin revisión editorial. Tests de mapeo,
+      repositorio e integración (rojo sin el cambio, verde con él).
+  T-2026-10-22-11275590:
+    date: 2026-10-22
+    agent: "frontend-ux-accesibilidad"
+    task: "Botón «Eliminar recurso» en la edición del recurso"
+    status: Done
+    related: ["#393", "#402"]
+    notes: >
+      En la edición, quien puede borrar el recurso (canManageResource, la misma
+      regla que el «Eliminar» de Administrar y la API) ve un botón rojo
+      «Eliminar recurso». Pide confirmación con el título del recurso y llama
+      al mismo DELETE /api/admin/resources/:id; tras borrar vuelve a
+      Administrar (curator y admin) o al perfil (autor). deleteResource ahora
+      falla si el servidor rechaza el borrado. ModalFrame lleva el foco al
+      diálogo y lo devuelve al cerrar; ConfirmDialog no deja que su submit
+      llegue al formulario que lo contiene. Los estilos del diálogo salen de
+      AdminPageIsland.css a ModalFrame.css y ConfirmDialog.css para cargarse
+      fuera de Administrar. Sustituye a #402.
+
   T-2026-10-22-11270414:
     date: 2026-10-22
     agent: "qa-validacion"
