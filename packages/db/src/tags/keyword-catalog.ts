@@ -116,3 +116,46 @@ export function validateKeywordSelection(
 	}
 	return { ok: true, ids };
 }
+
+/**
+ * Índice para la correspondencia de etiquetas antiguas: denominación o alias
+ * normalizados → ids. La denominación gana al alias; un alias de varios
+ * términos (ABP) queda con todos sus ids y se trata como ambiguo.
+ */
+export function keywordIndex(
+	catalog: readonly KeywordCatalogEntry[],
+): Map<string, string[]> {
+	const index = new Map<string, string[]>();
+	for (const { id, aliases } of catalog) {
+		for (const alias of aliases) {
+			const key = normalizeKeywordKey(alias);
+			index.set(key, [...(index.get(key) ?? []), id]);
+		}
+	}
+	for (const { id, label } of catalog) {
+		index.set(normalizeKeywordKey(label), [id]);
+	}
+	return index;
+}
+
+/**
+ * Aplica el índice a las etiquetas de un recurso. Sin correspondencia o
+ * ambigua: no se asigna nada y queda para revisión.
+ */
+export function matchLegacyLabels(
+	labels: readonly string[],
+	index: ReadonlyMap<string, readonly string[]>,
+): { ids: string[]; unmatched: string[]; ambiguous: string[] } {
+	const ids = new Set<string>();
+	const unmatched: string[] = [];
+	const ambiguous: string[] = [];
+	for (const label of labels) {
+		const key = normalizeKeywordKey(label);
+		if (!key) continue;
+		const found = index.get(key);
+		if (!found) unmatched.push(label.trim());
+		else if (found.length > 1) ambiguous.push(label.trim());
+		else for (const id of found) ids.add(id);
+	}
+	return { ids: [...ids], unmatched, ambiguous };
+}

@@ -1,6 +1,8 @@
 import { describe, expect, test } from "bun:test";
 import {
 	KEYWORD_MESSAGES,
+	keywordIndex,
+	matchLegacyLabels,
 	normalizeKeywordKey,
 	searchKeywordCatalog,
 	validateKeywordSelection,
@@ -83,5 +85,25 @@ describe("catálogo de palabras clave (#384)", () => {
 		expect(validateKeywordSelection(["a", "a"]).ok).toBe(false);
 		expect(validateKeywordSelection("a").ok).toBe(false);
 		expect(validateKeywordSelection([1]).ok).toBe(false);
+	});
+});
+
+describe("correspondencia de etiquetas antiguas (#384, apartado 5)", () => {
+	const index = keywordIndex(CATALOG);
+
+	test("asigna por identidad y por alias, sin repetir", () => {
+		expect(
+			matchLegacyLabels(["#Geometría", "ángulos", "GEOMETRIA"], index),
+		).toEqual({ ids: ["geometria"], unmatched: [], ambiguous: [] });
+	});
+
+	test("la denominación gana al alias y el alias ambiguo va a revisión", () => {
+		expect(
+			matchLegacyLabels(["fracciones", "ABP", "Scratch", " "], index),
+		).toEqual({
+			ids: ["fracciones"],
+			unmatched: ["Scratch"],
+			ambiguous: ["ABP"],
+		});
 	});
 });

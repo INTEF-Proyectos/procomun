@@ -84,6 +84,17 @@ Sustituye a lo anterior donde lo contradiga. La correspondencia de etiquetas ant
 * Producto debe decidir la relación entre los términos que son materias y el campo «Materias».
 * Las versiones del recurso no guardan los términos de catálogo; restaurar una versión conserva los actuales.
 
+## Actualización 2026-10-14 — correspondencia de etiquetas antiguas
+
+Cubre el apartado 5 de #384, en el PR apilado sobre #397.
+
+* El comando `import:legacy-keywords [--dry-run] [--report-dir <ruta>]` cruza el texto de origen (`resources.keywords`) con el catálogo. Lo parte por la coma con la que el importador unió las etiquetas (`buildKeywords`): una etiqueta de origen que ya tuviera coma llegó partida y no se puede recuperar aquí.
+* Correspondencia: una etiqueta igual, normalizada, a una denominación se asigna a ese término. Si no, se usan los alias, que son la tabla de correspondencias de la issue sembrada en `tag_aliases`. Un alias de varios términos (ABP) se trata como ambiguo y no se asigna.
+* Máximo: si los términos que ya tiene el recurso más los nuevos superan 5, no se asigna nada y el caso va al informe con lo actual y lo propuesto.
+* Rendimiento: catálogo, alias, recursos y enlaces se leen una vez; no hay consultas por recurso al catálogo. Los enlaces nuevos se insertan por lotes y se reindexa FTS solo en los recursos que cambian.
+* Es idempotente: solo añade los ids que faltan. No crea términos ni modifica `keywords`.
+* Informe JSON con totales (recursos, con correspondencia, cobertura, asignados, ya asignados, más de 5), etiquetas sin correspondencia y ambiguas con el número de recursos, casos de más de 5 y lo asignado. Los casos a revisar quedan en el informe y no en una tabla: no hay todavía interfaz para resolverlos, y repetir el comando tras ajustar alias o selecciones los recalcula.
+
 ## Actualización 2026-10-22 — renumeración de la migración
 
 * `main` incorporó `0010_resource_thumbnail_url` (#425) con idx 8. La migración del catálogo pasa a `0011_keyword_catalog` (idx 9, `when` 1792130000000), para ir detrás de ella. El contenido no cambia.
