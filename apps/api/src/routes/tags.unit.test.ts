@@ -33,14 +33,14 @@ describe("Public tags API (#76)", () => {
 		const db = getDb().db;
 		await repo.ensureTag(db, "PublicTagAlpha");
 
-		const res = await app.request("/api/v1/tags?limit=50");
+		// The schema seeds 50 catalog keywords (ADR-0042), so page by limit.
+		const res = await app.request("/api/v1/tags?limit=1");
 		expect(res.status).toBe(200);
 		const body = await res.json();
-		expect(Array.isArray(body.data)).toBe(true);
-		expect(typeof body.total).toBe("number");
-		expect(
-			body.data.some((t: { slug: string }) => t.slug === "publictagalpha"),
-		).toBe(true);
+		expect(body.data).toHaveLength(1);
+		expect(body.total).toBeGreaterThan(50);
+		const detail = await app.request("/api/v1/tags/publictagalpha");
+		expect(detail.status).toBe(200);
 	});
 
 	test("GET /api/v1/tags?q= suggests matching tags", async () => {

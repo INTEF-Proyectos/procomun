@@ -3,7 +3,7 @@
  * Generates tsvector, performs searches, and handles reindexing.
  */
 
-import type { DrizzleDB } from "@procomun/db/repository";
+import { catalogLabelsSql, type DrizzleDB } from "@procomun/db/repository";
 import { resources } from "@procomun/db/schema";
 import { eq, isNull, sql } from "drizzle-orm";
 
@@ -47,10 +47,13 @@ export function resetUnaccentCache() {
 
 /**
  * Update the search_vector for a specific resource.
- * Combines title (A), keywords (B), description (C), extracted_text (D).
+ * Combines title (A), keywords + catalog keywords (B), description (C),
+ * extracted_text (D).
  */
 export async function updateSearchVector(db: DrizzleDB, resourceId: string) {
 	const hasUnaccent = await isUnaccentAvailable(db);
+	// ADR-0042: las palabras del catálogo pesan como `keywords`.
+	const keywords = sql`concat_ws(',', keywords, ${catalogLabelsSql(resources.id)})`;
 
 	if (hasUnaccent) {
 		await db.execute(sql`
@@ -61,7 +64,7 @@ export async function updateSearchVector(db: DrizzleDB, resourceId: string) {
 				), 'A') ||
 				setweight(to_tsvector(
 					(CASE WHEN language IN ('en') THEN 'english' ELSE 'spanish' END)::regconfig,
-					unaccent(coalesce(keywords, ''))
+					unaccent(${keywords})
 				), 'B') ||
 				setweight(to_tsvector(
 					(CASE WHEN language IN ('en') THEN 'english' ELSE 'spanish' END)::regconfig,
@@ -82,7 +85,7 @@ export async function updateSearchVector(db: DrizzleDB, resourceId: string) {
 				), 'A') ||
 				setweight(to_tsvector(
 					(CASE WHEN language IN ('en') THEN 'english' ELSE 'spanish' END)::regconfig,
-					coalesce(keywords, '')
+					${keywords}
 				), 'B') ||
 				setweight(to_tsvector(
 					(CASE WHEN language IN ('en') THEN 'english' ELSE 'spanish' END)::regconfig,

@@ -2,17 +2,20 @@ import { validateCreateResource } from "@procomun/db/validation";
 import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { EducationalClassificationEditor } from "../islands/resources/EducationalClassificationFields.tsx";
+import { KeywordCatalogField } from "../islands/resources/KeywordCatalogField.tsx";
 import {
 	LANGUAGE_OPTIONS,
 	LICENSE_OPTIONS,
 	RESOURCE_TYPE_OPTIONS,
 } from "../islands/resources/resource-form-options.ts";
+import type { CatalogKeyword } from "../lib/api-client.ts";
 import {
 	type EducationalSelection,
 	selectionsToAssignments,
 } from "../lib/educational-classification.ts";
 import { getApiClient } from "../lib/get-api-client.ts";
 import { url } from "../lib/paths.ts";
+import { hasMinRole } from "../lib/shared-utils.ts";
 import "../styles/nuevo.css";
 
 interface ResourceFormState {
@@ -22,7 +25,6 @@ interface ResourceFormState {
 	language: string;
 	license: string;
 	resourceType: string;
-	keywords: string;
 }
 
 interface ElpxMetadata {
@@ -40,7 +42,6 @@ const EMPTY_FORM: ResourceFormState = {
 	language: "es",
 	license: "cc-by",
 	resourceType: "documento",
-	keywords: "",
 };
 
 const ALLOWED_LANGUAGES = new Set<string>(
@@ -90,6 +91,8 @@ export default function NuevoPage() {
 	const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 	const [invalidFields, setInvalidFields] = useState<Set<string>>(new Set());
 	const [form, setForm] = useState<ResourceFormState>(EMPTY_FORM);
+	const [userRole, setUserRole] = useState("reader");
+	const [catalogKeywords, setCatalogKeywords] = useState<CatalogKeyword[]>([]);
 	const [educationalSelections, setEducationalSelections] = useState<
 		EducationalSelection[]
 	>([]);
@@ -107,6 +110,7 @@ export default function NuevoPage() {
 					return;
 				}
 				const role = session.user.role ?? "reader";
+				setUserRole(role);
 				if (["reader"].includes(role)) {
 					setShowAuthCheck(true);
 					return;
@@ -232,7 +236,7 @@ export default function NuevoPage() {
 			license: form.license,
 			resourceType: form.resourceType,
 			author: form.author,
-			keywords: form.keywords || undefined,
+			keywordIds: catalogKeywords.map((keyword) => keyword.id),
 			educationalAreas: selectionsToAssignments(educationalSelections),
 		};
 
@@ -506,22 +510,11 @@ export default function NuevoPage() {
 					/>
 
 					<div className="form-field">
-						<label htmlFor="keywords">
-							Palabras clave (separadas por comas)
-						</label>
-						<input
-							type="text"
-							id="keywords"
-							placeholder="matemáticas, fracciones, visual"
-							aria-describedby="keywords-error"
-							value={form.keywords}
-							onChange={(event) =>
-								setFieldValue("keywords", event.currentTarget.value)
-							}
+						<KeywordCatalogField
+							selected={catalogKeywords}
+							onChange={setCatalogKeywords}
+							canCreate={hasMinRole(userRole, "curator")}
 						/>
-						<span id="keywords-error" className="field-error" role="alert">
-							{fieldErrors.keywords ?? ""}
-						</span>
 					</div>
 
 					<button

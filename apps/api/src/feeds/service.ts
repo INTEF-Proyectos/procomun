@@ -46,6 +46,8 @@ interface FeedResource {
 	language: string | null;
 	license: string | null;
 	keywords?: string | null;
+	/** Palabras clave del catálogo, separadas por comas (ADR-0042). */
+	catalogLabels?: string | null;
 }
 
 export function buildFeed(opts: {
@@ -115,13 +117,13 @@ export function buildFeed(opts: {
 				term: resource.resourceType,
 			});
 		}
-		if (resource.keywords) {
-			for (const kw of resource.keywords
+		const keywords =
+			`${resource.keywords ?? ""},${resource.catalogLabels ?? ""}`
 				.split(",")
 				.map((k) => k.trim())
-				.filter(Boolean)) {
-				categories.push({ name: kw });
-			}
+				.filter(Boolean);
+		for (const kw of new Set(keywords)) {
+			categories.push({ name: kw });
 		}
 
 		feed.addItem({
