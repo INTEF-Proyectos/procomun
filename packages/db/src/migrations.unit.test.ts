@@ -150,16 +150,16 @@ describe("migración resources.other_authors (issue #417)", () => {
 	const COLUMN_QUERY = `SELECT column_name FROM information_schema.columns
 		WHERE table_name = 'resources' AND column_name = 'other_authors'`;
 
-	test("registra la migración 0011 y añade la columna a una tabla resources previa", async () => {
+	test("registra la migración 0012 y añade la columna a una tabla resources previa", async () => {
 		const journal = JSON.parse(
 			await readFile(path.join(migrationsDir, "meta/_journal.json"), "utf8"),
 		) as { entries: Array<{ tag: string }> };
 		expect(journal.entries.map((entry) => entry.tag)).toContain(
-			"0011_resource_other_authors",
+			"0012_resource_other_authors",
 		);
 
 		const migration = await readFile(
-			path.join(migrationsDir, "0011_resource_other_authors.sql"),
+			path.join(migrationsDir, "0012_resource_other_authors.sql"),
 			"utf8",
 		);
 		const db = new PGlite();
@@ -278,5 +278,78 @@ describe("journal de migraciones", () => {
 		);
 		const filePrefixes = files.map((file) => file.slice(0, 4));
 		expect(new Set(filePrefixes).size).toBe(filePrefixes.length);
+	});
+});
+
+// ADR-0042: catálogo de palabras clave. Va detrás de 0010 (#425) en el journal.
+describe("migración 0011_keyword_catalog", () => {
+	const OLD_SCHEMA = `CREATE TABLE "user" (id TEXT PRIMARY KEY);
+		CREATE TABLE "tags" (
+			id TEXT PRIMARY KEY,
+			slug VARCHAR(255) NOT NULL UNIQUE,
+			label TEXT NOT NULL,
+			description TEXT,
+			usage_count INTEGER NOT NULL DEFAULT 0,
+			canonical_tag_id TEXT,
+			created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+			updated_at TIMESTAMP NOT NULL DEFAULT NOW()
+		);
+		INSERT INTO tags (id, slug, label) VALUES ('libre-1', 'matematicas', 'matemáticas');`;
+
+	test("va después de todas las anteriores en el journal", async () => {
+		const journal = JSON.parse(
+			await readFile(path.join(migrationsDir, "meta/_journal.json"), "utf8"),
+		) as { entries: Array<{ idx: number; tag: string; when: number }> };
+		const entry = journal.entries.find(
+			(item) => item.tag === "0011_keyword_catalog",
+		);
+		expect(entry?.idx).toBe(9);
+		// Solo las anteriores: 0012_resource_other_authors (#417) va detrás.
+		const others = journal.entries.filter((item) => item.idx < 9);
+		expect(Math.max(...others.map((item) => item.when))).toBeLessThan(
+			entry?.when ?? 0,
+		);
+		// 0010_resource_thumbnail_url (#425) usa when 1792080000000.
+		expect(entry?.when ?? 0).toBeGreaterThan(1792080000000);
+	});
+
+	test("siembra el catálogo una vez sin renombrar etiquetas existentes", async () => {
+		const migration = (
+			await readFile(
+				path.join(migrationsDir, "0011_keyword_catalog.sql"),
+				"utf8",
+			)
+		).replaceAll("--> statement-breakpoint", "");
+		const { KEYWORD_CATALOG_SEED } = await import("./setup.ts");
+		expect(migration).toContain(KEYWORD_CATALOG_SEED);
+
+		const db = new PGlite();
+		try {
+			await db.exec(OLD_SCHEMA);
+			await db.exec(migration);
+			await db.exec(migration); // idempotente
+			const rows = await db.query<{
+				id: string;
+				slug: string;
+				catalog: boolean;
+			}>(
+				"SELECT id, slug, catalog FROM tags WHERE label ILIKE 'matem%' ORDER BY id",
+			);
+			expect(rows.rows).toEqual([
+				{ id: "libre-1", slug: "matematicas", catalog: false },
+				{ id: "matematicas", slug: "matematicas-catalogo", catalog: true },
+			]);
+			const count = await db.query<{ n: number }>(
+				"SELECT count(*)::int AS n FROM tags WHERE catalog",
+			);
+			expect(count.rows[0]?.n).toBe(50);
+			await expect(
+				db.exec(
+					"INSERT INTO tags (id, slug, label, catalog) VALUES ('x', 'x', 'GEOMETRIA', true)",
+				),
+			).rejects.toThrow();
+		} finally {
+			await db.close();
+		}
 	});
 });

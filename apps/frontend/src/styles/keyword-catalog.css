@@ -1,0 +1,56 @@
+.keyword-field {
+	display: flex;
+	flex-direction: column;
+	gap: 0.4rem;
+}
+
+.keyword-field-help,
+.keyword-field-notice {
+	margin: 0;
+	font-size: 0.875rem;
+}
+
+.keyword-field-chips {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 0.4rem;
+	margin: 0;
+	padding: 0;
+	list-style: none;
+}
+
+.keyword-field-chips li {
+	display: inline-flex;
+	align-items: center;
+	gap: 0.35rem;
+	padding: 0.15rem 0.45rem;
+	border: 1px solid currentColor;
+	border-radius: 999px;
+}
+
+.keyword-field-list {
+	display: flex;
+	flex-direction: column;
+	margin: 0;
+	padding: 0;
+	border: 1px solid currentColor;
+}
+
+.keyword-field-list button,
+.keyword-field-create button,
+.keyword-field-chips button {
+	font: inherit;
+	cursor: pointer;
+}
+
+.keyword-field-list button {
+	width: 100%;
+	text-align: start;
+	background: transparent;
+	border: 0;
+	padding: 0.35rem 0.5rem;
+}
+
+.keyword-field-list [aria-selected="true"] button {
+	outline: 2px solid currentColor;
+}

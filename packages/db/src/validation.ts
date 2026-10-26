@@ -213,6 +213,7 @@ export function validateUpdateResource(body: unknown): ValidationResult {
 		"otherAuthors",
 		"keywords",
 		"publisher",
+		"keywordIds",
 		"educationalAreas",
 	];
 	const hasAtLeastOne = updatableFields.some((f) => b[f] !== undefined);

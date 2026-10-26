@@ -2,6 +2,7 @@ import { describe, expect, test } from "bun:test";
 import { renderToStaticMarkup } from "react-dom/server";
 import type { RelatedResourcesResult, Resource } from "../../lib/api-client.ts";
 import { url } from "../../lib/paths.ts";
+import { ResourceCard } from "../../ui/ResourceCard.tsx";
 import { CatalogIsland, CatalogResourceCard } from "./CatalogIsland.tsx";
 import { CatalogSearchIsland } from "./CatalogSearchIsland.tsx";
 import {
@@ -200,6 +201,40 @@ describe("Catalog islands", () => {
 			"Licencia Creative Commons Reconocimiento-CompartirIgual 4.0",
 		);
 		expect(html).not.toContain(">copyright<");
+	});
+
+	test("la valoración solo aparece en la ficha de un recurso publicado (#461)", () => {
+		expect(renderDetail({}, "reader")).toContain("detail-ratings-section");
+		for (const editorialStatus of ["draft", "review", "archived"]) {
+			expect(renderDetail({ editorialStatus }, "admin")).not.toContain(
+				"detail-ratings-section",
+			);
+		}
+	});
+
+	test("la tarjeta de un recurso no publicado no muestra su valoración (#461)", () => {
+		const card = (editorialStatus: string) =>
+			renderToStaticMarkup(
+				<ResourceCard
+					resource={{
+						id: "r1",
+						slug: "r1",
+						title: "Recurso",
+						description: "",
+						resourceType: "proyecto",
+						language: "es",
+						license: "cc-by",
+						rating: { average: 4.5, count: 2 },
+						editorialStatus,
+						createdAt: "2026-10-01T00:00:00.000Z",
+					}}
+					href="/recurso?slug=r1"
+				/>,
+			);
+
+		expect(card("published")).toContain("rc-stat-star");
+		expect(card("draft")).not.toContain("rc-stat-star");
+		expect(card("review")).not.toContain("4.5");
 	});
 
 	test("una licencia sin imagen oficial sigue viéndose como texto (#404)", () => {

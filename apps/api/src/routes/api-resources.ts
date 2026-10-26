@@ -115,6 +115,7 @@ apiResourceRoutes.get("/:id", async (c) => {
 		otherAuthors: resource.otherAuthors,
 		publisher: resource.publisher,
 		editorialStatus: resource.editorialStatus,
+		catalogKeywords: resource.catalogKeywords,
 		educationalAreas: resource.educationalAreas,
 		createdAt: resource.createdAt,
 		updatedAt: resource.updatedAt,

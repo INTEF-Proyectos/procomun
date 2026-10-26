@@ -16,7 +16,6 @@ describe("NuevoPage helpers", () => {
 				language: "es",
 				license: "cc-by",
 				resourceType: "documento",
-				keywords: "fracciones, primaria",
 			},
 			{
 				title: "Proyecto eXe",
@@ -35,7 +34,6 @@ describe("NuevoPage helpers", () => {
 			language: "en",
 			license: "cc0",
 			resourceType: "actividad-interactiva",
-			keywords: "fracciones, primaria",
 		});
 	});
 
@@ -49,7 +47,6 @@ describe("NuevoPage helpers", () => {
 				language: "gl",
 				license: "cc-by-sa",
 				resourceType: "documento",
-				keywords: "manual",
 			},
 			{},
 		);
@@ -62,7 +59,6 @@ describe("NuevoPage helpers", () => {
 			language: "gl",
 			license: "cc-by-sa",
 			resourceType: "actividad-interactiva",
-			keywords: "manual",
 		});
 	});
 
@@ -76,7 +72,6 @@ describe("NuevoPage helpers", () => {
 				language: "es",
 				license: "cc-by",
 				resourceType: "documento",
-				keywords: "",
 			},
 			{
 				language: "es-ES",
@@ -92,7 +87,6 @@ describe("NuevoPage helpers", () => {
 			language: "es",
 			license: "cc-by",
 			resourceType: "actividad-interactiva",
-			keywords: "",
 		});
 	});
 
@@ -105,7 +99,6 @@ describe("NuevoPage helpers", () => {
 			language: "es",
 			license: "cc-by",
 			resourceType: "documento",
-			keywords: "",
 		};
 
 		const body = buildCreateResourceBody(form, []);

@@ -298,7 +298,7 @@ describe("resource versions", () => {
 			createdBy: "autora",
 		});
 
-		await syncTagsFromKeywords(db, resourceId, "geometría");
+		await syncTagsFromKeywords(db, resourceId, "trigonometría");
 		const project2 = await seedProject(resourceId, "h".repeat(64));
 		await publishResourceVersion(db, {
 			resourceId,
