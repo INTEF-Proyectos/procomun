@@ -2875,6 +2875,21 @@ tasks:
       PR apilado. Pendiente de producto: cobertura del fondo, relación con
       «Materias» y gestión (fusionar/desactivar). Mergear después de #394.
 
+  T-2026-10-14-11192880:
+    date: 2026-10-14
+    agent: "ingestas-y-migraciones + metadatos-y-curacion + qa-validacion"
+    task: "Correspondencia de etiquetas antiguas con el catálogo de palabras clave (#384, apartado 5)"
+    status: Done
+    related: ["#384", "#397", ADR-0042]
+    notes: >
+      Comando import:legacy-keywords con --dry-run e informe JSON (cobertura,
+      sin correspondencia, ambiguas, más de 5 y asignaciones). Coincidencia por
+      identidad y por alias; los alias ambiguos y los casos que superarían 5
+      términos quedan en el informe sin asignar. Lee catálogo, recursos y
+      enlaces una vez, inserta por lotes, reindexa FTS de lo asignado y es
+      idempotente. Apilado sobre #397. Pendiente de producto: revisar el listado
+      sin correspondencia (cobertura del fondo) antes de aplicarlo en producción.
+
   T-2026-10-14-10535343:
     date: 2026-10-14
     agent: "seguridad-privacidad-legal + backend-api-servicios + qa-validacion"
@@ -3133,3 +3148,32 @@ tasks:
       áreas; catalog:area-keywords cruza ambos catálogos en seco y aplica con
       --apply. Migración 0014_knowledge_areas. Formularios, ficha y filtros
       quedan para el PR 2; correspondencias y curación, para el PR 3.
+  T-2026-10-26-07421556:
+    date: 2026-10-26
+    agent: "devops-sre"
+    task: "El seed no falla cuando un usuario de demo ha creado versiones"
+    status: Done
+    related: ["#452"]
+    notes: >
+      La limpieza del seed borraba y recreaba los usuarios de demo, y fallaba
+      con resource_versions_created_by_fkey si alguno había creado una versión.
+      Ahora se conservan (INSERT ... ON CONFLICT (id) DO UPDATE y la credencial
+      se sustituye) y ya no se quita la autoría de los recursos ajenos a la
+      semilla. Además, las versiones de los recursos de la semilla se borran
+      antes que sus elpx_projects (RESTRICT). Tests con PGlite real en
+      seed.unit.test.ts (rojo con las dos FK, verde tras el cambio).
+  T-2026-10-26-07195989:
+    date: 2026-10-26
+    agent: "frontend-ux-accesibilidad"
+    task: "Valoraciones solo en recursos publicados"
+    status: Done
+    related: ["#461"]
+    notes: >
+      La ficha y las tarjetas mostraban la valoración de recursos en borrador,
+      revisión o archivados (p. ej. «Mis recursos» del perfil). Ahora la ficha
+      solo monta RatingIsland si el recurso está publicado y ResourceCard oculta
+      estrellas, media y contador si editorialStatus no es published. La API ya
+      rechazaba valorar un recurso no publicado (resolveResourceBySlug filtra
+      por published y responde 404, también a admin); se añaden tests de
+      regresión, incluido que las valoraciones se conservan al despublicar y
+      vuelven al publicar. Tests UI nuevos rojo → verde.

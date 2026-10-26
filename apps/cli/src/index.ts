@@ -11,6 +11,7 @@ export const CLI_COMMANDS = [
 	"import:legacy-procomun",
 	"import:legacy-users",
 	"catalog:area-keywords",
+	"import:legacy-keywords",
 ] as const;
 
 const commandLoaders: Record<
@@ -31,6 +32,8 @@ const commandLoaders: Record<
 		(await import("./commands/import-legacy-users.ts")).importLegacyUsers,
 	"catalog:area-keywords": async () =>
 		(await import("./commands/catalog-area-keywords.ts")).catalogAreaKeywords,
+	"import:legacy-keywords": async () =>
+		(await import("./commands/import-legacy-keywords.ts")).importLegacyKeywords,
 };
 
 export function printHelp(log: Pick<typeof console, "log"> = console) {
@@ -67,6 +70,9 @@ export function printHelp(log: Pick<typeof console, "log"> = console) {
 	);
 	log.log(
 		"                    Cruza palabras clave con áreas de conocimiento y retira las que pasan a ser áreas (#448)",
+	log.log("  import:legacy-keywords [--dry-run] [--report-dir <ruta>]");
+	log.log(
+		"                    Asigna palabras del catálogo a las etiquetas de origen, ver ADR-0042",
 	);
 }
 

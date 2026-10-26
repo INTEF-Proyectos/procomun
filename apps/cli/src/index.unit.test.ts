@@ -10,6 +10,7 @@ describe("CLI dispatcher", () => {
 		expect(CLI_COMMANDS).toContain("import:legacy-procomun");
 		expect(CLI_COMMANDS).toContain("import:legacy-users");
 		expect(CLI_COMMANDS).toContain("catalog:area-keywords");
+		expect(CLI_COMMANDS).toContain("import:legacy-keywords");
 	});
 
 	test("devuelve null para comandos desconocidos", async () => {
@@ -26,6 +27,7 @@ describe("CLI dispatcher", () => {
 		expect(lines.join("\n")).toContain("import:legacy-procomun");
 		expect(lines.join("\n")).toContain("import:legacy-users");
 		expect(lines.join("\n")).toContain("catalog:area-keywords");
+		expect(lines.join("\n")).toContain("import:legacy-keywords");
 	});
 
 	test("un comando que termina bien no propaga el 99 residual de PGlite", () => {

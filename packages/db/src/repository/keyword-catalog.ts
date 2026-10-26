@@ -3,14 +3,19 @@ import {
 	asc,
 	eq,
 	inArray,
+	isNotNull,
 	isNull,
 	type SQLWrapper,
 	sql,
 } from "drizzle-orm";
+import { resources } from "../schema/resources.ts";
 import { resourceTags, tagAliases, tags } from "../schema/tags.ts";
 import {
 	type KeywordCatalogEntry,
 	type KeywordSuggestion,
+	keywordIndex,
+	MAX_KEYWORD_SELECTIONS,
+	matchLegacyLabels,
 	normalizeKeywordKey,
 	searchKeywordCatalog,
 	validateKeywordSelection,
@@ -214,4 +219,147 @@ export async function setResourceCatalogKeywords(
 	for (const tagId of [...toRemove, ...toAdd]) {
 		await recomputeUsageCount(db, tagId);
 	}
+}
+
+export type LegacyKeywordReport = {
+	dryRun: boolean;
+	totals: {
+		resources: number;
+		withMatch: number;
+		coverage: number;
+		assigned: number;
+		alreadyAssigned: number;
+		overLimit: number;
+	};
+	/** Etiquetas sin correspondencia, con el número de recursos que las usan. */
+	unmatched: Array<{ label: string; resources: number }>;
+	/** Alias de varios términos (ABP): necesitan una correspondencia confirmada. */
+	ambiguous: Array<{ label: string; resources: number }>;
+	/** Superarían 5 términos: no se asigna nada hasta revisarlos. */
+	overLimit: Array<{
+		resourceId: string;
+		title: string;
+		current: string[];
+		proposed: string[];
+	}>;
+	assigned: Array<{ resourceId: string; added: string[] }>;
+};
+
+type LabelCounts = Map<string, { label: string; resources: number }>;
+
+/** Cuenta cada etiqueta una vez por recurso. */
+function tally(counts: LabelCounts, labels: string[]) {
+	for (const key of new Set(labels.map(normalizeKeywordKey))) {
+		const entry = counts.get(key) ?? {
+			label: labels.find((label) => normalizeKeywordKey(label) === key) ?? key,
+			resources: 0,
+		};
+		entry.resources += 1;
+		counts.set(key, entry);
+	}
+}
+
+function sortByUse(counts: LabelCounts) {
+	return [...counts.values()].sort(
+		(a, b) => b.resources - a.resources || a.label.localeCompare(b.label, "es"),
+	);
+}
+
+/**
+ * Correspondencia de las etiquetas de origen (`resources.keywords`) con el
+ * catálogo (issue #384, apartado 5). Identidad y alias; nunca crea términos
+ * ni toca `keywords`. Lee catálogo, recursos y enlaces una sola vez.
+ * Repetirla no duplica nada: solo añade los ids que faltan.
+ */
+export async function mapLegacyKeywords(
+	db: DrizzleDB,
+	options: { dryRun: boolean },
+): Promise<LegacyKeywordReport> {
+	const index = keywordIndex(await listKeywordCatalog(db));
+	const rows = await db
+		.select({
+			id: resources.id,
+			title: resources.title,
+			keywords: resources.keywords,
+		})
+		.from(resources)
+		.where(and(isNull(resources.deletedAt), isNotNull(resources.keywords)));
+	const links = await db
+		.select({ resourceId: resourceTags.resourceId, tagId: resourceTags.tagId })
+		.from(resourceTags)
+		.innerJoin(tags, eq(resourceTags.tagId, tags.id))
+		.where(eq(tags.catalog, true));
+	const current = new Map<string, string[]>();
+	for (const link of links) {
+		current.set(link.resourceId, [
+			...(current.get(link.resourceId) ?? []),
+			link.tagId,
+		]);
+	}
+
+	const unmatched: LabelCounts = new Map();
+	const ambiguous: LabelCounts = new Map();
+	const report: LegacyKeywordReport = {
+		dryRun: options.dryRun,
+		totals: {
+			resources: rows.length,
+			withMatch: 0,
+			coverage: 0,
+			assigned: 0,
+			alreadyAssigned: 0,
+			overLimit: 0,
+		},
+		unmatched: [],
+		ambiguous: [],
+		overLimit: [],
+		assigned: [],
+	};
+
+	for (const row of rows) {
+		// El importador unió las etiquetas de origen con comas (buildKeywords).
+		const match = matchLegacyLabels((row.keywords ?? "").split(","), index);
+		tally(unmatched, match.unmatched);
+		tally(ambiguous, match.ambiguous);
+		if (match.ids.length === 0) continue;
+		report.totals.withMatch += 1;
+
+		const have = current.get(row.id) ?? [];
+		const added = match.ids.filter((id) => !have.includes(id));
+		if (added.length === 0) {
+			report.totals.alreadyAssigned += 1;
+		} else if (have.length + added.length > MAX_KEYWORD_SELECTIONS) {
+			report.overLimit.push({
+				resourceId: row.id,
+				title: row.title,
+				current: have,
+				proposed: match.ids,
+			});
+		} else {
+			report.assigned.push({ resourceId: row.id, added });
+		}
+	}
+
+	report.totals.coverage =
+		rows.length === 0 ? 0 : report.totals.withMatch / rows.length;
+	report.totals.assigned = report.assigned.length;
+	report.totals.overLimit = report.overLimit.length;
+	report.unmatched = sortByUse(unmatched);
+	report.ambiguous = sortByUse(ambiguous);
+
+	const values = report.assigned.flatMap(({ resourceId, added }) =>
+		added.map((tagId) => ({ resourceId, tagId })),
+	);
+	if (!options.dryRun && values.length > 0) {
+		// Lotes de 500 filas para no acercarse al límite de parámetros del driver.
+		for (let i = 0; i < values.length; i += 500) {
+			await db
+				.insert(resourceTags)
+				.values(values.slice(i, i + 500))
+				.onConflictDoNothing();
+		}
+		for (const tagId of new Set(values.map((value) => value.tagId))) {
+			await recomputeUsageCount(db, tagId);
+		}
+	}
+	return report;
 }
