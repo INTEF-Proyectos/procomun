@@ -10,6 +10,7 @@ export const CLI_COMMANDS = [
 	"fts:reindex",
 	"import:legacy-procomun",
 	"import:legacy-users",
+	"elpx:screenshots",
 ] as const;
 
 const commandLoaders: Record<
@@ -28,6 +29,8 @@ const commandLoaders: Record<
 		(await import("./commands/import-legacy-procomun.ts")).importLegacyProcomun,
 	"import:legacy-users": async () =>
 		(await import("./commands/import-legacy-users.ts")).importLegacyUsers,
+	"elpx:screenshots": async () =>
+		(await import("./commands/elpx-screenshots.ts")).elpxScreenshots,
 };
 
 export function printHelp(log: Pick<typeof console, "log"> = console) {
@@ -58,6 +61,9 @@ export function printHelp(log: Pick<typeof console, "log"> = console) {
 	);
 	log.log(
 		"  import:legacy-users --source-file <usuarios.json> [--dry-run] [--limit <n>] [--report-dir <ruta>]",
+	);
+	log.log(
+		"  elpx:screenshots [--dry-run]  Detecta screenshot.png en los paquetes ya subidos (#409)",
 	);
 }
 

@@ -157,6 +157,7 @@ elpxAdminRoutes.post(
 			uploadSessionId: uploadId,
 			version: 3,
 			hasPreview: result.hasPreview,
+			hasScreenshot: result.hasScreenshot,
 			elpxMetadata: result.metadata,
 		});
 		const version = await repo.publishResourceVersion(getDb().db, {
@@ -252,6 +253,7 @@ elpxAdminRoutes.post("/save/:resourceId", requireRole("author"), async (c) => {
 		uploadSessionId: uploadId,
 		version: 3,
 		hasPreview: result.hasPreview,
+		hasScreenshot: result.hasScreenshot,
 		elpxMetadata: result.metadata,
 	});
 	const version = await repo.publishResourceVersion(getDb().db, {
@@ -393,6 +395,7 @@ elpxAdminRoutes.post(
 			uploadSessionId: uploadId,
 			version: 3,
 			hasPreview: result.hasPreview,
+			hasScreenshot: result.hasScreenshot,
 			elpxMetadata: result.metadata,
 		});
 		const version = await repo.publishResourceVersion(getDb().db, {

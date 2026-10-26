@@ -1,7 +1,10 @@
+import { TYPE_ICONS } from "./resource-display.ts";
+
 export type ResourceCardMedia =
 	| { kind: "image"; url: string }
 	| { kind: "preview"; url: string }
-	| { kind: "empty" };
+	/** Marcador del tipo de recurso; `null` usa el genérico. Es decorativo. */
+	| { kind: "empty"; icon: string | null };
 
 function safeImageUrl(value: string | null | undefined): string | null {
 	const url = value?.trim();
@@ -16,14 +19,28 @@ function safeImageUrl(value: string | null | undefined): string | null {
 	return null;
 }
 
-/** La miniatura de metadatos manda sobre el iframe del .elpx. */
+/**
+ * Medio de la tarjeta (#409): la miniatura screenshot.png de eXe 4, después
+ * la imagen de metadatos (preview legacy), después el iframe del .elpx como
+ * reserva (#426) y, sin nada, el marcador del tipo de recurso.
+ */
 export function resourceCardMedia(resource: {
 	thumbnailUrl?: string | null;
-	elpxPreview?: { previewUrl?: string | null } | null;
+	resourceType?: string | null;
+	elpxPreview?: {
+		previewUrl?: string | null;
+		screenshotUrl?: string | null;
+	} | null;
 }): ResourceCardMedia {
+	const screenshot = safeImageUrl(resource.elpxPreview?.screenshotUrl);
+	if (screenshot) return { kind: "image", url: screenshot };
 	const image = safeImageUrl(resource.thumbnailUrl);
 	if (image) return { kind: "image", url: image };
 	const preview = safeImageUrl(resource.elpxPreview?.previewUrl);
 	if (preview) return { kind: "preview", url: preview };
-	return { kind: "empty" };
+	const type = resource.resourceType ?? "";
+	return {
+		kind: "empty",
+		icon: Object.hasOwn(TYPE_ICONS, type) ? (TYPE_ICONS[type] ?? null) : null,
+	};
 }

@@ -14,6 +14,7 @@ export async function createElpxProject(
 		uploadSessionId?: string | null;
 		version?: number;
 		hasPreview?: boolean;
+		hasScreenshot?: boolean;
 		elpxMetadata?: Record<string, unknown> | null;
 	},
 ) {
@@ -27,6 +28,7 @@ export async function createElpxProject(
 		uploadSessionId: data.uploadSessionId ?? null,
 		version: data.version ?? 3,
 		hasPreview: data.hasPreview ?? false,
+		hasScreenshot: data.hasScreenshot ?? false,
 		elpxMetadata: data.elpxMetadata ?? null,
 		createdAt: new Date(),
 		updatedAt: new Date(),
@@ -105,6 +107,7 @@ export async function listElpxProjectsByResourceIds(
 			resourceId: elpxProjects.resourceId,
 			hash: elpxProjects.hash,
 			hasPreview: elpxProjects.hasPreview,
+			hasScreenshot: elpxProjects.hasScreenshot,
 			createdAt: elpxProjects.createdAt,
 			isCurrent: sql<boolean>`COALESCE(${resourceVersions.elpxProjectId} = ${elpxProjects.id}, false)`,
 		})
@@ -123,7 +126,12 @@ export async function listElpxProjectsByResourceIds(
 
 	const byResource = new Map<
 		string,
-		{ resourceId: string; hash: string; hasPreview: boolean }
+		{
+			resourceId: string;
+			hash: string;
+			hasPreview: boolean;
+			hasScreenshot: boolean;
+		}
 	>();
 	const pick = new Map<string, (typeof rows)[number]>();
 	for (const row of rows) {
@@ -142,7 +150,32 @@ export async function listElpxProjectsByResourceIds(
 			resourceId,
 			hash: row.hash,
 			hasPreview: row.hasPreview,
+			hasScreenshot: row.hasScreenshot,
 		});
 	}
 	return [...byResource.values()];
+}
+
+/** Proyectos a revisar por el relleno de miniaturas (#409). */
+export async function listElpxProjectsForScreenshotScan(db: DrizzleDB) {
+	return db
+		.select({
+			id: elpxProjects.id,
+			hash: elpxProjects.hash,
+			extractPath: elpxProjects.extractPath,
+			hasScreenshot: elpxProjects.hasScreenshot,
+		})
+		.from(elpxProjects)
+		.orderBy(elpxProjects.createdAt);
+}
+
+export async function setElpxProjectHasScreenshot(
+	db: DrizzleDB,
+	id: string,
+	hasScreenshot: boolean,
+) {
+	await db
+		.update(elpxProjects)
+		.set({ hasScreenshot, updatedAt: new Date() })
+		.where(eq(elpxProjects.id, id));
 }

@@ -3073,3 +3073,19 @@ tasks:
       fixtures de test no lo tenían y check-types fallaba en main con 9
       errores. Se añade previewImageUrl: null a ambos. Validación:
       check-types limpio y los dos ficheros de test en verde.
+
+  T-2026-10-26-08073293:
+    date: 2026-10-26
+    agent: "frontend-ux-accesibilidad"
+    task: "Miniatura screenshot.png de eXe 4 y marcador por tipo en los listados"
+    status: Done
+    related: ["#409", "#426", "#425"]
+    notes: >
+      Al subir o importar un .elpx se detecta screenshot.png en la raíz (no
+      theme/screenshot.png) y se guarda en elpx_projects.has_screenshot
+      (migración 0015; la 0014 la usa #448). Las versiones apuntan al
+      proyecto, así que restaurar conserva la miniatura. La API añade
+      elpxPreview.screenshotUrl. Orden de la tarjeta: screenshot.png, imagen
+      de metadatos (preview legacy), iframe como reserva para no deshacer
+      #426 y, sin nada, el marcador del tipo con aria-hidden. Comando
+      elpx:screenshots [--dry-run] para los paquetes ya subidos.

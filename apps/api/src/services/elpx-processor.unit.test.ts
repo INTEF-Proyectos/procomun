@@ -281,6 +281,24 @@ describe("buildElpxPath", () => {
 });
 
 // ---------------------------------------------------------------------------
+/** Como createZipFile, pero conserva las rutas: el CLI de zipfile las aplana. */
+async function createZipWithPaths(
+	zipPath: string,
+	files: Record<string, string>,
+): Promise<void> {
+	const script =
+		"import json, sys, zipfile\n" +
+		"files = json.loads(sys.argv[2])\n" +
+		"with zipfile.ZipFile(sys.argv[1], 'w') as zf:\n" +
+		"    for name, content in files.items():\n" +
+		"        zf.writestr(name, content)\n";
+	const proc = Bun.spawn(
+		["python3", "-c", script, zipPath, JSON.stringify(files)],
+		{ stdout: "ignore", stderr: "ignore" },
+	);
+	if ((await proc.exited) !== 0) throw new Error("zipfile failed");
+}
+
 // processElpxUpload
 // ---------------------------------------------------------------------------
 describe("processElpxUpload", () => {
@@ -318,6 +336,37 @@ describe("processElpxUpload", () => {
 
 		expect(result.hasPreview).toBe(false);
 		expect(result.metadata.title).toBe("Recurso de prueba");
+	});
+
+	// #409: eXeLearning 4 guarda la miniatura del proyecto en la raíz.
+	it("detecta screenshot.png en la raíz del paquete", async () => {
+		const withShotPath = path.join(tempDir, "with-screenshot.elpx");
+		await createZipFile(withShotPath, {
+			"content.xml": SAMPLE_CONTENT_XML,
+			"index.html": "<html></html>",
+			"screenshot.png": "png",
+		});
+		const baseDir = path.join(tempDir, "process-output-shot");
+		await mkdir(baseDir, { recursive: true });
+
+		const result = await processElpxUpload(withShotPath, baseDir);
+
+		expect(result.hasScreenshot).toBe(true);
+	});
+
+	it("no toma la captura del tema como miniatura", async () => {
+		const themeShotPath = path.join(tempDir, "theme-screenshot.elpx");
+		await createZipWithPaths(themeShotPath, {
+			"content.xml": SAMPLE_CONTENT_XML,
+			"index.html": "<html></html>",
+			"theme/screenshot.png": "png",
+		});
+		const baseDir = path.join(tempDir, "process-output-theme");
+		await mkdir(baseDir, { recursive: true });
+
+		const result = await processElpxUpload(themeShotPath, baseDir);
+
+		expect(result.hasScreenshot).toBe(false);
 	});
 });
 

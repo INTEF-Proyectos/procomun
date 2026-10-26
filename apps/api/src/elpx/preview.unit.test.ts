@@ -12,6 +12,22 @@ describe("elpx preview helpers", () => {
 		expect(buildElpxPreview({ hash: "abc123", hasPreview: true })).toEqual({
 			hash: "abc123",
 			previewUrl: "/api/v1/elpx/abc123/",
+			screenshotUrl: null,
+		});
+	});
+
+	// #409: la tarjeta usa la miniatura de eXe 4 antes que el iframe.
+	test("buildElpxPreview añade la miniatura screenshot.png si el paquete la trae", () => {
+		expect(
+			buildElpxPreview({
+				hash: "abc123",
+				hasPreview: true,
+				hasScreenshot: true,
+			}),
+		).toEqual({
+			hash: "abc123",
+			previewUrl: "/api/v1/elpx/abc123/",
+			screenshotUrl: "/api/v1/elpx/abc123/screenshot.png",
 		});
 	});
 

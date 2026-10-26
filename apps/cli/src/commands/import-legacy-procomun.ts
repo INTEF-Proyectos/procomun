@@ -809,6 +809,7 @@ async function persistImportedResource(params: {
 				extractPath: finalExtractPath,
 				originalFilename: elpxFilename,
 				hasPreview: processed.hasPreview,
+				hasScreenshot: processed.hasScreenshot,
 				elpxMetadata: processed.metadata,
 			},
 			media: {

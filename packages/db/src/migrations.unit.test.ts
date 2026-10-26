@@ -146,6 +146,41 @@ describe("migración resources.thumbnail_url (issue #407)", () => {
 	});
 });
 
+describe("migración elpx_projects.has_screenshot (issue #409)", () => {
+	const COLUMN_QUERY = `SELECT column_name FROM information_schema.columns
+		WHERE table_name = 'elpx_projects' AND column_name = 'has_screenshot'`;
+
+	test("registra 0015 y añade la columna con false a los proyectos previos", async () => {
+		const journal = JSON.parse(
+			await readFile(path.join(migrationsDir, "meta/_journal.json"), "utf8"),
+		) as { entries: Array<{ tag: string }> };
+		expect(journal.entries.map((entry) => entry.tag)).toContain(
+			"0015_elpx_has_screenshot",
+		);
+
+		const migration = await readFile(
+			path.join(migrationsDir, "0015_elpx_has_screenshot.sql"),
+			"utf8",
+		);
+		const db = new PGlite();
+		try {
+			await db.exec(
+				`CREATE TABLE "elpx_projects" (id TEXT PRIMARY KEY, has_preview BOOLEAN NOT NULL DEFAULT false);
+				INSERT INTO elpx_projects (id) VALUES ('previo');`,
+			);
+			await db.exec(migration);
+			await db.exec(migration);
+			expect((await db.query(COLUMN_QUERY)).rows).toHaveLength(1);
+			const rows = await db.query<{ has_screenshot: boolean }>(
+				"SELECT has_screenshot FROM elpx_projects",
+			);
+			expect(rows.rows).toEqual([{ has_screenshot: false }]);
+		} finally {
+			await db.close();
+		}
+	});
+});
+
 describe("migración de categorización educativa", () => {
 	test("registra 0009 sin sustituir 0000–0008 y crea la tabla con unicidad", async () => {
 		const journal = JSON.parse(

@@ -14,6 +14,7 @@ import { getApiClient } from "../../lib/get-api-client.ts";
 import { url } from "../../lib/paths.ts";
 import { resourceCardMedia } from "../../lib/resource-card-media.ts";
 import { formatDateLong } from "../../lib/shared-utils.ts";
+import { CardTypeMarker } from "../../ui/CardTypeMarker.tsx";
 import "./PublicCollectionsIsland.css";
 
 const PAGE_SIZE = 9;
@@ -245,7 +246,11 @@ export function PublicCollectionsIsland() {
 										</div>
 									) : media.kind === "preview" ? (
 										<CollectionIframePreview src={media.url} />
-									) : null}
+									) : (
+										<div className="col-res-preview col-res-preview-empty">
+											<CardTypeMarker icon={media.icon} />
+										</div>
+									)}
 									<p className="collection-resource-type">
 										{resource.resourceType}
 									</p>

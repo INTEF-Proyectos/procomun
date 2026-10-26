@@ -64,6 +64,13 @@
 			"when": 1792080000000,
 			"tag": "0010_resource_thumbnail_url",
 			"breakpoints": true
+		},
+		{
+			"idx": 9,
+			"version": "7",
+			"when": 1792800000000,
+			"tag": "0015_elpx_has_screenshot",
+			"breakpoints": true
 		}
 	]
 }
