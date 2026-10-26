@@ -11,6 +11,7 @@ export const CLI_COMMANDS = [
 	"import:legacy-procomun",
 	"import:legacy-users",
 	"elpx:screenshots",
+	"import:legacy-keywords",
 ] as const;
 
 const commandLoaders: Record<
@@ -31,6 +32,8 @@ const commandLoaders: Record<
 		(await import("./commands/import-legacy-users.ts")).importLegacyUsers,
 	"elpx:screenshots": async () =>
 		(await import("./commands/elpx-screenshots.ts")).elpxScreenshots,
+	"import:legacy-keywords": async () =>
+		(await import("./commands/import-legacy-keywords.ts")).importLegacyKeywords,
 };
 
 export function printHelp(log: Pick<typeof console, "log"> = console) {
@@ -60,10 +63,19 @@ export function printHelp(log: Pick<typeof console, "log"> = console) {
 		"                    Clasifica los recursos legacy ya importados que no tienen categorización (#383)",
 	);
 	log.log(
+		"  import:legacy-procomun --copy-previews [--dry-run] [--report-dir <ruta>]",
+	);
+	log.log(
+		"                    Copia a nuestro almacenamiento las miniaturas legacy enlazadas en caliente (#409)",
+	);
+	log.log(
 		"  import:legacy-users --source-file <usuarios.json> [--dry-run] [--limit <n>] [--report-dir <ruta>]",
 	);
 	log.log(
 		"  elpx:screenshots [--dry-run]  Detecta screenshot.png en los paquetes ya subidos (#409)",
+	log.log("  import:legacy-keywords [--dry-run] [--report-dir <ruta>]");
+	log.log(
+		"                    Asigna palabras del catálogo a las etiquetas de origen, ver ADR-0042",
 	);
 }
 

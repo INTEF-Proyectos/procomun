@@ -23,6 +23,8 @@ export type TagRecord = {
 	description: string | null;
 	usageCount: number;
 	canonicalTagId: string | null;
+	catalog: boolean;
+	createdBy: string | null;
 	createdAt: Date;
 	updatedAt: Date;
 };
@@ -34,6 +36,8 @@ const tagSelect = {
 	description: tags.description,
 	usageCount: tags.usageCount,
 	canonicalTagId: tags.canonicalTagId,
+	catalog: tags.catalog,
+	createdBy: tags.createdBy,
 	createdAt: tags.createdAt,
 	updatedAt: tags.updatedAt,
 };
@@ -52,7 +56,7 @@ export class TagMergeError extends Error {
 	}
 }
 
-async function allocateUniqueSlug(
+export async function allocateUniqueSlug(
 	db: DrizzleDB,
 	baseSlug: string,
 	excludeId?: string,
@@ -239,7 +243,7 @@ export async function listResourceTags(
 	return rows;
 }
 
-async function recomputeUsageCount(db: DrizzleDB, tagId: string) {
+export async function recomputeUsageCount(db: DrizzleDB, tagId: string) {
 	const countRows = await db
 		.select({ count: sql<number>`count(*)` })
 		.from(resourceTags)
@@ -253,8 +257,10 @@ async function recomputeUsageCount(db: DrizzleDB, tagId: string) {
 }
 
 /**
- * Replace all tags for a resource with the given labels (create missing).
+ * Replace the free tags of a resource with the given labels (create missing).
  * Returns the final tag list. Also refreshes denormalized usage counts.
+ * ADR-0042: free text never attaches or removes catalog keywords, and
+ * `resources.keywords` keeps the original text.
  */
 export async function setResourceTagsByLabels(
 	db: DrizzleDB,
@@ -264,11 +270,14 @@ export async function setResourceTagsByLabels(
 	const normalized = uniqueNormalizedLabels(labels);
 	const desired: TagRecord[] = [];
 	for (const label of normalized) {
-		desired.push(await ensureTag(db, label));
+		const tag = await ensureTag(db, label);
+		if (!tag.catalog) desired.push(tag);
 	}
 	const desiredIds = new Set(desired.map((t) => t.id));
 
-	const current = await listResourceTags(db, resourceId);
+	const current = (await listResourceTags(db, resourceId)).filter(
+		(t) => !t.catalog,
+	);
 	const currentIds = new Set(current.map((t) => t.id));
 
 	const toRemove = current.filter((t) => !desiredIds.has(t.id));
@@ -302,14 +311,6 @@ export async function setResourceTagsByLabels(
 	for (const tagId of touched) {
 		await recomputeUsageCount(db, tagId);
 	}
-
-	// Keep legacy keywords column in sync (deprecated transitional field)
-	const keywordsValue =
-		desired.length > 0 ? desired.map((t) => t.label).join(",") : null;
-	await db
-		.update(resources)
-		.set({ keywords: keywordsValue, updatedAt: now })
-		.where(eq(resources.id, resourceId));
 
 	return listResourceTags(db, resourceId);
 }
@@ -426,6 +427,12 @@ export async function mergeTags(
 	if (target.canonicalTagId) {
 		throw new TagMergeError(
 			"Target tag is itself a synonym; merge into canonical",
+		);
+	}
+	// Moving free-tag links onto a catalog keyword could exceed 5 per resource.
+	if (source.catalog !== target.catalog) {
+		throw new TagMergeError(
+			"Cannot merge a free tag with a catalog keyword (ADR-0042)",
 		);
 	}
 

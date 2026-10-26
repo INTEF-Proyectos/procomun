@@ -7,11 +7,13 @@ import {
 	resolveLegacyExternalId,
 	resolveLegacyPublicationStatus,
 } from "@procomun/db/legacy-import";
+import { isAllowedPreviewImageUrl } from "../../../api/src/services/legacy-preview-image.ts";
 import {
 	findLegacySourcePairs,
 	iterateResolvedPairs,
 	type loadImportLegacyProcomunDependencies,
 	runBackfillLegacyEducationalAreas,
+	runCopyLegacyPreviews,
 	runImportLegacyProcomun,
 } from "./import-legacy-procomun.ts";
 
@@ -95,6 +97,17 @@ function buildMockDeps(
 			await rm(extractPath, { recursive: true, force: true });
 		}) as Deps["removeElpxExtraction"],
 		updateSearchVector: (async () => {}) as Deps["updateSearchVector"],
+		copyLegacyPreviewImage: (async () => ({
+			ok: false,
+			reason: "sin red en los tests",
+			retryable: false,
+		})) as Deps["copyLegacyPreviewImage"],
+		// Implementación real: es pura y decide el dry-run de --copy-previews.
+		isAllowedPreviewImageUrl,
+		listLegacyRemoteThumbnails:
+			(async () => []) as Deps["listLegacyRemoteThumbnails"],
+		setResourceThumbnailUrl:
+			(async () => {}) as Deps["setResourceThumbnailUrl"],
 		// Implementación real (no mockeada): es pura y los fixtures de estos
 		// tests son JSON vacíos "{}", así que resuelve "" y cada par cae al
 		// fallback por baseName, preservando la identidad distinta de cada par
@@ -519,6 +532,87 @@ describe("runImportLegacyProcomun (deps mockeadas)", () => {
 		await runImportLegacyProcomun({ sourceDir: dir, dryRun: false }, deps);
 
 		expect(hasScreenshot).toBe(true);
+	// #409: la imagen preview legacy se copia y no se enlaza en caliente.
+	describe("imagen preview legacy", () => {
+		const REMOTE =
+			"https://ode.educacion.es/INTEF/1416349635379/vistaPreviaAgrega.png";
+
+		function depsWithPreview(
+			copy: Deps["copyLegacyPreviewImage"],
+			onImport: (previewImageUrl: string | null) => void,
+		) {
+			const base = buildMockDeps(storageDir);
+			return buildMockDeps(storageDir, {
+				mapLegacyRecord: ((...args: Parameters<Deps["mapLegacyRecord"]>) => {
+					const mapping = base.mapLegacyRecord(...args);
+					return {
+						...mapping,
+						resource: { ...mapping.resource, previewImageUrl: REMOTE },
+					};
+				}) as Deps["mapLegacyRecord"],
+				copyLegacyPreviewImage: copy,
+				repo: {
+					...base.repo,
+					importLegacyResourceWithElpx: async (
+						_db: Parameters<Deps["repo"]["importLegacyResourceWithElpx"]>[0],
+						input: Parameters<Deps["repo"]["importLegacyResourceWithElpx"]>[1],
+					) => {
+						onImport(input.resource.previewImageUrl);
+						return {
+							resourceId: "mock-resource-id",
+							slug: "mock-slug",
+							mediaItemId: "mock-media-id",
+							elpxProjectId: "mock-elpx-id",
+						};
+					},
+				},
+			});
+		}
+
+		test("guarda la copia local de la imagen", async () => {
+			let saved: string | null | undefined;
+			let copiedFrom: string | undefined;
+			const deps = depsWithPreview(
+				(async (url: string) => {
+					copiedFrom = url;
+					return { ok: true, url: `/api/v1/thumbnails/${"a".repeat(64)}.png` };
+				}) as Deps["copyLegacyPreviewImage"],
+				(url) => {
+					saved = url;
+				},
+			);
+
+			await runImportLegacyProcomun({ sourceDir: dir, dryRun: false }, deps);
+
+			expect(copiedFrom).toBe(REMOTE);
+			expect(saved).toBe(`/api/v1/thumbnails/${"a".repeat(64)}.png`);
+		});
+
+		test("si no se puede copiar, no enlaza la remota y lo avisa", async () => {
+			let saved: string | null | undefined = "sin llamar";
+			const deps = depsWithPreview(
+				(async () => ({
+					ok: false,
+					reason: "HTTP 404",
+					retryable: false,
+				})) as Deps["copyLegacyPreviewImage"],
+				(url) => {
+					saved = url;
+				},
+			);
+
+			const report = await runImportLegacyProcomun(
+				{ sourceDir: dir, dryRun: false },
+				deps,
+			);
+
+			expect(saved).toBeNull();
+			expect(report.records[0]).toMatchObject({ outcome: "imported" });
+			const record = report.records[0] as { warnings?: string[] };
+			expect(record.warnings).toContain(
+				`preview: no se copia la imagen ${REMOTE} (HTTP 404)`,
+			);
+		});
 	});
 
 	test("un fallo al persistir se cuenta como error y no aborta el resto del lote", async () => {
@@ -828,5 +922,102 @@ describe("runBackfillLegacyEducationalAreas (deps mockeadas)", () => {
 			],
 			eleEnOtroIdioma: [],
 		});
+	});
+});
+
+// #409: --copy-previews copia las miniaturas legacy ya importadas.
+describe("runCopyLegacyPreviews", () => {
+	const ODE = "https://ode.educacion.es/INTEF";
+	const ROWS = [
+		{ id: "r-ok", externalId: "es_ok", thumbnailUrl: `${ODE}/ok/a.png` },
+		{ id: "r-404", externalId: "es_404", thumbnailUrl: `${ODE}/404/a.png` },
+		{ id: "r-red", externalId: "es_red", thumbnailUrl: `${ODE}/red/a.png` },
+		{
+			id: "r-otro",
+			externalId: "es_otro",
+			thumbnailUrl: "https://otro.example/a.png",
+		},
+	];
+	const LOCAL = `/api/v1/thumbnails/${"c".repeat(64)}.png`;
+
+	function deps() {
+		const updates: Array<[string, string | null]> = [];
+		const copied: string[] = [];
+		const base = buildMockDeps("/tmp/no-se-usa");
+		return {
+			updates,
+			copied,
+			deps: {
+				...base,
+				listLegacyRemoteThumbnails: (async () =>
+					ROWS) as Deps["listLegacyRemoteThumbnails"],
+				setResourceThumbnailUrl: (async (
+					_db: unknown,
+					id: string,
+					url: string | null,
+				) => {
+					updates.push([id, url]);
+				}) as Deps["setResourceThumbnailUrl"],
+				copyLegacyPreviewImage: (async (url: string) => {
+					copied.push(url);
+					if (url.includes("/ok/")) return { ok: true, url: LOCAL };
+					if (url.includes("/404/"))
+						return { ok: false, reason: "HTTP 404", retryable: false };
+					if (url.includes("/red/"))
+						return {
+							ok: false,
+							reason: "error de red (ECONNRESET)",
+							retryable: true,
+						};
+					return { ok: false, reason: "host no permitido", retryable: false };
+				}) as Deps["copyLegacyPreviewImage"],
+			} as Deps,
+		};
+	}
+
+	test("copia, retira lo que no se puede copiar y deja lo reintentable", async () => {
+		const { deps: d, updates } = deps();
+
+		const report = await runCopyLegacyPreviews({ dryRun: false }, d);
+
+		expect(updates).toEqual([
+			["r-ok", LOCAL],
+			["r-404", null],
+			["r-otro", null],
+		]);
+		expect(report.totals).toEqual({
+			processed: 4,
+			copied: 1,
+			removed: 2,
+			retryable: 1,
+		});
+		expect(report.records).toContainEqual({
+			externalId: "es_red",
+			resourceId: "r-red",
+			sourceUrl: `${ODE}/red/a.png`,
+			outcome: "retryable",
+			reason: "error de red (ECONNRESET)",
+		});
+	});
+
+	test("--dry-run no descarga ni escribe; clasifica por host", async () => {
+		const { deps: d, updates, copied } = deps();
+
+		const report = await runCopyLegacyPreviews({ dryRun: true }, d);
+
+		expect(updates).toEqual([]);
+		expect(copied).toEqual([]);
+		expect(report.totals).toEqual({
+			processed: 4,
+			copied: 3,
+			removed: 1,
+			retryable: 0,
+		});
+		expect(report.records.map((r) => r.outcome)).toEqual([
+			"would_copy",
+			"would_copy",
+			"would_copy",
+			"would_remove",
+		]);
 	});
 });

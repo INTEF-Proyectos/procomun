@@ -4,6 +4,7 @@
  */
 
 import {
+	catalogLabelsSql,
 	type DrizzleDB,
 	listElpxProjectsByResourceIds,
 } from "@procomun/db/repository";
@@ -111,12 +112,14 @@ export async function loadRecommendationSignalRows(
 	//  - same created_by or normalized author label
 	//  - co-occurrence in collection_resources
 	//  - FTS ts_rank of candidate search_vector vs seed title+keywords
+	// Catalog keywords count as keywords (ADR-0042).
+	const candidateKeywords = sql`concat_ws(',', c.keywords, ${catalogLabelsSql(sql.raw("c.id"))})`;
 	const raw: unknown = await db.execute(sql`
 		WITH seed AS (
 			SELECT
 				r.id,
 				r.title,
-				r.keywords,
+				concat_ws(',', r.keywords, ${catalogLabelsSql(sql.raw("r.id"))}) AS keywords,
 				r.resource_type,
 				r.language,
 				r.author,
@@ -182,7 +185,7 @@ export async function loadRecommendationSignalRows(
 				SELECT count(*)::int
 				FROM (
 					SELECT DISTINCT trim(both FROM lower(tok)) AS keyword
-					FROM unnest(string_to_array(coalesce(c.keywords, ''), ',')) AS tok
+					FROM unnest(string_to_array(${candidateKeywords}, ',')) AS tok
 					WHERE trim(both FROM lower(tok)) <> ''
 				) ck
 				INNER JOIN seed_keywords sk ON sk.keyword = ck.keyword
@@ -235,7 +238,7 @@ export async function loadRecommendationSignalRows(
 					SELECT 1
 					FROM (
 						SELECT DISTINCT trim(both FROM lower(tok)) AS keyword
-						FROM unnest(string_to_array(coalesce(c.keywords, ''), ',')) AS tok
+						FROM unnest(string_to_array(${candidateKeywords}, ',')) AS tok
 						WHERE trim(both FROM lower(tok)) <> ''
 					) ck
 					INNER JOIN seed_keywords sk ON sk.keyword = ck.keyword

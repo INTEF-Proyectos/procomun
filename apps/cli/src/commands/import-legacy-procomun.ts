@@ -7,6 +7,7 @@
  *   bun run apps/cli/src/index.ts import:legacy-procomun --source-dir <ruta> [--dry-run] [--limit <n>] [--only <externalId>] [--report-dir <ruta>]
  *   bun run apps/cli/src/index.ts import:legacy-procomun --backfill-categories [--dry-run] [--report-dir <ruta>]
  *   bun run apps/cli/src/index.ts import:legacy-procomun --fix-published --source-dir <ruta> [--dry-run] [--report-dir <ruta>]
+ *   bun run apps/cli/src/index.ts import:legacy-procomun --copy-previews [--dry-run] [--report-dir <ruta>]
  */
 import { mkdir, readdir, rename, rm, stat, unlink } from "node:fs/promises";
 import path from "node:path";
@@ -31,6 +32,7 @@ export async function loadImportLegacyProcomunDependencies() {
 			sanitizeFilename,
 		},
 		{ updateSearchVector },
+		{ copyLegacyPreviewImage, isAllowedPreviewImageUrl },
 		legacyImport,
 		repo,
 	] = await Promise.all([
@@ -38,6 +40,7 @@ export async function loadImportLegacyProcomunDependencies() {
 		import("../../../api/src/services/elpx-processor.ts"),
 		import("../../../api/src/uploads/config.ts"),
 		import("../../../api/src/fts/search.ts"),
+		import("../../../api/src/services/legacy-preview-image.ts"),
 		import("@procomun/db/legacy-import"),
 		import("@procomun/db/repository"),
 	]);
@@ -54,6 +57,10 @@ export async function loadImportLegacyProcomunDependencies() {
 		buildUploadPublicUrl,
 		sanitizeFilename,
 		updateSearchVector,
+		copyLegacyPreviewImage,
+		isAllowedPreviewImageUrl,
+		listLegacyRemoteThumbnails: repo.listLegacyRemoteThumbnails,
+		setResourceThumbnailUrl: repo.setResourceThumbnailUrl,
 		mapLegacyRecord: legacyImport.mapLegacyRecord,
 		resolveLegacyPublicationStatus: legacyImport.resolveLegacyPublicationStatus,
 		resolveLegacyExternalId: legacyImport.resolveLegacyExternalId,
@@ -204,6 +211,7 @@ function parseCliArgs(args: string[]) {
 			"source-dir": { type: "string" },
 			"backfill-categories": { type: "boolean", default: false },
 			"fix-published": { type: "boolean", default: false },
+			"copy-previews": { type: "boolean", default: false },
 			"dry-run": { type: "boolean", default: false },
 			limit: { type: "string" },
 			only: { type: "string" },
@@ -214,13 +222,16 @@ function parseCliArgs(args: string[]) {
 
 	const backfillCategories = Boolean(values["backfill-categories"]);
 	const fixPublished = Boolean(values["fix-published"]);
-	if (backfillCategories && fixPublished) {
+	const copyPreviews = Boolean(values["copy-previews"]);
+	if (
+		[backfillCategories, fixPublished, copyPreviews].filter(Boolean).length > 1
+	) {
 		throw new Error(
-			"--backfill-categories y --fix-published no se pueden combinar",
+			"--backfill-categories, --fix-published y --copy-previews no se pueden combinar",
 		);
 	}
 	const sourceDir = values["source-dir"];
-	if (!sourceDir && !backfillCategories) {
+	if (!sourceDir && !backfillCategories && !copyPreviews) {
 		throw new Error(
 			"Falta --source-dir. Uso: import:legacy-procomun --source-dir <ruta> [--dry-run] [--limit <n>] [--only <externalId>] [--report-dir <ruta>]",
 		);
@@ -235,6 +246,7 @@ function parseCliArgs(args: string[]) {
 		sourceDir: sourceDir ? path.resolve(sourceDir) : "",
 		backfillCategories,
 		fixPublished,
+		copyPreviews,
 		dryRun: Boolean(values["dry-run"]),
 		limit,
 		only: values.only,
@@ -251,6 +263,19 @@ function parseCliArgs(args: string[]) {
 export async function importLegacyProcomun(args: string[]) {
 	const options = parseCliArgs(args);
 	const deps = await loadImportLegacyProcomunDependencies();
+
+	if (options.copyPreviews) {
+		const copyReport = await runCopyLegacyPreviews(options, deps);
+		await writeReport(options, "copia-miniaturas", copyReport);
+		const t = copyReport.totals;
+		console.log(
+			`[import:legacy-procomun] Completado. ${options.dryRun ? "(dry-run) " : ""}` +
+				`revisados=${t.processed} copiadas=${t.copied} retiradas=${t.removed} ` +
+				`reintentar=${t.retryable}`,
+		);
+		await closeDbAndExit(deps, 0);
+		return;
+	}
 
 	if (options.fixPublished) {
 		const fixReport = await runFixLegacyPublished(options, deps);
@@ -486,6 +511,96 @@ export async function runFixLegacyPublished(
 	return {
 		runId: crypto.randomUUID(),
 		sourceDir: options.sourceDir,
+		dryRun: options.dryRun,
+		startedAt,
+		finishedAt: new Date().toISOString(),
+		totals,
+		records,
+	};
+}
+
+type CopyPreviewRecord = {
+	externalId: string | null;
+	resourceId: string;
+	sourceUrl: string;
+} & (
+	| { outcome: "copied"; url: string }
+	| { outcome: "would_copy" | "would_remove" }
+	| { outcome: "removed" | "retryable"; reason: string }
+);
+
+export interface CopyLegacyPreviewsReport {
+	runId: string;
+	dryRun: boolean;
+	startedAt: string;
+	finishedAt: string;
+	totals: {
+		processed: number;
+		copied: number;
+		removed: number;
+		retryable: number;
+	};
+	records: CopyPreviewRecord[];
+}
+
+/**
+ * `--copy-previews` (#409): hasta el arreglo el importador guardaba la URL de
+ * `preview` tal cual y la ficha la enlazaba en caliente desde
+ * ode.educacion.es. Esta pasada la copia a nuestro almacenamiento. Si no se
+ * puede de forma definitiva (otro host, no es imagen, 404…) se retira; si el
+ * fallo es pasajero (red, 5xx) se deja para repetir el comando. El informe
+ * conserva la URL de origen. En dry-run no descarga: clasifica por host.
+ */
+export async function runCopyLegacyPreviews(
+	options: { dryRun: boolean },
+	deps: Deps,
+): Promise<CopyLegacyPreviewsReport> {
+	const startedAt = new Date().toISOString();
+	await deps.waitForDb();
+	const db = deps.getDb().db;
+	const { storageDir } = deps.getUploadConfig();
+	const totals = { processed: 0, copied: 0, removed: 0, retryable: 0 };
+	const records: CopyPreviewRecord[] = [];
+
+	for (const row of await deps.listLegacyRemoteThumbnails(db, IMPORT_SOURCE)) {
+		if (!row.thumbnailUrl) continue;
+		totals.processed++;
+		const trace = {
+			externalId: row.externalId,
+			resourceId: row.id,
+			sourceUrl: row.thumbnailUrl,
+		};
+
+		if (options.dryRun) {
+			const allowed = deps.isAllowedPreviewImageUrl(row.thumbnailUrl);
+			if (allowed) totals.copied++;
+			else totals.removed++;
+			records.push({
+				...trace,
+				outcome: allowed ? "would_copy" : "would_remove",
+			});
+			continue;
+		}
+
+		const result = await deps.copyLegacyPreviewImage(row.thumbnailUrl, {
+			storageDir,
+		});
+		if (result.ok) {
+			await deps.setResourceThumbnailUrl(db, row.id, result.url);
+			totals.copied++;
+			records.push({ ...trace, outcome: "copied", url: result.url });
+		} else if (result.retryable) {
+			totals.retryable++;
+			records.push({ ...trace, outcome: "retryable", reason: result.reason });
+		} else {
+			await deps.setResourceThumbnailUrl(db, row.id, null);
+			totals.removed++;
+			records.push({ ...trace, outcome: "removed", reason: result.reason });
+		}
+	}
+
+	return {
+		runId: crypto.randomUUID(),
 		dryRun: options.dryRun,
 		startedAt,
 		finishedAt: new Date().toISOString(),
@@ -798,9 +913,25 @@ async function persistImportedResource(params: {
 		// del mismo contenido sin intervención manual).
 		const finalExtractPath = deps.buildElpxPath(config.storageDir, checksum);
 
+		// #409: la imagen preview se copia a nuestro almacenamiento. Si no se
+		// puede, el recurso entra sin miniatura en vez de enlazar la remota.
+		let previewImageUrl: string | null = null;
+		if (mapping.resource.previewImageUrl) {
+			const copied = await deps.copyLegacyPreviewImage(
+				mapping.resource.previewImageUrl,
+				{ storageDir: config.storageDir },
+			);
+			if (copied.ok) previewImageUrl = copied.url;
+			else
+				warningMessages.push(
+					`preview: no se copia la imagen ${mapping.resource.previewImageUrl} (${copied.reason})`,
+				);
+		}
+
 		const result = await deps.repo.importLegacyResourceWithElpx(db, {
 			resource: {
 				...mapping.resource,
+				previewImageUrl,
 				// mapping.blocking === false garantiza license !== null (ver field-mapper.ts)
 				license: mapping.resource.license as string,
 			},
