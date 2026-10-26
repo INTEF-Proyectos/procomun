@@ -3132,6 +3132,20 @@ tasks:
       errores. Se añade previewImageUrl: null a ambos. Validación:
       check-types limpio y los dos ficheros de test en verde.
 
+  T-2026-10-26-07421556:
+    date: 2026-10-26
+    agent: "devops-sre"
+    task: "El seed no falla cuando un usuario de demo ha creado versiones"
+    status: Done
+    related: ["#452"]
+    notes: >
+      La limpieza del seed borraba y recreaba los usuarios de demo, y fallaba
+      con resource_versions_created_by_fkey si alguno había creado una versión.
+      Ahora se conservan (INSERT ... ON CONFLICT (id) DO UPDATE y la credencial
+      se sustituye) y ya no se quita la autoría de los recursos ajenos a la
+      semilla. Además, las versiones de los recursos de la semilla se borran
+      antes que sus elpx_projects (RESTRICT). Tests con PGlite real en
+      seed.unit.test.ts (rojo con las dos FK, verde tras el cambio).
   T-2026-10-26-07195989:
     date: 2026-10-26
     agent: "frontend-ux-accesibilidad"
