@@ -3073,3 +3073,17 @@ tasks:
       fixtures de test no lo tenían y check-types fallaba en main con 9
       errores. Se añade previewImageUrl: null a ambos. Validación:
       check-types limpio y los dos ficheros de test en verde.
+
+  T-2026-10-26-08183016:
+    date: 2026-10-26
+    agent: "ingestas-y-migraciones"
+    task: "Copiar las imágenes preview legacy a nuestro almacenamiento"
+    status: Done
+    related: ["#409", "#425", "ADR-0029"]
+    notes: >
+      La importación descarga la imagen preview (solo ode.educacion.es, 2 MB,
+      tipo real por los primeros bytes) y la guarda en
+      storageDir/thumbnails/<sha256>.<ext>, servida en /api/v1/thumbnails.
+      Si no se puede, el recurso entra sin miniatura y el informe lo avisa.
+      import:legacy-procomun --copy-previews [--dry-run] copia lo ya
+      importado; los fallos pasajeros se dejan para repetir.
