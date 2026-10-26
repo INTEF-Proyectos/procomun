@@ -15,6 +15,7 @@ import { computeFileSha256 } from "../../../api/src/uploads/config.ts";
 import {
 	loadImportLegacyProcomunDependencies,
 	runBackfillLegacyEducationalAreas,
+	runFixLegacyLanguage,
 	runFixLegacyPublished,
 	runImportLegacyProcomun,
 } from "./import-legacy-procomun.ts";
@@ -680,5 +681,111 @@ describe("import:legacy-procomun — estado de publicación del origen (issue #4
 		);
 		expect(again.totals.unpublished).toBe(0);
 		expect(again.totals.notPublished).toBe(1);
+	});
+});
+
+// Issue #473: lo importado antes del arreglo recibió "es" sin idioma en origen.
+describe("import:legacy-procomun — idioma sin valor en origen (issue #473)", () => {
+	let deps: Awaited<ReturnType<typeof loadImportLegacyProcomunDependencies>>;
+	let sourceDir: string;
+	const SOURCES = {
+		"sin-idioma": { educationalLanguageStr: ["es"] },
+		valenciano: { generalLanguageStr: ["va"] },
+		ingles: { generalLanguageStr: ["en"] },
+		editado: {},
+	} as const;
+
+	beforeAll(async () => {
+		process.env.UPLOAD_STORAGE_DIR = await mkdtemp(
+			path.join(tmpdir(), "legacy-import-storage-language-"),
+		);
+		deps = await loadImportLegacyProcomunDependencies();
+		sourceDir = await mkdtemp(path.join(tmpdir(), "legacy-import-language-"));
+		for (const [name, language] of Object.entries(SOURCES)) {
+			await createMinimalElpx(
+				path.join(sourceDir, `${name}.elpx`),
+				`language-${name}`,
+			);
+			await writeFile(
+				path.join(sourceDir, `${name}.json`),
+				JSON.stringify({
+					idODE: `es_language_${name}`,
+					titleStr: `Recurso ${name}`,
+					descriptionStr: "Recurso para probar el idioma de origen.",
+					rightsCopyrightAndOtherRestrictionsStr:
+						"creative commons: attribution",
+					resourceType: ["documento"],
+					published: 1,
+					...language,
+				}),
+			);
+		}
+	});
+
+	async function languageOf(name: string) {
+		const [row] = await deps
+			.getDb()
+			.db.select({ language: resources.language })
+			.from(resources)
+			.where(eq(resources.externalId, `es_language_${name}`));
+		return row?.language;
+	}
+
+	test("se importa sin idioma lo que no lo trae y «va» como catalán", async () => {
+		await runImportLegacyProcomun({ sourceDir, dryRun: false }, deps);
+		expect(await languageOf("sin-idioma")).toBeNull();
+		expect(await languageOf("valenciano")).toBe("ca");
+		expect(await languageOf("ingles")).toBe("en");
+	});
+
+	test("--fix-language quita el «es» por defecto y respeta un idioma editado; en seco no escribe", async () => {
+		const db = deps.getDb().db;
+		// Simula lo importado antes del arreglo: "es" por defecto, y uno
+		// editado a mano después a gallego.
+		await db
+			.update(resources)
+			.set({ language: "es" })
+			.where(
+				inArray(resources.externalId, [
+					"es_language_sin-idioma",
+					"es_language_valenciano",
+				]),
+			);
+		await db
+			.update(resources)
+			.set({ language: "gl" })
+			.where(eq(resources.externalId, "es_language_editado"));
+
+		const dry = await runFixLegacyLanguage({ sourceDir, dryRun: true }, deps);
+		expect(dry.totals).toEqual({
+			processed: 4,
+			fixed: 2,
+			unchanged: 1,
+			kept: 1,
+			notFound: 0,
+			errored: 0,
+		});
+		expect(dry.records).toContainEqual(
+			expect.objectContaining({
+				externalId: "es_language_sin-idioma",
+				outcome: "would_fix",
+				from: "es",
+				to: null,
+			}),
+		);
+		expect(await languageOf("sin-idioma")).toBe("es");
+
+		const real = await runFixLegacyLanguage({ sourceDir, dryRun: false }, deps);
+		expect(real.totals.fixed).toBe(2);
+		expect(await languageOf("sin-idioma")).toBeNull();
+		expect(await languageOf("valenciano")).toBe("ca");
+		expect(await languageOf("ingles")).toBe("en");
+		expect(await languageOf("editado")).toBe("gl");
+
+		const again = await runFixLegacyLanguage(
+			{ sourceDir, dryRun: false },
+			deps,
+		);
+		expect(again.totals.fixed).toBe(0);
 	});
 });

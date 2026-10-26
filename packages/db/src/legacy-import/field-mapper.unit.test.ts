@@ -83,6 +83,41 @@ describe("mapLegacyRecord", () => {
 		expect(result.warnings.some((w) => w.field === "resourceType")).toBe(false);
 	});
 
+	it("leaves the language empty when the source only has the target-user language (issue #473)", () => {
+		// Caso es_2026061012_9170321: recurso en inglés sin generalLanguageStr;
+		// «Idioma destinatario» (educationalLanguageStr) es el idioma del
+		// alumnado, no el del recurso.
+		const result = mapLegacyRecord(
+			{
+				idODE: "es_2026061012_9170321",
+				titleStr: "Bring your book to the 21st century",
+				descriptionStr: "d",
+				rightsCopyrightAndOtherRestrictionsStr: "creative commons: attribution",
+				educationalLanguageStr: ["es"],
+			},
+			"fallback.elpx",
+		);
+
+		expect(result.blocking).toBe(false);
+		expect(result.resource.language).toBeNull();
+		expect(result.warnings.some((w) => w.field === "language")).toBe(true);
+	});
+
+	it("maps the legacy Valencian code «va» to Catalan instead of Spanish (issue #473)", () => {
+		const result = mapLegacyRecord(
+			{
+				idODE: "es_va",
+				descriptionStr: "d",
+				rightsCopyrightAndOtherRestrictionsStr: "creative commons: attribution",
+				generalLanguageStr: ["va"],
+			},
+			"fallback.elpx",
+		);
+
+		expect(result.resource.language).toBe("ca");
+		expect(result.warnings.some((w) => w.field === "language")).toBe(false);
+	});
+
 	it("flags a missing description as blocking", () => {
 		const result = mapLegacyRecord(
 			{

@@ -8,7 +8,7 @@ export interface Resource {
 	slug: string;
 	title: string;
 	description: string;
-	language: string;
+	language: string | null;
 	license: string;
 	resourceType: string;
 	keywords: string | null;

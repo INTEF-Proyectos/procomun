@@ -249,4 +249,9 @@ describe("Catalog islands", () => {
 		).not.toContain("Editar recurso");
 		expect(renderDetail({}, "admin")).toContain("Editar recurso");
 	});
+
+	test("la ficha oculta «Idioma» si el recurso no tiene idioma (#473)", () => {
+		expect(renderDetail({ language: null }, "admin")).not.toContain(">Idioma<");
+		expect(renderDetail({ language: "en" }, "admin")).toContain(">Idioma<");
+	});
 });

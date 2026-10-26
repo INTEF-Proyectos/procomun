@@ -65,7 +65,8 @@ export interface MappedLegacyResource {
 	sourceUri: string | null;
 	title: string;
 	description: string;
-	language: string;
+	/** null si generalLanguageStr no trae un idioma reconocible (issue #473) */
+	language: string | null;
 	/** null solo cuando la licencia no pudo normalizarse (ver MappingResult.blocking) */
 	license: string | null;
 	resourceType: string;

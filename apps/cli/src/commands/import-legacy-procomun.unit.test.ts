@@ -4,6 +4,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import type { LegacyOdeJson } from "@procomun/db/legacy-import";
 import {
+	normalizeLanguage,
 	resolveLegacyExternalId,
 	resolveLegacyPublicationStatus,
 } from "@procomun/db/legacy-import";
@@ -113,6 +114,7 @@ function buildMockDeps(
 		// que esperan los tests existentes.
 		resolveLegacyExternalId,
 		resolveLegacyPublicationStatus,
+		normalizeLanguage,
 		mapLegacyRecord: (() => ({
 			externalId: "es_mock",
 			blocking: false,
@@ -158,6 +160,10 @@ function buildMockDeps(
 				elpxProjectId: "mock-elpx-id",
 			}),
 			getElpxProjectByHash: async () => null,
+			fixLegacyResourceLanguage: async () => ({
+				outcome: "not_found",
+				resourceId: null,
+			}),
 			unpublishUnreviewedLegacyResource: async () => ({
 				outcome: "not_found",
 				resourceId: null,
@@ -340,6 +346,10 @@ describe("runImportLegacyProcomun (deps mockeadas)", () => {
 				backfillLegacyEducationalAreas: async () => [],
 				findLegacyResourceByExternalId: async () => null,
 				getElpxProjectByHash: async () => null,
+				fixLegacyResourceLanguage: async () => ({
+					outcome: "not_found",
+					resourceId: null,
+				}),
 				unpublishUnreviewedLegacyResource: async () => ({
 					outcome: "not_found",
 					resourceId: null,
@@ -373,6 +383,10 @@ describe("runImportLegacyProcomun (deps mockeadas)", () => {
 					slug: "existing",
 				}),
 				getElpxProjectByHash: async () => null,
+				fixLegacyResourceLanguage: async () => ({
+					outcome: "not_found",
+					resourceId: null,
+				}),
 				unpublishUnreviewedLegacyResource: async () => ({
 					outcome: "not_found",
 					resourceId: null,
@@ -406,6 +420,10 @@ describe("runImportLegacyProcomun (deps mockeadas)", () => {
 				backfillLegacyEducationalAreas: async () => [],
 				findLegacyResourceByExternalId: async () => null,
 				getElpxProjectByHash: async () => null,
+				fixLegacyResourceLanguage: async () => ({
+					outcome: "not_found",
+					resourceId: null,
+				}),
 				unpublishUnreviewedLegacyResource: async () => ({
 					outcome: "not_found",
 					resourceId: null,
@@ -629,6 +647,10 @@ describe("runImportLegacyProcomun (deps mockeadas)", () => {
 					};
 				},
 				getElpxProjectByHash: async () => null,
+				fixLegacyResourceLanguage: async () => ({
+					outcome: "not_found",
+					resourceId: null,
+				}),
 				unpublishUnreviewedLegacyResource: async () => ({
 					outcome: "not_found",
 					resourceId: null,
@@ -705,6 +727,10 @@ describe("runImportLegacyProcomun (deps mockeadas)", () => {
 				findLegacyResourceByExternalId: async () => null,
 				// Ambas ejecuciones ven "no existe" — la carrera pasa el pre-check.
 				getElpxProjectByHash: async () => null,
+				fixLegacyResourceLanguage: async () => ({
+					outcome: "not_found",
+					resourceId: null,
+				}),
 				unpublishUnreviewedLegacyResource: async () => ({
 					outcome: "not_found",
 					resourceId: null,

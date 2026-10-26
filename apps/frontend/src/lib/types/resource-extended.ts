@@ -16,7 +16,7 @@ export interface ResourceSummary {
 	title: string;
 	description: string;
 	resourceType: string;
-	language: string;
+	language: string | null;
 	license: string;
 	author?: string | null;
 	thumbnailUrl?: string | null;

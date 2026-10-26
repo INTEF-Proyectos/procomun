@@ -3132,6 +3132,21 @@ tasks:
       errores. Se añade previewImageUrl: null a ambos. Validación:
       check-types limpio y los dos ficheros de test en verde.
 
+  T-2026-10-26-22335129:
+    date: 2026-10-26
+    agent: "ingestas-y-migraciones"
+    task: "No asignar español por defecto a los recursos sin idioma"
+    status: Done
+    related: ["#473", "ADR-0029"]
+    notes: >
+      normalizeLanguage() devolvía "es" si no reconocía nada y el importador
+      tomaba educationalLanguageStr («Idioma destinatario») como sustituto.
+      Ahora el idioma sale solo de generalLanguageStr, sin valor queda null
+      (migración 0016 y setup.ts) y "va" (valenciano) pasa a "ca". La ficha
+      ya ocultaba «Idioma» vacío; el editor muestra «Sin indicar».
+      import:legacy-procomun --fix-language [--dry-run] corrige lo importado
+      que sigue en "es" sin declararlo en origen. Pendiente: ejecutarlo sobre
+      la exportación real.
   T-2026-10-26-08183016:
     date: 2026-10-26
     agent: "ingestas-y-migraciones"

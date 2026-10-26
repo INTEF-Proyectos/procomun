@@ -30,7 +30,7 @@ export const resources = pgTable(
 		// Metadatos descriptivos
 		title: text("title").notNull(),
 		description: text("description").notNull(),
-		language: varchar("language", { length: 10 }).notNull(),
+		language: varchar("language", { length: 10 }),
 		license: varchar("license", { length: 50 }).notNull(),
 		resourceType: varchar("resource_type", { length: 100 }).notNull(),
 		keywords: text("keywords"),

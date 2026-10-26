@@ -96,3 +96,12 @@ Los JSON/`.elpx` de `ode-export/` contienen datos personales reales (nombres y e
 - [x] Tests de mapeo, repositorio e integración; ADR-0029 y README actualizados.
 - [ ] Ejecutar `--fix-published --dry-run` sobre el directorio de exportación real, revisar el informe y lanzar la corrección.
 - [ ] Valorar si la previsualización por hash debe comprobar el estado del recurso.
+
+## Idioma sin valor por defecto — 2026-10-26 (issue #473)
+
+- [x] `normalizeLanguage()` devuelve `null` en vez de `"es"` y normaliza `va` a `ca`.
+- [x] El idioma sale solo de `generalLanguageStr`; `educationalLanguageStr` ya no lo sustituye.
+- [x] `resources.language` admite `null` (migración 0016 y `setup.ts`); el editor no preselecciona «Español» si falta.
+- [x] Corrección única `--fix-language` con `--dry-run`, que solo toca recursos que siguen en `"es"`.
+- [x] Tests de normalización, mapeo, migración, ficha e integración; ADR-0029 y README actualizados.
+- [ ] Ejecutar `--fix-language --dry-run` sobre el directorio de exportación real, revisar el informe y lanzar la corrección.

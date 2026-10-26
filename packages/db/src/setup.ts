@@ -187,7 +187,7 @@ export const SCHEMA_STATEMENTS = [
 		source_uri TEXT,
 		title TEXT NOT NULL,
 		description TEXT NOT NULL,
-		language VARCHAR(10) NOT NULL,
+		language VARCHAR(10),
 		license VARCHAR(50) NOT NULL,
 		resource_type VARCHAR(100) NOT NULL,
 		keywords TEXT,
@@ -489,6 +489,8 @@ export const SCHEMA_STATEMENTS = [
 		ALTER TABLE "resources" ADD COLUMN thumbnail_url TEXT;
 	EXCEPTION WHEN duplicate_column THEN NULL;
 	END $$`,
+	// #473: sin idioma en origen no se asume "es" (migración 0016).
+	`ALTER TABLE "resources" ALTER COLUMN language DROP NOT NULL`,
 	`DO $$ BEGIN
 		ALTER TABLE "resources" ADD CONSTRAINT resources_current_version_id_fk
 			FOREIGN KEY (current_version_id) REFERENCES resource_versions(id) ON DELETE SET NULL;
