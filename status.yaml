@@ -2845,6 +2845,51 @@ tasks:
       packages/db/src/migrations.unit.test.ts (migración 0008 y createTables
       sobre BD nueva y previa). Sustituye a #361.
 
+  T-2026-10-14-07551028:
+    date: 2026-10-14
+    agent: "metadatos-y-curacion + arquitectura-solucion + backend-api-servicios + ingestas-y-migraciones + frontend-ux-accesibilidad + qa-validacion"
+    task: "Catálogo controlado de palabras clave con autocompletado (#384)"
+    status: Done
+    related: ["#384", ADR-0042]
+    notes: >
+      Extiende tags (ADR-0034) con catalog, created_by y tag_aliases. Máximo 5
+      por recurso, alta solo para admin y curator con confirmación, catálogo
+      inicial de 50 términos e importación limitada a la tabla de
+      correspondencias. Fuera de esta entrega: pantalla de gestión, renombrado,
+      edición de alias, fusión, desactivación y cierre de revisiones en UI.
+
+  T-2026-10-14-11112261:
+    date: 2026-10-14
+    agent: "arquitectura-solucion + backend-api-servicios + metadatos-y-curacion + qa-validacion"
+    task: "Revisión del PR #397: catálogo de palabras clave sin romper el fondo actual (#384)"
+    status: Done
+    related: ["#384", "#397", "#394", ADR-0042, ADR-0034]
+    notes: >
+      Sembrado de los 50 términos en la migración 0010_keyword_catalog y en
+      setup.ts, una sola vez y sin renombrar etiquetas libres (colisión de slug
+      → <slug>-catalogo). La vía antigua de keywords solo gestiona etiquetas
+      libres y no reescribe el texto de origen; máximo de 5 validado en el
+      servidor; keywordIds en el mismo alta/edición; lo elegido llega a FTS,
+      feeds, API v1 y recomendaciones; la ficha y el filtro conservan las
+      etiquetas anteriores. La correspondencia de etiquetas antiguas pasa a un
+      PR apilado. Pendiente de producto: cobertura del fondo, relación con
+      «Materias» y gestión (fusionar/desactivar). Mergear después de #394.
+
+  T-2026-10-14-11192880:
+    date: 2026-10-14
+    agent: "ingestas-y-migraciones + metadatos-y-curacion + qa-validacion"
+    task: "Correspondencia de etiquetas antiguas con el catálogo de palabras clave (#384, apartado 5)"
+    status: Done
+    related: ["#384", "#397", ADR-0042]
+    notes: >
+      Comando import:legacy-keywords con --dry-run e informe JSON (cobertura,
+      sin correspondencia, ambiguas, más de 5 y asignaciones). Coincidencia por
+      identidad y por alias; los alias ambiguos y los casos que superarían 5
+      términos quedan en el informe sin asignar. Lee catálogo, recursos y
+      enlaces una vez, inserta por lotes, reindexa FTS de lo asignado y es
+      idempotente. Apilado sobre #397. Pendiente de producto: revisar el listado
+      sin correspondencia (cobertura del fondo) antes de aplicarlo en producción.
+
   T-2026-10-14-10535343:
     date: 2026-10-14
     agent: "seguridad-privacidad-legal + backend-api-servicios + qa-validacion"
@@ -3032,6 +3077,19 @@ tasks:
       ahora ocupa el contenedor entero. Test e2e nuevo en
       elpx-embed-facade.e2e.ts (rojo sin el cambio, verde con él).
 
+  T-2026-10-22-11250263:
+    date: 2026-10-22
+    agent: "resolución de conflictos"
+    task: "Integrar main en la PR #397"
+    status: Done
+    related: ["#397", "#384", "#425", "ADR-0042"]
+    notes: >
+      Se integró main en feat/issue-384-catalogo-palabras-clave. main ya traía
+      0010_resource_thumbnail_url (#425), así que la migración del catálogo
+      pasa a 0011_keyword_catalog (idx 9) sin cambiar su contenido. En
+      recommendations/service.ts se unieron los imports de catalogLabelsSql y
+      listElpxProjectsByResourceIds.
+
   T-2026-10-22-11341963:
     date: 2026-10-22
     agent: "ingestas-y-migraciones"
@@ -3089,3 +3147,45 @@ tasks:
       recurso ajeno a borrador, pierde el acceso y la edición le lleva al
       listado. Tests de autor, curator ajeno y admin en listados y acceso
       directo.
+  T-2026-10-26-08183016:
+    date: 2026-10-26
+    agent: "ingestas-y-migraciones"
+    task: "Copiar las imágenes preview legacy a nuestro almacenamiento"
+    status: Done
+    related: ["#409", "#425", "ADR-0029"]
+    notes: >
+      La importación descarga la imagen preview (solo ode.educacion.es, 2 MB,
+      tipo real por los primeros bytes) y la guarda en
+      storageDir/thumbnails/<sha256>.<ext>, servida en /api/v1/thumbnails.
+      Si no se puede, el recurso entra sin miniatura y el informe lo avisa.
+      import:legacy-procomun --copy-previews [--dry-run] copia lo ya
+      importado; los fallos pasajeros se dejan para repetir.
+  T-2026-10-26-07421556:
+    date: 2026-10-26
+    agent: "devops-sre"
+    task: "El seed no falla cuando un usuario de demo ha creado versiones"
+    status: Done
+    related: ["#452"]
+    notes: >
+      La limpieza del seed borraba y recreaba los usuarios de demo, y fallaba
+      con resource_versions_created_by_fkey si alguno había creado una versión.
+      Ahora se conservan (INSERT ... ON CONFLICT (id) DO UPDATE y la credencial
+      se sustituye) y ya no se quita la autoría de los recursos ajenos a la
+      semilla. Además, las versiones de los recursos de la semilla se borran
+      antes que sus elpx_projects (RESTRICT). Tests con PGlite real en
+      seed.unit.test.ts (rojo con las dos FK, verde tras el cambio).
+  T-2026-10-26-07195989:
+    date: 2026-10-26
+    agent: "frontend-ux-accesibilidad"
+    task: "Valoraciones solo en recursos publicados"
+    status: Done
+    related: ["#461"]
+    notes: >
+      La ficha y las tarjetas mostraban la valoración de recursos en borrador,
+      revisión o archivados (p. ej. «Mis recursos» del perfil). Ahora la ficha
+      solo monta RatingIsland si el recurso está publicado y ResourceCard oculta
+      estrellas, media y contador si editorialStatus no es published. La API ya
+      rechazaba valorar un recurso no publicado (resolveResourceBySlug filtra
+      por published y responde 404, también a admin); se añaden tests de
+      regresión, incluido que las valoraciones se conservan al despublicar y
+      vuelven al publicar. Tests UI nuevos rojo → verde.

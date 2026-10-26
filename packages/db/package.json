@@ -15,7 +15,8 @@
 		"./legacy-import": "./src/legacy-import/index.ts",
 		"./resource-types": "./src/resource-types.ts",
 		"./educational-areas": "./src/educational-areas.ts",
-		"./tags": "./src/tags/normalize.ts"
+		"./tags": "./src/tags/normalize.ts",
+		"./keyword-catalog": "./src/tags/keyword-catalog.ts"
 	},
 	"scripts": {
 		"db:generate": "drizzle-kit generate",
