@@ -127,6 +127,43 @@ describe("Catalog islands", () => {
 		expect(html).toContain('src="/api/v1/elpx/abc/"');
 	});
 
+	test("sin cuenta, la ficha pone el publicador bajo el título y los autores debajo (#457)", () => {
+		const html = renderDetail(
+			{
+				createdBy: null,
+				createdByName: null,
+				author: "Mª del Mar Pérez Gómez para Cedec",
+				publisher: "CEDEC INTEF",
+			},
+			"reader",
+		);
+
+		expect(html).toContain(
+			'<p class="detail-author-name">CEDEC INTEF</p><p class="detail-author-role">Mª del Mar Pérez Gómez para Cedec</p>',
+		);
+	});
+
+	test("sin cuenta ni publicador, la ficha sigue mostrando los autores (#457)", () => {
+		const html = renderDetail(
+			{ createdBy: null, createdByName: null, author: "Ana Pérez" },
+			"reader",
+		);
+
+		expect(html).toContain('<p class="detail-author-name">Ana Pérez</p>');
+		expect(html).not.toContain("detail-author-role");
+	});
+
+	test("con cuenta, la ficha mantiene la cuenta arriba y el publicador debajo (#457)", () => {
+		const html = renderDetail(
+			{ author: "Ana Pérez", publisher: "CEDEC INTEF" },
+			"reader",
+		);
+
+		expect(html).toContain(
+			'<p class="detail-author-name">Autora</p><p class="detail-author-role">CEDEC INTEF</p>',
+		);
+	});
+
 	test("la ficha no muestra los niveles en texto libre del Procomún antiguo (#380)", () => {
 		const html = renderDetail(
 			{ levels: ["12 - 13 años / Primer curso"] },
