@@ -3073,3 +3073,19 @@ tasks:
       fixtures de test no lo tenían y check-types fallaba en main con 9
       errores. Se añade previewImageUrl: null a ambos. Validación:
       check-types limpio y los dos ficheros de test en verde.
+
+  T-2026-10-26-07293591:
+    date: 2026-10-26
+    agent: "frontend-ux-accesibilidad"
+    task: "Los iDevices JSON de eXe se montan al servir el .elpx"
+    status: Done
+    related: ["#431", "ADR-0026"]
+    notes: >
+      eXe guarda los datos de sus iDevices JSON (formulario de rellenar huecos)
+      en data-idevice-json-data, escapados como atributo. Al servir el HTML se
+      deshacía un &amp;quot; del texto del autor y se reescribía un url() con
+      &quot;, así que el atributo quedaba con comillas sueltas, JSON.parse
+      fallaba y el formulario salía sin huecos. Los valores data-* ya no se
+      tocan, y los url() de un style conservan sus &quot;. Tres tests
+      unitarios en elpx-content.unit.test.ts (rojo sin el cambio, verde con
+      él).

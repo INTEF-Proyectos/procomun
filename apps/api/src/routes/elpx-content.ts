@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { realpath } from "node:fs/promises";
 import path from "node:path";
 import * as repo from "@procomun/db/repository";
@@ -119,6 +120,16 @@ function resolveRelativePath(baseDir: string, relativePath: string): string {
 	return result.join("/");
 }
 
+// Valores de atributos data-*. eXe guarda ahí los datos de sus iDevices JSON
+// (data-idevice-json-data) escapados como atributo; el navegador los resuelve
+// igual que sin conexión, así que no se tocan (#431).
+const DATA_ATTRIBUTE_VALUE = /(\sdata-[\w:.-]+\s*=\s*)("[^"]*"|'[^']*')/gi;
+
+// url() con o sin comillas. Dentro de un style="…" las comillas van como
+// &quot; o &#39;, y hay que conservarlas para no cerrar el atributo.
+const CSS_URL =
+	/url\s*\(\s*(&quot;|&#0?39;|&apos;|["']?)(?!https?:\/\/|data:|\/\/|#)((?:(?!&quot;|&#0?39;|&apos;)[^"')\s])+)\1\s*\)/gi;
+
 function rewriteRelativeUrls(
 	html: string,
 	baseUrl: string,
@@ -126,6 +137,14 @@ function rewriteRelativeUrls(
 ): string {
 	const currentDir = path.dirname(currentFile);
 	const dir = currentDir === "." ? "" : currentDir;
+
+	// Se apartan con una marca única por petición y se devuelven al final.
+	const mark = `procomun-data-${randomUUID()}`;
+	const dataValues: string[] = [];
+	html = html.replace(DATA_ATTRIBUTE_VALUE, (_match, prefix, value) => {
+		dataValues.push(value);
+		return `${prefix}"${mark}:${dataValues.length - 1}"`;
+	});
 
 	const attrPattern =
 		/(<[^>]+\s)(src|href|poster|background)(\s*=\s*["'])(?!https?:\/\/|data:|\/\/|#|javascript:)([^"']+)(["'])/gi;
@@ -135,16 +154,16 @@ function rewriteRelativeUrls(
 		return `${prefix}${attr}${eq}${baseUrl}${resolved}${quote}`;
 	});
 
-	html = html.replace(
-		/url\s*\(\s*["']?(?!https?:\/\/|data:|\/\/|#)([^"')\s]+)["']?\s*\)/gi,
-		(match, url) => {
-			if (!url || url.startsWith("/")) return match;
-			const resolved = resolveRelativePath(dir, url);
-			return `url("${baseUrl}${resolved}")`;
-		},
-	);
+	html = html.replace(CSS_URL, (match, quote, url) => {
+		if (!url || url.startsWith("/")) return match;
+		const resolved = resolveRelativePath(dir, url);
+		return `url(${quote}${baseUrl}${resolved}${quote})`;
+	});
 
-	return decodeDoubleEscapedEntities(html);
+	return decodeDoubleEscapedEntities(html).replace(
+		new RegExp(`"${mark}:(\\d+)"`, "g"),
+		(_match, index) => dataValues[Number(index)] ?? '""',
+	);
 }
 
 // eXe vuelve a escapar un título que ya venía escapado (`&amp;Iacute;` se ve
