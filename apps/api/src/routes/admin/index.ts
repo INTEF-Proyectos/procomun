@@ -8,6 +8,7 @@ import { adminApiTokensRoutes } from "./api-tokens.ts";
 import { collectionRoutes } from "./collections.ts";
 import { elpxAdminRoutes } from "./elpx.ts";
 import { ftsRoutes } from "./fts.ts";
+import { keywordAdminRoutes } from "./keywords.ts";
 import { reportRoutes } from "./reports.ts";
 import { adminUploadRoutes, resourceRoutes } from "./resources.ts";
 import { settingsRoutes } from "./settings.ts";
@@ -28,6 +29,9 @@ adminRoutes.use("/collections", requireRole("curator"));
 adminRoutes.use("/collections/*", requireRole("curator"));
 adminRoutes.use("/taxonomies", requireRole("curator"));
 adminRoutes.use("/taxonomies/*", requireRole("curator"));
+// Alta en el catálogo de palabras clave (ADR-0042)
+adminRoutes.use("/keywords", requireRole("curator"));
+adminRoutes.use("/keywords/*", requireRole("curator"));
 // Tag management (merge/edit/delete) is curator+; resource tag attach is author+
 // and enforced inside tagAdminRoutes for /resources/:id
 adminRoutes.use("/tags", requireRole("author"));
@@ -48,6 +52,7 @@ adminRoutes.route("/users", userRoutes);
 adminRoutes.route("/collections", collectionRoutes);
 adminRoutes.route("/taxonomies", taxonomyRoutes);
 adminRoutes.route("/tags", tagAdminRoutes);
+adminRoutes.route("/keywords", keywordAdminRoutes);
 adminRoutes.route("/uploads", adminUploadRoutes);
 adminRoutes.route("/elpx", elpxAdminRoutes);
 adminRoutes.route("/settings", settingsRoutes);
