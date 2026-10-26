@@ -3032,6 +3032,36 @@ tasks:
       ahora ocupa el contenedor entero. Test e2e nuevo en
       elpx-embed-facade.e2e.ts (rojo sin el cambio, verde con él).
 
+  T-2026-10-22-11341963:
+    date: 2026-10-22
+    agent: "ingestas-y-migraciones"
+    task: "El importador legacy respeta published del JSON"
+    status: Done
+    related: ["#447", "ADR-0029"]
+    notes: >
+      El importador publicaba todo. Ahora solo published 1 publica; 0, ausente
+      o desconocido entra como borrador, con aviso en el informe si no es 0 ni
+      1. Nuevo --fix-published (con --dry-run) que relee los JSON y pasa a
+      borrador lo ya importado sin revisión editorial. Tests de mapeo,
+      repositorio e integración (rojo sin el cambio, verde con él).
+  T-2026-10-22-11275590:
+    date: 2026-10-22
+    agent: "frontend-ux-accesibilidad"
+    task: "Botón «Eliminar recurso» en la edición del recurso"
+    status: Done
+    related: ["#393", "#402"]
+    notes: >
+      En la edición, quien puede borrar el recurso (canManageResource, la misma
+      regla que el «Eliminar» de Administrar y la API) ve un botón rojo
+      «Eliminar recurso». Pide confirmación con el título del recurso y llama
+      al mismo DELETE /api/admin/resources/:id; tras borrar vuelve a
+      Administrar (curator y admin) o al perfil (autor). deleteResource ahora
+      falla si el servidor rechaza el borrado. ModalFrame lleva el foco al
+      diálogo y lo devuelve al cerrar; ConfirmDialog no deja que su submit
+      llegue al formulario que lo contiene. Los estilos del diálogo salen de
+      AdminPageIsland.css a ModalFrame.css y ConfirmDialog.css para cargarse
+      fuera de Administrar. Sustituye a #402.
+
   T-2026-10-22-11270414:
     date: 2026-10-22
     agent: "qa-validacion"
@@ -3058,3 +3088,18 @@ tasks:
       una fila en Detalles técnicos que solo aparece si tiene contenido. El
       importador legacy lo rellena con los autores de authorStr y de las vCard
       de autor que no son el principal, sin repetir.
+
+  T-2026-10-26-07182732:
+    date: 2026-10-26
+    agent: "ingestas-y-migraciones"
+    task: "Otros autores: descartar emails de las vCard (revisión del PR #457)"
+    status: Done
+    related: ["#417", "#457"]
+    notes: >
+      En la prueba de Jacobo con es_2026101512_9083504, «Otros autores» mostraba
+      cedec@educacion.gob.es: el exportador pone el email de la cuenta en el FN
+      de la vCard. El mapper ya no toma un email como autor, ni en «Otros
+      autores» ni como autor principal de reserva. Dos tests nuevos con esa
+      forma real (rojo sin el cambio, verde con él). Se integró main (#447,
+      #393); el conflicto en repository.unit.test.ts conserva los tests de las
+      dos ramas.

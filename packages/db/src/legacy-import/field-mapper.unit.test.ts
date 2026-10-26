@@ -131,6 +131,45 @@ describe("mapLegacyRecord", () => {
 			expect(result.resource.otherAuthors).toBe("Luis Gómez");
 		});
 
+		// Forma real de es_2026101512_9083504 (#457): el exportador pone el
+		// email de la cuenta en el FN de la vCard, no un nombre.
+		it("no usa como autor el email que trae el FN de la vCard", () => {
+			const result = mapLegacyRecord(
+				{
+					...base,
+					authorStr: [
+						"Mª del Mar Pérez Gómez, Irene González Mendizabal, Adela Fernández Campos para Cedec",
+					],
+					publicatorNameStr: "CEDEC INTEF",
+					lifecycleContributeStr: [
+						"author##BEGIN:VCARD VERSION:3.0 FN: cedec@educacion.gob.es EMAIL;TYPE=INTERNET:ORG: END:VCARD##2026-10-15T10:00:00.000Z##Fecha de creación en Agrega",
+					],
+				},
+				"fallback.elpx",
+			);
+
+			expect(result.resource.author).toBe(
+				"Mª del Mar Pérez Gómez, Irene González Mendizabal, Adela Fernández Campos para Cedec",
+			);
+			expect(result.resource.otherAuthors).toBeNull();
+		});
+
+		it("tampoco toma un email como autor principal de reserva", () => {
+			const result = mapLegacyRecord(
+				{
+					...base,
+					lifecycleContributeStr: [
+						vcard("author", "cedec@educacion.gob.es"),
+						vcard("author", "Marta Ruiz"),
+					],
+				},
+				"fallback.elpx",
+			);
+
+			expect(result.resource.author).toBe("Marta Ruiz");
+			expect(result.resource.otherAuthors).toBeNull();
+		});
+
 		it("trunca otherAuthors a 1000 caracteres sin partir un nombre y avisa", () => {
 			const names = Array.from({ length: 80 }, (_, i) => `Autor Número ${i}`);
 			const result = mapLegacyRecord(
@@ -389,5 +428,39 @@ describe("mapLegacyRecord", () => {
 			);
 			expect(result.resource.importedAt).toBeNull();
 		});
+	});
+});
+
+describe("mapLegacyRecord — estado de publicación (issue #447)", () => {
+	it("published = 1 se importa como publicado, sin aviso", async () => {
+		const json = await loadFixture("es_2024052212_9181312");
+		const result = mapLegacyRecord(json, "fallback.elpx");
+
+		expect(result.resource.editorialStatus).toBe("published");
+		expect(result.resource.sourcePublished).toBe(1);
+		expect(result.warnings.map((w) => w.field)).not.toContain("published");
+	});
+
+	it("published = 0 se importa como borrador", async () => {
+		const json = await loadFixture("es_2024052212_9181312");
+		const result = mapLegacyRecord({ ...json, published: 0 }, "fallback.elpx");
+
+		expect(result.blocking).toBe(false);
+		expect(result.resource.editorialStatus).toBe("draft");
+		expect(result.resource.sourcePublished).toBe(0);
+		expect(result.warnings.map((w) => w.field)).not.toContain("published");
+	});
+
+	it("published ausente o desconocido se importa como borrador y se avisa", async () => {
+		const json = await loadFixture("es_2024052212_9181312");
+		const { published: _published, ...withoutPublished } = json;
+		for (const record of [withoutPublished, { ...json, published: "x" }]) {
+			const result = mapLegacyRecord(record, "fallback.elpx");
+			expect(result.blocking).toBe(false);
+			expect(result.resource.editorialStatus).toBe("draft");
+			expect(
+				result.warnings.find((w) => w.field === "published")?.message,
+			).toContain("se importa como borrador");
+		}
 	});
 });

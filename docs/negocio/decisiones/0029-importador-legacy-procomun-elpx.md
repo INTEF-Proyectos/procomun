@@ -208,3 +208,27 @@ Al corregirlo se encontraron **dos sitios adicionales con el mismo problema, no 
 Fix: los tres ficheros (`resource-form-options.ts`, `NuevoPage.tsx`, `EditarPage.tsx`) renderizan ahora `RESOURCE_TYPE_OPTIONS`/`RESOURCE_TYPES` vía `.map()`, sin ningún `<option>` escrito a mano. `ResourceFormIsland.tsx`/`ResourceEditorIsland.tsx` ya lo hacían correctamente y no necesitaron cambios.
 
 Validación: `bun test` completo del monorepo (824/824), `bunx @biomejs/biome check .` y `check-test-files.ts` sin incidencias; `apps/frontend` compila (`vite build`).
+
+## Actualización 2026-10-22 — el estado editorial sale de `published` (issue #447)
+
+### Contexto
+La actualización del 2026-07-10 dio por hecho que todo lo exportado del Procomún antiguo estaba publicado. No es así: el JSON trae el campo `published` y hay recursos con `published: 0` (p. ej. `es_2025100752_9110410`). El importador no lo leía, así que esos recursos quedaban en el catálogo público.
+
+### Decisión revisada
+Sustituye a la del 2026-07-10, con lo acordado en #447:
+
+| `published` en el JSON | `editorialStatus` | Informe |
+|---|---|---|
+| `1` o `"1"` | `published` | — |
+| `0` o `"0"` | `draft` | estado y valor recibido en el registro |
+| ausente, nulo u otro valor | `draft` | además, warning `published: …` |
+
+La regla vive en `resolveLegacyPublicationStatus` (`packages/db/src/legacy-import/publication-status.ts`). Cada registro `imported`/`would_import` del informe lleva `editorialStatus` y `sourcePublished`, y `totals.importedAsDraft` cuenta los que entran como borrador. Los borradores se localizan en Administración → Recursos (curator y admin ven todos los estados; el autor del recurso es el usuario de sistema).
+
+### Corrección de lo ya importado
+`import:legacy-procomun --fix-published --source-dir <ruta> [--dry-run] [--report-dir <ruta>]` relee los JSON de origen y, para cada `published` distinto de 1, pasa a `draft` el recurso importado (`unpublishUnreviewedLegacyResource`). Solo toca recursos `published` sin decisión editorial posterior: si tienen `assignedCuratorId`, `curatedAt` o `featuredAt`, se dejan como están y el informe los lista como `reviewed`. La misma condición va en el `UPDATE`, así que una revisión concurrente no se pisa. Repetirlo no cambia nada (`not_published`). Escribe `informe_correccion-publicados-<runId>.json`.
+
+### Consecuencias
+* El catálogo, la búsqueda y la descarga (`/uploads/:id/content`) ya filtraban por `published`; no cambian.
+* La previsualización `/api/v1/elpx/<hash>/` sigue sin mirar el estado. El hash (SHA-256 del paquete) solo se obtiene por la ficha, que ya filtra; queda como riesgo abierto para un enlace guardado antes de despublicar.
+* Tests: `publication-status.unit.test.ts`, `field-mapper.unit.test.ts`, `repository.unit.test.ts` y la integración de `import-legacy-procomun.integration.test.ts` (rojo sin el cambio: `Expected: "draft"`, `Received: "published"`).

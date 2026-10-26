@@ -7,7 +7,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { EducationalClassificationEditor } from "../islands/resources/EducationalClassificationFields.tsx";
 import { getResourceTypeOptions } from "../islands/resources/resource-form-options.ts";
-import type { Resource } from "../lib/api-client.ts";
+import type { Resource, SessionUser } from "../lib/api-client.ts";
 import {
 	assignmentsToSelections,
 	type EducationalSelection,
@@ -15,6 +15,10 @@ import {
 } from "../lib/educational-classification.ts";
 import { getApiClient } from "../lib/get-api-client.ts";
 import { url } from "../lib/paths.ts";
+import {
+	DeleteResourceAction,
+	deleteResourceRedirectPath,
+} from "./DeleteResourceAction.tsx";
 import { ResourceVersionPanel } from "./ResourceVersionPanel.tsx";
 import "../styles/editar.css";
 
@@ -131,6 +135,7 @@ export default function EditarPage() {
 	const [resource, setResource] = useState<Resource | null>(null);
 	const [elpx, setElpx] = useState<ElpxProject>(null);
 	const [userRole, setUserRole] = useState("reader");
+	const [sessionUser, setSessionUser] = useState<SessionUser | null>(null);
 	const [errorMsg, setErrorMsg] = useState("");
 	const [successMsg, setSuccessMsg] = useState("");
 	const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
@@ -359,6 +364,7 @@ export default function EditarPage() {
 				);
 				setElpx(elpxData);
 				setUserRole(role);
+				setSessionUser(session.user);
 				setState("ready");
 
 				// Initialize multi-file uploader after state settles
@@ -1042,6 +1048,20 @@ export default function EditarPage() {
 											: "Aplicar metadatos del .elpx"}
 									</button>
 								)}
+							{!isNew && (
+								<DeleteResourceAction
+									user={sessionUser}
+									resource={res}
+									onDeleted={() =>
+										navigate(
+											url(deleteResourceRedirectPath(userRole)).replace(
+												window.location.origin,
+												"",
+											),
+										)
+									}
+								/>
+							)}
 						</div>
 
 						{/* Metadata card — hidden in creation mode */}

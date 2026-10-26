@@ -37,6 +37,7 @@ function legacyInput(
 			keywords: null,
 			previewImageUrl: null,
 			importedAt: new Date("2020-01-02T00:00:00.000Z"),
+			editorialStatus: "published" as const,
 		},
 		elpx: {
 			hash: `hash-${externalId}`,

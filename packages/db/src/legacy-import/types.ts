@@ -1,3 +1,5 @@
+import type { LegacyEditorialStatus } from "./publication-status.ts";
+
 /**
  * Forma observada del JSON de metadatos exportado por la plataforma legacy
  * Procomún (ver ode-export/, no versionado, y docs/epics/epic-004-migracion-legacy-procomun/).
@@ -77,6 +79,10 @@ export interface MappedLegacyResource {
 	importedAt: Date | null;
 	/** URL http(s) de la miniatura, o null si el JSON no traía una usable. */
 	previewImageUrl: string | null;
+	/** Solo `published: 1` se publica; el resto queda en borrador (issue #447). */
+	editorialStatus: LegacyEditorialStatus;
+	/** Valor de `published` recibido, para el informe de importación. */
+	sourcePublished: string | number | null;
 }
 
 export interface MappingResult {

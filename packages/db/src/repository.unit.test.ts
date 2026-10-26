@@ -34,6 +34,7 @@ import {
 	removeResourceFromCollection,
 	reorderCollectionResource,
 	softDeleteUser,
+	unpublishUnreviewedLegacyResource,
 	updateCollection,
 	updateResource,
 	updateTaxonomy,
@@ -563,6 +564,7 @@ describe("legacy import repository (epic-004-migracion-legacy-procomun)", () => 
 		keywords: "geometria,areas",
 		importedAt: new Date("2024-05-22T20:07:51.000Z"),
 		previewImageUrl: null,
+		editorialStatus: "published" as const,
 	};
 
 	function buildMediaInput(uploadId: string) {
@@ -770,6 +772,123 @@ describe("legacy import repository (epic-004-migracion-legacy-procomun)", () => 
 			.from(schema.resources)
 			.where(eq(schema.resources.id, result.resourceId));
 		expect(row?.otherAuthors).toBe("Luis Gómez, Marta Ruiz");
+	});
+
+	test("respeta el estado editorial calculado desde published (issue #447)", async () => {
+		const result = await importLegacyResourceWithElpx(db, {
+			resource: {
+				...baseResourceInput,
+				externalId: "es_test_borrador",
+				editorialStatus: "draft",
+			},
+			elpx: { ...elpxInput, hash: "hash-legacy-test-borrador" },
+			media: buildMediaInput(crypto.randomUUID()),
+		});
+
+		const [row] = await db
+			.select({ editorialStatus: schema.resources.editorialStatus })
+			.from(schema.resources)
+			.where(eq(schema.resources.id, result.resourceId));
+		expect(row?.editorialStatus).toBe("draft");
+		const listed = await listResources(db, { status: "published", limit: 20 });
+		expect(listed.data.some((item) => item.id === result.resourceId)).toBe(
+			false,
+		);
+	});
+
+	describe("unpublishUnreviewedLegacyResource (corrección de #447)", () => {
+		async function importAs(externalId: string) {
+			return importLegacyResourceWithElpx(db, {
+				resource: { ...baseResourceInput, externalId },
+				elpx: { ...elpxInput, hash: `hash-${externalId}` },
+				media: buildMediaInput(crypto.randomUUID()),
+			});
+		}
+
+		async function statusOf(resourceId: string) {
+			const [row] = await db
+				.select({ editorialStatus: schema.resources.editorialStatus })
+				.from(schema.resources)
+				.where(eq(schema.resources.id, resourceId));
+			return row?.editorialStatus;
+		}
+
+		test("pasa a borrador un recurso publicado que nadie ha revisado; en seco no escribe", async () => {
+			const { resourceId } = await importAs("es_fix_sin_revisar");
+
+			const dry = await unpublishUnreviewedLegacyResource(
+				db,
+				"legacy-procomun",
+				"es_fix_sin_revisar",
+				{ dryRun: true },
+			);
+			expect(dry).toEqual({ outcome: "unpublished", resourceId });
+			expect(await statusOf(resourceId)).toBe("published");
+
+			const real = await unpublishUnreviewedLegacyResource(
+				db,
+				"legacy-procomun",
+				"es_fix_sin_revisar",
+				{ dryRun: false },
+			);
+			expect(real).toEqual({ outcome: "unpublished", resourceId });
+			expect(await statusOf(resourceId)).toBe("draft");
+
+			const again = await unpublishUnreviewedLegacyResource(
+				db,
+				"legacy-procomun",
+				"es_fix_sin_revisar",
+				{ dryRun: false },
+			);
+			expect(again).toEqual({ outcome: "not_published", resourceId });
+		});
+
+		test("no toca un recurso que un curator ya ha revisado", async () => {
+			const { resourceId } = await importAs("es_fix_revisado");
+			await db
+				.update(schema.resources)
+				.set({
+					assignedCuratorId: "legacy-import-system-user",
+					curatedAt: new Date(),
+				})
+				.where(eq(schema.resources.id, resourceId));
+
+			const result = await unpublishUnreviewedLegacyResource(
+				db,
+				"legacy-procomun",
+				"es_fix_revisado",
+				{ dryRun: false },
+			);
+			expect(result).toEqual({ outcome: "reviewed", resourceId });
+			expect(await statusOf(resourceId)).toBe("published");
+		});
+
+		test("no toca un recurso destacado", async () => {
+			const { resourceId } = await importAs("es_fix_destacado");
+			await db
+				.update(schema.resources)
+				.set({ featuredAt: new Date() })
+				.where(eq(schema.resources.id, resourceId));
+
+			const result = await unpublishUnreviewedLegacyResource(
+				db,
+				"legacy-procomun",
+				"es_fix_destacado",
+				{ dryRun: false },
+			);
+			expect(result.outcome).toBe("reviewed");
+			expect(await statusOf(resourceId)).toBe("published");
+		});
+
+		test("informa de los recursos que no se importaron", async () => {
+			const result = await unpublishUnreviewedLegacyResource(
+				db,
+				"legacy-procomun",
+				"es_fix_no_existe",
+				{ dryRun: false },
+			);
+			expect(result).toEqual({ outcome: "not_found", resourceId: null });
+		});
 	});
 
 	test("createdAt cae al instante de ejecución cuando no se pudo resolver una fecha de origen", async () => {

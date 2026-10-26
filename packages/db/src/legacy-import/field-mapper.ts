@@ -1,5 +1,6 @@
 import { normalizeLanguage } from "./normalize-language.ts";
 import { normalizeLicense } from "./normalize-license.ts";
+import { resolveLegacyPublicationStatus } from "./publication-status.ts";
 import { mapResourceType } from "./resource-type-map.ts";
 import type {
 	LegacyOdeJson,
@@ -103,7 +104,8 @@ function buildKeywords(
  * lifecycleContributeStr contiene entradas tipo vCard, p.ej.:
  * "author##BEGIN:VCARD VERSION:3.0 FN: Nombre Apellido EMAIL;TYPE=INTERNET: ORG: ...END:VCARD##"
  * Se usa como último fallback para el autor cuando authorStr/publicatorNameStr
- * están vacíos.
+ * están vacíos. El exportador a veces pone en FN el email de la cuenta en vez
+ * de un nombre (#457); esos valores no son autores y se descartan.
  */
 function extractVcardAuthorNames(
 	entries: (string | null | undefined)[] | null | undefined,
@@ -113,9 +115,13 @@ function extractVcardAuthorNames(
 		if (!entry?.startsWith("author##")) continue;
 		const match = entry.match(/FN:\s*([\s\S]*?)\s*EMAIL/);
 		const name = match?.[1]?.trim();
-		if (name) names.push(name);
+		if (name && !isEmail(name)) names.push(name);
 	}
 	return names;
+}
+
+function isEmail(value: string): boolean {
+	return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim());
 }
 
 function authorKey(name: string): string {
@@ -138,7 +144,7 @@ function buildOtherAuthors(
 	for (const raw of candidates) {
 		const name = raw.trim().replace(/\s+/g, " ");
 		const key = authorKey(name);
-		if (!name || seen.has(key)) continue;
+		if (!name || isEmail(name) || seen.has(key)) continue;
 		seen.add(key);
 		names.push(name);
 	}
@@ -421,6 +427,14 @@ export function mapLegacyRecord(
 		warnings.push({ field: "preview", message: previewImage.warning });
 	}
 
+	const publication = resolveLegacyPublicationStatus(json.published);
+	if (!publication.recognized) {
+		warnings.push({
+			field: "published",
+			message: `Valor de published ausente o no reconocido (${JSON.stringify(json.published ?? null)}); se importa como borrador`,
+		});
+	}
+
 	const resource: MappedLegacyResource = {
 		externalId,
 		importSource: IMPORT_SOURCE,
@@ -438,6 +452,8 @@ export function mapLegacyRecord(
 		keywords,
 		importedAt: parseImportedAt(json),
 		previewImageUrl: previewImage.url,
+		editorialStatus: publication.editorialStatus,
+		sourcePublished: publication.sourcePublished,
 	};
 
 	return {
