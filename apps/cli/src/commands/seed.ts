@@ -99,7 +99,13 @@ async function loadElpxSupport(log: SeedLog) {
 
 export async function seedWithClient(
 	client: SeedClient,
-	options: { now?: string; log?: SeedLog; successTarget: string },
+	options: {
+		now?: string;
+		log?: SeedLog;
+		successTarget: string;
+		/** false omite generar y procesar los .elpx de demo (tests). */
+		withElpx?: boolean;
+	},
 ) {
 	const now = options.now ?? new Date().toISOString();
 	const log = options.log ?? console;
@@ -150,6 +156,12 @@ export async function seedWithClient(
 			`DELETE FROM "resource_levels" WHERE resource_id IN ${resIn.sql}`,
 			resIn.params,
 		);
+		// Las versiones apuntan a elpx_projects con RESTRICT: van antes. Al
+		// borrarlas, resources.current_version_id pasa a NULL (ON DELETE SET NULL).
+		await client.query(
+			`DELETE FROM "resource_versions" WHERE resource_id IN ${resIn.sql}`,
+			resIn.params,
+		);
 		await client.query(
 			`DELETE FROM "elpx_projects" WHERE resource_id IN ${resIn.sql}`,
 			resIn.params,
@@ -166,37 +178,12 @@ export async function seedWithClient(
 			`DELETE FROM "resources" WHERE id IN ${resIn.sql}`,
 			resIn.params,
 		);
-		// Nullify user references for non-seed resources that still point to demo users
-		// (e.g. resources created manually during testing) to avoid FK violations on user delete.
-		// Build IN clauses with correct parameter offsets so they don't overlap.
-		const usrIn2 = inClause(ALL_SEED_USER_IDS);
-		const resIn2 = inClause(
-			ALL_SEED_RESOURCE_IDS,
-			ALL_SEED_USER_IDS.length + 1,
-		);
-		await client.query(
-			`UPDATE "resources" SET created_by = NULL WHERE created_by IN ${usrIn2.sql} AND id NOT IN ${resIn2.sql}`,
-			[...usrIn2.params, ...resIn2.params],
-		);
-		const usrIn3 = inClause(ALL_SEED_USER_IDS);
-		const resIn3 = inClause(
-			ALL_SEED_RESOURCE_IDS,
-			ALL_SEED_USER_IDS.length + 1,
-		);
-		await client.query(
-			`UPDATE "resources" SET assigned_curator_id = NULL WHERE assigned_curator_id IN ${usrIn3.sql} AND id NOT IN ${resIn3.sql}`,
-			[...usrIn3.params, ...resIn3.params],
-		);
+		// Los usuarios de demo no se borran: lo que hayan creado fuera de la
+		// semilla (recursos, versiones, colecciones) los referencia y debe
+		// conservar su autoría (#452). Solo se cierran sus sesiones y se
+		// sustituye su credencial al insertarlos.
 		await client.query(
 			`DELETE FROM "session" WHERE user_id IN ${usrIn.sql}`,
-			usrIn.params,
-		);
-		await client.query(
-			`DELETE FROM "account" WHERE user_id IN ${usrIn.sql}`,
-			usrIn.params,
-		);
-		await client.query(
-			`DELETE FROM "user" WHERE id IN ${usrIn.sql}`,
 			usrIn.params,
 		);
 
@@ -207,8 +194,14 @@ export async function seedWithClient(
 			const passwordHash = await hashPassword(u.password);
 
 			await client.query(
-				`INSERT INTO "user" (id, email, email_verified, name, bio, role, is_active, created_at, updated_at) VALUES ($1, $2, true, $3, $4, $5, true, $6, $7)`,
+				`INSERT INTO "user" (id, email, email_verified, name, bio, role, is_active, created_at, updated_at) VALUES ($1, $2, true, $3, $4, $5, true, $6, $7)
+				ON CONFLICT (id) DO UPDATE SET email = EXCLUDED.email, email_verified = true, name = EXCLUDED.name, bio = EXCLUDED.bio, role = EXCLUDED.role, is_active = true, updated_at = EXCLUDED.updated_at`,
 				[u.id, u.email, u.name, u.bio, u.role, now, now],
+			);
+			// Una sola credencial por usuario de demo: se sustituye la anterior.
+			await client.query(
+				`DELETE FROM "account" WHERE user_id = $1 AND provider_id = 'credential'`,
+				[u.id],
 			);
 			await client.query(
 				`INSERT INTO "account" (id, user_id, account_id, provider_id, password, created_at, updated_at) VALUES ($1, $2, $3, 'credential', $4, $5, $6)`,
@@ -220,7 +213,8 @@ export async function seedWithClient(
 		// ── 3. Insertar recursos ────────────────────────────────────────────
 		log.log("\nRecursos de demo:\n");
 
-		const elpxSupport = await loadElpxSupport(log);
+		const elpxSupport =
+			options.withElpx === false ? null : await loadElpxSupport(log);
 
 		// Generate .elpx files if processor is available
 		let generatedElpx: Map<string, string> | null = null;
