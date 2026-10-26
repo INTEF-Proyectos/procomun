@@ -70,6 +70,7 @@ export function printHelp(log: Pick<typeof console, "log"> = console) {
 	);
 	log.log(
 		"                    Cruza palabras clave con áreas de conocimiento y retira las que pasan a ser áreas (#448)",
+	);
 	log.log("  import:legacy-keywords [--dry-run] [--report-dir <ruta>]");
 	log.log(
 		"                    Asigna palabras del catálogo a las etiquetas de origen, ver ADR-0042",
