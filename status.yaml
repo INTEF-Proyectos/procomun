@@ -3073,3 +3073,19 @@ tasks:
       fixtures de test no lo tenían y check-types fallaba en main con 9
       errores. Se añade previewImageUrl: null a ambos. Validación:
       check-types limpio y los dos ficheros de test en verde.
+
+  T-2026-10-26-07220488:
+    date: 2026-10-26
+    agent: "seguridad-privacidad-legal"
+    task: "El curator no accede a borradores ajenos no enviados a revisión"
+    status: Done
+    related: ["#460", "#454", "ADR-0008"]
+    notes: >
+      La regla se centraliza en validation.ts (isOthersPrivateDraft,
+      canViewResource y canManageResource). El listado de Administrar oculta al
+      curator los borradores ajenos (listResources hideOthersDraftsFor), lo que
+      cubre búsqueda y contadores del panel. La ficha pública, las subidas y
+      añadir a una colección aplican la misma regla. Si el curator devuelve un
+      recurso ajeno a borrador, pierde el acceso y la edición le lleva al
+      listado. Tests de autor, curator ajeno y admin en listados y acceso
+      directo.

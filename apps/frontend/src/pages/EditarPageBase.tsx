@@ -14,6 +14,7 @@ import {
 } from "../lib/educational-classification.ts";
 import { getApiClient } from "../lib/get-api-client.ts";
 import { url } from "../lib/paths.ts";
+import { keepsAccessAfterStatusChange } from "../lib/resource-access.ts";
 import {
 	DeleteResourceAction,
 	deleteResourceRedirectPath,
@@ -512,6 +513,24 @@ export default function EditarPage() {
 			setSuccessMsg(
 				`Estado actualizado a "${STATUS_LABELS[newStatus]?.label ?? newStatus}"`,
 			);
+			// #460: un curator que devuelve a borrador un recurso ajeno deja de
+			// poder verlo; vuelve al listado de Administrar en vez de recargar.
+			if (
+				sessionUser &&
+				!keepsAccessAfterStatusChange(sessionUser, resource, newStatus)
+			) {
+				setTimeout(
+					() =>
+						navigate(
+							url("admin?section=resources").replace(
+								window.location.origin,
+								"",
+							),
+						),
+					800,
+				);
+				return;
+			}
 			setTimeout(() => window.location.reload(), 800);
 		} catch {
 			setErrorMsg("Error al cambiar el estado");

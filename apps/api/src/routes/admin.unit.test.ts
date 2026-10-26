@@ -381,7 +381,7 @@ describe("Rutas admin — flujo editorial visible para curator", () => {
 	const curatorApp = createAdminApp({ id: "curator-review", role: "curator" });
 	const adminApp = createAdminApp({ id: "admin-review", role: "admin" });
 
-	test("curator lista todos los recursos pero solo puede gestionar los que estan en review", async () => {
+	test("curator lista los recursos ajenos salvo los borradores y solo gestiona los que estan en review", async () => {
 		await repo.ensureUser(getDb().db, {
 			id: "curator-review",
 			email: "curator-review@local.invalid",
@@ -437,9 +437,10 @@ describe("Rutas admin — flujo editorial visible para curator", () => {
 		expect(
 			listAllBody.data.some((resource) => resource.id === reviewCreated.id),
 		).toBe(true);
+		// #460: el borrador ajeno, sin enviar a revisión, es privado de su autor.
 		expect(
 			listAllBody.data.some((resource) => resource.id === draftCreated.id),
-		).toBe(true);
+		).toBe(false);
 
 		const listRes = await curatorApp.request(
 			"/api/admin/resources?status=review",
@@ -487,7 +488,7 @@ describe("Rutas admin — flujo editorial visible para curator", () => {
 		expect(publishBody.status).toBe("published");
 	});
 
-	test("curator sigue accediendo al recurso tras pasarlo de review a draft (DEF-009 / #205)", async () => {
+	test("curator pierde el acceso al recurso tras devolverlo de review a draft (#460)", async () => {
 		await repo.ensureUser(getDb().db, {
 			id: "curator-review",
 			email: "curator-review@local.invalid",
@@ -534,17 +535,16 @@ describe("Rutas admin — flujo editorial visible para curator", () => {
 		);
 		expect(draftRes.status).toBe(200);
 
-		// Regresión DEF-009: el curator que actuó debe seguir viendo el recurso.
+		// #460: de vuelta en borrador, el recurso es privado de su autor. Antes
+		// (DEF-009) el curator que lo devolvía conservaba el acceso.
 		const getRes = await curatorApp.request(
 			`/api/admin/resources/${created.id}`,
 		);
-		expect(getRes.status).toBe(200);
-		const body = (await getRes.json()) as {
-			id: string;
-			editorialStatus: string;
-		};
-		expect(body.id).toBe(created.id);
-		expect(body.editorialStatus).toBe("draft");
+		expect(getRes.status).toBe(403);
+		const adminGet = await adminApp.request(
+			`/api/admin/resources/${created.id}`,
+		);
+		expect(adminGet.status).toBe(200);
 	});
 
 	test("curator sigue accediendo al recurso tras publicarlo desde review (DEF-009 / #205)", async () => {
@@ -598,6 +598,204 @@ describe("Rutas admin — flujo editorial visible para curator", () => {
 			editorialStatus: string;
 		};
 		expect(body.editorialStatus).toBe("published");
+	});
+});
+
+describe("Rutas admin — borradores privados frente al curator (#460)", () => {
+	const authorId = "author-460";
+	const curatorId = "curator-460";
+	const otherCuratorId = "curator-460-b";
+	const adminId = "admin-460";
+	const authorApp = createAdminApp({ id: authorId, role: "author" });
+	const curatorApp = createAdminApp({ id: curatorId, role: "curator" });
+	const otherCuratorApp = createAdminApp({
+		id: otherCuratorId,
+		role: "curator",
+	});
+	const adminApp = createAdminApp({ id: adminId, role: "admin" });
+
+	async function ensureUsers() {
+		for (const [id, role] of [
+			[authorId, "author"],
+			[curatorId, "curator"],
+			[otherCuratorId, "curator"],
+			[adminId, "admin"],
+		] as const) {
+			await repo.ensureUser(getDb().db, {
+				id,
+				email: `${id}@local.invalid`,
+				name: id,
+				role,
+			});
+		}
+	}
+
+	async function createDraft(app: ReturnType<typeof createAdminApp>) {
+		const title = `Borrador 460 ${crypto.randomUUID()}`;
+		const res = await app.request("/api/admin/resources", {
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({ ...validResource, title }),
+		});
+		expect(res.status).toBe(201);
+		const { id } = (await res.json()) as { id: string };
+		return { id, title };
+	}
+
+	async function listIds(
+		app: ReturnType<typeof createAdminApp>,
+		query = "",
+	): Promise<{ ids: string[]; total: number }> {
+		const res = await app.request(`/api/admin/resources?limit=100${query}`);
+		expect(res.status).toBe(200);
+		const body = (await res.json()) as {
+			total: number;
+			data: Array<{ id: string }>;
+		};
+		return { ids: body.data.map((r) => r.id), total: body.total };
+	}
+
+	async function setStatus(
+		app: ReturnType<typeof createAdminApp>,
+		id: string,
+		status: string,
+	) {
+		return app.request(`/api/admin/resources/${id}/status`, {
+			method: "PATCH",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({ status }),
+		});
+	}
+
+	test("el curator no ve el borrador ajeno en listados, búsquedas ni contadores", async () => {
+		await ensureUsers();
+		const draft = await createDraft(authorApp);
+
+		const { total: draftsBefore } = await listIds(curatorApp, "&status=draft");
+		expect((await listIds(curatorApp)).ids).not.toContain(draft.id);
+		const drafts = await listIds(curatorApp, "&status=draft");
+		expect(drafts.ids).not.toContain(draft.id);
+		// El contador (total) del panel no cambia por un borrador ajeno.
+		await createDraft(authorApp);
+		expect((await listIds(curatorApp, "&status=draft")).total).toBe(
+			draftsBefore,
+		);
+		const search = await listIds(
+			curatorApp,
+			`&search=${encodeURIComponent(draft.title)}`,
+		);
+		expect(search.ids).not.toContain(draft.id);
+		// La misma búsqueda lo encuentra para el admin.
+		expect(
+			(await listIds(adminApp, `&search=${encodeURIComponent(draft.title)}`))
+				.ids,
+		).toContain(draft.id);
+
+		// El autor y el admin sí lo ven.
+		expect((await listIds(authorApp, "&status=draft")).ids).toContain(draft.id);
+		expect((await listIds(adminApp, "&status=draft")).ids).toContain(draft.id);
+	});
+
+	test("el curator no lee ni modifica el borrador ajeno por acceso directo", async () => {
+		await ensureUsers();
+		const draft = await createDraft(authorApp);
+		const base = `/api/admin/resources/${draft.id}`;
+
+		for (const path of [
+			base,
+			`${base}/versions`,
+			`${base}/elpx`,
+			`${base}/media`,
+			`${base}/uploads`,
+		]) {
+			const res = await curatorApp.request(path);
+			expect([403, 404]).toContain(res.status);
+		}
+
+		const patch = await curatorApp.request(base, {
+			method: "PATCH",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({ title: "No debería editar" }),
+		});
+		expect(patch.status).toBe(403);
+		expect((await setStatus(curatorApp, draft.id, "review")).status).toBe(403);
+		const del = await curatorApp.request(base, { method: "DELETE" });
+		expect(del.status).toBe(403);
+
+		// Sigue intacto: el autor lo lee con su título.
+		const authorGet = await authorApp.request(base);
+		expect(authorGet.status).toBe(200);
+		expect(((await authorGet.json()) as { title: string }).title).toBe(
+			draft.title,
+		);
+		expect((await adminApp.request(base)).status).toBe(200);
+	});
+
+	test("el curator no añade un borrador ajeno a una colección", async () => {
+		await ensureUsers();
+		const draft = await createDraft(authorApp);
+		const colRes = await curatorApp.request("/api/admin/collections", {
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({
+				title: `Colección 460 ${crypto.randomUUID()}`,
+				description: "Colección de prueba",
+			}),
+		});
+		expect(colRes.status).toBe(201);
+		const collection = (await colRes.json()) as { id: string };
+
+		const add = await curatorApp.request(
+			`/api/admin/collections/${collection.id}/resources`,
+			{
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify({ resourceId: draft.id }),
+			},
+		);
+		expect(add.status).toBe(404);
+	});
+
+	test("el curator ve sus propios borradores", async () => {
+		await ensureUsers();
+		const own = await createDraft(curatorApp);
+		expect((await listIds(curatorApp, "&status=draft")).ids).toContain(own.id);
+		expect(
+			(await curatorApp.request(`/api/admin/resources/${own.id}`)).status,
+		).toBe(200);
+		// Otro curator no.
+		expect((await listIds(otherCuratorApp, "&status=draft")).ids).not.toContain(
+			own.id,
+		);
+		expect(
+			(await otherCuratorApp.request(`/api/admin/resources/${own.id}`)).status,
+		).toBe(403);
+	});
+
+	test("al enviarlo a revisión lo ve el curator, y al volver a borrador deja de verlo", async () => {
+		await ensureUsers();
+		const draft = await createDraft(authorApp);
+
+		expect((await setStatus(authorApp, draft.id, "review")).status).toBe(200);
+		expect((await listIds(curatorApp, "&status=review")).ids).toContain(
+			draft.id,
+		);
+		expect(
+			(await curatorApp.request(`/api/admin/resources/${draft.id}`)).status,
+		).toBe(200);
+
+		// El curator lo devuelve a borrador: vuelve a ser privado del autor.
+		expect((await setStatus(curatorApp, draft.id, "draft")).status).toBe(200);
+		expect((await listIds(curatorApp)).ids).not.toContain(draft.id);
+		expect(
+			(await curatorApp.request(`/api/admin/resources/${draft.id}`)).status,
+		).toBe(403);
+		expect(
+			(await authorApp.request(`/api/admin/resources/${draft.id}`)).status,
+		).toBe(200);
+		expect(
+			(await adminApp.request(`/api/admin/resources/${draft.id}`)).status,
+		).toBe(200);
 	});
 });
 
