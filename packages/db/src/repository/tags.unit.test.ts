@@ -73,26 +73,26 @@ describe("tags repository (issue #76)", () => {
 		expect(first.label.length).toBeGreaterThan(0);
 	});
 
-	test("setResourceTagsByLabels attaches tags and syncs keywords column", async () => {
+	test("setResourceTagsByLabels attaches free tags and keeps the keywords text", async () => {
 		const attached = await setResourceTagsByLabels(db, resourceId, [
-			"Robótica",
+			"Domótica",
 			"IA",
-			"robótica",
+			"domótica",
 		]);
-		expect(attached.map((t) => t.slug).sort()).toEqual(["ia", "robotica"]);
+		expect(attached.map((t) => t.slug).sort()).toEqual(["domotica", "ia"]);
 
 		const listed = await listResourceTags(db, resourceId);
 		expect(listed).toHaveLength(2);
 
+		// ADR-0042: `keywords` is the original text; tag sync no longer rewrites it.
 		const resource = await (await import("./resources.ts")).getResourceById(
 			db,
 			resourceId,
 		);
-		expect(resource?.keywords).toMatch(/Robótica|IA/);
-		expect(resource?.keywords?.split(",").length).toBe(2);
+		expect(resource?.keywords).toBe("mates, física");
 
 		const refreshed = await listResourceTags(db, resourceId);
-		const r = refreshed.find((t) => t.slug === "robotica");
+		const r = refreshed.find((t) => t.slug === "domotica");
 		expect(r?.usageCount).toBeGreaterThanOrEqual(1);
 	});
 

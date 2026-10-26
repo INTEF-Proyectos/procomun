@@ -199,12 +199,15 @@ export function ResourceDetailContent({
 	) => void;
 }) {
 	const status = statusLabelOf(resource.editorialStatus);
-	const keywords = resource.keywords
-		? resource.keywords
-				.split(",")
-				.map((keyword) => keyword.trim())
-				.filter(Boolean)
-		: [];
+	// ADR-0042: el catálogo manda; sin él se muestran las etiquetas de origen.
+	const catalogKeywords = resource.catalogKeywords ?? [];
+	const keywords =
+		catalogKeywords.length === 0 && resource.keywords
+			? resource.keywords
+					.split(",")
+					.map((keyword) => keyword.trim())
+					.filter(Boolean)
+			: [];
 	const publicationDate = resourceDate(resource.createdAt);
 	const updatedDate = resourceDate(resource.updatedAt);
 	const currentUserId = session?.user?.id ?? null;
@@ -571,13 +574,15 @@ export function ResourceDetailContent({
 						</section>
 					) : null}
 
-					{/* Ratings */}
-					<section className="detail-ratings-section">
-						<RatingIsland
-							resourceSlug={resource.slug}
-							currentUserId={currentUserId}
-						/>
-					</section>
+					{/* Ratings: solo en publicados (#461) */}
+					{resource.editorialStatus === "published" ? (
+						<section className="detail-ratings-section">
+							<RatingIsland
+								resourceSlug={resource.slug}
+								currentUserId={currentUserId}
+							/>
+						</section>
+					) : null}
 				</div>
 
 				{/* Right sidebar */}
@@ -646,10 +651,21 @@ export function ResourceDetailContent({
 						</div>
 
 						{/* Keywords / Tags */}
-						{keywords.length > 0 ? (
+						{catalogKeywords.length > 0 || keywords.length > 0 ? (
 							<div className="meta-section">
 								<h3 className="meta-section-title">{m.detail_tags()}</h3>
 								<div className="meta-tags">
+									{catalogKeywords.map((keyword) => (
+										<a
+											key={keyword.id}
+											className="meta-tag"
+											href={url(
+												`explorar?tag=${encodeURIComponent(keyword.slug)}`,
+											)}
+										>
+											{keyword.label}
+										</a>
+									))}
 									{keywords.map((keyword) => (
 										<span key={keyword} className="meta-tag">
 											{keyword}

@@ -10,6 +10,7 @@ export const CLI_COMMANDS = [
 	"fts:reindex",
 	"import:legacy-procomun",
 	"import:legacy-users",
+	"import:legacy-keywords",
 ] as const;
 
 const commandLoaders: Record<
@@ -28,6 +29,8 @@ const commandLoaders: Record<
 		(await import("./commands/import-legacy-procomun.ts")).importLegacyProcomun,
 	"import:legacy-users": async () =>
 		(await import("./commands/import-legacy-users.ts")).importLegacyUsers,
+	"import:legacy-keywords": async () =>
+		(await import("./commands/import-legacy-keywords.ts")).importLegacyKeywords,
 };
 
 export function printHelp(log: Pick<typeof console, "log"> = console) {
@@ -64,6 +67,10 @@ export function printHelp(log: Pick<typeof console, "log"> = console) {
 	);
 	log.log(
 		"  import:legacy-users --source-file <usuarios.json> [--dry-run] [--limit <n>] [--report-dir <ruta>]",
+	);
+	log.log("  import:legacy-keywords [--dry-run] [--report-dir <ruta>]");
+	log.log(
+		"                    Asigna palabras del catálogo a las etiquetas de origen, ver ADR-0042",
 	);
 }
 
