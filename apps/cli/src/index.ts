@@ -63,6 +63,12 @@ export function printHelp(log: Pick<typeof console, "log"> = console) {
 		"                    Clasifica los recursos legacy ya importados que no tienen categorización (#383)",
 	);
 	log.log(
+		"  import:legacy-procomun --copy-previews [--dry-run] [--report-dir <ruta>]",
+	);
+	log.log(
+		"                    Copia a nuestro almacenamiento las miniaturas legacy enlazadas en caliente (#409)",
+	);
+	log.log(
 		"  import:legacy-users --source-file <usuarios.json> [--dry-run] [--limit <n>] [--report-dir <ruta>]",
 	);
 	log.log(
