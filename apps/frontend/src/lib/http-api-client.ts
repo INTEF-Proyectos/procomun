@@ -355,10 +355,14 @@ export class HttpApiClient implements ApiClient {
 	}
 
 	async deleteResource(id: string): Promise<void> {
-		await fetch(`/api/admin/resources/${id}`, {
+		const res = await fetch(`/api/admin/resources/${id}`, {
 			method: "DELETE",
 			credentials: "include",
 		});
+		if (!res.ok) {
+			const err = await res.json().catch(() => ({}));
+			throw new Error(err.error || "Error al eliminar el recurso");
+		}
 	}
 
 	async getUploadConfig(): Promise<UploadConfig> {

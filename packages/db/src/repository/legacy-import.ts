@@ -4,6 +4,7 @@ import {
 	mapLegacyEducationalCategories,
 } from "../legacy-import/educational-category-map.ts";
 import { IMPORT_SOURCE } from "../legacy-import/field-mapper.ts";
+import type { LegacyEditorialStatus } from "../legacy-import/publication-status.ts";
 import { elpxProjects } from "../schema/elpx.ts";
 import {
 	mediaItems,
@@ -32,6 +33,8 @@ export interface LegacyResourceInput {
 	keywords: string | null;
 	importedAt: Date | null;
 	previewImageUrl: string | null;
+	/** Calculado desde `published` del JSON (ver resolveLegacyPublicationStatus). */
+	editorialStatus: LegacyEditorialStatus;
 }
 
 export interface LegacyElpxInput {
@@ -119,10 +122,10 @@ export async function importLegacyResourceWithElpx(
 			author: input.resource.author,
 			publisher: input.resource.publisher,
 			thumbnailUrl: input.resource.previewImageUrl,
-			// Los recursos legacy ya estaban publicados y curados en la plataforma
-			// de origen; se importan directamente como "published" en vez de
-			// "draft" (decisión revisada, ver Actualización 2026-07-10 en ADR-0029).
-			editorialStatus: "published",
+			// Solo se publica lo que el Procomún antiguo tenía publicado
+			// (`published: 1`); el resto entra como borrador (issue #447, ver
+			// Actualización 2026-10-22 en ADR-0029).
+			editorialStatus: input.resource.editorialStatus,
 			importedAt: input.resource.importedAt,
 			// El catálogo público ordena por createdAt DESC (listResources()); usar
 			// el instante de ejecución del importador aquí haría que TODO el
@@ -209,6 +212,66 @@ export async function importLegacyResourceWithElpx(
 
 		return { resourceId, slug, mediaItemId, elpxProjectId };
 	});
+}
+
+export type UnpublishLegacyResourceResult =
+	| { outcome: "not_found"; resourceId: null }
+	| {
+			outcome: "not_published" | "reviewed" | "unpublished";
+			resourceId: string;
+	  };
+
+/**
+ * Corrección de #447 para lo importado antes de leer `published`: pasa a
+ * borrador un recurso legacy publicado, salvo que ya tenga una decisión
+ * editorial posterior (curator asignado, fecha de curación o destacado). Esa
+ * misma condición va en el UPDATE para no pisar una revisión concurrente.
+ */
+export async function unpublishUnreviewedLegacyResource(
+	db: DrizzleDB,
+	importSource: string,
+	externalId: string,
+	options: { dryRun: boolean },
+): Promise<UnpublishLegacyResourceResult> {
+	const [row] = await db
+		.select({
+			id: resources.id,
+			editorialStatus: resources.editorialStatus,
+			assignedCuratorId: resources.assignedCuratorId,
+			curatedAt: resources.curatedAt,
+			featuredAt: resources.featuredAt,
+		})
+		.from(resources)
+		.where(
+			and(
+				eq(resources.importSource, importSource),
+				eq(resources.externalId, externalId),
+				isNull(resources.deletedAt),
+			),
+		)
+		.limit(1);
+	if (!row) return { outcome: "not_found", resourceId: null };
+	if (row.editorialStatus !== "published") {
+		return { outcome: "not_published", resourceId: row.id };
+	}
+	if (row.assignedCuratorId || row.curatedAt || row.featuredAt) {
+		return { outcome: "reviewed", resourceId: row.id };
+	}
+	if (!options.dryRun) {
+		await db
+			.update(resources)
+			.set({ editorialStatus: "draft", updatedAt: new Date() })
+			.where(
+				and(
+					eq(resources.id, row.id),
+					eq(resources.editorialStatus, "published"),
+					isNull(resources.assignedCuratorId),
+					isNull(resources.curatedAt),
+					isNull(resources.featuredAt),
+				),
+			);
+	}
+	return { outcome: "unpublished", resourceId: row.id };
 }
 
 /**
