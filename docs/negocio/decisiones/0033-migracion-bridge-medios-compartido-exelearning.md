@@ -58,3 +58,23 @@ ADR-0027 queda supersedida por ADR-0033.
 * Ejecutar vectores de conformidad, tests de política y pruebas de navegador del overlay/host.
 * Documentar en las cabeceras de los ficheros el origen y la versión sincronizada.
 * Reevaluar el bridge si en el futuro el contenido se sirve desde un origen separado sin cookies, donde parte de esta promoción podría dejar de ser necesaria.
+
+## Actualización 2026-10-26 — convivencia con una fachada genérica propia
+
+El artefacto vendorizado solo reconoce YouTube, Vimeo, Dailymotion y la Mediateca de Madrid, y el relay añade los PDF. El resto de `<iframe>` https externos (Canva, Padlet, Genially, MuseScore…) se quedaba dentro del sandbox heredado y se veía en blanco o como un hueco negro. Con el shim de ADR-0027 se veían como un enlace «Ver contenido de…» (#427, #430, #450), así que sustituirlo sin más era una regresión.
+
+Hasta que el artefacto incluya una fachada genérica (propuesta para eXeLearning) o el contenido se sirva desde un dominio propio (#429), conviven dos scripts en el HTML del `.elpx`:
+
+1. **Artefacto de eXe** (`/api/v1/elpx/embed-shim.js`, bytes vendorizados sin cambios). Se inyecta primero.
+2. **Fachada genérica** (`/api/v1/elpx/embed-facade.js`, `apps/api/static/elpx/embed-facade.js`). Se inyecta después, solo actúa en origen opaco y cambia por un enlace a una pestaña nueva los `<iframe>` https de otro host que no sean PDF ni de un proveedor del artefacto. Si el `<iframe>` va posicionado (código adaptable de Canva), el enlace ocupa el contenedor.
+
+**Orden y reparto.**
+
+* Los hosts excluidos (`ARTIFACT_HOSTS`) son exactamente los del registro del artefacto. Un test de `elpx-content` lo comprueba contra los bytes vendorizados, así que actualizar el artefacto con un proveedor nuevo obliga a actualizar la lista.
+* La fachada corre al cargar el DOM. El artefacto solo cambia `<iframe>` tras el saludo con la ficha, así que normalmente la fachada llega antes.
+* Si el artefacto se adelanta, deja un hueco negro (`[data-exe-embed-url]` sin proveedor) también para los hosts que no sabe reproducir. La fachada cambia igual esos huecos por el enlace.
+* Fuera de la ficha («Ver online», «Ponlo en tu web») el artefacto no se activa y la fachada es la única que actúa.
+
+**Pruebas.** `e2e/tests/public/elpx-embed-facade.e2e.ts`: el PDF y el YouTube los trata el artefacto y no la fachada; Padlet y Canva quedan como enlace en la ficha y en «Ver online»; la fachada de Canva ocupa su contenedor (#450).
+
+Esta fachada desaparece cuando se cumpla cualquiera de las dos condiciones de arriba.

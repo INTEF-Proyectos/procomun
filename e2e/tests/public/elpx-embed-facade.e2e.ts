@@ -119,12 +119,12 @@ test("en «Ver online» el Padlet se abre en una pestaña nueva", async ({
 }) => {
 	await page.goto(`/api/v1/elpx/${hash}/`);
 
-	// La pestaña nueva sale del sandbox: Padlet tiene su origen, no "null".
+	// La pestaña nueva abre el Padlet. Sigue en sandbox: la CSP del contenido no
+	// lleva `allow-popups-to-escape-sandbox` (ADR-0026, auditoría H-1).
 	const popup = page.waitForEvent("popup");
 	await page.getByRole("link", { name: "Ver contenido de padlet.com" }).click();
 	const tab = await popup;
 	await expect(tab).toHaveURL(PADLET);
-	expect(await tab.evaluate(() => window.origin)).toBe("https://padlet.com");
 });
 
 test("la fachada de un embed adaptable de Canva ocupa su contenedor", async ({

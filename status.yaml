@@ -3118,3 +3118,20 @@ tasks:
       fixtures de test no lo tenían y check-types fallaba en main con 9
       errores. Se añade previewImageUrl: null a ambos. Validación:
       check-types limpio y los dos ficheros de test en verde.
+
+  T-2026-10-26-08023861:
+    date: 2026-10-26
+    agent: "frontend-ux-accesibilidad"
+    task: "#317 al día con main y fachada genérica junto al artefacto de eXe"
+    status: Done
+    related: ["#317", "#427", "#450", "ADR-0033", "ADR-0027"]
+    notes: >
+      Se integró main en #317. El artefacto vendorizado de eXe solo reconoce
+      YouTube, Vimeo, Dailymotion y la Mediateca de Madrid, así que Canva,
+      Padlet, Genially o MuseScore volvían a verse en blanco. Se añade
+      apps/api/static/elpx/embed-facade.js, inyectado después del artefacto,
+      que cambia por un enlace «Ver contenido de…» los iframe https externos
+      que no son PDF ni de un proveedor del artefacto, conservando el caso
+      posicionado de Canva (#450). Un test comprueba que la lista de hosts
+      excluidos coincide con el registro del artefacto. ADR-0033 lleva una
+      sección fechada con el orden de carga.
