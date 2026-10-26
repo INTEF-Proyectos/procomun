@@ -15,6 +15,7 @@
 		"./legacy-import": "./src/legacy-import/index.ts",
 		"./resource-types": "./src/resource-types.ts",
 		"./educational-areas": "./src/educational-areas.ts",
+		"./knowledge-areas": "./src/knowledge-areas.ts",
 		"./tags": "./src/tags/normalize.ts",
 		"./keyword-catalog": "./src/tags/keyword-catalog.ts"
 	},

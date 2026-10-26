@@ -1,3 +1,5 @@
+import { KNOWLEDGE_AREA_SEED_SQL } from "./knowledge-areas.ts";
+
 /**
  * Crea todas las tablas del esquema en una instancia PGlite.
  * Reutilizable por: API (dev local), CLI (seed), preview (navegador).
@@ -305,6 +307,37 @@ export const SCHEMA_STATEMENTS = [
 	)`,
 	`CREATE UNIQUE INDEX IF NOT EXISTS tag_aliases_tag_normalized_unique ON tag_aliases (tag_id, normalized)`,
 	KEYWORD_CATALOG_SEED,
+	// Áreas de conocimiento y familias profesionales (ADR-0045 / issue #448).
+	// La migración 0014_knowledge_areas contiene lo mismo.
+	`ALTER TABLE "tags" ADD COLUMN IF NOT EXISTS retired_at TIMESTAMP`,
+	`CREATE TABLE IF NOT EXISTS "knowledge_areas" (
+		id TEXT PRIMARY KEY,
+		label TEXT NOT NULL,
+		description TEXT,
+		block_id VARCHAR(64) NOT NULL,
+		position INTEGER NOT NULL DEFAULT 0,
+		active BOOLEAN NOT NULL DEFAULT true,
+		created_by TEXT REFERENCES "user"(id) ON DELETE SET NULL,
+		created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+		updated_at TIMESTAMP NOT NULL DEFAULT NOW()
+	)`,
+	`CREATE UNIQUE INDEX IF NOT EXISTS knowledge_areas_label_unique ON knowledge_areas (lower(translate(label, 'áéíóúÁÉÍÓÚäëïöüÄËÏÖÜñÑ', 'aeiouAEIOUaeiouAEIOUnN')))`,
+	`CREATE INDEX IF NOT EXISTS knowledge_areas_block_idx ON knowledge_areas (block_id)`,
+	`CREATE TABLE IF NOT EXISTS "resource_knowledge_areas" (
+		resource_id TEXT NOT NULL REFERENCES "resources"(id) ON DELETE CASCADE,
+		area_id TEXT NOT NULL REFERENCES knowledge_areas(id),
+		created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+		PRIMARY KEY (resource_id, area_id)
+	)`,
+	`CREATE INDEX IF NOT EXISTS resource_knowledge_areas_area_idx ON resource_knowledge_areas (area_id)`,
+	`CREATE TABLE IF NOT EXISTS "resource_professional_families" (
+		resource_id TEXT NOT NULL REFERENCES "resources"(id) ON DELETE CASCADE,
+		family_id VARCHAR(64) NOT NULL,
+		created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+		PRIMARY KEY (resource_id, family_id)
+	)`,
+	`CREATE INDEX IF NOT EXISTS resource_professional_families_family_idx ON resource_professional_families (family_id)`,
+	KNOWLEDGE_AREA_SEED_SQL,
 	`CREATE TABLE IF NOT EXISTS "collections" (
 		id TEXT PRIMARY KEY,
 		slug VARCHAR(512) NOT NULL UNIQUE,

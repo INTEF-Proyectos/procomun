@@ -257,7 +257,10 @@ describe("migración 0011_keyword_catalog", () => {
 			(item) => item.tag === "0011_keyword_catalog",
 		);
 		expect(entry?.idx).toBe(9);
-		const others = journal.entries.filter((item) => item !== entry);
+		// Las posteriores (0014, #448) van detrás.
+		const others = journal.entries.filter(
+			(item) => item.idx < (entry?.idx ?? 0),
+		);
 		expect(Math.max(...others.map((item) => item.when))).toBeLessThan(
 			entry?.when ?? 0,
 		);
@@ -300,6 +303,75 @@ describe("migración 0011_keyword_catalog", () => {
 					"INSERT INTO tags (id, slug, label, catalog) VALUES ('x', 'x', 'GEOMETRIA', true)",
 				),
 			).rejects.toThrow();
+		} finally {
+			await db.close();
+		}
+	});
+});
+
+// ADR-0045: áreas de conocimiento y familias profesionales (#448).
+describe("migración 0014_knowledge_areas", () => {
+	const OLD_SCHEMA = `CREATE TABLE "user" (id TEXT PRIMARY KEY);
+		CREATE TABLE "resources" (id TEXT PRIMARY KEY);
+		CREATE TABLE "tags" (id TEXT PRIMARY KEY, label TEXT NOT NULL);
+		INSERT INTO "resources" (id) VALUES ('r1');`;
+
+	test("va después de todas las anteriores en el journal", async () => {
+		const journal = JSON.parse(
+			await readFile(path.join(migrationsDir, "meta/_journal.json"), "utf8"),
+		) as { entries: Array<{ tag: string; when: number }> };
+		const entry = journal.entries.find(
+			(item) => item.tag === "0014_knowledge_areas",
+		);
+		expect(entry).toBeDefined();
+		const others = journal.entries.filter((item) => item !== entry);
+		expect(Math.max(...others.map((item) => item.when))).toBeLessThan(
+			entry?.when ?? 0,
+		);
+	});
+
+	test("crea el catálogo una vez y coincide con setup.ts", async () => {
+		const migration = (
+			await readFile(
+				path.join(migrationsDir, "0014_knowledge_areas.sql"),
+				"utf8",
+			)
+		).replaceAll("--> statement-breakpoint", "");
+		const { KNOWLEDGE_AREA_SEED_SQL, KNOWLEDGE_AREA_SEED } = await import(
+			"./knowledge-areas.ts"
+		);
+		const { SCHEMA_STATEMENTS } = await import("./setup.ts");
+		expect(migration).toContain(KNOWLEDGE_AREA_SEED_SQL);
+		expect(SCHEMA_STATEMENTS).toContain(KNOWLEDGE_AREA_SEED_SQL);
+
+		const db = new PGlite();
+		try {
+			await db.exec(OLD_SCHEMA);
+			await db.exec(migration);
+			await db.exec(migration); // idempotente
+			const count = await db.query<{ n: number }>(
+				"SELECT count(*)::int AS n FROM knowledge_areas",
+			);
+			expect(count.rows[0]?.n).toBe(KNOWLEDGE_AREA_SEED.length);
+			await db.exec(
+				"INSERT INTO resource_knowledge_areas (resource_id, area_id) VALUES ('r1', 'quimica')",
+			);
+			await db.exec(
+				"INSERT INTO resource_professional_families (resource_id, family_id) VALUES ('r1', 'sanidad')",
+			);
+			// Un área con recursos no se puede borrar: se desactiva.
+			await expect(
+				db.exec("DELETE FROM knowledge_areas WHERE id = 'quimica'"),
+			).rejects.toThrow();
+			await expect(
+				db.exec(
+					"INSERT INTO knowledge_areas (id, label, block_id) VALUES ('x', 'QUIMICA', 'ciencias')",
+				),
+			).rejects.toThrow();
+			const retired = await db.query<{ column_name: string }>(
+				"SELECT column_name FROM information_schema.columns WHERE table_name = 'tags' AND column_name = 'retired_at'",
+			);
+			expect(retired.rows).toHaveLength(1);
 		} finally {
 			await db.close();
 		}

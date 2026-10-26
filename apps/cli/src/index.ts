@@ -10,6 +10,7 @@ export const CLI_COMMANDS = [
 	"fts:reindex",
 	"import:legacy-procomun",
 	"import:legacy-users",
+	"catalog:area-keywords",
 ] as const;
 
 const commandLoaders: Record<
@@ -28,6 +29,8 @@ const commandLoaders: Record<
 		(await import("./commands/import-legacy-procomun.ts")).importLegacyProcomun,
 	"import:legacy-users": async () =>
 		(await import("./commands/import-legacy-users.ts")).importLegacyUsers,
+	"catalog:area-keywords": async () =>
+		(await import("./commands/catalog-area-keywords.ts")).catalogAreaKeywords,
 };
 
 export function printHelp(log: Pick<typeof console, "log"> = console) {
@@ -58,6 +61,12 @@ export function printHelp(log: Pick<typeof console, "log"> = console) {
 	);
 	log.log(
 		"  import:legacy-users --source-file <usuarios.json> [--dry-run] [--limit <n>] [--report-dir <ruta>]",
+	);
+	log.log(
+		"  catalog:area-keywords [--apply] [--include <id,id>] [--report-dir <ruta>]",
+	);
+	log.log(
+		"                    Cruza palabras clave con áreas de conocimiento y retira las que pasan a ser áreas (#448)",
 	);
 }
 
