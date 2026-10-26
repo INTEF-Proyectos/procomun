@@ -574,13 +574,15 @@ export function ResourceDetailContent({
 						</section>
 					) : null}
 
-					{/* Ratings */}
-					<section className="detail-ratings-section">
-						<RatingIsland
-							resourceSlug={resource.slug}
-							currentUserId={currentUserId}
-						/>
-					</section>
+					{/* Ratings: solo en publicados (#461) */}
+					{resource.editorialStatus === "published" ? (
+						<section className="detail-ratings-section">
+							<RatingIsland
+								resourceSlug={resource.slug}
+								currentUserId={currentUserId}
+							/>
+						</section>
+					) : null}
 				</div>
 
 				{/* Right sidebar */}

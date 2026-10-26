@@ -3131,3 +3131,19 @@ tasks:
       fixtures de test no lo tenían y check-types fallaba en main con 9
       errores. Se añade previewImageUrl: null a ambos. Validación:
       check-types limpio y los dos ficheros de test en verde.
+
+  T-2026-10-26-07195989:
+    date: 2026-10-26
+    agent: "frontend-ux-accesibilidad"
+    task: "Valoraciones solo en recursos publicados"
+    status: Done
+    related: ["#461"]
+    notes: >
+      La ficha y las tarjetas mostraban la valoración de recursos en borrador,
+      revisión o archivados (p. ej. «Mis recursos» del perfil). Ahora la ficha
+      solo monta RatingIsland si el recurso está publicado y ResourceCard oculta
+      estrellas, media y contador si editorialStatus no es published. La API ya
+      rechazaba valorar un recurso no publicado (resolveResourceBySlug filtra
+      por published y responde 404, también a admin); se añaden tests de
+      regresión, incluido que las valoraciones se conservan al despublicar y
+      vuelven al publicar. Tests UI nuevos rojo → verde.
