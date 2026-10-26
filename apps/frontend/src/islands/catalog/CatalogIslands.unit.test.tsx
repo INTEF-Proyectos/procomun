@@ -249,4 +249,68 @@ describe("Catalog islands", () => {
 		).not.toContain("Editar recurso");
 		expect(renderDetail({}, "admin")).toContain("Editar recurso");
 	});
+
+	// #459: los valores de los detalles técnicos llevan a una búsqueda.
+	const search = (q: string) =>
+		`href="${url(`explorar?q=${encodeURIComponent(q)}`)}"`;
+
+	test("tipo e idioma muestran la denominación y buscan por ella", () => {
+		const html = renderDetail(
+			{ resourceType: "proyecto", language: "es" },
+			"viewer",
+		);
+		expect(html).toContain(`${search("Proyecto")}>Proyecto</a>`);
+		expect(html).toContain(`${search("Español")}>Español</a>`);
+		expect(html).not.toContain(">proyecto<");
+		expect(html).not.toContain(">es<");
+	});
+
+	test("cada materia y cada palabra libre buscan su valor completo", () => {
+		const html = renderDetail(
+			{
+				subjects: ["Matemáticas", "Lengua Castellana"],
+				keywords: "geometría, cálculo mental",
+			},
+			"viewer",
+		);
+		expect(html).toContain(`${search("Matemáticas")}>Matemáticas</a>`);
+		expect(html).toContain(
+			`${search("Lengua Castellana")}>Lengua Castellana</a>`,
+		);
+		expect(html).toContain(`${search("cálculo mental")}`);
+	});
+
+	test("las etiquetas del catálogo mantienen el filtro exacto", () => {
+		const html = renderDetail(
+			{
+				catalogKeywords: [{ id: "k1", slug: "geometria", label: "Geometría" }],
+			},
+			"viewer",
+		);
+		expect(html).toContain(`href="${url("explorar?tag=geometria")}"`);
+		expect(html).not.toContain(search("Geometría"));
+	});
+
+	test("la categorización educativa busca la categoría y cada opción", () => {
+		const html = renderDetail(
+			{
+				educationalAreas: [
+					{ categoryId: "educacion-infantil", optionId: "primer-ciclo" },
+				],
+			},
+			"viewer",
+		);
+		expect(html).toContain(
+			`${search("Educación Infantil")}>Educación Infantil</a>`,
+		);
+		expect(html).toContain(
+			`${search("Primer ciclo (0-3 años)")}>Primer ciclo (0-3 años)</a>`,
+		);
+	});
+
+	test("la fecha de publicación sigue siendo texto", () => {
+		const html = renderDetail({ createdAt: "2024-05-01T00:00:00Z" }, "viewer");
+		expect(html).not.toContain("explorar?q=2024");
+		expect(html).toMatch(/<p class="meta-row-value">[^<]*2024<\/p>/);
+	});
 });

@@ -154,7 +154,10 @@ describe("categorización educativa en formulario, ficha y buscador", () => {
 				],
 			}),
 		);
-		expect(detail).toContain("ELE - Español como Lengua Extranjera: Avanzado");
+		// Cada valor es un enlace de búsqueda (#459); el texto no cambia.
+		expect(detail.replace(/<[^>]+>/g, "")).toContain(
+			"ELE - Español como Lengua Extranjera: Avanzado",
+		);
 		expect(detail).toContain("Educación Especial");
 		expect(detail).not.toContain("Básico");
 
