@@ -34,6 +34,9 @@ export function ResourceCard({
 	const clipped =
 		description.length > 140 ? `${description.slice(0, 140)}...` : description;
 	const media = resourceCardMedia(resource);
+	// La valoración solo se muestra en recursos publicados (#461).
+	const rating =
+		resource.editorialStatus === "published" ? resource.rating : undefined;
 	const previewRef = useIframeScale<HTMLDivElement>({
 		iframeWidth: 1200,
 		iframeHeight: 675,
@@ -134,9 +137,9 @@ export function ResourceCard({
 				<p className="rc-desc">{clipped}</p>
 
 				{/* Social stats row */}
-				{resource.rating || favCount > 0 ? (
+				{rating || favCount > 0 ? (
 					<div className="rc-stats">
-						{resource.rating && resource.rating.count > 0 && (
+						{rating && rating.count > 0 && (
 							<span className="rc-stat">
 								<span
 									className="material-symbols-outlined rc-stat-star"
@@ -145,8 +148,8 @@ export function ResourceCard({
 								>
 									star
 								</span>
-								{resource.rating.average.toFixed(1)}
-								<span className="rc-stat-count">({resource.rating.count})</span>
+								{rating.average.toFixed(1)}
+								<span className="rc-stat-count">({rating.count})</span>
 							</span>
 						)}
 						{favCount > 0 && (
