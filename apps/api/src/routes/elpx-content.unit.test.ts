@@ -159,6 +159,35 @@ describe("embed shim = artefacto canónico vendorizado", () => {
 	});
 });
 
+/**
+ * La fachada genérica (embed-facade.js) convive con el artefacto de eXe y NO
+ * debe tocar lo que este ya trata: si el artefacto añade un proveedor y la
+ * lista de exclusión no se actualiza, los dos se pisarían el mismo <iframe>.
+ */
+describe("fachada genérica: hosts excluidos = proveedores del artefacto", () => {
+	test("excluye exactamente los hosts del registro del artefacto vendorizado", async () => {
+		const [facade, child] = await Promise.all([
+			Bun.file(
+				new URL("../../static/elpx/embed-facade.js", import.meta.url),
+			).text(),
+			Bun.file(
+				new URL(
+					"../../static/elpx/exe_external_media/exe-external-media-child.min.js",
+					import.meta.url,
+				),
+			).text(),
+		]);
+		const artifactHosts = [...child.matchAll(/hosts:\[([^\]]*)\]/g)]
+			.flatMap((match) => match[1]?.match(/"([^"]+)"/g) ?? [])
+			.map((quoted) => quoted.slice(1, -1));
+		const block = facade.match(/ARTIFACT_HOSTS = \[([^\]]*)\]/)?.[1] ?? "";
+		const facadeHosts = [...block.matchAll(/"([^"]+)"/g)].map((m) => m[1]);
+
+		expect(artifactHosts.length).toBeGreaterThan(0);
+		expect(new Set(facadeHosts)).toEqual(new Set(artifactHosts));
+	});
+});
+
 describe("remainingPathAfter", () => {
 	test("resuelve index.html cuando el segmento es el último", () => {
 		expect(remainingPathAfter(`/api/v1/elpx/${HASH}/`, HASH)).toBe(

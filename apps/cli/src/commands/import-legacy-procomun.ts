@@ -5,11 +5,19 @@
  *
  * Uso:
  *   bun run apps/cli/src/index.ts import:legacy-procomun --source-dir <ruta> [--dry-run] [--limit <n>] [--only <externalId>] [--report-dir <ruta>]
+ *   bun run apps/cli/src/index.ts import:legacy-procomun --backfill-categories [--dry-run] [--report-dir <ruta>]
+ *   bun run apps/cli/src/index.ts import:legacy-procomun --fix-published --source-dir <ruta> [--dry-run] [--report-dir <ruta>]
  */
 import { mkdir, readdir, rename, rm, stat, unlink } from "node:fs/promises";
 import path from "node:path";
 import { parseArgs } from "node:util";
-import type { LegacyOdeJson } from "@procomun/db/legacy-import";
+import {
+	assertLegacyCategoryDestinations,
+	type EducationalImportResourceNote,
+	IMPORT_SOURCE,
+	type LegacyOdeJson,
+	summarizeLegacyEducationalImport,
+} from "@procomun/db/legacy-import";
 
 export async function loadImportLegacyProcomunDependencies() {
 	const [
@@ -47,15 +55,18 @@ export async function loadImportLegacyProcomunDependencies() {
 		sanitizeFilename,
 		updateSearchVector,
 		mapLegacyRecord: legacyImport.mapLegacyRecord,
+		resolveLegacyPublicationStatus: legacyImport.resolveLegacyPublicationStatus,
 		resolveLegacyExternalId: legacyImport.resolveLegacyExternalId,
 		ensureLegacyImportSystemUser: legacyImport.ensureLegacyImportSystemUser,
 		// Solo las operaciones de repositorio que usa este comando. Exponer el
 		// módulo completo forzaría a los mocks de unit test a implementar ~60
 		// exports irrelevantes y haría frágil el contrato de dependencias.
 		repo: {
+			backfillLegacyEducationalAreas: repo.backfillLegacyEducationalAreas,
 			findLegacyResourceByExternalId: repo.findLegacyResourceByExternalId,
 			getElpxProjectByHash: repo.getElpxProjectByHash,
 			importLegacyResourceWithElpx: repo.importLegacyResourceWithElpx,
+			unpublishUnreviewedLegacyResource: repo.unpublishUnreviewedLegacyResource,
 		},
 	};
 }
@@ -142,14 +153,24 @@ export async function* iterateResolvedPairs(
 	}
 }
 
+/** Estado asignado y valor de `published` recibido (issue #447). */
+interface PublicationTrace {
+	editorialStatus: "published" | "draft";
+	sourcePublished: string | number | null;
+}
+
 type RecordOutcome =
-	| {
+	| ({
 			outcome: "imported";
 			externalId: string;
 			resourceId: string;
 			warnings: string[];
-	  }
-	| { outcome: "would_import"; externalId: string; warnings: string[] }
+	  } & PublicationTrace)
+	| ({
+			outcome: "would_import";
+			externalId: string;
+			warnings: string[];
+	  } & PublicationTrace)
 	| { outcome: "skipped_existing"; externalId: string }
 	| { outcome: "blocked"; externalId: string; reasons: string[] }
 	| { outcome: "error"; externalId: string; message: string };
@@ -165,12 +186,15 @@ export interface ImportLegacyProcomunReport {
 		incompletePairs: number;
 		processed: number;
 		imported: number;
+		/** De los importados, los que entran como borrador por su `published`. */
+		importedAsDraft: number;
 		skippedExisting: number;
 		blocked: number;
 		errored: number;
 	};
 	incompletePairs: string[];
 	records: RecordOutcome[];
+	categorizacionEducativa: ReturnType<typeof summarizeLegacyEducationalImport>;
 }
 
 function parseCliArgs(args: string[]) {
@@ -178,6 +202,8 @@ function parseCliArgs(args: string[]) {
 		args,
 		options: {
 			"source-dir": { type: "string" },
+			"backfill-categories": { type: "boolean", default: false },
+			"fix-published": { type: "boolean", default: false },
 			"dry-run": { type: "boolean", default: false },
 			limit: { type: "string" },
 			only: { type: "string" },
@@ -186,7 +212,15 @@ function parseCliArgs(args: string[]) {
 		strict: true,
 	});
 
-	if (!values["source-dir"]) {
+	const backfillCategories = Boolean(values["backfill-categories"]);
+	const fixPublished = Boolean(values["fix-published"]);
+	if (backfillCategories && fixPublished) {
+		throw new Error(
+			"--backfill-categories y --fix-published no se pueden combinar",
+		);
+	}
+	const sourceDir = values["source-dir"];
+	if (!sourceDir && !backfillCategories) {
 		throw new Error(
 			"Falta --source-dir. Uso: import:legacy-procomun --source-dir <ruta> [--dry-run] [--limit <n>] [--only <externalId>] [--report-dir <ruta>]",
 		);
@@ -198,7 +232,9 @@ function parseCliArgs(args: string[]) {
 	}
 
 	return {
-		sourceDir: path.resolve(values["source-dir"]),
+		sourceDir: sourceDir ? path.resolve(sourceDir) : "",
+		backfillCategories,
+		fixPublished,
 		dryRun: Boolean(values["dry-run"]),
 		limit,
 		only: values.only,
@@ -216,27 +252,65 @@ export async function importLegacyProcomun(args: string[]) {
 	const options = parseCliArgs(args);
 	const deps = await loadImportLegacyProcomunDependencies();
 
-	const report = await runImportLegacyProcomun(options, deps);
+	if (options.fixPublished) {
+		const fixReport = await runFixLegacyPublished(options, deps);
+		await writeReport(options, "correccion-publicados", fixReport);
+		const t = fixReport.totals;
+		console.log(
+			`[import:legacy-procomun] Completado. ${options.dryRun ? "(dry-run) " : ""}` +
+				`revisados=${t.processed} publicados_en_origen=${t.publishedAtSource} ` +
+				`a_borrador=${t.unpublished} ya_revisados=${t.reviewed} ` +
+				`no_publicados=${t.notPublished} no_importados=${t.notFound} errores=${t.errored}`,
+		);
+		await closeDbAndExit(deps, t.errored > 0 ? 1 : 0);
+		return;
+	}
 
-	await mkdir(options.reportDir, { recursive: true });
-	const reportPath = path.join(
-		options.reportDir,
-		`informe_ingesta-${options.dryRun ? "dryrun-" : ""}${report.runId}.json`,
+	const report = options.backfillCategories
+		? await runBackfillLegacyEducationalAreas(options, deps)
+		: await runImportLegacyProcomun(options, deps);
+
+	await writeReport(
+		options,
+		options.backfillCategories ? "relleno-categorias" : "ingesta",
+		report,
 	);
-	await Bun.write(reportPath, JSON.stringify(report, null, 2));
-	console.log(`[import:legacy-procomun] Informe escrito en ${reportPath}`);
 
 	console.log(
 		`[import:legacy-procomun] Completado. ${options.dryRun ? "(dry-run) " : ""}` +
-			`importados=${report.totals.imported} omitidos_ya_existentes=${report.totals.skippedExisting} ` +
-			`bloqueados=${report.totals.blocked} errores=${report.totals.errored} incompletos=${report.totals.incompletePairs}`,
+			("imported" in report.totals
+				? `importados=${report.totals.imported} omitidos_ya_existentes=${report.totals.skippedExisting} ` +
+					`bloqueados=${report.totals.blocked} errores=${report.totals.errored} incompletos=${report.totals.incompletePairs} `
+				: `sin_clasificar_revisados=${report.totals.processed} `) +
+			`categorias_ok=${report.categorizacionEducativa.recursosConTodasTransformadas} ` +
+			`categorias_revision=${report.categorizacionEducativa.recursosPendientesDeRevision} ` +
+			`sin_categoria=${report.categorizacionEducativa.recursosSinCategorizacionDeOrigen} ` +
+			`ele_otro_idioma=${report.categorizacionEducativa.eleEnOtroIdioma.length}`,
 	);
 
 	// Calculado ANTES de cerrar la conexión: el runtime WASM de PGlite puede
 	// mutar process.exitCode de forma asíncrona en background (ver comentario
-	// más abajo), así que no hay que confiar en su valor en este punto.
-	const exitCode = report.totals.errored > 0 ? 1 : 0;
+	// en closeDbAndExit), así que no hay que confiar en su valor en este punto.
+	const exitCode =
+		"errored" in report.totals && report.totals.errored > 0 ? 1 : 0;
+	await closeDbAndExit(deps, exitCode);
+}
 
+async function writeReport(
+	options: { reportDir: string; dryRun: boolean },
+	kind: string,
+	report: { runId: string },
+) {
+	await mkdir(options.reportDir, { recursive: true });
+	const reportPath = path.join(
+		options.reportDir,
+		`informe_${kind}-${options.dryRun ? "dryrun-" : ""}${report.runId}.json`,
+	);
+	await Bun.write(reportPath, JSON.stringify(report, null, 2));
+	console.log(`[import:legacy-procomun] Informe escrito en ${reportPath}`);
+}
+
+async function closeDbAndExit(deps: Deps, exitCode: number) {
 	// La conexión PGlite compartida (apps/api/src/db.ts) está pensada para un
 	// proceso servidor de larga vida y nunca se cierra explícitamente. En un
 	// script de un solo uso como este CLI, el runtime WASM/Emscripten de
@@ -261,6 +335,163 @@ export async function importLegacyProcomun(args: string[]) {
 	}
 
 	process.exit(exitCode);
+}
+
+/**
+ * `--backfill-categories`: la reimportación omite los recursos ya existentes,
+ * así que lo importado antes de #383 se quedaría sin clasificar. Esta pasada
+ * aplica la correspondencia a su resource_levels (el learningContext original)
+ * y devuelve el mismo informe de categorización que la importación.
+ */
+export async function runBackfillLegacyEducationalAreas(
+	options: { dryRun: boolean },
+	deps: Deps,
+) {
+	const startedAt = new Date().toISOString();
+	await deps.waitForDb();
+	assertLegacyCategoryDestinations();
+	const notes = await deps.repo.backfillLegacyEducationalAreas(
+		deps.getDb().db,
+		{ dryRun: options.dryRun },
+	);
+	return {
+		runId: crypto.randomUUID(),
+		dryRun: options.dryRun,
+		startedAt,
+		finishedAt: new Date().toISOString(),
+		totals: { processed: notes.length },
+		categorizacionEducativa: summarizeLegacyEducationalImport(notes),
+	};
+}
+
+type FixPublishedRecord = {
+	externalId: string;
+	sourcePublished: string | number | null;
+} & (
+	| {
+			outcome: "unpublished" | "would_unpublish" | "reviewed" | "not_published";
+			resourceId: string;
+	  }
+	| { outcome: "not_found" }
+	| { outcome: "error"; message: string }
+);
+
+export interface FixLegacyPublishedReport {
+	runId: string;
+	sourceDir: string;
+	dryRun: boolean;
+	startedAt: string;
+	finishedAt: string;
+	totals: {
+		processed: number;
+		publishedAtSource: number;
+		unpublished: number;
+		reviewed: number;
+		notPublished: number;
+		notFound: number;
+		errored: number;
+	};
+	/** Solo los JSON con `published` distinto de 1: los publicados se cuentan. */
+	records: FixPublishedRecord[];
+}
+
+/**
+ * `--fix-published` (issue #447): hasta el arreglo el importador publicaba
+ * todo, y la reimportación omite lo ya importado. Esta pasada relee los JSON
+ * de origen y pasa a borrador los recursos cuyo `published` no es 1, salvo los
+ * que ya tienen una decisión editorial (ver unpublishUnreviewedLegacyResource).
+ */
+export async function runFixLegacyPublished(
+	options: { sourceDir: string; dryRun: boolean },
+	deps: Deps,
+): Promise<FixLegacyPublishedReport> {
+	const startedAt = new Date().toISOString();
+	await deps.waitForDb();
+	const db = deps.getDb().db;
+	const { pairs } = await findLegacySourcePairs(options.sourceDir);
+
+	const totals = {
+		processed: 0,
+		publishedAtSource: 0,
+		unpublished: 0,
+		reviewed: 0,
+		notPublished: 0,
+		notFound: 0,
+		errored: 0,
+	};
+	const records: FixPublishedRecord[] = [];
+
+	for await (const resolved of iterateResolvedPairs(
+		pairs,
+		deps.resolveLegacyExternalId,
+	)) {
+		totals.processed++;
+		if (!resolved.json) {
+			totals.errored++;
+			records.push({
+				externalId: resolved.externalId,
+				sourcePublished: null,
+				outcome: "error",
+				message: `No se pudo leer/parsear el JSON: ${resolved.parseError}`,
+			});
+			continue;
+		}
+		const publication = deps.resolveLegacyPublicationStatus(
+			resolved.json.published,
+		);
+		if (publication.editorialStatus === "published") {
+			totals.publishedAtSource++;
+			continue;
+		}
+		const trace = {
+			externalId: resolved.externalId,
+			sourcePublished: publication.sourcePublished,
+		};
+		try {
+			const result = await deps.repo.unpublishUnreviewedLegacyResource(
+				db,
+				IMPORT_SOURCE,
+				resolved.externalId,
+				{ dryRun: options.dryRun },
+			);
+			if (result.outcome === "not_found") {
+				totals.notFound++;
+				records.push({ ...trace, outcome: "not_found" });
+				continue;
+			}
+			if (result.outcome === "unpublished") totals.unpublished++;
+			else if (result.outcome === "reviewed") totals.reviewed++;
+			else totals.notPublished++;
+			records.push({
+				...trace,
+				outcome:
+					result.outcome === "unpublished" && options.dryRun
+						? "would_unpublish"
+						: result.outcome,
+				resourceId: result.resourceId,
+			});
+			if (result.outcome === "unpublished") {
+				console.log(
+					`[a borrador${options.dryRun ? " (dry-run)" : ""}] ${resolved.externalId} (published=${JSON.stringify(publication.sourcePublished)})`,
+				);
+			}
+		} catch (err) {
+			totals.errored++;
+			const message = err instanceof Error ? err.message : String(err);
+			records.push({ ...trace, outcome: "error", message });
+			console.error(`[error] ${resolved.externalId}: ${message}`);
+		}
+	}
+
+	return {
+		runId: crypto.randomUUID(),
+		sourceDir: options.sourceDir,
+		dryRun: options.dryRun,
+		startedAt,
+		finishedAt: new Date().toISOString(),
+		totals,
+		records,
+	};
 }
 
 /**
@@ -307,9 +538,13 @@ export async function runImportLegacyProcomun(
 		);
 	}
 
+	assertLegacyCategoryDestinations();
+
 	const records: RecordOutcome[] = [];
+	const educationalNotes: EducationalImportResourceNote[] = [];
 	let processed = 0;
 	let imported = 0;
+	let importedAsDraft = 0;
 	let skippedExisting = 0;
 	let blocked = 0;
 	let errored = 0;
@@ -391,10 +626,18 @@ export async function runImportLegacyProcomun(
 					);
 				} else if (options.dryRun) {
 					imported++;
+					if (mapping.resource.editorialStatus === "draft") importedAsDraft++;
+					educationalNotes.push({
+						externalId: mapping.externalId,
+						sourceCategories: mapping.resource.levels,
+						language: mapping.resource.language,
+					});
 					records.push({
 						outcome: "would_import",
 						externalId: mapping.externalId,
 						warnings: warningMessages,
+						editorialStatus: mapping.resource.editorialStatus,
+						sourcePublished: mapping.resource.sourcePublished,
 					});
 				} else {
 					await persistImportedResource({
@@ -407,7 +650,16 @@ export async function runImportLegacyProcomun(
 						warningMessages,
 						systemUser,
 						records,
-						onImported: () => imported++,
+						onImported: () => {
+							imported++;
+							if (mapping.resource.editorialStatus === "draft")
+								importedAsDraft++;
+							educationalNotes.push({
+								externalId: mapping.externalId,
+								sourceCategories: mapping.resource.levels,
+								language: mapping.resource.language,
+							});
+						},
 						onErrored: () => errored++,
 					});
 				}
@@ -429,12 +681,14 @@ export async function runImportLegacyProcomun(
 			incompletePairs: incomplete.length,
 			processed,
 			imported,
+			importedAsDraft,
 			skippedExisting,
 			blocked,
 			errored,
 		},
 		incompletePairs: incomplete,
 		records,
+		categorizacionEducativa: summarizeLegacyEducationalImport(educationalNotes),
 	};
 }
 
@@ -569,7 +823,7 @@ async function persistImportedResource(params: {
 			},
 		});
 
-		// A partir de aquí el recurso YA está persistido y publicado (la
+		// A partir de aquí el recurso YA está persistido (la
 		// inserción de arriba confirmó que somos los únicos dueños de este
 		// checksum): cualquier fallo en los pasos siguientes es best-effort — se
 		// registra como warning, nunca como "error" de todo el registro, porque
@@ -588,7 +842,7 @@ async function persistImportedResource(params: {
 		}
 
 		// Indexación best-effort: un fallo aquí no invalida la importación (el
-		// recurso ya está persistido y publicado), solo queda temporalmente
+		// recurso ya está persistido), solo queda temporalmente
 		// fuera de la búsqueda pública hasta un `fts:reindex` manual.
 		try {
 			await deps.updateSearchVector(db, result.resourceId);
@@ -608,9 +862,11 @@ async function persistImportedResource(params: {
 			externalId: mapping.externalId,
 			resourceId: result.resourceId,
 			warnings: warningMessages,
+			editorialStatus: mapping.resource.editorialStatus,
+			sourcePublished: mapping.resource.sourcePublished,
 		});
 		console.log(
-			`[importado] ${mapping.externalId} -> ${result.resourceId}` +
+			`[importado] ${mapping.externalId} -> ${result.resourceId} (${mapping.resource.editorialStatus})` +
 				`${warningMessages.length ? ` (${warningMessages.length} warnings)` : ""}`,
 		);
 	} catch (err) {

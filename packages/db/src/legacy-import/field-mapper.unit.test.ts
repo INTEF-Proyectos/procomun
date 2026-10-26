@@ -274,6 +274,41 @@ describe("mapLegacyRecord", () => {
 			);
 		});
 
+		it("conserva la URL preview del JSON como imagen de la tarjeta (issue #407)", async () => {
+			const json = await loadFixture("es_2024052212_9181312");
+			const result = mapLegacyRecord(json, "fallback.elpx");
+
+			expect(result.blocking).toBe(false);
+			expect(result.resource.previewImageUrl).toBe(
+				"https://ode.educacion.es/INTEF/es_2024052212_9181312/vistaPreviaAgrega.png",
+			);
+		});
+
+		it("ignora un preview que no es http(s) y no bloquea la importación", async () => {
+			const json = await loadFixture("es_2024052212_9181312");
+			const result = mapLegacyRecord(
+				{ ...json, preview: "javascript:alert(1)" },
+				"fallback.elpx",
+			);
+
+			expect(result.blocking).toBe(false);
+			expect(result.resource.previewImageUrl).toBeNull();
+			expect(result.warnings.map((warning) => warning.field)).toContain(
+				"preview",
+			);
+		});
+
+		it("deja la miniatura vacía cuando el JSON no trae preview", async () => {
+			const json = await loadFixture("es_2024052212_9181312");
+			const { preview: _preview, ...withoutPreview } = json;
+			const result = mapLegacyRecord(withoutPreview, "fallback.elpx");
+
+			expect(result.resource.previewImageUrl).toBeNull();
+			expect(result.warnings.map((warning) => warning.field)).not.toContain(
+				"preview",
+			);
+		});
+
 		it("devuelve importedAt null cuando no hay ninguna fecha de origen utilizable", () => {
 			const result = mapLegacyRecord(
 				{
@@ -285,5 +320,39 @@ describe("mapLegacyRecord", () => {
 			);
 			expect(result.resource.importedAt).toBeNull();
 		});
+	});
+});
+
+describe("mapLegacyRecord — estado de publicación (issue #447)", () => {
+	it("published = 1 se importa como publicado, sin aviso", async () => {
+		const json = await loadFixture("es_2024052212_9181312");
+		const result = mapLegacyRecord(json, "fallback.elpx");
+
+		expect(result.resource.editorialStatus).toBe("published");
+		expect(result.resource.sourcePublished).toBe(1);
+		expect(result.warnings.map((w) => w.field)).not.toContain("published");
+	});
+
+	it("published = 0 se importa como borrador", async () => {
+		const json = await loadFixture("es_2024052212_9181312");
+		const result = mapLegacyRecord({ ...json, published: 0 }, "fallback.elpx");
+
+		expect(result.blocking).toBe(false);
+		expect(result.resource.editorialStatus).toBe("draft");
+		expect(result.resource.sourcePublished).toBe(0);
+		expect(result.warnings.map((w) => w.field)).not.toContain("published");
+	});
+
+	it("published ausente o desconocido se importa como borrador y se avisa", async () => {
+		const json = await loadFixture("es_2024052212_9181312");
+		const { published: _published, ...withoutPublished } = json;
+		for (const record of [withoutPublished, { ...json, published: "x" }]) {
+			const result = mapLegacyRecord(record, "fallback.elpx");
+			expect(result.blocking).toBe(false);
+			expect(result.resource.editorialStatus).toBe("draft");
+			expect(
+				result.warnings.find((w) => w.field === "published")?.message,
+			).toContain("se importa como borrador");
+		}
 	});
 });

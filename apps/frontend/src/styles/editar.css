@@ -641,6 +641,30 @@
 	background: var(--color-surface-container-lowest);
 }
 
+/* «Eliminar recurso» (#393): rojo y separado del resto de acciones. */
+.edit-delete-btn {
+	margin-top: 0.75rem;
+	background: var(--color-error);
+	color: var(--color-on-error);
+}
+.edit-delete-btn:hover {
+	opacity: 0.9;
+}
+.edit-delete-btn:focus-visible {
+	outline: 2px solid var(--color-error);
+	outline-offset: 2px;
+}
+.edit-delete-btn:disabled {
+	opacity: 0.5;
+	cursor: not-allowed;
+}
+
+.edit-delete-error {
+	margin-top: 0.5rem;
+	font-size: 0.8125rem;
+	color: var(--color-error);
+}
+
 .edit-exe-btn:disabled {
 	opacity: 0.4;
 	cursor: not-allowed;

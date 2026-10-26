@@ -12,6 +12,7 @@ import type {
 } from "../../lib/api-client.ts";
 import { getApiClient } from "../../lib/get-api-client.ts";
 import { url } from "../../lib/paths.ts";
+import { resourceCardMedia } from "../../lib/resource-card-media.ts";
 import { formatDateLong } from "../../lib/shared-utils.ts";
 import "./PublicCollectionsIsland.css";
 
@@ -231,17 +232,20 @@ export function PublicCollectionsIsland() {
 					</div>
 					<div className="collection-resource-grid">
 						{detail.resources.map((resource) => {
+							const media = resourceCardMedia(resource);
 							return (
 								<a
 									key={resource.resourceId}
 									href={url(`recurso?slug=${resource.slug}`)}
 									className="collection-resource-card"
 								>
-									{resource.elpxPreview && (
-										<CollectionIframePreview
-											src={resource.elpxPreview.previewUrl}
-										/>
-									)}
+									{media.kind === "image" ? (
+										<div className="col-res-preview">
+											<img src={media.url} alt="" />
+										</div>
+									) : media.kind === "preview" ? (
+										<CollectionIframePreview src={media.url} />
+									) : null}
 									<p className="collection-resource-type">
 										{resource.resourceType}
 									</p>

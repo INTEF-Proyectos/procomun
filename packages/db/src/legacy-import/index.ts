@@ -1,4 +1,21 @@
-export { mapLegacyRecord, resolveLegacyExternalId } from "./field-mapper.ts";
+export type {
+	CategorizacionEducativaInforme,
+	EducationalImportResourceNote,
+	LegacyEducationalCategoryMapping,
+	LegacyEducationalCategoryRule,
+} from "./educational-category-map.ts";
+export {
+	assertLegacyCategoryDestinations,
+	LEGACY_EDUCATIONAL_CATEGORY_RULES,
+	mapLegacyEducationalCategories,
+	normalizeLegacyEducationalCategory,
+	summarizeLegacyEducationalImport,
+} from "./educational-category-map.ts";
+export {
+	IMPORT_SOURCE,
+	mapLegacyRecord,
+	resolveLegacyExternalId,
+} from "./field-mapper.ts";
 export type { LanguageNormalizationResult } from "./normalize-language.ts";
 export { normalizeLanguage } from "./normalize-language.ts";
 export type {
@@ -6,6 +23,11 @@ export type {
 	LicenseNormalizationResult,
 } from "./normalize-license.ts";
 export { normalizeLicense } from "./normalize-license.ts";
+export type {
+	LegacyEditorialStatus,
+	LegacyPublicationStatus,
+} from "./publication-status.ts";
+export { resolveLegacyPublicationStatus } from "./publication-status.ts";
 export type { ResourceTypeMappingResult } from "./resource-type-map.ts";
 export { mapResourceType } from "./resource-type-map.ts";
 export {

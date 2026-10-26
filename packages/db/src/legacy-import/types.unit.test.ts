@@ -38,6 +38,9 @@ describe("legacy-import types", () => {
 			publisher: null,
 			keywords: null,
 			importedAt: null,
+			previewImageUrl: null,
+			editorialStatus: "draft",
+			sourcePublished: null,
 		};
 		const result: MappingResult = {
 			externalId: "es_x",

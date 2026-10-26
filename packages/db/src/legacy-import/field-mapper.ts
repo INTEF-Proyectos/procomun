@@ -1,5 +1,6 @@
 import { normalizeLanguage } from "./normalize-language.ts";
 import { normalizeLicense } from "./normalize-license.ts";
+import { resolveLegacyPublicationStatus } from "./publication-status.ts";
 import { mapResourceType } from "./resource-type-map.ts";
 import type {
 	LegacyOdeJson,
@@ -18,7 +19,7 @@ const MAX_RESOURCE_TYPE_LENGTH = 100; // resources.resource_type varchar(100)
 const MAX_SUBJECT_LENGTH = 255; // resource_subjects.subject varchar(255)
 const MAX_LEVEL_LENGTH = 100; // resource_levels.level varchar(100)
 const MAX_KEYWORDS_LENGTH = 1000; // límite de aplicación en validateCreateResource
-const IMPORT_SOURCE = "legacy-procomun";
+export const IMPORT_SOURCE = "legacy-procomun";
 
 function firstNonEmpty(values: (string | null | undefined)[]): string {
 	for (const value of values) {
@@ -179,6 +180,38 @@ function parseImportedAt(json: LegacyOdeJson): Date | null {
 	return parseFechaRegistro(json.fechaRegistro);
 }
 
+const MAX_PREVIEW_URL_LENGTH = 2000;
+
+function mapPreviewImageUrl(raw: string | null | undefined): {
+	url: string | null;
+	warning: string | null;
+} {
+	const value = (raw ?? "").trim();
+	if (!value) return { url: null, warning: null };
+	if (value.length > MAX_PREVIEW_URL_LENGTH) {
+		return {
+			url: null,
+			warning: `preview supera ${MAX_PREVIEW_URL_LENGTH} caracteres y no se importa`,
+		};
+	}
+	let parsed: URL;
+	try {
+		parsed = new URL(value);
+	} catch {
+		return {
+			url: null,
+			warning: "preview no es una URL válida y no se importa",
+		};
+	}
+	if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
+		return {
+			url: null,
+			warning: "preview debe usar http o https y no se importa",
+		};
+	}
+	return { url: value, warning: null };
+}
+
 /**
  * Resuelve el identificador externo de un registro legacy (`idODE`, con
  * fallback a `id`). Se exporta para que el CLI pueda resolverlo de forma
@@ -324,6 +357,19 @@ export function mapLegacyRecord(
 		firstNonEmpty([json.rutaAccesoContenidos, json.technicalLocationStr]) ||
 		null;
 
+	const previewImage = mapPreviewImageUrl(json.preview);
+	if (previewImage.warning) {
+		warnings.push({ field: "preview", message: previewImage.warning });
+	}
+
+	const publication = resolveLegacyPublicationStatus(json.published);
+	if (!publication.recognized) {
+		warnings.push({
+			field: "published",
+			message: `Valor de published ausente o no reconocido (${JSON.stringify(json.published ?? null)}); se importa como borrador`,
+		});
+	}
+
 	const resource: MappedLegacyResource = {
 		externalId,
 		importSource: IMPORT_SOURCE,
@@ -339,6 +385,9 @@ export function mapLegacyRecord(
 		publisher,
 		keywords,
 		importedAt: parseImportedAt(json),
+		previewImageUrl: previewImage.url,
+		editorialStatus: publication.editorialStatus,
+		sourcePublished: publication.sourcePublished,
 	};
 
 	return {

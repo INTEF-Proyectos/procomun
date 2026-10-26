@@ -5,14 +5,17 @@ import path from "node:path";
 import {
 	getElpxProjectByResourceId,
 	listMediaItemsForResource,
+	listResources,
 } from "@procomun/db/repository";
-import { resources } from "@procomun/db/schema";
-import { eq } from "drizzle-orm";
+import { resourceEducationalAreas, resources } from "@procomun/db/schema";
+import { eq, inArray } from "drizzle-orm";
 import { Hono } from "hono";
 import { elpxContentRoutes } from "../../../api/src/routes/elpx-content.ts";
 import { computeFileSha256 } from "../../../api/src/uploads/config.ts";
 import {
 	loadImportLegacyProcomunDependencies,
+	runBackfillLegacyEducationalAreas,
+	runFixLegacyPublished,
 	runImportLegacyProcomun,
 } from "./import-legacy-procomun.ts";
 
@@ -233,6 +236,71 @@ describe("import:legacy-procomun (integración, PGlite en memoria vía test-setu
 		expect(report.totals.errored).toBe(0);
 	});
 
+	test("--backfill-categories clasifica lo ya importado: en seco no escribe y repetirlo no cambia nada", async () => {
+		const db = deps.getDb().db;
+		const externalIds = [
+			"1615293421477",
+			"es_2024052212_9181312",
+			"es_2025101012_9102834",
+		];
+		const ids: string[] = [];
+		for (const externalId of externalIds) {
+			const found = await deps.repo.findLegacyResourceByExternalId(
+				db,
+				"legacy-procomun",
+				externalId,
+			);
+			if (found) ids.push(found.id);
+		}
+		expect(ids).toHaveLength(3);
+		const areasOf = () =>
+			db
+				.select({
+					categoryId: resourceEducationalAreas.categoryId,
+					optionId: resourceEducationalAreas.optionId,
+				})
+				.from(resourceEducationalAreas)
+				.where(inArray(resourceEducationalAreas.resourceId, ids))
+				.orderBy(
+					resourceEducationalAreas.categoryId,
+					resourceEducationalAreas.optionId,
+				);
+		const fromImport = await areasOf();
+		expect(fromImport).toEqual([
+			{ categoryId: "educacion-secundaria-obligatoria", optionId: "eso-3-4" },
+			{ categoryId: "educacion-secundaria-obligatoria", optionId: null },
+			{ categoryId: "formacion-profesional", optionId: "grado-basico" },
+		]);
+		// Simula que se importaron antes de la correspondencia (#383).
+		await db
+			.delete(resourceEducationalAreas)
+			.where(inArray(resourceEducationalAreas.resourceId, ids));
+
+		const dry = await runBackfillLegacyEducationalAreas({ dryRun: true }, deps);
+		expect(dry.dryRun).toBe(true);
+		const ours = (report: typeof dry) =>
+			report.categorizacionEducativa.categoriasNoReconocidas.filter((row) =>
+				row.recursos.some((id) => externalIds.includes(id)),
+			);
+		expect(ours(dry)).toEqual([]);
+		expect(dry.totals.processed).toBeGreaterThanOrEqual(3);
+		expect(await areasOf()).toEqual([]);
+
+		const real = await runBackfillLegacyEducationalAreas(
+			{ dryRun: false },
+			deps,
+		);
+		expect(real.categorizacionEducativa).toEqual(dry.categorizacionEducativa);
+		expect(await areasOf()).toEqual(fromImport);
+
+		const again = await runBackfillLegacyEducationalAreas(
+			{ dryRun: false },
+			deps,
+		);
+		expect(again.totals.processed).toBe(real.totals.processed - 3);
+		expect(await areasOf()).toEqual(fromImport);
+	});
+
 	test("--only reprocesa un único externalId ya importado como omitido", async () => {
 		const report = await runImportLegacyProcomun(
 			{ sourceDir: FIXTURES_DIR, dryRun: false, only: "es_2024052212_9181312" },
@@ -442,5 +510,175 @@ describe("import:legacy-procomun — carrera real entre dos ejecuciones concurre
 			path.join(elpxProject.extractPath, "content.xml"),
 		).exists();
 		expect(contentXmlExists).toBe(true);
+	});
+});
+
+describe("import:legacy-procomun — estado de publicación del origen (issue #447)", () => {
+	let deps: Awaited<ReturnType<typeof loadImportLegacyProcomunDependencies>>;
+	let sourceDir: string;
+
+	beforeAll(async () => {
+		process.env.UPLOAD_STORAGE_DIR = await mkdtemp(
+			path.join(tmpdir(), "legacy-import-storage-published-"),
+		);
+		deps = await loadImportLegacyProcomunDependencies();
+
+		sourceDir = await mkdtemp(
+			path.join(tmpdir(), "legacy-import-published-source-"),
+		);
+		for (const [name, published] of [
+			["no-publicado", 0],
+			["sin-published", undefined],
+			["publicado", "1"],
+		] as const) {
+			await createMinimalElpx(
+				path.join(sourceDir, `${name}.elpx`),
+				`published-${name}`,
+			);
+			await writeFile(
+				path.join(sourceDir, `${name}.json`),
+				JSON.stringify({
+					idODE: `es_published_${name}`,
+					titleStr: `Recurso ${name}`,
+					descriptionStr: "Recurso para probar el campo published.",
+					generalLanguageStr: ["es"],
+					rightsCopyrightAndOtherRestrictionsStr:
+						"creative commons: attribution",
+					resourceType: ["documento"],
+					...(published === undefined ? {} : { published }),
+				}),
+			);
+		}
+	});
+
+	async function statusOf(externalId: string) {
+		const found = await deps.repo.findLegacyResourceByExternalId(
+			deps.getDb().db,
+			"legacy-procomun",
+			externalId,
+		);
+		if (!found) return null;
+		const [row] = await deps
+			.getDb()
+			.db.select({ editorialStatus: resources.editorialStatus })
+			.from(resources)
+			.where(eq(resources.id, found.id));
+		return { id: found.id, editorialStatus: row?.editorialStatus };
+	}
+
+	test("published: 0 y un valor ausente se importan como borrador, fuera del catálogo público, y el informe lo dice", async () => {
+		const report = await runImportLegacyProcomun(
+			{ sourceDir, dryRun: false },
+			deps,
+		);
+
+		expect(report.totals.imported).toBe(3);
+		expect(report.totals.importedAsDraft).toBe(2);
+		const byId = new Map(
+			report.records.map((record) => [record.externalId, record]),
+		);
+		expect(byId.get("es_published_no-publicado")).toMatchObject({
+			outcome: "imported",
+			editorialStatus: "draft",
+			sourcePublished: 0,
+		});
+		const absent = byId.get("es_published_sin-published");
+		expect(absent).toMatchObject({
+			outcome: "imported",
+			editorialStatus: "draft",
+			sourcePublished: null,
+		});
+		expect(
+			absent && "warnings" in absent
+				? absent.warnings.some((w) => w.startsWith("published:"))
+				: false,
+		).toBe(true);
+		expect(byId.get("es_published_publicado")).toMatchObject({
+			outcome: "imported",
+			editorialStatus: "published",
+			sourcePublished: "1",
+		});
+
+		expect((await statusOf("es_published_no-publicado"))?.editorialStatus).toBe(
+			"draft",
+		);
+		const listed = await listResources(deps.getDb().db, {
+			status: "published",
+			limit: 100,
+		});
+		const draftIds = [
+			(await statusOf("es_published_no-publicado"))?.id,
+			(await statusOf("es_published_sin-published"))?.id,
+		];
+		expect(listed.data.some((item) => draftIds.includes(item.id))).toBe(false);
+	});
+
+	test("--fix-published pasa a borrador lo importado como publicado sin revisión; en seco no escribe", async () => {
+		const db = deps.getDb().db;
+		// Simula lo importado antes del arreglo: todo como publicado, y uno ya
+		// revisado por un curator después de la importación.
+		const ids = await Promise.all(
+			["no-publicado", "sin-published"].map(async (name) => {
+				const found = await statusOf(`es_published_${name}`);
+				if (!found) throw new Error(`falta es_published_${name}`);
+				return found.id;
+			}),
+		);
+		await db
+			.update(resources)
+			.set({ editorialStatus: "published" })
+			.where(inArray(resources.id, ids));
+		await db
+			.update(resources)
+			.set({ curatedAt: new Date() })
+			.where(eq(resources.id, ids[1] as string));
+
+		const dry = await runFixLegacyPublished({ sourceDir, dryRun: true }, deps);
+		expect(dry.totals).toEqual({
+			processed: 3,
+			publishedAtSource: 1,
+			unpublished: 1,
+			reviewed: 1,
+			notPublished: 0,
+			notFound: 0,
+			errored: 0,
+		});
+		expect(dry.records).toContainEqual({
+			externalId: "es_published_no-publicado",
+			sourcePublished: 0,
+			outcome: "would_unpublish",
+			resourceId: ids[0] as string,
+		});
+		expect((await statusOf("es_published_no-publicado"))?.editorialStatus).toBe(
+			"published",
+		);
+
+		const real = await runFixLegacyPublished(
+			{ sourceDir, dryRun: false },
+			deps,
+		);
+		expect(real.totals.unpublished).toBe(1);
+		expect(real.records).toContainEqual({
+			externalId: "es_published_sin-published",
+			sourcePublished: null,
+			outcome: "reviewed",
+			resourceId: ids[1] as string,
+		});
+		expect((await statusOf("es_published_no-publicado"))?.editorialStatus).toBe(
+			"draft",
+		);
+		expect(
+			(await statusOf("es_published_sin-published"))?.editorialStatus,
+		).toBe("published");
+		expect((await statusOf("es_published_publicado"))?.editorialStatus).toBe(
+			"published",
+		);
+
+		const again = await runFixLegacyPublished(
+			{ sourceDir, dryRun: false },
+			deps,
+		);
+		expect(again.totals.unpublished).toBe(0);
+		expect(again.totals.notPublished).toBe(1);
 	});
 });

@@ -59,6 +59,24 @@ const EMBED_SHIM_PATH = path.join(
 );
 let embedShimCache: string | null = null;
 
+// Fachada genérica propia (ADR-0033, sección 2026-10-26): trata los <iframe>
+// https externos que el artefacto no reconoce (Canva, Padlet, Genially…). Se
+// inyecta DESPUÉS del artefacto y excluye sus proveedores y los PDF.
+const EMBED_FACADE_URL = "/api/v1/elpx/embed-facade.js";
+const EMBED_FACADE_TAG = `<script src="${EMBED_FACADE_URL}" crossorigin="anonymous"></script>`;
+const EMBED_FACADE_PATH = path.join(
+	import.meta.dir,
+	"../../static/elpx/embed-facade.js",
+);
+let embedFacadeCache: string | null = null;
+
+async function readEmbedFacade(): Promise<string> {
+	if (embedFacadeCache === null) {
+		embedFacadeCache = await Bun.file(EMBED_FACADE_PATH).text();
+	}
+	return embedFacadeCache;
+}
+
 async function readEmbedShim(): Promise<string> {
 	if (embedShimCache === null) {
 		embedShimCache = await Bun.file(EMBED_SHIM_PATH).text();
@@ -81,11 +99,13 @@ export function addCrossOriginToLocalScripts(html: string): string {
 	);
 }
 
+// Orden de carga: primero el artefacto de eXe y después la fachada genérica.
 function injectEmbedShim(html: string): string {
+	const tags = `${EMBED_SHIM_TAG}${EMBED_FACADE_TAG}`;
 	if (html.includes("</head>")) {
-		return html.replace("</head>", `${EMBED_SHIM_TAG}</head>`);
+		return html.replace("</head>", `${tags}</head>`);
 	}
-	return `${EMBED_SHIM_TAG}${html}`;
+	return `${tags}${html}`;
 }
 
 function sanitizePath(raw: string): string | null {
@@ -345,6 +365,19 @@ async function handleContent(c: Context) {
 elpxContentRoutes.get("/embed-shim.js", async () => {
 	const shim = await readEmbedShim();
 	return new Response(shim, {
+		headers: {
+			"Content-Type": "application/javascript; charset=utf-8",
+			"X-Content-Type-Options": "nosniff",
+			"Cache-Control": "public, max-age=3600",
+			"Access-Control-Allow-Origin": "*",
+		},
+	});
+});
+
+// Ruta estática de la fachada genérica; también antes de "/:hash".
+elpxContentRoutes.get("/embed-facade.js", async () => {
+	const facade = await readEmbedFacade();
+	return new Response(facade, {
 		headers: {
 			"Content-Type": "application/javascript; charset=utf-8",
 			"X-Content-Type-Options": "nosniff",

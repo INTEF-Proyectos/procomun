@@ -495,6 +495,32 @@ describe("elpxContentRoutes", () => {
 		expect(js).toContain("exe-embed");
 	});
 
+	it("inyecta la fachada genérica DESPUÉS del artefacto de eXe, dentro del <head> (ADR-0033)", async () => {
+		const res = await app.request(`/api/v1/elpx/${fakeHash}`);
+
+		expect(res.status).toBe(200);
+		const html = await res.text();
+		expect(html).toContain(
+			'<script src="/api/v1/elpx/embed-facade.js" crossorigin="anonymous"></script>',
+		);
+		const shimIndex = html.indexOf("/api/v1/elpx/embed-shim.js");
+		const facadeIndex = html.indexOf("/api/v1/elpx/embed-facade.js");
+		const headClose = html.indexOf("</head>");
+		expect(shimIndex).toBeGreaterThan(-1);
+		expect(facadeIndex).toBeGreaterThan(shimIndex);
+		expect(facadeIndex).toBeLessThan(headClose);
+	});
+
+	it("sirve la fachada genérica como JavaScript con CORS (ADR-0033)", async () => {
+		const res = await app.request("/api/v1/elpx/embed-facade.js");
+
+		expect(res.status).toBe(200);
+		expect(res.headers.get("Content-Type")).toContain("javascript");
+		expect(res.headers.get("X-Content-Type-Options")).toBe("nosniff");
+		expect(res.headers.get("Access-Control-Allow-Origin")).toBe("*");
+		expect(await res.text()).toContain("procomun-embed-facade");
+	});
+
 	it("sirve el contenido .elpx con CORS y crossorigin en scripts propios (ADR-0027)", async () => {
 		const res = await app.request(`/api/v1/elpx/${fakeHash}`);
 
