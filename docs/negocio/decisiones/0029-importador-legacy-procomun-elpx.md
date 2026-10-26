@@ -232,3 +232,12 @@ La regla vive en `resolveLegacyPublicationStatus` (`packages/db/src/legacy-impor
 * El catálogo, la búsqueda y la descarga (`/uploads/:id/content`) ya filtraban por `published`; no cambian.
 * La previsualización `/api/v1/elpx/<hash>/` sigue sin mirar el estado. El hash (SHA-256 del paquete) solo se obtiene por la ficha, que ya filtra; queda como riesgo abierto para un enlace guardado antes de despublicar.
 * Tests: `publication-status.unit.test.ts`, `field-mapper.unit.test.ts`, `repository.unit.test.ts` y la integración de `import-legacy-procomun.integration.test.ts` (rojo sin el cambio: `Expected: "draft"`, `Received: "published"`).
+
+## Actualización 2026-10-26 — la imagen `preview` se copia, no se enlaza (issue #409)
+
+Desde #425 el importador guardaba en `resources.thumbnail_url` la URL de `preview` tal cual (`https://ode.educacion.es/INTEF/<id>/vistaPreviaAgrega.png`), y las tarjetas la cargaban directamente de ese host. Así dependíamos de que el servidor antiguo siguiera en pie y cada visita a un listado avisaba a un tercero.
+
+* Durante la importación, la imagen se descarga y se guarda en `storageDir/thumbnails/<sha256>.<ext>`, servida en `/api/v1/thumbnails/<fichero>` con su tipo, `nosniff` y caché inmutable.
+* Solo se descarga de `ode.educacion.es`, también al seguir redirecciones (como mucho 3), con un límite de 2 MB y 15 s. El tipo se decide por los primeros bytes (PNG, JPEG, GIF o WebP), no por la cabecera ni la extensión: un HTML o un SVG nunca se guarda como miniatura.
+* Si no se puede copiar, el recurso entra sin miniatura y el informe lo avisa (`preview: no se copia la imagen …`). Nunca se guarda la URL remota.
+* `import:legacy-procomun --copy-previews [--dry-run]` hace lo mismo con lo ya importado. Los fallos definitivos (otro host, no es imagen, 404, tamaño) retiran la miniatura. Los pasajeros (red, 5xx, 429) la dejan para repetir el comando. El informe guarda la URL de origen de cada recurso.

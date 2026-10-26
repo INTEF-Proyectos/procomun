@@ -5,8 +5,13 @@ import {
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { EducationalClassificationEditor } from "../islands/resources/EducationalClassificationFields.tsx";
+import { KeywordCatalogField } from "../islands/resources/KeywordCatalogField.tsx";
 import { getResourceTypeOptions } from "../islands/resources/resource-form-options.ts";
-import type { Resource, SessionUser } from "../lib/api-client.ts";
+import type {
+	CatalogKeyword,
+	Resource,
+	SessionUser,
+} from "../lib/api-client.ts";
 import {
 	assignmentsToSelections,
 	type EducationalSelection,
@@ -14,6 +19,7 @@ import {
 } from "../lib/educational-classification.ts";
 import { getApiClient } from "../lib/get-api-client.ts";
 import { url } from "../lib/paths.ts";
+import { hasMinRole } from "../lib/shared-utils.ts";
 import { statusChangeFeedback } from "../lib/status-change-errors.ts";
 import {
 	DeleteResourceAction,
@@ -135,6 +141,7 @@ export default function EditarPage() {
 	const [resource, setResource] = useState<Resource | null>(null);
 	const [elpx, setElpx] = useState<ElpxProject>(null);
 	const [userRole, setUserRole] = useState("reader");
+	const [catalogKeywords, setCatalogKeywords] = useState<CatalogKeyword[]>([]);
 	const [sessionUser, setSessionUser] = useState<SessionUser | null>(null);
 	const [errorMsg, setErrorMsg] = useState("");
 	const [successMsg, setSuccessMsg] = useState("");
@@ -171,7 +178,6 @@ export default function EditarPage() {
 	const languageRef = useRef<HTMLSelectElement>(null);
 	const licenseRef = useRef<HTMLSelectElement>(null);
 	const resourceTypeRef = useRef<HTMLSelectElement>(null);
-	const keywordsRef = useRef<HTMLInputElement>(null);
 	const fileInputRef = useRef<HTMLInputElement>(null);
 	const dropzoneRef = useRef<HTMLElement>(null);
 	const uploadStatusRef = useRef<HTMLDivElement>(null);
@@ -358,6 +364,7 @@ export default function EditarPage() {
 				}
 
 				setResource(resourceData);
+				setCatalogKeywords(resourceData.catalogKeywords ?? []);
 				setEducationalSelections(
 					assignmentsToSelections(resourceData.educationalAreas),
 				);
@@ -449,7 +456,7 @@ export default function EditarPage() {
 			// Al crear el autor es obligatorio y uno existente no se puede borrar,
 			// pero un recurso antiguo sin autor se sigue guardando sin él.
 			author: isNew || resource.author || author.trim() ? author : undefined,
-			keywords: keywordsRef.current?.value || undefined,
+			keywordIds: catalogKeywords.map((keyword) => keyword.id),
 			educationalAreas: selectionsToAssignments(educationalSelections),
 		};
 		const validation = isNew
@@ -977,15 +984,11 @@ export default function EditarPage() {
 						/>
 
 						<div className="edit-field">
-							<label htmlFor="ed-keywords">
-								Palabras clave (separadas por comas)
-							</label>
-							<input
-								type="text"
+							<KeywordCatalogField
 								id="ed-keywords"
-								ref={keywordsRef}
-								defaultValue={res.keywords ?? ""}
-								placeholder="matemáticas, fracciones, visual"
+								selected={catalogKeywords}
+								onChange={setCatalogKeywords}
+								canCreate={hasMinRole(userRole, "curator")}
 							/>
 						</div>
 

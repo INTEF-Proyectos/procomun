@@ -93,10 +93,100 @@ async function createPublishedResource(
 	return body;
 }
 
+async function createResourceWithStatus(
+	app: ReturnType<typeof createSocialApp>,
+	suffix: string,
+	statuses: string[],
+) {
+	const res = await app.request("/api/admin/resources", {
+		method: "POST",
+		headers: { "Content-Type": "application/json" },
+		body: JSON.stringify({ ...validResource, title: `Social Test ${suffix}` }),
+	});
+	const body = (await res.json()) as { id: string; slug: string };
+	for (const status of statuses) {
+		const change = await app.request(`/api/admin/resources/${body.id}/status`, {
+			method: "PATCH",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({ status }),
+		});
+		expect(change.status).toBe(200);
+	}
+	return body;
+}
+
+function rate(
+	app: ReturnType<typeof createSocialApp>,
+	slug: string,
+	score = 4,
+) {
+	return app.request(`/api/v1/resources/${slug}/ratings`, {
+		method: "POST",
+		headers: { "Content-Type": "application/json" },
+		body: JSON.stringify({ score }),
+	});
+}
+
 // ---- Tests ----
 
 const adminApp = createSocialApp({ id: "1", role: "admin", name: "Admin" });
 const anonApp = createSocialApp(null);
+
+describe("Social — Valoraciones solo en publicados (#461)", () => {
+	test("un admin no puede valorar un borrador", async () => {
+		const { slug } = await createResourceWithStatus(adminApp, "461-draft", []);
+		const res = await rate(adminApp, slug);
+		expect(res.status).toBe(404);
+	});
+
+	test("no se puede valorar un recurso en revisión", async () => {
+		const { slug } = await createResourceWithStatus(adminApp, "461-review", [
+			"review",
+		]);
+		const res = await rate(adminApp, slug);
+		expect(res.status).toBe(404);
+	});
+
+	test("no se puede modificar la valoración de un recurso archivado", async () => {
+		const { id, slug } = await createResourceWithStatus(
+			adminApp,
+			"461-archived",
+			["review", "published"],
+		);
+		expect((await rate(adminApp, slug, 5)).status).toBe(200);
+		await adminApp.request(`/api/admin/resources/${id}/status`, {
+			method: "PATCH",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({ status: "archived" }),
+		});
+
+		expect((await rate(adminApp, slug, 1)).status).toBe(404);
+		const summary = await adminApp.request(`/api/v1/resources/${slug}/ratings`);
+		expect(summary.status).toBe(404);
+	});
+
+	test("las valoraciones se conservan al despublicar y vuelven al publicar", async () => {
+		const { id, slug } = await createResourceWithStatus(
+			adminApp,
+			"461-republish",
+			["review", "published"],
+		);
+		expect((await rate(adminApp, slug, 5)).status).toBe(200);
+		for (const status of ["archived", "draft", "review", "published"]) {
+			await adminApp.request(`/api/admin/resources/${id}/status`, {
+				method: "PATCH",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify({ status }),
+			});
+		}
+
+		const res = await adminApp.request(`/api/v1/resources/${slug}/ratings`);
+		expect(res.status).toBe(200);
+		const body = (await res.json()) as Record<string, unknown>;
+		expect(body.totalRatings).toBe(1);
+		expect(body.averageScore).toBe(5);
+	});
+});
 
 describe("Social — Ratings", () => {
 	test("GET /resources/:slug/ratings → empty ratings", async () => {
