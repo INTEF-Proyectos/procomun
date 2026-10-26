@@ -3147,6 +3147,23 @@ tasks:
       tocan, y los url() de un style conservan sus &quot;. Tres tests
       unitarios en elpx-content.unit.test.ts (rojo sin el cambio, verde con
       él).
+  T-2026-10-26-22221169:
+    date: 2026-10-26
+    agent: "frontend-ux-accesibilidad"
+    task: "Los formularios de los .elpx legacy recuperan sus datos de content.xml"
+    status: Done
+    related: ["#431", "#464"]
+    notes: >
+      Los .elpx del Procomún antiguo traen el HTML exportado sin
+      data-idevice-component-type ni data-idevice-json-data en sus iDevices
+      JSON (el exportador no tenía su config.xml y los trató como HTML), así
+      que el formulario de rellenar huecos solo enseña el htmlView. Al servir
+      el HTML se añaden esos atributos y data-idevice-template desde
+      jsonProperties de content.xml, como lo haría eXe, solo para tipos JSON
+      y solo si el div no los trae. Probado en Chromium con 1615293421477.elpx:
+      el formulario pasa de 0 a 13 campos. Tres tests en
+      elpx-content.unit.test.ts (rojo → verde). Deuda: no se traducen las
+      URL asset:// dentro de jsonProperties (solo {{context_path}}).
   T-2026-10-26-08183016:
     date: 2026-10-26
     agent: "ingestas-y-migraciones"

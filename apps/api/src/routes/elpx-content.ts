@@ -1,7 +1,9 @@
 import { randomUUID } from "node:crypto";
+import { readFileSync } from "node:fs";
 import { realpath } from "node:fs/promises";
 import path from "node:path";
 import * as repo from "@procomun/db/repository";
+import * as cheerio from "cheerio";
 import { type Context, Hono } from "hono";
 import { getDb } from "../db.ts";
 import { getUploadConfig } from "../uploads/config.ts";
@@ -166,6 +168,83 @@ function rewriteRelativeUrls(
 	);
 }
 
+// iDevices con <component-type>json en su config.xml de eXe (salvo text, que
+// se ve bien sin datos). Solo estos leen data-idevice-json-data.
+const JSON_IDEVICE_TYPES = new Set([
+	"adaptative-quiz",
+	"casestudy",
+	"digcompedu",
+	"example",
+	"file-attachment",
+	"form",
+	"image-gallery",
+	"lomloe",
+	"magnifier",
+	"markdown-text",
+	"scrambled-list",
+	"slide",
+	"three-d-viewer",
+	"three-sixty-viewer",
+	"trueorfalse",
+]);
+
+const IDEVICE_OPEN_TAG = /<div\b[^>]*\bclass="idevice_node\b[^>]*>/g;
+
+function escapeAttr(value: string): string {
+	return value
+		.replace(/&/g, "&amp;")
+		.replace(/"/g, "&quot;")
+		.replace(/</g, "&lt;")
+		.replace(/>/g, "&gt;");
+}
+
+function ideviceJsonById(contentXml: string): Map<string, string> {
+	const $ = cheerio.load(contentXml, { xml: true });
+	const byId = new Map<string, string>();
+	$("odeComponent").each((_i, el) => {
+		const component = $(el);
+		const id = component.children("odeIdeviceId").text().trim();
+		const json = component.children("jsonProperties").text().trim();
+		if (id && json) byId.set(id, json);
+	});
+	return byId;
+}
+
+// Los .elpx del Procomún antiguo traen el HTML exportado sin los datos de los
+// iDevices JSON (el exportador no tenía su config.xml y los trató como HTML),
+// así que eXe no monta, por ejemplo, los huecos de un formulario. Los datos
+// siguen en content.xml; se ponen en el div como lo haría eXe (#431).
+function restoreIdeviceJsonData(
+	html: string,
+	readContentXml: () => string | null,
+	currentFile: string,
+): string {
+	let byId: Map<string, string> | null = null;
+	const depth = currentFile.split("/").length - 1;
+	const rootPrefix = "../".repeat(depth);
+	return html.replace(IDEVICE_OPEN_TAG, (tag) => {
+		if (/\sdata-idevice-component-type\s*=/.test(tag)) return tag;
+		const type = tag.match(/\sdata-idevice-type="([^"]*)"/)?.[1];
+		const id = tag.match(/\sid="([^"]*)"/)?.[1];
+		if (!type || !id || !JSON_IDEVICE_TYPES.has(type)) return tag;
+		byId ??= ideviceJsonById(readContentXml() ?? "");
+		const raw = byId.get(id);
+		if (!raw) return tag;
+		try {
+			const data = JSON.parse(raw);
+			if (!data || typeof data !== "object" || Array.isArray(data)) return tag;
+		} catch {
+			return tag;
+		}
+		// eXe resuelve {{context_path}} al exportar, relativo a la página.
+		const json = raw.replace(
+			/\{\{context_path\}\}\/(content\/resources\/)?/g,
+			`${rootPrefix}content/resources/`,
+		);
+		return `${tag.slice(0, -1)} data-idevice-component-type="json" data-idevice-json-data="${escapeAttr(json)}" data-idevice-template="${type}.html">`;
+	});
+}
+
 // eXe vuelve a escapar un título que ya venía escapado (`&amp;Iacute;` se ve
 // como el texto `&Iacute;`). Se quita un solo `amp;` y solo cuando abre una
 // entidad completa. Un `&amp;` suelto se queda, y `&amp;lt;` pasa a `&lt;`,
@@ -276,7 +355,18 @@ export async function serveElpxExtractedContent(options: {
 	const mimeType = MIME_TYPES[ext] || "application/octet-stream";
 
 	if (ext === "html" || ext === "htm") {
-		const html = await Bun.file(fullPath).text();
+		// content.xml solo se lee si algún iDevice JSON viene sin sus datos.
+		const html = restoreIdeviceJsonData(
+			await Bun.file(fullPath).text(),
+			() => {
+				try {
+					return readFileSync(path.join(basePath, "content.xml"), "utf8");
+				} catch {
+					return null;
+				}
+			},
+			file,
+		);
 		let rewritten = injectEmbedShim(
 			rewriteRelativeUrls(html, options.rewriteBaseUrl, file),
 		);
