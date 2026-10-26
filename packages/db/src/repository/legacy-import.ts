@@ -347,3 +347,38 @@ export async function backfillLegacyEducationalAreas(
 	}
 	return [...byResource.values()];
 }
+
+/**
+ * Recursos legacy cuya miniatura sigue enlazada en caliente (#409): la
+ * importación anterior guardaba la URL de `preview` tal cual.
+ */
+export async function listLegacyRemoteThumbnails(
+	db: DrizzleDB,
+	importSource: string,
+) {
+	return db
+		.select({
+			id: resources.id,
+			externalId: resources.externalId,
+			thumbnailUrl: resources.thumbnailUrl,
+		})
+		.from(resources)
+		.where(
+			and(
+				eq(resources.importSource, importSource),
+				sql`${resources.thumbnailUrl} ~* '^https?://'`,
+			),
+		)
+		.orderBy(resources.externalId);
+}
+
+export async function setResourceThumbnailUrl(
+	db: DrizzleDB,
+	resourceId: string,
+	thumbnailUrl: string | null,
+) {
+	await db
+		.update(resources)
+		.set({ thumbnailUrl })
+		.where(eq(resources.id, resourceId));
+}

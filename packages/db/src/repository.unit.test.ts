@@ -26,12 +26,14 @@ import {
 	importLegacyResourceWithElpx,
 	listCollectionResources,
 	listCollections,
+	listLegacyRemoteThumbnails,
 	listMediaItemsForResource,
 	listResources,
 	listTaxonomies,
 	listUsers,
 	removeResourceFromCollection,
 	reorderCollectionResource,
+	setResourceThumbnailUrl,
 	softDeleteUser,
 	unpublishUnreviewedLegacyResource,
 	updateCollection,
@@ -849,6 +851,53 @@ describe("legacy import repository (epic-004-migracion-legacy-procomun)", () => 
 			);
 			expect(result).toEqual({ outcome: "not_found", resourceId: null });
 		});
+	});
+
+	// #409: relleno de las miniaturas legacy enlazadas en caliente.
+	test("lista solo las miniaturas legacy remotas y permite sustituirlas", async () => {
+		const remote = await importLegacyResourceWithElpx(db, {
+			resource: {
+				...baseResourceInput,
+				externalId: "es_remota",
+				previewImageUrl:
+					"https://ode.educacion.es/INTEF/es_remota/vistaPreviaAgrega.png",
+			},
+			elpx: { ...elpxInput, hash: "hash-remota" },
+			media: buildMediaInput(crypto.randomUUID()),
+		});
+		await importLegacyResourceWithElpx(db, {
+			resource: {
+				...baseResourceInput,
+				externalId: "es_local",
+				previewImageUrl: `/api/v1/thumbnails/${"a".repeat(64)}.png`,
+			},
+			elpx: { ...elpxInput, hash: "hash-local" },
+			media: buildMediaInput(crypto.randomUUID()),
+		});
+		await importLegacyResourceWithElpx(db, {
+			resource: { ...baseResourceInput, externalId: "es_sin_imagen" },
+			elpx: { ...elpxInput, hash: "hash-sin-imagen" },
+			media: buildMediaInput(crypto.randomUUID()),
+		});
+
+		expect(await listLegacyRemoteThumbnails(db, "legacy-procomun")).toEqual([
+			{
+				id: remote.resourceId,
+				externalId: "es_remota",
+				thumbnailUrl:
+					"https://ode.educacion.es/INTEF/es_remota/vistaPreviaAgrega.png",
+			},
+		]);
+
+		const local = `/api/v1/thumbnails/${"b".repeat(64)}.png`;
+		await setResourceThumbnailUrl(db, remote.resourceId, local);
+
+		expect(await listLegacyRemoteThumbnails(db, "legacy-procomun")).toEqual([]);
+		const [row] = await db
+			.select({ thumbnailUrl: schema.resources.thumbnailUrl })
+			.from(schema.resources)
+			.where(eq(schema.resources.id, remote.resourceId));
+		expect(row?.thumbnailUrl).toBe(local);
 	});
 
 	test("createdAt cae al instante de ejecución cuando no se pudo resolver una fecha de origen", async () => {
