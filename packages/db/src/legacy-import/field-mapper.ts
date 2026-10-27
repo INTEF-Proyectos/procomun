@@ -12,6 +12,7 @@ import type {
 const MAX_TITLE_LENGTH = 500;
 const MAX_DESCRIPTION_LENGTH = 5000;
 const MAX_AUTHOR_LENGTH = 500;
+const MAX_OTHER_AUTHORS_LENGTH = 1000; // límite de aplicación en validation.ts
 // Límites de columna/aplicación en el destino (ver packages/db/src/schema/resources.ts
 // y packages/db/src/validation.ts): un valor legacy más largo debe truncarse con
 // warning en vez de arriesgar un error de inserción en BD.
@@ -103,18 +104,67 @@ function buildKeywords(
  * lifecycleContributeStr contiene entradas tipo vCard, p.ej.:
  * "author##BEGIN:VCARD VERSION:3.0 FN: Nombre Apellido EMAIL;TYPE=INTERNET: ORG: ...END:VCARD##"
  * Se usa como último fallback para el autor cuando authorStr/publicatorNameStr
- * están vacíos.
+ * están vacíos. El exportador a veces pone en FN el email de la cuenta en vez
+ * de un nombre (#457); esos valores no son autores y se descartan.
  */
-function extractVcardAuthorName(
+function extractVcardAuthorNames(
 	entries: (string | null | undefined)[] | null | undefined,
-): string {
+): string[] {
+	const names: string[] = [];
 	for (const entry of entries ?? []) {
 		if (!entry?.startsWith("author##")) continue;
 		const match = entry.match(/FN:\s*([\s\S]*?)\s*EMAIL/);
 		const name = match?.[1]?.trim();
-		if (name) return name;
+		if (name && !isEmail(name)) names.push(name);
 	}
-	return "";
+	return names;
+}
+
+function isEmail(value: string): boolean {
+	return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim());
+}
+
+function authorKey(name: string): string {
+	return name.trim().replace(/\s+/g, " ").toLocaleLowerCase("es");
+}
+
+/**
+ * «Otros autores» (issue #417): todos los autores de authorStr y de las vCard
+ * de autor que no son el autor principal, sin repetir (sin distinguir
+ * mayúsculas ni espacios), unidos por comas. Corta antes de partir un nombre
+ * si se pasa del límite de la aplicación.
+ */
+function buildOtherAuthors(
+	candidates: string[],
+	mainAuthor: string | null,
+	max: number,
+): { otherAuthors: string | null; truncated: boolean } {
+	const seen = new Set<string>(mainAuthor ? [authorKey(mainAuthor)] : []);
+	const names: string[] = [];
+	for (const raw of candidates) {
+		const name = raw.trim().replace(/\s+/g, " ");
+		const key = authorKey(name);
+		if (!name || isEmail(name) || seen.has(key)) continue;
+		seen.add(key);
+		names.push(name);
+	}
+
+	let result = "";
+	let truncated = false;
+	for (const name of names) {
+		const candidate = result ? `${result}, ${name}` : name;
+		if (candidate.length > max) {
+			truncated = true;
+			break;
+		}
+		result = candidate;
+	}
+	if (!result && names.length > 0) {
+		result = truncate(names[0] ?? "", max);
+		truncated = true;
+	}
+
+	return { otherAuthors: result || null, truncated };
 }
 
 /**
@@ -302,11 +352,12 @@ export function mapLegacyRecord(
 		});
 	}
 
+	const vcardAuthors = extractVcardAuthorNames(json.lifecycleContributeStr);
 	const author =
 		firstNonEmpty([
 			...(json.authorStr ?? []),
 			json.publicatorNameStr,
-			extractVcardAuthorName(json.lifecycleContributeStr),
+			vcardAuthors[0],
 		]) || null;
 	if (author) {
 		const truncatedAuthor = truncate(author, MAX_AUTHOR_LENGTH);
@@ -316,6 +367,20 @@ export function mapLegacyRecord(
 				message: "Autor truncado a 500 caracteres",
 			});
 		}
+	}
+
+	const { otherAuthors, truncated: otherAuthorsTruncated } = buildOtherAuthors(
+		[...(json.authorStr ?? []), ...vcardAuthors].filter(
+			(name): name is string => typeof name === "string",
+		),
+		author,
+		MAX_OTHER_AUTHORS_LENGTH,
+	);
+	if (otherAuthorsTruncated) {
+		warnings.push({
+			field: "otherAuthors",
+			message: `Otros autores truncados a ${MAX_OTHER_AUTHORS_LENGTH} caracteres (alguno se omitió)`,
+		});
 	}
 
 	const publisher = (json.publicatorNameStr ?? "").trim() || null;
@@ -382,6 +447,7 @@ export function mapLegacyRecord(
 		subjects,
 		levels,
 		author: author ? truncate(author, MAX_AUTHOR_LENGTH) : null,
+		otherAuthors,
 		publisher,
 		keywords,
 		importedAt: parseImportedAt(json),

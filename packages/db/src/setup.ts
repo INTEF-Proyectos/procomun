@@ -192,6 +192,7 @@ export const SCHEMA_STATEMENTS = [
 		resource_type VARCHAR(100) NOT NULL,
 		keywords TEXT,
 		author TEXT,
+		other_authors TEXT,
 		publisher TEXT,
 		thumbnail_url TEXT,
 		duration INTEGER,
@@ -491,6 +492,10 @@ export const SCHEMA_STATEMENTS = [
 	END $$`,
 	// #473: sin idioma en origen no se asume "es" (migración 0016).
 	`ALTER TABLE "resources" ALTER COLUMN language DROP NOT NULL`,
+	`DO $$ BEGIN
+		ALTER TABLE "resources" ADD COLUMN other_authors TEXT;
+	EXCEPTION WHEN duplicate_column THEN NULL;
+	END $$`,
 	`DO $$ BEGIN
 		ALTER TABLE "resources" ADD CONSTRAINT resources_current_version_id_fk
 			FOREIGN KEY (current_version_id) REFERENCES resource_versions(id) ON DELETE SET NULL;

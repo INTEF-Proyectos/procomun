@@ -27,6 +27,8 @@ export type ResourceVersionSnapshot = {
 	resourceType: string;
 	keywords: string | null;
 	author: string | null;
+	/** Ausente en snapshots anteriores a «Otros autores» (#417). */
+	otherAuthors?: string | null;
 	publisher: string | null;
 	subjects: string[];
 	levels: string[];
@@ -55,6 +57,8 @@ export function parseVersionSnapshot(value: unknown): ResourceVersionSnapshot {
 		resourceType: toStringOrNull(raw.resourceType) ?? "",
 		keywords: toStringOrNull(raw.keywords),
 		author: toStringOrNull(raw.author),
+		otherAuthors:
+			"otherAuthors" in raw ? toStringOrNull(raw.otherAuthors) : undefined,
 		publisher: toStringOrNull(raw.publisher),
 		subjects: toStringArray(raw.subjects),
 		levels: toStringArray(raw.levels),
@@ -77,6 +81,7 @@ async function buildResourceSnapshot(
 			resourceType: resources.resourceType,
 			keywords: resources.keywords,
 			author: resources.author,
+			otherAuthors: resources.otherAuthors,
 			publisher: resources.publisher,
 		})
 		.from(resources)
@@ -287,6 +292,9 @@ export async function restoreResourceVersion(
 				resourceType: snapshot.resourceType,
 				keywords: snapshot.keywords,
 				author: snapshot.author,
+				...(snapshot.otherAuthors === undefined
+					? {}
+					: { otherAuthors: snapshot.otherAuthors }),
 				publisher: snapshot.publisher,
 				updatedAt: new Date(),
 			})

@@ -35,6 +35,7 @@ export const resources = pgTable(
 		resourceType: varchar("resource_type", { length: 100 }).notNull(),
 		keywords: text("keywords"),
 		author: text("author"),
+		otherAuthors: text("other_authors"),
 		publisher: text("publisher"),
 		thumbnailUrl: text("thumbnail_url"),
 		duration: integer("duration"),
