@@ -86,7 +86,7 @@ describe("runImportLegacyUsers", () => {
 		await rm(dir, { recursive: true, force: true });
 	});
 
-	test("importa los registros válidos, informa errores aislados y no migra contraseñas", async () => {
+	test("importa los registros válidos e informa errores aislados", async () => {
 		const sourceFile = path.join(dir, "usuarios.json");
 		await writeFile(
 			sourceFile,
@@ -118,17 +118,101 @@ describe("runImportLegacyUsers", () => {
 		expect(report.totals).toEqual({
 			found: 3,
 			processed: 3,
-			imported: 2,
+			imported: 1,
 			wouldImport: 0,
 			skippedExistingId: 0,
 			skippedExistingEmail: 0,
+			discardedBlocked: 1,
 			errored: 1,
+			withoutPassword: 1,
 		});
 		expect(report.records.map((record) => record.outcome)).toEqual([
 			"imported",
 			"error",
-			"imported",
+			"discarded_blocked",
 		]);
+	});
+
+	test("descarta los bloqueados (status 0) sin crearlos, también en dry-run", async () => {
+		const sourceFile = path.join(dir, "usuarios.json");
+		await writeFile(
+			sourceFile,
+			JSON.stringify([
+				{ uid: 20, mail: "bloq@example.test", roles: "-", status: 0 },
+				{ uid: 21, mail: "activa@example.test", roles: "-", status: 1 },
+			]),
+		);
+		for (const dryRun of [false, true]) {
+			const created: string[] = [];
+			const report = await runImportLegacyUsers(
+				{ sourceFile, dryRun },
+				buildDeps({
+					findLegacyUserImportConflict: async () => null,
+					importLegacyUser: async (_db, mapped) => {
+						created.push(mapped.legacyUid);
+						return { outcome: "imported", id: mapped.id };
+					},
+				}),
+			);
+			expect(created).toEqual(dryRun ? [] : ["21"]);
+			expect(report.totals.discardedBlocked).toBe(1);
+			expect(report.records[0]).toEqual({
+				outcome: "discarded_blocked",
+				legacyUid: "20",
+			});
+		}
+	});
+
+	test("lista en el informe los roles sin correspondencia, el rol asignado y lo completado", async () => {
+		const sourceFile = path.join(dir, "usuarios.json");
+		await writeFile(
+			sourceFile,
+			JSON.stringify([
+				{ uid: 10, mail: "org@example.test", roles: "Organization", status: 1 },
+				{
+					uid: 11,
+					mail: "org2@example.test",
+					roles: "Organization, publicador_certificado",
+					status: 1,
+				},
+				{ uid: 12, mail: "otro@example.test", roles: "rol_raro", status: 1 },
+				{ uid: 13, mail: "ya@example.test", roles: "-", status: 1 },
+			]),
+		);
+
+		const report = await runImportLegacyUsers(
+			{ sourceFile, dryRun: false },
+			buildDeps({
+				importLegacyUser: async (_db, mapped) =>
+					mapped.legacyUid === "13"
+						? {
+								outcome: "skipped_existing_id",
+								id: mapped.id,
+								completed: ["password"],
+							}
+						: { outcome: "imported", id: mapped.id },
+			}),
+		);
+
+		expect(report.unknownRoles).toEqual([
+			{ role: "Organization", count: 2, legacyUids: ["10", "11"] },
+			{ role: "rol_raro", count: 1, legacyUids: ["12"] },
+		]);
+		expect(report.records).toContainEqual(
+			expect.objectContaining({
+				outcome: "imported",
+				legacyUid: "11",
+				role: "editor",
+			}),
+		);
+		expect(report.records).toContainEqual({
+			outcome: "skipped_existing_id",
+			legacyUid: "13",
+			userId: "legacy-procomun:user:13",
+			completed: ["password"],
+		});
+		// El informe no lleva correos ni otros datos personales.
+		expect(JSON.stringify(report)).not.toContain("@example.test");
 	});
 
 	test("dry-run valida sin persistir y respeta --limit", async () => {

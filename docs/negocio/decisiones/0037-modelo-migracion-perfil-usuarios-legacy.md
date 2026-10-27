@@ -119,3 +119,46 @@ La política inicial es de alta única y no sobrescritura:
 4. Una actualización desde el origen solo podrá existir en una feature posterior, con consentimiento/base jurídica revisados, comparación por campo y una regla explícita limitada a valores que sigan teniendo procedencia de migración.
 
 Así el piloto implementará estas reglas cerradas, en lugar de decidirlas durante la ejecución. Cualquier política de sincronización posterior requerirá revisión de Producto, Seguridad/Privacidad y una nueva adenda o ADR.
+
+## Adenda de implementación — 2026-10-27 (issue #456)
+
+Con el JSON de prueba del exportador y la tabla de roles de la issue #456, Producto (INTEF) acordó qué se importa. Esta adenda recoge esas decisiones y lo que cambia respecto a la propuesta inicial; lo que no se menciona sigue como estaba.
+
+### Roles y estado
+
+| Rol de origen (`roles`) | Rol nuevo |
+|---|---|
+| `administrator`, `administrador` | `admin` |
+| `publicador_certificado` | `editor` |
+| `-`, vacío o sin rol, `bm_documentalista`, `gestor_de_odes` | `author` |
+| Cualquier otro (p. ej. `Organization`) | `author`, listado en el informe (`unknownRoles`) hasta que se defina |
+
+`roles` puede traer varios separados por coma; se queda el de más permisos (admin > editor > author). Ningún rol antiguo da `curator`. Los usuarios no registrados no tienen cuenta que importar.
+
+Los usuarios bloqueados (`status: 0`) no se exportan ni se importan. Si llega alguno, el importador lo descarta sin crear nada (tampoco al reimportar) y lo cuenta en el informe (`discardedBlocked`). En la issue se planteó primero importarlos bloqueados; Producto lo cambió el 27 de octubre.
+
+### Contraseñas
+
+Cambia la decisión inicial de no importar contraseñas. Se guarda el hash antiguo en la cuenta de credenciales (`account.password`) y se verifica en el inicio de sesión: bcrypt de PHP (`$2y$`, truncando a 72 bytes como PHP) y el formato de Drupal 7 (`$S$`, SHA-512 iterado). Tras un inicio de sesión correcto, el hash se sustituye por el formato de better-auth (scrypt). Así nadie tiene que recuperar la contraseña y los hashes antiguos desaparecen con el uso. Un hash en otro formato no se importa y la persona tendrá que recuperar la contraseña; el informe lo cuenta (`withoutPassword`). El hash nunca aparece en el informe ni en los avisos.
+
+### Datos que se importan
+
+- Nombre visible: `field_name_value` + `field_surname_value` + `field_surname_2_value`. Se guarda en `user.name`, como el nombre de cualquier otra cuenta. `name` suele ser el correo y no se usa (solo como respaldo si no lo es).
+- Perfil, en la tabla nueva `user_profile` (migración 0017), uno a uno con `user` y borrado en cascada: país (ISO 3166-1 alfa-2), localidad, centro educativo y su web, «sobre mí», web y redes (Facebook, LinkedIn, Twitter). Las URL se normalizan a http/https y las demás se descartan con aviso.
+- No se importan, por minimización: DNI, fecha de nacimiento, sexo, nivel de estudios, otros estudios, ocupación, zona horaria, provincia (`field_country_administrative_area`) ni descripción de organización.
+- La foto (`user_picture`) queda pendiente de que el exportador entregue los ficheros.
+
+`user_profile` no tiene todavía visibilidad por campo: ningún endpoint lo expone, así que es privado. El «sobre mí» antiguo va a `user_profile.about` y no a `user.bio`, que sí se muestra en el perfil público. Cuando haya una pantalla de perfil que publique estos datos, tendrá que añadir la visibilidad por campo que propone esta ADR.
+
+### Reimportación
+
+Se mantiene la política de alta única y no sobrescritura, con el ID `legacy-procomun:user:<uid>`. Reimportar no cambia nombre, rol, estado, contraseña ni perfil de una cuenta existente. Solo añade lo que falte: la cuenta de credenciales si no hay ninguna (no sustituye una contraseña recuperada) y el perfil si no existe. Esto completa las cuentas creadas por la primera versión del importador (#309). Una cuenta nativa con el mismo correo no se toca.
+
+### Pendiente
+
+- El identificador real de una persona en el Procomún anterior es su correo. Los ODE ya traen `publicatorEmailStr`, así que el enlace recurso ↔ propietario irá por correo en otra entrega; el ID `legacy-procomun:user:<uid>` se mantiene.
+- Las fotos llegarán como rutas `sites/default/files/...` que se descargarán de `https://procomun.intef.es/`.
+
+- Procedencia por campo y reversión por `migration_batch_id`: no se implementan en esta entrega. El informe por lote sigue sin datos personales.
+- Enlazar ODE, artículos e itinerarios con su propietario y descargar las fotos de perfil.
+- Si alguna base ya se cargó con la versión anterior del importador, los usuarios que entraron como `editor` sin serlo no se corrigen al reimportar; hay que revisarlos a mano.

@@ -41,5 +41,10 @@ export type {
 	MappingResult,
 	MappingWarning,
 } from "./types.ts";
-export type { LegacyUserJson, MappedLegacyUser } from "./users.ts";
-export { mapLegacyUser } from "./users.ts";
+export type {
+	LegacyUserJson,
+	LegacyUserProfile,
+	LegacyUserRole,
+	MappedLegacyUser,
+} from "./users.ts";
+export { mapLegacyRoles, mapLegacyUser } from "./users.ts";

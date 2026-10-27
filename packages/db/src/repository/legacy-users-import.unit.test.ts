@@ -21,14 +21,35 @@ describe("importLegacyUser", () => {
 		await pglite.close();
 	});
 
-	test("crea una cuenta sin credenciales y la segunda ejecución se omite", async () => {
-		const mapped = mapLegacyUser({
+	const DRUPAL7 = "$S$E6rSBHqMIJwP/yOyG9ctZ0MoaC6ml0ahKsvSQ0lbnRLYBOYSB2Qv";
+
+	function fullLegacy(overrides: Record<string, unknown> = {}) {
+		return mapLegacyUser({
 			uid: 1,
-			name: "Usuaria legacy",
+			name: "legacy@example.test",
+			pass: DRUPAL7,
 			mail: "legacy@example.test",
-			roles: "-",
+			roles: "publicador_certificado",
 			status: 1,
+			field_name_value: "Usuaria",
+			field_surname_value: "Legacy",
+			field_country_country_code: "ES",
+			field_country_locality: "Burgos",
+			field_educative_center_value: "CEIP Ejemplo",
+			field_sobre_mi_value: "Sobre mí",
+			field_website_value: "https://legacy.example",
+			...overrides,
 		});
+	}
+
+	async function credentialAccounts(userId: string) {
+		return (await db.select().from(schema.account)).filter(
+			(row) => row.userId === userId && row.providerId === "credential",
+		);
+	}
+
+	test("crea la cuenta con nombre, rol, hash antiguo y perfil; la segunda ejecución se omite", async () => {
+		const mapped = fullLegacy();
 
 		expect(await importLegacyUser(db, mapped)).toEqual({
 			outcome: "imported",
@@ -38,6 +59,128 @@ describe("importLegacyUser", () => {
 			outcome: "skipped_existing_id",
 			id: "legacy-procomun:user:1",
 		});
+
+		const [row] = await db.select().from(schema.user);
+		expect(row).toMatchObject({
+			id: "legacy-procomun:user:1",
+			email: "legacy@example.test",
+			name: "Usuaria Legacy",
+			role: "editor",
+			isActive: true,
+			banned: false,
+		});
+
+		const accounts = await credentialAccounts("legacy-procomun:user:1");
+		expect(accounts).toHaveLength(1);
+		expect(accounts[0]).toMatchObject({
+			id: "legacy-procomun:account:1",
+			accountId: "legacy-procomun:user:1",
+			password: DRUPAL7,
+		});
+
+		const profiles = await db.select().from(schema.userProfile);
+		expect(profiles).toHaveLength(1);
+		expect(profiles[0]).toMatchObject({
+			userId: "legacy-procomun:user:1",
+			countryCode: "ES",
+			locality: "Burgos",
+			educationalCenter: "CEIP Ejemplo",
+			about: "Sobre mí",
+			website: "https://legacy.example/",
+		});
+	});
+
+	test("los bloqueados (status 0) no se crean, tampoco al reimportar", async () => {
+		const blocked = fullLegacy({ status: 0 });
+		for (let run = 0; run < 2; run++) {
+			await expect(importLegacyUser(db, blocked)).rejects.toThrow("bloqueado");
+		}
+		expect(await db.select().from(schema.user)).toHaveLength(0);
+		expect(await db.select().from(schema.account)).toHaveLength(0);
+		expect(await db.select().from(schema.userProfile)).toHaveLength(0);
+	});
+
+	test("sin hash admitido no crea cuenta de credenciales", async () => {
+		await importLegacyUser(db, fullLegacy({ pass: null }));
+		expect(await credentialAccounts("legacy-procomun:user:1")).toHaveLength(0);
+	});
+
+	test("al reimportar no pisa cambios hechos después en la cuenta, la contraseña ni el perfil", async () => {
+		await importLegacyUser(db, fullLegacy());
+		await db
+			.update(schema.user)
+			.set({ name: "Nombre editado", role: "curator", isActive: false });
+		await db.update(schema.account).set({ password: "salt:nuevo-hash" });
+		await db.update(schema.userProfile).set({ locality: "Valladolid" });
+
+		const again = fullLegacy({
+			field_name_value: "Otro",
+			status: 1,
+			roles: "administrator",
+			field_country_locality: "León",
+		});
+		expect(await importLegacyUser(db, again)).toEqual({
+			outcome: "skipped_existing_id",
+			id: "legacy-procomun:user:1",
+		});
+
+		const [row] = await db.select().from(schema.user);
+		expect(row).toMatchObject({
+			name: "Nombre editado",
+			role: "curator",
+			isActive: false,
+		});
+		const accounts = await credentialAccounts("legacy-procomun:user:1");
+		expect(accounts.map((account) => account.password)).toEqual([
+			"salt:nuevo-hash",
+		]);
+		const [profile] = await db.select().from(schema.userProfile);
+		expect(profile?.locality).toBe("Valladolid");
+	});
+
+	test("completa perfil y contraseña de usuarios importados con la versión anterior del importador", async () => {
+		// La versión de #309 creaba solo la cuenta, sin credenciales ni perfil.
+		await db.insert(schema.user).values({
+			id: "legacy-procomun:user:1",
+			email: "legacy@example.test",
+			name: "legacy@example.test",
+			role: "editor",
+			isActive: true,
+		});
+
+		expect(await importLegacyUser(db, fullLegacy())).toEqual({
+			outcome: "skipped_existing_id",
+			id: "legacy-procomun:user:1",
+			completed: ["password", "profile"],
+		});
+		expect(await credentialAccounts("legacy-procomun:user:1")).toHaveLength(1);
+		expect(await db.select().from(schema.userProfile)).toHaveLength(1);
+	});
+
+	test("no añade el hash antiguo si la persona ya tiene otra contraseña", async () => {
+		await db.insert(schema.user).values({
+			id: "legacy-procomun:user:1",
+			email: "legacy@example.test",
+			role: "author",
+		});
+		await db.insert(schema.account).values({
+			id: "acc-reset",
+			userId: "legacy-procomun:user:1",
+			accountId: "legacy-procomun:user:1",
+			providerId: "credential",
+			password: "salt:recuperada",
+		});
+
+		const result = await importLegacyUser(db, fullLegacy());
+		expect(result).toEqual({
+			outcome: "skipped_existing_id",
+			id: "legacy-procomun:user:1",
+			completed: ["profile"],
+		});
+		const accounts = await credentialAccounts("legacy-procomun:user:1");
+		expect(accounts.map((account) => account.password)).toEqual([
+			"salt:recuperada",
+		]);
 	});
 
 	test("no reemplaza una cuenta existente que comparte email", async () => {

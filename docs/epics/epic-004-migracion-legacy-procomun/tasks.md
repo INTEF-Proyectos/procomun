@@ -96,3 +96,16 @@ Los JSON/`.elpx` de `ode-export/` contienen datos personales reales (nombres y e
 - [x] Tests de mapeo, repositorio e integración; ADR-0029 y README actualizados.
 - [ ] Ejecutar `--fix-published --dry-run` sobre el directorio de exportación real, revisar el informe y lanzar la corrección.
 - [ ] Valorar si la previsualización por hash debe comprobar el estado del recurso.
+
+## Importador de usuarios — 2026-10-27 (issue #456)
+
+- [x] Roles según la tabla de la issue (varios separados por coma: gana el de más permisos; desconocidos como `author` y listados en `unknownRoles` del informe). Nunca `curator`.
+- [x] Los bloqueados (`status: 0`) se descartan sin crearlos y se cuentan en el informe (`discardedBlocked`).
+- [x] Nombre visible con nombre y apellidos; `name` (correo) no se muestra.
+- [x] Perfil en `user_profile` (migración 0017): país, localidad, centro y su web, «sobre mí», web y redes. Sin DNI, nacimiento, sexo, estudios ni ocupación.
+- [x] Hash antiguo (`$2y$`, `$S$`) verificado en el login y sustituido por scrypt tras entrar. Tests con vectores generados con PHP e integración con better-auth.
+- [x] Reimportación sin sobrescritura; completa contraseña y perfil de cuentas creadas por la primera versión (#309).
+- [x] Adenda de ADR-0037.
+- [ ] Enlazar ODE, artículos e itinerarios con su propietario por correo (`publicatorEmailStr` en los ODE).
+- [ ] Fotos de perfil (`sites/default/files/...`, descargadas de https://procomun.intef.es/).
+- [ ] Visibilidad por campo de `user_profile` cuando haya una pantalla que lo publique.

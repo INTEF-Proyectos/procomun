@@ -10,6 +10,10 @@ import {
 	resolveEmailVerificationConfig,
 } from "../email/transport.ts";
 import { AUTH_DEFAULT_COOKIE_ATTRIBUTES } from "./cookie-config.ts";
+import {
+	legacyAwarePasswordOptions,
+	upgradeLegacyPasswordHash,
+} from "./legacy-password.ts";
 import { ac, admin, author, curator, editor, reader } from "./permissions.ts";
 import { getAuthBaseUrl, getFrontendUrl } from "./urls.ts";
 
@@ -51,6 +55,27 @@ export const auth = betterAuth({
 	},
 	hooks: {
 		after: createAuthMiddleware(async (ctx) => {
+			// Usuarios importados del Procomún anterior (issue #456): tras entrar
+			// con la contraseña de siempre, su hash antiguo pasa al formato nuevo.
+			const newSession = ctx.context.newSession;
+			if (ctx.path === "/sign-in/email" && newSession) {
+				const password = (ctx.body as { password?: unknown } | undefined)
+					?.password;
+				if (typeof password === "string") {
+					try {
+						await upgradeLegacyPasswordHash(ctx.context.internalAdapter, {
+							userId: newSession.user.id,
+							password,
+						});
+					} catch (error) {
+						// El inicio de sesión ya es válido; se reintentará en el siguiente.
+						ctx.context.logger.error(
+							"No se pudo actualizar el hash de una contraseña heredada",
+							error,
+						);
+					}
+				}
+			}
 			if (ctx.path === "/sign-out") {
 				const session = ctx.context.session;
 				if (session?.session) {
@@ -69,6 +94,7 @@ export const auth = betterAuth({
 		enabled: true,
 		minPasswordLength: 8,
 		requireEmailVerification: emailVerificationConfig.enabled,
+		password: legacyAwarePasswordOptions,
 	},
 	session: {
 		expiresIn: 60 * 60 * 24 * 7,

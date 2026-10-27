@@ -1,6 +1,9 @@
 /**
- * Importa el JSON de usuarios generado por el exportador legacy de Procomún.
- * No migra hashes Drupal ni asociaciones con recursos.
+ * Importa el JSON de usuarios generado por el exportador legacy de Procomún
+ * (issue #456): cuenta, rol, hash de contraseña antiguo (se cambia al formato
+ * nuevo en el primer inicio de sesión) y perfil. Los bloqueados (`status: 0`)
+ * se descartan y se cuentan en el informe. No enlaza todavía los
+ * recursos con su propietario ni importa fotos.
  */
 import { mkdir } from "node:fs/promises";
 import path from "node:path";
@@ -33,15 +36,23 @@ type RecordOutcome =
 			outcome: "imported";
 			legacyUid: string;
 			userId: string;
+			role: MappedLegacyUser["role"];
 			warnings: string[];
 	  }
 	| {
 			outcome: "would_import";
 			legacyUid: string;
 			userId: string;
+			role: MappedLegacyUser["role"];
 			warnings: string[];
 	  }
-	| { outcome: "skipped_existing_id"; legacyUid: string; userId: string }
+	| { outcome: "discarded_blocked"; legacyUid: string }
+	| {
+			outcome: "skipped_existing_id";
+			legacyUid: string;
+			userId: string;
+			completed?: Array<"password" | "profile">;
+	  }
 	| { outcome: "skipped_existing_email"; legacyUid: string; userId: string }
 	| { outcome: "error"; index: number; message: string };
 
@@ -58,8 +69,14 @@ export interface ImportLegacyUsersReport {
 		wouldImport: number;
 		skippedExistingId: number;
 		skippedExistingEmail: number;
+		/** Usuarios con `status: 0`: no se importan. */
+		discardedBlocked: number;
 		errored: number;
+		/** Cuentas nuevas sin hash admitido: tendrán que recuperar la contraseña. */
+		withoutPassword: number;
 	};
+	/** Roles del origen sin correspondencia (entran como author). */
+	unknownRoles: Array<{ role: string; count: number; legacyUids: string[] }>;
 	records: RecordOutcome[];
 }
 
@@ -138,8 +155,16 @@ export async function runImportLegacyUsersCommand(
 		console.log(
 			`[import:legacy-users] Completado. ${options.dryRun ? "(dry-run) " : ""}` +
 				`${options.dryRun ? "importables" : "importados"}=${options.dryRun ? report.totals.wouldImport : report.totals.imported} ` +
-				`omitidos_id=${report.totals.skippedExistingId} omitidos_email=${report.totals.skippedExistingEmail} errores=${report.totals.errored}`,
+				`omitidos_id=${report.totals.skippedExistingId} omitidos_email=${report.totals.skippedExistingEmail} errores=${report.totals.errored} ` +
+				`bloqueados_descartados=${report.totals.discardedBlocked} sin_contraseña=${report.totals.withoutPassword}`,
 		);
+		if (report.unknownRoles.length > 0) {
+			console.log(
+				`[import:legacy-users] Roles sin correspondencia (entran como author): ${report.unknownRoles
+					.map((entry) => `${entry.role} (${entry.count})`)
+					.join(", ")}`,
+			);
+		}
 		return report.totals.errored > 0 ? 1 : 0;
 	} finally {
 		await closeCliDb(deps.getDb().db);
@@ -164,6 +189,9 @@ export async function runImportLegacyUsers(
 	let skippedExistingId = 0;
 	let skippedExistingEmail = 0;
 	let errored = 0;
+	let discardedBlocked = 0;
+	let withoutPassword = 0;
+	const unknownRoles = new Map<string, string[]>();
 	const plannedIds = new Map<string, string>();
 	const plannedEmails = new Map<string, string>();
 	const users = raw.slice(0, options.limit) as LegacyUserJson[];
@@ -172,6 +200,23 @@ export async function runImportLegacyUsers(
 		try {
 			const mapped = deps.mapLegacyUser(legacy);
 			const warnings = warningMessages(mapped);
+			if (mapped.blocked) {
+				discardedBlocked++;
+				records.push({
+					outcome: "discarded_blocked",
+					legacyUid: mapped.legacyUid,
+				});
+				continue;
+			}
+			const counted = () => {
+				if (!mapped.passwordHash) withoutPassword++;
+				for (const role of mapped.unknownRoles) {
+					unknownRoles.set(role, [
+						...(unknownRoles.get(role) ?? []),
+						mapped.legacyUid,
+					]);
+				}
+			};
 			if (options.dryRun) {
 				const existing = await deps.findLegacyUserImportConflict(db, mapped);
 				const plannedById = plannedIds.get(mapped.id);
@@ -208,10 +253,12 @@ export async function runImportLegacyUsers(
 				plannedIds.set(mapped.id, mapped.id);
 				plannedEmails.set(mapped.email.toLowerCase(), mapped.id);
 				wouldImport++;
+				counted();
 				records.push({
 					outcome: "would_import",
 					legacyUid: mapped.legacyUid,
 					userId: mapped.id,
+					role: mapped.role,
 					warnings,
 				});
 				continue;
@@ -220,10 +267,12 @@ export async function runImportLegacyUsers(
 			const result = await deps.importLegacyUser(db, mapped);
 			if (result.outcome === "imported") {
 				imported++;
+				counted();
 				records.push({
 					outcome: "imported",
 					legacyUid: mapped.legacyUid,
 					userId: result.id,
+					role: mapped.role,
 					warnings,
 				});
 			} else if (result.outcome === "skipped_existing_id") {
@@ -232,6 +281,7 @@ export async function runImportLegacyUsers(
 					outcome: result.outcome,
 					legacyUid: mapped.legacyUid,
 					userId: result.id,
+					...(result.completed ? { completed: result.completed } : {}),
 				});
 			} else {
 				skippedExistingEmail++;
@@ -262,8 +312,15 @@ export async function runImportLegacyUsers(
 			wouldImport,
 			skippedExistingId,
 			skippedExistingEmail,
+			discardedBlocked,
 			errored,
+			withoutPassword,
 		},
+		unknownRoles: [...unknownRoles].map(([role, legacyUids]) => ({
+			role,
+			count: legacyUids.length,
+			legacyUids,
+		})),
 		records,
 	};
 }

@@ -489,6 +489,21 @@ export const SCHEMA_STATEMENTS = [
 		ALTER TABLE "resources" ADD COLUMN thumbnail_url TEXT;
 	EXCEPTION WHEN duplicate_column THEN NULL;
 	END $$`,
+	// Perfil migrado del Procomún anterior (issue #456, migración 0017)
+	`CREATE TABLE IF NOT EXISTS "user_profile" (
+		user_id TEXT PRIMARY KEY REFERENCES "user"(id) ON DELETE CASCADE,
+		country_code VARCHAR(2),
+		locality TEXT,
+		educational_center TEXT,
+		educational_center_url TEXT,
+		about TEXT,
+		website TEXT,
+		facebook TEXT,
+		linkedin TEXT,
+		twitter TEXT,
+		created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+		updated_at TIMESTAMP NOT NULL DEFAULT NOW()
+	)`,
 	`DO $$ BEGIN
 		ALTER TABLE "resources" ADD CONSTRAINT resources_current_version_id_fk
 			FOREIGN KEY (current_version_id) REFERENCES resource_versions(id) ON DELETE SET NULL;

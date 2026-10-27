@@ -257,7 +257,9 @@ describe("migración 0011_keyword_catalog", () => {
 			(item) => item.tag === "0011_keyword_catalog",
 		);
 		expect(entry?.idx).toBe(9);
-		const others = journal.entries.filter((item) => item !== entry);
+		const others = journal.entries.filter(
+			(item) => item.idx < (entry?.idx ?? 0),
+		);
 		expect(Math.max(...others.map((item) => item.when))).toBeLessThan(
 			entry?.when ?? 0,
 		);
@@ -300,6 +302,45 @@ describe("migración 0011_keyword_catalog", () => {
 					"INSERT INTO tags (id, slug, label, catalog) VALUES ('x', 'x', 'GEOMETRIA', true)",
 				),
 			).rejects.toThrow();
+		} finally {
+			await db.close();
+		}
+	});
+});
+
+// Issue #456: perfil migrado del Procomún anterior. Los PR abiertos usan
+// 0012–0016 con `when` hasta 1792900000000; 0017 va detrás de todos.
+describe("migración 0017_user_profile", () => {
+	test("va la última en el journal y detrás de las 0012–0016 en curso", async () => {
+		const journal = JSON.parse(
+			await readFile(path.join(migrationsDir, "meta/_journal.json"), "utf8"),
+		) as { entries: Array<{ tag: string; when: number }> };
+		const entry = journal.entries.find(
+			(item) => item.tag === "0017_user_profile",
+		);
+		expect(entry).toBeDefined();
+		expect(entry?.when).toBe(
+			Math.max(...journal.entries.map((item) => item.when)),
+		);
+		expect(entry?.when ?? 0).toBeGreaterThan(1792900000000);
+	});
+
+	test("es idempotente y el perfil se borra con el usuario", async () => {
+		const migration = (
+			await readFile(path.join(migrationsDir, "0017_user_profile.sql"), "utf8")
+		).replaceAll("--> statement-breakpoint", "");
+		const db = new PGlite();
+		try {
+			await db.exec('CREATE TABLE "user" (id text PRIMARY KEY)');
+			await db.exec(migration);
+			await db.exec(migration);
+			await db.exec(`INSERT INTO "user" (id) VALUES ('u1')`);
+			await db.exec(
+				`INSERT INTO "user_profile" (user_id, country_code, locality) VALUES ('u1', 'ES', 'Burgos')`,
+			);
+			await db.exec(`DELETE FROM "user" WHERE id = 'u1'`);
+			const rows = await db.query('SELECT * FROM "user_profile"');
+			expect(rows.rows).toHaveLength(0);
 		} finally {
 			await db.close();
 		}
