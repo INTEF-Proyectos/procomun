@@ -59,6 +59,27 @@ function isStringArray(v: unknown): v is string[] {
 	return Array.isArray(v) && v.every((i) => typeof i === "string");
 }
 
+export const MAX_OTHER_AUTHORS_LENGTH = 1000;
+
+// «Otros autores» (issue #417): texto libre opcional; vacío equivale a no tenerlo.
+function validateOtherAuthors(value: unknown): ValidationError[] {
+	if (value === undefined || value === null) return [];
+	if (typeof value !== "string") {
+		return [
+			{ field: "otherAuthors", message: "Los otros autores deben ser texto" },
+		];
+	}
+	if (value.length > MAX_OTHER_AUTHORS_LENGTH) {
+		return [
+			{
+				field: "otherAuthors",
+				message: `Los otros autores no pueden superar ${MAX_OTHER_AUTHORS_LENGTH} caracteres`,
+			},
+		];
+	}
+	return [];
+}
+
 export function validateCreateResource(body: unknown): ValidationResult {
 	const errors: ValidationError[] = [];
 	if (!body || typeof body !== "object") {
@@ -131,6 +152,8 @@ export function validateCreateResource(body: unknown): ValidationResult {
 			message: "El autor no puede superar 500 caracteres",
 		});
 	}
+
+	errors.push(...validateOtherAuthors(b.otherAuthors));
 
 	if (b.keywords !== undefined && typeof b.keywords !== "string") {
 		errors.push({
@@ -223,6 +246,7 @@ export function validateUpdateResource(body: unknown): ValidationResult {
 		"license",
 		"resourceType",
 		"author",
+		"otherAuthors",
 		"keywords",
 		"publisher",
 		"keywordIds",
@@ -323,6 +347,8 @@ export function validateUpdateResource(body: unknown): ValidationResult {
 			});
 		}
 	}
+
+	errors.push(...validateOtherAuthors(b.otherAuthors));
 
 	if (b.educationalAreas !== undefined) {
 		errors.push(...validateEducationalAssignments(b.educationalAreas));
