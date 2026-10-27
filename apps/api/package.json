@@ -15,7 +15,7 @@
 		"@tus/server": "2.4.5",
 		"better-auth": "1.7.7",
 		"cheerio": "^1.2.0",
-		"drizzle-orm": "0.45.3",
+		"drizzle-orm": "0.45.4",
 		"feed": "^6.0.0",
 		"hono": "4.13.11",
 		"mammoth": "^1.13.0",
