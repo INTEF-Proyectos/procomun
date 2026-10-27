@@ -3203,3 +3203,49 @@ tasks:
       /related de un borrador ajeno con sesión de curator (404). Queda abierto
       en #433: un borrador ajeno incluido en una colección aparece en
       GET /api/admin/collections/:id/resources.
+
+  T-2026-10-22-11391630:
+    date: 2026-10-22
+    agent: "backend-api-servicios"
+    task: "Campo «Otros autores» en el recurso"
+    status: Done
+    related: ["#417"]
+    notes: >
+      Nuevo campo resources.other_authors (migración 0011): texto libre
+      opcional, máximo 1000 caracteres, vacío se guarda como null. Va en el
+      alta (/nuevo), la edición, la API de publicación, el snapshot de
+      versiones (un snapshot antiguo sin el campo conserva el valor actual) y
+      una fila en Detalles técnicos que solo aparece si tiene contenido. El
+      importador legacy lo rellena con los autores de authorStr y de las vCard
+      de autor que no son el principal, sin repetir.
+
+  T-2026-10-26-07182732:
+    date: 2026-10-26
+    agent: "ingestas-y-migraciones"
+    task: "Otros autores: descartar emails de las vCard (revisión del PR #457)"
+    status: Done
+    related: ["#417", "#457"]
+    notes: >
+      En la prueba de Jacobo con es_2026101512_9083504, «Otros autores» mostraba
+      cedec@educacion.gob.es: el exportador pone el email de la cuenta en el FN
+      de la vCard. El mapper ya no toma un email como autor, ni en «Otros
+      autores» ni como autor principal de reserva. Dos tests nuevos con esa
+      forma real (rojo sin el cambio, verde con él). Se integró main (#447,
+      #393); el conflicto en repository.unit.test.ts conserva los tests de las
+      dos ramas.
+
+  T-2026-10-26-22071585:
+    date: 2026-10-26
+    agent: "frontend-ux-accesibilidad"
+    task: "Ficha sin cuenta: publicador bajo el título y autores debajo (revisión del PR #457)"
+    status: Done
+    related: ["#417", "#457"]
+    notes: >
+      Acordado en la revisión: si el recurso no tiene cuenta (importados), bajo
+      el título va el publicador («CEDEC INTEF») y la lista de autores debajo.
+      Con cuenta no cambia; sin publicador se muestran los autores como antes.
+      Tres tests en CatalogIslands.unit.test.tsx (el de sin cuenta, rojo antes
+      del cambio). Se integró main (#384 catálogo de palabras clave, #409, #452,
+      #461): la migración de «Otros autores» pasa a 0012 detrás de
+      0011_keyword_catalog, y alta/edición envían otherAuthors junto a
+      keywordIds.

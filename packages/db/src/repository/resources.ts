@@ -60,6 +60,7 @@ type ResourceMutationInput = {
 	resourceType: string;
 	keywords?: string;
 	author?: string;
+	otherAuthors?: string;
 	publisher?: string;
 	subjects?: string[];
 	levels?: string[];
@@ -82,6 +83,7 @@ const resourceBaseSelection = {
 	resourceType: resources.resourceType,
 	keywords: resources.keywords,
 	author: resources.author,
+	otherAuthors: resources.otherAuthors,
 	publisher: resources.publisher,
 	thumbnailUrl: resources.thumbnailUrl,
 	createdBy: resources.createdBy,
@@ -288,6 +290,13 @@ export async function getResourceBySlug(db: DrizzleDB, slug: string) {
 	};
 }
 
+// «Otros autores» es opcional: un texto vacío o solo con espacios se guarda
+// como null para que la ficha no muestre la fila (issue #417).
+function emptyToNull(value: string | undefined): string | null {
+	const trimmed = value?.trim();
+	return trimmed ? trimmed : null;
+}
+
 export async function createResource(
 	db: DrizzleDB,
 	data: ResourceMutationInput,
@@ -314,6 +323,7 @@ export async function createResource(
 		resourceType: data.resourceType,
 		keywords: data.keywords ?? null,
 		author: data.author ?? null,
+		otherAuthors: emptyToNull(data.otherAuthors),
 		publisher: data.publisher ?? null,
 		createdBy: data.createdBy ?? null,
 		editorialStatus: data.editorialStatus ?? "draft",
@@ -362,6 +372,7 @@ const EDITABLE_RESOURCE_FIELDS = [
 	"resourceType",
 	"keywords",
 	"author",
+	"otherAuthors",
 	"publisher",
 ] as const;
 
@@ -420,7 +431,13 @@ export async function updateResource(
 	await db.transaction(async (tx: DrizzleDB) => {
 		await tx
 			.update(resources)
-			.set({ ...safe, updatedAt: new Date() })
+			.set({
+				...safe,
+				...("otherAuthors" in safe
+					? { otherAuthors: emptyToNull(safe.otherAuthors) }
+					: {}),
+				updatedAt: new Date(),
+			})
 			.where(and(eq(resources.id, id), isNull(resources.deletedAt)));
 		if (educationalAreas) {
 			await replaceResourceEducationalAreas(tx, id, educationalAreas);
