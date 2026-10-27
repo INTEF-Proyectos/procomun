@@ -107,6 +107,21 @@ describe("API Resources — con autenticación", () => {
 		expect((await getRes.json()).author).toBe("Autora del recurso");
 	});
 
+	test("POST /api/v1/publish/resources conserva otherAuthors (issue #417)", async () => {
+		const createRes = await app.request("/api/v1/publish/resources", {
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({
+				...validResource,
+				otherAuthors: "Luis Gómez, Marta Ruiz",
+			}),
+		});
+		expect(createRes.status).toBe(201);
+		const { id } = await createRes.json();
+		const getRes = await app.request(`/api/v1/publish/resources/${id}`);
+		expect((await getRes.json()).otherAuthors).toBe("Luis Gómez, Marta Ruiz");
+	});
+
 	test("POST /api/v1/publish/resources → 400 sin JSON", async () => {
 		const res = await app.request("/api/v1/publish/resources", {
 			method: "POST",
