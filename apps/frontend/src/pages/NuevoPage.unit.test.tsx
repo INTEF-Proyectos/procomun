@@ -1,5 +1,9 @@
 import { describe, expect, test } from "bun:test";
-import { applyElpxMetadataToForm } from "./NuevoPage.tsx";
+import { validateCreateResource } from "@procomun/db/validation";
+import {
+	applyElpxMetadataToForm,
+	buildCreateResourceBody,
+} from "./NuevoPage.tsx";
 
 describe("NuevoPage helpers", () => {
 	test("applyElpxMetadataToForm precarga los campos extraidos del .elpx", () => {
@@ -8,6 +12,7 @@ describe("NuevoPage helpers", () => {
 				title: "",
 				description: "",
 				author: "",
+				otherAuthors: "",
 				language: "es",
 				license: "cc-by",
 				resourceType: "documento",
@@ -25,6 +30,7 @@ describe("NuevoPage helpers", () => {
 			title: "Proyecto eXe",
 			description: "Secuencia didactica de prueba",
 			author: "Equipo docente",
+			otherAuthors: "",
 			language: "en",
 			license: "cc0",
 			resourceType: "actividad-interactiva",
@@ -37,6 +43,7 @@ describe("NuevoPage helpers", () => {
 				title: "Titulo manual",
 				description: "Descripcion manual",
 				author: "Autor manual",
+				otherAuthors: "Coautora manual",
 				language: "gl",
 				license: "cc-by-sa",
 				resourceType: "documento",
@@ -48,6 +55,7 @@ describe("NuevoPage helpers", () => {
 			title: "Titulo manual",
 			description: "Descripcion manual",
 			author: "Autor manual",
+			otherAuthors: "Coautora manual",
 			language: "gl",
 			license: "cc-by-sa",
 			resourceType: "actividad-interactiva",
@@ -60,6 +68,7 @@ describe("NuevoPage helpers", () => {
 				title: "",
 				description: "",
 				author: "",
+				otherAuthors: "",
 				language: "es",
 				license: "cc-by",
 				resourceType: "documento",
@@ -74,9 +83,31 @@ describe("NuevoPage helpers", () => {
 			title: "",
 			description: "",
 			author: "",
+			otherAuthors: "",
 			language: "es",
 			license: "cc-by",
 			resourceType: "actividad-interactiva",
 		});
+	});
+
+	test("buildCreateResourceBody envía «Otros autores» solo si tiene contenido (#417)", () => {
+		const form = {
+			title: "Recurso",
+			description: "Descripción",
+			author: "Ana Pérez",
+			otherAuthors: " Luis Gómez, Marta Ruiz ",
+			language: "es",
+			license: "cc-by",
+			resourceType: "documento",
+		};
+
+		const body = buildCreateResourceBody(form, []);
+		expect(body.otherAuthors).toBe("Luis Gómez, Marta Ruiz");
+		expect(validateCreateResource(body).valid).toBe(true);
+
+		expect(
+			buildCreateResourceBody({ ...form, otherAuthors: "   " }, [])
+				.otherAuthors,
+		).toBeUndefined();
 	});
 });
