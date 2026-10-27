@@ -192,6 +192,7 @@ export const SCHEMA_STATEMENTS = [
 		resource_type VARCHAR(100) NOT NULL,
 		keywords TEXT,
 		author TEXT,
+		other_authors TEXT,
 		publisher TEXT,
 		thumbnail_url TEXT,
 		duration INTEGER,
@@ -488,6 +489,10 @@ export const SCHEMA_STATEMENTS = [
 	END $$`,
 	`DO $$ BEGIN
 		ALTER TABLE "resources" ADD COLUMN thumbnail_url TEXT;
+	EXCEPTION WHEN duplicate_column THEN NULL;
+	END $$`,
+	`DO $$ BEGIN
+		ALTER TABLE "resources" ADD COLUMN other_authors TEXT;
 	EXCEPTION WHEN duplicate_column THEN NULL;
 	END $$`,
 	`DO $$ BEGIN

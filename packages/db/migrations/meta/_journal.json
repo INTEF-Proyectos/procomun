@@ -75,6 +75,13 @@
 		{
 			"idx": 10,
 			"version": "7",
+			"when": 1792650000000,
+			"tag": "0012_resource_other_authors",
+			"breakpoints": true
+		},
+		{
+			"idx": 11,
+			"version": "7",
 			"when": 1792800000000,
 			"tag": "0015_elpx_has_screenshot",
 			"breakpoints": true
