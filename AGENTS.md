@@ -193,3 +193,11 @@ Tras completar una feature:
 14. **Validación ESTRICTA con Testing.** Ningún agente puede marcar una tarea de código como "Completada" basándose en suposición. La validación requiere obligatoriamente: crear un test automatizado (TypeScript) y ejecutar `bun test` hasta que la salida sea exitosa.
 15. **Estructura del Código.** El código fuente nunca va en la raíz. Solo puede crearse en las carpetas `apps/` o `packages/` designadas.
 16. **Paridad archivo-test obligatoria.** Todo nuevo archivo `.ts` de código productivo debe crearse junto con al menos un archivo de test asociado aceptado por `scripts/check-test-files.ts`, usando una de estas convenciones: `.unit.test.ts`, `.integration.test.ts` o `.test.ts`. Ningún agente debe dejar archivos `.ts` nuevos sin su pareja de test en la misma pasada.
+
+## Notas prácticas
+
+- `bun run check-types`: compila Paraglide y comprueba los tipos; pásalo además de `bun test`. Un campo nuevo en un tipo rompe los fixtures (#453).
+- Migraciones en `packages/db/migrations/NNNN_*.sql`: antes de elegir el número, revisa los PR abiertos, porque varios pueden coger el mismo. El que se mezcla después se renumera.
+- `ci.yml` solo se ejecuta en PR contra `main` o `develop`: un PR apilado no tiene CI hasta que se le cambia la base.
+- `apps/cli/src/index.ts` registra todos los comandos y da conflictos entre PR paralelos.
+- Todo lo público (commits, PR, issues y comentarios) va en español.
