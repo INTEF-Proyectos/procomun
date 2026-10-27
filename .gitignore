@@ -68,3 +68,5 @@ apps/frontend/public/api/v1/elpx/
 .claude/
 .cursor/
 .grok/
+.playwright-mcp/
+CLAUDE.local.md
