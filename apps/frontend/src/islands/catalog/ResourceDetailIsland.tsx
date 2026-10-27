@@ -305,8 +305,13 @@ export function ResourceDetailContent({
 	const updatedDate = resourceDate(resource.updatedAt);
 	const currentUserId = session?.user?.id ?? null;
 	const canEdit = !!session?.user && canManageResource(session.user, resource);
-	const authorName =
-		resource.createdByName || resource.author || m.detail_unknown_author();
+	// Sin cuenta (p. ej. importados) va primero el publicador y la lista de
+	// autores debajo (#457); con cuenta, la cuenta y el publicador debajo.
+	const publisherFirst = !resource.createdByName && !!resource.publisher;
+	const authorName = publisherFirst
+		? (resource.publisher as string)
+		: resource.createdByName || resource.author || m.detail_unknown_author();
+	const authorRole = publisherFirst ? resource.author : resource.publisher;
 	const authorInitial = authorName.charAt(0).toUpperCase();
 	// Se derivan los valores, no solo los booleanos: un `hasPreview: boolean` no
 	// permite a TypeScript estrechar `resource.elpxPreview` en los usos, y menos
@@ -508,8 +513,8 @@ export function ResourceDetailContent({
 						<div className="detail-author-avatar">{authorInitial}</div>
 						<div>
 							<p className="detail-author-name">{authorName}</p>
-							{resource.publisher ? (
-								<p className="detail-author-role">{resource.publisher}</p>
+							{authorRole ? (
+								<p className="detail-author-role">{authorRole}</p>
 							) : null}
 						</div>
 					</div>
@@ -759,6 +764,20 @@ export function ResourceDetailContent({
 											<p className="meta-row-value">
 												{resource.subjects.join(", ")}
 											</p>
+										</div>
+									</div>
+								) : null}
+
+								{resource.otherAuthors?.trim() ? (
+									<div className="meta-row">
+										<div className="meta-row-icon">
+											<span className="material-symbols-outlined">group</span>
+										</div>
+										<div>
+											<p className="meta-row-label">
+												{m.detail_other_authors()}
+											</p>
+											<p className="meta-row-value">{resource.otherAuthors}</p>
 										</div>
 									</div>
 								) : null}
