@@ -109,3 +109,10 @@ Los JSON/`.elpx` de `ode-export/` contienen datos personales reales (nombres y e
 - [ ] Enlazar ODE, artículos e itinerarios con su propietario por correo (`publicatorEmailStr` en los ODE).
 - [ ] Fotos de perfil (`sites/default/files/...`, descargadas de https://procomun.intef.es/).
 - [ ] Visibilidad por campo de `user_profile` cuando haya una pantalla que lo publique.
+
+### Estado «bloqueado» — 2026-10-27 (issue #456, cambio de requisito)
+
+- [x] Los status 0 se importan bloqueados (sustituye al descarte); reimportar no cambia el estado.
+- [x] «Bloqueado» único: `is_active = false` + `banned`; cierra sesiones, rechaza tokens y el inicio de sesión (403 `BANNED_USER`).
+- [x] «Bloquear/Desbloquear» en la administración; no se puede bloquear la propia cuenta.
+- [x] Mensaje de cuenta bloqueada en la pantalla de acceso en los cinco idiomas.

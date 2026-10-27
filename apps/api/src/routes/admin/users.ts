@@ -157,6 +157,9 @@ userRoutes.patch("/:id", async (c) => {
 			updates.role = body.role;
 		if (typeof body.isActive === "boolean") updates.isActive = body.isActive;
 	}
+	if (updates.isActive === false && id === currentUser.id) {
+		return c.json({ error: "No puedes bloquear tu propia cuenta" }, 400);
+	}
 
 	await repo.updateUser(getDb().db, id, updates);
 

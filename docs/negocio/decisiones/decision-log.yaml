@@ -256,6 +256,9 @@ ADR-0037:
     Adenda 2026-10-27 (issue #456): tabla de roles, descarte de status 0, hash
     antiguo verificado y rehecho en el primer login, nombre visible y tabla
     user_profile (migración 0017) con los campos acordados.
+    Adenda posterior del mismo día: los status 0 se importan bloqueados y
+    «bloqueado» pasa a ser un solo estado (is_active = false + banned) que la
+    administración pone y quita.
 
 ADR-0039:
   title: "Versionado mínimo de recursos: historial ELPX automático y proyección vigente"

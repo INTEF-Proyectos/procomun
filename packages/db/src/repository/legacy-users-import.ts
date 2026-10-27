@@ -16,6 +16,9 @@ export type LegacyUserImportResult =
 	  }
 	| { outcome: "skipped_existing_email"; id: string };
 
+/** Motivo que se guarda al importar bloqueada una cuenta con `status: 0`. */
+export const LEGACY_BLOCKED_REASON = "Cuenta bloqueada en el Procomún anterior";
+
 export type LegacyUserImportConflict =
 	| { outcome: "skipped_existing_id"; id: string }
 	| { outcome: "skipped_existing_email"; id: string };
@@ -108,17 +111,13 @@ async function addLegacyProfile(
  * nombre, rol, estado, contraseña ni perfil de una cuenta existente: solo
  * añade lo que falte (cuentas creadas por la primera versión del importador,
  * #309, sin contraseña ni perfil). Una cuenta que ya existía con el mismo
- * correo no se toca. Los bloqueados (`status: 0`) no se importan.
+ * correo no se toca. Los bloqueados (`status: 0`) se crean bloqueados, con
+ * el mismo estado que pone la administración; reimportar no cambia el estado.
  */
 export async function importLegacyUser(
 	db: DrizzleDB,
 	mapped: MappedLegacyUser,
 ): Promise<LegacyUserImportResult> {
-	if (mapped.blocked) {
-		throw new Error(
-			`El usuario legacy ${mapped.legacyUid} está bloqueado y no se importa`,
-		);
-	}
 	const existing = await findLegacyUserImportConflict(db, mapped);
 	if (existing?.outcome === "skipped_existing_email") return existing;
 	if (existing) return completeExistingLegacyUser(db, mapped, existing.id);
@@ -133,7 +132,9 @@ export async function importLegacyUser(
 				emailVerified: false,
 				name: mapped.name,
 				role: mapped.role,
-				isActive: true,
+				isActive: !mapped.blocked,
+				banned: mapped.blocked,
+				banReason: mapped.blocked ? LEGACY_BLOCKED_REASON : null,
 				createdAt: now,
 				updatedAt: now,
 			})

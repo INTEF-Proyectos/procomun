@@ -1,8 +1,9 @@
 import * as pgSchema from "@procomun/db/schema";
 import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
-import { createAuthMiddleware } from "better-auth/api";
+import { APIError, createAuthMiddleware } from "better-auth/api";
 import { admin as adminPlugin, genericOAuth } from "better-auth/plugins";
+import { eq } from "drizzle-orm";
 import { logActivity } from "../activity/log.ts";
 import { getDb } from "../db.ts";
 import {
@@ -20,6 +21,10 @@ import { getAuthBaseUrl, getFrontendUrl } from "./urls.ts";
 const frontendUrl = getFrontendUrl();
 const oidcEnabled = process.env.OIDC_ENABLED === "true";
 const emailVerificationConfig = resolveEmailVerificationConfig(process.env);
+
+/** Mensaje al intentar entrar con una cuenta bloqueada (#456). */
+export const BLOCKED_USER_MESSAGE =
+	"Tu cuenta está bloqueada. Si crees que es un error, contacta con la administración de Procomún.";
 
 export const auth = betterAuth({
 	baseURL: getAuthBaseUrl(),
@@ -42,6 +47,22 @@ export const auth = betterAuth({
 		},
 		session: {
 			create: {
+				// Una cuenta bloqueada no inicia sesión (#456). El plugin admin ya
+				// lo impide con `banned`; esto cubre también las que solo tienen
+				// is_active = false (desactivadas antes de unificar el estado).
+				before: async (session) => {
+					const rows = await getDb()
+						.db.select({ isActive: pgSchema.user.isActive })
+						.from(pgSchema.user)
+						.where(eq(pgSchema.user.id, session.userId))
+						.limit(1);
+					if (rows[0]?.isActive === false) {
+						throw APIError.from("FORBIDDEN", {
+							message: BLOCKED_USER_MESSAGE,
+							code: "BANNED_USER",
+						});
+					}
+				},
 				after: async (session) => {
 					await logActivity({
 						userId: session.userId,
@@ -111,6 +132,7 @@ export const auth = betterAuth({
 				reader,
 			},
 			defaultRole: "author",
+			bannedUserMessage: BLOCKED_USER_MESSAGE,
 		}),
 		...(oidcEnabled
 			? [

@@ -232,6 +232,7 @@
 	"auth_submit": "Sign in",
 	"auth_submitting": "Signing in...",
 	"auth_bad_credentials": "Invalid credentials",
+	"auth_account_blocked": "Your account is blocked. If you think this is a mistake, contact the Procomún administrators.",
 	"auth_connection_error": "Server connection error",
 	"auth_separator": "or",
 	"auth_oidc": "Sign in with institutional account",

@@ -118,22 +118,22 @@ describe("runImportLegacyUsers", () => {
 		expect(report.totals).toEqual({
 			found: 3,
 			processed: 3,
-			imported: 1,
+			imported: 2,
 			wouldImport: 0,
 			skippedExistingId: 0,
 			skippedExistingEmail: 0,
-			discardedBlocked: 1,
 			errored: 1,
-			withoutPassword: 1,
+			importedBlocked: 1,
+			withoutPassword: 2,
 		});
 		expect(report.records.map((record) => record.outcome)).toEqual([
 			"imported",
 			"error",
-			"discarded_blocked",
+			"imported",
 		]);
 	});
 
-	test("descarta los bloqueados (status 0) sin crearlos, también en dry-run", async () => {
+	test("importa bloqueados los status 0 y los cuenta, también en dry-run", async () => {
 		const sourceFile = path.join(dir, "usuarios.json");
 		await writeFile(
 			sourceFile,
@@ -154,12 +154,14 @@ describe("runImportLegacyUsers", () => {
 					},
 				}),
 			);
-			expect(created).toEqual(dryRun ? [] : ["21"]);
-			expect(report.totals.discardedBlocked).toBe(1);
-			expect(report.records[0]).toEqual({
-				outcome: "discarded_blocked",
+			expect(created).toEqual(dryRun ? [] : ["20", "21"]);
+			expect(report.totals.importedBlocked).toBe(1);
+			expect(report.records[0]).toMatchObject({
+				outcome: dryRun ? "would_import" : "imported",
 				legacyUid: "20",
+				blocked: true,
 			});
+			expect(report.records[1]).toMatchObject({ blocked: false });
 		}
 	});
 

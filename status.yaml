@@ -3237,3 +3237,18 @@ tasks:
       Tests: mapeo, repositorio, migración, CLI e integración de login real
       con better-auth. Pendiente: propietario de ODE/artículos e itinerarios
       (por correo, publicatorEmailStr) y fotos.
+
+  T-2026-10-27-11285588:
+    date: 2026-10-27
+    agent: "backend-api-servicios"
+    task: "Estado «bloqueado» de las cuentas e importación de bloqueados"
+    status: Done
+    related: ["#456", "#488", "ADR-0037"]
+    notes: >
+      Cambio de requisito: los status 0 se importan bloqueados y reimportar
+      no cambia el estado. «Bloqueado» pasa a ser un solo estado
+      (is_active = false + banned, setUserBlocked): al bloquear se cierran
+      las sesiones, se rechazan login (403 BANNED_USER) y tokens, y los
+      recursos publicados siguen visibles. La administración muestra
+      «Bloquear/Desbloquear» y no deja bloquear la propia cuenta. Tests de
+      repositorio, integración con better-auth y cliente HTTP.

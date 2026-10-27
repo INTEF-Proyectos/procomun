@@ -35,6 +35,7 @@ import {
 	removeResourceFromCollection,
 	reorderCollectionResource,
 	setResourceThumbnailUrl,
+	setUserBlocked,
 	softDeleteUser,
 	unpublishUnreviewedLegacyResource,
 	updateCollection,
@@ -476,6 +477,97 @@ describe("repository — gestión de usuarios (alta y baja)", () => {
 		// El listado de administración también debe exponer la bio.
 		const list = await listUsers(db, { id: "u-bio" });
 		expect(list.data[0]?.bio).toBe("Profesora de matemáticas");
+	});
+
+	async function sessionsOf(userId: string) {
+		return (await db.select().from(schema.session)).filter(
+			(s) => s.userId === userId,
+		);
+	}
+
+	test("bloquear marca la cuenta, la banea en better-auth y cierra sus sesiones (#456)", async () => {
+		await ensureUser(db, {
+			id: "u-bloq",
+			email: "bloq@example.com",
+			name: "Bloq",
+			role: "author",
+		});
+		await db.insert(schema.session).values({
+			id: "sess-bloq",
+			userId: "u-bloq",
+			token: "token-bloq",
+			expiresAt: new Date(Date.now() + 86_400_000),
+		});
+
+		await setUserBlocked(db, "u-bloq", true);
+
+		const [blocked] = await db
+			.select()
+			.from(schema.user)
+			.where(eq(schema.user.id, "u-bloq"));
+		expect(blocked?.isActive).toBeFalse();
+		expect(blocked?.banned).toBeTrue();
+		expect(blocked?.banExpires).toBeNull();
+		expect(await sessionsOf("u-bloq")).toHaveLength(0);
+
+		await setUserBlocked(db, "u-bloq", false);
+		const [unblocked] = await db
+			.select()
+			.from(schema.user)
+			.where(eq(schema.user.id, "u-bloq"));
+		expect(unblocked?.isActive).toBeTrue();
+		expect(unblocked?.banned).toBeFalse();
+		expect(unblocked?.banReason).toBeNull();
+	});
+
+	test("updateUser con isActive bloquea y desbloquea con el mismo mecanismo", async () => {
+		await ensureUser(db, {
+			id: "u-upd",
+			email: "upd@example.com",
+			name: "Upd",
+			role: "author",
+		});
+		await db.insert(schema.session).values({
+			id: "sess-upd",
+			userId: "u-upd",
+			token: "token-upd",
+			expiresAt: new Date(Date.now() + 86_400_000),
+		});
+
+		await updateUser(db, "u-upd", { isActive: false });
+		let [row] = await db
+			.select()
+			.from(schema.user)
+			.where(eq(schema.user.id, "u-upd"));
+		expect(row?.banned).toBeTrue();
+		expect(await sessionsOf("u-upd")).toHaveLength(0);
+
+		await updateUser(db, "u-upd", { isActive: true });
+		[row] = await db
+			.select()
+			.from(schema.user)
+			.where(eq(schema.user.id, "u-upd"));
+		expect(row?.isActive).toBeTrue();
+		expect(row?.banned).toBeFalse();
+	});
+
+	test("desbloquear no reactiva una cuenta dada de baja", async () => {
+		await ensureUser(db, {
+			id: "u-baja",
+			email: "baja@example.com",
+			name: "Baja",
+			role: "author",
+		});
+		await softDeleteUser(db, "u-baja");
+
+		await setUserBlocked(db, "u-baja", false);
+
+		const [row] = await db
+			.select()
+			.from(schema.user)
+			.where(eq(schema.user.id, "u-baja"));
+		expect(row?.banned).toBeTrue();
+		expect(row?.isActive).toBeFalse();
 	});
 
 	test("createUserWithCredentials crea el usuario y su cuenta de credenciales", async () => {

@@ -191,6 +191,24 @@ describe("HttpApiClient", () => {
 		]);
 	});
 
+	test("signIn devuelve el código de cuenta bloqueada (#456)", async () => {
+		mockFetchQueue([
+			jsonResponse(
+				{ code: "BANNED_USER", message: "Tu cuenta está bloqueada." },
+				403,
+			),
+		]);
+		const client = new HttpApiClient();
+
+		await expect(
+			client.signIn("bloqueada@example.com", "secret"),
+		).resolves.toEqual({
+			ok: false,
+			code: "BANNED_USER",
+			error: "Tu cuenta está bloqueada.",
+		});
+	});
+
 	test("handles session and sign-in flows", async () => {
 		const calls = mockFetchQueue([
 			emptyResponse(401),

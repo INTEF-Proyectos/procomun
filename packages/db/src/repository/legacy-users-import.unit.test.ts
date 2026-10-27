@@ -90,14 +90,35 @@ describe("importLegacyUser", () => {
 		});
 	});
 
-	test("los bloqueados (status 0) no se crean, tampoco al reimportar", async () => {
-		const blocked = fullLegacy({ status: 0 });
-		for (let run = 0; run < 2; run++) {
-			await expect(importLegacyUser(db, blocked)).rejects.toThrow("bloqueado");
-		}
-		expect(await db.select().from(schema.user)).toHaveLength(0);
-		expect(await db.select().from(schema.account)).toHaveLength(0);
-		expect(await db.select().from(schema.userProfile)).toHaveLength(0);
+	test("status 0 entra bloqueado, con su contraseña y su perfil", async () => {
+		expect(await importLegacyUser(db, fullLegacy({ status: 0 }))).toEqual({
+			outcome: "imported",
+			id: "legacy-procomun:user:1",
+		});
+
+		const [row] = await db.select().from(schema.user);
+		expect(row?.isActive).toBeFalse();
+		expect(row?.banned).toBeTrue();
+		expect(row?.banExpires).toBeNull();
+		expect(row?.banReason).toContain("Procomún anterior");
+		expect(await credentialAccounts("legacy-procomun:user:1")).toHaveLength(1);
+		expect(await db.select().from(schema.userProfile)).toHaveLength(1);
+	});
+
+	test("reimportar no cambia el estado: lo decide la administración", async () => {
+		await importLegacyUser(db, fullLegacy({ status: 0 }));
+		await importLegacyUser(db, fullLegacy({ status: 1 }));
+		const [blocked] = await db.select().from(schema.user);
+		expect(blocked?.isActive).toBeFalse();
+		expect(blocked?.banned).toBeTrue();
+
+		await db
+			.update(schema.user)
+			.set({ isActive: true, banned: false, banReason: null });
+		await importLegacyUser(db, fullLegacy({ status: 0 }));
+		const [unblocked] = await db.select().from(schema.user);
+		expect(unblocked?.isActive).toBeTrue();
+		expect(unblocked?.banned).toBeFalse();
 	});
 
 	test("sin hash admitido no crea cuenta de credenciales", async () => {

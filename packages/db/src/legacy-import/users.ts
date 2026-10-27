@@ -56,8 +56,8 @@ export interface MappedLegacyUser {
 	/** Roles del origen sin correspondencia; se listan en el informe. */
 	unknownRoles: string[];
 	/**
-	 * `status: 0` en el origen. Los bloqueados no se importan: el importador
-	 * los descarta y los cuenta en el informe.
+	 * `status: 0` en el origen: la cuenta se crea bloqueada, para poder
+	 * asociarle sus recursos antiguos.
 	 */
 	blocked: boolean;
 	/** Hash bcrypt (`$2y$`) o Drupal 7 (`$S$`); se verifica en el primer login. */

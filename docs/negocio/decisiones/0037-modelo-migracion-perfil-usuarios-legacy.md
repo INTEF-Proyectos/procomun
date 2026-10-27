@@ -162,3 +162,28 @@ Se mantiene la política de alta única y no sobrescritura, con el ID `legacy-pr
 - Procedencia por campo y reversión por `migration_batch_id`: no se implementan en esta entrega. El informe por lote sigue sin datos personales.
 - Enlazar ODE, artículos e itinerarios con su propietario y descargar las fotos de perfil.
 - Si alguna base ya se cargó con la versión anterior del importador, los usuarios que entraron como `editor` sin serlo no se corrigen al reimportar; hay que revisarlos a mano.
+
+## Adenda — 2026-10-27: estado «bloqueado» (issue #456)
+
+Sustituye lo dicho sobre los bloqueados en la adenda anterior. Producto (Jacobo, a indicación de Juanda) decide que los usuarios bloqueados **sí** se exportan e importan, para poder asociarles sus recursos antiguos, y que el nuevo Procomún tenga el estado «bloqueado» para cualquier cuenta.
+
+### Importación
+
+`status: 0` crea la cuenta bloqueada y `status: 1` la crea activa. Se importan también su contraseña y su perfil. Reimportar no cambia el estado de una cuenta que ya existe: lo decide la administración. El informe cuenta las cuentas nuevas bloqueadas (`importedBlocked`) y marca cada registro con `blocked`.
+
+### Un solo estado en la plataforma
+
+Antes había dos campos que no decían lo mismo:
+
+- `user.is_active`: lo cambiaba el botón «Desactivar/Activar» de la administración. Solo lo comprobaban los tokens de API. Una cuenta desactivada seguía pudiendo iniciar sesión y conservaba sus sesiones.
+- `user.banned` (plugin admin de better-auth): impide iniciar sesión, pero no cierra las sesiones abiertas ni lo miran los tokens. Solo lo usaba la baja lógica.
+
+Ahora «bloqueado» es un único estado, `is_active = false`, y siempre se escribe junto con `banned = true` (sin caducidad, motivo en `ban_reason`):
+
+- Lo pone y lo quita la administración con «Bloquear/Desbloquear» (el mismo `PATCH /api/admin/users/:id` con `isActive`). Una cuenta no puede bloquearse a sí misma. Una cuenta dada de baja no se desbloquea.
+- Al bloquear se cierran todas sus sesiones.
+- No puede iniciar sesión. Responde 403 con el código `BANNED_USER` y el mensaje «Tu cuenta está bloqueada…», que la pantalla de acceso muestra en todos los idiomas. Una comprobación en la creación de sesión cubre también las cuentas que solo tienen `is_active = false` (desactivadas antes de este cambio).
+- Sus tokens de API se rechazan (403).
+- Sus recursos publicados siguen visibles y con su autoría: ningún listado filtra por el estado de la cuenta.
+
+La administración de usuarios no usa Paraglide (sus textos están en español en el código); «Bloquear», «Desbloquear» y «Bloqueado» siguen esa convención.

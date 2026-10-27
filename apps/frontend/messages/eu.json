@@ -232,6 +232,7 @@
 	"auth_submit": "Sartu",
 	"auth_submitting": "Sartzen...",
 	"auth_bad_credentials": "Kredentzial okerrak",
+	"auth_account_blocked": "Zure kontua blokeatuta dago. Akats bat dela uste baduzu, jarri harremanetan Procomúneko administrazioarekin.",
 	"auth_connection_error": "Zerbitzariarekiko konexio-errorea",
 	"auth_separator": "edo",
 	"auth_oidc": "Sartu kontu instituzionalarekin",

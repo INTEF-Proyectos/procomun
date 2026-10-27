@@ -295,6 +295,8 @@ export interface BadgeConfig {
 export interface SignInResult {
 	ok: boolean;
 	error?: string;
+	/** Código de better-auth, p. ej. `BANNED_USER` para una cuenta bloqueada. */
+	code?: string;
 	redirectUrl?: string;
 }
 

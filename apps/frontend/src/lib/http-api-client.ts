@@ -223,7 +223,10 @@ export class HttpApiClient implements ApiClient {
 		});
 		if (res.ok) return { ok: true };
 		const data = await res.json().catch(() => null);
-		return { ok: false, error: data?.message ?? "Credenciales incorrectas" };
+		const error = data?.message ?? "Credenciales incorrectas";
+		return typeof data?.code === "string"
+			? { ok: false, code: data.code, error }
+			: { ok: false, error };
 	}
 
 	async signInOidc(): Promise<SignInResult> {
