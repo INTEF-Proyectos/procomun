@@ -201,3 +201,6 @@ Tras completar una feature:
 - `ci.yml` solo se ejecuta en PR contra `main` o `develop`: un PR apilado no tiene CI hasta que se le cambia la base.
 - `apps/cli/src/index.ts` registra todos los comandos y da conflictos entre PR paralelos.
 - Todo lo público (commits, PR, issues y comentarios) va en español.
+- `biome.json` excluye `.claude/`: en un worktree bajo `.claude/worktrees/`, `bun run lint` sale en verde sin revisar nada. Pasa el lint desde la copia principal del repo o fíate del CI.
+- En un worktree recién creado, ejecuta `bun run paraglide:compile` antes de `bun test`: los mensajes generados no están en git.
+- Los e2e del `.elpx` (`elpx-embed-facade`, `elpx-nested-frame`) y los de la ficha y el listado fallan a veces sin motivo. Antes de buscar la causa, relánzalos con `gh run rerun <run> --failed`.
