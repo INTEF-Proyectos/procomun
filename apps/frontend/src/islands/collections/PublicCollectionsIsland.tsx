@@ -14,6 +14,7 @@ import { getApiClient } from "../../lib/get-api-client.ts";
 import { url } from "../../lib/paths.ts";
 import { resourceCardMedia } from "../../lib/resource-card-media.ts";
 import { formatDateLong } from "../../lib/shared-utils.ts";
+import { ResourceByline } from "../../ui/AuthorLinks.tsx";
 import "./PublicCollectionsIsland.css";
 
 const PAGE_SIZE = 9;
@@ -234,9 +235,10 @@ export function PublicCollectionsIsland() {
 						{detail.resources.map((resource) => {
 							const media = resourceCardMedia(resource);
 							return (
-								<a
+								// #458: el nombre del autor es un enlace, así que la
+								// tarjeta no lo es; el título se estira a toda ella.
+								<article
 									key={resource.resourceId}
-									href={url(`recurso?slug=${resource.slug}`)}
 									className="collection-resource-card"
 								>
 									{media.kind === "image" ? (
@@ -249,16 +251,23 @@ export function PublicCollectionsIsland() {
 									<p className="collection-resource-type">
 										{resource.resourceType}
 									</p>
-									<h3>{resource.title}</h3>
+									<h3>
+										<a
+											className="card-stretched-link"
+											href={url(`recurso?slug=${resource.slug}`)}
+										>
+											{resource.title}
+										</a>
+									</h3>
 									<p>{truncate(resource.description ?? "", 180)}</p>
 									<div className="collection-resource-meta">
 										<span>{resource.language.toUpperCase()}</span>
 										<span>{resource.license}</span>
 										<span>
-											{resource.author ?? resource.createdByName ?? "Sin autor"}
+											<ResourceByline resource={resource} />
 										</span>
 									</div>
-								</a>
+								</article>
 							);
 						})}
 					</div>

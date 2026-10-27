@@ -1,3 +1,5 @@
+import { url } from "./paths.ts";
+
 export function escapeHtml(s: string): string {
 	return s
 		.replaceAll("&", "&amp;")
@@ -59,4 +61,9 @@ export function formatBytes(bytes?: number | null): string {
 		unitIndex += 1;
 	}
 	return `${value.toFixed(value >= 10 || unitIndex === 0 ? 0 : 1)} ${units[unitIndex]}`;
+}
+
+/** Búsqueda de texto con el valor completo como consulta (#459). */
+export function searchHref(value: string): string {
+	return url(`explorar?q=${encodeURIComponent(value)}`);
 }

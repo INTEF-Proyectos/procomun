@@ -250,3 +250,75 @@ describe("Catalog islands", () => {
 		expect(renderDetail({}, "admin")).toContain("Editar recurso");
 	});
 });
+
+describe("nombres de autor pulsables (#458)", () => {
+	const profileHref = `href="${url("autor/author-1")}"`;
+	const searchHref = (name: string) =>
+		`href="${url(`explorar?q=${encodeURIComponent(name)}`)}"`;
+
+	test("en la ficha, quien publica lleva a su ficha y cada autor a su búsqueda", () => {
+		const html = renderDetail(
+			{ author: "Mª del Mar Pérez, Irene González… para Cedec" },
+			"reader",
+		);
+		expect(html).toContain(`<a class="author-link" ${profileHref}>Autora</a>`);
+		expect(html).toContain(searchHref("Mª del Mar Pérez"));
+		expect(html).toContain(searchHref("Irene González"));
+		expect(html).not.toContain("para Cedec");
+	});
+
+	test("en la ficha de un importado sin cuenta no hay enlace de publicador", () => {
+		const html = renderDetail(
+			{ createdBy: null, createdByName: null, author: "Ana López" },
+			"reader",
+		);
+		expect(html).not.toContain(url("autor/"));
+		expect(html).toContain(searchHref("Ana López"));
+	});
+
+	const resource = {
+		id: "r1",
+		slug: "r1",
+		title: "Recurso",
+		description: "",
+		resourceType: "proyecto",
+		language: "es",
+		license: "cc-by",
+		editorialStatus: "published",
+		createdBy: "author-1",
+		createdByName: "Autora",
+		author: null,
+	};
+
+	test("la tarjeta común enlaza el nombre sin anidar enlaces", () => {
+		const html = renderToStaticMarkup(
+			<ResourceCard
+				resource={{ ...resource, createdAt: "" }}
+				href="/recurso?slug=r1"
+			/>,
+		);
+		expect(html).toContain(profileHref);
+		expect(html).toContain(
+			'class="card-stretched-link" href="/recurso?slug=r1"',
+		);
+		expect(html.startsWith("<article")).toBe(true);
+	});
+
+	test("la tarjeta del catálogo enlaza el nombre sin anidar enlaces", () => {
+		const html = renderToStaticMarkup(
+			<CatalogResourceCard
+				resource={{
+					...resource,
+					keywords: null,
+					publisher: null,
+					createdAt: null,
+					updatedAt: null,
+					deletedAt: null,
+				}}
+			/>,
+		);
+		expect(html).toContain(profileHref);
+		expect(html).toContain("card-stretched-link");
+		expect(html.startsWith("<article")).toBe(true);
+	});
+});

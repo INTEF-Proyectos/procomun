@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useIframeScale } from "../hooks/use-iframe-scale.ts";
 import { resourceCardMedia } from "../lib/resource-card-media.ts";
 import type { ResourceSummary } from "../lib/types/resource-extended.ts";
+import { ResourceByline } from "./AuthorLinks.tsx";
 import "./ResourceCard.css";
 
 export interface ResourceCardProps {
@@ -85,7 +86,9 @@ export function ResourceCard({
 	}
 
 	return (
-		<a href={href} className={`rc-card ${className}`.trim()}>
+		// #458: la tarjeta no es un enlace porque contiene el del autor; el enlace
+		// del título se estira para que toda la tarjeta siga siendo pulsable.
+		<article className={`rc-card ${className}`.trim()}>
 			<div className="rc-image">
 				{media.kind === "image" ? (
 					<img src={media.url} alt="" className="rc-image-img" loading="lazy" />
@@ -133,7 +136,11 @@ export function ResourceCard({
 						</span>
 					)}
 				</div>
-				<h3 className="rc-title">{resource.title}</h3>
+				<h3 className="rc-title">
+					<a className="card-stretched-link" href={href}>
+						{resource.title}
+					</a>
+				</h3>
 				<p className="rc-desc">{clipped}</p>
 
 				{/* Social stats row */}
@@ -169,10 +176,10 @@ export function ResourceCard({
 							<span className="material-symbols-outlined">person</span>
 						</div>
 						<span className="rc-author-name">
-							{resource.author || "Anónimo"}
+							<ResourceByline resource={resource} />
 						</span>
 					</div>
-					<div className="rc-actions">
+					<div className="rc-actions card-over-link">
 						<button
 							className={`rc-action-btn${favorited ? " rc-action-btn-active" : ""}`}
 							aria-label={
@@ -204,6 +211,6 @@ export function ResourceCard({
 					</div>
 				</div>
 			</div>
-		</a>
+		</article>
 	);
 }

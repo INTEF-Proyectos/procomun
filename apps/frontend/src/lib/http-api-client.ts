@@ -11,6 +11,7 @@ import type {
 	KeywordSuggestion,
 	MediaItemRecord,
 	PaginatedResult,
+	PublicAuthor,
 	RelatedResourcesResult,
 	ReportRecord,
 	Resource,
@@ -103,6 +104,22 @@ export class HttpApiClient implements ApiClient {
 		return res.status === 201
 			? { status: 201, keyword: body as CatalogKeyword }
 			: { status: res.status, error: body.error, keyword: body.keyword };
+	}
+
+	async getPublicAuthor(
+		id: string,
+		opts?: { limit?: number; offset?: number },
+	): Promise<(PaginatedResult<Resource> & { author: PublicAuthor }) | null> {
+		const params = new URLSearchParams();
+		if (opts?.limit) params.set("limit", String(opts.limit));
+		if (opts?.offset) params.set("offset", String(opts.offset));
+		const qs = params.toString();
+		const res = await fetch(
+			`/api/v1/authors/${encodeURIComponent(id)}${qs ? `?${qs}` : ""}`,
+		);
+		if (res.status === 404) return null;
+		if (!res.ok) throw await res.json().catch(() => ({}));
+		return res.json();
 	}
 
 	async getPublicTagBySlug(slug: string): Promise<TagRecord | null> {

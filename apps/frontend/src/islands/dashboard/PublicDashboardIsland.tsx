@@ -105,6 +105,8 @@ function FavoritesTab({
 								language: resource.language,
 								license: resource.license,
 								author: resource.author ?? null,
+								createdBy: resource.createdBy ?? null,
+								createdByName: resource.createdByName ?? null,
 								thumbnailUrl: null,
 								elpxPreview: resource.elpxPreview ?? null,
 								rating: resource.rating,

@@ -7,6 +7,7 @@ import type {
 	Resource,
 	SessionData,
 } from "../../lib/api-client.ts";
+import { splitAuthorNames } from "../../lib/author-links.ts";
 import { getApiClient } from "../../lib/get-api-client.ts";
 import { url } from "../../lib/paths.ts";
 import {
@@ -21,6 +22,7 @@ import {
 	type ResourceExportKind,
 } from "../../lib/resource-export.ts";
 import type { ResourceSummary } from "../../lib/types/resource-extended.ts";
+import { AuthorSearchLinks, PublisherLink } from "../../ui/AuthorLinks.tsx";
 import { LicenseBadge } from "../../ui/LicenseBadge.tsx";
 import { ResourceCard } from "../../ui/ResourceCard.tsx";
 import { FavoriteIsland } from "../social/FavoriteIsland.tsx";
@@ -212,8 +214,15 @@ export function ResourceDetailContent({
 	const updatedDate = resourceDate(resource.updatedAt);
 	const currentUserId = session?.user?.id ?? null;
 	const canEdit = !!session?.user && canManageResource(session.user, resource);
+	// #458: quien publica (cuenta) lleva a su ficha; los autores del texto
+	// libre, a una búsqueda con su nombre. Los importados no tienen cuenta.
+	const publisherId =
+		resource.createdBy && resource.createdByName ? resource.createdBy : null;
+	const authorNames = splitAuthorNames(resource.author);
 	const authorName =
-		resource.createdByName || resource.author || m.detail_unknown_author();
+		(publisherId && resource.createdByName) ||
+		authorNames[0] ||
+		m.detail_unknown_author();
 	const authorInitial = authorName.charAt(0).toUpperCase();
 	// Se derivan los valores, no solo los booleanos: un `hasPreview: boolean` no
 	// permite a TypeScript estrechar `resource.elpxPreview` en los usos, y menos
@@ -373,9 +382,25 @@ export function ResourceDetailContent({
 				{/* Author + license row */}
 				<div className="detail-author-row">
 					<div className="detail-author">
-						<div className="detail-author-avatar">{authorInitial}</div>
+						<div className="detail-author-avatar" aria-hidden="true">
+							{authorInitial}
+						</div>
 						<div>
-							<p className="detail-author-name">{authorName}</p>
+							<p className="detail-author-name">
+								{publisherId ? (
+									<PublisherLink id={publisherId} name={authorName} />
+								) : authorNames.length > 0 ? (
+									<AuthorSearchLinks author={resource.author} />
+								) : (
+									authorName
+								)}
+							</p>
+							{publisherId && authorNames.length > 0 ? (
+								<p className="detail-author-role">
+									{m.detail_authors_label()}{" "}
+									<AuthorSearchLinks author={resource.author} />
+								</p>
+							) : null}
 							{resource.publisher ? (
 								<p className="detail-author-role">{resource.publisher}</p>
 							) : null}

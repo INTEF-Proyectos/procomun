@@ -19,6 +19,9 @@ export interface ResourceSummary {
 	language: string;
 	license: string;
 	author?: string | null;
+	/** Cuenta que publica: su nombre enlaza a su ficha (#458). */
+	createdBy?: string | null;
+	createdByName?: string | null;
 	thumbnailUrl?: string | null;
 	elpxPreview?: { hash: string; previewUrl: string } | null;
 	rating?: { average: number; count: number };

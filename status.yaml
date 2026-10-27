@@ -3174,3 +3174,24 @@ tasks:
       por published y responde 404, también a admin); se añaden tests de
       regresión, incluido que las valoraciones se conservan al despublicar y
       vuelven al publicar. Tests UI nuevos rojo → verde.
+
+  T-2026-10-27-10333906:
+    date: 2026-10-27
+    agent: "frontend-ux-accesibilidad"
+    task: "Nombres de autor pulsables y ficha pública de quien publica"
+    status: Done
+    related: ["#458"]
+    notes: >
+      Nueva ficha pública /autor/<id> (GET /api/v1/authors/:id): nombre, foto
+      opcional, contador de recursos publicados (sin borradores ni eliminados,
+      total independiente de la paginación) y listado del más reciente al más
+      antiguo, paginado. Sin correo ni rol. Solo existe para cuentas sin baja que
+      hayan creado algún recurso, para no exponer por id a quien nunca publicó.
+      El nombre de la cuenta que publica enlaza a esa ficha en la ficha del
+      recurso y en las tarjetas (común, catálogo y colecciones); cada nombre del
+      campo libre author (separado por comas, sin coletillas «… para X») enlaza
+      a explorar?q=<nombre>. Las tarjetas pasan de <a> a <article> con el enlace
+      del título estirado (no se anidan enlaces). Importados sin cuenta: solo
+      enlaces de búsqueda. Colecciones y comunidades quedan para otra issue.
+      Validación: tests de repositorio, API, cliente, componentes y e2e nuevos
+      (rojo → verde); bun run test, check-types y biome en verde.
