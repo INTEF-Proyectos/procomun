@@ -1,9 +1,11 @@
-import { describe, expect, test } from "bun:test";
+import { describe, expect, spyOn, test } from "bun:test";
 import * as repo from "@procomun/db/repository";
 import { Hono } from "hono";
+import { auth } from "../auth/config.ts";
 import type { AuthEnv } from "../auth/middleware.ts";
 import { getDb } from "../db.ts";
 import { adminRoutes } from "./admin/index.ts";
+import { publicRoutes } from "./public.ts";
 
 function createAdminApp(mockUser: Record<string, unknown> | null = null) {
 	const app = new Hono<AuthEnv>();
@@ -796,6 +798,71 @@ describe("Rutas admin — borradores privados frente al curator (#460)", () => {
 		expect(
 			(await adminApp.request(`/api/admin/resources/${draft.id}`)).status,
 		).toBe(200);
+	});
+
+	test("el curator no lee ni cambia las etiquetas de un borrador ajeno", async () => {
+		await ensureUsers();
+		const draft = await createDraft(authorApp);
+		const tagsPath = `/api/admin/tags/resources/${draft.id}`;
+		const putTags = (app: ReturnType<typeof createAdminApp>, label: string) =>
+			app.request(tagsPath, {
+				method: "PUT",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify({ labels: [label] }),
+			});
+
+		expect((await putTags(authorApp, "etiqueta-autor-460")).status).toBe(200);
+
+		expect((await putTags(curatorApp, "etiqueta-curator-460")).status).toBe(
+			403,
+		);
+		expect((await curatorApp.request(tagsPath)).status).toBe(404);
+
+		// Las etiquetas del autor siguen intactas, y autor y admin las leen.
+		for (const app of [authorApp, adminApp]) {
+			const res = await app.request(tagsPath);
+			expect(res.status).toBe(200);
+			const { data } = (await res.json()) as {
+				data: Array<{ label: string }>;
+			};
+			expect(data.map((t) => t.label)).toEqual(["etiqueta-autor-460"]);
+		}
+		// En revisión el curator ya puede gestionarlas.
+		expect((await setStatus(authorApp, draft.id, "review")).status).toBe(200);
+		expect((await curatorApp.request(tagsPath)).status).toBe(200);
+		expect((await putTags(curatorApp, "etiqueta-curator-460")).status).toBe(
+			200,
+		);
+	});
+
+	test("la ficha pública y los recomendados de un borrador ajeno dan 404 al curator", async () => {
+		await ensureUsers();
+		const draft = await createDraft(authorApp);
+		const { slug } = (await (
+			await authorApp.request(`/api/admin/resources/${draft.id}`)
+		).json()) as { slug: string };
+		const publicApp = new Hono();
+		publicApp.route("/api/v1", publicRoutes);
+
+		const getSession = spyOn(auth.api, "getSession");
+		const fichaAs = async (id: string, role: string, path = "") => {
+			getSession.mockResolvedValue({
+				user: { id, role },
+				session: { id: "s" },
+			} as unknown as Awaited<ReturnType<typeof auth.api.getSession>>);
+			return (await publicApp.request(`/api/v1/resources/${slug}${path}`))
+				.status;
+		};
+		try {
+			expect(await fichaAs(curatorId, "curator")).toBe(404);
+			expect(await fichaAs(curatorId, "curator", "/related")).toBe(404);
+			// El autor y el admin sí la ven: la sesión simulada surte efecto.
+			expect(await fichaAs(authorId, "author")).toBe(200);
+			expect(await fichaAs(adminId, "admin")).toBe(200);
+			expect(await fichaAs(adminId, "admin", "/related")).toBe(200);
+		} finally {
+			getSession.mockRestore();
+		}
 	});
 });
 
