@@ -3,6 +3,10 @@ import path from "node:path";
 import * as repo from "@procomun/db/repository";
 import { type Context, Hono } from "hono";
 import { getDb } from "../db.ts";
+import {
+	ELPX_PREVIEW_PREFIX,
+	verifyElpxPreviewToken,
+} from "../elpx/preview-token.ts";
 import { getUploadConfig } from "../uploads/config.ts";
 
 const MIME_TYPES: Record<string, string> = {
@@ -307,6 +311,14 @@ async function handleContent(c: Context) {
 		return c.json({ error: "Archivo no encontrado" }, 404);
 	}
 
+	// Issue #466: por la URL estable solo se sirve lo publicado. Un enlace
+	// guardado antes de despublicar o de volver a borrador deja de abrirse.
+	// Quien puede ver el recurso recibe un enlace firmado (ver abajo).
+	const owner = await repo.getElpxResourceStatusByHash(getDb().db, hash);
+	if (owner?.editorialStatus !== "published") {
+		return elpxJsonError("Archivo no encontrado", 404);
+	}
+
 	const url = new URL(c.req.url);
 	const rawFile = remainingPathAfter(url.pathname, hash);
 
@@ -314,6 +326,36 @@ async function handleContent(c: Context) {
 		hash,
 		rawFile,
 		rewriteBaseUrl: `/api/v1/elpx/${hash}/`,
+		corsLocalScripts: true,
+	});
+}
+
+// Vista previa de un recurso no publicado (issue #466, ADR-0026 adenda
+// 2026-10-27). El iframe de origen opaco no manda la cookie de sesión en los
+// subrecursos ni en las subpáginas, así que el permiso viaja en la URL: un
+// token HMAC de hash + caducidad que emiten las rutas que ya comprueban el
+// acceso. Las URL relativas del paquete se reescriben con el mismo prefijo.
+async function handleSignedPreview(c: Context) {
+	const hash = c.req.param("hash");
+	const token = c.req.param("token");
+	if (!hash || !token || !HASH_PATTERN.test(hash)) {
+		return elpxJsonError("Archivo no encontrado", 404);
+	}
+	if (!verifyElpxPreviewToken(hash, token)) {
+		return elpxJsonError("Archivo no encontrado", 404);
+	}
+	if (await repo.isElpxHashHistorical(getDb().db, hash)) {
+		return elpxJsonError("Archivo no encontrado", 404);
+	}
+	if (!(await repo.getElpxResourceStatusByHash(getDb().db, hash))) {
+		return elpxJsonError("Archivo no encontrado", 404);
+	}
+
+	const base = `${ELPX_PREVIEW_PREFIX}/${hash}/${token}/`;
+	return serveElpxExtractedContent({
+		hash,
+		rawFile: remainingPathAfter(new URL(c.req.url).pathname, token),
+		rewriteBaseUrl: base,
 		corsLocalScripts: true,
 	});
 }
@@ -332,5 +374,7 @@ elpxContentRoutes.get("/embed-shim.js", async () => {
 	});
 });
 
+elpxContentRoutes.get("/preview/:hash/:token", handleSignedPreview);
+elpxContentRoutes.get("/preview/:hash/:token/*", handleSignedPreview);
 elpxContentRoutes.get("/:hash", handleContent);
 elpxContentRoutes.get("/:hash/*", handleContent);

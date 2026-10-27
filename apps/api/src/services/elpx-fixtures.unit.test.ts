@@ -11,6 +11,7 @@ import os from "node:os";
 import path from "node:path";
 import { Hono } from "hono";
 import { elpxContentRoutes } from "../routes/elpx-content.ts";
+import { seedPublishedElpxHash } from "../test-fixtures/published-elpx.ts";
 import {
 	type ElpxMetadata,
 	parseElpxMetadata,
@@ -228,6 +229,8 @@ describe("elpx content proxy integration", () => {
 		const result = await processElpxUpload(fixturePath, integrationBaseDir);
 		processedHash = result.hash;
 		processedExtractPath = result.extractPath;
+		// Issue #466: la ruta pública solo sirve hashes de recursos publicados.
+		await seedPublishedElpxHash(processedHash, processedExtractPath);
 
 		// Point UPLOAD_STORAGE_DIR to the integration base dir so elpx-content resolves files
 		process.env.UPLOAD_STORAGE_DIR = integrationBaseDir;
@@ -316,6 +319,7 @@ describe("elpx content proxy integration", () => {
 		async () => {
 			const fixturePath = path.join(FIXTURES_DIR, "mermaid.elpx");
 			const result = await processElpxUpload(fixturePath, integrationBaseDir);
+			await seedPublishedElpxHash(result.hash, result.extractPath);
 
 			const res = await app.request(`/api/v1/elpx/${result.hash}`);
 			const indexExists = await Bun.file(

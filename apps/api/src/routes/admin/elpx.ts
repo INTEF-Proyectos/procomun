@@ -6,6 +6,7 @@ import { Hono } from "hono";
 import { type AuthEnv, requireRole } from "../../auth/middleware.ts";
 import { canManageResource, getCurrentUser } from "../../auth/roles.ts";
 import { getDb } from "../../db.ts";
+import { elpxPreviewUrlForStatus } from "../../elpx/preview-token.ts";
 import { generateElpxFromFiles } from "../../services/elpx-generator.ts";
 import {
 	parseElpxMetadata,
@@ -171,7 +172,9 @@ elpxAdminRoutes.post(
 			mediaItemId: media.id,
 			elpxHash: result.hash,
 			hasPreview: result.hasPreview,
-			previewUrl: result.hasPreview ? `/api/v1/elpx/${result.hash}/` : null,
+			previewUrl: result.hasPreview
+				? elpxPreviewUrlForStatus(result.hash, resource.editorialStatus)
+				: null,
 			versionNumber: version.versionNumber,
 		});
 	},
@@ -264,7 +267,9 @@ elpxAdminRoutes.post("/save/:resourceId", requireRole("author"), async (c) => {
 		ok: true,
 		hash: result.hash,
 		hasPreview: result.hasPreview,
-		previewUrl: result.hasPreview ? `/api/v1/elpx/${result.hash}/` : null,
+		previewUrl: result.hasPreview
+			? elpxPreviewUrlForStatus(result.hash, resource.editorialStatus)
+			: null,
 		elpxFileUrl: `/api/admin/uploads/${uploadId}/content`,
 		versionNumber: version.versionNumber,
 	});
@@ -407,7 +412,9 @@ elpxAdminRoutes.post(
 			mediaItemId: media.id,
 			elpxHash: result.hash,
 			hasPreview: result.hasPreview,
-			previewUrl: result.hasPreview ? `/api/v1/elpx/${result.hash}/` : null,
+			previewUrl: result.hasPreview
+				? elpxPreviewUrlForStatus(result.hash, resource.editorialStatus)
+				: null,
 			elpxFileUrl: `/api/admin/uploads/${uploadId}/content`,
 			versionNumber: version.versionNumber,
 		});

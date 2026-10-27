@@ -134,3 +134,13 @@ El middleware de sesión se ejecuta en todas las rutas. Los guards de RBAC se ap
    (a) Se necesitan permisos condicionales complejos (por campo, por tenant) de forma recurrente.
    (b) El frontend necesita evaluar permisos client-side de forma sofisticada (CASL sería más adecuado).
    (c) Se introducen más de 6 roles o políticas con herencia compleja.
+
+## Adenda 2026-10-27 — permiso en la URL para el contenido .elpx no publicado (#466)
+
+El contenido de un `.elpx` se ve en un iframe de origen opaco (ADR-0026), donde la cookie de sesión no acompaña a los subrecursos. Para ese caso la autorización no se comprueba en cada petición, sino al emitir el enlace:
+
+* `canViewResource` (ficha) y `requireManageableResource` (administración) deciden quién recibe un enlace firmado de vista previa para un recurso no publicado.
+* El enlace (`/api/v1/elpx/preview/<hash>/<token>/`) es un permiso al portador limitado a ese hash y a 2 horas, firmado con el secreto de better-auth.
+* Sin enlace firmado, el contenido de un recurso no publicado responde 404 a todo el mundo, también a quien tiene sesión.
+
+Detalle técnico y validación en la adenda 2026-10-27 de la [ADR-0026](0026-apertura-segura-elpx.md).
