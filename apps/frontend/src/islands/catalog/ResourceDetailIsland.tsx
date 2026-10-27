@@ -219,8 +219,12 @@ export function ResourceDetailContent({
 	const publisherId =
 		resource.createdBy && resource.createdByName ? resource.createdBy : null;
 	const authorNames = splitAuthorNames(resource.author);
+	// Sin cuenta (p. ej. importados) va primero el publicador y la lista de
+	// autores debajo (#457); con cuenta, la cuenta, la autoría y el publicador.
+	const publisherFirst = !publisherId && !!resource.publisher;
 	const authorName =
 		(publisherId && resource.createdByName) ||
+		(publisherFirst && resource.publisher) ||
 		authorNames[0] ||
 		m.detail_unknown_author();
 	const authorInitial = authorName.charAt(0).toUpperCase();
@@ -389,6 +393,8 @@ export function ResourceDetailContent({
 							<p className="detail-author-name">
 								{publisherId ? (
 									<PublisherLink id={publisherId} name={authorName} />
+								) : publisherFirst ? (
+									resource.publisher
 								) : authorNames.length > 0 ? (
 									<AuthorSearchLinks author={resource.author} />
 								) : (
@@ -401,7 +407,12 @@ export function ResourceDetailContent({
 									<AuthorSearchLinks author={resource.author} />
 								</p>
 							) : null}
-							{resource.publisher ? (
+							{publisherFirst && authorNames.length > 0 ? (
+								<p className="detail-author-role">
+									<AuthorSearchLinks author={resource.author} />
+								</p>
+							) : null}
+							{publisherId && resource.publisher ? (
 								<p className="detail-author-role">{resource.publisher}</p>
 							) : null}
 						</div>
@@ -657,6 +668,20 @@ export function ResourceDetailContent({
 											<p className="meta-row-value">
 												{resource.subjects.join(", ")}
 											</p>
+										</div>
+									</div>
+								) : null}
+
+								{resource.otherAuthors?.trim() ? (
+									<div className="meta-row">
+										<div className="meta-row-icon">
+											<span className="material-symbols-outlined">group</span>
+										</div>
+										<div>
+											<p className="meta-row-label">
+												{m.detail_other_authors()}
+											</p>
+											<p className="meta-row-value">{resource.otherAuthors}</p>
 										</div>
 									</div>
 								) : null}

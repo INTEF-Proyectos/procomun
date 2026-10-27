@@ -444,3 +444,45 @@ describe("validateStatusTransition", () => {
 		);
 	});
 });
+
+describe("otherAuthors (issue #417)", () => {
+	test("es opcional al crear: sin el campo o vacío sigue siendo válido", () => {
+		expect(validateCreateResource(validPayload).valid).toBe(true);
+		expect(
+			validateCreateResource({ ...validPayload, otherAuthors: "" }).valid,
+		).toBe(true);
+		expect(
+			validateCreateResource({
+				...validPayload,
+				otherAuthors: "Ana Pérez, Luis Gómez",
+			}).valid,
+		).toBe(true);
+	});
+
+	test("rechaza un valor que no es texto o que supera 1000 caracteres", () => {
+		const notText = validateCreateResource({
+			...validPayload,
+			otherAuthors: 1,
+		});
+		expect(
+			notText.errors.find((e) => e.field === "otherAuthors")?.message,
+		).toBe("Los otros autores deben ser texto");
+		const tooLong = validateCreateResource({
+			...validPayload,
+			otherAuthors: "x".repeat(1001),
+		});
+		expect(
+			tooLong.errors.find((e) => e.field === "otherAuthors")?.message,
+		).toBe("Los otros autores no pueden superar 1000 caracteres");
+	});
+
+	test("se puede actualizar solo, y vaciar para borrarlo", () => {
+		expect(validateUpdateResource({ otherAuthors: "Ana Pérez" }).valid).toBe(
+			true,
+		);
+		expect(validateUpdateResource({ otherAuthors: "" }).valid).toBe(true);
+		expect(
+			validateUpdateResource({ otherAuthors: "x".repeat(1001) }).valid,
+		).toBe(false);
+	});
+});
