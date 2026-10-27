@@ -30,6 +30,7 @@ export interface LegacyResourceInput {
 	subjects: string[];
 	levels: string[];
 	author: string | null;
+	otherAuthors?: string | null;
 	publisher: string | null;
 	keywords: string | null;
 	importedAt: Date | null;
@@ -126,6 +127,7 @@ export async function importLegacyResourceWithElpx(
 			resourceType: input.resource.resourceType,
 			keywords: input.resource.keywords,
 			author: input.resource.author,
+			otherAuthors: input.resource.otherAuthors ?? null,
 			publisher: input.resource.publisher,
 			thumbnailUrl: input.resource.previewImageUrl,
 			// Solo se publica lo que el Procomún antiguo tenía publicado
