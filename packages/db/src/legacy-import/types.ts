@@ -72,6 +72,8 @@ export interface MappedLegacyResource {
 	subjects: string[];
 	levels: string[];
 	author: string | null;
+	/** Resto de autores, separados por comas (issue #417). */
+	otherAuthors?: string | null;
 	publisher: string | null;
 	keywords: string | null;
 	importedAt: Date | null;
