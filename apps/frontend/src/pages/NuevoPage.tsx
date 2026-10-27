@@ -1,4 +1,7 @@
-import { validateCreateResource } from "@procomun/db/validation";
+import {
+	MAX_OTHER_AUTHORS_LENGTH,
+	validateCreateResource,
+} from "@procomun/db/validation";
 import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { EducationalClassificationEditor } from "../islands/resources/EducationalClassificationFields.tsx";
@@ -22,6 +25,7 @@ interface ResourceFormState {
 	title: string;
 	description: string;
 	author: string;
+	otherAuthors: string;
 	language: string;
 	license: string;
 	resourceType: string;
@@ -39,6 +43,7 @@ const EMPTY_FORM: ResourceFormState = {
 	title: "",
 	description: "",
 	author: "",
+	otherAuthors: "",
 	language: "es",
 	license: "cc-by",
 	resourceType: "documento",
@@ -69,6 +74,25 @@ export function applyElpxMetadataToForm(
 				? metadata.license
 				: current.license,
 		resourceType: "actividad-interactiva",
+	};
+}
+
+export function buildCreateResourceBody(
+	form: ResourceFormState,
+	educationalAreas: ReturnType<typeof selectionsToAssignments>,
+	keywordIds: string[] = [],
+) {
+	return {
+		title: form.title,
+		description: form.description,
+		language: form.language,
+		license: form.license,
+		resourceType: form.resourceType,
+		author: form.author,
+		// Opcional (issue #417): vacío no se envía.
+		otherAuthors: form.otherAuthors.trim() || undefined,
+		keywordIds,
+		educationalAreas,
 	};
 }
 
@@ -229,16 +253,11 @@ export default function NuevoPage() {
 		setSuccessMsg("");
 		clearFieldErrors();
 
-		const body = {
-			title: form.title,
-			description: form.description,
-			language: form.language,
-			license: form.license,
-			resourceType: form.resourceType,
-			author: form.author,
-			keywordIds: catalogKeywords.map((keyword) => keyword.id),
-			educationalAreas: selectionsToAssignments(educationalSelections),
-		};
+		const body = buildCreateResourceBody(
+			form,
+			selectionsToAssignments(educationalSelections),
+			catalogKeywords.map((keyword) => keyword.id),
+		);
 
 		const validation = validateCreateResource(body);
 		if (!validation.valid) {
@@ -500,6 +519,28 @@ export default function NuevoPage() {
 						/>
 						<span id="author-error" className="field-error" role="alert">
 							{fieldErrors.author ?? ""}
+						</span>
+					</div>
+
+					<div className="form-field">
+						<label htmlFor="otherAuthors">
+							Otros autores (opcional, separados por comas)
+						</label>
+						<input
+							type="text"
+							id="otherAuthors"
+							maxLength={MAX_OTHER_AUTHORS_LENGTH}
+							aria-describedby="otherAuthors-error"
+							aria-invalid={
+								invalidFields.has("otherAuthors") ? "true" : undefined
+							}
+							value={form.otherAuthors}
+							onChange={(event) =>
+								setFieldValue("otherAuthors", event.currentTarget.value)
+							}
+						/>
+						<span id="otherAuthors-error" className="field-error" role="alert">
+							{fieldErrors.otherAuthors ?? ""}
 						</span>
 					</div>
 
