@@ -3249,3 +3249,23 @@ tasks:
       #461): la migración de «Otros autores» pasa a 0012 detrás de
       0011_keyword_catalog, y alta/edición envían otherAuthors junto a
       keywordIds.
+
+  T-2026-10-27-13171067:
+    date: 2026-10-27
+    agent: "devops-sre"
+    task: "e2e intermitentes: la API moría por falta de memoria con Bun 1.3.14"
+    status: Done
+    related: ["#489", "#490"]
+    notes: >
+      Con Bun 1.3.14 en Linux, importar @electric-sql/pglite deja el proceso en
+      unos 4 GB de RSS (en macOS no pasa); la API de los e2e llegaba a 4,5 GB en
+      un runner de 7,9 GB y el OOM killer la mataba a mitad de la suite (502 en
+      todo lo que tocaba la API). Reproducido en Docker con la memoria del
+      runner (dmesg: Killed process … bun). Con 1.4.4 el import se queda en
+      ~47 MB y la API no pasa de ~420 MB. Se fija 1.4.4 en los workflows y en
+      el Dockerfile (antes oven/bun:latest); un test de scripts comprueba que
+      todos fijan la misma versión, >= 1.4. e2e.yml guarda el log del servidor
+      y, si falla, el estado de procesos, memoria y OOM. Queda abierta la
+      recarga de Vite al primer acceso (runtime de Paraglide) que hace fallar a
+      veces wcag.e2e.ts. No se pudo validar en el CI: Actions está bloqueado
+      por facturación (#490).
