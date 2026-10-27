@@ -21,6 +21,7 @@ import {
 	getElpxProjectByHash,
 	getElpxProjectByResourceId,
 	getElpxResourceStatusByHash,
+	getResourceById,
 	getTaxonomyById,
 	getUserByEmail,
 	getUserById,
@@ -38,6 +39,7 @@ import {
 	softDeleteUser,
 	unpublishUnreviewedLegacyResource,
 	updateCollection,
+	updateResource,
 	updateTaxonomy,
 	updateUser,
 } from "./repository.ts";
@@ -278,6 +280,59 @@ describe("repository elpx projects", () => {
 
 		await deleteElpxProject(db, result.id);
 		expect(await getElpxProjectByResourceId(db, resourceId)).toBeNull();
+	});
+});
+
+describe("repository resources — otros autores (issue #417)", () => {
+	let db: DrizzleDB;
+	let pglite: PGlite;
+
+	const baseInput = {
+		title: "Recurso con varios autores",
+		description: "Desc",
+		language: "es",
+		license: "cc-by",
+		resourceType: "documento",
+		author: "Ana Pérez",
+	};
+
+	beforeEach(async () => {
+		pglite = new PGlite();
+		await createTables(pglite);
+		db = drizzle(pglite, { schema });
+	});
+
+	afterEach(async () => {
+		await pglite.close();
+	});
+
+	test("guarda otherAuthors al crear y lo devuelve en el detalle", async () => {
+		const { id } = await createResource(db, {
+			...baseInput,
+			otherAuthors: "Luis Gómez, Marta Ruiz",
+		});
+		const resource = await getResourceById(db, id);
+		expect(resource?.otherAuthors).toBe("Luis Gómez, Marta Ruiz");
+	});
+
+	test("sin otherAuthors, o solo con espacios, queda a null", async () => {
+		const withoutField = await createResource(db, baseInput);
+		expect((await getResourceById(db, withoutField.id))?.otherAuthors).toBe(
+			null,
+		);
+		const blank = await createResource(db, {
+			...baseInput,
+			otherAuthors: "  ",
+		});
+		expect((await getResourceById(db, blank.id))?.otherAuthors).toBe(null);
+	});
+
+	test("updateResource edita otherAuthors y lo vacía", async () => {
+		const { id } = await createResource(db, baseInput);
+		await updateResource(db, id, { otherAuthors: "Luis Gómez" });
+		expect((await getResourceById(db, id))?.otherAuthors).toBe("Luis Gómez");
+		await updateResource(db, id, { otherAuthors: "" });
+		expect((await getResourceById(db, id))?.otherAuthors).toBe(null);
 	});
 });
 
@@ -709,6 +764,24 @@ describe("legacy import repository (epic-004-migracion-legacy-procomun)", () => 
 		const listed = await listResources(db, { status: "published", limit: 20 });
 		const card = listed.data.find((item) => item.id === result.resourceId);
 		expect(card?.thumbnailUrl).toBe(previewImageUrl);
+	});
+
+	test("guarda los otros autores del JSON en resources.other_authors (issue #417)", async () => {
+		const result = await importLegacyResourceWithElpx(db, {
+			resource: {
+				...baseResourceInput,
+				externalId: "es_test_otros_autores",
+				otherAuthors: "Luis Gómez, Marta Ruiz",
+			},
+			elpx: { ...elpxInput, hash: "hash-legacy-test-otros-autores" },
+			media: buildMediaInput(crypto.randomUUID()),
+		});
+
+		const [row] = await db
+			.select({ otherAuthors: schema.resources.otherAuthors })
+			.from(schema.resources)
+			.where(eq(schema.resources.id, result.resourceId));
+		expect(row?.otherAuthors).toBe("Luis Gómez, Marta Ruiz");
 	});
 
 	test("respeta el estado editorial calculado desde published (issue #447)", async () => {
