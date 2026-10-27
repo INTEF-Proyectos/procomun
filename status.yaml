@@ -3174,3 +3174,19 @@ tasks:
       por published y responde 404, también a admin); se añaden tests de
       regresión, incluido que las valoraciones se conservan al despublicar y
       vuelven al publicar. Tests UI nuevos rojo → verde.
+  T-2026-10-27-10114798:
+    date: 2026-10-27
+    agent: "arquitectura-solucion"
+    task: "ADR-0047: colecciones de autores junto a las editoriales"
+    status: In Progress
+    related: ["#433", "#460", "#463", "#458", "ADR-0047", "ADR-0008", "ADR-0016"]
+    notes: >
+      Solo documentación. ADR-0047 (Propuesto) con el modelo (kind
+      editorial/author, visibility public/private, owner_id, flujo de revisión),
+      matriz de permisos por rol, visibilidad en portada, listado, ficha de autor,
+      feeds y recomendaciones, migración (las existentes pasan a editoriales) e
+      impacto en API y frontend. Fija que GET /api/admin/collections/:id/resources
+      se filtra con canViewResource (hueco de #463). Secciones fechadas en
+      ADR-0008 y ADR-0016. Feature en
+      docs/epics/epic-003/features/feature-colecciones-de-autores/. Pendiente de
+      que negocio responda a las preguntas abiertas en #433.

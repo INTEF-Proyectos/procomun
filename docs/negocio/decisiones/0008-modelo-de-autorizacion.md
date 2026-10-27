@@ -134,3 +134,9 @@ El middleware de sesión se ejecuta en todas las rutas. Los guards de RBAC se ap
    (a) Se necesitan permisos condicionales complejos (por campo, por tenant) de forma recurrente.
    (b) El frontend necesita evaluar permisos client-side de forma sofisticada (CASL sería más adecuado).
    (c) Se introducen más de 6 roles o políticas con herencia compleja.
+
+## Actualización 2026-10-27 — colecciones de autores (#433)
+
+* Las filas `collection:*` de la tabla de permisos por rol quedan precisadas por [ADR-0047](0047-colecciones-de-autores.md): author y editor crean colecciones de autor (públicas o privadas), editan y borran las suyas; curator y admin crean las editoriales; curator edita y borra las públicas ajenas que no están en borrador; las privadas solo las ven su propietario y el admin.
+* La tabla anterior no se toca, pero en lo que respecta a colecciones manda ADR-0047. También sustituye a lo que hizo la feature de colecciones públicas (solo curator y admin).
+* La comprobación de propiedad de las colecciones pasa a `packages/db/src/validation.ts` (`canViewCollection`, `canManageCollection`, `canTransitionCollection`), junto a la de los recursos.

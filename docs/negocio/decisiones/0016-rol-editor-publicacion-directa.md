@@ -56,3 +56,7 @@ Archivos modificados:
 - `apps/frontend/src/islands/admin/AdminUsersSection.tsx` — selector de roles
 - `packages/db/src/seed-data.ts` — usuario demo editor
 - Tests actualizados en `permissions.unit.test.ts` y `validation-transitions.unit.test.ts`
+
+## Actualización 2026-10-27 — colecciones de autores (#433)
+
+* Lo que esta ADR dice de las «colecciones propias» del editor queda precisado por [ADR-0047](0047-colecciones-de-autores.md): el editor crea colecciones de autor, públicas o privadas, y publica directamente las suyas públicas (`draft → published`), igual que sus recursos. No aprueba colecciones ajenas en revisión.
