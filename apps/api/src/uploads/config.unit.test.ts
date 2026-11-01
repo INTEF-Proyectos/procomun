@@ -173,6 +173,31 @@ describe("upload config helpers", () => {
 		).toBe(false);
 	});
 
+	test("el curator asignado no sube a un borrador ajeno (#460)", () => {
+		const curator = { id: "curator-1", role: "curator" };
+		expect(
+			canManageResourceUpload(curator, {
+				createdBy: "author-1",
+				assignedCuratorId: "curator-1",
+				editorialStatus: "draft",
+			}),
+		).toBe(false);
+		expect(
+			canManageResourceUpload(curator, {
+				createdBy: "author-1",
+				assignedCuratorId: "curator-1",
+				editorialStatus: "published",
+			}),
+		).toBe(true);
+		expect(
+			canManageResourceUpload(curator, {
+				createdBy: "curator-1",
+				assignedCuratorId: null,
+				editorialStatus: "draft",
+			}),
+		).toBe(true);
+	});
+
 	test("genera claves de storage y urls públicas estables", () => {
 		expect(buildUploadStorageKey("res-1", "upload-1", "Vídeo final.mp4")).toBe(
 			"resource/res-1/upload-1/Video-final.mp4",
