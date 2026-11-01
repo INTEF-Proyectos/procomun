@@ -84,6 +84,12 @@ export interface MappedLegacyResource {
 	editorialStatus: LegacyEditorialStatus;
 	/** Valor de `published` recibido, para el informe de importación. */
 	sourcePublished: string | number | null;
+	/**
+	 * Visitas del Procomún antiguo (#421, ADR-0044). Pendiente: el exportador
+	 * todavía no incluye el dato y aún no se sabe el nombre del campo del JSON,
+	 * así que el mapper no lo rellena. Cuando exista, basta con leerlo aquí.
+	 */
+	legacyViewCount?: number | null;
 }
 
 export interface MappingResult {
