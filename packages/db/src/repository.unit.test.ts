@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import { PGlite } from "@electric-sql/pglite";
-import { eq } from "drizzle-orm";
+import { eq, inArray } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/pglite";
 import { ensureLegacyImportSystemUser } from "./legacy-import/system-user.ts";
 import type { DrizzleDB } from "./repository/shared.ts";
@@ -848,6 +848,39 @@ describe("legacy import repository (epic-004-migracion-legacy-procomun)", () => 
 		const listed = await listResources(db, { status: "published", limit: 20 });
 		const card = listed.data.find((item) => item.id === result.resourceId);
 		expect(card?.thumbnailUrl).toBe(previewImageUrl);
+	});
+
+	test("guarda las visitas históricas como valor inicial del contador (issue #421)", async () => {
+		const withViews = await importLegacyResourceWithElpx(db, {
+			resource: {
+				...baseResourceInput,
+				externalId: "es_test_visitas",
+				legacyViewCount: 1532,
+			},
+			elpx: { ...elpxInput, hash: "hash-legacy-test-visitas" },
+			media: buildMediaInput(crypto.randomUUID()),
+		});
+		const withoutViews = await importLegacyResourceWithElpx(db, {
+			resource: { ...baseResourceInput, externalId: "es_test_sin_visitas" },
+			elpx: { ...elpxInput, hash: "hash-legacy-test-sin-visitas" },
+			media: buildMediaInput(crypto.randomUUID()),
+		});
+
+		const rows = await db
+			.select()
+			.from(schema.resourceViewCounts)
+			.where(
+				inArray(schema.resourceViewCounts.resourceId, [
+					withViews.resourceId,
+					withoutViews.resourceId,
+				]),
+			);
+		expect(rows).toHaveLength(1);
+		expect(rows[0]).toMatchObject({
+			resourceId: withViews.resourceId,
+			viewCount: 0,
+			legacyViewCount: 1532,
+		});
 	});
 
 	test("guarda los otros autores del JSON en resources.other_authors (issue #417)", async () => {
