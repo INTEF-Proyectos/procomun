@@ -319,3 +319,13 @@ ADR-0045:
     resource_professional_families (lista oficial en código, solo FP). tags.retired_at
     retira de las palabras clave los términos que pasan a ser áreas, con informe en
     seco (catalog:area-keywords).
+ADR-0044:
+  title: "Contador de visitas por recurso sin datos personales"
+  status: Propuesto
+  date: 2026-10-26
+  file: 0044-contador-visitas-recurso.md
+  notes: >
+    Issue #421. Una visita por sesión al abrir la vista previa, solo en recursos
+    publicados. UUID aleatorio por pestaña en sessionStorage; el servidor guarda
+    su SHA-256 24 h en resource_view_sessions. Totales en resource_view_counts
+    (view_count + legacy_view_count importado). Migración 0013_resource_views.

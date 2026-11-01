@@ -986,6 +986,20 @@ export class HttpApiClient implements ApiClient {
 		return res.json();
 	}
 
+	async trackResourceView(
+		slug: string,
+		sessionId: string,
+	): Promise<{ viewCount: number }> {
+		const res = await fetch(`/api/v1/resources/${slug}/view`, {
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({ sessionId }),
+		});
+		if (!res.ok)
+			throw new Error(`No se pudo registrar la visita (${res.status})`);
+		return res.json();
+	}
+
 	async getResourceStats(slug: string): Promise<{
 		downloadCount: number;
 		exportCounts: { scorm: number; ims: number; web: number; epub: number };
@@ -993,6 +1007,7 @@ export class HttpApiClient implements ApiClient {
 		ratingAvg: number;
 		ratingCount: number;
 		userFavorited: boolean;
+		viewCount?: number;
 	}> {
 		const res = await fetch(`/api/v1/resources/${slug}/stats`);
 		return res.json();
