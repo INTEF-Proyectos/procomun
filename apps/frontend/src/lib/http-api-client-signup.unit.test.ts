@@ -720,3 +720,34 @@ describe("HttpApiClient", () => {
 		expect(getCall(calls, 9).url).toBe("/api/admin/api-tokens/stats");
 	});
 });
+
+describe("HttpApiClient.trackResourceView (#421)", () => {
+	const originalFetch = globalThis.fetch;
+
+	afterEach(() => {
+		mock.restore();
+		globalThis.fetch = originalFetch;
+	});
+
+	test("manda el identificador de sesión y devuelve el total", async () => {
+		const calls = mockFetchQueue([
+			jsonResponse({ viewCount: 3 }),
+			jsonResponse({ error: "Recurso no encontrado" }, 404),
+		]);
+		const client = new HttpApiClient();
+		const sessionId = "6f1d9a52-1c1e-4b4c-9f0e-0a1b2c3d4e5f";
+
+		await expect(
+			client.trackResourceView("algebra", sessionId),
+		).resolves.toEqual({ viewCount: 3 });
+		expect(getCall(calls, 0)).toMatchObject({
+			url: "/api/v1/resources/algebra/view",
+			init: { method: "POST" },
+		});
+		expect(bodyAsJson(getCall(calls, 0))).toEqual({ sessionId });
+
+		await expect(
+			client.trackResourceView("borrador", sessionId),
+		).rejects.toThrow();
+	});
+});

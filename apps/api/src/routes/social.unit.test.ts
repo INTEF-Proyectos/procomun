@@ -539,3 +539,59 @@ describe("Social — Activity Feed", () => {
 		expect(body.data.length).toBeLessThanOrEqual(2);
 	});
 });
+
+describe("Social — Visitas (#421)", () => {
+	function view(
+		app: ReturnType<typeof createSocialApp>,
+		slug: string,
+		sessionId: string,
+	) {
+		return app.request(`/api/v1/resources/${slug}/view`, {
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({ sessionId }),
+		});
+	}
+
+	const sessionA = "6f1d9a52-1c1e-4b4c-9f0e-0a1b2c3d4e5f";
+	const sessionB = "0c2e4a6b-8d0f-4a1b-9c3d-5e7f9a1b3c5d";
+
+	test("una visita por sesión: repetir la misma sesión no suma", async () => {
+		const { slug } = await createPublishedResource(adminApp, "views-1");
+
+		const first = await view(anonApp, slug, sessionA);
+		expect(first.status).toBe(200);
+		expect(((await first.json()) as { viewCount: number }).viewCount).toBe(1);
+
+		const again = await view(anonApp, slug, sessionA);
+		expect(((await again.json()) as { viewCount: number }).viewCount).toBe(1);
+
+		const other = await view(anonApp, slug, sessionB);
+		expect(((await other.json()) as { viewCount: number }).viewCount).toBe(2);
+	});
+
+	test("las estadísticas incluyen las visitas", async () => {
+		const { slug } = await createPublishedResource(adminApp, "views-2");
+		await view(anonApp, slug, sessionA);
+
+		const res = await anonApp.request(`/api/v1/resources/${slug}/stats`);
+		const body = (await res.json()) as { viewCount: number };
+		expect(body.viewCount).toBe(1);
+	});
+
+	test("un recurso no publicado no cuenta visitas (#461)", async () => {
+		const { slug } = await createResourceWithStatus(adminApp, "views-3", [
+			"review",
+		]);
+		const res = await view(adminApp, slug, sessionA);
+		expect(res.status).toBe(404);
+	});
+
+	test("rechaza un identificador de sesión que no es un UUID", async () => {
+		const { slug } = await createPublishedResource(adminApp, "views-4");
+		for (const sessionId of ["", "1.2.3.4", "x".repeat(200)]) {
+			const res = await view(anonApp, slug, sessionId);
+			expect(res.status).toBe(400);
+		}
+	});
+});

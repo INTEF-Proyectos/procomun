@@ -3132,6 +3132,38 @@ tasks:
       errores. Se añade previewImageUrl: null a ambos. Validación:
       check-types limpio y los dos ficheros de test en verde.
 
+  T-2026-10-26-07293591:
+    date: 2026-10-26
+    agent: "frontend-ux-accesibilidad"
+    task: "Los iDevices JSON de eXe se montan al servir el .elpx"
+    status: Done
+    related: ["#431", "ADR-0026"]
+    notes: >
+      eXe guarda los datos de sus iDevices JSON (formulario de rellenar huecos)
+      en data-idevice-json-data, escapados como atributo. Al servir el HTML se
+      deshacía un &amp;quot; del texto del autor y se reescribía un url() con
+      &quot;, así que el atributo quedaba con comillas sueltas, JSON.parse
+      fallaba y el formulario salía sin huecos. Los valores data-* ya no se
+      tocan, y los url() de un style conservan sus &quot;. Tres tests
+      unitarios en elpx-content.unit.test.ts (rojo sin el cambio, verde con
+      él).
+  T-2026-10-26-22221169:
+    date: 2026-10-26
+    agent: "frontend-ux-accesibilidad"
+    task: "Los formularios de los .elpx legacy recuperan sus datos de content.xml"
+    status: Done
+    related: ["#431", "#464"]
+    notes: >
+      Los .elpx del Procomún antiguo traen el HTML exportado sin
+      data-idevice-component-type ni data-idevice-json-data en sus iDevices
+      JSON (el exportador no tenía su config.xml y los trató como HTML), así
+      que el formulario de rellenar huecos solo enseña el htmlView. Al servir
+      el HTML se añaden esos atributos y data-idevice-template desde
+      jsonProperties de content.xml, como lo haría eXe, solo para tipos JSON
+      y solo si el div no los trae. Probado en Chromium con 1615293421477.elpx:
+      el formulario pasa de 0 a 13 campos. Tres tests en
+      elpx-content.unit.test.ts (rojo → verde). Deuda: no se traducen las
+      URL asset:// dentro de jsonProperties (solo {{context_path}}).
   T-2026-10-26-07220488:
     date: 2026-10-26
     agent: "seguridad-privacidad-legal"
@@ -3267,6 +3299,22 @@ tasks:
       Cuando se cierre #448 las materias podrán pasar a filtro de catálogo.
       Validación: tests en CatalogIslands.unit.test.tsx (rojo → verde), bun run
       test, check-types y biome en verde.
+  T-2026-10-26-07295197:
+    date: 2026-10-26
+    agent: "analitica-y-observabilidad"
+    task: "Contador de visitas por recurso"
+    status: Done
+    related: ["#421", "#461", "ADR-0044"]
+    notes: >
+      Una visita por sesión al abrir la vista previa (carga del iframe lazy o
+      «Ver online»), solo en recursos publicados. UUID aleatorio por pestaña en
+      sessionStorage; POST /api/v1/resources/:slug/view guarda su SHA-256 24 h en
+      resource_view_sessions y suma en resource_view_counts. /stats devuelve
+      viewCount y la ficha lo muestra junto a la valoración. El importador legacy
+      acepta legacyViewCount opcional como valor inicial; falta leerlo del JSON
+      cuando el exportador lo incluya. Migración 0013_resource_views (0011 y
+      0012 reservadas para #397 y #457). Tests rojo → verde en API, servicio,
+      repositorio, cliente HTTP, helper de sesión y ficha.
   T-2026-10-27-13171067:
     date: 2026-10-27
     agent: "devops-sre"
@@ -3286,3 +3334,20 @@ tasks:
       recarga de Vite al primer acceso (runtime de Paraglide) que hace fallar a
       veces wcag.e2e.ts. No se pudo validar en el CI: Actions está bloqueado
       por facturación (#490).
+  T-2026-11-01-15071088:
+    date: 2026-11-01
+    agent: "devops-sre"
+    task: "status.yaml deja de dar conflictos de merge: driver union"
+    status: Done
+    related: ["#490"]
+    notes: >
+      Las claves map-keyed de ADR-0019 evitaban las colisiones, no los
+      conflictos: cada rama anade su entrada al final y git marcaba conflicto
+      en status.yaml en cuanto main avanzaba. Con 12 PR abiertos, cada merge
+      dejaba a los demas en conflicto y la resolucion era siempre conservar
+      los dos lados. Se declara "status.yaml merge=union" en .gitattributes;
+      union es un driver integrado de git, no uno propio. No relaja nada:
+      check-tracking.ts sigue validando sintaxis, claves duplicadas y
+      referencias en el CI. Validado reproduciendo el conflicto de #465 contra
+      main: la union automatica da un status.yaml identico a la resolucion
+      manual (diff vacio) y check-tracking lo acepta.

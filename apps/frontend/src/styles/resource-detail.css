@@ -538,6 +538,20 @@
 	border-top: 1px solid var(--color-surface-container-high);
 }
 
+/* #421: visitas junto a la valoración, discretas como un dato de uso. */
+.detail-views {
+	display: inline-flex;
+	align-items: center;
+	gap: var(--space-2);
+	margin-bottom: var(--space-4);
+	color: var(--color-on-surface-variant);
+	font-size: var(--text-body-md);
+}
+
+.detail-views .material-symbols-outlined {
+	font-size: 1.25rem;
+}
+
 .detail-comments-header {
 	display: flex;
 	align-items: center;

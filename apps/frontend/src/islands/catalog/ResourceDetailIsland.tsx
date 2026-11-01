@@ -24,6 +24,7 @@ import {
 	type ResourceExportKind,
 } from "../../lib/resource-export.ts";
 import type { ResourceSummary } from "../../lib/types/resource-extended.ts";
+import { trackResourceViewOnce } from "../../lib/view-tracking.ts";
 import { LicenseBadge } from "../../ui/LicenseBadge.tsx";
 import { ResourceCard } from "../../ui/ResourceCard.tsx";
 import { FavoriteIsland } from "../social/FavoriteIsland.tsx";
@@ -194,6 +195,7 @@ export function ResourceDetailContent({
 	isFavorited,
 	related,
 	onDownloadTracked,
+	onPreviewOpened,
 }: {
 	resource: Resource;
 	session: SessionData | null;
@@ -204,6 +206,8 @@ export function ResourceDetailContent({
 		count: number,
 		format?: ResourceExportKind | "direct",
 	) => void;
+	/** Se llama al cargar la vista previa o pulsar «Ver online» (#421). */
+	onPreviewOpened?: () => void;
 }) {
 	const status = statusLabelOf(resource.editorialStatus);
 	// ADR-0042: el catálogo manda; sin él se muestran las etiquetas de origen.
@@ -422,6 +426,7 @@ export function ResourceDetailContent({
 								target="_blank"
 								rel="noopener noreferrer"
 								className="detail-action-primary"
+								onClick={onPreviewOpened}
 							>
 								<span className="material-symbols-outlined">visibility</span>
 								{m.detail_view_online()}
@@ -528,6 +533,7 @@ export function ResourceDetailContent({
 									referrerPolicy="no-referrer"
 									loading="lazy"
 									title={m.detail_preview_iframe()}
+									onLoad={onPreviewOpened}
 								/>
 							</div>
 							<EmbedModal embed={activeEmbed} onClose={closeEmbed} />
@@ -589,6 +595,19 @@ export function ResourceDetailContent({
 					{/* Ratings: solo en publicados (#461) */}
 					{resource.editorialStatus === "published" ? (
 						<section className="detail-ratings-section">
+							{typeof stats?.viewCount === "number" ? (
+								<p className="detail-views">
+									<span
+										className="material-symbols-outlined"
+										aria-hidden="true"
+									>
+										visibility
+									</span>
+									{stats.viewCount === 1
+										? m.detail_views_one()
+										: m.detail_views_other({ count: String(stats.viewCount) })}
+								</p>
+							) : null}
 							<RatingIsland
 								resourceSlug={resource.slug}
 								currentUserId={currentUserId}
@@ -764,6 +783,7 @@ interface ResourceStats {
 	favoriteCount: number;
 	ratingAvg: number;
 	ratingCount: number;
+	viewCount?: number;
 }
 
 export function updateStatsAfterDownload(
@@ -884,6 +904,20 @@ export function ResourceDetailIsland() {
 				onDownloadTracked={(count, format) =>
 					setStats((prev) => updateStatsAfterDownload(prev, count, format))
 				}
+				onPreviewOpened={() => {
+					const current = resource as Resource;
+					if (current.editorialStatus !== "published") return;
+					void (async () => {
+						const api = await getApiClient();
+						const viewCount = await trackResourceViewOnce(
+							current.slug,
+							(slug, sessionId) => api.trackResourceView(slug, sessionId),
+						);
+						if (viewCount !== null) {
+							setStats((prev) => (prev ? { ...prev, viewCount } : prev));
+						}
+					})();
+				}}
 			/>
 		</div>
 	);
