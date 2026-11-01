@@ -1,8 +1,13 @@
 import * as repo from "@procomun/db/repository";
+import { canViewResource } from "@procomun/db/validation";
 import { Hono } from "hono";
 import { logActivity } from "../../activity/log.ts";
 import type { AuthEnv } from "../../auth/middleware.ts";
-import { getCurrentUser, hasMinRole } from "../../auth/roles.ts";
+import {
+	canManageResource,
+	getCurrentUser,
+	hasMinRole,
+} from "../../auth/roles.ts";
 import { getDb } from "../../db.ts";
 import { parsePagination } from "../../http/pagination.ts";
 
@@ -81,7 +86,10 @@ tagAdminRoutes.get("/resources/:resourceId", async (c) => {
 	const resourceId = c.req.param("resourceId");
 	if (!resourceId) return c.json({ error: "Missing resourceId" }, 400);
 	const resource = await repo.getResourceById(getDb().db, resourceId);
-	if (!resource) return c.json({ error: "Resource not found" }, 404);
+	// #460: un borrador ajeno no existe para el curator.
+	if (!resource || !canViewResource(getCurrentUser(c), resource)) {
+		return c.json({ error: "Resource not found" }, 404);
+	}
 	const data = await repo.listResourceTags(getDb().db, resourceId);
 	return c.json({ data });
 });
@@ -95,12 +103,11 @@ tagAdminRoutes.put("/resources/:resourceId", async (c) => {
 	const resource = await repo.getResourceById(getDb().db, resourceId);
 	if (!resource) return c.json({ error: "Resource not found" }, 404);
 
-	const role = user.role ?? "reader";
-	const canEdit =
-		hasMinRole(role, "admin") ||
-		hasMinRole(role, "curator") ||
-		resource.createdBy === user.id;
-	if (!canEdit) return c.json({ error: "Forbidden" }, 403);
+	// Misma regla que el resto de la edición del recurso (#460): el curator no
+	// toca los borradores ajenos.
+	if (!canManageResource(user, resource)) {
+		return c.json({ error: "Forbidden" }, 403);
+	}
 
 	const body = (await c.req.json().catch(() => null)) as {
 		labels?: string[];
