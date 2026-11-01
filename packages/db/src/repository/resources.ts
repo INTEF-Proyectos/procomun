@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, isNull, or, sql } from "drizzle-orm";
+import { and, asc, desc, eq, isNull, ne, or, sql } from "drizzle-orm";
 import { normalizeEducationalAssignments } from "../educational-areas.ts";
 import { user } from "../schema/auth.ts";
 import {
@@ -45,6 +45,11 @@ type ResourceListOptions = {
 	educationalOption?: string;
 	createdBy?: string;
 	visibleToUserId?: string;
+	/**
+	 * Oculta los borradores que no ha creado este usuario (#460). Es la versión
+	 * SQL de `isOthersPrivateDraft` (validation.ts) para el listado del curator.
+	 */
+	hideOthersDraftsFor?: string;
 };
 
 type ResourceMutationInput = {
@@ -213,6 +218,13 @@ export async function listResources(db: DrizzleDB, opts: ResourceListOptions) {
 		);
 	}
 	if (opts.createdBy) conditions.push(eq(resources.createdBy, opts.createdBy));
+	if (opts.hideOthersDraftsFor) {
+		const ownOrNotDraft = or(
+			ne(resources.editorialStatus, "draft"),
+			eq(resources.createdBy, opts.hideOthersDraftsFor),
+		);
+		if (ownOrNotDraft) conditions.push(ownOrNotDraft);
+	}
 	if (opts.visibleToUserId) {
 		const visibility = or(
 			eq(resources.createdBy, opts.visibleToUserId),
