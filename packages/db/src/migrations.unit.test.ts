@@ -353,3 +353,43 @@ describe("migración 0011_keyword_catalog", () => {
 		}
 	});
 });
+
+// ADR-0044 (#421): contador de visitas. 0012 queda para #457.
+describe("migración 0013_resource_views", () => {
+	test("coincide con setup.ts y se puede aplicar dos veces", async () => {
+		const migration = await readFile(
+			path.join(migrationsDir, "0013_resource_views.sql"),
+			"utf8",
+		);
+		const { RESOURCE_VIEWS_SCHEMA } = await import("./setup.ts");
+		const statements = migration
+			.replace(/^--[^\n]*\n/, "")
+			.split("--> statement-breakpoint")
+			.map((statement) => statement.trim().replace(/;$/, ""));
+		expect(statements).toEqual(RESOURCE_VIEWS_SCHEMA);
+
+		const db = new PGlite();
+		try {
+			await db.exec(`CREATE TABLE "resources" (id TEXT PRIMARY KEY);
+				INSERT INTO resources (id) VALUES ('r1');`);
+			const sql = migration.replaceAll("--> statement-breakpoint", "");
+			await db.exec(sql);
+			await db.exec(sql);
+			await db.exec(
+				"INSERT INTO resource_view_sessions (resource_id, session_hash) VALUES ('r1', 'h')",
+			);
+			await expect(
+				db.exec(
+					"INSERT INTO resource_view_sessions (resource_id, session_hash) VALUES ('r1', 'h')",
+				),
+			).rejects.toThrow();
+			await db.exec("DELETE FROM resources WHERE id = 'r1'");
+			const left = await db.query<{ n: number }>(
+				"SELECT count(*)::int AS n FROM resource_view_sessions",
+			);
+			expect(left.rows[0]?.n).toBe(0);
+		} finally {
+			await db.close();
+		}
+	});
+});

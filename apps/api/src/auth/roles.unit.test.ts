@@ -90,13 +90,15 @@ describe("auth roles helpers", () => {
 		// revisión y lo pasa a draft/published/archived queda como assignedCuratorId
 		// y debe poder seguir leyéndolo y gestionándolo; antes perdía el acceso (404).
 		const curator = { id: "curator-1", role: "curator" };
+		// #460: si lo devuelve a borrador, el borrador vuelve a ser privado del
+		// autor y el curator pierde el acceso aunque sea el asignado.
 		expect(
 			canManageResource(curator, {
 				createdBy: "author-1",
 				assignedCuratorId: "curator-1",
 				editorialStatus: "draft",
 			}),
-		).toBe(true);
+		).toBe(false);
 		expect(
 			canManageResource(curator, {
 				createdBy: "author-1",
@@ -130,6 +132,36 @@ describe("auth roles helpers", () => {
 					createdBy: "author-1",
 					assignedCuratorId: null,
 					editorialStatus: "review",
+				},
+			),
+		).toBe(true);
+	});
+
+	test("canManageResource: un curator no gestiona borradores ajenos (#460)", () => {
+		const curator = { id: "curator-1", role: "curator" };
+		expect(
+			canManageResource(curator, {
+				createdBy: "author-1",
+				assignedCuratorId: null,
+				editorialStatus: "draft",
+			}),
+		).toBe(false);
+		// Sus propios borradores sí.
+		expect(
+			canManageResource(curator, {
+				createdBy: "curator-1",
+				assignedCuratorId: null,
+				editorialStatus: "draft",
+			}),
+		).toBe(true);
+		// El admin, todos.
+		expect(
+			canManageResource(
+				{ id: "admin-1", role: "admin" },
+				{
+					createdBy: "author-1",
+					assignedCuratorId: null,
+					editorialStatus: "draft",
 				},
 			),
 		).toBe(true);

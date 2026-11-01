@@ -78,6 +78,13 @@
 			"when": 1792650000000,
 			"tag": "0012_resource_other_authors",
 			"breakpoints": true
+		},
+		{
+			"idx": 11,
+			"version": "7",
+			"when": 1792675000000,
+			"tag": "0013_resource_views",
+			"breakpoints": true
 		}
 	]
 }

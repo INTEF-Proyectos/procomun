@@ -135,6 +135,14 @@ El middleware de sesión se ejecuta en todas las rutas. Los guards de RBAC se ap
    (b) El frontend necesita evaluar permisos client-side de forma sofisticada (CASL sería más adecuado).
    (c) Se introducen más de 6 roles o políticas con herencia compleja.
 
+## Actualización 2026-10-26 — borradores privados frente al curator (#460)
+
+* Un borrador es trabajo privado de su autor. Un curator no ve ni gestiona borradores ajenos hasta que se envían a revisión: ni en el listado de Administrar (incluidos búsqueda y contadores del panel), ni en la ficha, ni por acceso directo a la API.
+* El curator conserva el acceso a sus propios borradores y a los recursos ajenos en cualquier otro estado que ya podía ver (revisión, publicados, archivados). El admin lo ve todo.
+* Si un curator devuelve un recurso ajeno de revisión a borrador, pierde el acceso aunque quede como curator asignado. Esto sustituye, solo para el estado `draft`, lo que se decidió en DEF-009 (#205); al publicar o archivar lo sigue conservando.
+* La regla vive en un solo sitio, `packages/db/src/validation.ts`: `isOthersPrivateDraft`, `canViewResource` (lectura) y `canManageResource` (gestión). El listado aplica la misma regla en SQL (`listResources({ hideOthersDraftsFor })`) y las subidas la usan en `canManageResourceUpload`. El frontend importa las mismas funciones, así que el botón «Eliminar recurso» (#454) sigue la regla sin cambios.
+* Las etiquetas de un recurso (`GET`/`PUT /api/admin/tags/resources/:id`) siguen la misma regla: la lectura usa `canViewResource` (404 a un borrador ajeno) y la escritura `canManageResource` (403). Antes cualquier curator las cambiaba en cualquier recurso.
+
 ## Actualización 2026-10-27 — colecciones de autores (#433)
 
 * Las filas `collection:*` de la tabla de permisos por rol quedan precisadas por [ADR-0047](0047-colecciones-de-autores.md): author y editor crean colecciones de autor (públicas o privadas), editan y borran las suyas; curator y admin crean las editoriales; curator edita y borra las públicas ajenas que no están en borrador; las privadas solo las ven su propietario y el admin.
