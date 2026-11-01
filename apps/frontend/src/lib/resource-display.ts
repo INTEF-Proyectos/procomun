@@ -1,3 +1,4 @@
+import { RESOURCE_TYPES } from "@procomun/db/resource-types";
 import { url } from "./paths.ts";
 
 export function escapeHtml(s: string): string {
@@ -61,6 +62,23 @@ export function formatBytes(bytes?: number | null): string {
 		unitIndex += 1;
 	}
 	return `${value.toFixed(value >= 10 || unitIndex === 0 ? 0 : 1)} ${units[unitIndex]}`;
+}
+
+/** Denominación legible del tipo de recurso («proyecto» → «Proyecto»). */
+export function resourceTypeLabel(value: string): string {
+	return RESOURCE_TYPES.find((type) => type.value === value)?.label ?? value;
+}
+
+const LANGUAGE_NAMES = new Intl.DisplayNames(["es"], { type: "language" });
+
+/** Nombre del idioma a partir de su código («es» → «Español»). */
+export function languageLabel(code: string): string {
+	try {
+		const name = LANGUAGE_NAMES.of(code) ?? code;
+		return name.charAt(0).toLocaleUpperCase("es") + name.slice(1);
+	} catch {
+		return code;
+	}
 }
 
 /** Búsqueda de texto con el valor completo como consulta (#459). */
