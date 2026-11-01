@@ -70,3 +70,19 @@ El contador diario `NNN` colisiona cuando dos PRs abiertas el mismo día eligen 
 - Las claves históricas `T-YYYY-MM-DD-NNN` **no se reescriben**; el validador acepta ambos sufijos numéricos
 
 Consecuencia: la probabilidad de colisión entre ramas paralelas deja de depender de coordinar el contador del día.
+
+## Adenda 2026-11-01 — `status.yaml` se fusiona con el driver «union»
+
+Las claves map-keyed resolvieron las **colisiones** entre ramas paralelas, pero no los **conflictos de merge**: cada rama añade su entrada al final del fichero, así que git veía dos cambios en la misma región y marcaba conflicto en `status.yaml` en cuanto `main` avanzaba. Con una docena de PR abiertos, cada merge en `main` dejaba a los demás en conflicto, y la resolución era siempre la misma: conservar los dos lados.
+
+Se declara en `.gitattributes`:
+
+```
+status.yaml merge=union
+```
+
+`union` es un driver integrado de git (no es un merge driver propio, que GitHub no soportaría): conserva las líneas de ambos lados sin marcadores. Es exactamente la resolución correcta para un fichero append-only cuyas claves son únicas por construcción.
+
+Esto no relaja ninguna comprobación. `scripts/check-tracking.ts` sigue validando el resultado en el CI: sintaxis YAML, claves duplicadas y referencias. Si una unión produjera algo inválido —por ejemplo porque alguien editó una entrada ajena, que la regla 12 de AGENTS.md prohíbe—, el CI lo detendría.
+
+Validación: reproducido el conflicto de #465 contra `main` y comprobado que la unión automática produce un `status.yaml` **idéntico** a la resolución manual (`diff` sin diferencias) y que `check-tracking.ts` lo acepta (195 tareas, sin duplicados).

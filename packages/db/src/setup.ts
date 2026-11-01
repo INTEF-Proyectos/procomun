@@ -2,6 +2,26 @@
  * Crea todas las tablas del esquema en una instancia PGlite.
  * Reutilizable por: API (dev local), CLI (seed), preview (navegador).
  */
+
+/**
+ * Contador de visitas (ADR-0044). La migración 0013_resource_views contiene
+ * estas mismas sentencias; un test comprueba que coinciden.
+ */
+export const RESOURCE_VIEWS_SCHEMA = [
+	`CREATE TABLE IF NOT EXISTS "resource_view_counts" (
+		resource_id TEXT PRIMARY KEY REFERENCES resources(id) ON DELETE CASCADE,
+		view_count INTEGER NOT NULL DEFAULT 0,
+		legacy_view_count INTEGER,
+		updated_at TIMESTAMP NOT NULL DEFAULT NOW()
+	)`,
+	`CREATE TABLE IF NOT EXISTS "resource_view_sessions" (
+		resource_id TEXT NOT NULL REFERENCES resources(id) ON DELETE CASCADE,
+		session_hash VARCHAR(64) NOT NULL,
+		created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+		CONSTRAINT resource_view_sessions_resource_session UNIQUE (resource_id, session_hash)
+	)`,
+	`CREATE INDEX IF NOT EXISTS resource_view_sessions_created_at_idx ON resource_view_sessions (created_at)`,
+];
 /**
  * Catálogo inicial de palabras clave (issue #384, ADR-0042). Solo inserta si
  * aún no hay ningún término de catálogo: no reescribe etiquetas existentes ni
@@ -357,6 +377,7 @@ export const SCHEMA_STATEMENTS = [
 		format VARCHAR(20) NOT NULL DEFAULT 'direct',
 		created_at TIMESTAMP NOT NULL DEFAULT NOW()
 	)`,
+	...RESOURCE_VIEWS_SCHEMA,
 	// Indexes
 	`CREATE TABLE IF NOT EXISTS "activity_events" (
 		id TEXT PRIMARY KEY,

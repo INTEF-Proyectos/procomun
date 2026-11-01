@@ -13,6 +13,7 @@ import {
 	resourceSubjects,
 	resources,
 } from "../schema/resources.ts";
+import { resourceViewCounts } from "../schema/social.ts";
 import { uploadSessions } from "../schema/uploads.ts";
 import { buildSlug, type DrizzleDB } from "./shared.ts";
 
@@ -36,6 +37,11 @@ export interface LegacyResourceInput {
 	previewImageUrl: string | null;
 	/** Calculado desde `published` del JSON (ver resolveLegacyPublicationStatus). */
 	editorialStatus: LegacyEditorialStatus;
+	/**
+	 * Visitas del Procomún antiguo (#421, ADR-0044): valor inicial del contador.
+	 * Pendiente: el exportador aún no incluye el dato, así que hoy llega vacío.
+	 */
+	legacyViewCount?: number | null;
 }
 
 export interface LegacyElpxInput {
@@ -167,6 +173,17 @@ export async function importLegacyResourceWithElpx(
 					optionId: area.optionId,
 				})),
 			);
+		}
+
+		const legacyViewCount = input.resource.legacyViewCount;
+		if (
+			typeof legacyViewCount === "number" &&
+			Number.isInteger(legacyViewCount) &&
+			legacyViewCount > 0
+		) {
+			await tx
+				.insert(resourceViewCounts)
+				.values({ resourceId, legacyViewCount, updatedAt: now });
 		}
 
 		const mediaItemId = crypto.randomUUID();
