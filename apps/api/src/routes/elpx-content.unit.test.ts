@@ -163,3 +163,142 @@ describe("HTML de Descartes y eXe (issue #406)", () => {
 		expect(res.headers.get("access-control-allow-origin")).toBe("*");
 	});
 });
+
+// Un iDevice JSON de eXe (formulario de rellenar huecos, #431) guarda su
+// contenido en data-idevice-json-data, escapado como atributo. El texto del
+// autor lleva entidades propias, como el &quot; que TinyMCE pone en los style.
+function ideviceJsonAttr(data: unknown): string {
+	return JSON.stringify(data)
+		.replace(/&/g, "&amp;")
+		.replace(/"/g, "&quot;")
+		.replace(/</g, "&lt;")
+		.replace(/>/g, "&gt;");
+}
+
+function readIdeviceJson(html: string): unknown {
+	const match = html.match(/data-idevice-json-data="([^"]*)"/);
+	if (!match?.[1]) throw new Error("sin data-idevice-json-data");
+	const value = match[1]
+		.replace(/&quot;/g, '"')
+		.replace(/&lt;/g, "<")
+		.replace(/&gt;/g, ">")
+		.replace(/&amp;/g, "&");
+	return JSON.parse(value);
+}
+
+describe("iDevice JSON de eXe (issue #431)", () => {
+	const fill = (baseText: string) => ({
+		eXeFormInstructions: "<p>Completa las palabras que faltan.</p>",
+		questionsData: [{ activityType: "fill", baseText }],
+	});
+
+	async function serve(file: string, data: unknown): Promise<string> {
+		const dir = path.join(process.env.UPLOAD_STORAGE_DIR ?? "", "elpx", HASH);
+		await writeFile(
+			path.join(dir, file),
+			`<html><head><title>Autoevaluación</title></head><body><div id="idevice-1" class="idevice_node form" data-idevice-type="form" data-idevice-component-type="json" data-idevice-json-data="${ideviceJsonAttr(data)}"><p>Completa las palabras que faltan.</p></div></body></html>`,
+			"utf8",
+		);
+		const res = await app.request(`/api/v1/elpx/${HASH}/${file}`);
+		expect(res.status).toBe(200);
+		return res.text();
+	}
+
+	test("conserva el &quot; de un style dentro de los datos del iDevice", async () => {
+		const data = fill(
+			'<p><span style="font-family: &quot;Open Sans&quot;">La <u>boca</u></span>&nbsp;: digestión.</p>',
+		);
+		const body = await serve("huecos-comillas.html", data);
+		expect(readIdeviceJson(body)).toEqual(data);
+	});
+
+	test("no reescribe un url() dentro de los datos del iDevice", async () => {
+		const data = fill(
+			'<p><span style="background-image: url(&quot;../content/resources/fondo.png&quot;)">La <u>boca</u></span></p>',
+		);
+		const body = await serve("huecos-url.html", data);
+		expect(readIdeviceJson(body)).toEqual(data);
+	});
+
+	test("reescribe un url() con &quot; de un style sin romper el atributo", async () => {
+		const dir = path.join(process.env.UPLOAD_STORAGE_DIR ?? "", "elpx", HASH);
+		await writeFile(
+			path.join(dir, "fondo.html"),
+			'<html><body><div id="caja" style="background-image: url(&quot;img/fondo.png&quot;)">Hola</div></body></html>',
+			"utf8",
+		);
+		const res = await app.request(`/api/v1/elpx/${HASH}/fondo.html`);
+		const body = await res.text();
+		expect(body).toContain(
+			`style="background-image: url(&quot;/api/v1/elpx/${HASH}/img/fondo.png&quot;)"`,
+		);
+	});
+});
+
+// Los .elpx del Procomún antiguo traen un HTML exportado sin los datos de sus
+// iDevices JSON: el div del formulario no lleva data-idevice-json-data ni
+// data-idevice-component-type, y eXe no lo monta. Los datos siguen en
+// content.xml (jsonProperties), así que se recuperan de ahí al servir (#431).
+describe("iDevice JSON de un .elpx legacy sin datos en el HTML (issue #431)", () => {
+	const LEGACY_HASH = "fedcba9876543210fedcba9876543210fedcba98";
+	const formData = {
+		eXeFormInstructions: '<p>Lee el párrafo y completa "las palabras".</p>',
+		questionsData: [
+			{ activityType: "fill", baseText: "<p>La <u>boca</u> &amp; más</p>" },
+		],
+	};
+	const contentXml = `<?xml version="1.0" encoding="UTF-8"?>
+<ode><odeNavStructures><odeNavStructure><odePagStructures><odePagStructure><odeComponents>
+<odeComponent><odeIdeviceId>idevice-form</odeIdeviceId><odeIdeviceTypeName>form</odeIdeviceTypeName>
+<htmlView><![CDATA[<p>Lee el párrafo.</p>]]></htmlView>
+<jsonProperties><![CDATA[${JSON.stringify(formData)}]]></jsonProperties></odeComponent>
+<odeComponent><odeIdeviceId>idevice-video</odeIdeviceId><odeIdeviceTypeName>interactive-video</odeIdeviceTypeName>
+<htmlView><![CDATA[<p>Vídeo</p>]]></htmlView>
+<jsonProperties><![CDATA[{"slides":[]}]]></jsonProperties></odeComponent>
+</odeComponents></odePagStructure></odePagStructures></odeNavStructure></odeNavStructures></ode>`;
+
+	async function serveLegacy(body: string): Promise<string> {
+		const dir = path.join(
+			process.env.UPLOAD_STORAGE_DIR ?? "",
+			"elpx",
+			LEGACY_HASH,
+		);
+		await mkdir(path.join(dir, "html"), { recursive: true });
+		await writeFile(path.join(dir, "content.xml"), contentXml, "utf8");
+		await writeFile(
+			path.join(dir, "html", "autoevaluacion.html"),
+			`<html><head><title>Autoevaluación</title></head><body>${body}</body></html>`,
+			"utf8",
+		);
+		const res = await app.request(
+			`/api/v1/elpx/${LEGACY_HASH}/html/autoevaluacion.html`,
+		);
+		expect(res.status).toBe(200);
+		return res.text();
+	}
+
+	test("recupera los datos del formulario desde content.xml", async () => {
+		const body = await serveLegacy(
+			'<div id="idevice-form" class="idevice_node form" data-idevice-path="../idevices/form/" data-idevice-type="form"><p>Lee el párrafo.</p></div>',
+		);
+		expect(body).toContain('data-idevice-component-type="json"');
+		expect(body).toContain('data-idevice-template="form.html"');
+		expect(readIdeviceJson(body)).toEqual(formData);
+	});
+
+	test("no toca un iDevice que ya trae sus datos", async () => {
+		const own = { questionsData: [] };
+		const body = await serveLegacy(
+			`<div id="idevice-form" class="idevice_node form" data-idevice-type="form" data-idevice-component-type="json" data-idevice-json-data="${ideviceJsonAttr(own)}"></div>`,
+		);
+		expect(readIdeviceJson(body)).toEqual(own);
+		expect(body.match(/data-idevice-component-type/g)).toHaveLength(1);
+	});
+
+	test("no convierte en JSON un iDevice que eXe exporta como HTML", async () => {
+		const body = await serveLegacy(
+			'<div id="idevice-video" class="idevice_node interactive-video" data-idevice-type="interactive-video"><p>Vídeo</p></div>',
+		);
+		expect(body).not.toContain("data-idevice-json-data");
+	});
+});
