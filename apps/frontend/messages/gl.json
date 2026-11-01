@@ -161,6 +161,8 @@
 	"detail_download": "Descargar",
 	"detail_no_files": "Non hai ficheiros dispoñibles para este recurso.",
 	"detail_preview_title": "Previsualización do Recurso",
+	"detail_views_one": "1 visita",
+	"detail_views_other": "{count} visitas",
 	"detail_preview_iframe": "Vista previa do recurso eXeLearning",
 	"detail_embed_title": "Poncho na túa web",
 	"detail_embed_desc": "Se queres inserir este recurso na túa web, copia o seguinte código:",

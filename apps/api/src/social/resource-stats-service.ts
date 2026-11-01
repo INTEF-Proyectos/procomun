@@ -3,6 +3,7 @@ import { and, eq, gte, isNull, sql } from "drizzle-orm";
 import { getDb } from "../db.ts";
 import { getUserFavoriteState } from "./favorites-service.ts";
 import { roundRatingAverage } from "./resource-card.ts";
+import { getResourceViewCount } from "./resource-views-service.ts";
 
 export async function incrementDownload(
 	resourceId: string,
@@ -61,33 +62,40 @@ export async function getResourceSocialStats(
 	userId?: string,
 ) {
 	const db = getDb().db;
-	const [dlResult, dlGroupResult, favResult, ratingResult, userFavorited] =
-		await Promise.all([
-			db
-				.select({ count: sql<number>`count(*)` })
-				.from(downloads)
-				.where(eq(downloads.resourceId, resourceId)),
-			db
-				.select({
-					format: downloads.format,
-					count: sql<number>`count(*)`,
-				})
-				.from(downloads)
-				.where(eq(downloads.resourceId, resourceId))
-				.groupBy(downloads.format),
-			db
-				.select({ count: sql<number>`count(*)` })
-				.from(favorites)
-				.where(eq(favorites.resourceId, resourceId)),
-			db
-				.select({
-					avg: sql<number>`coalesce(avg(${ratings.score}), 0)`,
-					count: sql<number>`count(*)`,
-				})
-				.from(ratings)
-				.where(eq(ratings.resourceId, resourceId)),
-			getUserFavoriteState(resourceId, userId),
-		]);
+	const [
+		dlResult,
+		dlGroupResult,
+		favResult,
+		ratingResult,
+		userFavorited,
+		viewCount,
+	] = await Promise.all([
+		db
+			.select({ count: sql<number>`count(*)` })
+			.from(downloads)
+			.where(eq(downloads.resourceId, resourceId)),
+		db
+			.select({
+				format: downloads.format,
+				count: sql<number>`count(*)`,
+			})
+			.from(downloads)
+			.where(eq(downloads.resourceId, resourceId))
+			.groupBy(downloads.format),
+		db
+			.select({ count: sql<number>`count(*)` })
+			.from(favorites)
+			.where(eq(favorites.resourceId, resourceId)),
+		db
+			.select({
+				avg: sql<number>`coalesce(avg(${ratings.score}), 0)`,
+				count: sql<number>`count(*)`,
+			})
+			.from(ratings)
+			.where(eq(ratings.resourceId, resourceId)),
+		getUserFavoriteState(resourceId, userId),
+		getResourceViewCount(resourceId),
+	]);
 
 	const exportCounts = {
 		scorm: 0,
@@ -110,5 +118,6 @@ export async function getResourceSocialStats(
 		ratingAvg: roundRatingAverage(ratingResult[0]?.avg ?? 0),
 		ratingCount: Number(ratingResult[0]?.count ?? 0),
 		userFavorited,
+		viewCount,
 	};
 }

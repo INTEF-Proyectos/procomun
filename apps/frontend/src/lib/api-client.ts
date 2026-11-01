@@ -593,6 +593,11 @@ export interface ApiClient {
 		offset?: number;
 	}): Promise<PaginatedResult<import("./types/user-extended.ts").ActivityItem>>;
 	trackDownload(slug: string, format?: string): Promise<{ count: number }>;
+	/** Una visita por sesión al abrir la vista previa (ADR-0044). */
+	trackResourceView(
+		slug: string,
+		sessionId: string,
+	): Promise<{ viewCount: number }>;
 	getResourceStats(slug: string): Promise<{
 		downloadCount: number;
 		exportCounts: { scorm: number; ims: number; web: number; epub: number };
@@ -600,6 +605,7 @@ export interface ApiClient {
 		ratingAvg: number;
 		ratingCount: number;
 		userFavorited: boolean;
+		viewCount?: number;
 	}>;
 	reportResource(
 		slug: string,

@@ -161,6 +161,8 @@
 	"detail_download": "Descarregar",
 	"detail_no_files": "No hi ha fitxers disponibles per a aquest recurs.",
 	"detail_preview_title": "Previsualització del Recurs",
+	"detail_views_one": "1 visita",
+	"detail_views_other": "{count} visites",
 	"detail_preview_iframe": "Vista prèvia del recurs eXeLearning",
 	"detail_embed_title": "Posa-ho al teu web",
 	"detail_embed_desc": "Si vols inserir aquest recurs al teu web, copia el codi següent:",

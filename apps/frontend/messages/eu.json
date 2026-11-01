@@ -161,6 +161,8 @@
 	"detail_download": "Deskargatu",
 	"detail_no_files": "Ez dago fitxategirik baliabide honetarako.",
 	"detail_preview_title": "Baliabidearen Aurrebista",
+	"detail_views_one": "Bisita 1",
+	"detail_views_other": "{count} bisita",
 	"detail_preview_iframe": "eXeLearning baliabidearen aurrebista",
 	"detail_embed_title": "Jarri zure webean",
 	"detail_embed_desc": "Baliabide hau zure webean txertatu nahi baduzu, kopiatu hurrengo kodea:",
