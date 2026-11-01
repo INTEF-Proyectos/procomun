@@ -417,6 +417,12 @@ describe("migración 0014_knowledge_areas", () => {
 				"SELECT column_name FROM information_schema.columns WHERE table_name = 'tags' AND column_name = 'retired_at'",
 			);
 			expect(retired.rows).toHaveLength(1);
+		} finally {
+			await db.close();
+		}
+	});
+});
+
 // ADR-0044 (#421): contador de visitas. 0012 queda para #457.
 describe("migración 0013_resource_views", () => {
 	test("coincide con setup.ts y se puede aplicar dos veces", async () => {
