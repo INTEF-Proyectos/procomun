@@ -28,7 +28,7 @@ jobs:
     - name: Setup Bun
       uses: oven-sh/setup-bun@v2
       with:
-        bun-version: 1.3.14
+        bun-version: 1.4.4
 
     - name: Install dependencies
       run: bun install --frozen-lockfile
@@ -41,7 +41,11 @@ jobs:
 
     - name: Start application
       run: |
-        bun run dev &
+        # La salida del servidor va a un fichero: lanzado en segundo plano, lo
+        # que escribe después de este paso no sale en el log del job, y sin él
+        # no se veía que la API había muerto a mitad de la suite (#489).
+        mkdir -p e2e-server
+        bun run dev > e2e-server/dev.log 2>&1 &
         # Espera a que frontend y API respondan. Antes se usaba `npx wait-on`,
         # que se descargaba de la red en cada run, sin versión fijada y sin estar
         # declarado como dependencia en ninguna parte.
@@ -54,6 +58,7 @@ jobs:
           sleep 1
         done
         echo "Timeout: los servicios no respondieron en 60s"
+        cat e2e-server/dev.log
         exit 1
       env:
         NODE_ENV: test
@@ -63,6 +68,14 @@ jobs:
       env:
         E2E_BASE_URL: http://localhost:5173
         CI: true
+
+    - name: Server state after E2E
+      if: failure()
+      run: |
+        ps -eo pid,ppid,rss,etime,args | grep -E 'index.ts|vite' | grep -v grep || true
+        free -m
+        sudo dmesg | grep -i -E 'out of memory|killed process' || true
+        tail -n 200 e2e-server/dev.log
 
     - name: Capture desktop visual previews
       if: github.event_name == 'pull_request'
@@ -90,6 +103,7 @@ jobs:
         path: |
           playwright-report/
           test-results/
+          e2e-server/
         retention-days: 7
 
   # Firefox y WebKit solo se lanzan a mano (workflow_dispatch) para no gastar CI
@@ -110,7 +124,7 @@ jobs:
     - name: Setup Bun
       uses: oven-sh/setup-bun@v2
       with:
-        bun-version: 1.3.14
+        bun-version: 1.4.4
 
     - name: Install dependencies
       run: bun install --frozen-lockfile
