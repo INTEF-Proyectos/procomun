@@ -3148,6 +3148,20 @@ tasks:
       áreas; catalog:area-keywords cruza ambos catálogos en seco y aplica con
       --apply. Migración 0014_knowledge_areas. Formularios, ficha y filtros
       quedan para el PR 2; correspondencias y curación, para el PR 3.
+  T-2026-10-26-07433854:
+    date: 2026-10-26
+    agent: "backend-api-servicios"
+    task: "Comprobar los campos obligatorios al enviar a revisión o publicar"
+    status: Done
+    related: ["#408", "#448"]
+    notes: >
+      PATCH /api/admin/resources/:id/status valida el recurso guardado con las
+      reglas del alta (validateResourceForStatus) al pasar a review o
+      published, y devuelve 400 con los campos que faltan. draft y archived no
+      exigen nada; los importados publicados no cambian mientras no cambien de
+      estado. El editor marca los campos y nombra todos los que faltan
+      (statusChangeFeedback). La regla del área obligatoria de #448 se añadirá
+      en validateResourceForStatus.
   T-2026-10-26-07293591:
     date: 2026-10-26
     agent: "frontend-ux-accesibilidad"
@@ -3298,6 +3312,23 @@ tasks:
       0011_keyword_catalog, y alta/edición envían otherAuthors junto a
       keywordIds.
 
+  T-2026-10-26-22242628:
+    date: 2026-10-26
+    agent: "frontend-ux-accesibilidad"
+    task: "Valores de los detalles técnicos de la ficha como enlaces de búsqueda"
+    status: Done
+    related: ["#459"]
+    notes: >
+      En la ficha, tipo de recurso, idioma, materias, palabras clave libres y
+      categorización educativa (categoría y cada opción) son enlaces a
+      explorar?q=<valor completo>, sin filtros implícitos. Tipo e idioma muestran
+      y buscan la denominación («Proyecto», «Español») en vez del código interno
+      (RESOURCE_TYPES e Intl.DisplayNames). Las etiquetas del catálogo mantienen
+      el filtro exacto ?tag=. La fecha de publicación sigue como texto. El enlace
+      hereda el color del texto (.meta-value-link) y usa el foco visible global.
+      Cuando se cierre #448 las materias podrán pasar a filtro de catálogo.
+      Validación: tests en CatalogIslands.unit.test.tsx (rojo → verde), bun run
+      test, check-types y biome en verde.
   T-2026-10-26-07295197:
     date: 2026-10-26
     agent: "analitica-y-observabilidad"
