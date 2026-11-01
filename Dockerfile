@@ -1,4 +1,6 @@
-FROM oven/bun:latest AS base
+# Versión fijada, la misma que setup-bun en los workflows: con 1.3.x en Linux
+# importar PGlite deja la API en ~4 GB de RSS (#489).
+FROM oven/bun:1.4.4 AS base
 RUN apt-get update && apt-get install -y unzip curl && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
 
