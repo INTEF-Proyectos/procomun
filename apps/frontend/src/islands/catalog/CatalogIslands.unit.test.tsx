@@ -326,6 +326,8 @@ describe("Catalog islands", () => {
 	test("la ficha oculta «Idioma» si el recurso no tiene idioma (#473)", () => {
 		expect(renderDetail({ language: null }, "admin")).not.toContain(">Idioma<");
 		expect(renderDetail({ language: "en" }, "admin")).toContain(">Idioma<");
+	});
+
 	// #459: los valores de los detalles técnicos llevan a una búsqueda.
 	const search = (q: string) =>
 		`href="${url(`explorar?q=${encodeURIComponent(q)}`)}"`;
