@@ -308,6 +308,17 @@ ADR-0043:
     resource_levels queda como dato de origen. La correspondencia con LOM-ES se hará
     en el exportador a partir de los ids.
 
+ADR-0044:
+  title: "Contador de visitas por recurso sin datos personales"
+  status: Propuesto
+  date: 2026-10-26
+  file: 0044-contador-visitas-recurso.md
+  notes: >
+    Issue #421. Una visita por sesión al abrir la vista previa, solo en recursos
+    publicados. UUID aleatorio por pestaña en sessionStorage; el servidor guarda
+    su SHA-256 24 h en resource_view_sessions. Totales en resource_view_counts
+    (view_count + legacy_view_count importado). Migración 0013_resource_views.
+
 ADR-0046:
   title: "Miniaturas generadas en el servidor para los paquetes sin imagen"
   status: Propuesto

@@ -19,6 +19,10 @@ import {
 	getResourceSocialStats,
 	incrementDownload,
 } from "../social/resource-stats-service.ts";
+import {
+	isValidViewSessionId,
+	recordResourceView,
+} from "../social/resource-views-service.ts";
 
 const socialRoutes = new Hono<AuthEnv>();
 
@@ -328,6 +332,30 @@ socialRoutes.post("/resources/:slug/download", async (c) => {
 	}
 
 	return c.json({ count });
+});
+
+// ---------------------------------------------------------------------------
+// POST /resources/:slug/view (una visita por sesión al abrir la vista previa,
+// ADR-0044). Solo recursos publicados: resolveResourceBySlug ya los filtra.
+// ---------------------------------------------------------------------------
+socialRoutes.post("/resources/:slug/view", async (c) => {
+	const slug = c.req.param("slug");
+	if (!slug) return c.json({ error: "Falta slug" }, 400);
+
+	const body = await c.req
+		.json<{ sessionId?: unknown }>()
+		.catch(() => ({ sessionId: undefined }));
+	if (!isValidViewSessionId(body.sessionId)) {
+		return c.json({ error: "Identificador de sesión no válido" }, 400);
+	}
+
+	const resource = await resolveResourceBySlug(slug);
+	if (!resource) {
+		return c.json({ error: "Recurso no encontrado" }, 404);
+	}
+
+	const viewCount = await recordResourceView(resource.id, body.sessionId);
+	return c.json({ viewCount });
 });
 
 // ---------------------------------------------------------------------------

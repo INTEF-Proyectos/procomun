@@ -1,0 +1,6 @@
+# status.yaml es append-only y map-keyed (ADR-0019): cada rama añade sus propias
+# claves T-*, nunca edita las ajenas. El driver «union» integrado de git conserva
+# las líneas de ambos lados, que es la resolución correcta, y evita el conflicto
+# que aparecía en cada merge. check-tracking.ts valida el resultado (claves
+# duplicadas y sintaxis), así que una unión incorrecta no pasa el CI.
+status.yaml merge=union
