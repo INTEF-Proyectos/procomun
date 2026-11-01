@@ -3132,6 +3132,20 @@ tasks:
       errores. Se añade previewImageUrl: null a ambos. Validación:
       check-types limpio y los dos ficheros de test en verde.
 
+  T-2026-10-26-07433854:
+    date: 2026-10-26
+    agent: "backend-api-servicios"
+    task: "Comprobar los campos obligatorios al enviar a revisión o publicar"
+    status: Done
+    related: ["#408", "#448"]
+    notes: >
+      PATCH /api/admin/resources/:id/status valida el recurso guardado con las
+      reglas del alta (validateResourceForStatus) al pasar a review o
+      published, y devuelve 400 con los campos que faltan. draft y archived no
+      exigen nada; los importados publicados no cambian mientras no cambien de
+      estado. El editor marca los campos y nombra todos los que faltan
+      (statusChangeFeedback). La regla del área obligatoria de #448 se añadirá
+      en validateResourceForStatus.
   T-2026-10-26-07293591:
     date: 2026-10-26
     agent: "frontend-ux-accesibilidad"
