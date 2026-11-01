@@ -49,6 +49,36 @@ export const favorites = pgTable(
 	],
 );
 
+// Visitas (ADR-0044): contador por recurso. legacy_view_count guarda el valor
+// histórico del Procomún antiguo, que se suma al contado en la plataforma.
+export const resourceViewCounts = pgTable("resource_view_counts", {
+	resourceId: text("resource_id")
+		.primaryKey()
+		.references(() => resources.id, { onDelete: "cascade" }),
+	viewCount: integer("view_count").notNull().default(0),
+	legacyViewCount: integer("legacy_view_count"),
+	updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+// Sesiones ya contadas por recurso: solo el hash del identificador aleatorio
+// de la pestaña, sin usuario ni IP. Se purgan pasada la ventana de dedup.
+export const resourceViewSessions = pgTable(
+	"resource_view_sessions",
+	{
+		resourceId: text("resource_id")
+			.notNull()
+			.references(() => resources.id, { onDelete: "cascade" }),
+		sessionHash: varchar("session_hash", { length: 64 }).notNull(),
+		createdAt: timestamp("created_at").notNull().defaultNow(),
+	},
+	(table) => [
+		unique("resource_view_sessions_resource_session").on(
+			table.resourceId,
+			table.sessionHash,
+		),
+	],
+);
+
 // Downloads: tracks resource download events
 export const downloads = pgTable("downloads", {
 	id: text("id").primaryKey(),
