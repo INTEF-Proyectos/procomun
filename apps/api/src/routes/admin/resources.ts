@@ -90,10 +90,13 @@ const resourceRoutes = buildCrudRoutes({
 	canManage: canManageResource,
 	listFilters: (user, params) => {
 		const isAdmin = hasMinRole(user.role, "admin");
+		const isCurator = !isAdmin && hasMinRole(user.role, "curator");
 		return {
 			status: params.status,
-			createdBy:
-				isAdmin || hasMinRole(user.role, "curator") ? undefined : user.id,
+			createdBy: isAdmin || isCurator ? undefined : user.id,
+			// #460: el curator no ve los borradores ajenos (misma regla que
+			// canViewResource/canManageResource).
+			hideOthersDraftsFor: isCurator ? user.id : undefined,
 		};
 	},
 	prepareCreate: async (body, user) => {

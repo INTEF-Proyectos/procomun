@@ -2,6 +2,7 @@ import { createHash } from "node:crypto";
 import { createReadStream } from "node:fs";
 import { mkdir } from "node:fs/promises";
 import path from "node:path";
+import { isOthersPrivateDraft } from "@procomun/db/validation";
 
 export type UploadUser = {
 	id: string;
@@ -14,6 +15,7 @@ export type UploadTargetResource = {
 	id?: string;
 	createdBy?: string | null;
 	assignedCuratorId?: string | null;
+	editorialStatus?: string | null;
 };
 
 const DEFAULT_ALLOWED_EXTENSIONS = [
@@ -166,9 +168,11 @@ export function canManageResourceUpload(
 	const role = user.role ?? "reader";
 	if (role === "admin") return true;
 	if (role === "curator") {
-		return (
-			resource.createdBy === user.id || resource.assignedCuratorId === user.id
-		);
+		if (resource.createdBy === user.id) return true;
+		// #460: un borrador ajeno es privado de su autor, aunque el curator sea
+		// el asignado (lo devolvió a borrador).
+		if (isOthersPrivateDraft(user, resource)) return false;
+		return resource.assignedCuratorId === user.id;
 	}
 	if (role === "author" || role === "editor") {
 		return resource.createdBy === user.id;

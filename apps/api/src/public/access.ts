@@ -2,14 +2,10 @@ import type { Context } from "hono";
 import { auth } from "../auth/config.ts";
 import type { AuthEnv } from "../auth/middleware.ts";
 
-type ResourceVisibilityContext = {
-	createdBy?: string | null;
-	editorialStatus?: string | null;
-};
+// La regla vive en @procomun/db/validation, junto a canManageResource (#460).
+export { canViewResource } from "@procomun/db/validation";
 
 type SessionUser = { id: string; role?: string } | null;
-
-const HIGH_ROLES = new Set(["curator", "admin"]);
 
 export async function getSessionUser(
 	c: Context | Context<AuthEnv>,
@@ -20,14 +16,4 @@ export async function getSessionUser(
 	} catch {
 		return null;
 	}
-}
-
-export function canViewResource(
-	user: SessionUser,
-	resource: ResourceVisibilityContext,
-) {
-	if (resource.editorialStatus === "published") return true;
-	if (!user) return false;
-	if (resource.createdBy === user.id) return true;
-	return HIGH_ROLES.has(user.role ?? "");
 }

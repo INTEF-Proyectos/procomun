@@ -372,13 +372,48 @@ export function hasMinRole(
 	return (ROLE_LEVELS[role ?? "reader"] ?? 0) >= (ROLE_LEVELS[minRole] ?? 0);
 }
 
+type ResourceAccessUser = { id: string; role?: string | null };
+type ResourceAccessTarget = {
+	createdBy?: string | null;
+	assignedCuratorId?: string | null;
+	editorialStatus?: string | null;
+};
+
+/**
+ * Borrador privado de otro usuario (#460): un recurso en `draft` que no ha
+ * creado `user`. Es trabajo del autor: solo lo ven él y el admin, no el curator.
+ * `listResources({ hideOthersDraftsFor })` aplica la misma regla en SQL.
+ */
+export function isOthersPrivateDraft(
+	user: ResourceAccessUser,
+	resource: ResourceAccessTarget,
+) {
+	return resource.editorialStatus === "draft" && resource.createdBy !== user.id;
+}
+
+/**
+ * Quién puede LEER un recurso (ficha pública, recomendados). Lo publicado lo
+ * ve cualquiera; el resto, su creador, el admin y el curator salvo borradores
+ * ajenos (#460).
+ */
+export function canViewResource(
+	user: ResourceAccessUser | null,
+	resource: ResourceAccessTarget,
+) {
+	if (resource.editorialStatus === "published") return true;
+	if (!user) return false;
+	if (hasMinRole(user.role, "admin")) return true;
+	if (resource.createdBy === user.id) return true;
+	if (hasMinRole(user.role, "curator")) {
+		return !isOthersPrivateDraft(user, resource);
+	}
+	return false;
+}
+
+/** Quién puede GESTIONAR un recurso (backoffice: leer, editar, borrar, versiones). */
 export function canManageResource(
-	user: { id: string; role?: string | null },
-	resource: {
-		createdBy?: string | null;
-		assignedCuratorId?: string | null;
-		editorialStatus?: string | null;
-	},
+	user: ResourceAccessUser,
+	resource: ResourceAccessTarget,
 ) {
 	if (hasMinRole(user.role, "admin")) return true;
 	// El creador siempre puede gestionar su propio recurso, en cualquier estado
@@ -390,8 +425,10 @@ export function canManageResource(
 	// cualquier recurso que él mismo haya curado. Al cambiar el estado de un recurso
 	// desde "review" queda registrado como assignedCuratorId (ver updateEditorialStatus),
 	// por lo que debe conservar el acceso aunque el recurso ya no esté en revisión
-	// (DEF-009 / #205: antes pasaba a "recurso no encontrado" tras publicarlo/devolverlo a borrador).
+	// (DEF-009 / #205: antes pasaba a "recurso no encontrado" tras publicarlo).
+	// Excepción (#460): si lo devuelve a borrador, vuelve a ser privado del autor.
 	if (hasMinRole(user.role, "curator")) {
+		if (isOthersPrivateDraft(user, resource)) return false;
 		return (
 			resource.editorialStatus === "review" ||
 			resource.assignedCuratorId === user.id
