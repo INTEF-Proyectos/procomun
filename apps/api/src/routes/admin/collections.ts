@@ -1,7 +1,7 @@
 import * as repo from "@procomun/db/repository";
-import { validateCollection } from "@procomun/db/validation";
+import { canViewResource, validateCollection } from "@procomun/db/validation";
 import { logActivity } from "../../activity/log.ts";
-import { canManageCollection } from "../../auth/roles.ts";
+import { canManageCollection, getCurrentUser } from "../../auth/roles.ts";
 import { ensureCurrentUser } from "../../auth/user-sync.ts";
 import { getDb } from "../../db.ts";
 import { buildCrudRoutes } from "../crud-builder.ts";
@@ -117,7 +117,8 @@ collectionRoutes.post("/:id/resources", async (c) => {
 	}
 
 	const resource = await repo.getResourceById(getDb().db, body.resourceId);
-	if (!resource) {
+	// #460: un borrador ajeno no existe para el curator.
+	if (!resource || !canViewResource(getCurrentUser(c), resource)) {
 		return c.json({ error: "Recurso no encontrado" }, 404);
 	}
 
