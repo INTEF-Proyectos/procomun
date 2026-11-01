@@ -3317,3 +3317,20 @@ tasks:
       recarga de Vite al primer acceso (runtime de Paraglide) que hace fallar a
       veces wcag.e2e.ts. No se pudo validar en el CI: Actions está bloqueado
       por facturación (#490).
+  T-2026-11-01-15071088:
+    date: 2026-11-01
+    agent: "devops-sre"
+    task: "status.yaml deja de dar conflictos de merge: driver union"
+    status: Done
+    related: ["#490"]
+    notes: >
+      Las claves map-keyed de ADR-0019 evitaban las colisiones, no los
+      conflictos: cada rama anade su entrada al final y git marcaba conflicto
+      en status.yaml en cuanto main avanzaba. Con 12 PR abiertos, cada merge
+      dejaba a los demas en conflicto y la resolucion era siempre conservar
+      los dos lados. Se declara "status.yaml merge=union" en .gitattributes;
+      union es un driver integrado de git, no uno propio. No relaja nada:
+      check-tracking.ts sigue validando sintaxis, claves duplicadas y
+      referencias en el CI. Validado reproduciendo el conflicto de #465 contra
+      main: la union automatica da un status.yaml identico a la resolucion
+      manual (diff vacio) y check-tracking lo acepta.
