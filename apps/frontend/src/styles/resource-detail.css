@@ -1050,3 +1050,8 @@
 		position: static;
 	}
 }
+
+/* #459: el valor es el enlace de búsqueda; conserva el aspecto del texto. */
+.meta-value-link {
+	color: inherit;
+}
