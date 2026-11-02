@@ -2,6 +2,7 @@ export * from "./api-tokens.ts";
 export * from "./auth.ts";
 export * from "./collections.ts";
 export * from "./elpx.ts";
+export * from "./knowledge-areas.ts";
 export * from "./reports.ts";
 export * from "./resources.ts";
 export * from "./settings.ts";

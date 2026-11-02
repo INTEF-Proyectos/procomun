@@ -143,6 +143,31 @@ export interface KeywordSuggestion extends CatalogKeyword {
 	match: "label" | "alias" | "tag";
 }
 
+/** Área de conocimiento del catálogo (#448, ADR-0045). */
+export interface KnowledgeAreaRecord {
+	id: string;
+	label: string;
+	description: string | null;
+	blockId: string;
+	position: number;
+	active: boolean;
+	usageCount: number;
+}
+
+/** Catálogo completo para el panel: bloques y familias son listas cerradas. */
+export interface KnowledgeAreaCatalog {
+	blocks: Array<{ id: string; label: string }>;
+	areas: KnowledgeAreaRecord[];
+	professionalFamilies: Array<{ id: string; label: string }>;
+}
+
+export interface KnowledgeAreaInput {
+	label?: string;
+	description?: string | null;
+	blockId?: string;
+	active?: boolean;
+}
+
 /** Atomized educational tag (ADR-0034 / #76 / #310). */
 export interface TagRecord {
 	id: string;
@@ -518,6 +543,16 @@ export interface ApiClient {
 		details?: { field: string; message: string }[];
 	}>;
 	deleteTaxonomy(id: string): Promise<void>;
+
+	// Áreas de conocimiento (#448). Lanzan `{ error }` si el servidor rechaza.
+	listAdminKnowledgeAreas(): Promise<KnowledgeAreaCatalog>;
+	createAdminKnowledgeArea(
+		input: KnowledgeAreaInput & { label: string; blockId: string },
+	): Promise<KnowledgeAreaRecord>;
+	updateAdminKnowledgeArea(
+		id: string,
+		input: KnowledgeAreaInput,
+	): Promise<KnowledgeAreaRecord>;
 
 	// Tags admin (#76 / #310)
 	listAdminTags(opts?: {

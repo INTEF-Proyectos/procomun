@@ -1,6 +1,7 @@
 import * as repo from "@procomun/db/repository";
 import {
 	validateCreateResource,
+	validateResourceForStatus,
 	validateStatus,
 	validateTransition,
 	validateUpdateResource,
@@ -15,6 +16,7 @@ import {
 } from "../../auth/roles.ts";
 import { ensureCurrentUser } from "../../auth/user-sync.ts";
 import { getDb } from "../../db.ts";
+import { elpxPreviewUrlForStatus } from "../../elpx/preview-token.ts";
 import { updateSearchVector } from "../../fts/search.ts";
 import { retireUploadArtifacts } from "../../services/elpx-retire.ts";
 import { contentDisposition, getUploadConfig } from "../../uploads/config.ts";
@@ -255,7 +257,9 @@ resourceRoutes.get("/:id/elpx", async (c) => {
 		id: elpx.id,
 		hash: elpx.hash,
 		hasPreview: elpx.hasPreview,
-		previewUrl: elpx.hasPreview ? `/api/v1/elpx/${elpx.hash}/` : null,
+		previewUrl: elpx.hasPreview
+			? elpxPreviewUrlForStatus(elpx.hash, check.data.editorialStatus)
+			: null,
 		elpxFileUrl,
 		metadata,
 		originalFilename: elpx.originalFilename,
@@ -305,6 +309,14 @@ resourceRoutes.patch("/:id/status", async (c) => {
 		return c.json(
 			{ error: "Transición no permitida", details: transitionCheck.errors },
 			403,
+		);
+
+	// Issue #408: revisión y publicación exigen los mismos campos que el alta.
+	const completeness = validateResourceForStatus(existing, status);
+	if (!completeness.valid)
+		return c.json(
+			{ error: "Validación fallida", details: completeness.errors },
+			400,
 		);
 
 	await repo.updateEditorialStatus(db(), id, status, user.id);

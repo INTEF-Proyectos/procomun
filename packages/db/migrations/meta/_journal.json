@@ -91,6 +91,8 @@
 			"version": "7",
 			"when": 1793100000000,
 			"tag": "0017_user_profile",
+			"when": 1792700000000,
+			"tag": "0014_knowledge_areas",
 			"breakpoints": true
 		}
 	]
