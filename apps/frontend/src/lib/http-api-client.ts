@@ -9,6 +9,9 @@ import type {
 	CollectionResourceRecord,
 	CreateResourceInput,
 	KeywordSuggestion,
+	KnowledgeAreaCatalog,
+	KnowledgeAreaInput,
+	KnowledgeAreaRecord,
 	MediaItemRecord,
 	PaginatedResult,
 	RelatedResourcesResult,
@@ -744,6 +747,44 @@ export class HttpApiClient implements ApiClient {
 		const res = await fetch(`/api/admin/tags${qs ? `?${qs}` : ""}`, {
 			credentials: "include",
 		});
+		return res.json();
+	}
+
+	async listAdminKnowledgeAreas(): Promise<KnowledgeAreaCatalog> {
+		const res = await fetch("/api/admin/knowledge-areas", {
+			credentials: "include",
+		});
+		if (!res.ok) throw await res.json().catch(() => ({}));
+		return res.json();
+	}
+
+	async createAdminKnowledgeArea(
+		input: KnowledgeAreaInput & { label: string; blockId: string },
+	): Promise<KnowledgeAreaRecord> {
+		const res = await fetch("/api/admin/knowledge-areas", {
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			credentials: "include",
+			body: JSON.stringify(input),
+		});
+		if (!res.ok) throw await res.json().catch(() => ({}));
+		return res.json();
+	}
+
+	async updateAdminKnowledgeArea(
+		id: string,
+		input: KnowledgeAreaInput,
+	): Promise<KnowledgeAreaRecord> {
+		const res = await fetch(
+			`/api/admin/knowledge-areas/${encodeURIComponent(id)}`,
+			{
+				method: "PATCH",
+				headers: { "Content-Type": "application/json" },
+				credentials: "include",
+				body: JSON.stringify(input),
+			},
+		);
+		if (!res.ok) throw await res.json().catch(() => ({}));
 		return res.json();
 	}
 

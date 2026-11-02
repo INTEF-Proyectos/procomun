@@ -98,3 +98,9 @@ Cubre el apartado 5 de #384, en el PR apilado sobre #397.
 ## Actualización 2026-10-22 — renumeración de la migración
 
 * `main` incorporó `0010_resource_thumbnail_url` (#425) con idx 8. La migración del catálogo pasa a `0011_keyword_catalog` (idx 9, `when` 1792130000000), para ir detrás de ella. El contenido no cambia.
+
+## Actualización 2026-10-26 — términos retirados por las áreas de conocimiento
+
+* Los términos que pasan a ser áreas de conocimiento (#448, ADR-0045) se retiran con `tags.retired_at`: no salen en la búsqueda del catálogo ni se pueden añadir a un recurso, y los recursos que ya los tienen los conservan al volver a guardar.
+* Un término retirado sigue ocupando su denominación: dar de alta otro igual devuelve el existente como duplicado.
+* La retirada se hace con `catalog:area-keywords`, en seco por defecto.

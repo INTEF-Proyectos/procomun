@@ -20,6 +20,9 @@ describe("resolveAdminSection (DEF-021)", () => {
 			"categories",
 		);
 		expect(resolveAdminSection("tags", ROLE_LEVELS.curator)).toBe("tags");
+		expect(resolveAdminSection("knowledge-areas", ROLE_LEVELS.curator)).toBe(
+			"knowledge-areas",
+		);
 	});
 
 	test("api-tokens solo es accesible para admin", () => {

@@ -3132,6 +3132,22 @@ tasks:
       errores. Se añade previewImageUrl: null a ambos. Validación:
       check-types limpio y los dos ficheros de test en verde.
 
+  T-2026-10-26-07521678:
+    date: 2026-10-26
+    agent: "metadatos-y-curacion"
+    task: "Catálogo de áreas de conocimiento y familias profesionales (PR 1 de #448)"
+    status: Done
+    related: ["#448", "#384", "ADR-0045", "ADR-0042"]
+    notes: >
+      Tabla knowledge_areas con las 56 áreas iniciales (9 bloques fijos en
+      código, Química en ciencias), relaciones resource_knowledge_areas (máximo
+      3, las inactivas solo se conservan) y resource_professional_families
+      (lista oficial en código, solo con FP). API /api/admin/knowledge-areas
+      (curator+, sin borrado) y panel «Áreas de conocimiento» en Administrar.
+      tags.retired_at retira de las palabras clave los términos que pasan a ser
+      áreas; catalog:area-keywords cruza ambos catálogos en seco y aplica con
+      --apply. Migración 0014_knowledge_areas. Formularios, ficha y filtros
+      quedan para el PR 2; correspondencias y curación, para el PR 3.
   T-2026-10-26-07433854:
     date: 2026-10-26
     agent: "backend-api-servicios"
