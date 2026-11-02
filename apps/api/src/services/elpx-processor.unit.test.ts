@@ -7,6 +7,7 @@ import {
 	addCrossOriginToLocalScripts,
 	elpxContentRoutes,
 } from "../routes/elpx-content.ts";
+import { seedPublishedElpxHash } from "../test-fixtures/published-elpx.ts";
 import {
 	buildElpxPath,
 	parseElpxMetadata,
@@ -349,9 +350,12 @@ describe("removeElpxExtraction", () => {
 describe("elpxContentRoutes", () => {
 	let app: InstanceType<typeof Hono>;
 
-	beforeAll(() => {
+	beforeAll(async () => {
 		// Point UPLOAD_STORAGE_DIR to our temp dir so elpx-content resolves files there
 		process.env.UPLOAD_STORAGE_DIR = tempDir;
+		// Issue #466: la ruta pública solo sirve hashes de recursos publicados.
+		await seedPublishedElpxHash(fakeHash);
+		await seedPublishedElpxHash(fakeSha256Hash);
 
 		app = new Hono();
 		app.route("/api/v1/elpx", elpxContentRoutes);

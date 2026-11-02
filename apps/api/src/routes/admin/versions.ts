@@ -4,6 +4,7 @@ import { logActivity } from "../../activity/log.ts";
 import type { AuthEnv } from "../../auth/middleware.ts";
 import { getCurrentUser, hasMinRole } from "../../auth/roles.ts";
 import { getDb } from "../../db.ts";
+import { elpxPreviewUrlForStatus } from "../../elpx/preview-token.ts";
 import { updateSearchVector } from "../../fts/search.ts";
 import {
 	remainingPathAfter,
@@ -29,9 +30,10 @@ function buildPreviewUrl(
 	hash: string | null,
 	hasPreview: boolean | null,
 	isCurrent: boolean,
+	editorialStatus: string,
 ): string | null {
 	if (!hash || !hasPreview) return null;
-	if (isCurrent) return `/api/v1/elpx/${hash}/`;
+	if (isCurrent) return elpxPreviewUrlForStatus(hash, editorialStatus);
 	return buildAdminPreviewUrl(resourceId, versionId);
 }
 
@@ -54,6 +56,7 @@ export function registerResourceVersionRoutes(routes: Hono<AuthEnv>) {
 					version.elpxHash,
 					version.hasPreview,
 					Boolean(version.isCurrent),
+					check.data.editorialStatus,
 				),
 			})),
 		);

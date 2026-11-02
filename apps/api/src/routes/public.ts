@@ -101,7 +101,7 @@ publicRoutes.get("/resources/:slug", async (c) => {
 
 	return c.json({
 		...resource,
-		elpxPreview: buildElpxPreview(elpx),
+		elpxPreview: buildElpxPreview(elpx, resource.editorialStatus),
 		elpxFileUrl,
 	});
 });

@@ -1,21 +1,18 @@
-import { randomUUID } from "node:crypto";
-import { mkdir, rm, writeFile } from "node:fs/promises";
+import { rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { expect, test } from "@playwright/test";
+import { createPublishedElpxPackage } from "../../fixtures/published-elpx";
 import { PUBLISHED_RESOURCE } from "../../fixtures/test-data";
 
 // Paquete .elpx sintético ya extraído: un HTML que anida otro HTML del propio
 // paquete, como el reproductor de audio de eXeLearning (#379) o una
-// diapositiva (#391). Se escribe donde lo lee la API, igual que el seed:
-// UPLOAD_STORAGE_DIR o local-data/uploads en la raíz del repo.
-const storageDir =
-	process.env.UPLOAD_STORAGE_DIR ??
-	path.resolve(import.meta.dirname, "../../../local-data/uploads");
-const hash = randomUUID();
-const packageDir = path.join(storageDir, "elpx", hash);
+// diapositiva (#391). Va dentro del .elpx del recurso publicado del seed
+// (ver fixtures/published-elpx.ts, issue #466).
+let packageDir = "";
+let packageUrl = "";
 
 test.beforeAll(async () => {
-	await mkdir(packageDir, { recursive: true });
+	({ dir: packageDir, url: packageUrl } = await createPublishedElpxPackage());
 	await writeFile(
 		path.join(packageDir, "index.html"),
 		'<!doctype html><html lang="es"><head><meta charset="utf-8"><title>Padre</title></head><body><iframe src="hijo.html" title="Hijo"></iframe></body></html>',
@@ -43,7 +40,7 @@ test("el visor de la ficha carga el iframe hijo de un paquete .elpx", async ({
 				response,
 				json: {
 					...json,
-					elpxPreview: { hash, previewUrl: `/api/v1/elpx/${hash}/` },
+					elpxPreview: { ...json.elpxPreview, previewUrl: packageUrl },
 				},
 			});
 		},
