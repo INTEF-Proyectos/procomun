@@ -571,8 +571,9 @@ export function ResourceDetailContent({
 						</section>
 					) : null}
 
-					{/* Embed / Ponlo en tu web */}
-					{hasPreview ? (
+					{/* Embed / Ponlo en tu web: solo lo publicado (#466). La vista
+					    previa de un borrador es un enlace firmado que caduca. */}
+					{hasPreview && resource.editorialStatus === "published" ? (
 						<EmbedSection
 							title={resource.title}
 							previewUrl={previewUrl}

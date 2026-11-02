@@ -20,6 +20,7 @@ import {
 	getCollectionBySlug,
 	getElpxProjectByHash,
 	getElpxProjectByResourceId,
+	getElpxResourceStatusByHash,
 	getResourceById,
 	getTaxonomyById,
 	getUserByEmail,
@@ -269,6 +270,13 @@ describe("repository elpx projects", () => {
 
 		const notFound = await getElpxProjectByHash(db, "nonexistent");
 		expect(notFound).toBeNull();
+
+		// Issue #466: el servido del contenido mira el estado del recurso.
+		expect(await getElpxResourceStatusByHash(db, "abc123")).toEqual({
+			resourceId,
+			editorialStatus: "draft",
+		});
+		expect(await getElpxResourceStatusByHash(db, "nonexistent")).toBeNull();
 
 		await deleteElpxProject(db, result.id);
 		expect(await getElpxProjectByResourceId(db, resourceId)).toBeNull();

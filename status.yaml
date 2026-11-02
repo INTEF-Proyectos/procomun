@@ -3132,6 +3132,36 @@ tasks:
       errores. Se añade previewImageUrl: null a ambos. Validación:
       check-types limpio y los dos ficheros de test en verde.
 
+  T-2026-10-26-07521678:
+    date: 2026-10-26
+    agent: "metadatos-y-curacion"
+    task: "Catálogo de áreas de conocimiento y familias profesionales (PR 1 de #448)"
+    status: Done
+    related: ["#448", "#384", "ADR-0045", "ADR-0042"]
+    notes: >
+      Tabla knowledge_areas con las 56 áreas iniciales (9 bloques fijos en
+      código, Química en ciencias), relaciones resource_knowledge_areas (máximo
+      3, las inactivas solo se conservan) y resource_professional_families
+      (lista oficial en código, solo con FP). API /api/admin/knowledge-areas
+      (curator+, sin borrado) y panel «Áreas de conocimiento» en Administrar.
+      tags.retired_at retira de las palabras clave los términos que pasan a ser
+      áreas; catalog:area-keywords cruza ambos catálogos en seco y aplica con
+      --apply. Migración 0014_knowledge_areas. Formularios, ficha y filtros
+      quedan para el PR 2; correspondencias y curación, para el PR 3.
+  T-2026-10-26-07433854:
+    date: 2026-10-26
+    agent: "backend-api-servicios"
+    task: "Comprobar los campos obligatorios al enviar a revisión o publicar"
+    status: Done
+    related: ["#408", "#448"]
+    notes: >
+      PATCH /api/admin/resources/:id/status valida el recurso guardado con las
+      reglas del alta (validateResourceForStatus) al pasar a review o
+      published, y devuelve 400 con los campos que faltan. draft y archived no
+      exigen nada; los importados publicados no cambian mientras no cambien de
+      estado. El editor marca los campos y nombra todos los que faltan
+      (statusChangeFeedback). La regla del área obligatoria de #448 se añadirá
+      en validateResourceForStatus.
   T-2026-10-26-07293591:
     date: 2026-10-26
     agent: "frontend-ux-accesibilidad"
@@ -3336,6 +3366,24 @@ tasks:
       enlaces de búsqueda. Colecciones y comunidades quedan para otra issue.
       Validación: tests de repositorio, API, cliente, componentes y e2e nuevos
       (rojo → verde); bun run test, check-types y biome en verde.
+  T-2026-10-27-08403687:
+    date: 2026-10-27
+    agent: "seguridad-privacidad-legal"
+    task: "El contenido .elpx por hash comprueba el estado del recurso"
+    status: Done
+    related: ["#466", "#482", "ADR-0026", "ADR-0008"]
+    notes: >
+      /api/v1/elpx/<hash>/ servía el paquete aunque el recurso estuviera en
+      borrador, en revisión o despublicado. Ahora solo sirve lo publicado; el
+      resto (y un hash sin proyecto) responde 404. Quien puede ver el recurso
+      recibe un enlace firmado /api/v1/elpx/preview/<hash>/<token>/ (HMAC de
+      hash + caducidad con BETTER_AUTH_SECRET, 2 h), porque el iframe de origen
+      opaco no manda la cookie en subrecursos ni subpáginas (comprobado en
+      Chromium). «Ponlo en tu web» solo en recursos publicados. Tests:
+      elpx-content-access.unit.test.ts y preview-token.unit.test.ts (rojo →
+      verde); los tests de servido registran su hash como publicado y los e2e
+      escriben su paquete dentro del .elpx del recurso publicado del seed.
+      La vista previa histórica, que también depende de la cookie, va en #482.
   T-2026-10-27-13171067:
     date: 2026-10-27
     agent: "devops-sre"

@@ -6,6 +6,7 @@ import { AdminApiTokensSection } from "./AdminApiTokensSection.tsx";
 import { AdminCategoriesSection } from "./AdminCategoriesSection.tsx";
 import { AdminCollectionsSection } from "./AdminCollectionsSection.tsx";
 import { AdminDashboardSection } from "./AdminDashboardSection.tsx";
+import { AdminKnowledgeAreasSection } from "./AdminKnowledgeAreasSection.tsx";
 import { AdminReportsSection } from "./AdminReportsSection.tsx";
 import { AdminResourcesSection } from "./AdminResourcesSection.tsx";
 import { AdminSidebar } from "./AdminSidebar.tsx";
@@ -19,6 +20,7 @@ export type AdminSection =
 	| "resources"
 	| "collections"
 	| "categories"
+	| "knowledge-areas"
 	| "tags"
 	| "reports"
 	| "users"
@@ -109,6 +111,9 @@ export function AdminPageIsland() {
 				)}
 				{section === "categories" && canManageCategories && (
 					<AdminCategoriesSection />
+				)}
+				{section === "knowledge-areas" && canManageCategories && (
+					<AdminKnowledgeAreasSection />
 				)}
 				{section === "tags" && canManageTags && <AdminTagsSection />}
 				{section === "reports" && userLevel >= ROLE_LEVELS.curator && (
