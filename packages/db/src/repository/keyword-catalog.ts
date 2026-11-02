@@ -36,14 +36,23 @@ export function catalogLabelsSql(resourceId: SQLWrapper) {
 	>`(select string_agg(t.label, ',' order by t.label) from resource_tags rt join tags t on t.id = rt.tag_id where rt.resource_id = ${resourceId} and t.catalog)`;
 }
 
-/** Términos activos del catálogo con sus alias. Dos consultas en total. */
+/**
+ * Términos seleccionables del catálogo con sus alias: sin los retirados por
+ * pasar a ser áreas de conocimiento (#448). Dos consultas en total.
+ */
 export async function listKeywordCatalog(
 	db: DrizzleDB,
 ): Promise<KeywordCatalogEntry[]> {
 	const rows = await db
 		.select({ id: tags.id, slug: tags.slug, label: tags.label })
 		.from(tags)
-		.where(and(eq(tags.catalog, true), isNull(tags.canonicalTagId)));
+		.where(
+			and(
+				eq(tags.catalog, true),
+				isNull(tags.canonicalTagId),
+				isNull(tags.retiredAt),
+			),
+		);
 	const aliasRows = await db
 		.select({ tagId: tagAliases.tagId, alias: tagAliases.alias })
 		.from(tagAliases);
@@ -78,11 +87,13 @@ export async function createCatalogKeyword(
 	const key = label ? normalizeKeywordKey(label) : "";
 	if (!label || !key) return { status: "invalid" };
 
+	// Incluye los retirados: su denominación sigue ocupando el índice único.
 	const findDuplicate = async (): Promise<CatalogKeyword | undefined> => {
-		const match = (await listKeywordCatalog(db)).find(
-			(entry) => normalizeKeywordKey(entry.label) === key,
-		);
-		return match && { id: match.id, slug: match.slug, label: match.label };
+		const rows = await db
+			.select({ id: tags.id, slug: tags.slug, label: tags.label })
+			.from(tags)
+			.where(eq(tags.catalog, true));
+		return rows.find((entry) => normalizeKeywordKey(entry.label) === key);
 	};
 	const existing = await findDuplicate();
 	if (existing) return { status: "duplicate", keyword: existing };
@@ -134,12 +145,14 @@ export async function listResourceCatalogKeywords(
 
 /**
  * Valida una selección: lista de ids del catálogo, sin duplicados y como
- * máximo 5. Lanza un Error con `status: 400`, que las rutas CRUD convierten
- * en respuesta.
+ * máximo 5. Un término retirado (#448) solo vale si ya estaba en `keep` (las
+ * palabras clave actuales del recurso). Lanza un Error con `status: 400`,
+ * que las rutas CRUD convierten en respuesta.
  */
 export async function assertCatalogKeywordIds(
 	db: DrizzleDB,
 	keywordIds: unknown,
+	keep: readonly string[] = [],
 ): Promise<string[]> {
 	const selection = validateKeywordSelection(keywordIds);
 	if (!selection.ok) {
@@ -147,12 +160,23 @@ export async function assertCatalogKeywordIds(
 	}
 	if (selection.ids.length > 0) {
 		const found = await db
-			.select({ id: tags.id })
+			.select({ id: tags.id, label: tags.label, retiredAt: tags.retiredAt })
 			.from(tags)
 			.where(and(inArray(tags.id, selection.ids), eq(tags.catalog, true)));
 		if (found.length !== selection.ids.length) {
 			throw Object.assign(
 				new Error("Alguna palabra clave no pertenece al catálogo"),
+				{ status: 400 },
+			);
+		}
+		const retired = found.find(
+			(row) => row.retiredAt !== null && !keep.includes(row.id),
+		);
+		if (retired) {
+			throw Object.assign(
+				new Error(
+					`La palabra clave «${retired.label}» se ha retirado del catálogo: usa el área de conocimiento`,
+				),
 				{ status: 400 },
 			);
 		}
@@ -169,10 +193,10 @@ export async function setResourceCatalogKeywords(
 	resourceId: string,
 	keywordIds: unknown,
 ): Promise<void> {
-	const desired = await assertCatalogKeywordIds(db, keywordIds);
 	const current = (await listResourceCatalogKeywords(db, resourceId)).map(
 		(keyword) => keyword.id,
 	);
+	const desired = await assertCatalogKeywordIds(db, keywordIds, current);
 	const toRemove = current.filter((id) => !desired.includes(id));
 	const toAdd = desired.filter((id) => !current.includes(id));
 

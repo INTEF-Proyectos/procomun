@@ -11,6 +11,7 @@ export const CLI_COMMANDS = [
 	"import:legacy-procomun",
 	"import:legacy-users",
 	"elpx:screenshots",
+	"catalog:area-keywords",
 	"import:legacy-keywords",
 ] as const;
 
@@ -32,6 +33,8 @@ const commandLoaders: Record<
 		(await import("./commands/import-legacy-users.ts")).importLegacyUsers,
 	"elpx:screenshots": async () =>
 		(await import("./commands/elpx-screenshots.ts")).elpxScreenshots,
+	"catalog:area-keywords": async () =>
+		(await import("./commands/catalog-area-keywords.ts")).catalogAreaKeywords,
 	"import:legacy-keywords": async () =>
 		(await import("./commands/import-legacy-keywords.ts")).importLegacyKeywords,
 };
@@ -73,6 +76,10 @@ export function printHelp(log: Pick<typeof console, "log"> = console) {
 	);
 	log.log(
 		"  elpx:screenshots [--dry-run]  Detecta screenshot.png en los paquetes ya subidos (#409)",
+		"  catalog:area-keywords [--apply] [--include <id,id>] [--report-dir <ruta>]",
+	);
+	log.log(
+		"                    Cruza palabras clave con áreas de conocimiento y retira las que pasan a ser áreas (#448)",
 	);
 	log.log("  import:legacy-keywords [--dry-run] [--report-dir <ruta>]");
 	log.log(
