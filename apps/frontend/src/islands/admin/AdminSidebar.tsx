@@ -36,6 +36,12 @@ const NAV_ITEMS: NavItem[] = [
 		minRole: ROLE_LEVELS.curator,
 	},
 	{
+		id: "knowledge-areas",
+		label: "Áreas de conocimiento",
+		icon: "school",
+		minRole: ROLE_LEVELS.curator,
+	},
+	{
 		id: "tags",
 		label: "Etiquetas",
 		icon: "sell",
