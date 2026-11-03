@@ -113,6 +113,8 @@ async function addLegacyProfile(
  * #309, sin contraseña ni perfil). Una cuenta que ya existía con el mismo
  * correo no se toca. Los bloqueados (`status: 0`) se crean bloqueados, con
  * el mismo estado que pone la administración; reimportar no cambia el estado.
+ * Las cuentas que entraron como `author` antes de #507 se corrigen aparte, con
+ * fixLegacyUserRole (`import:legacy-users --fix-roles`).
  */
 export async function importLegacyUser(
 	db: DrizzleDB,
@@ -165,4 +167,77 @@ async function completeExistingLegacyUser(
 	return completed.length > 0
 		? { outcome: "skipped_existing_id", id, completed }
 		: { outcome: "skipped_existing_id", id };
+}
+
+/** Prefijo del ID de las cuentas creadas por el importador de usuarios. */
+export const LEGACY_USER_ID_PREFIX = "legacy-procomun:user:";
+
+export type LegacyUserRoleFixResult =
+	| { outcome: "fixed"; id: string; from: "author"; to: "editor" }
+	/** Ya tiene el rol que da el mapeo. */
+	| { outcome: "unchanged"; id: string; role: string }
+	/** Otro rol (admin, curator, uno puesto a mano…): no se toca. */
+	| { outcome: "kept"; id: string; role: string }
+	/** No hay cuenta legacy con ese ID; una cuenta nativa nunca se busca. */
+	| { outcome: "not_found"; id: string };
+
+/**
+ * Corrección de #507 para cuentas ya importadas: hasta entonces varios roles
+ * antiguos daban `author` y ahora dan `editor`, y reimportar no cambia el rol.
+ * Solo pasa de `author` a `editor`, y solo si el mapeo actual del registro da
+ * `editor`. Busca por el ID `legacy-procomun:user:<uid>`, nunca por correo, así
+ * que no toca cuentas ajenas a la migración. No cambia ningún otro rol (admin,
+ * curator ni los puestos a mano) ni el estado, las credenciales, el perfil o
+ * los recursos. Es repetible: una cuenta ya corregida queda `unchanged`.
+ */
+export async function fixLegacyUserRole(
+	db: DrizzleDB,
+	mapped: Pick<MappedLegacyUser, "id" | "role">,
+	options: { dryRun?: boolean } = {},
+): Promise<LegacyUserRoleFixResult> {
+	const notFound = { outcome: "not_found", id: mapped.id } as const;
+	if (!mapped.id.startsWith(LEGACY_USER_ID_PREFIX)) return notFound;
+
+	const current = await currentRole(db, mapped.id);
+	if (current === null) return notFound;
+	if (current !== "author" || mapped.role !== "editor") {
+		return keptOrUnchanged(mapped, current);
+	}
+
+	const fixed = {
+		outcome: "fixed",
+		id: mapped.id,
+		from: "author",
+		to: "editor",
+	} as const;
+	if (options.dryRun) return fixed;
+
+	const updated = await db
+		.update(user)
+		.set({ role: "editor", updatedAt: new Date() })
+		.where(and(eq(user.id, mapped.id), eq(user.role, "author")))
+		.returning({ id: user.id });
+	if (updated[0]) return fixed;
+
+	// Otro proceso cambió el rol entre la lectura y la escritura.
+	const changed = await currentRole(db, mapped.id);
+	return changed === null ? notFound : keptOrUnchanged(mapped, changed);
+}
+
+async function currentRole(db: DrizzleDB, id: string): Promise<string | null> {
+	const rows = await db
+		.select({ role: user.role })
+		.from(user)
+		.where(eq(user.id, id))
+		.limit(1);
+	return rows[0]?.role ?? null;
+}
+
+function keptOrUnchanged(
+	mapped: Pick<MappedLegacyUser, "id" | "role">,
+	role: string,
+): LegacyUserRoleFixResult {
+	return role === mapped.role
+		? { outcome: "unchanged", id: mapped.id, role }
+		: { outcome: "kept", id: mapped.id, role };
 }

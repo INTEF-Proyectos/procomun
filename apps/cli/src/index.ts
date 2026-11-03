@@ -72,6 +72,12 @@ export function printHelp(log: Pick<typeof console, "log"> = console) {
 		"  import:legacy-users --source-file <usuarios.json> [--dry-run] [--limit <n>] [--report-dir <ruta>]",
 	);
 	log.log(
+		"  import:legacy-users --fix-roles --source-file <usuarios.json> [--dry-run] [--limit <n>] [--report-dir <ruta>]",
+	);
+	log.log(
+		"                    Pasa a editor las cuentas legacy importadas como author (#507)",
+	);
+	log.log(
 		"  catalog:area-keywords [--apply] [--include <id,id>] [--report-dir <ruta>]",
 	);
 	log.log(

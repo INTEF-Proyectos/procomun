@@ -31,7 +31,11 @@ export interface LegacyUserJson {
 	[field: string]: unknown;
 }
 
-export type LegacyUserRole = "admin" | "editor" | "author";
+/**
+ * Rol que da el importador. Desde #507 ningún rol antiguo da `author`: todo lo
+ * que no es administración entra como `editor`.
+ */
+export type LegacyUserRole = "admin" | "editor";
 
 export interface LegacyUserProfile {
 	countryCode: string | null;
@@ -76,21 +80,24 @@ const MAX_SHORT_TEXT = 255;
 const MAX_ABOUT = 10_000;
 
 /**
- * Correspondencia de roles acordada en la issue #456. Ningún rol antiguo da
- * `curator`; los no registrados (`reader`) no tienen cuenta que importar.
+ * Correspondencia de roles de la issue #456, corregida en #507: lo que daba
+ * `author` (usuarios autenticados, sin rol, documentalistas y gestores de
+ * ODEs) da `editor`. Ningún rol antiguo da `curator`; los no registrados
+ * (`reader`) no tienen cuenta que importar.
  */
 const ROLE_MAP: Record<string, LegacyUserRole> = {
 	administrator: "admin",
 	administrador: "admin",
 	publicador_certificado: "editor",
-	"-": "author",
-	bm_documentalista: "author",
-	gestor_de_odes: "author",
+	"-": "editor",
+	bm_documentalista: "editor",
+	gestor_de_odes: "editor",
 };
+/** Sin rol, o solo con roles sin correspondencia (`Organization`…). */
+export const LEGACY_DEFAULT_ROLE: LegacyUserRole = "editor";
 const ROLE_RANK: Record<LegacyUserRole, number> = {
-	author: 0,
-	editor: 1,
-	admin: 2,
+	editor: 0,
+	admin: 1,
 };
 
 function asNonEmptyString(value: unknown): string | null {
@@ -101,13 +108,14 @@ function asNonEmptyString(value: unknown): string | null {
 
 /**
  * `roles` puede traer varios separados por coma; se queda el de más permisos
- * (admin > editor > author). Los desconocidos cuentan como author.
+ * (admin > editor). Los desconocidos cuentan como editor y se devuelven para
+ * el informe.
  */
 export function mapLegacyRoles(raw: string | null | undefined): {
 	role: LegacyUserRole;
 	unknownRoles: string[];
 } {
-	let role: LegacyUserRole = "author";
+	let role: LegacyUserRole = LEGACY_DEFAULT_ROLE;
 	const unknownRoles: string[] = [];
 	for (const part of (raw ?? "").split(",")) {
 		const label = part.trim();
@@ -278,7 +286,7 @@ export function mapLegacyUser(record: LegacyUserJson): MappedLegacyUser {
 	if (unknownRoles.length > 0) {
 		warnings.push({
 			field: "roles",
-			message: `rol sin correspondencia (${unknownRoles.join(", ")}); entra como author`,
+			message: `rol sin correspondencia (${unknownRoles.join(", ")}); entra como ${LEGACY_DEFAULT_ROLE}`,
 		});
 	}
 

@@ -37,21 +37,44 @@ function legacyRecord(overrides: Partial<LegacyUserJson> = {}): LegacyUserJson {
 }
 
 describe("mapLegacyRoles", () => {
-	test("aplica la tabla de correspondencias acordada en la issue #456", () => {
-		expect(mapLegacyRoles("administrator").role).toBe("admin");
-		expect(mapLegacyRoles("administrador").role).toBe("admin");
-		expect(mapLegacyRoles("publicador_certificado").role).toBe("editor");
-		expect(mapLegacyRoles("-").role).toBe("author");
-		expect(mapLegacyRoles("").role).toBe("author");
-		expect(mapLegacyRoles(null).role).toBe("author");
-		expect(mapLegacyRoles(undefined).role).toBe("author");
-		expect(mapLegacyRoles("bm_documentalista").role).toBe("author");
-		expect(mapLegacyRoles("gestor_de_odes").role).toBe("author");
+	// Tabla de la issue #456 corregida en #507: lo que antes daba `author` da
+	// `editor`; `admin` no cambia.
+	const TABLE: Array<[string | null | undefined, "admin" | "editor"]> = [
+		["administrator", "admin"],
+		["administrador", "admin"],
+		["publicador_certificado", "editor"],
+		["-", "editor"],
+		["", "editor"],
+		[null, "editor"],
+		[undefined, "editor"],
+		["bm_documentalista", "editor"],
+		["gestor_de_odes", "editor"],
+	];
+
+	test("aplica la tabla de correspondencias de las issues #456 y #507", () => {
+		for (const [raw, role] of TABLE) {
+			expect({ raw, ...mapLegacyRoles(raw) }).toEqual({
+				raw,
+				role,
+				unknownRoles: [],
+			});
+		}
 	});
 
-	test("con varios roles separados por coma se queda el de más permisos", () => {
-		expect(mapLegacyRoles("bm_documentalista, gestor_de_odes").role).toBe(
+	test("ningún rol del Procomún anterior da author (#507)", () => {
+		for (const raw of [
+			...TABLE.map(([label]) => label),
+			"Organization",
 			"author",
+			"bm_documentalista, gestor_de_odes",
+		]) {
+			expect(mapLegacyRoles(raw).role).not.toBe("author");
+		}
+	});
+
+	test("con varios roles separados por coma, admin gana a editor", () => {
+		expect(mapLegacyRoles("bm_documentalista, gestor_de_odes").role).toBe(
+			"editor",
 		);
 		expect(mapLegacyRoles("gestor_de_odes,publicador_certificado").role).toBe(
 			"editor",
@@ -59,23 +82,39 @@ describe("mapLegacyRoles", () => {
 		expect(
 			mapLegacyRoles("publicador_certificado, Administrador , -").role,
 		).toBe("admin");
+		expect(mapLegacyRoles("-,administrator").role).toBe("admin");
+		expect(mapLegacyRoles("bm_documentalista,administrador").role).toBe(
+			"admin",
+		);
+		expect(mapLegacyRoles("Organization, administrator")).toEqual({
+			role: "admin",
+			unknownRoles: ["Organization"],
+		});
 	});
 
-	test("un rol desconocido entra como author y se informa", () => {
+	test("un rol desconocido entra como editor y se informa", () => {
 		expect(mapLegacyRoles("Organization")).toEqual({
-			role: "author",
+			role: "editor",
 			unknownRoles: ["Organization"],
 		});
 		expect(mapLegacyRoles("organization, publicador_certificado")).toEqual({
 			role: "editor",
 			unknownRoles: ["organization"],
 		});
+		expect(mapLegacyRoles("Organization, rol_raro, -")).toEqual({
+			role: "editor",
+			unknownRoles: ["Organization", "rol_raro"],
+		});
 	});
 
 	test("nunca asigna curator", () => {
 		for (const raw of ["curator", "curador", "moderador", "reader"]) {
-			expect(mapLegacyRoles(raw).role).toBe("author");
+			expect(mapLegacyRoles(raw)).toEqual({
+				role: "editor",
+				unknownRoles: [raw],
+			});
 		}
+		expect(mapLegacyRoles("curator, administrator").role).toBe("admin");
 	});
 });
 
@@ -133,14 +172,16 @@ describe("mapLegacyUser", () => {
 	});
 
 	test("asigna el rol según la tabla y lista los roles desconocidos", () => {
-		expect(mapLegacyUser(legacyRecord({ roles: "-" })).role).toBe("author");
+		expect(mapLegacyUser(legacyRecord({ roles: "-" })).role).toBe("editor");
 		expect(mapLegacyUser(legacyRecord({ roles: "administrator" })).role).toBe(
 			"admin",
 		);
 		const org = mapLegacyUser(legacyRecord({ roles: "Organization" }));
-		expect(org.role).toBe("author");
+		expect(org.role).toBe("editor");
 		expect(org.unknownRoles).toEqual(["Organization"]);
-		expect(org.warnings.map((w) => w.field)).toContain("roles");
+		const warning = org.warnings.find((w) => w.field === "roles");
+		expect(warning?.message).toContain("Organization");
+		expect(warning?.message).toContain("entra como editor");
 	});
 
 	test("guarda el hash de contraseña en los formatos admitidos", () => {
