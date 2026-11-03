@@ -332,3 +332,6 @@ ADR-0046:
     de la misma interfaz. Aceptada el 2026-11-03: JPEG 640x400 solo del
     contenido, relleno solo de lo que no tiene imagen propia, el iframe sale de
     los listados al desplegar y Node si Playwright no va bien con Bun.
+    Adenda 2026-11-03 (revisión de #481): la miniatura de lo publicado sale
+    por la URL estable solo si pertenece a un recurso publicado (public,
+    max-age=3600); lo no publicado, por enlace firmado (private, no-store).

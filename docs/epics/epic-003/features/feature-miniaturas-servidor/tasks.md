@@ -35,3 +35,22 @@ Cambia respecto a la lista de arriba:
 - El iframe sale de los listados en el mismo PR que el `thumbnailer`, sin esperar al relleno.
 - `elpx:thumbnails` marca solo los proyectos sin `screenshot.png` ni `preview` legacy.
 - La captura oculta la navegación de eXe.
+
+## 2026-11-03 — Revisión de #481 (@jacoboAlcantara)
+
+Documentación (este PR):
+
+- [x] Acceso a las miniaturas de recursos no publicados: enlace firmado, caché, comportamiento al despublicar e imágenes `preview` legacy (adenda en ADR-0046)
+- [x] Criterios de aceptación CA-1 a CA-10 en `requirements.md` y pruebas en `design.md`
+- [x] Contexto de ADR-0046 y alternativa de Gotenberg al día con #483 y la adenda de ADR-0026
+- [x] `requirements.md` y `design.md` con la ADR aceptada y el enlace a «Decisiones del 2026-11-03»
+
+Implementación (en #512, apilado sobre #471):
+
+- [ ] `getThumbnailFileVisibility` e índices parciales en una migración nueva
+- [ ] Firma de miniaturas en `apps/api/src/thumbnails/access.ts`
+- [ ] Ruta estable con comprobación y `public, max-age=3600`; ruta firmada con `private, no-store`
+- [ ] `screenshot.png` del enlace firmado con `private, no-store`
+- [ ] `buildElpxPreview`, la ficha, el panel, favoritos, valoraciones y administración con la URL según el estado
+- [ ] `location ^~ /api/v1/thumbnails/` en `nginx.conf`
+- [ ] Tests de CA-1 a CA-10
