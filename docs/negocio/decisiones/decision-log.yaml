@@ -259,6 +259,9 @@ ADR-0037:
     Adenda posterior del mismo día: los status 0 se importan bloqueados y
     «bloqueado» pasa a ser un solo estado (is_active = false + banned) que la
     administración pone y quita.
+    Adenda 2026-11-03 (issue #507): lo que daba author da editor (admin y
+    curator sin cambios) e import:legacy-users --fix-roles corrige las
+    cuentas legacy ya importadas como author.
 
 ADR-0039:
   title: "Versionado mínimo de recursos: historial ELPX automático y proyección vigente"

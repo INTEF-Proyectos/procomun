@@ -96,3 +96,19 @@ Ambos bugs eran preexistentes en la infraestructura reutilizada, no introducidos
 - La prueba de migraciones verifica que `0006_user_email_case_insensitive` figura en el journal, sustituye el nombre duplicado `0005` y contiene la comprobación previa de duplicados por `lower(email)`.
 - La prueba del comando verifica que el cliente PGlite se cierra incluso si falla la lectura del JSON antes de generar el informe.
 - Las pruebas de `--dry-run` verifican que `wouldImport` cuenta los registros importables y `imported` permanece en cero.
+
+## Usuarios como `editor` y `--fix-roles` — 2026-11-03 (issue #507)
+
+Rojo antes del cambio:
+
+- `packages/db/src/legacy-import/users.unit.test.ts`: 6 fallos (tabla, ningún `author`, precedencia con varios roles, desconocidos como `editor`, nunca `curator`, aviso «entra como editor»).
+- `packages/db/src/repository/legacy-users-import.unit.test.ts` y `apps/cli/src/commands/import-legacy-users.unit.test.ts`: no cargaban (`fixLegacyUserRole` y `runFixLegacyUserRoles` no existían).
+
+Verde:
+
+- `bun test packages/db/src/legacy-import/users.unit.test.ts packages/db/src/repository/legacy-users-import.unit.test.ts apps/cli/src/commands/import-legacy-users.unit.test.ts apps/cli/src/index.unit.test.ts` → **52 pass, 0 fail**.
+- Mapeo: tabla completa, `admin` gana a `editor` con varios roles (también junto a desconocidos), desconocidos como `editor` y listados, nunca `curator` ni `author`.
+- Corrección (PGlite): author → editor, repetible (la segunda pasada da `unchanged` y no duplica cuentas, credenciales ni perfiles), `--dry-run` sin escritura, `admin`/`curator`/`reader` intactos (`kept`), un `admin` del origen en `author` no cambia, un `administrador` de #309 en `editor` no sube a `admin`, cuenta nativa con el mismo correo intacta, y bloqueo, credenciales, perfil y recurso conservados.
+- Comando: totales y registros con dry-run, real y repetición sobre la misma base; `--limit`; nombre del informe; sin correos en el informe; `--fix-roles` exige `--source-file`.
+- `bun run check-types` ✅ (0 errores). `bun run lint` ✅ (sale 0; los 3 avisos son de ficheros que no toca este cambio).
+- `bun run test`: unit 1338 pass y 4 fail. Son los 3 de #431 en `apps/api/src/routes/elpx-content.unit.test.ts` (los arregla #505) y un timeout de 5 s en `apps/api/src/index.unit.test.ts` con la máquina cargada, que pasa solo (23 pass). Integración 30 pass, 0 fail. UI 79 pass, 0 fail. Cobertura de líneas 90,97 % (≥ 90 %). En la pasada con cobertura fallan además los 4 de `catalog-area-keywords.unit.test.ts` por timeout del `beforeEach` (crear PGlite); pasan solos con `--timeout 60000` (4 pass).

@@ -116,3 +116,12 @@ Los JSON/`.elpx` de `ode-export/` contienen datos personales reales (nombres y e
 - [x] «Bloqueado» único: `is_active = false` + `banned`; cierra sesiones, rechaza tokens y el inicio de sesión (403 `BANNED_USER`).
 - [x] «Bloquear/Desbloquear» en la administración; no se puede bloquear la propia cuenta.
 - [x] Mensaje de cuenta bloqueada en la pantalla de acceso en los cinco idiomas.
+
+## Usuarios como `editor` — 2026-11-03 (issue #507, corrige #456)
+
+- [x] Lo que daba `author` (sin rol, `-`, `bm_documentalista`, `gestor_de_odes`) da `editor`. Los roles desconocidos (`Organization`…) también, y siguen en `unknownRoles`.
+- [x] `admin` sin cambios y por encima de `editor` con varios roles. Nunca `curator`.
+- [x] `import:legacy-users --fix-roles --source-file <usuarios.json> [--dry-run]`: author → editor solo en cuentas `legacy-procomun:user:<uid>`, sin tocar admin, curator ni otros roles. Conserva bloqueo, credenciales, perfil y recursos. Se puede repetir y deja informe (`informe_usuarios-correccion-roles-*.json`).
+- [x] Tests de la tabla, los desconocidos, la precedencia con varios roles y la corrección (repetible, solo legacy, admin/curator intactos, bloqueo conservado).
+- [x] Adenda de ADR-0037 del 2026-11-03.
+- [ ] Lanzar `--fix-roles --dry-run` en cada base ya cargada con #488, revisar los `kept` y aplicar la corrección.

@@ -208,3 +208,36 @@ Cierra lo pendiente de la sección anterior con lo que decidió Producto en #380
 `mapLegacyRecord` calcula `editorialStatus` con `resolveLegacyPublicationStatus`: solo `published` igual a 1 se publica; 0, ausente o desconocido entra como `draft` (con warning si no es 0 ni 1). El informe guarda `editorialStatus` y `sourcePublished` por registro y `totals.importedAsDraft`.
 
 Para lo importado antes, `import:legacy-procomun --fix-published --source-dir <ruta> [--dry-run]` relee los JSON y pasa a borrador los recursos publicados sin revisión editorial (sin `assignedCuratorId`, `curatedAt` ni `featuredAt`). Detalle en ADR-0029, actualización 2026-10-22.
+
+## Roles de usuarios legacy: `editor` en lugar de `author` — 2026-11-03 (issue #507)
+
+Sustituye, para `roles`, las filas de las tablas de mapeo anteriores y la tabla de la adenda de ADR-0037 del 2026-10-27 (#456).
+
+| `roles` | `user.role` |
+|---|---|
+| `administrator`, `administrador` | `admin` |
+| `publicador_certificado`, `-`, vacío o sin rol, `bm_documentalista`, `gestor_de_odes` | `editor` |
+| Cualquier otro (`Organization`…) | `editor`, listado en `unknownRoles` |
+
+Con varios roles separados por coma, `admin` gana a `editor`. Nunca `curator`. El mapeo está en `mapLegacyRoles()` (`packages/db/src/legacy-import/users.ts`). `LEGACY_DEFAULT_ROLE` es el rol de quien no trae rol o solo trae roles desconocidos.
+
+### Corrección de lo ya importado (`--fix-roles`)
+
+```
+usuarios.json
+  └─ import:legacy-users --fix-roles [--dry-run]   (runFixLegacyUserRoles)
+       ├─ mapLegacyUser()                          (mapeo vigente del registro)
+       └─ fixLegacyUserRole()                      (packages/db/src/repository/legacy-users-import.ts)
+            └─ UPDATE user SET role = 'editor', updated_at = now()
+               WHERE id = 'legacy-procomun:user:<uid>' AND role = 'author'
+```
+
+| Rol actual | Rol del mapeo | Resultado |
+|---|---|---|
+| `author` | `editor` | `fixed` (en dry-run, `would_fix`) |
+| el del mapeo | — | `unchanged` (solo se cuenta) |
+| `admin`, `curator`, `reader` u otro | — | `kept`, con el rol actual y el del mapeo |
+| `author` | `admin` | `kept`: solo se corrige author → editor |
+| sin cuenta con ese ID | — | `not_found` |
+
+Detalle y límites en la adenda de ADR-0037 del 2026-11-03.

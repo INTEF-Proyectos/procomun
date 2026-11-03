@@ -443,6 +443,18 @@ describe("fixLegacyUserRole (#507)", () => {
 		});
 	});
 
+	test("no sube a admin un `administrador` que #309 cargó como editor", async () => {
+		const mapped = await importedAs("editor", { roles: "administrador" });
+		expect(await fixLegacyUserRole(db, mapped)).toEqual({
+			outcome: "kept",
+			id: LEGACY_ID,
+			role: "editor",
+		});
+		const row = await userRow();
+		expect(row?.role).toBe("editor");
+		expect(row?.updatedAt.getTime()).toBe(IMPORTED_AT.getTime());
+	});
+
 	test("no toca cuentas ajenas a la migración, aunque compartan correo", async () => {
 		await db.insert(schema.user).values({
 			id: "native-user",

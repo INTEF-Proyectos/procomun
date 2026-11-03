@@ -187,3 +187,42 @@ Ahora «bloqueado» es un único estado, `is_active = false`, y siempre se escri
 - Sus recursos publicados siguen visibles y con su autoría: ningún listado filtra por el estado de la cuenta.
 
 La administración de usuarios no usa Paraglide (sus textos están en español en el código); «Bloquear», «Desbloquear» y «Bloqueado» siguen esa convención.
+
+## Adenda — 2026-11-03: los usuarios importados entran como `editor` (issue #507)
+
+Sustituye la tabla de roles de la adenda de implementación del 2026-10-27 (issue #456); lo demás sigue como estaba. En #507, Producto corrige el requisito: los perfiles que se importaban como `author` deben ser `editor`, para que publiquen sus recursos con los permisos de editor (relacionado con #506, que quita a los editores la opción de enviar a revisión). Las reglas de `admin` y `curator` no cambian.
+
+| Rol de origen (`roles`) | Antes (#456) | Ahora (#507) |
+|---|---|---|
+| `administrator`, `administrador` | `admin` | `admin` |
+| `publicador_certificado` | `editor` | `editor` |
+| `-` (usuario autenticado), vacío o sin rol | `author` | `editor` |
+| `bm_documentalista` | `author` | `editor` |
+| `gestor_de_odes` | `author` | `editor` |
+| Cualquier otro (p. ej. `Organization`) | `author`, en `unknownRoles` | `editor`, en `unknownRoles` hasta que se defina |
+
+- Con varios roles separados por coma se queda el de más permisos: `admin` gana a `editor`. Como ya ningún rol da `author`, la precedencia queda en admin > editor.
+- Ningún rol antiguo da `curator`. Los usuarios no registrados siguen sin cuenta que importar.
+- Los roles desconocidos siguen en el informe (`unknownRoles`, con sus uid) y en el aviso del registro, que ahora dice «entra como editor».
+
+### Corrección de lo ya importado
+
+Reimportar sigue sin cambiar el rol de una cuenta existente, porque lo decide la administración. Por eso lo que entró como `author` con la versión anterior no se corrige solo. Para eso hay una pasada aparte, como `--fix-published` y `--fix-language` del importador de recursos:
+
+`import:legacy-users --fix-roles --source-file <usuarios.json> [--dry-run] [--limit <n>] [--report-dir <ruta>]`
+
+- Relee el JSON y aplica a cada registro el mapeo vigente.
+- Solo cambia `author` → `editor`, y solo si el mapeo da `editor`. Un `admin` del origen que hoy esté en `author` no se toca.
+- Busca la cuenta por el ID `legacy-procomun:user:<uid>`, nunca por correo. Una cuenta nativa no se toca aunque comparta correo.
+- No toca cuentas `admin` ni `curator`, ni otro rol puesto a mano (`reader`…). Salen como `kept` en el informe, con el rol actual y el del mapeo.
+- Solo escribe `user.role` y `user.updated_at`. Conserva el bloqueo (`is_active`, `banned`, `ban_reason`), las credenciales, el ID, el perfil y los recursos.
+- Se puede repetir: una cuenta ya corregida cuenta como `unchanged`. La escritura lleva la condición `role = 'author'`, así que no pisa un cambio hecho a la vez desde la administración.
+- `--dry-run` no escribe y da las mismas cifras.
+- Escribe `informe_usuarios-correccion-roles-<runId>.json` (o `informe_usuarios-correccion-roles-dryrun-<runId>.json`). Lleva los totales (`fixed`, `unchanged`, `kept`, `notFound`, `errored`), los registros cambiados (o que cambiarían), los respetados y `unknownRoles`. Sin correos.
+
+El rol se lee de la base de datos en cada petición (no hay caché de sesión en cookie), así que vale desde la siguiente petición, sin cerrar sesiones.
+
+Límites:
+
+- Una cuenta legacy que la administración haya puesto en `author` a propósito también pasaría a `editor`: no se distingue de una importada así. Antes de corregir hay que revisar la lista de `--dry-run`.
+- La nota de la adenda del 2026-10-27 sobre las cuentas que entraron como `editor` con la versión de #309 deja de aplicar: `editor` es ahora el rol correcto. La excepción son las cuentas cargadas con #309 cuyo origen era `administrador` o una lista de roles con `administrator`: esa versión solo reconocía `administrator` como valor único, así que quedaron en `editor`. La corrección no las sube a `admin`. Salen como `kept` con `role: editor` y `mappedRole: admin`, y hay que revisarlas a mano.

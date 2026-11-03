@@ -3432,3 +3432,21 @@ tasks:
       referencias en el CI. Validado reproduciendo el conflicto de #465 contra
       main: la union automatica da un status.yaml identico a la resolucion
       manual (diff vacio) y check-tracking lo acepta.
+  T-2026-11-03-12341998:
+    date: 2026-11-03
+    agent: "ingestas-y-migraciones"
+    task: "Usuarios del Procomún anterior como editor y corrección de los importados como author"
+    status: Done
+    related: ["#507", "#456", "#488", "ADR-0037"]
+    notes: >
+      Corrige el requisito de #456: sin rol, «-», bm_documentalista,
+      gestor_de_odes y los roles desconocidos (Organization…) entran como
+      editor; los desconocidos siguen en unknownRoles. administrator y
+      administrador siguen en admin y ganan a editor con varios roles; nunca
+      curator. import:legacy-users --fix-roles --source-file <usuarios.json>
+      [--dry-run] relee el JSON y pasa de author a editor solo las cuentas
+      legacy-procomun:user:<uid> cuyo mapeo da editor, sin tocar admin,
+      curator, otros roles ni cuentas nativas, y conservando bloqueo,
+      credenciales, perfil y recursos. Se puede repetir y deja informe.
+      Tests de mapeo, repositorio (PGlite) y CLI. Pendiente: lanzar la
+      corrección en las bases ya cargadas con #488.
