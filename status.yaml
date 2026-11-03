@@ -3400,3 +3400,17 @@ tasks:
       referencias en el CI. Validado reproduciendo el conflicto de #465 contra
       main: la union automatica da un status.yaml identico a la resolucion
       manual (diff vacio) y check-tracking lo acepta.
+  T-2026-11-03-10255271:
+    date: 2026-11-03
+    agent: "busqueda-y-descubrimiento"
+    task: "Las recomendaciones solo cuentan colecciones publicadas"
+    status: Done
+    related: ["#485", "#433", "ADR-0036"]
+    notes: >
+      La señal collection_cooccurrence y el filtro de candidatos de
+      apps/api/src/recommendations/service.ts contaban cualquier fila de
+      collection_resources, así que una colección en borrador, en revisión o
+      archivada influía en la ficha pública. Ahora las dos partes comparten un
+      fragmento SQL que une con collections y exige editorial_status =
+      'published'. Adenda fechada en
+      ADR-0036. Test rojo → verde en service.unit.test.ts.
