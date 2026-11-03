@@ -13,100 +13,107 @@ import { AUTH_DEFAULT_COOKIE_ATTRIBUTES } from "./cookie-config.ts";
 import { ac, admin, author, curator, editor, reader } from "./permissions.ts";
 import { getAuthBaseUrl, getFrontendUrl } from "./urls.ts";
 
-const frontendUrl = getFrontendUrl();
-const oidcEnabled = process.env.OIDC_ENABLED === "true";
-const emailVerificationConfig = resolveEmailVerificationConfig(process.env);
+// Recibe el entorno para que los tests monten una instancia con su propio
+// proveedor OIDC (#527); la aplicación usa `auth`, creada con process.env.
+export function createAuth(env: NodeJS.ProcessEnv = process.env) {
+	const frontendUrl = getFrontendUrl(env);
+	const oidcEnabled = env.OIDC_ENABLED === "true";
+	const emailVerificationConfig = resolveEmailVerificationConfig(env);
 
-export const auth = betterAuth({
-	baseURL: getAuthBaseUrl(),
-	trustedOrigins: [frontendUrl],
-	database: drizzleAdapter(getDb().db, { provider: "pg", schema: pgSchema }),
-	basePath: "/api/auth",
-	advanced: {
-		defaultCookieAttributes: AUTH_DEFAULT_COOKIE_ATTRIBUTES,
-	},
-	databaseHooks: {
-		user: {
-			create: {
-				before: async (user) => ({
-					data: {
-						...user,
-						email: user.email.trim().toLowerCase(),
-					},
-				}),
-			},
+	return betterAuth({
+		baseURL: getAuthBaseUrl(env),
+		trustedOrigins: [frontendUrl],
+		database: drizzleAdapter(getDb().db, { provider: "pg", schema: pgSchema }),
+		basePath: "/api/auth",
+		advanced: {
+			defaultCookieAttributes: AUTH_DEFAULT_COOKIE_ATTRIBUTES,
 		},
-		session: {
-			create: {
-				after: async (session) => {
-					await logActivity({
-						userId: session.userId,
-						type: "auth_login",
-						description: "Inicio de sesión exitoso",
-						metadata: { sessionId: session.id },
-					});
+		databaseHooks: {
+			user: {
+				create: {
+					before: async (user) => ({
+						data: {
+							...user,
+							email: user.email.trim().toLowerCase(),
+						},
+					}),
+				},
+			},
+			session: {
+				create: {
+					after: async (session) => {
+						await logActivity({
+							userId: session.userId,
+							type: "auth_login",
+							description: "Inicio de sesión exitoso",
+							metadata: { sessionId: session.id },
+						});
+					},
 				},
 			},
 		},
-	},
-	hooks: {
-		after: createAuthMiddleware(async (ctx) => {
-			if (ctx.path === "/sign-out") {
-				const session = ctx.context.session;
-				if (session?.session) {
-					await logActivity({
-						userId: session.session.userId,
-						type: "auth_logout",
-						description: "Cierre de sesión",
-						metadata: { sessionId: session.session.id },
-					});
+		hooks: {
+			after: createAuthMiddleware(async (ctx) => {
+				if (ctx.path === "/sign-out") {
+					const session = ctx.context.session;
+					if (session?.session) {
+						await logActivity({
+							userId: session.session.userId,
+							type: "auth_logout",
+							description: "Cierre de sesión",
+							metadata: { sessionId: session.session.id },
+						});
+					}
 				}
-			}
-		}),
-	},
-	emailVerification: buildEmailVerificationOptions(emailVerificationConfig),
-	emailAndPassword: {
-		enabled: true,
-		minPasswordLength: 8,
-		requireEmailVerification: emailVerificationConfig.enabled,
-	},
-	session: {
-		expiresIn: 60 * 60 * 24 * 7,
-		updateAge: 60 * 60 * 24,
-	},
-	plugins: [
-		adminPlugin({
-			ac,
-			roles: {
-				admin,
-				curator,
-				editor,
-				author,
-				reader,
-			},
-			defaultRole: "author",
-		}),
-		...(oidcEnabled
-			? [
-					genericOAuth({
-						config: [
-							{
-								providerId: "oidc",
-								clientId: process.env.OIDC_CLIENT_ID ?? "",
-								clientSecret: process.env.OIDC_CLIENT_SECRET ?? "",
-								discoveryUrl: process.env.OIDC_ISSUER
-									? `${process.env.OIDC_ISSUER}/.well-known/openid-configuration`
-									: "",
-								scopes: (
-									process.env.OIDC_SCOPE ?? "openid email profile"
-								).split(" "),
-								pkce: true,
-							},
-						],
-					}),
-				]
-			: []),
-	],
-});
+			}),
+		},
+		emailVerification: buildEmailVerificationOptions(
+			emailVerificationConfig,
+			env,
+		),
+		emailAndPassword: {
+			enabled: true,
+			minPasswordLength: 8,
+			requireEmailVerification: emailVerificationConfig.enabled,
+		},
+		session: {
+			expiresIn: 60 * 60 * 24 * 7,
+			updateAge: 60 * 60 * 24,
+		},
+		plugins: [
+			adminPlugin({
+				ac,
+				roles: {
+					admin,
+					curator,
+					editor,
+					author,
+					reader,
+				},
+				defaultRole: "author",
+			}),
+			...(oidcEnabled
+				? [
+						genericOAuth({
+							config: [
+								{
+									providerId: "oidc",
+									clientId: env.OIDC_CLIENT_ID ?? "",
+									clientSecret: env.OIDC_CLIENT_SECRET ?? "",
+									discoveryUrl: env.OIDC_ISSUER
+										? `${env.OIDC_ISSUER}/.well-known/openid-configuration`
+										: "",
+									scopes: (env.OIDC_SCOPE ?? "openid email profile").split(" "),
+									pkce: true,
+								},
+							],
+						}),
+					]
+				: []),
+		],
+	});
+}
+
+export const auth = createAuth();
 
 export type Auth = typeof auth;
