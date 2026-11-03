@@ -5,7 +5,7 @@ import { drizzle } from "drizzle-orm/pglite";
 import * as schema from "../schema/index.ts";
 import { createTables } from "../setup.ts";
 import { getPublicAuthor } from "./public-authors.ts";
-import { createResource } from "./resources.ts";
+import { createResource, deleteResource, listResources } from "./resources.ts";
 import type { DrizzleDB } from "./shared.ts";
 
 let db: DrizzleDB;
@@ -22,7 +22,10 @@ async function seedUser(
 	});
 }
 
-async function seedResource(createdBy: string) {
+async function seedResource(
+	createdBy: string,
+	editorialStatus: "draft" | "review" | "published" | "archived" = "published",
+) {
 	return createResource(db, {
 		title: `Recurso de ${createdBy}`,
 		description: "Descripción",
@@ -30,6 +33,7 @@ async function seedResource(createdBy: string) {
 		license: "cc-by",
 		resourceType: "documento",
 		createdBy,
+		editorialStatus,
 	});
 }
 
@@ -46,6 +50,23 @@ beforeAll(async () => {
 		.update(schema.user)
 		.set({ deletedAt: new Date() })
 		.where(eq(schema.user.id, "baja"));
+
+	// Revisión de #487: la ficha solo existe si la cuenta tiene algún recurso
+	// publicado y no eliminado. Borradores, revisiones, archivados o eliminados
+	// no bastan.
+	await seedUser("solo-borradores");
+	await seedResource("solo-borradores", "draft");
+	await seedResource("solo-borradores", "draft");
+	await seedUser("solo-eliminados");
+	const deleted = await seedResource("solo-eliminados", "published");
+	await deleteResource(db, deleted.id);
+	await seedUser("revision-y-archivo");
+	await seedResource("revision-y-archivo", "review");
+	await seedResource("revision-y-archivo", "archived");
+	await seedUser("una-publicada");
+	await seedResource("una-publicada", "published");
+	await seedResource("una-publicada", "draft");
+	await seedResource("una-publicada", "review");
 });
 
 describe("ficha pública de quien publica (#458)", () => {
@@ -68,5 +89,31 @@ describe("ficha pública de quien publica (#458)", () => {
 
 	test("devuelve null para un id desconocido", async () => {
 		expect(await getPublicAuthor(db, "no-existe")).toBeNull();
+	});
+
+	test("no expone cuentas con solo borradores", async () => {
+		expect(await getPublicAuthor(db, "solo-borradores")).toBeNull();
+	});
+
+	test("no expone cuentas con solo recursos eliminados", async () => {
+		expect(await getPublicAuthor(db, "solo-eliminados")).toBeNull();
+	});
+
+	test("no expone cuentas con solo recursos en revisión o archivados", async () => {
+		expect(await getPublicAuthor(db, "revision-y-archivo")).toBeNull();
+	});
+
+	test("con un publicado y borradores existe y cuenta solo el publicado", async () => {
+		expect(await getPublicAuthor(db, "una-publicada")).toEqual({
+			id: "una-publicada",
+			name: "Usuaria una-publicada",
+			image: null,
+		});
+		const listed = await listResources(db, {
+			createdBy: "una-publicada",
+			status: "published",
+		});
+		expect(listed.total).toBe(1);
+		expect(listed.data).toHaveLength(1);
 	});
 });

@@ -12,8 +12,10 @@ export type PublicAuthor = {
 
 /**
  * Ficha pública de una cuenta. Solo existe para cuentas activas (sin baja
- * lógica) que hayan creado algún recurso: así no se pueden recorrer por id los
- * nombres de lectores que nunca han publicado.
+ * lógica) con al menos un recurso publicado y no eliminado: así no se pueden
+ * recorrer por id los nombres de quienes nunca han publicado (lectores, o
+ * cuentas con solo borradores, recursos en revisión, archivados o eliminados).
+ * Si no cumple la regla devuelve null, igual que un id desconocido (#487).
  */
 export async function getPublicAuthor(
 	db: DrizzleDB,
@@ -26,7 +28,11 @@ export async function getPublicAuthor(
 			and(
 				eq(user.id, id),
 				isNull(user.deletedAt),
-				sql`exists (select 1 from ${resources} where ${resources.createdBy} = ${user.id})`,
+				sql`exists (select 1 from ${resources} where ${and(
+					eq(resources.createdBy, user.id),
+					eq(resources.editorialStatus, "published"),
+					isNull(resources.deletedAt),
+				)})`,
 			),
 		)
 		.limit(1);

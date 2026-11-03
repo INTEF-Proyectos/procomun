@@ -105,3 +105,89 @@ describe("GET /api/v1/authors/:id (#458)", () => {
 		expect(unknown.status).toBe(404);
 	});
 });
+
+// Revisión de #487: la ficha solo existe si la cuenta tiene algún recurso
+// publicado y no eliminado. Si no, la misma respuesta que un id desconocido,
+// para que no se pueda saber si la cuenta existe ni cómo se llama.
+describe("GET /api/v1/authors/:id sin recursos publicados (#487)", () => {
+	const ACCOUNTS = {
+		drafts: "solo-borradores-487",
+		deleted: "solo-eliminados-487",
+		reviewArchived: "revision-archivo-487",
+		onePublished: "una-publicada-487",
+	} as const;
+
+	async function seedFor(
+		createdBy: string,
+		title: string,
+		status: "draft" | "review" | "published" | "archived",
+	) {
+		const { id } = await repo.createResource(getDb().db, {
+			title,
+			description: "Descripción",
+			language: "es",
+			license: "cc-by",
+			resourceType: "documento",
+			createdBy,
+		});
+		if (status !== "draft") {
+			await repo.updateEditorialStatus(getDb().db, id, status, "system");
+		}
+		return id;
+	}
+
+	async function getAuthor(id: string) {
+		const res = await app.request(`/api/v1/authors/${encodeURIComponent(id)}`);
+		return { status: res.status, body: await res.json() };
+	}
+
+	beforeAll(async () => {
+		for (const id of Object.values(ACCOUNTS)) {
+			await repo.ensureUser(getDb().db, {
+				id,
+				email: `${id}@test.com`,
+				name: `Nombre ${id}`,
+				role: "author",
+			});
+		}
+		await seedFor(ACCOUNTS.drafts, "Borrador A 487", "draft");
+		await seedFor(ACCOUNTS.drafts, "Borrador B 487", "draft");
+		await repo.deleteResource(
+			getDb().db,
+			await seedFor(ACCOUNTS.deleted, "Eliminado 487", "published"),
+		);
+		await seedFor(ACCOUNTS.reviewArchived, "En revisión 487", "review");
+		await seedFor(ACCOUNTS.reviewArchived, "Archivado 487", "archived");
+		await seedFor(ACCOUNTS.onePublished, "Publicado 487", "published");
+		await seedFor(ACCOUNTS.onePublished, "Borrador C 487", "draft");
+		await seedFor(ACCOUNTS.onePublished, "Borrador D 487", "draft");
+	});
+
+	for (const [label, id] of [
+		["solo borradores", ACCOUNTS.drafts],
+		["solo recursos eliminados", ACCOUNTS.deleted],
+		["solo recursos en revisión o archivados", ACCOUNTS.reviewArchived],
+	] as const) {
+		test(`404 igual que un id desconocido para cuentas con ${label}`, async () => {
+			const unknown = await getAuthor("no-existe-487");
+			const account = await getAuthor(id);
+			expect(account.status).toBe(404);
+			expect(account).toEqual(unknown);
+			expect(JSON.stringify(account.body)).not.toContain(`Nombre ${id}`);
+		});
+	}
+
+	test("con un publicado y borradores, 200 y cuenta solo el publicado", async () => {
+		const { status, body } = await getAuthor(ACCOUNTS.onePublished);
+		expect(status).toBe(200);
+		expect(body.author).toEqual({
+			id: ACCOUNTS.onePublished,
+			name: `Nombre ${ACCOUNTS.onePublished}`,
+			image: null,
+		});
+		expect(body.total).toBe(1);
+		expect(body.data.map((r: { title: string }) => r.title)).toEqual([
+			"Publicado 487",
+		]);
+	});
+});
