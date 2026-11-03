@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { renderToStaticMarkup } from "react-dom/server";
 import { MemoryRouter } from "react-router-dom";
+import { CONTENT_IFRAME_SANDBOX } from "../lib/embed-sandbox.ts";
 import {
 	ResourceVersionPanel,
 	ResourceVersionPreviewDialog,
@@ -54,8 +55,10 @@ describe("ResourceVersionPanel", () => {
 		expect(html).toContain(
 			'src="/api/admin/resources/res-22/versions/v1/preview/"',
 		);
-		expect(html).toContain(
-			'sandbox="allow-scripts allow-popups allow-popups-to-escape-sandbox"',
-		);
+		// Mismo sandbox que el resto de iframes de contenido (auditoría H-1): un
+		// popup abierto por el paquete sigue en el sandbox.
+		expect(html).toContain(`sandbox="${CONTENT_IFRAME_SANDBOX}"`);
+		expect(html).not.toContain("allow-popups-to-escape-sandbox");
+		expect(html).not.toContain("allow-same-origin");
 	});
 });
