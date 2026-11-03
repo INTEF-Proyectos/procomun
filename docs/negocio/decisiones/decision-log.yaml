@@ -329,3 +329,19 @@ ADR-0044:
     publicados. UUID aleatorio por pestaña en sessionStorage; el servidor guarda
     su SHA-256 24 h en resource_view_sessions. Totales en resource_view_counts
     (view_count + legacy_view_count importado). Migración 0013_resource_views.
+
+ADR-0049:
+  title: "Flujo de revisión editorial, comentarios privados y sello «Validado»"
+  status: Propuesto
+  date: 2026-11-03
+  file: 0049-flujo-revision-editorial-y-sello-validado.md
+  notes: >
+    Issues #496 y #420. Propuesta: estados changes_requested y rejected
+    (pendiente y en revisión se distinguen por el curator asignado), acciones
+    por rol con motivo obligatorio, hilo privado resource_review_comments,
+    historial append-only resource_editorial_events en la misma transacción y
+    notificaciones propias con correo por EmailPort (ADR-0031). Sello en
+    columnas validated_at, validated_by y validation_source, no deducido de
+    assignedCuratorId. Importados con certified 1 y publicados llevan sello.
+    Fase 1 con edición en vivo de los publicados; fase 2 con cambios
+    pendientes y published_version_id.
