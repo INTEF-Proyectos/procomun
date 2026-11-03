@@ -1,0 +1,392 @@
+import { describe, expect, it } from "bun:test";
+import { join } from "node:path";
+import {
+	buildSignedElpxPreviewUrl,
+	ELPX_PREVIEW_PREFIX,
+} from "../apps/api/src/elpx/preview-token.ts";
+
+/**
+ * Algunas URL son el único permiso de acceso: el enlace firmado de un recurso
+ * no publicado (#466, `/api/v1/elpx/preview/<hash>/<token>/…`), la instantánea
+ * de la vista previa del editor (#317, `/api/v1/preview/<id>/…` y
+ * `/api/v1/preview-session/<id>`) y el `?token=` de la verificación de correo
+ * de Better Auth. El formato `main` de nginx:alpine guarda `$request` y
+ * `$http_referer` enteros, así que quien lee el log puede abrirlas.
+ *
+ * No hay nginx en local ni en el CI de tests: aquí se lee `nginx.conf`, se
+ * comprueba que el `access_log` usa un formato con las variables redactadas y
+ * se ejecutan las regex de los `map` contra URL de ejemplo. Las regex de nginx
+ * (PCRE) se pasan a RegExp de JS; los grupos con nombre `(?P<n>…)` y `(?'n'…)`
+ * se reescriben como `(?<n>…)`.
+ */
+
+type Token = { value: string; quoted: boolean };
+type Directive = { name: string; args: string[]; block?: Directive[] };
+
+/** Palabras, cadenas entre comillas y `{ } ;`. Quita los comentarios. */
+function tokenize(text: string): Token[] {
+	const tokens: Token[] = [];
+	let i = 0;
+	while (i < text.length) {
+		const ch = text[i] as string;
+		if (/\s/.test(ch)) {
+			i++;
+		} else if (ch === "#") {
+			while (i < text.length && text[i] !== "\n") i++;
+		} else if (ch === "{" || ch === "}" || ch === ";") {
+			tokens.push({ value: ch, quoted: false });
+			i++;
+		} else if (ch === '"' || ch === "'") {
+			let value = "";
+			i++;
+			while (i < text.length && text[i] !== ch) {
+				const next = text[i + 1];
+				// Igual que ngx_conf_read_token: \" \' \\ se desescapan, \t \r \n
+				// son control y cualquier otra barra (\. en una regex) se queda.
+				if (text[i] === "\\" && next !== undefined && `"'\\`.includes(next)) {
+					value += next;
+					i += 2;
+				} else if (
+					text[i] === "\\" &&
+					next !== undefined &&
+					"trn".includes(next)
+				) {
+					value += { t: "\t", r: "\r", n: "\n" }[next];
+					i += 2;
+				} else {
+					value += text[i];
+					i++;
+				}
+			}
+			i++;
+			tokens.push({ value, quoted: true });
+		} else {
+			let word = "";
+			while (i < text.length && !/[\s;{}]/.test(text[i] as string)) {
+				// `${var}` dentro de una palabra sin comillas no abre bloque.
+				if (text[i] === "$" && text[i + 1] === "{") {
+					const end = text.indexOf("}", i);
+					word += text.slice(i, end + 1);
+					i = end + 1;
+				} else {
+					word += text[i];
+					i++;
+				}
+			}
+			tokens.push({ value: word, quoted: false });
+		}
+	}
+	return tokens;
+}
+
+function parse(tokens: Token[]): Directive[] {
+	let pos = 0;
+	const isSymbol = (t: Token, s: string) => !t.quoted && t.value === s;
+	function block(): Directive[] {
+		const out: Directive[] = [];
+		while (pos < tokens.length) {
+			if (isSymbol(tokens[pos] as Token, "}")) {
+				pos++;
+				return out;
+			}
+			const words: string[] = [];
+			while (pos < tokens.length) {
+				const token = tokens[pos++] as Token;
+				if (isSymbol(token, ";") || isSymbol(token, "{")) {
+					const [name = "", ...args] = words;
+					out.push(
+						isSymbol(token, "{")
+							? { name, args, block: block() }
+							: { name, args },
+					);
+					break;
+				}
+				words.push(token.value);
+			}
+		}
+		return out;
+	}
+	return block();
+}
+
+function walk(directives: Directive[]): Directive[] {
+	return directives.flatMap((d) => [d, ...walk(d.block ?? [])]);
+}
+
+function toJsRegex(key: string): RegExp | null {
+	if (!key.startsWith("~")) return null;
+	const caseless = key.startsWith("~*");
+	const source = key
+		.slice(caseless ? 2 : 1)
+		.replace(/\(\?P<(\w+)>/g, "(?<$1>")
+		.replace(/\(\?'(\w+)'/g, "(?<$1>");
+	return new RegExp(source, caseless ? "i" : "");
+}
+
+/** Sustituye `$name` y `${name}`; una variable que el test no conoce falla. */
+function expand(value: string, vars: Record<string, string>): string {
+	return value.replace(
+		/\$(?:\{(\w+)\}|(\w+))/g,
+		(_, braced: string | undefined, bare: string | undefined) => {
+			const name = (braced ?? bare) as string;
+			const resolved = vars[name];
+			if (resolved === undefined) {
+				throw new Error(`Variable $${name} sin valor en el test`);
+			}
+			return resolved;
+		},
+	);
+}
+
+const SPECIAL_MAP_KEYS = new Set([
+	"default",
+	"hostnames",
+	"include",
+	"volatile",
+]);
+
+/**
+ * Evalúa un `map` con la prioridad de nginx que aplica aquí: cadena exacta,
+ * después la primera regex que case en orden de aparición y, si no, `default`.
+ */
+function evalMap(map: Directive, input: string): string {
+	const source = (map.args[0] as string).replace(/^\$/, "");
+	const entries = map.block ?? [];
+	const base = { [source]: input };
+	const exact = entries.find(
+		(e) =>
+			!SPECIAL_MAP_KEYS.has(e.name) &&
+			!e.name.startsWith("~") &&
+			e.name === input,
+	);
+	if (exact) return expand(exact.args[0] as string, base);
+	for (const entry of entries) {
+		const regex = toJsRegex(entry.name);
+		const match = regex?.exec(input);
+		if (!match) continue;
+		const vars: Record<string, string> = { ...base };
+		match.forEach((v, i) => {
+			vars[String(i)] = v ?? "";
+		});
+		for (const [k, v] of Object.entries(match.groups ?? {})) vars[k] = v ?? "";
+		return expand(entry.args[0] as string, vars);
+	}
+	const fallback = entries.find((e) => e.name === "default");
+	return fallback ? expand(fallback.args[0] as string, base) : "";
+}
+
+const conf = parse(
+	tokenize(await Bun.file(join(import.meta.dir, "..", "nginx.conf")).text()),
+);
+const all = walk(conf);
+const maps = all.filter((d) => d.name === "map");
+const findMap = (from: string, to: string) =>
+	maps.find((m) => m.args[0] === from && m.args[1] === to);
+const uriMap = findMap("$request_uri", "$redacted_uri");
+const refererMap = findMap("$http_referer", "$redacted_referer");
+
+const FORMAT_NAME = "main_redacted";
+// El formato `main` de nginx:alpine (combined + X-Forwarded-For) con la URI y
+// el Referer redactados en lugar de `$request` y `$http_referer`.
+const EXPECTED_FORMAT =
+	'$remote_addr - $remote_user [$time_local] "$request_method $redacted_uri $server_protocol" ' +
+	'$status $body_bytes_sent "$redacted_referer" ' +
+	'"$http_user_agent" "$http_x_forwarded_for"';
+
+const HASH = "3f".repeat(32);
+const TOKEN = "1793750400.Qm9ndXNUb2tlbkRlUHJ1ZWJhUXVlTm9EZWJlU2FsaXJYWA";
+const PREVIEW_ID = "756f4e31-18e6-4f16-b868-516c5b945d8b";
+const VERIFY_JWT =
+	"eyJhbGciOiJIUzI1NiJ9.eyJlbWFpbCI6ImFAYi5lcyJ9.c2VjcmV0by1kZS1wcnVlYmE";
+
+describe("nginx.conf: el access_log no guarda URL de capacidad", () => {
+	it("tiene un map de $request_uri a $redacted_uri que por defecto deja la URI", () => {
+		expect(uriMap).toBeDefined();
+		const fallback = uriMap?.block?.find((e) => e.name === "default");
+		expect(fallback?.args).toEqual(["$request_uri"]);
+	});
+
+	// El HTML del .elpx sale con Referrer-Policy: same-origin, así que sus
+	// CSS, JS e imágenes llevan la URL firmada en el Referer.
+	it("tiene un map de $http_referer a $redacted_referer que por defecto deja el Referer", () => {
+		expect(refererMap).toBeDefined();
+		const fallback = refererMap?.block?.find((e) => e.name === "default");
+		expect(fallback?.args).toEqual(["$http_referer"]);
+	});
+
+	it("define un log_format con los campos de main y la URI y el Referer redactados", () => {
+		const format = all.find(
+			(d) => d.name === "log_format" && d.args[0] === FORMAT_NAME,
+		);
+		expect(format).toBeDefined();
+		expect(format?.args.slice(1).join("")).toBe(EXPECTED_FORMAT);
+	});
+
+	it("el server escribe el access_log con ese formato", () => {
+		const server = conf.find((d) => d.name === "server");
+		const accessLog = server?.block?.find((d) => d.name === "access_log");
+		expect(accessLog?.args).toEqual(["/var/log/nginx/access.log", FORMAT_NAME]);
+	});
+
+	it("ningún access_log usa otro formato", () => {
+		const accessLogs = all.filter((d) => d.name === "access_log");
+		expect(accessLogs.length).toBeGreaterThan(0);
+		for (const log of accessLogs) {
+			if (log.args[0] === "off") continue;
+			expect(log.args[1]).toBe(FORMAT_NAME);
+		}
+	});
+});
+
+const URI_CASES: [string, string, string][] = [
+	[
+		"enlace firmado (#466)",
+		`/api/v1/elpx/preview/${HASH}/${TOKEN}/`,
+		`/api/v1/elpx/preview/${HASH}/:token/`,
+	],
+	[
+		"enlace firmado sin barra final",
+		`/api/v1/elpx/preview/${HASH}/${TOKEN}`,
+		`/api/v1/elpx/preview/${HASH}/:token`,
+	],
+	[
+		"subpágina y recurso anidado del paquete",
+		`/api/v1/elpx/preview/${HASH}/${TOKEN}/html/tema-2/actividad.html`,
+		`/api/v1/elpx/preview/${HASH}/:token/html/tema-2/actividad.html`,
+	],
+	[
+		"recurso del paquete con query",
+		`/api/v1/elpx/preview/${HASH}/${TOKEN}/libs/jquery.js?v=3`,
+		`/api/v1/elpx/preview/${HASH}/:token/libs/jquery.js?v=3`,
+	],
+	[
+		"token mal formado: se tapa igual",
+		`/api/v1/elpx/preview/${HASH}/no-es-un-token/index.html`,
+		`/api/v1/elpx/preview/${HASH}/:token/index.html`,
+	],
+	[
+		"instantánea del editor (#317)",
+		`/api/v1/preview/${PREVIEW_ID}/index.html`,
+		"/api/v1/preview/:previewId/index.html",
+	],
+	[
+		"instantánea del editor sin ruta",
+		`/api/v1/preview/${PREVIEW_ID}`,
+		"/api/v1/preview/:previewId",
+	],
+	[
+		"sesión de vista previa (#317)",
+		`/api/v1/preview-session/${PREVIEW_ID}`,
+		"/api/v1/preview-session/:previewId",
+	],
+	[
+		"subruta de la sesión de vista previa",
+		`/api/v1/preview-session/${PREVIEW_ID}/assets`,
+		"/api/v1/preview-session/:previewId/assets",
+	],
+	[
+		"verificación de correo de Better Auth (?token=)",
+		`/api/auth/verify-email?token=${VERIFY_JWT}&callbackURL=%2F`,
+		"/api/auth/verify-email?token=:token&callbackURL=%2F",
+	],
+	[
+		"token como último parámetro",
+		`/api/v1/algo?pagina=2&token=${VERIFY_JWT}`,
+		"/api/v1/algo?pagina=2&token=:token",
+	],
+];
+
+const UNCHANGED = [
+	"/",
+	"/recursos/fotosintesis?page=2",
+	"/api/v1/resources/42/comments",
+	`/api/v1/elpx/${HASH}/index.html`,
+	`/api/v1/elpx/preview/${HASH}`,
+	"/api/v1/preview-session",
+	"/api/v1/previews/42",
+	"/api/v1/search?q=token",
+	"/api/v1/search?q=preview&sort=recent",
+	"/api/v1/algo?access_token_hint=1",
+];
+
+describe("map $request_uri → $redacted_uri", () => {
+	for (const [label, input, expected] of URI_CASES) {
+		it(`tapa la capacidad: ${label}`, () => {
+			if (!uriMap) throw new Error("Falta el map de $request_uri");
+			expect(evalMap(uriMap, input)).toBe(expected);
+		});
+	}
+
+	it("no deja ningún secreto de los ejemplos en la URI redactada", () => {
+		if (!uriMap) throw new Error("Falta el map de $request_uri");
+		for (const [, input] of URI_CASES) {
+			const out = evalMap(uriMap, input);
+			for (const secret of [TOKEN, PREVIEW_ID, VERIFY_JWT, "no-es-un-token"]) {
+				expect(out).not.toContain(secret);
+			}
+		}
+	});
+
+	it("tapa el token del enlace que genera de verdad la API", () => {
+		if (!uriMap) throw new Error("Falta el map de $request_uri");
+		const url = buildSignedElpxPreviewUrl(HASH);
+		const token = url.slice(`${ELPX_PREVIEW_PREFIX}/${HASH}/`.length, -1);
+		expect(token.length).toBeGreaterThan(40);
+		expect(evalMap(uriMap, `${url}html/pagina.html`)).toBe(
+			`${ELPX_PREVIEW_PREFIX}/${HASH}/:token/html/pagina.html`,
+		);
+	});
+
+	for (const input of UNCHANGED) {
+		it(`deja igual una URI sin capacidad: ${input}`, () => {
+			if (!uriMap) throw new Error("Falta el map de $request_uri");
+			expect(evalMap(uriMap, input)).toBe(input);
+		});
+	}
+
+	// Con una línea de petición mal formada $request_uri llega vacía. Se
+	// escribe "-" y no la línea en crudo, que no pasaría por la redacción.
+	it("escribe - si la petición no trae URI", () => {
+		if (!uriMap) throw new Error("Falta el map de $request_uri");
+		expect(evalMap(uriMap, "")).toBe("-");
+	});
+});
+
+describe("map $http_referer → $redacted_referer", () => {
+	const ORIGIN = "https://procomun.example";
+
+	for (const [label, input, expected] of URI_CASES) {
+		it(`tapa la capacidad en el Referer: ${label}`, () => {
+			if (!refererMap) throw new Error("Falta el map de $http_referer");
+			expect(evalMap(refererMap, `${ORIGIN}${input}`)).toBe(
+				`${ORIGIN}${expected}`,
+			);
+		});
+	}
+
+	it("tapa también un Referer con puerto y http", () => {
+		if (!refererMap) throw new Error("Falta el map de $http_referer");
+		expect(
+			evalMap(
+				refererMap,
+				`http://localhost:8080/api/v1/elpx/preview/${HASH}/${TOKEN}/index.html`,
+			),
+		).toBe(
+			`http://localhost:8080/api/v1/elpx/preview/${HASH}/:token/index.html`,
+		);
+	});
+
+	for (const input of UNCHANGED.map((u) => `${ORIGIN}${u}`)) {
+		it(`deja igual un Referer sin capacidad: ${input}`, () => {
+			if (!refererMap) throw new Error("Falta el map de $http_referer");
+			expect(evalMap(refererMap, input)).toBe(input);
+		});
+	}
+
+	// Sin la cabecera, $http_referer sale "-" en el formato main. El map da
+	// una cadena vacía, así que se pone "-" a mano para no cambiar el log.
+	it("escribe - si no hay Referer, como el formato main", () => {
+		if (!refererMap) throw new Error("Falta el map de $http_referer");
+		expect(evalMap(refererMap, "")).toBe("-");
+	});
+});
