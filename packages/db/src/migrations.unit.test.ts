@@ -370,7 +370,10 @@ describe("migración 0014_knowledge_areas", () => {
 			(item) => item.tag === "0014_knowledge_areas",
 		);
 		expect(entry).toBeDefined();
-		const others = journal.entries.filter((item) => item !== entry);
+		// Las posteriores, como 0015, no forman parte de las anteriores a 0014.
+		const others = journal.entries.filter(
+			(item) => item.tag < "0014_knowledge_areas",
+		);
 		expect(Math.max(...others.map((item) => item.when))).toBeLessThan(
 			entry?.when ?? 0,
 		);
