@@ -518,3 +518,77 @@ describe("journal combinado de areas y miniaturas (#471)", () => {
 		expect(screenshots?.when ?? 0).toBeGreaterThan(areas?.when ?? 0);
 	});
 });
+
+// #470 (ADR-0046): cola de miniaturas generadas en el servidor.
+describe("migración 0018_elpx_thumbnail_queue", () => {
+	const COLUMNS_QUERY = `SELECT column_name FROM information_schema.columns
+		WHERE table_name = 'elpx_projects' AND column_name LIKE 'thumbnail_%'
+		ORDER BY column_name`;
+
+	test("va detrás de 0015 en el journal con el when reservado", async () => {
+		const journal = JSON.parse(
+			await readFile(path.join(migrationsDir, "meta/_journal.json"), "utf8"),
+		) as { entries: Array<{ idx: number; tag: string; when: number }> };
+		const screenshots = journal.entries.find(
+			(entry) => entry.tag === "0015_elpx_has_screenshot",
+		);
+		const queue = journal.entries.find(
+			(entry) => entry.tag === "0018_elpx_thumbnail_queue",
+		);
+		expect(queue?.idx).toBe((screenshots?.idx ?? -2) + 1);
+		expect(queue?.when).toBe(1793200000000);
+		expect(queue?.when ?? 0).toBeGreaterThan(screenshots?.when ?? 0);
+	});
+
+	test("coincide con setup.ts, se aplica dos veces y deja nulo el estado de los previos", async () => {
+		const migration = await readFile(
+			path.join(migrationsDir, "0018_elpx_thumbnail_queue.sql"),
+			"utf8",
+		);
+		const { ELPX_THUMBNAIL_QUEUE_SCHEMA, SCHEMA_STATEMENTS } = await import(
+			"./setup.ts"
+		);
+		const statements = migration
+			.replace(/^--[^\n]*\n/, "")
+			.split("--> statement-breakpoint")
+			.map((statement) => statement.trim().replace(/;$/, ""));
+		expect(statements).toEqual([...ELPX_THUMBNAIL_QUEUE_SCHEMA]);
+		for (const statement of ELPX_THUMBNAIL_QUEUE_SCHEMA) {
+			expect(SCHEMA_STATEMENTS).toContain(statement);
+		}
+
+		const db = new PGlite();
+		try {
+			await db.exec(
+				`CREATE TABLE "elpx_projects" (id TEXT PRIMARY KEY, has_preview BOOLEAN NOT NULL DEFAULT false);
+				INSERT INTO elpx_projects (id) VALUES ('previo');`,
+			);
+			const sql = migration.replaceAll("--> statement-breakpoint", "");
+			await db.exec(sql);
+			await db.exec(sql);
+			const columns = await db.query<{ column_name: string }>(COLUMNS_QUERY);
+			expect(columns.rows.map((row) => row.column_name)).toEqual([
+				"thumbnail_attempts",
+				"thumbnail_error",
+				"thumbnail_file",
+				"thumbnail_next_attempt_at",
+				"thumbnail_status",
+				"thumbnail_updated_at",
+			]);
+			const rows = await db.query<{
+				thumbnail_status: string | null;
+				thumbnail_attempts: number;
+			}>("SELECT thumbnail_status, thumbnail_attempts FROM elpx_projects");
+			expect(rows.rows).toEqual([
+				{ thumbnail_status: null, thumbnail_attempts: 0 },
+			]);
+			await expect(
+				db.exec(
+					"UPDATE elpx_projects SET thumbnail_status = 'inventado' WHERE id = 'previo'",
+				),
+			).rejects.toThrow();
+		} finally {
+			await db.close();
+		}
+	});
+});

@@ -15,6 +15,7 @@ import {
 } from "../schema/resources.ts";
 import { resourceViewCounts } from "../schema/social.ts";
 import { uploadSessions } from "../schema/uploads.ts";
+import { initialThumbnailStatus } from "./elpx-thumbnails.ts";
 import { buildSlug, type DrizzleDB } from "./shared.ts";
 
 export interface LegacyResourceInput {
@@ -227,6 +228,12 @@ export async function importLegacyResourceWithElpx(
 			version: 3,
 			hasPreview: input.elpx.hasPreview,
 			hasScreenshot: input.elpx.hasScreenshot ?? false,
+			// #470: con la imagen preview copiada la tarjeta ya tiene miniatura.
+			thumbnailStatus: initialThumbnailStatus({
+				hasPreview: input.elpx.hasPreview,
+				hasScreenshot: input.elpx.hasScreenshot,
+				hasPreviewImage: Boolean(input.resource.previewImageUrl),
+			}),
 			elpxMetadata: input.elpx.elpxMetadata,
 			createdAt: now,
 			updatedAt: now,

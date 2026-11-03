@@ -99,6 +99,13 @@
 			"when": 1792800000000,
 			"tag": "0015_elpx_has_screenshot",
 			"breakpoints": true
+		},
+		{
+			"idx": 14,
+			"version": "7",
+			"when": 1793200000000,
+			"tag": "0018_elpx_thumbnail_queue",
+			"breakpoints": true
 		}
 	]
 }
