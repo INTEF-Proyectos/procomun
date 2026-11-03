@@ -3431,3 +3431,25 @@ tasks:
       Corregidos tambien el journal heredado (0014 y 0015 separados), la ayuda
       del CLI y el fixture legacy publicado. Avisos previos de lint y tracking;
       no se ejecutan e2e en esta resolucion.
+  T-2026-11-03-10550566:
+    date: 2026-11-03
+    agent: "backend-api-servicios"
+    task: "Miniaturas generadas en el servidor para los paquetes sin imagen"
+    status: Done
+    related: ["#470", "#471", "#409", "ADR-0046"]
+    notes: >
+      Implementa las decisiones de la issue #470 sobre la rama de #471. Nuevo
+      servicio apps/thumbnailer (Bun + Playwright, chromium-headless-shell) en
+      su propio contenedor: red interna sin salida, sin secretos, raiz y
+      almacenamiento en solo lectura, usuario sin privilegios y sandbox de
+      Chromium activo con el perfil seccomp de Playwright. Sirve el paquete
+      desde disco en un origen ficticio con la CSP de origen opaco y aborta
+      cualquier otra peticion. Captura JPEG de 640x400 sin la navegacion de
+      eXe. Cola en elpx_projects (migracion 0018) con un bucle en la API que
+      solo arranca con THUMBNAILER_URL, reintentos con espera y recuperacion
+      de los processing colgados. Comando elpx:thumbnails para el relleno de
+      los recursos sin preview. Las tarjetas dejan el iframe: screenshot.png,
+      preview legacy, miniatura generada y marcador por tipo. Playwright
+      funciona bajo Bun en macOS y en la imagen Debian 13, asi que no hace
+      falta Node. Pendiente: piloto con paquetes reales y publicar la imagen
+      thumbnailer en el CI.
