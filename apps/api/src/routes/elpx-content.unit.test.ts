@@ -157,7 +157,7 @@ describe("embed shim = artefacto canónico vendorizado", () => {
 		expect(served).toContain("exeExternalMediaChild");
 		expect(served).toContain("exeEmbedShim");
 		expect(served).toContain("exeMediaBridge");
-		// Y la nota legal que ADR-0018 exige que sobreviva al minificado.
+		// Y la nota legal que eXe ADR-0018 exige que sobreviva al minificado.
 		expect(served).toContain("Dual-licensed");
 	});
 });

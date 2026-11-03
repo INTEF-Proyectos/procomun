@@ -11,7 +11,7 @@ const app = createApp();
 startPreviewSessionSweeper();
 
 // Warn loudly if a multi-replica deployment has not acknowledged sticky routing
-// for the process-local preview store (see ADR-0032).
+// for the process-local preview store (see ADR-0038).
 const previewReplicaWarning = evaluatePreviewReplicaConfig();
 if (previewReplicaWarning) {
 	console.warn(`[preview] ${previewReplicaWarning}`);

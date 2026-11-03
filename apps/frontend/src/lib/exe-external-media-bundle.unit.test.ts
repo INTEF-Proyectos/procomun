@@ -62,7 +62,7 @@ describe("artefacto external-media vendorizado", () => {
 	});
 
 	/**
-	 * ADR-0018: estos bytes se redistribuyen, así que la concesión de licencia tiene que
+	 * eXe ADR-0018: estos bytes se redistribuyen, así que la concesión de licencia tiene que
 	 * viajar CON ellos. Los minificadores borran comentarios normales — por eso se
 	 * comprueba sobre la salida y no sobre la fuente.
 	 */

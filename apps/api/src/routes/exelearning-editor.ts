@@ -321,12 +321,13 @@ exelearningEditorRoutes.get("/*", async (c) => {
 		return c.text("Not found", 404);
 	}
 
-	// Defense in depth (see ADR-0032 and the SW_NEUTRALIZE_SCRIPT above): never
-	// serve the legacy preview Service Worker from this origin. The bundled pre-v2
-	// editor could otherwise register `preview-sw.js` and run untrusted author
-	// content SAME-ORIGIN as the authenticated user. The register() stub blocks
-	// installation; refusing to serve the script blocks it a second way. Both go
-	// away once an HTTP-preview-v2 editor is bundled.
+	// Defense in depth (see ADR-0038 point 10, amended by ADR-0035, and the
+	// SW_NEUTRALIZE_SCRIPT above): never serve the legacy preview Service Worker
+	// from this origin. The bundled pre-v2 editor could otherwise register
+	// `preview-sw.js` and run untrusted author content SAME-ORIGIN as the
+	// authenticated user. The register() stub blocks installation; refusing to
+	// serve the script blocks it a second way. Both go away once the bundled
+	// editor reads `previewSnapshot` (ADR-0035).
 	if (path.basename(relativePath) === "preview-sw.js") {
 		return c.text("Not found", 404);
 	}

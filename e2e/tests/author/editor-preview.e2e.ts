@@ -7,7 +7,8 @@ import { expect, test } from "@playwright/test";
  * page injects the `previewSnapshot` config into the iframe
  * HTML. The bundled static editor (v4.0.1) predates the core HttpPreviewProvider,
  * so the full preview flow cannot be driven until a newer core editor release
- * ships (see ADR-0030 and docs/preview-serving-contract.md). This spec asserts
+ * ships (see ADR-0035, which amends point 10 of ADR-0038, and
+ * docs/preview-serving-contract.md). This spec asserts
  * the wiring, not the (not-yet-available) full activation.
  *
  * The bootstrap is served unauthenticated (`/api/v1/exelearning-editor/*` is not

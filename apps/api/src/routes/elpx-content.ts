@@ -48,7 +48,8 @@ const MIME_TYPES: Record<string, string> = {
 // límite superior coincide con elpx_projects.hash varchar(64).
 const HASH_PATTERN = /^[a-f0-9-]{8,64}$/i;
 
-// Script de promoción de embeds inyectado en el HTML del .elpx (ADR-0027).
+// Script de promoción de embeds inyectado en el HTML del .elpx (ADR-0048, que
+// sustituye a ADR-0027).
 const EMBED_SHIM_URL = "/api/v1/elpx/embed-shim.js";
 // `crossorigin` para que el script se cargue en modo CORS: el contenido del
 // .elpx se ejecuta en origen opaco (ADR-0026) y es embebible cross-origin, así
@@ -57,7 +58,7 @@ const EMBED_SHIM_URL = "/api/v1/elpx/embed-shim.js";
 // scripts must be made with CORS mode enabled").
 const EMBED_SHIM_TAG = `<script src="${EMBED_SHIM_URL}" crossorigin="anonymous"></script>`;
 // Los bytes servidos son el artefacto CANÓNICO vendorizado desde eXeLearning
-// (ADR-0021: bytes + manifiesto, verificados en CI contra el buildHash del core),
+// (eXe ADR-0021: bytes + manifiesto, verificados en CI contra el buildHash del core),
 // no una copia bespoke. La URL pública se mantiene porque ya está incrustada en
 // los paquetes servidos; lo que cambia es de dónde salen los bytes.
 const EMBED_SHIM_PATH = path.join(

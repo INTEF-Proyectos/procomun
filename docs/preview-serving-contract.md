@@ -4,7 +4,7 @@ The embedded editor renders its preview **filtered** by default: sanitised, with
 
 This API is that somewhere. The editor POSTs the whole project as one ZIP and gets back an unguessable capability id; the API serves that tree from an authless route under a sandbox CSP. Missing or invalid configuration **fails closed**: the filtered preview stays.
 
-See [ADR-0035](negocio/decisiones/0035-preview-snapshot-en-lugar-de-protocolo-v2.md) for why the earlier layered protocol was retired, and [ADR-0034](negocio/decisiones/0034-topologia-store-preview-http.md) for the store topology.
+See [ADR-0035](negocio/decisiones/0035-preview-snapshot-en-lugar-de-protocolo-v2.md) for why the earlier layered protocol was retired, and [ADR-0038](negocio/decisiones/0038-topologia-store-preview-http.md) for the store topology.
 
 ## Transport configuration
 
@@ -75,7 +75,7 @@ A snapshot is `path → bytes` plus its owner, held in this process's memory. Sn
 
 Serving a snapshot pushes its idle clock back, so a preview in use never expires under the author. A sweeper reclaims idle snapshots every minute.
 
-Limits are **per process**. A multi-replica deployment needs sticky routing keyed on the `previewId` segment for both the management and serving routes; setting `PREVIEW_MULTI_REPLICA` without `PREVIEW_STICKY_ROUTING_CONFIRMED` logs a startup warning. See `docs/operaciones/preview-sessions.md` and ADR-0034.
+Limits are **per process**. A multi-replica deployment needs sticky routing keyed on the `previewId` segment for both the management and serving routes; setting `PREVIEW_MULTI_REPLICA` without `PREVIEW_STICKY_ROUTING_CONFIRMED` logs a startup warning. See `docs/operaciones/preview-sessions.md` and ADR-0038.
 
 ## Serving behavior
 

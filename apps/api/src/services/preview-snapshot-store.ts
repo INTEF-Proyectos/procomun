@@ -124,7 +124,7 @@ function isEnvFlagOn(value: string | undefined): boolean {
  * warning string for the entrypoint to log. Returns `null` when the
  * configuration is coherent (single replica, or multi-replica + confirmed).
  *
- * See docs/operaciones/preview-sessions.md and ADR-0030.
+ * See docs/operaciones/preview-sessions.md and ADR-0038.
  */
 export function evaluatePreviewReplicaConfig(
 	env: NodeJS.ProcessEnv = process.env,
@@ -138,7 +138,7 @@ export function evaluatePreviewReplicaConfig(
 		"(management /api/v1/preview-session/:id AND serving /api/v1/preview/:id/*); " +
 		"without it, requests can hit a replica that does not own the snapshot and " +
 		"previews appear to vanish. Configure sticky/consistent-hash routing (see " +
-		"docs/operaciones/preview-sessions.md and ADR-0030), then set " +
+		"docs/operaciones/preview-sessions.md and ADR-0038), then set " +
 		"PREVIEW_STICKY_ROUTING_CONFIRMED=1 to silence this warning."
 	);
 }
