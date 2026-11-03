@@ -107,3 +107,11 @@ Vigila:
 ## Store compartido
 
 Redis, PostgreSQL u object storage no se adoptan en esta fase: el estado es voluminoso, efímero y requiere swap atómico de revisión. Se reevaluará cuando la plataforma necesite escalado horizontal sin afinidad o un origen separado dedicado al contenido.
+
+## Registros de acceso (2026-11-03)
+
+Hay dos rutas sin sesión cuyo único secreto va en la ruta: el `previewId` de `/api/v1/preview/{previewId}/*` y de `/api/v1/preview-session/{previewId}`, y el token de `/api/v1/elpx/preview/{hash}/{token}/*` (enlace firmado de #466). Quien tenga la ruta completa puede abrir el contenido.
+
+- `api_access_logs` guarda la ruta con `:previewId` y `:token` en lugar del secreto (`redactAuditPath`, `apps/api/src/auth/audit.ts`). El hash se conserva.
+- La API no tiene otro registro de peticiones ni envía errores a un servicio externo.
+- Un proxy inverso delante de la API guarda la URL completa en su access log. Pasa también con la etapa `frontend` del `Dockerfile`, que usa `nginx.conf` con el `access_log` por defecto. Si se despliega así, quita esos dos segmentos con un `map` en `log_format` o desactiva el `access_log` en esas rutas.
