@@ -16,6 +16,13 @@ import type {
 	LegacyUserJson,
 	MappedLegacyUser,
 } from "@procomun/db/legacy-import";
+import {
+	formatImportError,
+	type ImportErrorSummary,
+	summarizeDbStepError,
+	summarizeImportError,
+	withoutDbDetails,
+} from "../import-errors.ts";
 
 export async function loadImportLegacyUsersDependencies() {
 	const [{ getDb, waitForDb }, legacyImport, repo] = await Promise.all([
@@ -60,7 +67,18 @@ type RecordOutcome =
 			completed?: Array<"password" | "profile">;
 	  }
 	| { outcome: "skipped_existing_email"; legacyUid: string; userId: string }
-	| { outcome: "error"; index: number; message: string };
+	| ErrorRecord;
+
+/**
+ * Registro que no se pudo importar: posición, uid (para reintentarlo) y un
+ * código controlado. Nunca lleva el mensaje de un error de la base de datos,
+ * que incluye la consulta y sus parámetros (correo, hash…), #488.
+ */
+type ErrorRecord = {
+	outcome: "error";
+	index: number;
+	legacyUid?: string;
+} & ImportErrorSummary;
 
 export interface ImportLegacyUsersReport {
 	runId: string;
@@ -165,6 +183,39 @@ function logUnknownRoles(unknownRoles: UnknownRolesSummary) {
 	);
 }
 
+/** uid del registro de origen, aunque no haya pasado el mapeo. */
+function sourceUid(legacy: unknown): string | undefined {
+	const uid = (legacy as { uid?: unknown } | null)?.uid;
+	if (typeof uid !== "string" && typeof uid !== "number") return undefined;
+	return String(uid).trim() || undefined;
+}
+
+/**
+ * Si falló el mapeo, el mensaje es propio (`mail ausente o inválido`). Si
+ * falló después, el paso solo usa la base de datos y nunca se copia su
+ * mensaje (#488).
+ */
+function errorRecord(
+	index: number,
+	legacy: unknown,
+	mapped: MappedLegacyUser | undefined,
+	error: unknown,
+): ErrorRecord {
+	const legacyUid = mapped?.legacyUid ?? sourceUid(legacy);
+	const summary = mapped
+		? summarizeDbStepError(error)
+		: summarizeImportError(error, "invalid_record");
+	console.error(
+		`[error] registro ${index}${legacyUid ? ` (uid ${legacyUid})` : ""}: ${formatImportError(summary)}`,
+	);
+	return {
+		outcome: "error",
+		index,
+		...(legacyUid ? { legacyUid } : {}),
+		...summary,
+	};
+}
+
 /** Cierra PGlite en ejecuciones CLI cortas, sin acoplar el tipo Drizzle al driver. */
 export async function closeCliDb(db: unknown): Promise<void> {
 	if (!db || typeof db !== "object" || !("$client" in db)) return;
@@ -206,6 +257,9 @@ export async function runImportLegacyUsersCommand(
 		);
 		logUnknownRoles(report.unknownRoles);
 		return report.totals.errored > 0 ? 1 : 0;
+	} catch (error) {
+		// Lo que se escapa del bucle lo escribe entero el manejador del CLI.
+		throw withoutDbDetails(error);
 	} finally {
 		await closeCliDb(deps.getDb().db);
 	}
@@ -237,13 +291,14 @@ export async function runImportLegacyUsers(
 	const users = raw.slice(0, options.limit) as LegacyUserJson[];
 
 	for (const [index, legacy] of users.entries()) {
+		let mapped: MappedLegacyUser | undefined;
 		try {
-			const mapped = deps.mapLegacyUser(legacy);
+			mapped = deps.mapLegacyUser(legacy);
 			const warnings = warningMessages(mapped);
-			const counted = () => {
-				if (mapped.blocked) importedBlocked++;
-				if (!mapped.passwordHash) withoutPassword++;
-				addUnknownRoles(unknownRoles, mapped);
+			const counted = (user: MappedLegacyUser) => {
+				if (user.blocked) importedBlocked++;
+				if (!user.passwordHash) withoutPassword++;
+				addUnknownRoles(unknownRoles, user);
 			};
 			if (options.dryRun) {
 				const existing = await deps.findLegacyUserImportConflict(db, mapped);
@@ -281,7 +336,7 @@ export async function runImportLegacyUsers(
 				plannedIds.set(mapped.id, mapped.id);
 				plannedEmails.set(mapped.email.toLowerCase(), mapped.id);
 				wouldImport++;
-				counted();
+				counted(mapped);
 				records.push({
 					outcome: "would_import",
 					legacyUid: mapped.legacyUid,
@@ -296,7 +351,7 @@ export async function runImportLegacyUsers(
 			const result = await deps.importLegacyUser(db, mapped);
 			if (result.outcome === "imported") {
 				imported++;
-				counted();
+				counted(mapped);
 				records.push({
 					outcome: "imported",
 					legacyUid: mapped.legacyUid,
@@ -323,9 +378,7 @@ export async function runImportLegacyUsers(
 			}
 		} catch (error) {
 			errored++;
-			const message = error instanceof Error ? error.message : String(error);
-			records.push({ outcome: "error", index, message });
-			console.error(`[error] registro ${index}: ${message}`);
+			records.push(errorRecord(index, legacy, mapped, error));
 		}
 	}
 
@@ -367,7 +420,7 @@ type FixRolesRecord =
 			mappedRole: MappedLegacyUser["role"];
 	  }
 	| { outcome: "not_found"; legacyUid: string; userId: string }
-	| { outcome: "error"; index: number; message: string };
+	| ErrorRecord;
 
 export interface FixLegacyUserRolesReport {
 	runId: string;
@@ -450,8 +503,9 @@ export async function runFixLegacyUserRoles(
 	const records: FixRolesRecord[] = [];
 
 	for (const [index, legacy] of users.entries()) {
+		let mapped: MappedLegacyUser | undefined;
 		try {
-			const mapped = deps.mapLegacyUser(legacy);
+			mapped = deps.mapLegacyUser(legacy);
 			addUnknownRoles(unknownRoles, mapped);
 			const trace = { legacyUid: mapped.legacyUid, userId: mapped.id };
 			const result = await deps.fixLegacyUserRole(db, mapped, {
@@ -484,9 +538,7 @@ export async function runFixLegacyUserRoles(
 			}
 		} catch (error) {
 			totals.errored++;
-			const message = error instanceof Error ? error.message : String(error);
-			records.push({ outcome: "error", index, message });
-			console.error(`[error] registro ${index}: ${message}`);
+			records.push(errorRecord(index, legacy, mapped, error));
 		}
 	}
 

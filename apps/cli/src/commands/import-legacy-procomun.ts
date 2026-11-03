@@ -19,6 +19,13 @@ import {
 	type LegacyOdeJson,
 	summarizeLegacyEducationalImport,
 } from "@procomun/db/legacy-import";
+import {
+	formatImportError,
+	type ImportErrorSummary,
+	summarizeDbStepError,
+	summarizeImportError,
+	withoutDbDetails,
+} from "../import-errors.ts";
 
 export async function loadImportLegacyProcomunDependencies() {
 	const [
@@ -180,7 +187,11 @@ type RecordOutcome =
 	  } & PublicationTrace)
 	| { outcome: "skipped_existing"; externalId: string }
 	| { outcome: "blocked"; externalId: string; reasons: string[] }
-	| { outcome: "error"; externalId: string; message: string };
+	/**
+	 * Un error de la base de datos solo deja su código: su mensaje lleva la
+	 * consulta y los parámetros, con autores y correos (#488).
+	 */
+	| ({ outcome: "error"; externalId: string } & ImportErrorSummary);
 
 export interface ImportLegacyProcomunReport {
 	runId: string;
@@ -260,9 +271,24 @@ function parseCliArgs(args: string[]) {
 	};
 }
 
-export async function importLegacyProcomun(args: string[]) {
+export async function importLegacyProcomun(
+	args: string[],
+	loadDeps: () => Promise<Deps> = loadImportLegacyProcomunDependencies,
+) {
+	try {
+		await runImportLegacyProcomunCommand(args, loadDeps);
+	} catch (error) {
+		// Lo que se escapa de los bucles lo escribe entero el manejador del CLI.
+		throw withoutDbDetails(error);
+	}
+}
+
+async function runImportLegacyProcomunCommand(
+	args: string[],
+	loadDeps: () => Promise<Deps>,
+) {
 	const options = parseCliArgs(args);
-	const deps = await loadImportLegacyProcomunDependencies();
+	const deps = await loadDeps();
 
 	if (options.copyPreviews) {
 		const copyReport = await runCopyLegacyPreviews(options, deps);
@@ -398,7 +424,7 @@ type FixPublishedRecord = {
 			resourceId: string;
 	  }
 	| { outcome: "not_found" }
-	| { outcome: "error"; message: string }
+	| ({ outcome: "error" } & ImportErrorSummary)
 );
 
 export interface FixLegacyPublishedReport {
@@ -457,6 +483,7 @@ export async function runFixLegacyPublished(
 				externalId: resolved.externalId,
 				sourcePublished: null,
 				outcome: "error",
+				code: "invalid_record",
 				message: `No se pudo leer/parsear el JSON: ${resolved.parseError}`,
 			});
 			continue;
@@ -502,9 +529,12 @@ export async function runFixLegacyPublished(
 			}
 		} catch (err) {
 			totals.errored++;
-			const message = err instanceof Error ? err.message : String(err);
-			records.push({ ...trace, outcome: "error", message });
-			console.error(`[error] ${resolved.externalId}: ${message}`);
+			// Este paso solo usa la base de datos: nunca se copia el mensaje.
+			const summary = summarizeDbStepError(err);
+			records.push({ ...trace, outcome: "error", ...summary });
+			console.error(
+				`[error] ${resolved.externalId}: ${formatImportError(summary)}`,
+			);
 		}
 	}
 
@@ -680,6 +710,7 @@ export async function runImportLegacyProcomun(
 			records.push({
 				outcome: "error",
 				externalId: resolved.externalId,
+				code: "invalid_record",
 				message: `No se pudo leer/parsear el JSON: ${resolved.parseError}`,
 			});
 			console.error(
@@ -700,13 +731,15 @@ export async function runImportLegacyProcomun(
 			mapping = deps.mapLegacyRecord(json, elpxFilename);
 		} catch (err) {
 			errored++;
-			const message = err instanceof Error ? err.message : String(err);
+			const summary = summarizeImportError(err, "invalid_record");
 			records.push({
 				outcome: "error",
 				externalId: resolved.externalId,
-				message,
+				...summary,
 			});
-			console.error(`[error] ${resolved.externalId}: ${message}`);
+			console.error(
+				`[error] ${resolved.externalId}: ${formatImportError(summary)}`,
+			);
 		}
 
 		if (mapping) {
@@ -978,7 +1011,8 @@ async function persistImportedResource(params: {
 		try {
 			await deps.updateSearchVector(db, result.resourceId);
 		} catch (err) {
-			const message = err instanceof Error ? err.message : String(err);
+			// Solo usa la base de datos: nunca se copia el mensaje (#488).
+			const message = formatImportError(summarizeDbStepError(err));
 			warningMessages.push(
 				`search_vector: no se pudo indexar para búsqueda (${message}); ejecutar fts:reindex manualmente`,
 			);
@@ -1002,9 +1036,17 @@ async function persistImportedResource(params: {
 		);
 	} catch (err) {
 		onErrored();
-		const message = err instanceof Error ? err.message : String(err);
-		records.push({ outcome: "error", externalId: mapping.externalId, message });
-		console.error(`[error] ${mapping.externalId}: ${message}`);
+		// Mezcla ficheros y base de datos: los mensajes propios (ZIP no válido,
+		// hash repetido) se conservan; los de la base de datos, no (#488).
+		const summary = summarizeImportError(err, "import_error");
+		records.push({
+			outcome: "error",
+			externalId: mapping.externalId,
+			...summary,
+		});
+		console.error(
+			`[error] ${mapping.externalId}: ${formatImportError(summary)}`,
+		);
 		// No aborta el lote: el fichero copiado a storage se limpia best-effort.
 		await unlink(storagePath).catch(() => {});
 

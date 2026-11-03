@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, test } from "bun:test";
+import { afterEach, beforeEach, describe, expect, spyOn, test } from "bun:test";
 import { mkdtemp, readdir, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
@@ -439,7 +439,13 @@ describe("import:legacy-users --fix-roles (#507)", () => {
 				legacyUid: "6",
 				userId: "legacy-procomun:user:6",
 			},
-			{ outcome: "error", index: 6, message: "mail ausente o inválido" },
+			{
+				outcome: "error",
+				index: 6,
+				legacyUid: "7",
+				code: "invalid_record",
+				message: "mail ausente o inválido",
+			},
 		]);
 		expect(real.unknownRoles).toEqual([
 			{ role: "Organization", count: 1, legacyUids: ["5"] },
@@ -524,6 +530,270 @@ describe("import:legacy-users --fix-roles (#507)", () => {
 		expect(exitCode).toBe(1);
 		const [reportName] = await readdir(reportDir);
 		expect(reportName).toStartWith("informe_usuarios-correccion-roles-dryrun-");
+	});
+});
+
+/**
+ * Hash bcrypt sintético (formato válido, no es de nadie): si aparece en el
+ * informe o en la consola, el error de la base de datos se ha filtrado.
+ */
+const SYNTHETIC_HASH = `$2y$10$${"SinteticoDePruebaNoEsUnHashReal".padEnd(53, "x")}`;
+const SYNTHETIC_EMAIL = "persona-sintetica@example.test";
+
+/** Recoge todo lo que se escribe en la consola durante el test. */
+function captureConsole() {
+	const lines: string[] = [];
+	const spies = (["log", "error", "warn", "info", "debug"] as const).map(
+		(method) =>
+			spyOn(console, method).mockImplementation((...args: unknown[]) => {
+				lines.push(
+					args
+						.map((arg) => (typeof arg === "string" ? arg : Bun.inspect(arg)))
+						.join(" "),
+				);
+			}),
+	);
+	return {
+		text: () => lines.join("\n"),
+		restore: () => {
+			for (const spy of spies) spy.mockRestore();
+		},
+	};
+}
+
+function expectNoSensitiveData(text: string) {
+	expect(text).not.toContain(SYNTHETIC_HASH);
+	// Ni un trozo del hash (Postgres puede recortar la fila en `detail`).
+	expect(text).not.toContain("SinteticoDePruebaNoEsUnHashReal");
+	expect(text.toLowerCase()).not.toContain(SYNTHETIC_EMAIL);
+	// Ni la consulta ni sus parámetros.
+	expect(text.toLowerCase()).not.toContain("insert into");
+	expect(text.toLowerCase()).not.toContain("update ");
+	expect(text).not.toContain("params:");
+	expect(text).not.toContain("Failing row");
+}
+
+describe("import:legacy-users: un fallo de la base de datos no filtra datos (#488)", () => {
+	let dir: string;
+	let pglite: PGlite;
+	let db: ReturnType<Deps["getDb"]>["db"];
+	let output: ReturnType<typeof captureConsole>;
+
+	beforeEach(async () => {
+		dir = await mkdtemp(path.join(tmpdir(), "legacy-users-errors-"));
+		pglite = new PGlite();
+		await createTables(pglite);
+		db = drizzle(pglite, { schema }) as unknown as typeof db;
+		output = captureConsole();
+	});
+
+	afterEach(async () => {
+		output.restore();
+		if (!pglite.closed) await pglite.close();
+		await rm(dir, { recursive: true, force: true });
+	});
+
+	function realDeps(): Deps {
+		return buildDeps({
+			getDb: () => ({ db, provider: "pg" }),
+			findLegacyUserImportConflict,
+			importLegacyUser,
+			fixLegacyUserRole,
+		});
+	}
+
+	async function writeSource(): Promise<string> {
+		const sourceFile = path.join(dir, "usuarios.json");
+		await writeFile(
+			sourceFile,
+			JSON.stringify([
+				{
+					uid: 41,
+					name: "Persona Sintética",
+					mail: SYNTHETIC_EMAIL,
+					roles: "-",
+					status: 1,
+					pass: SYNTHETIC_HASH,
+				},
+			]),
+		);
+		return sourceFile;
+	}
+
+	test("si la base de datos rechaza la credencial, ni el informe ni la consola llevan el hash", async () => {
+		const sourceFile = await writeSource();
+		await pglite.exec(
+			"ALTER TABLE account ADD CONSTRAINT test_rechaza_credencial CHECK (password NOT LIKE '$2y$%')",
+		);
+		const reportDir = path.join(dir, "reports");
+
+		const exitCode = await runImportLegacyUsersCommand(
+			parseImportLegacyUsersArgs([
+				"--source-file",
+				sourceFile,
+				"--report-dir",
+				reportDir,
+			]),
+			realDeps(),
+		);
+
+		expect(exitCode).toBe(1);
+		const [reportName] = await readdir(reportDir);
+		const reportText = await Bun.file(
+			path.join(reportDir, reportName ?? ""),
+		).text();
+		expectNoSensitiveData(reportText);
+		expectNoSensitiveData(output.text());
+
+		const report = JSON.parse(reportText);
+		expect(report.totals).toMatchObject({ imported: 0, errored: 1 });
+		// El uid queda en el informe para reintentar ese registro.
+		expect(report.records).toEqual([
+			{
+				outcome: "error",
+				index: 0,
+				legacyUid: "41",
+				code: "constraint_violation",
+				message: "la base de datos rechazó el registro por una restricción",
+				sqlState: "23514",
+				constraint: "test_rechaza_credencial",
+			},
+		]);
+		expect(output.text()).toContain(
+			"[error] registro 0 (uid 41): constraint_violation (test_rechaza_credencial) [SQLSTATE 23514]",
+		);
+	});
+
+	test("aunque Postgres ponga el hash en su propio mensaje, solo sale el código; al quitar el fallo se reintenta", async () => {
+		const sourceFile = await writeSource();
+		await pglite.exec(`
+			CREATE FUNCTION test_rechaza_credencial() RETURNS trigger AS $$
+			BEGIN
+				RAISE EXCEPTION 'credencial rechazada: % (%)', NEW.password, NEW.user_id;
+			END
+			$$ LANGUAGE plpgsql;
+			CREATE TRIGGER test_rechaza_credencial BEFORE INSERT ON account
+				FOR EACH ROW EXECUTE FUNCTION test_rechaza_credencial();
+		`);
+
+		const failed = await runImportLegacyUsers(
+			{ sourceFile, dryRun: false },
+			realDeps(),
+		);
+
+		expectNoSensitiveData(JSON.stringify(failed));
+		expectNoSensitiveData(output.text());
+		expect(failed.records).toEqual([
+			{
+				outcome: "error",
+				index: 0,
+				legacyUid: "41",
+				code: "db_error",
+				message: "error de la base de datos",
+				sqlState: "P0001",
+			},
+		]);
+		// La transacción no deja la cuenta a medias.
+		expect(await db.select().from(schema.user)).toHaveLength(0);
+
+		await pglite.exec(
+			"DROP TRIGGER test_rechaza_credencial ON account; DROP FUNCTION test_rechaza_credencial();",
+		);
+		const retried = await runImportLegacyUsers(
+			{ sourceFile, dryRun: false },
+			realDeps(),
+		);
+		expect(retried.records).toEqual([
+			expect.objectContaining({ outcome: "imported", legacyUid: "41" }),
+		]);
+		const [credential] = await db
+			.select({ password: schema.account.password })
+			.from(schema.account)
+			.where(eq(schema.account.userId, "legacy-procomun:user:41"));
+		expect(credential?.password).toBe(SYNTHETIC_HASH);
+	});
+
+	test("--fix-roles tampoco copia el error de la base de datos", async () => {
+		const sourceFile = await writeSource();
+		await importLegacyUser(
+			db,
+			mapLegacyUser(JSON.parse(await Bun.file(sourceFile).text())[0]),
+		);
+		await db
+			.update(schema.user)
+			.set({ role: "author" })
+			.where(eq(schema.user.id, "legacy-procomun:user:41"));
+		await pglite.exec(`
+			CREATE FUNCTION test_rechaza_rol() RETURNS trigger AS $$
+			BEGIN
+				RAISE EXCEPTION 'rol rechazado para %', NEW.email;
+			END
+			$$ LANGUAGE plpgsql;
+			CREATE TRIGGER test_rechaza_rol BEFORE UPDATE ON "user"
+				FOR EACH ROW EXECUTE FUNCTION test_rechaza_rol();
+		`);
+
+		const report = await runFixLegacyUserRoles(
+			{ sourceFile, dryRun: false },
+			realDeps(),
+		);
+
+		expectNoSensitiveData(JSON.stringify(report));
+		expectNoSensitiveData(output.text());
+		expect(report.totals).toMatchObject({ fixed: 0, errored: 1 });
+		expect(report.records).toEqual([
+			{
+				outcome: "error",
+				index: 0,
+				legacyUid: "41",
+				code: "db_error",
+				message: "error de la base de datos",
+				sqlState: "P0001",
+			},
+		]);
+	});
+
+	test("un error inesperado al persistir no copia su mensaje", async () => {
+		const sourceFile = await writeSource();
+		const report = await runImportLegacyUsers(
+			{ sourceFile, dryRun: false },
+			buildDeps({
+				importLegacyUser: async () => {
+					throw new TypeError(`fallo con ${SYNTHETIC_HASH}`);
+				},
+			}),
+		);
+		expectNoSensitiveData(JSON.stringify(report));
+		expectNoSensitiveData(output.text());
+		expect(report.records).toEqual([
+			{
+				outcome: "error",
+				index: 0,
+				legacyUid: "41",
+				code: "unexpected_error",
+				message: "error inesperado (TypeError)",
+			},
+		]);
+	});
+
+	test("un error de la base de datos fuera del bucle tampoco llega entero a la consola", async () => {
+		const sourceFile = await writeSource();
+		const dbError = Object.assign(
+			new Error(`Failed query: select 1\nparams: ${SYNTHETIC_HASH}`),
+			{ query: "select 1", params: [SYNTHETIC_HASH] },
+		);
+		const run = runImportLegacyUsersCommand(
+			parseImportLegacyUsersArgs(["--source-file", sourceFile]),
+			buildDeps({
+				waitForDb: async () => {
+					throw dbError;
+				},
+			}),
+		);
+		await expect(run).rejects.toThrow("db_error: error de la base de datos");
+		await run.catch((error: unknown) => {
+			expectNoSensitiveData(Bun.inspect(error));
+		});
 	});
 });
 
