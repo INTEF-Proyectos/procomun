@@ -3462,3 +3462,25 @@ tasks:
       referencias en el CI. Validado reproduciendo el conflicto de #465 contra
       main: la union automatica da un status.yaml identico a la resolucion
       manual (diff vacio) y check-tracking lo acepta.
+  T-2026-11-03-10362970:
+    date: 2026-11-03
+    agent: "seguridad-privacidad-legal"
+    task: "#317 al día con main: vista previa firmada de #466 junto al origen opaco"
+    status: Done
+    related: ["#317", "#466", "#483", "ADR-0026", "ADR-0033"]
+    notes: >
+      Merge de main en la rama. Conflictos en elpx-content.ts (se registran
+      la ruta de embed-facade.js y la vista previa firmada
+      /api/v1/elpx/preview/<hash>/<token>/, las dos antes de "/:hash"), en
+      ResourceDetailIsland.tsx («Ponlo en tu web» solo en recursos
+      publicados, con el EmbedSection sin slug de este PR) y en
+      elpx-embed-facade.e2e.ts (los casos de este PR, con el paquete escrito
+      dentro del .elpx publicado del seed). La URL pública de un borrador
+      sigue dando 404 y la firmada se sirve con la misma CSP sandbox, el
+      artefacto de eXe y la fachada (test nuevo en
+      elpx-content-access.unit.test.ts, que falla sin la fachada). Se quita
+      un import sin uso y el /** de las exclusiones de biome. Validación
+      local: test:unit 1393 pass y 3 fail (los de #431, que también fallan
+      en el CI de main, aunque check-coverage no lo marca),
+      test:integration 22, test:ui 76, check-types limpio, lint sin errores
+      y e2e de Chromium 62 pass y 23 skip.
