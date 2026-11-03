@@ -234,7 +234,7 @@ describe("contenido .elpx por hash según el estado del recurso (#466)", () => {
 
 // #317: el enlace firmado sirve el mismo HTML que la ruta pública, así que
 // lleva la CSP sin `allow-popups-to-escape-sandbox` (auditoría H-1) y el
-// artefacto de eXe seguido de la fachada genérica (ADR-0033).
+// artefacto de eXe seguido de la fachada genérica (ADR-0048).
 describe("vista previa firmada con el origen opaco de #317", () => {
 	test("un borrador se sirve con la CSP endurecida, el artefacto y la fachada", async () => {
 		const previewUrl = await adminPreviewUrl(

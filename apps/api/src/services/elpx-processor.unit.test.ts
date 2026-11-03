@@ -499,7 +499,7 @@ describe("elpxContentRoutes", () => {
 		expect(js).toContain("exe-embed");
 	});
 
-	it("inyecta la fachada genérica DESPUÉS del artefacto de eXe, dentro del <head> (ADR-0033)", async () => {
+	it("inyecta la fachada genérica DESPUÉS del artefacto de eXe, dentro del <head> (ADR-0048)", async () => {
 		const res = await app.request(`/api/v1/elpx/${fakeHash}`);
 
 		expect(res.status).toBe(200);
@@ -515,7 +515,7 @@ describe("elpxContentRoutes", () => {
 		expect(facadeIndex).toBeLessThan(headClose);
 	});
 
-	it("sirve la fachada genérica como JavaScript con CORS (ADR-0033)", async () => {
+	it("sirve la fachada genérica como JavaScript con CORS (ADR-0048)", async () => {
 		const res = await app.request("/api/v1/elpx/embed-facade.js");
 
 		expect(res.status).toBe(200);

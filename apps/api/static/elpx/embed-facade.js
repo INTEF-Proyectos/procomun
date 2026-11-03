@@ -1,5 +1,5 @@
 /*
- * Fachada genérica de embeds para contenido .elpx (ADR-0033, convivencia con el
+ * Fachada genérica de embeds para contenido .elpx (ADR-0048, convivencia con el
  * artefacto de eXeLearning; viene del shim de ADR-0027).
  *
  * Se inyecta en el HTML del .elpx servido por la API, DESPUÉS del artefacto

@@ -71,12 +71,12 @@ tasks:
     agent: "qa-validacion"
     task: "Alinear el E2E de embeds de #430 con el bridge compartido de #317"
     status: Done
-    related: ["#317", "#378", "#430", ADR-0027, ADR-0033]
+    related: ["#317", "#378", "#430", ADR-0027, ADR-0048]
     notes: >
       e2e-chromium fallaba en elpx-embed-facade.e2e.ts: el test de #430 busca la fachada de enlace,
       el modal «Documento PDF» y el popup que escapa del sandbox, y este PR sustituye ese shim por el
       artefacto vendorizado de eXe y quita allow-popups-to-escape-sandbox (auditoría H-1).
-      El caso de la ficha comprueba ahora el contrato de ADR-0033: el PDF del paquete queda como hueco
+      El caso de la ficha comprueba ahora el contrato de ADR-0048: el PDF del paquete queda como hueco
       en el origen opaco y el padre lo superpone. «Ver online» y Padlet (modo strict) quedan sin
       fachada hasta que se resuelva aguas arriba, como ya anotaba T-2026-10-21-07301313.
       Validación: el spec en local con chromium, 3/3 en verde (--repeat-each=3).
@@ -3245,7 +3245,7 @@ tasks:
     agent: "frontend-ux-accesibilidad"
     task: "#317 al día con main y fachada genérica junto al artefacto de eXe"
     status: Done
-    related: ["#317", "#427", "#450", "ADR-0033", "ADR-0027"]
+    related: ["#317", "#427", "#450", "ADR-0048", "ADR-0027"]
     notes: >
       Se integró main en #317. El artefacto vendorizado de eXe solo reconoce
       YouTube, Vimeo, Dailymotion y la Mediateca de Madrid, así que Canva,
@@ -3254,7 +3254,7 @@ tasks:
       que cambia por un enlace «Ver contenido de…» los iframe https externos
       que no son PDF ni de un proveedor del artefacto, conservando el caso
       posicionado de Canva (#450). Un test comprueba que la lista de hosts
-      excluidos coincide con el registro del artefacto. ADR-0033 lleva una
+      excluidos coincide con el registro del artefacto. ADR-0048 lleva una
       sección fechada con el orden de carga.
   T-2026-10-26-07220488:
     date: 2026-10-26
@@ -3467,7 +3467,7 @@ tasks:
     agent: "seguridad-privacidad-legal"
     task: "#317 al día con main: vista previa firmada de #466 junto al origen opaco"
     status: Done
-    related: ["#317", "#466", "#483", "ADR-0026", "ADR-0033"]
+    related: ["#317", "#466", "#483", "ADR-0026", "ADR-0048"]
     notes: >
       Merge de main en la rama. Conflictos en elpx-content.ts (se registran
       la ruta de embed-facade.js y la vista previa firmada

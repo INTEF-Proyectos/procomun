@@ -166,8 +166,9 @@ ADR-0026:
 
 ADR-0027:
   title: "Reproducción segura de vídeos/PDF embebidos en .elpx (promote-to-parent con player en modal)"
-  status: Aceptado
+  status: Supersedido
   date: 2026-06-14
+  superseded_by: ADR-0048
   file: 0027-reproduccion-segura-embeds-elpx.md
 
 ADR-0028:
@@ -349,3 +350,15 @@ ADR-0044:
     publicados. UUID aleatorio por pestaña en sessionStorage; el servidor guarda
     su SHA-256 24 h en resource_view_sessions. Totales en resource_view_counts
     (view_count + legacy_view_count importado). Migración 0013_resource_views.
+
+ADR-0048:
+  title: "Migración al bridge de medios externos compartido de eXeLearning"
+  status: Aceptado
+  date: 2026-06-29
+  file: 0048-migracion-bridge-medios-compartido-exelearning.md
+  related: ["#317", "#427", "#450", "ADR-0026", "ADR-0027"]
+  notes: >
+    Supersede a ADR-0027. Renumerada desde ADR-0033 el 2026-11-03: en main
+    ADR-0033 son las capturas visuales de PR, ADR-0046 es de #481 y ADR-0047
+    la usó #484 (cerrado). Adenda 2026-10-26: fachada genérica propia
+    (embed-facade.js) junto al artefacto de eXe para los iframe que no reconoce.

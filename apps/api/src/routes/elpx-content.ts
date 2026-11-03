@@ -66,7 +66,7 @@ const EMBED_SHIM_PATH = path.join(
 );
 let embedShimCache: string | null = null;
 
-// Fachada genérica propia (ADR-0033, sección 2026-10-26): trata los <iframe>
+// Fachada genérica propia (ADR-0048, sección 2026-10-26): trata los <iframe>
 // https externos que el artefacto no reconoce (Canva, Padlet, Genially…). Se
 // inyecta DESPUÉS del artefacto y excluye sus proveedores y los PDF.
 const EMBED_FACADE_URL = "/api/v1/elpx/embed-facade.js";

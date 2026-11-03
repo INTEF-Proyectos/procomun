@@ -7,9 +7,9 @@ import { PUBLISHED_RESOURCE } from "../../fixtures/test-data";
 // Paquete .elpx sintético con lo que traen #378 y #427. Bajo el origen opaco
 // (ADR-0026) nada de esto se pinta:
 // - el PDF del paquete y el YouTube los trata el artefacto compartido de
-//   eXeLearning (ADR-0033): hueco dentro del sandbox y reproductor en el padre;
+//   eXeLearning (ADR-0048): hueco dentro del sandbox y reproductor en el padre;
 // - Padlet y Canva, que el artefacto no reconoce, los cambia la fachada genérica
-//   (embed-facade.js) por un enlace «Ver contenido de…» (ADR-0033, 2026-10-26).
+//   (embed-facade.js) por un enlace «Ver contenido de…» (ADR-0048, 2026-10-26).
 // Va dentro del .elpx del recurso publicado del seed (ver
 // fixtures/published-elpx.ts, issue #466).
 let packageDir = "";

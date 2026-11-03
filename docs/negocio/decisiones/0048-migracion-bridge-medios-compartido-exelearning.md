@@ -1,4 +1,4 @@
-# ADR-0033 Migración al bridge de medios externos compartido de eXeLearning
+# ADR-0048 Migración al bridge de medios externos compartido de eXeLearning
 
 * Estado: Aceptado
 * Fecha: 2026-06-29
@@ -26,7 +26,7 @@ Se sustituye el mecanismo propio de ADR-0027 por el bridge compartido de eXeLear
 4. `apps/frontend/public/elpx/exe_media_host.js` soporta vídeo interactivo mediante `postMessage`, sin cargar SDK externos en la página padre.
 5. El frontend carga estas piezas en orden y desmonta relay/host al destruir la vista.
 
-ADR-0027 queda supersedida por ADR-0033.
+ADR-0027 queda supersedida por ADR-0048.
 
 ## Invariantes de Seguridad
 
@@ -78,3 +78,7 @@ Hasta que el artefacto incluya una fachada genérica (propuesta para eXeLearning
 **Pruebas.** `e2e/tests/public/elpx-embed-facade.e2e.ts`: el PDF y el YouTube los trata el artefacto y no la fachada; Padlet y Canva quedan como enlace en la ficha y en «Ver online»; la fachada de Canva ocupa su contenedor (#450).
 
 Esta fachada desaparece cuando se cumpla cualquiera de las dos condiciones de arriba.
+
+## Nota 2026-11-03 — renumeración
+
+Hasta esta fecha, esta ADR se llamaba ADR-0033 en #293 y en #317. Pasa a ser ADR-0048 porque `main` ya tenía una ADR-0033 (capturas visuales de los PR con `workflow_run`). ADR-0046 es la de #481 y ADR-0047 la usó #484, ya cerrado. Cuando un comentario o una versión anterior de la descripción de #317 dice «ADR-0033», se refiere a esta decisión.
