@@ -3400,3 +3400,24 @@ tasks:
       referencias en el CI. Validado reproduciendo el conflicto de #465 contra
       main: la union automatica da un status.yaml identico a la resolucion
       manual (diff vacio) y check-tracking lo acepta.
+  T-2026-11-03-12314847:
+    date: 2026-11-03
+    agent: "backend-api-servicios"
+    task: "Las cuentas nuevas creadas mediante el registro son editor (#515)"
+    status: Done
+    related: ["#515", "#507", "#506", "ADR-0016"]
+    notes: >
+      defaultRole del plugin admin pasa de author a editor, y el hook
+      user.create.before fija el rol con resolveNewUserRole
+      (apps/api/src/auth/registration-role.ts): toda alta de Better Auth es
+      editor salvo /admin/create-user, que conserva el rol pedido. Vale para
+      el registro con email y contraseña y para el primer inicio de sesión
+      OIDC. Better Auth ya respondía 400 a un role en el cuerpo del registro;
+      el hook cubre además el perfil del proveedor. config.ts exporta
+      createAuth(env) para que el test monte un proveedor OIDC propio
+      (Bun.serve). El alta del backoffice y la CLI no pasan por Better Auth y
+      siguen proponiendo author. Las cuentas existentes no cambian. Tests:
+      registration.unit.test.ts (registro, rol manipulado, OIDC, altas de
+      administración, login de una cuenta existente) y
+      registration-role.unit.test.ts. ADR-0016 lleva una actualización
+      fechada.
