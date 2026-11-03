@@ -93,3 +93,18 @@ Se adopta la **Opción 2** (defensa en profundidad A + B).
 **Fuera de alcance.** La vista previa de versiones históricas (`/api/admin/resources/:id/versions/:vid/preview/`) sigue dependiendo de la cookie de sesión. Por lo comprobado, en Chromium sus subrecursos no la llevan. Se trata en #482.
 
 **Validación.** `apps/api/src/routes/elpx-content-access.unit.test.ts` (borrador y revisión dan 404 por la URL estable; la autora, el curator y el admin reciben un enlace firmado que sirve el HTML, el CSS y las subpáginas sin cookies; un token alterado o de otro hash da 404; lo publicado no cambia) y `apps/api/src/elpx/preview-token.unit.test.ts` (caducidad, otro hash, otro secreto, firma alterada).
+
+## Adenda 2026-11-03 — la vista previa histórica usa el enlace firmado (#482)
+
+**Problema.** La vista previa de una versión histórica (`/api/admin/resources/:id/versions/:vid/preview/`) autorizaba con la cookie de sesión en cada petición. Como se comprobó en #466, en el iframe de origen opaco la cookie solo viaja en la petición del documento inicial. El HTML cargaba, pero sus CSS, scripts, imágenes y subpáginas respondían 401. Además, el documento quedaba bajo `location /api/` de `nginx.conf`, con `X-Frame-Options`, que bloquea los iframes hijos del paquete (adenda 2026-10-14).
+
+**Decisión.**
+* La ruta de administración sigue siendo la URL que da el historial y sigue comprobando el acceso con la sesión (`requireManageableResource`, la versión pertenece al recurso y tiene vista previa). Ya no sirve el contenido: responde `302` al enlace firmado `/api/v1/elpx/preview/<hash>/<token>/` de la adenda 2026-10-27, con `Cache-Control: no-store`. Sin acceso responde 403 o 404 y no redirige.
+* El token se firma al abrir la vista previa, no al listar el historial: no caduca aunque la página lleve horas abierta y el listado no reparte un token por cada versión.
+* El enlace firmado sirve también un hash histórico. El token solo lo emiten rutas que ya comprueban el acceso. La URL estable `/api/v1/elpx/<hash>/` sigue sin servir hashes históricos (#323).
+* Consecuencia: un enlace firmado de la versión vigente sigue abriéndose hasta que caduca (2 h) aunque se suba una versión nueva. Antes respondía 404 en cuanto pasaba a histórica.
+* El contenido se sirve desde `location ^~ /api/v1/elpx/`, con la misma CSP `sandbox` y sin `X-Frame-Options`, como la vista previa de la versión vigente. Los iframes hijos del paquete dejan de quedar bloqueados por esa cabecera (no se ha comprobado con un e2e).
+
+**Implementación.** `handleHistoricalPreview` en `apps/api/src/routes/admin/versions.ts` y `handleSignedPreview` en `apps/api/src/routes/elpx-content.ts`, que deja de rechazar los hashes históricos.
+
+**Validación.** `apps/api/src/routes/version-preview-access.unit.test.ts` (nuevo): la autora, el curator y el admin abren la vista previa con sesión solo en la primera petición y cargan sin cookies, sobre la app completa, el CSS, el script, la imagen y la subpágina (rojo → verde: respondían 401). Sin acceso, el historial y la vista previa dan 403 sin redirigir. Sin sesión, la ruta no redirige. El hash histórico sigue en 404 por la URL estable y con un token alterado. `public-version-access.unit.test.ts` pasa a esperar la redirección.
