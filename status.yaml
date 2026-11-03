@@ -3431,3 +3431,18 @@ tasks:
       Corregidos tambien el journal heredado (0014 y 0015 separados), la ayuda
       del CLI y el fixture legacy publicado. Avisos previos de lint y tracking;
       no se ejecutan e2e en esta resolucion.
+  T-2026-11-03-12011140:
+    date: 2026-11-03
+    agent: "backend-api-servicios"
+    task: "Revisión de #471: la miniatura screenshot.png no depende del visor HTML"
+    status: Done
+    related: ["#409", "#471", "#466", "#483"]
+    notes: >
+      buildElpxPreview devolvía null sin index.html aunque hubiera
+      screenshot.png, y la tarjeta caía al marcador. Ahora elpxPreview existe
+      si hay visor o miniatura y previewUrl es string | null en la API y en el
+      frontend: el iframe, «Ver en línea» y «Ponlo en tu web» dependen de
+      previewUrl, no de que haya elpxPreview. La miniatura de un recurso no
+      publicado sigue firmada. Pruebas nuevas de buildElpxPreview, de la API
+      (ficha, listado, borrador firmado), de la tarjeta y de la ficha.
+      Detalle en docs/hotfixes/pr-471-conflictos/validation.md.
