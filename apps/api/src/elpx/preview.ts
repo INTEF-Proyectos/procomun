@@ -2,6 +2,7 @@ import {
 	THUMBNAIL_FILE_RE,
 	THUMBNAIL_PUBLIC_PREFIX,
 } from "../services/legacy-preview-image.ts";
+import { thumbnailUrlForStatus } from "../thumbnails/access.ts";
 import { elpxPreviewUrlForStatus } from "./preview-token.ts";
 
 /**
@@ -29,9 +30,10 @@ function generatedThumbnailUrl(file: string | null | undefined): string | null {
 
 /**
  * Los listados publicos usan la URL estable. Las rutas autorizadas que pasan
- * un estado no publicado reciben un enlace firmado tambien para la miniatura.
- * Devuelve null solo si el paquete no tiene ni visor ni miniatura (screenshot.png
- * o generada).
+ * un estado no publicado reciben un enlace firmado tambien para la miniatura:
+ * screenshot.png con el del paquete (#466) y la generada con el del almacén
+ * de miniaturas (revisión de #481). Devuelve null solo si el paquete no tiene
+ * ni visor ni miniatura (screenshot.png o generada).
  */
 export function buildElpxPreview(
 	elpx:
@@ -48,8 +50,8 @@ export function buildElpxPreview(
 	if (!elpx?.hash) return null;
 	const hasPreview = elpx.hasPreview === true;
 	const hasScreenshot = elpx.hasScreenshot === true;
-	const thumbnailUrl = generatedThumbnailUrl(elpx.thumbnailFile);
-	if (!hasPreview && !hasScreenshot && !thumbnailUrl) return null;
+	const storedThumbnailUrl = generatedThumbnailUrl(elpx.thumbnailFile);
+	if (!hasPreview && !hasScreenshot && !storedThumbnailUrl) return null;
 	// La miniatura cuelga del mismo prefijo que el visor: la URL estable si está
 	// publicado y el enlace firmado si no (#466, #483).
 	const baseUrl = elpxPreviewUrlForStatus(elpx.hash, editorialStatus);
@@ -57,7 +59,7 @@ export function buildElpxPreview(
 		hash: elpx.hash,
 		previewUrl: hasPreview ? baseUrl : null,
 		screenshotUrl: hasScreenshot ? `${baseUrl}screenshot.png` : null,
-		thumbnailUrl,
+		thumbnailUrl: thumbnailUrlForStatus(storedThumbnailUrl, editorialStatus),
 	};
 }
 

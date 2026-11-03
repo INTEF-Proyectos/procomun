@@ -169,7 +169,8 @@ export async function copyLegacyPreviewImage(
  * Guarda una miniatura en `storageDir/thumbnails/` con el sha256 del contenido
  * como nombre. `null` si los bytes no son PNG, JPEG, GIF ni WebP. Se escribe
  * en un temporal y se renombra: una escritura a medias nunca queda con el
- * nombre definitivo, que la ruta sirve como inmutable.
+ * nombre definitivo. El contenido de un nombre no cambia nunca; quién puede
+ * verlo depende del estado del recurso (revisión de #481, `routes/thumbnails.ts`).
  */
 export async function storeThumbnailBytes(
 	storageDir: string,

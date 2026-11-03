@@ -68,6 +68,7 @@ export async function getUserDashboardSummary(userId: string) {
 		publishedCount: Number(publishedResult[0]?.count ?? 0),
 		favoriteCount: Number(favResult[0]?.count ?? 0),
 		ratingCount: Number(ratingCountResult[0]?.count ?? 0),
-		recentResources: await enrichResourceCards(recentResources),
+		// Son sus recursos: los no publicados llevan enlaces firmados (#481).
+		recentResources: await enrichResourceCards(recentResources, { id: userId }),
 	};
 }

@@ -21,6 +21,7 @@ import {
 	countThumbnailStatuses,
 	enqueueThumbnailJobs,
 	failThumbnailJob,
+	getThumbnailFileVisibility,
 	initialThumbnailStatus,
 	listThumbnailBackfillCandidates,
 	MAX_THUMBNAIL_ERROR_LENGTH,
@@ -380,5 +381,111 @@ describe("relleno de miniaturas (#470)", () => {
 			skipped: 1,
 			sin_estado: 1,
 		});
+	});
+});
+
+// Revisión de #481 (adenda 2026-11-03 de ADR-0046): la URL estable de una
+// miniatura solo se sirve si el fichero pertenece a un recurso publicado.
+describe("visibilidad de un fichero del almacén de miniaturas", () => {
+	const OTHER = `${"b".repeat(64)}.jpg`;
+	const legacyUrl = (file: string) => `/api/v1/thumbnails/${file}`;
+	const visibility = (file: string) =>
+		getThumbnailFileVisibility(db, file, legacyUrl(file));
+
+	async function setStatus(resourceId: string, editorialStatus: string) {
+		await db
+			.update(resources)
+			.set({ editorialStatus })
+			.where(eq(resources.id, resourceId));
+	}
+
+	async function generated(hash: string, file: string, status: string) {
+		const project = await newProject(hash);
+		await db
+			.update(elpxProjects)
+			.set({ thumbnailStatus: "done", thumbnailFile: file })
+			.where(eq(elpxProjects.id, project.id));
+		await setStatus(project.resourceId, status);
+		return project;
+	}
+
+	test("un fichero sin ningún recurso no es visible", async () => {
+		expect(await visibility(FILE)).toBeNull();
+	});
+
+	test("miniatura generada: pública solo si el recurso está publicado", async () => {
+		const project = await generated("generada", FILE, "draft");
+		expect(await visibility(FILE)).toBe("private");
+		for (const status of ["review", "archived"]) {
+			await setStatus(project.resourceId, status);
+			expect(await visibility(FILE)).toBe("private");
+		}
+		await setStatus(project.resourceId, "published");
+		expect(await visibility(FILE)).toBe("public");
+		// Despublicar cierra el acceso en la consulta siguiente.
+		await setStatus(project.resourceId, "archived");
+		expect(await visibility(FILE)).toBe("private");
+	});
+
+	test("preview legacy: mismas reglas por resources.thumbnail_url", async () => {
+		const id = await newResource("legacy");
+		await db
+			.update(resources)
+			.set({ thumbnailUrl: legacyUrl(OTHER) })
+			.where(eq(resources.id, id));
+		expect(await visibility(OTHER)).toBe("private");
+		await setStatus(id, "published");
+		expect(await visibility(OTHER)).toBe("public");
+		expect(await visibility(FILE)).toBeNull();
+	});
+
+	test("un fichero compartido con un recurso publicado es público", async () => {
+		await generated("borrador", FILE, "draft");
+		const id = await newResource("publicado");
+		await db
+			.update(resources)
+			.set({ thumbnailUrl: legacyUrl(FILE), editorialStatus: "published" })
+			.where(eq(resources.id, id));
+		expect(await visibility(FILE)).toBe("public");
+	});
+
+	test("un recurso borrado no hace visible su miniatura", async () => {
+		const project = await generated("borrado", FILE, "published");
+		await db
+			.update(resources)
+			.set({ deletedAt: new Date() })
+			.where(eq(resources.id, project.resourceId));
+		expect(await visibility(FILE)).toBeNull();
+	});
+
+	test("de un recurso publicado con versiones, solo la miniatura del proyecto vigente es pública", async () => {
+		const current = await generated("vigente", FILE, "published");
+		const draft = await newProject("copia-nueva", {
+			resourceId: current.resourceId,
+		});
+		await db
+			.update(elpxProjects)
+			.set({ thumbnailStatus: "done", thumbnailFile: OTHER })
+			.where(eq(elpxProjects.id, draft.id));
+		// Sin versión vigente cuentan todos sus proyectos, como en
+		// isElpxHashHistorical (#323).
+		expect(await visibility(OTHER)).toBe("public");
+
+		await db.insert(resourceVersions).values({
+			id: "v-481",
+			resourceId: current.resourceId,
+			versionNumber: 1,
+			elpxProjectId: current.id,
+			fileSha256: "e".repeat(64),
+			metadataSnapshot: {},
+		});
+		await db
+			.update(resources)
+			.set({ currentVersionId: "v-481" })
+			.where(eq(resources.id, current.resourceId));
+
+		expect(await visibility(FILE)).toBe("public");
+		// La copia de trabajo nueva no se ve hasta que se publique.
+		expect(await visibility(OTHER)).toBe("private");
 	});
 });

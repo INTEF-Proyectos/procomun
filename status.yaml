@@ -3483,3 +3483,20 @@ tasks:
       legacy, generada y marcador. Las pruebas de #471 esperan
       thumbnailUrl: null y comprueban que el paquete sin index.html queda en
       thumbnailStatus skipped, así que la tarjeta muestra screenshot.png.
+  T-2026-11-03-12581968:
+    date: 2026-11-03
+    agent: "backend-api-servicios"
+    task: "Acceso a las miniaturas de recursos no publicados (revisión de #481)"
+    status: Done
+    related: ["#470", "#481", "#512", "#466", "#483", "#472", "#471", "ADR-0046", "ADR-0026"]
+    notes: >
+      /api/v1/thumbnails/<fichero> solo sirve lo que pertenece a un recurso
+      publicado y no borrado (thumbnail_url legacy o miniatura del proyecto
+      vigente), con public, max-age=3600 en vez de immutable. Lo no publicado
+      va por /api/v1/thumbnails/signed/<token>/<fichero> (HMAC con prefijo
+      propio, 2 h) con private, no-store; screenshot.png del enlace firmado del
+      paquete, también private, no-store. Firman la ficha, el panel, favoritos
+      y valoraciones (solo si el usuario puede ver el recurso) y la
+      administración. Migración 0019 con índices parciales y location ^~ para
+      las miniaturas en nginx.conf. elpxPreview sigue existiendo con visor o
+      miniatura (#471).

@@ -461,12 +461,28 @@ async function handleSignedPreview(c: Context) {
 	}
 
 	const base = `${ELPX_PREVIEW_PREFIX}/${hash}/${token}/`;
-	return serveElpxExtractedContent({
+	const rawFile = remainingPathAfter(new URL(c.req.url).pathname, token);
+	const response = await serveElpxExtractedContent({
 		hash,
-		rawFile: remainingPathAfter(new URL(c.req.url).pathname, token),
+		rawFile,
 		rewriteBaseUrl: base,
 		corsLocalScripts: true,
 	});
+	// Revisión de #481: la miniatura de un recurso no publicado no se guarda en
+	// ninguna caché, igual que la generada. El resto del paquete conserva la
+	// caché de #483 para que la vista previa no descargue todo en cada página.
+	if (response.ok && isRootScreenshot(rawFile)) {
+		response.headers.set("Cache-Control", "private, no-store");
+	}
+	return response;
+}
+
+function isRootScreenshot(rawFile: string): boolean {
+	try {
+		return decodeURIComponent(rawFile) === "screenshot.png";
+	} catch {
+		return false;
+	}
 }
 
 // Ruta estática del shim de embeds. Debe registrarse ANTES de "/:hash" para

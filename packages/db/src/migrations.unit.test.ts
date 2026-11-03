@@ -592,3 +592,61 @@ describe("migración 0018_elpx_thumbnail_queue", () => {
 		}
 	});
 });
+
+// Revisión de #481 (adenda 2026-11-03 de ADR-0046): la ruta de miniaturas
+// busca el dueño del fichero en cada petición.
+describe("migración 0019_thumbnail_owner_indexes", () => {
+	test("va detrás de 0018 en el journal", async () => {
+		const journal = JSON.parse(
+			await readFile(path.join(migrationsDir, "meta/_journal.json"), "utf8"),
+		) as { entries: Array<{ idx: number; tag: string; when: number }> };
+		const queue = journal.entries.find(
+			(entry) => entry.tag === "0018_elpx_thumbnail_queue",
+		);
+		const owners = journal.entries.find(
+			(entry) => entry.tag === "0019_thumbnail_owner_indexes",
+		);
+		expect(owners?.idx).toBe((queue?.idx ?? -2) + 1);
+		expect(owners?.when ?? 0).toBeGreaterThan(queue?.when ?? 0);
+	});
+
+	test("coincide con setup.ts, se aplica dos veces y crea los dos índices", async () => {
+		const migration = await readFile(
+			path.join(migrationsDir, "0019_thumbnail_owner_indexes.sql"),
+			"utf8",
+		);
+		const { THUMBNAIL_OWNER_INDEXES_SCHEMA, SCHEMA_STATEMENTS } = await import(
+			"./setup.ts"
+		);
+		const statements = migration
+			.replace(/^--[^\n]*\n/, "")
+			.split("--> statement-breakpoint")
+			.map((statement) => statement.trim().replace(/;$/, ""));
+		expect(statements).toEqual([...THUMBNAIL_OWNER_INDEXES_SCHEMA]);
+		for (const statement of THUMBNAIL_OWNER_INDEXES_SCHEMA) {
+			expect(SCHEMA_STATEMENTS).toContain(statement);
+		}
+
+		const db = new PGlite();
+		try {
+			await db.exec(
+				`CREATE TABLE "resources" (id TEXT PRIMARY KEY, thumbnail_url TEXT);
+				CREATE TABLE "elpx_projects" (id TEXT PRIMARY KEY, thumbnail_file TEXT);`,
+			);
+			const sql = migration.replaceAll("--> statement-breakpoint", "");
+			await db.exec(sql);
+			await db.exec(sql);
+			const indexes = await db.query<{ indexname: string }>(
+				`SELECT indexname FROM pg_indexes
+				WHERE indexname IN ('idx_resources_thumbnail_url', 'idx_elpx_projects_thumbnail_file')
+				ORDER BY indexname`,
+			);
+			expect(indexes.rows.map((row) => row.indexname)).toEqual([
+				"idx_elpx_projects_thumbnail_file",
+				"idx_resources_thumbnail_url",
+			]);
+		} finally {
+			await db.close();
+		}
+	});
+});

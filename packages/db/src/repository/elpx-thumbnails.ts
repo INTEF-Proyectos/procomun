@@ -362,3 +362,54 @@ export async function countThumbnailStatuses(
 	}
 	return totals;
 }
+
+/**
+ * `public`: el fichero pertenece al menos a un recurso publicado y no
+ * borrado. `private`: solo a recursos no publicados, o a un proyecto que no
+ * es el vigente. `null`: a ningún recurso no borrado.
+ */
+export type ThumbnailFileVisibility = "public" | "private";
+
+/**
+ * Quién puede ver un fichero de `storageDir/thumbnails/` (revisión de #481,
+ * adenda 2026-11-03 de ADR-0046). El nombre es el sha256 del contenido, así
+ * que varios recursos pueden compartirlo: basta con que uno publicado lo use.
+ *
+ * Un fichero pertenece a un recurso por su `thumbnail_url` (preview legacy,
+ * #472) o por la miniatura generada de un proyecto (#470). Del proyecto solo
+ * cuenta el vigente si el recurso tiene versión vigente, como en
+ * `isElpxHashHistorical` (#323): la copia de trabajo nueva de un recurso
+ * publicado no sale hasta que se publica.
+ */
+export async function getThumbnailFileVisibility(
+	db: DrizzleDB,
+	file: string,
+	legacyUrl: string,
+): Promise<ThumbnailFileVisibility | null> {
+	const legacy = await db
+		.select({ status: resources.editorialStatus })
+		.from(resources)
+		.where(
+			and(eq(resources.thumbnailUrl, legacyUrl), isNull(resources.deletedAt)),
+		);
+	const generated = await db
+		.select({
+			status: resources.editorialStatus,
+			isCurrent: sql<boolean>`(${resourceVersions.elpxProjectId} IS NULL OR ${resourceVersions.elpxProjectId} = ${elpxProjects.id})`,
+		})
+		.from(elpxProjects)
+		.innerJoin(resources, eq(elpxProjects.resourceId, resources.id))
+		.leftJoin(
+			resourceVersions,
+			eq(resources.currentVersionId, resourceVersions.id),
+		)
+		.where(
+			and(eq(elpxProjects.thumbnailFile, file), isNull(resources.deletedAt)),
+		);
+
+	if (legacy.length === 0 && generated.length === 0) return null;
+	const isPublic =
+		legacy.some((row) => row.status === "published") ||
+		generated.some((row) => row.status === "published" && row.isCurrent);
+	return isPublic ? "public" : "private";
+}

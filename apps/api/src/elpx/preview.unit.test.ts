@@ -1,4 +1,5 @@
 import { describe, expect, test } from "bun:test";
+import { verifyThumbnailToken } from "../thumbnails/access.ts";
 import { buildElpxMap, buildElpxPreview } from "./preview.ts";
 import { verifyElpxPreviewToken } from "./preview-token.ts";
 
@@ -173,5 +174,36 @@ describe("miniatura sin visor HTML (#471)", () => {
 			screenshotUrl: null,
 			thumbnailUrl: `/api/v1/thumbnails/${file}`,
 		});
+	});
+});
+
+// Revisión de #481 (adenda 2026-11-03 de ADR-0046): la miniatura generada de
+// un recurso no publicado solo sale con un enlace firmado.
+describe("miniatura generada según el estado editorial (#481)", () => {
+	const FILE = `${"d".repeat(64)}.jpg`;
+	const elpx = { hash: "abc123", hasPreview: true, thumbnailFile: FILE };
+
+	test("publicado: la URL estable del almacén", () => {
+		expect(buildElpxPreview(elpx, "published")?.thumbnailUrl).toBe(
+			`/api/v1/thumbnails/${FILE}`,
+		);
+	});
+
+	for (const status of ["draft", "review", "archived", null]) {
+		test(`${status}: el enlace firmado del fichero, nunca la URL estable`, () => {
+			const url = buildElpxPreview(elpx, status)?.thumbnailUrl ?? "";
+			const match = /^\/api\/v1\/thumbnails\/signed\/([^/]+)\/(.+)$/.exec(url);
+			expect(match?.[2]).toBe(FILE);
+			expect(verifyThumbnailToken(FILE, match?.[1] ?? "")).toBe(true);
+		});
+	}
+
+	test("una miniatura generada sin visor de un borrador también se firma (#471)", () => {
+		const preview = buildElpxPreview(
+			{ hash: "abc123", hasPreview: false, thumbnailFile: FILE },
+			"draft",
+		);
+		expect(preview?.previewUrl).toBeNull();
+		expect(preview?.thumbnailUrl).toStartWith("/api/v1/thumbnails/signed/");
 	});
 });

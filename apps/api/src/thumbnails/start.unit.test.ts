@@ -95,15 +95,28 @@ describe("bucle de miniaturas contra la base de datos (#470)", () => {
 		const map = buildElpxMap(
 			await repo.listElpxProjectsByResourceIds(db, [resource.id]),
 		);
-		const preview = buildElpxPreview(map.get(resource.id));
+		const routes = createThumbnailRoutes({
+			getStorageDir: () => storageDir,
+			getVisibility: (name) =>
+				repo.getThumbnailFileVisibility(db, name, `/api/v1/thumbnails/${name}`),
+		});
+
+		// Revisión de #481: mientras es borrador, la URL estable no la sirve.
+		expect((await routes.request(`/${file}`)).status).toBe(404);
+		const draft = buildElpxPreview(map.get(resource.id), "draft");
+		expect(draft?.thumbnailUrl).toStartWith("/api/v1/thumbnails/signed/");
+
+		await db
+			.update(schema.resources)
+			.set({ editorialStatus: "published" })
+			.where(eq(schema.resources.id, resource.id));
+		const preview = buildElpxPreview(map.get(resource.id), "published");
 		expect(preview?.thumbnailUrl).toBe(`/api/v1/thumbnails/${file}`);
 
-		const response = await createThumbnailRoutes(() => storageDir).request(
-			`/${file}`,
-		);
+		const response = await routes.request(`/${file}`);
 		expect(response.status).toBe(200);
 		expect(response.headers.get("Content-Type")).toBe("image/jpeg");
-		expect(response.headers.get("Cache-Control")).toContain("immutable");
+		expect(response.headers.get("Cache-Control")).toBe("public, max-age=3600");
 		expect(new Uint8Array(await response.arrayBuffer())).toEqual(JPEG);
 
 		// Ya no queda nada pendiente.

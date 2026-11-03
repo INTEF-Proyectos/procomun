@@ -46,6 +46,16 @@ export const ELPX_THUMBNAIL_QUEUE_SCHEMA = [
 ] as const;
 
 /**
+ * Índices para buscar el dueño de una miniatura en cada petición (revisión de
+ * #481, adenda 2026-11-03 de ADR-0046). Mismas sentencias que la migración
+ * 0019_thumbnail_owner_indexes; un test comprueba que coinciden.
+ */
+export const THUMBNAIL_OWNER_INDEXES_SCHEMA = [
+	`CREATE INDEX IF NOT EXISTS "idx_resources_thumbnail_url" ON "resources" ("thumbnail_url") WHERE thumbnail_url IS NOT NULL`,
+	`CREATE INDEX IF NOT EXISTS "idx_elpx_projects_thumbnail_file" ON "elpx_projects" ("thumbnail_file") WHERE thumbnail_file IS NOT NULL`,
+] as const;
+
+/**
  * Catálogo inicial de palabras clave (issue #384, ADR-0042). Solo inserta si
  * aún no hay ningún término de catálogo: no reescribe etiquetas existentes ni
  * recupera términos o alias borrados después. Si el slug ya lo usa una
@@ -575,6 +585,7 @@ export const SCHEMA_STATEMENTS = [
 	EXCEPTION WHEN duplicate_column THEN NULL;
 	END $$`,
 	...ELPX_THUMBNAIL_QUEUE_SCHEMA,
+	...THUMBNAIL_OWNER_INDEXES_SCHEMA,
 	`DO $$ BEGIN
 		ALTER TABLE "resources" ADD CONSTRAINT resources_current_version_id_fk
 			FOREIGN KEY (current_version_id) REFERENCES resource_versions(id) ON DELETE SET NULL;
