@@ -3,6 +3,7 @@ import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { Hono } from "hono";
+import { seedPublishedElpxHash } from "../test-fixtures/published-elpx.ts";
 import {
 	AUTHOR_ASSET_CSP,
 	CONTENT_ASSET_CSP,
@@ -42,6 +43,8 @@ beforeAll(async () => {
 
 	const elpxDir = path.join(tmpRoot, "elpx", HASH);
 	await mkdir(elpxDir, { recursive: true });
+	// Issue #466: la ruta pública solo sirve hashes de recursos publicados.
+	await seedPublishedElpxHash(HASH, elpxDir);
 	await writeFile(path.join(elpxDir, "evil.svg"), SVG_BODY, "utf8");
 	await writeFile(path.join(elpxDir, "styles.css"), "body{color:red}", "utf8");
 	await writeFile(path.join(elpxDir, "data.bin"), "binario", "utf8");

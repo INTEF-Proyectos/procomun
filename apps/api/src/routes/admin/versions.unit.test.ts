@@ -73,7 +73,10 @@ describe("resource version admin API", () => {
 		expect(history[1]?.previewUrl).toBe(
 			`/api/admin/resources/${id}/versions/${history[1]?.id}/preview/`,
 		);
-		expect(history[0]?.previewUrl).toBe(`/api/v1/elpx/${"b".repeat(64)}/`);
+		// El recurso es un borrador: la versión vigente lleva enlace firmado (#466).
+		expect(String(history[0]?.previewUrl)).toStartWith(
+			`/api/v1/elpx/preview/${"b".repeat(64)}/`,
+		);
 		expect("changeNotes" in (history[0] ?? {})).toBe(false);
 	});
 

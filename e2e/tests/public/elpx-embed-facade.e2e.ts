@@ -1,7 +1,7 @@
-import { randomUUID } from "node:crypto";
 import { mkdir, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { expect, type Page, test } from "@playwright/test";
+import { createPublishedElpxPackage } from "../../fixtures/published-elpx";
 import { PUBLISHED_RESOURCE } from "../../fixtures/test-data";
 
 // Paquete .elpx sintético con lo que traen #378 y #427. Bajo el origen opaco
@@ -10,11 +10,11 @@ import { PUBLISHED_RESOURCE } from "../../fixtures/test-data";
 //   eXeLearning (ADR-0033): hueco dentro del sandbox y reproductor en el padre;
 // - Padlet y Canva, que el artefacto no reconoce, los cambia la fachada genérica
 //   (embed-facade.js) por un enlace «Ver contenido de…» (ADR-0033, 2026-10-26).
-const storageDir =
-	process.env.UPLOAD_STORAGE_DIR ??
-	path.resolve(import.meta.dirname, "../../../local-data/uploads");
-const hash = randomUUID();
-const packageDir = path.join(storageDir, "elpx", hash);
+// Va dentro del .elpx del recurso publicado del seed (ver
+// fixtures/published-elpx.ts, issue #466).
+let packageDir = "";
+let packageBase = "";
+let packageUrl = "";
 const PADLET = "https://padlet.com/embed/ix8ogfabl3vbz7wt/slideshow";
 const YOUTUBE = "https://www.youtube.com/embed/dQw4w9WgXcQ";
 // Código adaptable de Canva (#427): contenedor de alto 0 que reserva el hueco
@@ -22,6 +22,11 @@ const YOUTUBE = "https://www.youtube.com/embed/dQw4w9WgXcQ";
 const CANVA = `<div id="canva" style="position:relative;width:100%;height:0;padding-top:141.4%;overflow:hidden"><iframe style="position:absolute;width:100%;height:100%;top:0;left:0;border:none" src="https://www.canva.com/design/DAG/view?embed"></iframe></div>`;
 
 test.beforeAll(async () => {
+	({
+		dir: packageDir,
+		base: packageBase,
+		url: packageUrl,
+	} = await createPublishedElpxPackage());
 	await mkdir(path.join(packageDir, "content"), { recursive: true });
 	await writeFile(
 		path.join(packageDir, "index.html"),
@@ -60,7 +65,7 @@ async function openResourceWithPackage(page: Page) {
 				response,
 				json: {
 					...json,
-					elpxPreview: { hash, previewUrl: `/api/v1/elpx/${hash}/` },
+					elpxPreview: { ...json.elpxPreview, previewUrl: packageUrl },
 				},
 			});
 		},
@@ -75,7 +80,7 @@ test("en la ficha el PDF del paquete se superpone desde el padre", async ({
 	page,
 }) => {
 	const frame = await openResourceWithPackage(page);
-	const pdfUrl = new RegExp(`/api/v1/elpx/${hash}/content/mapa\\.pdf$`);
+	const pdfUrl = new RegExp(`${packageBase}content/mapa\\.pdf$`);
 
 	// Dentro del origen opaco el iframe del PDF queda como hueco con su URL…
 	await expect(
@@ -119,7 +124,7 @@ test("en la ficha Padlet y Canva quedan como «Ver contenido de…»", async ({
 test("en «Ver online» el Padlet se abre en una pestaña nueva", async ({
 	page,
 }) => {
-	await page.goto(`/api/v1/elpx/${hash}/`);
+	await page.goto(packageUrl);
 
 	// La pestaña nueva abre el Padlet. Sigue en sandbox: la CSP del contenido no
 	// lleva `allow-popups-to-escape-sandbox` (ADR-0026, auditoría H-1).
@@ -132,7 +137,7 @@ test("en «Ver online» el Padlet se abre en una pestaña nueva", async ({
 test("la fachada de un embed adaptable de Canva ocupa su contenedor", async ({
 	page,
 }) => {
-	await page.goto(`/api/v1/elpx/${hash}/`);
+	await page.goto(packageUrl);
 	await page.locator("#canva").scrollIntoViewIfNeeded();
 
 	// Con overflow:hidden y alto 0, un enlace en el flujo cae fuera del hueco.
@@ -149,7 +154,7 @@ test("la fachada de un embed adaptable de Canva ocupa su contenedor", async ({
 test("en «Ver online» la fachada no toca el YouTube ni el PDF", async ({
 	page,
 }) => {
-	await page.goto(`/api/v1/elpx/${hash}/`);
+	await page.goto(packageUrl);
 
 	await expect(page.locator("a.procomun-embed-facade")).toHaveCount(2);
 	await expect(
