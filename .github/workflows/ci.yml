@@ -66,6 +66,9 @@ jobs:
     - name: Type Check
       run: make check-types
 
+    # Falla si falla algún test, no solo si el coverage baja del 90 %. Antes
+    # check-coverage ignoraba el código de salida de bun test y main salía en
+    # verde con «1308 pass / 4 fail».
     - name: Run Tests & Coverage
       run: make check-coverage
 
