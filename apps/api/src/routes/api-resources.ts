@@ -1,5 +1,6 @@
 import * as repo from "@procomun/db/repository";
 import {
+	transitionExclusionError,
 	validateCreateResource,
 	validateUpdateResource,
 } from "@procomun/db/validation";
@@ -40,6 +41,19 @@ apiResourceRoutes.post("/", async (c) => {
 		return c.json(
 			{ error: "Errores de validación", details: validation.errors },
 			400,
+		);
+	}
+
+	// #506: crear en revisión es enviar a revisión, y el editor no puede; lo
+	// rechaza la misma regla que PATCH /api/admin/resources/:id/status.
+	const excluded =
+		(body as Record<string, unknown>).editorialStatus === "review"
+			? transitionExclusionError("draft", "review", user.role ?? "reader")
+			: null;
+	if (excluded) {
+		return c.json(
+			{ error: "Transición no permitida", details: [excluded] },
+			403,
 		);
 	}
 
