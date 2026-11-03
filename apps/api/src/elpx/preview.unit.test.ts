@@ -78,3 +78,47 @@ describe("miniaturas y estado editorial (#471, #483)", () => {
 		expect(preview?.screenshotUrl).toBeNull();
 	});
 });
+
+// Revisión de #471: la miniatura no depende del visor. Un paquete con
+// screenshot.png en la raíz y sin index.html tiene miniatura, pero no visor.
+describe("miniatura sin visor HTML (#471)", () => {
+	test("expone screenshot.png aunque el paquete no tenga index.html", () => {
+		expect(
+			buildElpxPreview({
+				hash: "abc123",
+				hasPreview: false,
+				hasScreenshot: true,
+			}),
+		).toEqual({
+			hash: "abc123",
+			previewUrl: null,
+			screenshotUrl: "/api/v1/elpx/abc123/screenshot.png",
+		});
+	});
+
+	for (const status of ["draft", "in_review", "archived", null]) {
+		test(`firma la miniatura sin visor de un recurso ${status}`, () => {
+			const preview = buildElpxPreview(
+				{ hash: "abc123", hasPreview: false, hasScreenshot: true },
+				status,
+			);
+			expect(preview?.previewUrl).toBeNull();
+			const url = preview?.screenshotUrl ?? "";
+			expect(url).toMatch(
+				/^\/api\/v1\/elpx\/preview\/abc123\/[^/]+\/screenshot\.png$/,
+			);
+			const token = url.split("/").at(-2) ?? "";
+			expect(verifyElpxPreviewToken("abc123", token)).toBe(true);
+		});
+	}
+
+	test("sin visor ni miniatura no hay nada que mostrar", () => {
+		expect(
+			buildElpxPreview({
+				hash: "abc123",
+				hasPreview: false,
+				hasScreenshot: false,
+			}),
+		).toBeNull();
+	});
+});

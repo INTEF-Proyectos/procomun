@@ -3,10 +3,16 @@
  * Implementación actual: HttpApiClient (contra la API del servidor).
  */
 
-/** Previsualización del .elpx que la API adjunta a cada recurso. */
+/**
+ * Previsualización del .elpx que la API adjunta a cada recurso. El visor y la
+ * miniatura son independientes (revisión de #471): un objeto no nulo no
+ * implica que haya visor. El iframe y «Ponlo en tu web» dependen de
+ * `previewUrl`; la miniatura de la tarjeta, de `screenshotUrl`.
+ */
 export interface ElpxCardPreview {
 	hash: string;
-	previewUrl: string;
+	/** Visor HTML del paquete (index.html). `null` si el paquete no lo trae. */
+	previewUrl: string | null;
 	/** Miniatura screenshot.png de eXeLearning 4 (#409), si el paquete la trae. */
 	screenshotUrl?: string | null;
 }
