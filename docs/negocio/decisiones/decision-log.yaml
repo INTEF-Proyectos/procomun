@@ -321,7 +321,7 @@ ADR-0044:
 
 ADR-0046:
   title: "Miniaturas generadas en el servidor para los paquetes sin imagen"
-  status: Propuesto
+  status: Aceptado
   date: 2026-10-27
   file: 0046-miniaturas-generadas-en-servidor.md
   notes: >
@@ -329,4 +329,6 @@ ADR-0046:
     Chromium en un contenedor aparte, sin red ni secretos, que sirve el paquete
     desde disco con page.route() y la CSP de origen opaco; cola con el estado en
     elpx_projects y un bucle en la API. Gotenberg queda como alternativa detrás
-    de la misma interfaz. Pendiente de decisión.
+    de la misma interfaz. Aceptada el 2026-11-03: JPEG 640x400 solo del
+    contenido, relleno solo de lo que no tiene imagen propia, el iframe sale de
+    los listados al desplegar y Node si Playwright no va bien con Bun.

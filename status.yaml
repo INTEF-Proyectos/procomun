@@ -3346,3 +3346,15 @@ tasks:
       servicio thumbnailer con Playwright en un contenedor aparte, sin red ni
       secretos, y la cola en elpx_projects. Gotenberg como alternativa. Sin
       código hasta que se decidan las preguntas abiertas de la issue.
+  T-2026-11-03-10094727:
+    date: 2026-11-03
+    agent: "evaluacion-tecnologica"
+    task: "ADR-0046 aceptada con las decisiones de la issue #470"
+    status: Done
+    related: ["#470", "#481", "#471", "ADR-0046"]
+    notes: >
+      @juanda cerró las siete preguntas: Playwright en un contenedor propio,
+      cola con el estado en elpx_projects y bucle en la API, JPEG 640x400 solo
+      del contenido, relleno solo de lo que no tiene imagen propia, el iframe
+      sale de los listados al desplegar y Node si Playwright no va bien con Bun.
+      La implementación va en un PR aparte, apilado sobre #471.

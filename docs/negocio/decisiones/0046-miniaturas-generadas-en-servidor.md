@@ -1,7 +1,8 @@
 # ADR-0046 Miniaturas generadas en el servidor para los paquetes sin imagen
 
-* Estado: Propuesto
+* Estado: Aceptado
 * Fecha: 2026-10-27
+* Fecha de decisión: 2026-11-03
 * Agentes Implicados: [@.agents/skills/evaluacion-tecnologica, @.agents/skills/direccion-de-plataforma, @.agents/skills/seguridad-privacidad-legal, @.agents/skills/devops-sre, @.agents/skills/backend-api-servicios, @.agents/skills/frontend-ux-accesibilidad]
 
 ## Contexto y Problema
@@ -45,7 +46,7 @@ Hay dos preguntas separables: **qué motor genera la imagen** y **cómo se encol
 
 ## Decisión
 
-**Propuesta (pendiente de que el usuario decida): A4 + B1**, con A1 como reserva cuando la captura falla.
+**A4 + B1**, con A1 como reserva cuando la captura falla. Aceptada el 2026-11-03, con los cambios de la sección «Decisiones del 2026-11-03» al final, que prevalecen sobre los puntos 5 a 7.
 
 1. **Servicio `thumbnailer`.** Nueva app `apps/thumbnailer/` (TypeScript, Playwright, `chromium-headless-shell`) y nueva etapa `thumbnailer` en el `Dockerfile`. Expone `POST /render {hash}` en la red interna y devuelve la imagen o un motivo (`empty`, `timeout`, `error`). Mantiene un navegador vivo, abre un contexto nuevo por paquete y reinicia el navegador cada N capturas o si supera la memoria.
 2. **Aislamiento del contenido.** Origen ficticio con `page.route()`: se sirve solo lo que está dentro de `storageDir/elpx/<hash>/` (con la misma comprobación de contención que `elpx-content.ts`) y se aborta todo lo demás, incluidas las URLs externas. Respuestas HTML con `ELPX_HTML_CSP` (origen opaco), contexto sin cookies ni almacenamiento previo, `serviceWorkers: "block"`, sin descargas, diálogos cerrados automáticamente y tiempo máximo por paquete (propuesta: 15 s en total).
@@ -81,3 +82,17 @@ Si se prefiere no mantener código de navegador, **A5 (Gotenberg)** cabe detrás
 * Depende de #471 (`has_screenshot`, migración `0015`) y #472 (almacén de miniaturas). La migración nueva tomará el siguiente número libre en `main` al implementarla.
 * Validación (regla 14): tests unitarios del bucle y del estado en PGlite, del interceptor de rutas (contención, abortar URLs externas, CSP) y de la detección de portada vacía. Un test de integración que lance Chromium con un paquete sintético que intente `fetch` a una URL externa y a `document.cookie`, y compruebe que no sale nada. El e2e de los listados debe comprobar que no queda ningún `<iframe>` en las tarjetas.
 * Relación con otras ADR: aplica a la captura el origen opaco de ADR-0026. Si se adopta la opción 3 de ADR-0027 (origen separado sin cookies), el interceptor podrá cargar el paquete desde ese origen en vez de servirlo desde disco.
+
+## Decisiones del 2026-11-03
+
+Respuestas de @juanda a las preguntas abiertas de la issue #470. Prevalecen sobre lo que se proponía arriba.
+
+1. **Motor:** A4, servicio propio con Playwright.
+2. **Despliegue:** contenedor propio para el `thumbnailer`. El límite de RAM se ajusta a lo que necesite.
+3. **Cola:** B1, con el estado en `elpx_projects` y un bucle en la API. Si más adelante aparecen otros trabajos en segundo plano, se puede revisar `pg-boss` (B2).
+4. **Captura:** JPEG de 640×400 y solo el contenido. La captura oculta la navegación de eXe (menú, cabecera y paginación) y deja la portada del contenido.
+5. **Relleno:** solo los proyectos que no tienen imagen propia: ni `screenshot.png` ni `preview` legacy. Cambia el punto 6, que marcaba todos los que no tenían miniatura.
+6. **Iframe:** sale de los listados en cuanto se despliegue, sin esperar al relleno. Mientras un recurso no tenga miniatura, se ve el marcador de su tipo. Cambia el punto 5.
+7. **Bun o Node:** si Playwright no funciona bien bajo Bun en la imagen, el `thumbnailer` usa Node, como excepción acotada a ese servicio (ADR-0001).
+
+Con esto queda resuelta la condición de las Notas de Implementación: ya se puede implementar.
