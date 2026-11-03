@@ -25,14 +25,7 @@ function renderCard(r: Resource): string {
 	const preview =
 		media.kind === "image"
 			? `<div class="card-preview"><img src="${escapeHtml(media.url)}" alt=""></div>`
-			: media.kind === "preview"
-				? `<div class="card-preview">
-			<iframe src="${escapeHtml(media.url)}" loading="lazy" tabindex="-1"
-				sandbox="allow-scripts"
-				title="Vista previa"></iframe>
-			<div class="card-preview-overlay"></div>
-		</div>`
-				: `<div class="card-icon" aria-hidden="true">${icon}</div>`;
+			: `<div class="card-icon" aria-hidden="true">${icon}</div>`;
 
 	return `
 		<a href="${url(`recurso?slug=${r.slug}`)}" class="resource-card${media.kind === "empty" ? "" : " has-preview"}">
@@ -70,21 +63,6 @@ function renderPaginationHtml(currentPage: number, totalPages: number): string {
 				: `<button class="pag-num${p === currentPage ? " active" : ""}" data-page="${p}">${p}</button>`,
 		)
 		.join("");
-}
-
-/** Scale preview iframes to fit their container (like WordPress wp-exelearning plugin). */
-function scalePreviewIframes() {
-	const IFRAME_W = 1200;
-	const IFRAME_H = 675;
-	document.querySelectorAll(".card-preview").forEach((wrapper) => {
-		const el = wrapper as HTMLElement;
-		const iframe = el.querySelector("iframe") as HTMLIFrameElement | null;
-		if (!iframe) return;
-		const containerW = el.clientWidth || 280;
-		const containerH = el.clientHeight || 158;
-		const scale = Math.min(containerW / IFRAME_W, containerH / IFRAME_H);
-		iframe.style.transform = `scale(${scale})`;
-	});
 }
 
 export function initCatalog() {
@@ -136,7 +114,6 @@ export function initCatalog() {
 			mode === "list" ? "resources-list-view" : "resources-grid";
 		viewGrid.classList.toggle("active", mode === "grid");
 		viewList.classList.toggle("active", mode === "list");
-		requestAnimationFrame(scalePreviewIframes);
 	}
 
 	function readUrl() {
@@ -223,7 +200,6 @@ export function initCatalog() {
 			}
 
 			container.innerHTML = data.map((r) => renderCard(r)).join("");
-			scalePreviewIframes();
 			updatePagination(total, limit);
 		} catch {
 			container.innerHTML = `<p class="empty">Error al cargar recursos.</p>`;
@@ -305,9 +281,6 @@ export function initCatalog() {
 		readUrl();
 		load();
 	});
-	window.addEventListener("resize", () =>
-		requestAnimationFrame(scalePreviewIframes),
-	);
 
 	function populateSelect(
 		select: HTMLSelectElement,

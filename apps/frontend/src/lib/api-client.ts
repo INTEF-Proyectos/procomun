@@ -9,6 +9,8 @@ export interface ElpxCardPreview {
 	previewUrl: string;
 	/** Miniatura screenshot.png de eXeLearning 4 (#409), si el paquete la trae. */
 	screenshotUrl?: string | null;
+	/** Miniatura generada en el servidor (#470) para los paquetes sin imagen. */
+	thumbnailUrl?: string | null;
 }
 
 export interface Resource {

@@ -57,3 +57,42 @@ describe("ResourceCard (#409)", () => {
 		expect(html).toMatch(/aria-hidden="true"[^>]*>🚀/);
 	});
 });
+
+// #470: miniatura generada en el servidor; los listados ya no cargan iframes.
+describe("ResourceCard (#470)", () => {
+	const GENERATED = `/api/v1/thumbnails/${"d".repeat(64)}.jpg`;
+
+	test("usa la miniatura generada, decorativa, si no hay otra imagen", () => {
+		const html = renderToStaticMarkup(
+			<ResourceCard
+				href="/recurso?slug=r1"
+				resource={{
+					...BASE,
+					elpxPreview: {
+						hash: "abc",
+						previewUrl: "/api/v1/elpx/abc/",
+						thumbnailUrl: GENERATED,
+					},
+				}}
+			/>,
+		);
+		expect(html).toContain(`src="${GENERATED}"`);
+		expect(html).toContain('alt=""');
+		expect(html).not.toContain("<iframe");
+	});
+
+	test("un paquete aún sin miniatura muestra el marcador y no el iframe", () => {
+		const html = renderToStaticMarkup(
+			<ResourceCard
+				href="/recurso?slug=r1"
+				resource={{
+					...BASE,
+					elpxPreview: { hash: "abc", previewUrl: "/api/v1/elpx/abc/" },
+				}}
+			/>,
+		);
+		expect(html).not.toContain("<iframe");
+		expect(html).not.toContain("/api/v1/elpx/abc/");
+		expect(html).toMatch(/aria-hidden="true"[^>]*>🚀/);
+	});
+});

@@ -5,7 +5,6 @@ import {
 	useEffect,
 	useState,
 } from "react";
-import { useIframeScale } from "../../hooks/use-iframe-scale.ts";
 import type {
 	CollectionDetailRecord,
 	CollectionRecord,
@@ -28,24 +27,6 @@ interface CollectionLocationState {
 function truncate(text: string, maxLength: number) {
 	if (text.length <= maxLength) return text;
 	return `${text.slice(0, maxLength)}...`;
-}
-
-function CollectionIframePreview({ src }: { src: string }) {
-	const ref = useIframeScale<HTMLDivElement>({
-		iframeWidth: 1024,
-		fillWidth: true,
-	});
-	return (
-		<div className="col-res-preview" ref={ref}>
-			<iframe
-				src={src}
-				loading="lazy"
-				tabIndex={-1}
-				sandbox="allow-scripts"
-				title="Vista previa"
-			/>
-		</div>
-	);
 }
 
 function coverStyle(coverImageUrl?: string | null) {
@@ -244,8 +225,6 @@ export function PublicCollectionsIsland() {
 										<div className="col-res-preview">
 											<img src={media.url} alt="" />
 										</div>
-									) : media.kind === "preview" ? (
-										<CollectionIframePreview src={media.url} />
 									) : (
 										<div className="col-res-preview col-res-preview-empty">
 											<CardTypeMarker icon={media.icon} />

@@ -5,7 +5,6 @@ import {
 	useRef,
 	useState,
 } from "react";
-import { useIframeScale } from "../../hooks/use-iframe-scale.ts";
 import type { BadgeConfig, Resource } from "../../lib/api-client.ts";
 import {
 	CATALOG_QUERY_CHANGE_EVENT,
@@ -112,10 +111,6 @@ export function CatalogResourceCard({
 		description.length > 140 ? `${description.slice(0, 140)}...` : description;
 	const media = resourceCardMedia(resource);
 	const hasPreview = media.kind !== "empty";
-	const previewRef = useIframeScale<HTMLDivElement>({
-		iframeWidth: 1200,
-		iframeHeight: 675,
-	});
 	const authorInitial = (resource.createdByName || resource.author || "?")
 		.charAt(0)
 		.toUpperCase();
@@ -188,18 +183,6 @@ export function CatalogResourceCard({
 			{media.kind === "image" ? (
 				<div className="card-preview">
 					<img src={media.url} alt="" />
-					{badgeOverlay}
-				</div>
-			) : media.kind === "preview" ? (
-				<div className="card-preview" ref={previewRef}>
-					<iframe
-						src={media.url}
-						loading="lazy"
-						tabIndex={-1}
-						sandbox="allow-scripts"
-						title={m.catalog_preview()}
-					/>
-					<div className="card-preview-overlay" />
 					{badgeOverlay}
 				</div>
 			) : (

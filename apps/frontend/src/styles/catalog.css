@@ -312,26 +312,6 @@
 	z-index: 0;
 }
 
-/* Iframe +20px extra para ocultar scrollbar (ver HomeDataIsland.css) */
-.card-preview iframe {
-	position: absolute;
-	top: 0;
-	left: 0;
-	width: calc(1200px + 20px);
-	height: 675px;
-	border: none;
-	pointer-events: none;
-	transform-origin: 0 0;
-	z-index: 1;
-	background: var(--color-surface-container-lowest);
-}
-
-.card-preview-overlay {
-	position: absolute;
-	inset: 0;
-	cursor: pointer;
-}
-
 .card-preview img {
 	position: relative;
 	z-index: 1;

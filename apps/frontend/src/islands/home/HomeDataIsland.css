@@ -81,35 +81,6 @@
 	}
 }
 
-/* ===== Iframe preview wrapper (shared) ===== */
-.home-iframe-wrap {
-	position: relative;
-	width: 100%;
-	height: 100%;
-	overflow: hidden;
-	background: white;
-	border-radius: var(--radius-xl);
-}
-/*
- * Truco para ocultar la scrollbar del iframe:
- * Los iframes cross-origin no permiten aplicar CSS al contenido interno,
- * así que no podemos usar ::-webkit-scrollbar desde fuera.
- * En su lugar, hacemos el iframe 20px más ancho que su tamaño lógico.
- * La scrollbar (~15-17px) queda fuera del área visible del contenedor,
- * que tiene overflow:hidden y la recorta. El contenido útil mantiene
- * su ancho original (1024px) y se escala normalmente con transform.
- */
-.home-iframe-wrap iframe {
-	position: absolute;
-	top: 0;
-	left: 0;
-	width: calc(1024px + 20px);
-	height: 768px;
-	border: 0;
-	transform-origin: top left;
-	pointer-events: none;
-}
-
 /* ===== Featured Resources ===== */
 .home-featured-grid {
 	display: grid;
@@ -155,9 +126,6 @@
 		width: 55%;
 		height: auto;
 	}
-}
-.home-featured-hero-preview .home-iframe-wrap {
-	border-radius: 0;
 }
 .home-featured-hero-preview > img,
 .home-featured-sec-preview > img,
@@ -217,9 +185,6 @@
 	position: relative;
 	overflow: hidden;
 	background: var(--color-surface-container-lowest);
-}
-.home-featured-sec-preview .home-iframe-wrap {
-	border-radius: 0;
 }
 .home-featured-sec-title {
 	font-family: var(--font-display);
@@ -636,7 +601,6 @@
 	background: var(--color-surface-container-highest);
 	border-radius: var(--radius-xl);
 }
-.home-news-card:hover .home-iframe-wrap iframe,
 .home-news-card:hover .home-news-placeholder {
 	opacity: 0.9;
 }
