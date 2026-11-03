@@ -1,12 +1,14 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
-import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
+import { copyFile, mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import type { LegacyOdeJson } from "@procomun/db/legacy-import";
 import {
+	mapLegacyRecord,
 	resolveLegacyExternalId,
 	resolveLegacyPublicationStatus,
 } from "@procomun/db/legacy-import";
+import { extractTextFromHtml } from "../../../api/src/fts/extract.ts";
 import { isAllowedPreviewImageUrl } from "../../../api/src/services/legacy-preview-image.ts";
 import {
 	findLegacyJsonFiles,
@@ -98,6 +100,8 @@ function buildMockDeps(
 			await rm(extractPath, { recursive: true, force: true });
 		}) as Deps["removeElpxExtraction"],
 		updateSearchVector: (async () => {}) as Deps["updateSearchVector"],
+		// Implementación real: es pura (texto del cuerpo de los artículos, #446).
+		extractTextFromHtml,
 		copyLegacyPreviewImage: (async () => ({
 			ok: false,
 			reason: "sin red en los tests",
@@ -117,10 +121,12 @@ function buildMockDeps(
 		resolveLegacyPublicationStatus,
 		mapLegacyRecord: (() => ({
 			externalId: "es_mock",
+			kind: "ode",
 			blocking: false,
 			blockingErrors: [],
 			warnings: [],
 			publicatorEmail: null,
+			articleHtml: null,
 			resource: {
 				externalId: "es_mock",
 				importSource: "legacy-procomun",
@@ -333,6 +339,8 @@ describe("runImportLegacyProcomun (deps mockeadas)", () => {
 				blockingErrors: ["licencia no reconocida"],
 				warnings: [],
 				publicatorEmail: null,
+				kind: "ode",
+				articleHtml: null,
 				// Deliberadamente vacío: con blocking:true el flujo corta antes de
 				// leer `resource`, y este test comprueba justamente eso.
 				resource: {} as unknown as ReturnType<
@@ -451,6 +459,8 @@ describe("runImportLegacyProcomun (deps mockeadas)", () => {
 				blockingErrors: [],
 				warnings: [],
 				publicatorEmail: null,
+				kind: "ode",
+				articleHtml: null,
 				resource: {
 					externalId: "es_mock",
 					importSource: "legacy-procomun",
@@ -603,6 +613,8 @@ describe("runImportLegacyProcomun (deps mockeadas)", () => {
 				blockingErrors: [],
 				warnings: [],
 				publicatorEmail: null,
+				kind: "ode",
+				articleHtml: null,
 				resource: {
 					externalId: fallbackTitle,
 					importSource: "legacy-procomun",
@@ -683,6 +695,8 @@ describe("runImportLegacyProcomun (deps mockeadas)", () => {
 				blockingErrors: [],
 				warnings: [],
 				publicatorEmail: null,
+				kind: "ode",
+				articleHtml: null,
 				resource: {
 					externalId: fallbackTitle.replace(".elpx", ""),
 					importSource: "legacy-procomun",
@@ -1273,6 +1287,265 @@ describe("runImportLegacyProcomun — autoría (issue #456)", () => {
 			});
 			expect(report.authorsWithoutAccount).toHaveLength(1);
 		});
+	});
+});
+
+// #446: los artículos (`type: "POST"`) se importan con el mapeo real y solo
+// si su publicatorEmailStr lleva a una cuenta; si no, se listan en el informe.
+describe("runImportLegacyProcomun — artículos (issue #446)", () => {
+	const ARTICLE_FIXTURES = path.join(
+		import.meta.dir,
+		"../../../../packages/db/src/test-fixtures/legacy-procomun",
+	);
+	const PUBLISHED = "1400000000001";
+	const DRAFT = "ArtBorrador000000001";
+	let dir: string;
+	let storageDir: string;
+
+	beforeEach(async () => {
+		dir = await mkdtemp(path.join(tmpdir(), "legacy-articles-"));
+		storageDir = await mkdtemp(path.join(tmpdir(), "legacy-articles-storage-"));
+		for (const id of [PUBLISHED, DRAFT]) {
+			await copyFile(
+				path.join(ARTICLE_FIXTURES, `${id}.json`),
+				path.join(dir, `${id}.json`),
+			);
+			await writeFile(path.join(dir, `${id}.elpx`), `fake-zip-${id}`);
+		}
+	});
+
+	afterEach(async () => {
+		await rm(dir, { recursive: true, force: true });
+		await rm(storageDir, { recursive: true, force: true });
+	});
+
+	/** Deps con el mapeo y la conversión a texto reales, que registran lo que se persiste. */
+	function articleDeps(
+		accounts: Record<string, { id: string; deleted: boolean }>,
+		overrides: Partial<Deps> = {},
+	) {
+		const calls: Parameters<Deps["repo"]["importLegacyResourceWithElpx"]>[1][] =
+			[];
+		let extractions = 0;
+		const base = buildMockDeps(storageDir);
+		const deps = buildMockDeps(storageDir, {
+			mapLegacyRecord,
+			findLegacyAuthorAccount: async (_db, email) => accounts[email] ?? null,
+			processElpxUpload: (async (...args) => {
+				extractions++;
+				return base.processElpxUpload(...args);
+			}) as Deps["processElpxUpload"],
+			repo: {
+				...base.repo,
+				importLegacyResourceWithElpx: (async (_db, input) => {
+					calls.push(input);
+					return {
+						...(await base.repo.importLegacyResourceWithElpx(_db, input)),
+						resourceId: `resource-${input.resource.externalId}`,
+					};
+				}) as Deps["repo"]["importLegacyResourceWithElpx"],
+			},
+			...overrides,
+		});
+		return { deps, calls, extractions: () => extractions };
+	}
+
+	test("sin cuenta de autor no se importa: el informe lo lista con el correo y el motivo", async () => {
+		const { deps, calls, extractions } = articleDeps({});
+
+		const report = await runImportLegacyProcomun(
+			{ sourceDir: dir, dryRun: false },
+			deps,
+		);
+
+		expect(calls).toEqual([]);
+		expect(extractions()).toBe(0);
+		expect(report.totals).toMatchObject({
+			processed: 2,
+			articles: 2,
+			imported: 0,
+			skippedWithoutAuthor: 2,
+			blocked: 0,
+			errored: 0,
+		});
+		expect(report.records).toEqual([
+			{
+				outcome: "skipped_without_author",
+				externalId: PUBLISHED,
+				kind: "article",
+				email: "articulista.uno@ejemplo.test",
+				reason: "no_account",
+			},
+			{
+				outcome: "skipped_without_author",
+				externalId: DRAFT,
+				kind: "article",
+				email: "articulista.dos@ejemplo.test",
+				reason: "no_account",
+			},
+		]);
+		// No se importan, así que no quedan a nombre del sistema.
+		expect(report.authorsWithoutAccount).toEqual([]);
+	});
+
+	test("una cuenta dada de baja o un artículo sin correo tampoco se importan", async () => {
+		await writeFile(
+			path.join(dir, `${DRAFT}.json`),
+			JSON.stringify({
+				...(await Bun.file(
+					path.join(ARTICLE_FIXTURES, `${DRAFT}.json`),
+				).json()),
+				publicatorEmailStr: "",
+			}),
+		);
+		const { deps, calls } = articleDeps({
+			"articulista.uno@ejemplo.test": { id: "baja", deleted: true },
+		});
+
+		const report = await runImportLegacyProcomun(
+			{ sourceDir: dir, dryRun: false },
+			deps,
+		);
+
+		expect(calls).toEqual([]);
+		expect(
+			report.records.map((r) => [
+				r.externalId,
+				"reason" in r ? r.reason : null,
+				"email" in r ? r.email : undefined,
+			]),
+		).toEqual([
+			[PUBLISHED, "deleted_account", "articulista.uno@ejemplo.test"],
+			[DRAFT, "no_email", null],
+		]);
+	});
+
+	test("--dry-run aplica la misma regla: sin cuenta no figura como importable", async () => {
+		const { deps, calls } = articleDeps({
+			"articulista.uno@ejemplo.test": { id: "autora-1", deleted: false },
+		});
+
+		const report = await runImportLegacyProcomun(
+			{ sourceDir: dir, dryRun: true },
+			deps,
+		);
+
+		expect(calls).toEqual([]);
+		expect(report.records).toEqual([
+			{
+				outcome: "would_import",
+				externalId: PUBLISHED,
+				kind: "article",
+				warnings: [
+					'license: El artículo no trae licencia; se asigna la de por defecto de la plataforma ("cc-by")',
+					"preview: preview no es una URL válida y no se importa",
+				],
+				editorialStatus: "published",
+				sourcePublished: 1,
+				createdBy: "autora-1",
+			},
+			{
+				outcome: "skipped_without_author",
+				externalId: DRAFT,
+				kind: "article",
+				email: "articulista.dos@ejemplo.test",
+				reason: "no_account",
+			},
+		]);
+		expect(report.totals).toMatchObject({
+			imported: 1,
+			skippedWithoutAuthor: 1,
+			authorLinked: 1,
+		});
+	});
+
+	test("con cuenta se importa a su nombre como «Artículo», con la licencia por defecto y su texto para la búsqueda", async () => {
+		const { deps, calls } = articleDeps({
+			"articulista.uno@ejemplo.test": { id: "autora-1", deleted: false },
+			"articulista.dos@ejemplo.test": { id: "autora-2", deleted: false },
+		});
+
+		const report = await runImportLegacyProcomun(
+			{ sourceDir: dir, dryRun: false },
+			deps,
+		);
+
+		expect(report.totals).toMatchObject({
+			articles: 2,
+			imported: 2,
+			importedAsDraft: 1,
+			skippedWithoutAuthor: 0,
+			authorLinked: 2,
+			errored: 0,
+		});
+		const published = calls.find(
+			(c) => c.resource.externalId === PUBLISHED,
+		)?.resource;
+		expect(published).toMatchObject({
+			createdBy: "autora-1",
+			resourceType: "articulo",
+			license: "cc-by",
+			description: "Artículo relacionado con Aula invertida",
+			author: "Docente Articulista",
+			editorialStatus: "published",
+		});
+		// El cuerpo HTML pasa a texto plano como cualquier HTML subido: sin
+		// etiquetas, sin el <script> y con las entidades resueltas.
+		expect(published?.extractedText).toBe(
+			"Descripción del aula invertida para quien empieza.",
+		);
+		// El borrador es de su autora, sin publicar.
+		expect(
+			calls.find((c) => c.resource.externalId === DRAFT)?.resource,
+		).toMatchObject({ createdBy: "autora-2", editorialStatus: "draft" });
+		expect(report.records).toContainEqual(
+			expect.objectContaining({
+				outcome: "imported",
+				externalId: DRAFT,
+				kind: "article",
+				editorialStatus: "draft",
+				createdBy: "autora-2",
+			}),
+		);
+		// El paquete lo sube el importador, igual que en los ODE (#456).
+		expect(calls.every((c) => c.media.ownerId === "system-user")).toBe(true);
+	});
+
+	test("un artículo ya importado se omite y se enlaza si sigue a nombre del sistema", async () => {
+		const links: string[] = [];
+		const base = buildMockDeps(storageDir);
+		const { deps, calls } = articleDeps(
+			{ "articulista.uno@ejemplo.test": { id: "autora-1", deleted: false } },
+			{
+				linkLegacyResourceAuthor: async (_db, resourceId, userId) => {
+					links.push(`${resourceId}->${userId}`);
+					return { outcome: "linked" };
+				},
+				repo: {
+					...base.repo,
+					findLegacyResourceByExternalId: async (_db, _source, externalId) =>
+						externalId === PUBLISHED
+							? { id: "existing-article", slug: "existente" }
+							: null,
+				},
+			},
+		);
+
+		const report = await runImportLegacyProcomun(
+			{ sourceDir: dir, dryRun: false, only: PUBLISHED },
+			deps,
+		);
+
+		expect(calls).toEqual([]);
+		expect(links).toEqual(["existing-article->autora-1"]);
+		expect(report.records).toEqual([
+			{
+				outcome: "skipped_existing",
+				externalId: PUBLISHED,
+				kind: "article",
+				authorLink: "linked",
+			},
+		]);
 	});
 });
 

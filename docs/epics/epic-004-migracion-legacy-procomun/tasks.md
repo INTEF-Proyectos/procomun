@@ -106,3 +106,16 @@ Los JSON/`.elpx` de `ode-export/` contienen datos personales reales (nombres y e
 - [x] Tests de mapeo, repositorio, comando e integración; ADR-0029, diseño y README actualizados.
 - [ ] Tras importar los usuarios (#488), ejecutar `--link-authors --dry-run` sobre la exportación real y revisar `authorsWithoutAccount` con el equipo del Procomún antiguo.
 - [ ] Reutilizar la búsqueda por correo en los importadores de artículos (#446) e itinerarios (#432).
+
+## Artículos — 2026-11-03 (issue #446)
+
+- [x] Reproducir el bloqueo con un test: los artículos (`type: "POST"`) no traen licencia y quedaban `blocked` con `Licencia no reconocida: ""`.
+- [x] Reconocer los artículos y aplicarles la licencia por defecto (`DEFAULT_LICENSE`, con aviso), el tipo «Artículo», la descripción «Artículo relacionado con <título>» y `publicatorStr` como autor en texto.
+- [x] Añadir «Artículo» (`articulo`) al diccionario de tipos de recurso (`RESOURCE_TYPES`) y anotarlo en `docs/casos/tipos-de-recurso/` para #419.
+- [x] Asignar cada artículo a la cuenta de su `publicatorEmailStr` con la búsqueda de #456. Sin cuenta, no se importa y el informe lo lista (`skipped_without_author`). Queda reutilizarla en los itinerarios (#432).
+- [x] Los artículos con `published: 0` entran como borrador de su autor.
+- [x] Guardar el texto plano del cuerpo para la búsqueda, con la misma limpieza que un `.html` subido. El `.elpx` no se toca: las imágenes externas siguen enlazadas.
+- [x] Tests de mapeo, repositorio, comando e integración. Prueba con los cuatro artículos adjuntos a la issue.
+- [ ] Ejecutar `--dry-run` sobre la exportación real de artículos, después de importar los usuarios (#488), y revisar `skipped_without_author` con el equipo del Procomún antiguo.
+- [ ] Decidir si las miniaturas de los artículos se copian. Hoy llegan como ruta relativa del Drupal antiguo (`/files/articulos/...`, `/sites/default/files/articulos/...`) y se descartan con aviso. Copiarlas exige admitir `procomun.intef.es` en `legacy-preview-image.ts` (#409, #472).
+- [ ] Deuda: los formularios de alta y edición siguen escribiendo `"cc-by"` a mano en lugar de usar `DEFAULT_LICENSE`.

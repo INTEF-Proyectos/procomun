@@ -41,6 +41,14 @@ export const VALID_LICENSES = [
 	"cc0",
 ] as const;
 
+/**
+ * Licencia por defecto de la plataforma: la que preseleccionan el alta y la
+ * edición de recursos (NuevoPage, ResourceFormIsland, ResourceEditorIsland,
+ * EditarPageBase) y la del borrador vacío de `POST /admin/resources/draft`.
+ * El importador legacy la asigna a los artículos, que no traen licencia (#446).
+ */
+export const DEFAULT_LICENSE: (typeof VALID_LICENSES)[number] = "cc-by";
+
 export interface ValidationError {
 	field: string;
 	message: string;

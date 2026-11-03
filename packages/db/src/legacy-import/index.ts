@@ -1,3 +1,8 @@
+export {
+	buildLegacyArticleDescription,
+	isLegacyArticle,
+	LEGACY_ARTICLE_RESOURCE_TYPE,
+} from "./article.ts";
 export type {
 	CategorizacionEducativaInforme,
 	EducationalImportResourceNote,
@@ -38,6 +43,7 @@ export {
 } from "./system-user.ts";
 export type {
 	LegacyOdeJson,
+	LegacyRecordKind,
 	MappedLegacyResource,
 	MappingResult,
 	MappingWarning,

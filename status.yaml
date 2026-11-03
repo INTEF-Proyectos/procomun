@@ -3417,3 +3417,21 @@ tasks:
       lee los .json. La sesión de subida del paquete sigue a nombre del
       sistema para no gastar la cuota del autor. Sin migración. ADR-0029,
       actualización 2026-11-03.
+  T-2026-11-03-12143790:
+    date: 2026-11-03
+    agent: "ingestas-y-migraciones"
+    task: "Importar los artículos del Procomún antiguo (type POST)"
+    status: Done
+    related: ["#446", "#419", "#456", "#447", "#434"]
+    notes: >
+      import:legacy-procomun bloqueaba todos los artículos porque su JSON no
+      trae licencia. Ahora los reconoce por type POST y les aplica la licencia
+      por defecto (cc-by, con aviso), el nuevo tipo «Artículo» del diccionario,
+      la descripción «Artículo relacionado con <título>» y publicatorStr como
+      autor en texto. Cada artículo pasa a la cuenta de su publicatorEmailStr
+      (#456). Sin cuenta no se importa y el informe lo lista como
+      skipped_without_author. published 0 entra como borrador de su autor. El
+      .elpx no se toca, así que las imágenes externas siguen enlazadas. El
+      cuerpo HTML solo se guarda como texto plano para la búsqueda. Sin
+      migración. ADR-0029, actualización 2026-11-03 (2). Pendiente: miniaturas
+      con ruta relativa y dry-run sobre la exportación real tras #488.
