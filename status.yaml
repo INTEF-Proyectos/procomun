@@ -3484,3 +3484,27 @@ tasks:
       en el CI de main, aunque check-coverage no lo marca),
       test:integration 22, test:ui 76, check-types limpio, lint sin errores
       y e2e de Chromium 62 pass y 23 skip.
+  T-2026-11-03-11244470:
+    date: 2026-11-03
+    agent: "seguridad-privacidad-legal + documentacion-y-roadmap + qa-validacion"
+    task: "#317: numeración de ADR, redacción del token firmado en auditoría y sandbox de versiones"
+    status: Done
+    related: ["#317", "#466", "#511", "ADR-0035", "ADR-0038", "ADR-0048", "ADR-0027"]
+    notes: >
+      Correcciones de la revisión de #317. (1) La ADR del bridge de medios
+      compartido pasa de ADR-0033 (en main son las capturas de PR) a
+      ADR-0048, con entrada en decision-log.yaml y ADR-0027 supersedida por
+      ella; 0046 es de #481 y 0047 la usó #484. (2) Referencias viejas:
+      ADR-0030/0032/0034 eran la topología del preview, hoy ADR-0038, y la
+      e2e del editor apunta a ADR-0035; ADR-0018/0021 citadas en elpx son de
+      eXeLearning. (3) redactAuditPath cambia también el token de
+      /api/v1/elpx/preview/<hash>/<token>/ por :token y conserva el hash;
+      la API no tiene otro registro de rutas ni Sentry; el access log de
+      nginx de la etapa frontend queda anotado en preview-sessions.md.
+      (4) ResourceVersionPanel usa CONTENT_IFRAME_SANDBOX, sin
+      allow-popups-to-escape-sandbox; #511 no toca esos ficheros.
+      (5) Nota en ADR-0035 y una línea en routes.ts para no confundir
+      /api/v1/preview/ con /api/v1/elpx/preview/. Validación: test:unit
+      1398 pass y 3 fail (los de #431), test:integration 22, test:ui 76,
+      coverage 91,45 %, check-types, check-tracking, design:lint y lint
+      (sin la exclusión de .claude) sin errores.
