@@ -3210,6 +3210,23 @@ tasks:
       import:legacy-procomun --fix-language [--dry-run] corrige lo importado
       que sigue en "es" sin declararlo en origen. Pendiente: ejecutarlo sobre
       la exportación real.
+
+  T-2026-11-03-12042407:
+    date: 2026-11-03
+    agent: "qa-validacion"
+    task: "Revisión del PR #475: consumidores que suponían idioma no nulo"
+    status: Done
+    related: ["#473", "#475"]
+    notes: >
+      El detalle de una colección rompía con language = null
+      (resource.language.toUpperCase()): ahora lo oculta y
+      CollectionResourceRecord.language es string | null. También pasan a
+      nullable RelatedResource, RelatedResourceCard, SignalRow y
+      ResourceMetadata. El .elpx generado desde los ficheros del recurso ya
+      no declara lom_general_language = es si el recurso no tiene idioma.
+      Tests de regresión en colecciones, recomendados, búsqueda y generador.
+      Sin tocar: ResourceEditorIsland, ResourceFormIsland, catalog-controller
+      y elpx-export.ts no se usan en producción.
   T-2026-10-26-07220488:
     date: 2026-10-26
     agent: "seguridad-privacidad-legal"
