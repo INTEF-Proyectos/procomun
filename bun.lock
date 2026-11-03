@@ -69,6 +69,13 @@
         "vite": "^8.3.5",
       },
     },
+    "apps/thumbnailer": {
+      "name": "@procomun/thumbnailer",
+      "version": "0.1.0",
+      "dependencies": {
+        "playwright-core": "1.64.1",
+      },
+    },
     "packages/db": {
       "name": "@procomun/db",
       "version": "0.1.0",
@@ -317,6 +324,8 @@
     "@procomun/db": ["@procomun/db@workspace:packages/db"],
 
     "@procomun/frontend": ["@procomun/frontend@workspace:apps/frontend"],
+
+    "@procomun/thumbnailer": ["@procomun/thumbnailer@workspace:apps/thumbnailer"],
 
     "@redis/client": ["@redis/client@5.12.1", "", { "dependencies": { "cluster-key-slot": "1.1.2" }, "peerDependencies": { "@node-rs/xxhash": "^1.1.0", "@opentelemetry/api": ">=1 <2" }, "optionalPeers": ["@node-rs/xxhash", "@opentelemetry/api"] }, "sha512-7aPGWeqA3uFm43o19umzdl16CEjK/JQGtSXVPevplTaOU3VJA/rseBC1QvYUz9lLDIMBimc4SW/zrW4S89BaCA=="],
 
