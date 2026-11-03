@@ -60,3 +60,17 @@
 
 - [ ] ADR-0049 a Aceptado con las decisiones, y status.yaml
 - [ ] validation.md con los resultados de las pruebas
+
+## 2026-11-03 — Cambio de roles (#506, #507 y #515)
+
+Las cuentas nuevas y las importadas pasan a ser `editor` y el editor ya no envía a revisión. El sello se gana sobre todo validando lo publicado (ADR-0049, opciones H y punto 11).
+
+- [x] ADR-0049, requirements y design actualizados: quién sigue siendo `author`, opciones H1 a H5, tabla de transiciones sin `editor → review` y preguntas R1 a R4
+- [ ] Decisión del equipo sobre R1 a R4
+
+Se añade a la fase 1:
+
+- [ ] Reglas con listas de roles explícitas, sin `hasMinRole`, y test de que un `editor` no tiene `submit`, ni para enviar ni para reenviar (si #506 entra antes, se conserva su test)
+- [ ] `validation_status` en `resources`, con las acciones `request_validation`, `withdraw_validation_request`, `validate`, `request_changes` y `deny_validation` sobre publicados
+- [ ] Vistas «Validación solicitada» y «Publicados sin validar» en la cola, con sus filtros
+- [ ] e2e de la validación de lo publicado: el editor publica y pide la validación, y el curator la valida

@@ -6,12 +6,20 @@
 
 Diseño de la propuesta de ADR-0049: la fase 1 completa y un esquema de la fase 2. Queda pendiente de que se cierren las preguntas abiertas.
 
+Con #506, #507 y #515 casi todos los creadores serán `editor` y publicarán directamente. Por eso hay dos vías hacia el sello: la revisión previa, para `author` y para curators y admins con lo suyo, y la validación de lo publicado, que será la habitual.
+
 ## Estados y acciones
 
-Camino principal:
+Revisión previa (`author`, y curator o admin con lo suyo):
 
 ```
 draft ──Enviar a revisión──► review ──Aprobar y publicar (+ sello)──► published ──Archivar──► archived
+```
+
+Validación de lo publicado (lo habitual, porque el `editor` publica directamente). El recurso no deja de estar publicado:
+
+```
+draft ──Publicar directamente──► published ── validation_status: — → requested → (changes_requested | denied) ── Validar (+ sello)
 ```
 
 El resto:
@@ -20,7 +28,8 @@ El resto:
 * `review → changes_requested`: Solicitar correcciones. `changes_requested → review`: Reenviar a revisión.
 * `review → rejected`: Rechazar. `rejected → draft`: Reabrir (admin).
 * `draft → published` y `changes_requested → published`: Publicar directamente (editor o superior, sin sello).
-* `published → published`: Solicitar validación, Validar (+ sello) o Solicitar correcciones, sin despublicar.
+* `draft → review` y `changes_requested → review` nunca para un `editor` (#506): 403 y el estado no cambia.
+* `published → published`: Solicitar validación, Retirar la solicitud, Revisar, Validar (+ sello), Solicitar correcciones o Denegar la validación. Cambian `validation_status`, no el estado.
 * `archived → draft`: Restaurar a borrador (− sello).
 * «Revisar (asignármelo)» y «Reasignar» no cambian el estado, sino `assigned_curator_id`.
 
@@ -32,14 +41,17 @@ Cada acción es una entrada de la tabla de reglas:
 type EditorialAction =
   | "submit" | "withdraw" | "claim" | "reassign"
   | "approve" | "request_changes" | "reject" | "reopen"
-  | "publish_direct" | "request_validation" | "validate"
+  | "publish_direct" | "request_validation" | "withdraw_validation_request"
+  | "validate" | "deny_validation"
   | "archive" | "restore";
 
 type ActionRule = {
   action: EditorialAction;
   from: EditorialStatus[];
   to: EditorialStatus | null;   // null: no cambia el estado
-  who: "creator" | "creator_editor" | "curator" | "admin";
+  validation?: ValidationStatus | null; // subestado de un publicado tras la acción
+  roles: Role[];                // lista explícita: #506 rompe la jerarquía
+  relation: "creator" | "any"; // el creador o cualquiera con ese rol
   reason: "required" | "optional" | "none";
   checklist: boolean;           // approve, validate
   requiresComplete: boolean;    // #408: submit, approve, publish_direct
@@ -48,7 +60,7 @@ type ActionRule = {
 };
 ```
 
-`allowedActions(user, resource)` filtra esa tabla con el rol, la relación con el recurso (creador, curator asignado) y el estado. Lo usan el servidor, para validar, y la respuesta de `GET …/editorial`, para pintar los botones.
+`allowedActions(user, resource)` filtra esa tabla con el rol, la relación con el recurso (creador, curator asignado), el estado y el subestado de validación. Ninguna regla usa `hasMinRole`: por ejemplo, `submit` lleva `roles: ["author", "curator", "admin"]` y `relation: "creator"`, sin `editor`. Lo usan el servidor, para validar, y la respuesta de `GET …/editorial`, para pintar los botones.
 
 ## Datos
 
@@ -61,9 +73,10 @@ Una migración con el siguiente número libre en `main` al implementarla, y lo m
 | `validated_at` | timestamp | nulo = sin sello |
 | `validated_by` | text, FK `user` `ON DELETE SET NULL` | nulo en los legacy |
 | `validation_source` | varchar(20) | `review` o `legacy` |
-| `validation_requested_at` | timestamp | solicitud de validación de un publicado (fase 1) |
+| `validation_status` | varchar(20) | solo en publicados: nulo, `requested`, `changes_requested` o `denied` |
+| `validation_requested_at` | timestamp | última solicitud, para ordenar la cola |
 
-Índice parcial `resources_validated_idx` sobre `validated_at` con `WHERE validated_at IS NOT NULL AND deleted_at IS NULL`, para el filtro de la fase 2. Índice `resources_review_queue_idx` sobre `(editorial_status, assigned_curator_id)`.
+Índice parcial `resources_validated_idx` sobre `validated_at` con `WHERE validated_at IS NOT NULL AND deleted_at IS NULL`, para el filtro de la fase 2. Índice `resources_review_queue_idx` sobre `(editorial_status, assigned_curator_id)` y otro parcial sobre `validation_status` con `WHERE validation_status IS NOT NULL`.
 
 `editorial_status` sigue siendo `varchar(50)`: los valores nuevos no necesitan migrar el tipo. `assigned_curator_id` y `curated_at` se quedan; cambia quién los escribe (ADR-0049, punto 3).
 
@@ -107,7 +120,7 @@ Una migración con el siguiente número libre en `main` al implementarla, y lo m
 |---|---|---|
 | `id` | text PK | |
 | `user_id` | text, FK `user` `ON DELETE CASCADE` | destinatario |
-| `type` | varchar(50) | `changes_requested`, `approved`, `rejected`, `validated`, `archived`, `reopened`, `resubmitted`, `withdrawn`, `assigned`, `validation_requested`, `comment` |
+| `type` | varchar(50) | `changes_requested`, `approved`, `rejected`, `validated`, `validation_denied`, `archived`, `reopened`, `resubmitted`, `withdrawn`, `assigned`, `validation_requested`, `comment` |
 | `resource_id` | text, FK `resources` `ON DELETE CASCADE` | |
 | `event_id` | text, FK `resource_editorial_events` `ON DELETE CASCADE` | nulo si es un comentario |
 | `comment_id` | text, FK `resource_review_comments` `ON DELETE CASCADE` | nulo si es un evento |
@@ -137,7 +150,7 @@ Preferencia de correo: una columna booleana `notify_by_email` en `user_profile`,
 | `POST /api/admin/resources/:id/editorial-actions` | según la regla | `{ action, reason?, checklist?, curatorId? }` → `{ status, assignedCuratorId, validated, allowedActions }`; 400 si falta el motivo, la lista o algún campo (#408), 403 si no le toca, 409 si el estado cambió entre medias |
 | `GET /api/admin/resources/:id/editorial` | `canAccessReviewThread` | `{ status, assignedCurator, validated, validatedAt, validationRequestedAt, allowedActions, timeline: [evento o comentario…] }` |
 | `POST /api/admin/resources/:id/review-comments` | `canAccessReviewThread` | `{ body, aspect? }` → comentario creado |
-| `GET /api/admin/review-queue?view=` | curator, admin | `unassigned`, `mine`, `changes_requested` o `validation_requested`; paginado y ordenado por el envío más antiguo |
+| `GET /api/admin/review-queue?view=` | curator, admin | `validation_requested`, `published_unvalidated`, `unassigned`, `mine` o `changes_requested`; paginado y ordenado por la solicitud o el envío más antiguos |
 | `GET /api/admin/notifications?unread=` | usuario con sesión | lista paginada y `unreadCount` |
 | `POST /api/admin/notifications/:id/read` y `/read-all` | destinatario | |
 
@@ -146,7 +159,7 @@ Preferencia de correo: una columna booleana `notify_by_email` en `user_profile`,
 ## Interfaz
 
 * **Editor (`EditarPageBase.tsx`).** Los botones salen de `allowedActions`. Las acciones con motivo abren un diálogo con un `textarea` obligatorio y, para pedir correcciones, la elección del aspecto. Aprobar y validar abren la lista de comprobación. Hay un aviso antes de guardar si se va a perder el sello. Pestaña «Revisión» con la línea de tiempo (eventos y comentarios) y el formulario de comentario. Al reenviar, el curator ve «Cambios desde la última revisión»: la diferencia campo a campo entre el `metadata_snapshot` del último `request_changes` y el del envío nuevo, y un enlace al historial de versiones si cambió el `.elpx`. Se quitan las copias de `TRANSITION_RULES` de `EditarPageBase.tsx` y `ResourceEditorIsland.tsx`.
-* **Cola (Administrar → Recursos).** Pestaña «Revisión» con las cuatro vistas. Columnas: título, autor, estado, fecha de envío, curator asignado y días de espera.
+* **Cola (Administrar → Recursos).** Pestaña «Revisión» con cinco vistas, por este orden: «Validación solicitada», «Publicados sin validar» (con filtros por fecha, área, tipo, visitas e importados o no), «Sin asignar», «Asignados a mí» y «Con correcciones solicitadas». Columnas: título, autor, estado o subestado, fecha de la solicitud o del envío, curator asignado y días de espera.
 * **Mis recursos.** Estado, última decisión y comentarios sin leer.
 * **Cabecera.** Campana con el contador y página «Notificaciones».
 * **Ficha y tarjetas.** Distintivo «Validado», con icono y texto, y en la ficha la fecha y una explicación breve.
@@ -170,9 +183,9 @@ Preferencia de correo: una columna booleana `notify_by_email` en `user_profile`,
 
 ## Pruebas previstas
 
-* **Unitarios (`bun test`).** Matriz de `allowedActions` por rol, relación y estado. Motivo y lista obligatorios. Autoaprobación según la pregunta 6. `resolveLegacyCertified`. `recipientsFor`.
+* **Unitarios (`bun test`).** Matriz de `allowedActions` por rol, relación, estado y subestado de validación, incluido que un `editor` no tiene `submit`, ni para enviar ni para reenviar (#506). Motivo y lista obligatorios. Autoaprobación según la pregunta 6. `resolveLegacyCertified`. `recipientsFor`.
 * **Repositorio (PGlite).** `applyEditorialAction` deshace todo si falla el evento o una notificación. 409 con dos curators a la vez. Sin notificaciones duplicadas. `removeValidation` deja su evento.
 * **Rutas.** Un test por ruta de escritura que comprueba que el sello se pierde si edita el autor y se conserva si edita un curator. 403 en cada acción para los roles sin permiso. Los comentarios no aparecen en la ficha, la API v1, los feeds ni el FTS.
 * **CLI.** `--mark-certified --dry-run` con los fixtures legacy (`certified` `null`, `0` y uno nuevo con `1`).
 * **Correo.** El bucle con `LogEmailTransport`: un correo por notificación y reintentos.
-* **e2e.** Recorrido completo: autor envía, curator pide correcciones, autor corrige y reenvía, curator aprueba y la ficha muestra «Validado». axe sobre el diálogo de motivo, la lista de comprobación, la línea de tiempo y el distintivo.
+* **e2e.** Dos recorridos. Revisión previa: un `author` envía, el curator pide correcciones, el autor corrige y reenvía, y el curator aprueba. Validación de lo publicado: un `editor` publica, pide la validación, el curator pide correcciones, el editor corrige y la pide otra vez, y el curator valida. En los dos, la ficha acaba mostrando «Validado». axe sobre el diálogo de motivo, la lista de comprobación, la línea de tiempo y el distintivo.

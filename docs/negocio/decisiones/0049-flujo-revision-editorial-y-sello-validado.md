@@ -20,6 +20,20 @@ Cuando un autor envía un recurso a revisión, el curator solo puede publicarlo 
 * **#420** (se aplica si no se dice otra cosa): el admin cuenta como curator; el sello también sale en las tarjetas de los listados y el filtro «Solo validados» llega más adelante; si edita un curator o un admin, el recurso conserva el sello, y si lo edita su autor, lo pierde hasta que se revise de nuevo.
 * **Cuestiones de #496:** las correcciones sobre un recurso publicado se hacen sobre una versión nueva y la publicada sigue a la vista hasta que se aprueba; publicar directamente sigue siendo de editor o superior; rechazar definitivamente es de curator y admin, siempre con motivo; un admin reasigna revisiones entre curators; notificaciones dentro de la aplicación y por correo si está activo, una por cambio de estado.
 
+### Cambio de roles del 2026-11-03 (#506, #507 y #515)
+
+Tres requisitos nuevos de @jacoboAlcantara cambian a quién se aplica este flujo:
+
+* **#515:** las cuentas que se crean con el registro reciben el rol `editor`, y lo impone el servidor. Hoy Better Auth da `defaultRole: "author"` (`apps/api/src/auth/config.ts`), también con OIDC. No cambia el rol de las cuentas que ya existen.
+* **#507:** los usuarios importados del Procomún antiguo pasan a ser `editor` en lugar de `author`. Las reglas de `admin` y `curator` no cambian. El importador de `main` (`legacy-import/users.ts`) ya da `admin` o `editor`. El de #488 (PR abierto) da `author` a los perfiles `-`, vacío, `bm_documentalista` y `gestor_de_odes`, y eso es lo que corrige #507, también para las cuentas ya importadas.
+* **#506:** los editores publican directamente. No ven «Enviar a revisión» y la API rechaza que un editor envíe un recurso a revisión. Los demás roles conservan sus transiciones.
+
+**Quién sigue siendo `author`:** solo las cuentas registradas antes de #515 que no vienen del Procomún antiguo, las que un admin cambie a mano a `author` (Administrar → Usuarios) y los usuarios de demostración del seed (`packages/db/src/seed-data.ts`). Es un rol residual. Pueden seguir enviando a revisión el `author` y, con lo suyo, el curator y el admin.
+
+**Consecuencia para el sello.** Casi todas las cuentas serán `editor` y publicarán sin revisión. La regla literal de #420, sello cuando un curator publica tras revisar, solo se cumpliría en `review → published`, un camino que casi nadie va a recorrer. Si el sello solo se pone ahí, casi ningún recurso nuevo lo tendrá y el distintivo quedaría prácticamente para los 877 importados con `certified`. Por eso la decisión añade una vía para validar lo que ya está publicado (opciones H, más abajo) y el equipo tiene que confirmar que «revisado por un curator después de publicarse» también cuenta para el sello (pregunta R1).
+
+Además, #506 rompe la jerarquía de roles de ADR-0016 («el editor hereda todas las capacidades del author»): un editor ya no puede hacer algo que un `author` sí puede. Las reglas de transición tienen que usar listas de roles explícitas y dejar de comparar con `minRole` mediante `ROLE_LEVELS`.
+
 ### Lo que hay hoy en el código
 
 * **Estados y transiciones.** `VALID_STATUSES` (`packages/db/src/validation.ts`) son `draft`, `review`, `published` y `archived`. `TRANSITION_RULES`: `draft→review` (author), `draft→published` (editor), `review→draft` y `review→published` (curator), `published→archived` (curator) y `archived→draft` (curator). `PATCH /api/admin/resources/:id/status` comprueba `validateTransition` y, para `review` y `published`, `validateResourceForStatus` (#408: título, descripción, idioma, licencia, tipo de recurso y autor).
@@ -36,7 +50,7 @@ Cuando un autor envía un recurso a revisión, el curator solo puede publicarlo 
 
 ## Opciones Consideradas
 
-Hay siete preguntas separables.
+Hay ocho preguntas separables.
 
 ### A. Estados
 
@@ -82,11 +96,19 @@ Hay siete preguntas separables.
 ### G. Correcciones sobre un recurso ya publicado
 
 * **G1. Edición en vivo, como hoy, más el sello.** El autor edita el recurso publicado y el cambio se ve al guardar. Si no es curator ni admin, el recurso pierde el sello. Para recuperarlo pide una validación. Cuesta poco y aplica la regla de #420 tal cual.
-* **G2. Cambios pendientes (la propuesta de #496).** Mientras el autor corrige, la ficha sigue con la versión publicada, y la nueva se publica al aprobarla. Hace falta lo que hoy no existe: un puntero `published_version_id` distinto de `current_version_id` y una copia de trabajo de los metadatos, porque los cambios de metadatos no crean versión (ADR-0039). Cambia todas las rutas de escritura del editor y los puntos 2 y 3 de ADR-0039.
+* **G2. Cambios pendientes (la propuesta de #496).** Mientras el autor corrige, la ficha sigue con la versión publicada, y la nueva se publica al aprobarla. Hace falta lo que hoy no existe: un puntero `published_version_id` distinto de `current_version_id` y una copia de trabajo de los metadatos, porque los cambios de metadatos no crean versión (ADR-0039). Cambia todas las rutas de escritura del editor y los puntos 2 y 3 de ADR-0039. Con #506, para un editor solo puede ser opcional: si sus cambios esperasen siempre a un curator, dejaría de publicar directamente.
+
+### H. Cómo se gana el sello si casi todos publican directamente (#506, #507 y #515)
+
+* **H1. Solo con revisión previa, la regla literal de #420.** El sello sale de `review → published`. Tras el cambio de roles, ese camino solo lo usan las cuentas `author` residuales y los curators y admins con lo suyo. Casi ningún recurso nuevo tendría sello. Descartada como vía única.
+* **H2. Cola de validación de lo publicado, por iniciativa del curator.** Curators y admins revisan recursos ya publicados sin sello y los validan o piden correcciones sin despublicarlos. No frena la publicación y el sello sigue diciendo lo mismo: un curator revisó lo que se ve. El problema es el volumen: entra todo lo que publican los editores, más unos 78.000 importados sin `certified` (ADR-0029). Sin filtros y sin prioridades, la cola no se puede trabajar.
+* **H3. El editor pide la validación de su recurso publicado.** «Solicitar validación» no cambia el estado: el recurso sigue publicado y nunca pasa a `review`, así que no choca con #506. La cola se llena con lo que a sus autores les importa validar. Por sí sola depende de que el editor lo pida.
+* **H4. La revisión previa solo para el rol `author`.** Es lo que queda tras #506: el flujo de #496 sigue para `author` y para curators y admins con lo suyo. Por sí sola no da sello a lo que publican los editores, que será casi todo.
+* **H5. Dejar que el editor envíe a revisión de forma opcional antes de publicar.** Contradice #506. Descartada.
 
 ## Decisión
 
-Propuesta: **A2 + B1 + C1 + D1 + E1 + F2**, con **G1 en la fase 1 y G2 en la fase 2**. Lo marcado como «pendiente» depende de las preguntas abiertas del final.
+Propuesta: **A2 + B1 + C1 + D1 + E1 + F2**, con **G1 en la fase 1 y G2 en la fase 2**, y **H2 + H3 sobre H4** para el sello. La validación de lo publicado pasa a ser la vía principal del sello. La revisión previa queda para `author` y para curators y admins que la elijan, y sus herramientas (motivos, hilo, historial y notificaciones) son las mismas en las dos vías. Lo marcado como «pendiente» depende de las preguntas abiertas del final.
 
 ### 1. Estados
 
@@ -106,32 +128,39 @@ Propuesta: **A2 + B1 + C1 + D1 + E1 + F2**, con **G1 en la fase 1 y G2 en la fas
 
 | Desde | Acción | Hacia | Quién | Motivo | Sello |
 |---|---|---|---|---|---|
-| `draft` | Enviar a revisión | `review` | creador (author o superior) | — | — |
-| `draft` | Publicar directamente | `published` | creador con rol editor o superior; admin | — | No |
+| `draft` | Enviar a revisión | `review` | creador con rol `author`; curator o admin, con lo suyo. **Nunca un `editor`** (#506): la API responde 403 y el estado no cambia | — | — |
+| `draft` | Publicar directamente | `published` | creador con rol `editor` o superior; admin | — | No |
 | `review` | Revisar (asignármelo) | `review` | curator, admin | — | — |
 | `review` | Reasignar | `review` | admin | opcional | — |
 | `review` | Aprobar y publicar | `published` | curator, admin ¹ | lista de comprobación | Sí |
 | `review` | Solicitar correcciones | `changes_requested` | curator, admin | obligatorio | — |
 | `review` | Rechazar | `rejected` | curator, admin | obligatorio | — |
 | `review` | Retirar de revisión | `draft` | creador | opcional | — |
-| `changes_requested` | Reenviar a revisión | `review` | creador | opcional (respuesta) | — |
-| `changes_requested` | Publicar directamente | `published` | creador con rol editor o superior | — | No |
+| `changes_requested` | Reenviar a revisión | `review` | creador con rol `author`; curator o admin, con lo suyo. **Nunca un `editor`** (#506) | opcional (respuesta) | — |
+| `changes_requested` | Publicar directamente | `published` | creador con rol `editor` o superior ² | — | No |
 | `rejected` | Reabrir | `draft` | admin | obligatorio | — |
-| `published` | Solicitar validación | `published` | creador | — | — |
-| `published` | Validar | `published` | curator, admin ¹ | lista de comprobación | Sí |
-| `published` | Solicitar correcciones (validación pedida) | `published` | curator, admin | obligatorio | — |
+| `published` | Solicitar validación | `published` | creador (`editor` o `author`), si no tiene sello ni solicitud abierta | — | — |
+| `published` | Retirar la solicitud | `published` | creador | — | — |
+| `published` | Revisar (asignármelo) | `published` | curator, admin | — | — |
+| `published` | Validar | `published` | curator, admin ¹, con solicitud o sin ella | lista de comprobación | Sí |
+| `published` | Solicitar correcciones | `published` | curator, admin | obligatorio | — |
+| `published` | Denegar la validación | `published` | curator, admin | obligatorio | — |
 | `published` | Archivar | `archived` | curator, admin | obligatorio | se conserva, no se ve |
 | `archived` | Restaurar a borrador | `draft` | curator, admin | — | se pierde |
 
-¹ Pendiente: si un curator o un admin puede aprobar su propio recurso (pregunta 6). La propuesta es que no.
+¹ Pendiente: si un curator o un admin puede aprobar o validar su propio recurso (pregunta 6). La propuesta es que no.
+
+² Un `editor` solo llega a `changes_requested` si un admin le cambió el rol mientras era `author`. Puede publicar, pero no reenviar.
 
 * Desaparece «Devolver a borrador» del curator (`review→draft`). Lo sustituye «Solicitar correcciones», que exige motivo.
 * «Enviar a revisión», «Reenviar a revisión», «Aprobar y publicar» y «Publicar directamente» siguen pasando por `validateResourceForStatus` (#408). `changes_requested` y `rejected` no exigen nada.
 * «Revisar» y «Aprobar» en `review` los puede hacer cualquier curator. Aprobar se asigna el recurso a quien aprueba. Solo el admin reasigna uno que ya tiene curator.
+* Cada regla lista los roles que pueden usarla, sin `minRole` jerárquico, porque #506 quita al `editor` algo que el `author` sí puede hacer. #506 se puede implementar ya sobre las reglas actuales, excluyendo al `editor` de `draft→review` en `validation.ts` y en los dos componentes del frontend, y esta ADR lo mantiene.
+* Las acciones sobre `published` no cambian el estado: llevan su propio subestado, la validación (punto 11).
 
 ### 3. Curator asignado
 
-`assigned_curator_id` pasa a ser el curator responsable de la revisión en curso. Lo cambian solo «Revisar», «Reasignar» y las decisiones de un curator o un admin, no el envío del autor ni la publicación directa del editor. `curated_at` queda como fecha de la última decisión de un curator. El acceso que hoy da `assignedCuratorId` (DEF-009, #205) se mantiene.
+`assigned_curator_id` pasa a ser el curator responsable de la revisión en curso. Lo cambian solo «Revisar», «Reasignar» y las decisiones de un curator o un admin, no el envío del autor ni la publicación directa del editor. `curated_at` queda como fecha de la última decisión de un curator. El acceso que hoy da `assignedCuratorId` (DEF-009, #205) se mantiene. En un recurso publicado es el curator que lleva su validación (punto 11).
 
 ### 4. Quién edita en cada estado
 
@@ -172,7 +201,7 @@ El bloqueo del creador en `review` está pendiente (pregunta 7). Se aplica con u
 
 | Evento | Destinatario | Correo |
 |---|---|---|
-| Solicitar correcciones, aprobar y publicar, rechazar, validar, archivar, reabrir | creador | sí |
+| Solicitar correcciones, aprobar y publicar, rechazar, validar, denegar la validación, archivar, reabrir | creador | sí |
 | Reenviar a revisión, retirar de revisión | curator asignado, si lo hay | sí |
 | Revisar o reasignar | curator que pasa a tenerlo asignado, si no es quien actúa | sí |
 | Solicitar validación | curator asignado, si lo hay | sí |
@@ -185,7 +214,7 @@ El bloqueo del creador en `review` está pendiente (pregunta 7). Se aplica con u
 ### 9. Sello «Validado»
 
 * Columnas nuevas en `resources`: `validated_at` (timestamp), `validated_by` (FK a `user`, `ON DELETE SET NULL`) y `validation_source` (`review` o `legacy`). Un recurso está validado si `validated_at IS NOT NULL`.
-* **Se pone** al «Aprobar y publicar» o «Validar» (curator o admin) y al importar un recurso legacy con `certified` (punto 10).
+* **Se pone** al «Aprobar y publicar» o «Validar» (curator o admin) y al importar un recurso legacy con `certified` (punto 10). Tras #506, #507 y #515, lo habitual será «Validar» un recurso ya publicado (punto 11).
 * **Se quita** cuando el creador, sin rol curator ni admin, cambia el contenido o los metadatos públicos de un recurso publicado: metadatos, `.elpx` nuevo (subida, guardado desde el editor o generación), adjuntos, palabras clave y áreas. También se quita al restaurar un archivado a borrador. Cada vez queda un evento `validation_removed` con la causa. Antes de guardar, el editor avisa: «Este recurso tiene el sello Validado. Si guardas los cambios, lo perderá hasta que un curator lo revise de nuevo».
 * **Se conserva** con las ediciones de un curator o un admin, al restaurar una versión (ADR-0039: solo pueden hacerlo ellos) y al archivar, aunque mientras está archivado no se ve.
 * **Dónde se ve:** en la ficha, como distintivo «Validado» con su fecha y la explicación «Revisado por el equipo de curación de Procomún». En los importados, sin fecha. También en las tarjetas de los listados. La API v1 y los feeds exponen `validated` y `validatedAt`. No se muestra quién lo validó (pregunta 12).
@@ -196,17 +225,23 @@ El bloqueo del creador en `review` está pendiente (pregunta 7). Se aplica con u
 * Se pone el sello (`validation_source = 'legacy'`, `validated_by` nulo) solo si el recurso entra como `published`. Los certificados que entran como borrador salen en el informe (`certifiedNotPublished`) sin sello.
 * Para lo ya importado, `import:legacy-procomun --mark-certified --source-dir <ruta> [--dry-run] [--report-dir <ruta>]`, como `--fix-published` y `--link-authors`. Solo marca recursos publicados sin sello y sin cambios desde la importación. Cómo se detecta un cambio (`updated_at` frente a `imported_at`, o el historial) se decide al implementarlo. Nunca quita un sello y repetirlo no cambia nada. El informe da los totales.
 
-### 11. Correcciones sobre un recurso publicado
+### 11. Validación y correcciones de lo publicado
 
-* **Fase 1 (G1).** El recurso se sigue editando en vivo. Si lo edita el creador sin ser curator ni admin, pierde el sello. «Solicitar validación» guarda `validation_requested_at` y lo pone en la pestaña «Validación solicitada» de la cola. El curator lo valida o pide correcciones, con motivo y sin despublicarlo, y la solicitud se cierra.
-* **Fase 2 (G2, la propuesta de #496, pendiente de confirmar).** Los cambios a un recurso publicado van a una copia de trabajo, `resource_pending_changes`: una por recurso, con los metadatos editables, la versión candidata, su propio estado (`draft`, `review`, `changes_requested`, `rejected`) y el curator asignado. Mientras existe, el editor trabaja sobre ella. La ficha sigue con la proyección de `resources` y con `published_version_id`, un puntero nuevo. Un `.elpx` nuevo crea su versión, así que el historial de ADR-0039 no cambia, pero no pasa a la ficha hasta que se aprueba. Al aprobar, en una transacción: se aplican los metadatos, `published_version_id` y `current_version_id` pasan a la candidata, el sello se renueva, se borra la copia y queda el evento. Si un editor la publica directamente, se aplica sin sello. Hay que ajustar ADR-0039 (puntos 2 y 3) y las rutas que resuelven el `.elpx` público (`elpx-projects.ts`, `elpx-content.ts` y la cookie de vista previa de #466).
+Tras #506, #507 y #515 es la vía principal del sello (H2 + H3).
+
+* **Subestado de validación.** Un recurso publicado lleva `validation_status`: nulo (nadie la ha pedido), `requested`, `changes_requested` o `denied`. Lleva también `validation_requested_at`, para ordenar la cola, y `assigned_curator_id`. El sello sigue en `validated_at` (punto 9). Al validar, el subestado vuelve a nulo. El recurso no deja de estar `published` en ningún momento, así que no hay transición de editor a `review` (#506).
+* **Por iniciativa del creador (H3).** «Solicitar validación» pone `requested` y lo lleva a la vista «Validación solicitada» de la cola, la primera.
+* **Por iniciativa del curator (H2).** La vista «Publicados sin validar» lista los publicados sin sello ni solicitud, con filtros por fecha de publicación, área, tipo, visitas e importados o no. El curator se lo asigna y lo valida o pide correcciones aunque nadie lo haya pedido, y el creador recibe la notificación.
+* **Decisiones del curator.** «Validar» pone el sello. «Solicitar correcciones» pone `changes_requested`, con motivo y aspecto: el creador corrige en vivo (G1) y vuelve a solicitar la validación. «Denegar la validación» pone `denied`, con motivo: el recurso sigue publicado sin sello. Que pueda pedirse otra vez está pendiente (pregunta R3). Si el recurso no debería estar a la vista, lo que corresponde es archivarlo (moderación), no denegar la validación.
+* **Fase 1 (G1).** El recurso se sigue editando en vivo. Si lo edita el creador sin ser curator ni admin, pierde el sello. Con casi todos los creadores siendo `editor`, será la causa más habitual de que un recurso pierda el sello.
+* **Fase 2 (G2, la propuesta de #496, pendiente de confirmar).** Para un `editor` (#506) solo puede ser opcional. Al guardar cambios en un recurso validado elige entre «Publicar los cambios», que se ven al momento y quitan el sello, y «Enviar los cambios a validación», en cuyo caso la versión validada sigue a la vista con su sello mientras un curator los revisa. Para un `author`, sus cambios esperan siempre a la aprobación. Los cambios pendientes van a una copia de trabajo, `resource_pending_changes`: una por recurso, con los metadatos editables, la versión candidata, su propio estado (`draft`, `review`, `changes_requested`, `rejected`) y el curator asignado. Mientras existe, el editor trabaja sobre ella. La ficha sigue con la proyección de `resources` y con `published_version_id`, un puntero nuevo. Un `.elpx` nuevo crea su versión, así que el historial de ADR-0039 no cambia, pero no pasa a la ficha hasta que se aprueba. Al aprobar, en una transacción: se aplican los metadatos, `published_version_id` y `current_version_id` pasan a la candidata, el sello se renueva, se borra la copia y queda el evento. Si un editor la publica directamente, se aplica sin sello. Hay que ajustar ADR-0039 (puntos 2 y 3) y las rutas que resuelven el `.elpx` público (`elpx-projects.ts`, `elpx-content.ts` y la cookie de vista previa de #466).
 
 ### 12. API
 
 * `POST /api/admin/resources/:id/editorial-actions` con `{ action, reason?, checklist?, curatorId? }`. En una transacción comprueba rol, estado, motivo, lista y campos (#408), y escribe el recurso, el evento y las notificaciones. Devuelve el estado nuevo y `allowedActions`.
 * `GET /api/admin/resources/:id/editorial`: estado, curator asignado, sello, `allowedActions` y línea de tiempo (eventos y comentarios).
 * `POST /api/admin/resources/:id/review-comments` con `{ body, aspect? }`.
-* Cola: `GET /api/admin/review-queue?view=unassigned|mine|changes_requested|validation_requested`, ordenada por antigüedad del envío.
+* Cola: `GET /api/admin/review-queue?view=validation_requested|published_unvalidated|unassigned|mine|changes_requested`, ordenada por antigüedad de la solicitud o del envío. `published_unvalidated` admite los filtros del punto 11.
 * `GET /api/admin/notifications`, `POST /api/admin/notifications/:id/read` y `POST /api/admin/notifications/read-all`.
 * `allowedActions` sale de la misma función que valida en el servidor. El frontend deja de copiar `TRANSITION_RULES` y se corrige `in_review`. `PATCH /:id/status` se mantiene mientras el frontend migra, solo para las transiciones que no piden motivo, y después se retira.
 
@@ -235,6 +270,7 @@ El bloqueo del creador en `review` está pendiente (pregunta 7). Se aplica con u
 * Se acaba la duplicación de reglas entre el servidor y dos componentes del frontend.
 * No hay servicios nuevos. Se reutilizan `EmailPort` (ADR-0031), el patrón de bucle de ADR-0046 y el versionado de ADR-0039.
 * Los 877 recursos validados del Procomún antiguo conservan su reconocimiento.
+* Con la validación de lo publicado, el sello no depende de que haya revisión previa. Funciona aunque casi todas las cuentas sean `editor` (#506, #507 y #515).
 
 ### Negativas / Riesgos
 
@@ -242,6 +278,8 @@ El bloqueo del creador en `review` está pendiente (pregunta 7). Se aplica con u
 * **Cambio de significado de `assigned_curator_id`.** Quien dependa de que lo rellene cualquier transición dejará de tenerlo. Hay que revisar `canManageResource`, `keepsAccessAfterStatusChange` (frontend) y `--fix-published`.
 * **Edición en vivo en la fase 1.** Hasta la fase 2, lo que cambia el autor de un recurso publicado se ve sin revisión. Sale sin sello, que es justo la señal que pide #420.
 * **Coste de la fase 2.** Los cambios pendientes tocan el editor, las rutas del `.elpx` público y ADR-0039. Es la parte más cara y conviene confirmarla antes de empezarla.
+* **Volumen de la validación.** Si casi todo lo publica un `editor`, el sello depende de cuánto pueda revisar el equipo de curación. «Publicados sin validar» puede tener decenas de miles de recursos. Mitigación: atender primero las solicitudes, filtrar y medir el ritmo de validación. Si no da abasto, el sello será escaso, pero seguirá significando lo mismo.
+* **Jerarquía de roles.** #506 rompe la herencia «editor ⊇ author» de ADR-0016. Toda comprobación que use `hasMinRole(role, "author")` para una acción editorial hay que revisarla.
 * **Ruido.** Notificar mal satura. Mitigación: tabla de destinatarios cerrada, sin correo por comentario y sin avisar a todos los curators de cada envío.
 * **Datos personales.** Los comentarios y el historial son datos de actividad (`docs/epics/ens/evaluacion-rgpd.md`). Al borrar un usuario, sus comentarios quedan como «Usuario eliminado» (`ON DELETE SET NULL`). Hay que añadirlo al registro de tratamientos.
 * **Lock-in.** Bajo: tablas propias en PostgreSQL y SMTP estándar.
@@ -249,24 +287,33 @@ El bloqueo del creador en `review` está pendiente (pregunta 7). Se aplica con u
 ## Notas de Implementación
 
 * No se implementa nada hasta que el usuario cierre las preguntas abiertas. Diseño y tareas: `docs/epics/epic-001-mvp-recursos-metadatos-minimos/features/feature-revision-editorial-sello-validado/`.
-* **Fases.** 1a: estados, acciones, historial y comentarios. 1b: sello e importados. 1c: interfaz (acciones, hilo, cola y sello en la ficha y las tarjetas). 1d: notificaciones y correo. 2: filtro «Solo validados» y cambios pendientes (G2).
+* **Fases.** 1a: estados, acciones, historial y comentarios. 1b: sello, validación de lo publicado (subestado y cola) e importados. 1c: interfaz (acciones, hilo, cola y sello en la ficha y las tarjetas). 1d: notificaciones y correo. 2: filtro «Solo validados» y cambios pendientes (G2).
 * **Migración.** Una para las columnas de `resources` y las tablas nuevas. Su número se elige al implementarla: en `main` la última es la `0014`, y los PR abiertos ya ocupan de la `0015` a la `0018`. También hay que añadirlas a `setup.ts` para PGlite y la vista previa.
 * **Validación (regla 14).** Tests de la matriz de transiciones por rol, con los motivos obligatorios y la autoaprobación. Un test de que, si falla el evento, se deshace el cambio de estado. Tests de que los comentarios no salen en la ficha, la API v1, los feeds ni el FTS. Un test por ruta que pone o quita el sello. Tests de `certified` en el mapeo y en `--mark-certified --dry-run`, de las notificaciones sin duplicados y del correo con `LogEmailTransport`. Un e2e del recorrido completo: enviar, pedir correcciones, reenviar y aprobar con sello. axe sobre los diálogos, el hilo y el sello.
-* **Relación con otras ADR.** Amplía ADR-0008 (roles), ADR-0016 (publicación directa del editor), ADR-0029 (`certified`) y ADR-0031 (correo). La fase 2 cambia ADR-0039 y retoma `published_version_id` de ADR-0028. Toma el patrón de bucle de ADR-0046.
+* **Relación con otras ADR e issues.** Amplía ADR-0008 (roles), ADR-0016 (publicación directa del editor; #506 quita al editor el envío a revisión y rompe la herencia de capacidades del author), ADR-0029 (`certified`) y ADR-0031 (correo). #506 se puede implementar antes que esta ADR y no la bloquea, igual que #507 y #515. La fase 2 cambia ADR-0039 y retoma `published_version_id` de ADR-0028. Toma el patrón de bucle de ADR-0046.
 * **Fuera de alcance.** Revisión de colecciones, IA (decidido) y comentarios públicos.
 
 ## Preguntas abiertas para el equipo
 
-1. **Correcciones sobre publicados:** ¿de acuerdo con edición en vivo en la fase 1 (el autor pierde el sello) y cambios pendientes en la fase 2?
-2. **Publicar directamente:** editor o superior, como hoy. ¿También desde «Correcciones solicitadas»? La propuesta es que sí, sin sello.
+Primero, por el cambio de roles (#506, #507 y #515):
+
+* **R1. Sello sobre lo publicado:** ¿cuenta como «revisado por un curator» la validación de un recurso que publicó un editor? Sin eso, casi ningún recurso nuevo tendrá el sello. La propuesta es que sí (H2 + H3).
+* **R2. Iniciativa:** ¿validan los curators por su cuenta lo publicado (H2), solo lo que piden los editores (H3) o las dos cosas? La propuesta es que las dos, con las solicitudes primero.
+* **R3. Validación denegada:** ¿puede el editor volver a pedirla? La propuesta es que sí, después de editar el recurso.
+* **R4. Rol `author`:** con #515 y #507 queda para las cuentas registradas antes de #515 que no vienen del Procomún antiguo, para las que cambie un admin y para los usuarios de demostración. ¿Se pasan también a `editor` esas cuentas registradas antes, o se quedan con la revisión previa?
+
+Después, las del flujo:
+
+1. **Correcciones sobre publicados:** ¿de acuerdo con edición en vivo en la fase 1 (el autor pierde el sello) y cambios pendientes en la fase 2, opcionales para el `editor`?
+2. **Publicar directamente:** editor o superior, como hoy; con #506, el editor no tiene otra vía. ¿También desde «Correcciones solicitadas», el caso de un `author` al que un admin pasa a `editor`? La propuesta es que sí, sin sello.
 3. **Rechazo:** curator y admin, siempre con motivo. ¿Es definitivo? La propuesta es que solo el admin lo reabra y que el autor no pueda editarlo.
 4. **Reasignación:** la hace el admin. ¿Puede un curator coger un recurso ya asignado a otro?
 5. **Notificaciones:** dentro de la aplicación y por correo, una por cambio de estado. ¿El correo incluye el texto del motivo o solo el enlace? ¿El correo está activado por defecto en el perfil?
 6. **Autoaprobación:** ¿puede un curator o un admin aprobar o validar su propio recurso? La propuesta es que no.
-7. **Edición en revisión:** ¿se bloquea al autor mientras su recurso está en `review`?
+7. **Edición en revisión:** ¿se bloquea al `author` mientras su recurso está en `review`? Con #506 solo afecta a ese rol y a los curators y admins que envían lo suyo.
 8. **Accesibilidad como criterio:** ¿basta con la lista de comprobación del curator o se piden los metadatos de accesibilidad (`accessibility_features` y demás, hoy sin formulario)?
-9. **Validar un publicado:** ¿puede un curator dar el sello a un recurso ya publicado, como los que publicó un editor, sin que pase por `review`? La propuesta es que sí.
+9. **Validar un publicado:** queda dentro de R1 y R2.
 10. **`certified`:** ¿qué valor cuenta como validado? La propuesta es `1`. ¿Llevan sello los certificados que entran como borrador?
 11. **Lo ya aprobado en la plataforma nueva:** ¿se recupera el sello de los recursos que un curator publicó desde `review`, a partir de `activity_events`? Es posible para lo que siga en esa tabla, con un informe previo.
 12. **Quién validó:** ¿se muestra en la ficha? La propuesta es que no: solo «Validado» y la fecha.
-13. **Relevancia:** ¿suben los validados en los resultados? La propuesta es que no por ahora.
+13. **Relevancia y filtro:** ¿suben los validados en los resultados? La propuesta es que no por ahora. Si el sello va a ser escaso, ¿se adelanta el filtro «Solo validados» a la fase 1?

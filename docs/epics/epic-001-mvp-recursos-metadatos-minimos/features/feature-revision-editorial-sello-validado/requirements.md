@@ -8,9 +8,11 @@
 
 Cuando un recurso no está listo para publicarse, su autor no sabe por qué ni qué tiene que cambiar. El curator solo puede devolverlo a borrador, sin motivo, y no queda rastro de la decisión. Además, quien consulta el catálogo no distingue un recurso que revisó un curator de uno que un editor publicó sin revisión (ADR-0016). Así se pierde una señal de calidad que el Procomún antiguo sí daba en 877 recursos.
 
+Con #515 (registro) y #507 (importados), casi todas las cuentas serán `editor`, y con #506 los editores publican directamente, sin enviar a revisión. Si el sello solo se pusiera al aprobar una revisión previa, casi ningún recurso nuevo lo tendría. Por eso el sello se gana también validando lo que ya está publicado.
+
 ## Usuarios principales
 
-* **Autor o autora** del recurso, que necesita saber qué corregir y cuándo hay una decisión.
+* **Creador del recurso**, que necesita saber qué corregir y cuándo hay una decisión. Casi siempre es un `editor`, que publica directamente y puede pedir la validación. Solo en algunos casos es un `author`: cuentas registradas antes de #515 que no vienen del Procomún antiguo, las que cambie un admin y los usuarios de demostración. Ese `author` pasa por la revisión previa.
 * **Curator o admin**, que revisa, decide y deja constancia.
 * **Docente que reutiliza recursos**, que quiere ver qué recursos ha revisado el equipo de curación.
 
@@ -20,12 +22,13 @@ Cuando un recurso no está listo para publicarse, su autor no sabe por qué ni q
 
 1. Estados nuevos `changes_requested` y `rejected`. «Pendiente» y «En revisión» se distinguen por el curator asignado.
 2. Acciones por rol con motivo obligatorio para pedir correcciones, rechazar, archivar y reabrir.
-3. Cola de revisión con las vistas «Sin asignar», «Asignados a mí», «Con correcciones solicitadas» y «Validación solicitada».
+3. Cola de revisión con las vistas «Validación solicitada», «Publicados sin validar», «Sin asignar», «Asignados a mí» y «Con correcciones solicitadas».
 4. Hilo privado de comentarios por recurso.
 5. Historial de cambios de estado y decisiones para auditoría.
 6. Notificaciones dentro de la aplicación y por correo, si está activado.
 7. Sello «Validado»: se guarda, se pone, se quita y se ve en la ficha y en las tarjetas. También para los importados con `certified`.
 8. Lista de comprobación del curator al aprobar o validar.
+9. Validación de lo publicado: el editor la pide o el curator la hace por su cuenta, sin despublicar el recurso.
 
 ### Fuera (fase 2 o más adelante)
 
@@ -37,7 +40,7 @@ Cuando un recurso no está listo para publicarse, su autor no sabe por qué ni q
 
 ## Requisitos funcionales
 
-* **RF-1.** El creador envía a revisión un recurso en `draft` o `changes_requested` si cumple los campos de #408. Si falta alguno, recibe un 400 con los campos que faltan, como hoy.
+* **RF-1.** El creador con rol `author`, o un curator o un admin con lo suyo, envía a revisión un recurso en `draft` o `changes_requested` si cumple los campos de #408. Si falta alguno, recibe un 400 con los campos que faltan, como hoy.
 * **RF-2.** Un curator o un admin puede asignarse un recurso en `review`. Un admin puede reasignarlo a otro curator.
 * **RF-3.** Un curator o un admin aprueba y publica, solicita correcciones o rechaza. Pedir correcciones y rechazar exige un motivo no vacío.
 * **RF-4.** Para aprobar o validar hay que marcar todos los puntos de la lista de comprobación. Lo marcado queda en el historial.
@@ -49,7 +52,7 @@ Cuando un recurso no está listo para publicarse, su autor no sabe por qué ni q
 * **RF-10.** Cada cambio de estado, asignación, validación o pérdida del sello deja un evento con actor, rol, fecha, motivo y versión. El evento se escribe en la misma transacción que el cambio.
 * **RF-11.** El creador recibe una notificación cuando se solicitan correcciones, se aprueba, se rechaza, se valida, se archiva o se reabre su recurso. El curator asignado la recibe cuando se reenvía, se retira o se le asigna. Como mucho, una por evento y destinatario. Nunca la recibe quien hace la acción.
 * **RF-12.** Si el correo está activado y el usuario no lo ha desactivado, cada notificación de cambio de estado se envía también por correo, como mucho una vez.
-* **RF-13.** Un recurso aprobado y publicado desde `review` por un curator o un admin queda validado. Uno publicado directamente, no.
+* **RF-13.** Un recurso aprobado y publicado desde `review` por un curator o un admin queda validado. Uno publicado directamente, no, hasta que un curator lo valide (RF-16 y RF-22).
 * **RF-14.** Si el creador, sin rol curator ni admin, cambia el contenido o los metadatos de un recurso publicado y validado, el recurso pierde el sello y queda un evento. Antes de guardar se le avisa.
 * **RF-15.** Las ediciones de un curator o un admin conservan el sello.
 * **RF-16.** El creador de un recurso publicado sin sello puede solicitar la validación. Un curator o un admin lo valida, o pide correcciones con motivo sin despublicarlo.
@@ -57,6 +60,10 @@ Cuando un recurso no está listo para publicarse, su autor no sabe por qué ni q
 * **RF-18.** La ficha y las tarjetas muestran el distintivo «Validado». La API v1 y los feeds exponen `validated` y `validatedAt`.
 * **RF-19.** El servidor devuelve las acciones permitidas para el usuario en cada recurso (`allowedActions`) y el frontend no repite las reglas.
 * **RF-20.** Cuando un recurso vuelve a revisión, el curator ve qué metadatos cambiaron desde la ronda anterior y si hay un `.elpx` nuevo, sin perder los comentarios de esa ronda.
+* **RF-21.** Un `editor` no ve «Enviar a revisión» ni «Reenviar a revisión», y la API rechaza esas acciones con 403 sin cambiar el estado (#506).
+* **RF-22.** La cola tiene una vista «Publicados sin validar», con filtros por fecha de publicación, área, tipo, visitas e importados o no. En ella un curator o un admin puede asignarse, validar o pedir correcciones de cualquier recurso publicado sin sello, aunque nadie lo haya pedido.
+* **RF-23.** Un curator o un admin puede denegar la validación de un publicado con motivo. El recurso sigue publicado sin sello y el creador recibe la notificación.
+* **RF-24.** Las solicitudes de validación salen las primeras en la cola, por orden de antigüedad.
 
 ## Requisitos no funcionales
 
@@ -77,6 +84,7 @@ Cuando un recurso no está listo para publicarse, su autor no sabe por qué ni q
 * Se conserva el historial de comentarios, decisiones y cambios de estado.
 * Los comentarios de revisión no son públicos.
 * Los roles sin permisos no pueden publicar directamente ni resolver revisiones.
-* Los recursos revisados y publicados por un curator llevan el sello «Validado» y los publicados directamente por un editor no.
+* Los recursos revisados y publicados por un curator llevan el sello «Validado» y los publicados directamente por un editor no, hasta que un curator los valida (pendiente de confirmar, pregunta R1 de ADR-0049).
+* Un editor no puede enviar a revisión ni por la interfaz ni por la API (#506).
 * Los importados con `certified` activo llevan el sello.
 * El sello se ve en la ficha del recurso.

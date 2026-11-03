@@ -343,5 +343,8 @@ ADR-0049:
     notificaciones propias con correo por EmailPort (ADR-0031). Sello en
     columnas validated_at, validated_by y validation_source, no deducido de
     assignedCuratorId. Importados con certified 1 y publicados llevan sello.
-    Fase 1 con edición en vivo de los publicados; fase 2 con cambios
-    pendientes y published_version_id.
+    Con #506, #507 y #515 casi todos son editor y publican sin revisión, así
+    que el sello se gana sobre todo validando lo publicado: cola de publicados
+    sin validar y solicitud de validación del editor, sin pasar a review. La
+    revisión previa queda para author. Fase 1 con edición en vivo de los
+    publicados; fase 2 con cambios pendientes y published_version_id.
