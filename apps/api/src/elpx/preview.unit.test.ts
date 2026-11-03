@@ -14,6 +14,7 @@ describe("elpx preview helpers", () => {
 			hash: "abc123",
 			previewUrl: "/api/v1/elpx/abc123/",
 			screenshotUrl: null,
+			thumbnailUrl: null,
 		});
 	});
 
@@ -29,6 +30,7 @@ describe("elpx preview helpers", () => {
 			hash: "abc123",
 			previewUrl: "/api/v1/elpx/abc123/",
 			screenshotUrl: "/api/v1/elpx/abc123/screenshot.png",
+			thumbnailUrl: null,
 		});
 	});
 
@@ -76,5 +78,35 @@ describe("miniaturas y estado editorial (#471, #483)", () => {
 		);
 		expect(preview?.previewUrl).toStartWith("/api/v1/elpx/preview/abc123/");
 		expect(preview?.screenshotUrl).toBeNull();
+	});
+});
+
+// #470: miniatura generada en el servidor para los paquetes sin imagen.
+describe("miniatura generada (#470)", () => {
+	const FILE = `${"b".repeat(64)}.jpg`;
+
+	test("añade la URL del almacén de miniaturas", () => {
+		expect(
+			buildElpxPreview({
+				hash: "abc123",
+				hasPreview: true,
+				thumbnailFile: FILE,
+			})?.thumbnailUrl,
+		).toBe(`/api/v1/thumbnails/${FILE}`);
+	});
+
+	test("no interpola un nombre que no es del almacén", () => {
+		for (const thumbnailFile of [
+			"../../etc/passwd",
+			"x.jpg",
+			`${"b".repeat(64)}.svg`,
+			"",
+			null,
+		]) {
+			expect(
+				buildElpxPreview({ hash: "abc123", hasPreview: true, thumbnailFile })
+					?.thumbnailUrl,
+			).toBeNull();
+		}
 	});
 });
