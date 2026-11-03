@@ -41,7 +41,7 @@ export interface ResourceDetail
 export interface ResourceMetadata {
 	author?: string | null;
 	publisher?: string | null;
-	language: string;
+	language: string | null;
 	license: ResourceLicense;
 	resourceType: string;
 	subjects: string[];

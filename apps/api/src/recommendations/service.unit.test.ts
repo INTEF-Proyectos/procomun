@@ -1,5 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import * as repo from "@procomun/db/repository";
+import { resources } from "@procomun/db/schema";
+import { eq } from "drizzle-orm";
 import { createApp } from "../app.ts";
 import { getDb } from "../db.ts";
 import { updateSearchVector } from "../fts/search.ts";
@@ -159,6 +161,30 @@ describe("getRelatedResourcesById — multi-signal ranking", () => {
 		}
 		expect(result.sameAuthor.every((r) => r.signals.sameAuthor)).toBe(true);
 		expect(result.sameAuthor.some((r) => relatedIds.has(r.id))).toBe(false);
+	});
+
+	test("dos recursos sin idioma no cuentan como mismo idioma (#473)", async () => {
+		const subject = `sin-idioma-${crypto.randomUUID().slice(0, 8)}`;
+		const seed = await publish({
+			title: `Seed sin idioma ${crypto.randomUUID().slice(0, 8)}`,
+			subjects: [subject],
+		});
+		const sibling = await publish({
+			title: `Hermano sin idioma ${crypto.randomUUID().slice(0, 8)}`,
+			subjects: [subject],
+		});
+		for (const { id } of [seed, sibling]) {
+			await db()
+				.update(resources)
+				.set({ language: null })
+				.where(eq(resources.id, id));
+		}
+
+		const result = await getRelatedResourcesById(db(), seed.id, 6);
+		const card = result.data.find((r) => r.id === sibling.id);
+
+		expect(card?.language).toBeNull();
+		expect(card?.signals.sameLanguage).toBe(false);
 	});
 
 	test("FTS signal increases score when search_vector is populated", async () => {
