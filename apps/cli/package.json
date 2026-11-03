@@ -12,6 +12,6 @@
 		"@procomun/db": "workspace:*",
 		"better-auth": "1.7.12",
 		"hono": "4.13.14",
-		"postgres": "3.4.9"
+		"postgres": "4.0.0"
 	}
 }
