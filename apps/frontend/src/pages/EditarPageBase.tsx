@@ -7,9 +7,14 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { EducationalClassificationEditor } from "../islands/resources/EducationalClassificationFields.tsx";
 import { KeywordCatalogField } from "../islands/resources/KeywordCatalogField.tsx";
+import {
+	KnowledgeAreaField,
+	ProfessionalFamilyField,
+} from "../islands/resources/KnowledgeClassificationFields.tsx";
 import { getResourceTypeOptions } from "../islands/resources/resource-form-options.ts";
 import type {
 	CatalogKeyword,
+	PublicKnowledgeAreaCatalog,
 	Resource,
 	SessionUser,
 } from "../lib/api-client.ts";
@@ -19,6 +24,7 @@ import {
 	selectionsToAssignments,
 } from "../lib/educational-classification.ts";
 import { getApiClient } from "../lib/get-api-client.ts";
+import { familiesToSave } from "../lib/knowledge-area-field.ts";
 import { url } from "../lib/paths.ts";
 import { keepsAccessAfterStatusChange } from "../lib/resource-access.ts";
 import { hasMinRole } from "../lib/shared-utils.ts";
@@ -156,6 +162,12 @@ export default function EditarPage() {
 	const [educationalSelections, setEducationalSelections] = useState<
 		EducationalSelection[]
 	>([]);
+	const [areaCatalog, setAreaCatalog] =
+		useState<PublicKnowledgeAreaCatalog | null>(null);
+	const [knowledgeAreaIds, setKnowledgeAreaIds] = useState<string[]>([]);
+	const [professionalFamilyIds, setProfessionalFamilyIds] = useState<string[]>(
+		[],
+	);
 
 	// eXeLearning editor state
 	const [exeModalVisible, setExeModalVisible] = useState(false);
@@ -371,6 +383,17 @@ export default function EditarPage() {
 				setEducationalSelections(
 					assignmentsToSelections(resourceData.educationalAreas),
 				);
+				// #448: también las desactivadas que ya tiene (se marcan).
+				setKnowledgeAreaIds(
+					(resourceData.knowledgeAreas ?? []).map((area) => area.id),
+				);
+				setProfessionalFamilyIds(
+					(resourceData.professionalFamilies ?? []).map((family) => family.id),
+				);
+				api
+					.getKnowledgeAreaCatalog()
+					.then(setAreaCatalog)
+					.catch(() => {});
 				setElpx(elpxData);
 				setUserRole(role);
 				setSessionUser(session.user);
@@ -450,6 +473,7 @@ export default function EditarPage() {
 		setFieldErrors({});
 
 		const author = authorRef.current?.value ?? "";
+		const educationalAreas = selectionsToAssignments(educationalSelections);
 		const payload = {
 			title: titleRef.current?.value ?? "",
 			description: descriptionRef.current?.value ?? "",
@@ -462,7 +486,13 @@ export default function EditarPage() {
 			// Opcional (issue #417): se envía siempre para poder vaciarlo.
 			otherAuthors: otherAuthorsRef.current?.value ?? "",
 			keywordIds: catalogKeywords.map((keyword) => keyword.id),
-			educationalAreas: selectionsToAssignments(educationalSelections),
+			educationalAreas,
+			// #448: sin FP no se guardan familias (el campo avisa antes).
+			knowledgeAreaIds,
+			professionalFamilyIds: familiesToSave(
+				educationalAreas.map((area) => area.categoryId),
+				professionalFamilyIds,
+			),
 		};
 		const validation = isNew
 			? validateCreateResource(payload)
@@ -505,6 +535,8 @@ export default function EditarPage() {
 				return;
 			}
 
+			// Las familias que se han borrado al quitar FP ya no se avisan.
+			setProfessionalFamilyIds(payload.professionalFamilyIds);
 			setSuccessMsg("Cambios guardados correctamente");
 			setTimeout(() => setSuccessMsg(""), 3000);
 		} catch {
@@ -1022,6 +1054,38 @@ export default function EditarPage() {
 							idPrefix="ed-educational"
 							selections={educationalSelections}
 							onChange={setEducationalSelections}
+						/>
+
+						<ProfessionalFamilyField
+							idPrefix="ed"
+							catalog={areaCatalog}
+							categoryIds={educationalSelections.map(
+								(selection) => selection.categoryId,
+							)}
+							selectedIds={professionalFamilyIds}
+							onChange={(ids) => {
+								setProfessionalFamilyIds(ids);
+								setFieldErrors((current) => ({
+									...current,
+									professionalFamilyIds: "",
+								}));
+							}}
+							error={fieldErrors.professionalFamilyIds}
+						/>
+
+						<KnowledgeAreaField
+							idPrefix="ed"
+							catalog={areaCatalog}
+							selectedIds={knowledgeAreaIds}
+							resourceAreas={res.knowledgeAreas}
+							onChange={(ids) => {
+								setKnowledgeAreaIds(ids);
+								setFieldErrors((current) => ({
+									...current,
+									knowledgeAreaIds: "",
+								}));
+							}}
+							error={fieldErrors.knowledgeAreaIds}
 						/>
 
 						<div className="edit-field">
