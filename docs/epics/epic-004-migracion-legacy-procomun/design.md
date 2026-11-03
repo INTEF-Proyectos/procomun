@@ -208,3 +208,16 @@ Cierra lo pendiente de la sección anterior con lo que decidió Producto en #380
 `mapLegacyRecord` calcula `editorialStatus` con `resolveLegacyPublicationStatus`: solo `published` igual a 1 se publica; 0, ausente o desconocido entra como `draft` (con warning si no es 0 ni 1). El informe guarda `editorialStatus` y `sourcePublished` por registro y `totals.importedAsDraft`.
 
 Para lo importado antes, `import:legacy-procomun --fix-published --source-dir <ruta> [--dry-run]` relee los JSON y pasa a borrador los recursos publicados sin revisión editorial (sin `assignedCuratorId`, `curatedAt` ni `featuredAt`). Detalle en ADR-0029, actualización 2026-10-22.
+
+## Autoría desde `publicatorEmailStr` — 2026-11-03 (issue #456)
+
+En el Procomún antiguo el correo identifica la cuenta. El importador busca la cuenta con el `publicatorEmailStr` del JSON (sin espacios ni mayúsculas) y la guarda en `resources.created_by`, que es lo que usan «Mis recursos», la ficha de autor y los permisos. Los campos de autoría en texto no cambian.
+
+| Situación | `created_by` | Informe |
+|---|---|---|
+| Hay cuenta (también bloqueada) | la cuenta | `createdBy` en el registro, `totals.authorLinked` |
+| Sin correo, sin cuenta o cuenta dada de baja | vacío, como hasta ahora | `authorsWithoutAccount` (`externalId`, `email`, `reason`) |
+| Ya importado, a nombre del sistema, y ahora hay cuenta | la cuenta (al reimportar o con `--link-authors`) | `authorLink: "linked"` |
+| Ya importado con otro creador real | no se toca | `authorLink: "kept_creator"` |
+
+La sesión de subida del paquete sigue a nombre del usuario de sistema, para no gastar la cuota de subida del autor. `import:legacy-procomun --link-authors --source-dir <ruta> [--dry-run]` enlaza lo ya importado leyendo solo los `.json`. Detalle en ADR-0029, actualización 2026-11-03.

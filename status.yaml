@@ -3400,3 +3400,20 @@ tasks:
       referencias en el CI. Validado reproduciendo el conflicto de #465 contra
       main: la union automatica da un status.yaml identico a la resolucion
       manual (diff vacio) y check-tracking lo acepta.
+  T-2026-11-03-10331754:
+    date: 2026-11-03
+    agent: "ingestas-y-migraciones"
+    task: "Los recursos importados pasan a la cuenta de su autor por publicatorEmailStr"
+    status: Done
+    related: ["#456", "#487", "#488", "#446", "#432"]
+    notes: >
+      El importador busca la cuenta con el publicatorEmailStr del JSON (sin
+      espacios ni mayúsculas) y la guarda en resources.created_by, que es lo que
+      usan «Mis recursos», la ficha de autor y los permisos. El autor en texto
+      no cambia. Sin cuenta (o con la cuenta dada de baja) queda a nombre del
+      sistema y el informe lo lista en authorsWithoutAccount sin fallar el
+      lote. Reimportar enlaza lo que ya tiene cuenta y nunca pisa un creador
+      real. Nuevo import:legacy-procomun --link-authors [--dry-run], que solo
+      lee los .json. La sesión de subida del paquete sigue a nombre del
+      sistema para no gastar la cuota del autor. Sin migración. ADR-0029,
+      actualización 2026-11-03.

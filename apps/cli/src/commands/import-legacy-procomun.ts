@@ -8,6 +8,7 @@
  *   bun run apps/cli/src/index.ts import:legacy-procomun --backfill-categories [--dry-run] [--report-dir <ruta>]
  *   bun run apps/cli/src/index.ts import:legacy-procomun --fix-published --source-dir <ruta> [--dry-run] [--report-dir <ruta>]
  *   bun run apps/cli/src/index.ts import:legacy-procomun --copy-previews [--dry-run] [--report-dir <ruta>]
+ *   bun run apps/cli/src/index.ts import:legacy-procomun --link-authors --source-dir <ruta> [--dry-run] [--report-dir <ruta>]
  */
 import { mkdir, readdir, rename, rm, stat, unlink } from "node:fs/promises";
 import path from "node:path";
@@ -17,6 +18,7 @@ import {
 	type EducationalImportResourceNote,
 	IMPORT_SOURCE,
 	type LegacyOdeJson,
+	normalizeLegacyPublicatorEmail,
 	summarizeLegacyEducationalImport,
 } from "@procomun/db/legacy-import";
 
@@ -61,6 +63,8 @@ export async function loadImportLegacyProcomunDependencies() {
 		isAllowedPreviewImageUrl,
 		listLegacyRemoteThumbnails: repo.listLegacyRemoteThumbnails,
 		setResourceThumbnailUrl: repo.setResourceThumbnailUrl,
+		findLegacyAuthorAccount: repo.findLegacyAuthorAccount,
+		linkLegacyResourceAuthor: repo.linkLegacyResourceAuthor,
 		mapLegacyRecord: legacyImport.mapLegacyRecord,
 		resolveLegacyPublicationStatus: legacyImport.resolveLegacyPublicationStatus,
 		resolveLegacyExternalId: legacyImport.resolveLegacyExternalId,
@@ -80,11 +84,31 @@ export async function loadImportLegacyProcomunDependencies() {
 
 type Deps = Awaited<ReturnType<typeof loadImportLegacyProcomunDependencies>>;
 
-interface PairedSource {
+interface LegacyJsonSource {
 	/** Nombre base compartido por `.json` y `.elpx` (solo agrupación de ficheros). */
 	baseName: string;
 	jsonPath: string;
+}
+
+interface PairedSource extends LegacyJsonSource {
 	elpxPath: string;
+}
+
+/**
+ * Los `.json` del directorio, tengan o no su `.elpx`: `--link-authors` (#456)
+ * solo necesita los metadatos, no hay que volver a descargar los paquetes.
+ */
+export async function findLegacyJsonFiles(
+	sourceDir: string,
+): Promise<LegacyJsonSource[]> {
+	const entries = await readdir(sourceDir);
+	return entries
+		.filter((entry) => path.extname(entry).toLowerCase() === ".json")
+		.map((entry) => ({
+			baseName: entry.slice(0, -".json".length),
+			jsonPath: path.join(sourceDir, entry),
+		}))
+		.sort((a, b) => a.baseName.localeCompare(b.baseName));
 }
 
 export async function findLegacySourcePairs(
@@ -118,8 +142,8 @@ export async function findLegacySourcePairs(
 	return { pairs, incomplete };
 }
 
-interface ResolvedPair {
-	pair: PairedSource;
+interface ResolvedPair<P extends LegacyJsonSource = PairedSource> {
+	pair: P;
 	/** externalId resuelto desde el JSON, o baseName del fichero si no pudo leerse/parsearse. */
 	externalId: string;
 	json?: LegacyOdeJson;
@@ -141,10 +165,10 @@ interface ResolvedPair {
  * lectura/parseo se capturan por par en vez de propagarse, para que un
  * `.json` corrupto no aborte el resto del lote.
  */
-export async function* iterateResolvedPairs(
-	pairs: PairedSource[],
+export async function* iterateResolvedPairs<P extends LegacyJsonSource>(
+	pairs: P[],
 	resolveLegacyExternalId: (json: LegacyOdeJson) => string,
-): AsyncGenerator<ResolvedPair> {
+): AsyncGenerator<ResolvedPair<P>> {
 	for (const pair of pairs) {
 		try {
 			const json = (await Bun.file(pair.jsonPath).json()) as LegacyOdeJson;
@@ -166,19 +190,47 @@ interface PublicationTrace {
 	sourcePublished: string | number | null;
 }
 
+/**
+ * Recurso que sigue a nombre del usuario de sistema porque su
+ * `publicatorEmailStr` no lleva a ninguna cuenta utilizable (#456).
+ */
+export interface AuthorWithoutAccount {
+	externalId: string;
+	/** Correo normalizado; null si el JSON no lo trae. */
+	email: string | null;
+	/** Sin correo, sin cuenta con ese correo, o con una cuenta dada de baja. */
+	reason: "no_email" | "no_account" | "deleted_account";
+}
+
+/** Qué ha pasado con el creador de un recurso ya importado (#456). */
+type AuthorLinkOutcome =
+	| "linked"
+	| "would_link"
+	| "already_linked"
+	| "kept_creator"
+	| "without_account"
+	| "not_found";
+
 type RecordOutcome =
 	| ({
 			outcome: "imported";
 			externalId: string;
 			resourceId: string;
 			warnings: string[];
+			/** Cuenta del autor (#456); null si queda a nombre del sistema. */
+			createdBy: string | null;
 	  } & PublicationTrace)
 	| ({
 			outcome: "would_import";
 			externalId: string;
 			warnings: string[];
+			createdBy: string | null;
 	  } & PublicationTrace)
-	| { outcome: "skipped_existing"; externalId: string }
+	| {
+			outcome: "skipped_existing";
+			externalId: string;
+			authorLink: AuthorLinkOutcome;
+	  }
 	| { outcome: "blocked"; externalId: string; reasons: string[] }
 	| { outcome: "error"; externalId: string; message: string };
 
@@ -198,9 +250,17 @@ export interface ImportLegacyProcomunReport {
 		skippedExisting: number;
 		blocked: number;
 		errored: number;
+		/**
+		 * Recursos que pasan a la cuenta de su autor en esta ejecución (#456):
+		 * los nuevos y los ya importados que estaban a nombre del sistema.
+		 */
+		authorLinked: number;
+		/** Recursos que siguen a nombre del sistema (ver authorsWithoutAccount). */
+		authorWithoutAccount: number;
 	};
 	incompletePairs: string[];
 	records: RecordOutcome[];
+	authorsWithoutAccount: AuthorWithoutAccount[];
 	categorizacionEducativa: ReturnType<typeof summarizeLegacyEducationalImport>;
 }
 
@@ -212,6 +272,7 @@ function parseCliArgs(args: string[]) {
 			"backfill-categories": { type: "boolean", default: false },
 			"fix-published": { type: "boolean", default: false },
 			"copy-previews": { type: "boolean", default: false },
+			"link-authors": { type: "boolean", default: false },
 			"dry-run": { type: "boolean", default: false },
 			limit: { type: "string" },
 			only: { type: "string" },
@@ -223,11 +284,14 @@ function parseCliArgs(args: string[]) {
 	const backfillCategories = Boolean(values["backfill-categories"]);
 	const fixPublished = Boolean(values["fix-published"]);
 	const copyPreviews = Boolean(values["copy-previews"]);
+	const linkAuthors = Boolean(values["link-authors"]);
 	if (
-		[backfillCategories, fixPublished, copyPreviews].filter(Boolean).length > 1
+		[backfillCategories, fixPublished, copyPreviews, linkAuthors].filter(
+			Boolean,
+		).length > 1
 	) {
 		throw new Error(
-			"--backfill-categories, --fix-published y --copy-previews no se pueden combinar",
+			"--backfill-categories, --fix-published, --copy-previews y --link-authors no se pueden combinar",
 		);
 	}
 	const sourceDir = values["source-dir"];
@@ -247,6 +311,7 @@ function parseCliArgs(args: string[]) {
 		backfillCategories,
 		fixPublished,
 		copyPreviews,
+		linkAuthors,
 		dryRun: Boolean(values["dry-run"]),
 		limit,
 		only: values.only,
@@ -274,6 +339,20 @@ export async function importLegacyProcomun(args: string[]) {
 				`reintentar=${t.retryable}`,
 		);
 		await closeDbAndExit(deps, 0);
+		return;
+	}
+
+	if (options.linkAuthors) {
+		const linkReport = await runLinkLegacyAuthors(options, deps);
+		await writeReport(options, "enlace-autores", linkReport);
+		const t = linkReport.totals;
+		console.log(
+			`[import:legacy-procomun] Completado. ${options.dryRun ? "(dry-run) " : ""}` +
+				`revisados=${t.processed} enlazados=${t.linked} ya_enlazados=${t.alreadyLinked} ` +
+				`con_otro_creador=${t.keptCreator} sin_cuenta=${t.withoutAccount} ` +
+				`no_importados=${t.notImported} errores=${t.errored}`,
+		);
+		await closeDbAndExit(deps, t.errored > 0 ? 1 : 0);
 		return;
 	}
 
@@ -305,7 +384,8 @@ export async function importLegacyProcomun(args: string[]) {
 		`[import:legacy-procomun] Completado. ${options.dryRun ? "(dry-run) " : ""}` +
 			("imported" in report.totals
 				? `importados=${report.totals.imported} omitidos_ya_existentes=${report.totals.skippedExisting} ` +
-					`bloqueados=${report.totals.blocked} errores=${report.totals.errored} incompletos=${report.totals.incompletePairs} `
+					`bloqueados=${report.totals.blocked} errores=${report.totals.errored} incompletos=${report.totals.incompletePairs} ` +
+					`con_autor=${report.totals.authorLinked} sin_cuenta=${report.totals.authorWithoutAccount} `
 				: `sin_clasificar_revisados=${report.totals.processed} `) +
 			`categorias_ok=${report.categorizacionEducativa.recursosConTodasTransformadas} ` +
 			`categorias_revision=${report.categorizacionEducativa.recursosPendientesDeRevision} ` +
@@ -609,6 +689,215 @@ export async function runCopyLegacyPreviews(
 	};
 }
 
+type LegacyAuthor =
+	| { userId: string }
+	| { userId: null; reason: AuthorWithoutAccount["reason"] };
+
+/**
+ * #456: resuelve `publicatorEmailStr` a la cuenta con ese correo. Una misma
+ * persona publica muchos recursos, así que cada correo se busca una sola vez
+ * por ejecución.
+ */
+function createLegacyAuthorResolver(
+	deps: Deps,
+	db: ReturnType<Deps["getDb"]>["db"],
+) {
+	const cache = new Map<string, LegacyAuthor>();
+	return async (email: string | null): Promise<LegacyAuthor> => {
+		if (!email) return { userId: null, reason: "no_email" };
+		const cached = cache.get(email);
+		if (cached) return cached;
+		const account = await deps.findLegacyAuthorAccount(db, email);
+		const author: LegacyAuthor = !account
+			? { userId: null, reason: "no_account" }
+			: account.deleted
+				? { userId: null, reason: "deleted_account" }
+				: { userId: account.id };
+		cache.set(email, author);
+		return author;
+	};
+}
+
+type ExistingAuthorLink =
+	| { outcome: Exclude<AuthorLinkOutcome, "kept_creator"> }
+	| { outcome: "kept_creator"; createdBy: string };
+
+/** Enlaza un recurso ya importado con su autor, si sigue a nombre del sistema. */
+async function linkExistingResourceAuthor(
+	deps: Deps,
+	db: ReturnType<Deps["getDb"]>["db"],
+	resourceId: string,
+	author: LegacyAuthor,
+	dryRun: boolean,
+): Promise<ExistingAuthorLink> {
+	if (author.userId === null) return { outcome: "without_account" };
+	const result = await deps.linkLegacyResourceAuthor(
+		db,
+		resourceId,
+		author.userId,
+		{ dryRun },
+	);
+	if (result.outcome === "linked") {
+		return { outcome: dryRun ? "would_link" : "linked" };
+	}
+	return result;
+}
+
+type LinkAuthorRecord = { externalId: string } & (
+	| {
+			outcome: "linked" | "would_link";
+			resourceId: string;
+			userId: string;
+	  }
+	| {
+			outcome: "kept_creator";
+			resourceId: string;
+			userId: string;
+			/** Creador real que se conserva. */
+			createdBy: string;
+	  }
+	| { outcome: "not_imported" }
+	| { outcome: "error"; message: string }
+);
+
+export interface LinkLegacyAuthorsReport {
+	runId: string;
+	sourceDir: string;
+	dryRun: boolean;
+	startedAt: string;
+	finishedAt: string;
+	totals: {
+		processed: number;
+		linked: number;
+		alreadyLinked: number;
+		keptCreator: number;
+		withoutAccount: number;
+		notImported: number;
+		errored: number;
+	};
+	/** Lo ya enlazado solo se cuenta; lo que no tiene cuenta va en authorsWithoutAccount. */
+	records: LinkAuthorRecord[];
+	authorsWithoutAccount: AuthorWithoutAccount[];
+}
+
+/**
+ * `--link-authors` (#456): pasa a la cuenta de su autor lo ya importado que
+ * sigue a nombre del sistema, sin volver a importar nada. Solo lee los `.json`
+ * (no hacen falta los `.elpx`) y busca la cuenta por `publicatorEmailStr`.
+ * Nunca pisa a un creador real. Repetirlo no cambia nada.
+ */
+export async function runLinkLegacyAuthors(
+	options: { sourceDir: string; dryRun: boolean },
+	deps: Deps,
+): Promise<LinkLegacyAuthorsReport> {
+	const startedAt = new Date().toISOString();
+	await deps.waitForDb();
+	const db = deps.getDb().db;
+	const resolveAuthor = createLegacyAuthorResolver(deps, db);
+	const sources = await findLegacyJsonFiles(options.sourceDir);
+
+	const totals = {
+		processed: 0,
+		linked: 0,
+		alreadyLinked: 0,
+		keptCreator: 0,
+		withoutAccount: 0,
+		notImported: 0,
+		errored: 0,
+	};
+	const records: LinkAuthorRecord[] = [];
+	const authorsWithoutAccount: AuthorWithoutAccount[] = [];
+
+	for await (const resolved of iterateResolvedPairs(
+		sources,
+		deps.resolveLegacyExternalId,
+	)) {
+		totals.processed++;
+		const { externalId } = resolved;
+		if (!resolved.json) {
+			totals.errored++;
+			records.push({
+				externalId,
+				outcome: "error",
+				message: `No se pudo leer/parsear el JSON: ${resolved.parseError}`,
+			});
+			continue;
+		}
+		try {
+			const existing = await deps.repo.findLegacyResourceByExternalId(
+				db,
+				IMPORT_SOURCE,
+				externalId,
+			);
+			if (!existing) {
+				totals.notImported++;
+				records.push({ externalId, outcome: "not_imported" });
+				continue;
+			}
+			const email = normalizeLegacyPublicatorEmail(
+				resolved.json.publicatorEmailStr,
+			);
+			const author = await resolveAuthor(email);
+			if (author.userId === null) {
+				totals.withoutAccount++;
+				authorsWithoutAccount.push({
+					externalId,
+					email,
+					reason: author.reason,
+				});
+				continue;
+			}
+			const result = await linkExistingResourceAuthor(
+				deps,
+				db,
+				existing.id,
+				author,
+				options.dryRun,
+			);
+			const trace = {
+				externalId,
+				resourceId: existing.id,
+				userId: author.userId,
+			};
+			if (result.outcome === "linked" || result.outcome === "would_link") {
+				totals.linked++;
+				records.push({ ...trace, outcome: result.outcome });
+				console.log(
+					`[autor${options.dryRun ? " (dry-run)" : ""}] ${externalId} -> ${author.userId}`,
+				);
+			} else if (result.outcome === "kept_creator") {
+				totals.keptCreator++;
+				records.push({
+					...trace,
+					outcome: "kept_creator",
+					createdBy: result.createdBy,
+				});
+			} else if (result.outcome === "already_linked") {
+				totals.alreadyLinked++;
+			} else {
+				totals.notImported++;
+				records.push({ externalId, outcome: "not_imported" });
+			}
+		} catch (err) {
+			totals.errored++;
+			const message = err instanceof Error ? err.message : String(err);
+			records.push({ externalId, outcome: "error", message });
+			console.error(`[error] ${externalId}: ${message}`);
+		}
+	}
+
+	return {
+		runId: crypto.randomUUID(),
+		sourceDir: options.sourceDir,
+		dryRun: options.dryRun,
+		startedAt,
+		finishedAt: new Date().toISOString(),
+		totals,
+		records,
+		authorsWithoutAccount,
+	};
+}
+
 /**
  * Núcleo del importador, separado de `importLegacyProcomun` (que gestiona
  * args de CLI y escritura del informe) para poder testear el flujo completo
@@ -663,6 +952,9 @@ export async function runImportLegacyProcomun(
 	let skippedExisting = 0;
 	let blocked = 0;
 	let errored = 0;
+	let authorLinked = 0;
+	const authorsWithoutAccount: AuthorWithoutAccount[] = [];
+	const resolveAuthor = createLegacyAuthorResolver(deps, db);
 
 	// Streaming: se itera par a par (ver iterateResolvedPairs) y se corta en
 	// cuanto --only encuentra su objetivo o --limit alcanza su cupo, sin haber
@@ -725,6 +1017,18 @@ export async function runImportLegacyProcomun(
 					`[bloqueado] ${pair.baseName}: ${mapping.blockingErrors.join("; ")}`,
 				);
 			} else {
+				// #456: el recurso es de la cuenta con su publicatorEmailStr. Sin
+				// cuenta sigue a nombre del sistema y se lista en el informe.
+				const author = await resolveAuthor(mapping.publicatorEmail);
+				const countAuthor = (linked: boolean) => {
+					if (linked) authorLinked++;
+					if (author.userId !== null) return;
+					authorsWithoutAccount.push({
+						externalId: mapping.externalId,
+						email: mapping.publicatorEmail,
+						reason: author.reason,
+					});
+				};
 				const existing = await deps.repo.findLegacyResourceByExternalId(
 					db,
 					mapping.resource.importSource,
@@ -732,16 +1036,32 @@ export async function runImportLegacyProcomun(
 				);
 				if (existing) {
 					skippedExisting++;
+					// Reimportar enlaza lo que ya tiene cuenta (idempotente).
+					const link = await linkExistingResourceAuthor(
+						deps,
+						db,
+						existing.id,
+						author,
+						options.dryRun,
+					);
+					const linked =
+						link.outcome === "linked" || link.outcome === "would_link";
+					countAuthor(linked);
 					records.push({
 						outcome: "skipped_existing",
 						externalId: mapping.externalId,
+						authorLink: link.outcome,
 					});
 					console.log(
-						`[omitido] ${mapping.externalId}: ya importado (resourceId=${existing.id})`,
+						`[omitido] ${mapping.externalId}: ya importado (resourceId=${existing.id})` +
+							(linked
+								? `; autor ${author.userId}${options.dryRun ? " (dry-run)" : ""}`
+								: ""),
 					);
 				} else if (options.dryRun) {
 					imported++;
 					if (mapping.resource.editorialStatus === "draft") importedAsDraft++;
+					countAuthor(author.userId !== null);
 					educationalNotes.push({
 						externalId: mapping.externalId,
 						sourceCategories: mapping.resource.levels,
@@ -753,6 +1073,7 @@ export async function runImportLegacyProcomun(
 						warnings: warningMessages,
 						editorialStatus: mapping.resource.editorialStatus,
 						sourcePublished: mapping.resource.sourcePublished,
+						createdBy: author.userId,
 					});
 				} else {
 					await persistImportedResource({
@@ -764,11 +1085,13 @@ export async function runImportLegacyProcomun(
 						mapping,
 						warningMessages,
 						systemUser,
+						createdBy: author.userId,
 						records,
 						onImported: () => {
 							imported++;
 							if (mapping.resource.editorialStatus === "draft")
 								importedAsDraft++;
+							countAuthor(author.userId !== null);
 							educationalNotes.push({
 								externalId: mapping.externalId,
 								sourceCategories: mapping.resource.levels,
@@ -800,9 +1123,12 @@ export async function runImportLegacyProcomun(
 			skippedExisting,
 			blocked,
 			errored,
+			authorLinked,
+			authorWithoutAccount: authorsWithoutAccount.length,
 		},
 		incompletePairs: incomplete,
 		records,
+		authorsWithoutAccount,
 		categorizacionEducativa: summarizeLegacyEducationalImport(educationalNotes),
 	};
 }
@@ -845,6 +1171,8 @@ async function persistImportedResource(params: {
 	mapping: ReturnType<Deps["mapLegacyRecord"]>;
 	warningMessages: string[];
 	systemUser: { id: string } | null;
+	/** Cuenta del autor (#456); null si no hay cuenta con su correo. */
+	createdBy: string | null;
 	records: RecordOutcome[];
 	onImported: () => void;
 	onErrored: () => void;
@@ -858,6 +1186,7 @@ async function persistImportedResource(params: {
 		mapping,
 		warningMessages,
 		systemUser,
+		createdBy,
 		records,
 		onImported,
 		onErrored,
@@ -934,6 +1263,7 @@ async function persistImportedResource(params: {
 				previewImageUrl,
 				// mapping.blocking === false garantiza license !== null (ver field-mapper.ts)
 				license: mapping.resource.license as string,
+				createdBy,
 			},
 			elpx: {
 				hash: checksum,
@@ -944,6 +1274,8 @@ async function persistImportedResource(params: {
 			},
 			media: {
 				uploadId,
+				// El paquete lo sube el importador, aunque el recurso sea del autor
+				// (#456): así no consume la cuota de subida de su cuenta.
 				// biome-ignore lint/style/noNonNullAssertion: systemUser existe siempre fuera de dry-run
 				ownerId: systemUser!.id,
 				fileSize: fileStat.size,
@@ -995,6 +1327,7 @@ async function persistImportedResource(params: {
 			warnings: warningMessages,
 			editorialStatus: mapping.resource.editorialStatus,
 			sourcePublished: mapping.resource.sourcePublished,
+			createdBy,
 		});
 		console.log(
 			`[importado] ${mapping.externalId} -> ${result.resourceId} (${mapping.resource.editorialStatus})` +

@@ -97,5 +97,11 @@ export interface MappingResult {
 	blocking: boolean;
 	blockingErrors: string[];
 	warnings: MappingWarning[];
+	/**
+	 * `publicatorEmailStr` normalizado (#456), o null si el JSON no lo trae. El
+	 * importador lo usa para asignar el recurso a la cuenta con ese correo; no
+	 * es un campo del recurso y no se guarda.
+	 */
+	publicatorEmail: string | null;
 	resource: MappedLegacyResource;
 }

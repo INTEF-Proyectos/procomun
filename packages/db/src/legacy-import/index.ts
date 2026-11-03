@@ -28,6 +28,7 @@ export type {
 	LegacyPublicationStatus,
 } from "./publication-status.ts";
 export { resolveLegacyPublicationStatus } from "./publication-status.ts";
+export { normalizeLegacyPublicatorEmail } from "./publicator-email.ts";
 export type { ResourceTypeMappingResult } from "./resource-type-map.ts";
 export { mapResourceType } from "./resource-type-map.ts";
 export {

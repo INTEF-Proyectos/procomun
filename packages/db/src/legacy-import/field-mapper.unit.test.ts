@@ -464,3 +464,28 @@ describe("mapLegacyRecord — estado de publicación (issue #447)", () => {
 		}
 	});
 });
+
+describe("mapLegacyRecord — correo de quien publicó (issue #456)", () => {
+	it("devuelve publicatorEmailStr normalizado y no cambia los campos de autoría en texto", async () => {
+		const json = await loadFixture("es_2024052212_9181312");
+		const before = mapLegacyRecord(json, "fallback.elpx");
+		const result = mapLegacyRecord(
+			{ ...json, publicatorEmailStr: "  Docente.Dos@Ejemplo.TEST " },
+			"fallback.elpx",
+		);
+
+		expect(result.publicatorEmail).toBe("docente.dos@ejemplo.test");
+		expect(result.resource.author).toBe(before.resource.author);
+		expect(result.resource.otherAuthors).toBe(before.resource.otherAuthors);
+		expect(result.resource.publisher).toBe(before.resource.publisher);
+	});
+
+	it("sin publicatorEmailStr devuelve null y el registro sigue siendo importable", async () => {
+		const json = await loadFixture("es_2024052212_9181312");
+		const { publicatorEmailStr: _email, ...withoutEmail } = json;
+		const result = mapLegacyRecord(withoutEmail, "fallback.elpx");
+
+		expect(result.publicatorEmail).toBeNull();
+		expect(result.blocking).toBe(false);
+	});
+});

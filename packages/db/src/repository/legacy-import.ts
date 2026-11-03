@@ -42,6 +42,11 @@ export interface LegacyResourceInput {
 	 * Pendiente: el exportador aún no incluye el dato, así que hoy llega vacío.
 	 */
 	legacyViewCount?: number | null;
+	/**
+	 * Cuenta cuyo correo coincide con `publicatorEmailStr` (#456). Sin cuenta
+	 * queda vacío y el recurso sigue a nombre del sistema, como hasta ahora.
+	 */
+	createdBy?: string | null;
 }
 
 export interface LegacyElpxInput {
@@ -129,6 +134,7 @@ export async function importLegacyResourceWithElpx(
 			author: input.resource.author,
 			otherAuthors: input.resource.otherAuthors ?? null,
 			publisher: input.resource.publisher,
+			createdBy: input.resource.createdBy ?? null,
 			thumbnailUrl: input.resource.previewImageUrl,
 			// Solo se publica lo que el Procomún antiguo tenía publicado
 			// (`published: 1`); el resto entra como borrador (issue #447, ver

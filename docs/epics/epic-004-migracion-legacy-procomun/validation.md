@@ -96,3 +96,23 @@ Ambos bugs eran preexistentes en la infraestructura reutilizada, no introducidos
 - La prueba de migraciones verifica que `0006_user_email_case_insensitive` figura en el journal, sustituye el nombre duplicado `0005` y contiene la comprobación previa de duplicados por `lower(email)`.
 - La prueba del comando verifica que el cliente PGlite se cierra incluso si falla la lectura del JSON antes de generar el informe.
 - Las pruebas de `--dry-run` verifican que `wouldImport` cuenta los registros importables y `imported` permanece en cero.
+
+## Autoría de los recursos importados — 2026-11-03 (issue #456)
+
+Tests escritos antes del cambio (rojo: módulos `publicator-email.ts` y `legacy-authors.ts` inexistentes, `publicatorEmail` `undefined`, `runLinkLegacyAuthors` sin exportar) y en verde después:
+
+- `packages/db/src/legacy-import/publicator-email.unit.test.ts`: espacios y mayúsculas; campo ausente, vacío o que no es texto.
+- `packages/db/src/legacy-import/field-mapper.unit.test.ts`: `publicatorEmail` normalizado sin cambiar `author`, `otherAuthors` ni `publisher`; sin correo el registro sigue siendo importable.
+- `packages/db/src/repository/legacy-authors.unit.test.ts`: cuenta por correo con mayúsculas distintas en los dos lados; sin cuenta; cuenta dada de baja; nunca el usuario de sistema; `importLegacyResourceWithElpx` guarda el creador; enlace en seco sin escribir, real e idempotente, también desde el usuario de sistema, sin tocar `updatedAt` y sin pisar a un creador real.
+- `apps/cli/src/commands/import-legacy-procomun.unit.test.ts`: recurso nuevo con cuenta (la sesión de subida sigue a nombre del sistema); sin cuenta, en el informe y sin fallar el lote; cuenta dada de baja y sin correo; una búsqueda por correo y ejecución; `--dry-run`; al reimportar enlaza, en seco no escribe, respeta al creador real y no cuenta lo ya enlazado; `findLegacyJsonFiles`; `runLinkLegacyAuthors` solo con `.json`, con un JSON roto y en seco.
+- `apps/cli/src/commands/import-legacy-procomun.integration.test.ts` (PGlite real): dry-run, importación con la cuenta del correo, «Mis recursos» con el borrador incluido, `--link-authors` sin `.elpx`, reimportación que enlaza una cuenta creada después, repetición sin cambios y creador real conservado.
+
+Resultados:
+
+- Tests de esta ampliación: `bun test` de los 7 ficheros afectados → **98 pass, 0 fail**.
+- `bun run test:unit` → 1313 pass, 3 fail. Los 3 son los de `apps/api/src/routes/elpx-content.unit.test.ts` (#431), que fallan también en `main` en esta máquina y pasan en el CI.
+- `bun run test:integration` → 27 pass, 0 fail. `bun run test:ui` → 79 pass, 0 fail.
+- `bun run check-coverage` → 91,2 % de líneas (mínimo 90 %); `publicator-email.ts` y `repository/legacy-authors.ts` al 100 %.
+- `bun run check-types` → 0 errores. `bun run lint` (sin excluir `.claude/`) → 0 errores; quedan 3 avisos que ya estaban en `main`.
+- `bun run check-test-files` y `bun run check-tracking` → OK.
+- Pendiente: `--link-authors --dry-run` sobre la exportación real cuando estén importados los usuarios (#488).

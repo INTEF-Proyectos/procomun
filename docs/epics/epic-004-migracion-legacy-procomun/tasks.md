@@ -96,3 +96,13 @@ Los JSON/`.elpx` de `ode-export/` contienen datos personales reales (nombres y e
 - [x] Tests de mapeo, repositorio e integración; ADR-0029 y README actualizados.
 - [ ] Ejecutar `--fix-published --dry-run` sobre el directorio de exportación real, revisar el informe y lanzar la corrección.
 - [ ] Valorar si la previsualización por hash debe comprobar el estado del recurso.
+
+## Autoría de los recursos importados — 2026-11-03 (issue #456)
+
+- [x] Leer `publicatorEmailStr` (sin espacios ni mayúsculas) y asignar el recurso a la cuenta con ese correo (`resources.created_by`). Sin tocar `author`, `otherAuthors` ni `publisher`.
+- [x] Sin cuenta: a nombre del sistema como hasta ahora y en `authorsWithoutAccount` del informe, sin fallar el lote.
+- [x] Reimportar enlaza lo ya importado si la cuenta ya existe; nunca pisa un creador real.
+- [x] `--link-authors --source-dir <ruta> [--dry-run]`, que solo lee los `.json`.
+- [x] Tests de mapeo, repositorio, comando e integración; ADR-0029, diseño y README actualizados.
+- [ ] Tras importar los usuarios (#488), ejecutar `--link-authors --dry-run` sobre la exportación real y revisar `authorsWithoutAccount` con el equipo del Procomún antiguo.
+- [ ] Reutilizar la búsqueda por correo en los importadores de artículos (#446) e itinerarios (#432).

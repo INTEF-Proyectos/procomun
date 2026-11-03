@@ -9,12 +9,14 @@ import {
 } from "@procomun/db/legacy-import";
 import { isAllowedPreviewImageUrl } from "../../../api/src/services/legacy-preview-image.ts";
 import {
+	findLegacyJsonFiles,
 	findLegacySourcePairs,
 	iterateResolvedPairs,
 	type loadImportLegacyProcomunDependencies,
 	runBackfillLegacyEducationalAreas,
 	runCopyLegacyPreviews,
 	runImportLegacyProcomun,
+	runLinkLegacyAuthors,
 } from "./import-legacy-procomun.ts";
 
 type Deps = Awaited<ReturnType<typeof loadImportLegacyProcomunDependencies>>;
@@ -118,6 +120,7 @@ function buildMockDeps(
 			blocking: false,
 			blockingErrors: [],
 			warnings: [],
+			publicatorEmail: null,
 			resource: {
 				externalId: "es_mock",
 				importSource: "legacy-procomun",
@@ -138,6 +141,9 @@ function buildMockDeps(
 				sourcePublished: 1,
 			},
 		})) as Deps["mapLegacyRecord"],
+		// #456: por defecto ninguna cuenta coincide con publicatorEmailStr.
+		findLegacyAuthorAccount: async () => null,
+		linkLegacyResourceAuthor: async () => ({ outcome: "not_found" }),
 		ensureLegacyImportSystemUser: async () => ({
 			id: "system-user",
 			email: "x@x.test",
@@ -326,6 +332,7 @@ describe("runImportLegacyProcomun (deps mockeadas)", () => {
 				blocking: true,
 				blockingErrors: ["licencia no reconocida"],
 				warnings: [],
+				publicatorEmail: null,
 				// Deliberadamente vacío: con blocking:true el flujo corta antes de
 				// leer `resource`, y este test comprueba justamente eso.
 				resource: {} as unknown as ReturnType<
@@ -443,6 +450,7 @@ describe("runImportLegacyProcomun (deps mockeadas)", () => {
 				blocking: false,
 				blockingErrors: [],
 				warnings: [],
+				publicatorEmail: null,
 				resource: {
 					externalId: "es_mock",
 					importSource: "legacy-procomun",
@@ -594,6 +602,7 @@ describe("runImportLegacyProcomun (deps mockeadas)", () => {
 				blocking: false,
 				blockingErrors: [],
 				warnings: [],
+				publicatorEmail: null,
 				resource: {
 					externalId: fallbackTitle,
 					importSource: "legacy-procomun",
@@ -673,6 +682,7 @@ describe("runImportLegacyProcomun (deps mockeadas)", () => {
 				blocking: false,
 				blockingErrors: [],
 				warnings: [],
+				publicatorEmail: null,
 				resource: {
 					externalId: fallbackTitle.replace(".elpx", ""),
 					importSource: "legacy-procomun",
@@ -987,5 +997,422 @@ describe("runCopyLegacyPreviews", () => {
 			"would_copy",
 			"would_remove",
 		]);
+	});
+});
+
+// #456: cada recurso pasa a la cuenta cuyo correo es su publicatorEmailStr.
+describe("runImportLegacyProcomun — autoría (issue #456)", () => {
+	let dir: string;
+	let storageDir: string;
+
+	beforeEach(async () => {
+		dir = await mkdtemp(path.join(tmpdir(), "legacy-author-"));
+		storageDir = await mkdtemp(path.join(tmpdir(), "legacy-author-storage-"));
+		await writeFile(path.join(dir, "es_mock.json"), "{}");
+		await writeFile(path.join(dir, "es_mock.elpx"), "fake-zip-bytes");
+	});
+
+	afterEach(async () => {
+		await rm(dir, { recursive: true, force: true });
+		await rm(storageDir, { recursive: true, force: true });
+	});
+
+	/** Mapeo del mock base con el correo dado y el externalId del fichero. */
+	function mapWithEmail(email: string | null) {
+		const base = buildMockDeps(storageDir);
+		return ((json: LegacyOdeJson, fallback: string) => {
+			const mapping = base.mapLegacyRecord(json, fallback);
+			const externalId = fallback.replace(/\.elpx$/, "");
+			return {
+				...mapping,
+				externalId,
+				publicatorEmail: email,
+				resource: { ...mapping.resource, externalId },
+			};
+		}) as Deps["mapLegacyRecord"];
+	}
+
+	function captureImports() {
+		const calls: Parameters<Deps["repo"]["importLegacyResourceWithElpx"]>[1][] =
+			[];
+		const base = buildMockDeps(storageDir).repo;
+		return {
+			calls,
+			repo: {
+				...base,
+				importLegacyResourceWithElpx: (async (_db, input) => {
+					calls.push(input);
+					return base.importLegacyResourceWithElpx(_db, input);
+				}) as Deps["repo"]["importLegacyResourceWithElpx"],
+			},
+		};
+	}
+
+	test("un recurso nuevo pasa a la cuenta con ese correo", async () => {
+		const lookups: string[] = [];
+		const { calls, repo } = captureImports();
+		const deps = buildMockDeps(storageDir, {
+			mapLegacyRecord: mapWithEmail("autora@ejemplo.test"),
+			findLegacyAuthorAccount: async (_db, email) => {
+				lookups.push(email);
+				return { id: "autora-1", deleted: false };
+			},
+			repo,
+		});
+
+		const report = await runImportLegacyProcomun(
+			{ sourceDir: dir, dryRun: false },
+			deps,
+		);
+
+		expect(lookups).toEqual(["autora@ejemplo.test"]);
+		expect(calls[0]?.resource.createdBy).toBe("autora-1");
+		// El paquete lo subió el importador: la sesión de subida no cambia.
+		expect(calls[0]?.media.ownerId).toBe("system-user");
+		expect(report.records[0]).toMatchObject({
+			outcome: "imported",
+			createdBy: "autora-1",
+		});
+		expect(report.totals.authorLinked).toBe(1);
+		expect(report.totals.authorWithoutAccount).toBe(0);
+		expect(report.authorsWithoutAccount).toEqual([]);
+	});
+
+	test("sin cuenta queda a nombre del sistema, sale en el informe y no falla el lote", async () => {
+		const { calls, repo } = captureImports();
+		const deps = buildMockDeps(storageDir, {
+			mapLegacyRecord: mapWithEmail("nadie@ejemplo.test"),
+			repo,
+		});
+
+		const report = await runImportLegacyProcomun(
+			{ sourceDir: dir, dryRun: false },
+			deps,
+		);
+
+		expect(calls[0]?.resource.createdBy).toBeNull();
+		expect(report.totals.imported).toBe(1);
+		expect(report.totals.errored).toBe(0);
+		expect(report.records[0]).toMatchObject({
+			outcome: "imported",
+			createdBy: null,
+		});
+		expect(report.totals.authorWithoutAccount).toBe(1);
+		expect(report.authorsWithoutAccount).toEqual([
+			{
+				externalId: "es_mock",
+				email: "nadie@ejemplo.test",
+				reason: "no_account",
+			},
+		]);
+	});
+
+	test("una cuenta dada de baja no recibe el recurso; sin correo tampoco se busca", async () => {
+		await writeFile(path.join(dir, "es_sin_correo.json"), "{}");
+		await writeFile(path.join(dir, "es_sin_correo.elpx"), "otros-bytes");
+		const lookups: string[] = [];
+		const base = buildMockDeps(storageDir);
+		const deps = buildMockDeps(storageDir, {
+			mapLegacyRecord: ((json: LegacyOdeJson, fallback: string) =>
+				fallback === "es_mock.elpx"
+					? mapWithEmail("baja@ejemplo.test")(json, fallback)
+					: {
+							...mapWithEmail(null)(json, fallback),
+							externalId: "es_sin_correo",
+						}) as Deps["mapLegacyRecord"],
+			findLegacyAuthorAccount: async (_db, email) => {
+				lookups.push(email);
+				return { id: "autora-baja", deleted: true };
+			},
+			repo: { ...base.repo },
+		});
+
+		const report = await runImportLegacyProcomun(
+			{ sourceDir: dir, dryRun: true },
+			deps,
+		);
+
+		expect(lookups).toEqual(["baja@ejemplo.test"]);
+		expect(report.authorsWithoutAccount).toEqual([
+			{
+				externalId: "es_mock",
+				email: "baja@ejemplo.test",
+				reason: "deleted_account",
+			},
+			{ externalId: "es_sin_correo", email: null, reason: "no_email" },
+		]);
+	});
+
+	test("la misma cuenta se busca una sola vez por ejecución", async () => {
+		await writeFile(path.join(dir, "es_otro.json"), "{}");
+		await writeFile(path.join(dir, "es_otro.elpx"), "otros-bytes");
+		let lookups = 0;
+		const deps = buildMockDeps(storageDir, {
+			mapLegacyRecord: mapWithEmail("autora@ejemplo.test"),
+			findLegacyAuthorAccount: async () => {
+				lookups++;
+				return { id: "autora-1", deleted: false };
+			},
+		});
+
+		const report = await runImportLegacyProcomun(
+			{ sourceDir: dir, dryRun: true },
+			deps,
+		);
+
+		expect(report.totals.authorLinked).toBe(2);
+		expect(lookups).toBe(1);
+	});
+
+	test("--dry-run dice a quién pasaría sin escribir nada", async () => {
+		const { calls, repo } = captureImports();
+		const deps = buildMockDeps(storageDir, {
+			mapLegacyRecord: mapWithEmail("autora@ejemplo.test"),
+			findLegacyAuthorAccount: async () => ({ id: "autora-1", deleted: false }),
+			repo,
+		});
+
+		const report = await runImportLegacyProcomun(
+			{ sourceDir: dir, dryRun: true },
+			deps,
+		);
+
+		expect(calls).toEqual([]);
+		expect(report.records[0]).toMatchObject({
+			outcome: "would_import",
+			createdBy: "autora-1",
+		});
+		expect(report.totals.authorLinked).toBe(1);
+	});
+
+	describe("al reimportar lo ya importado", () => {
+		function depsForExisting(
+			result: Awaited<ReturnType<Deps["linkLegacyResourceAuthor"]>>,
+			links: Array<[string, string, boolean]>,
+		) {
+			const base = buildMockDeps(storageDir);
+			return buildMockDeps(storageDir, {
+				mapLegacyRecord: mapWithEmail("autora@ejemplo.test"),
+				findLegacyAuthorAccount: async () => ({
+					id: "autora-1",
+					deleted: false,
+				}),
+				linkLegacyResourceAuthor: async (_db, resourceId, userId, opts) => {
+					links.push([resourceId, userId, opts.dryRun]);
+					return result;
+				},
+				repo: {
+					...base.repo,
+					findLegacyResourceByExternalId: async () => ({
+						id: "existing-id",
+						slug: "existing",
+					}),
+				},
+			});
+		}
+
+		test("enlaza el recurso con la cuenta que ahora existe", async () => {
+			const links: Array<[string, string, boolean]> = [];
+			const report = await runImportLegacyProcomun(
+				{ sourceDir: dir, dryRun: false },
+				depsForExisting({ outcome: "linked" }, links),
+			);
+
+			expect(links).toEqual([["existing-id", "autora-1", false]]);
+			expect(report.totals.skippedExisting).toBe(1);
+			expect(report.totals.authorLinked).toBe(1);
+			expect(report.records[0]).toEqual({
+				outcome: "skipped_existing",
+				externalId: "es_mock",
+				authorLink: "linked",
+			});
+		});
+
+		test("en seco lo cuenta sin escribir", async () => {
+			const links: Array<[string, string, boolean]> = [];
+			const report = await runImportLegacyProcomun(
+				{ sourceDir: dir, dryRun: true },
+				depsForExisting({ outcome: "linked" }, links),
+			);
+
+			expect(links).toEqual([["existing-id", "autora-1", true]]);
+			expect(report.totals.authorLinked).toBe(1);
+			expect(report.records[0]).toMatchObject({ authorLink: "would_link" });
+		});
+
+		test("no pisa a un creador real ni cuenta lo ya enlazado", async () => {
+			for (const result of [
+				{ outcome: "kept_creator", createdBy: "editora" },
+				{ outcome: "already_linked" },
+			] as const) {
+				const report = await runImportLegacyProcomun(
+					{ sourceDir: dir, dryRun: false },
+					depsForExisting(result, []),
+				);
+				expect(report.totals.authorLinked).toBe(0);
+				expect(report.records[0]).toMatchObject({
+					authorLink: result.outcome,
+				});
+			}
+		});
+
+		test("sin cuenta no intenta enlazar y lo lista", async () => {
+			const links: Array<[string, string, boolean]> = [];
+			const base = buildMockDeps(storageDir);
+			const report = await runImportLegacyProcomun(
+				{ sourceDir: dir, dryRun: false },
+				{
+					...depsForExisting({ outcome: "linked" }, links),
+					findLegacyAuthorAccount: base.findLegacyAuthorAccount,
+				},
+			);
+
+			expect(links).toEqual([]);
+			expect(report.records[0]).toMatchObject({
+				authorLink: "without_account",
+			});
+			expect(report.authorsWithoutAccount).toHaveLength(1);
+		});
+	});
+});
+
+describe("findLegacyJsonFiles", () => {
+	test("lista los .json tengan o no su .elpx", async () => {
+		const dir = await mkdtemp(path.join(tmpdir(), "legacy-json-"));
+		try {
+			await writeFile(path.join(dir, "b.json"), "{}");
+			await writeFile(path.join(dir, "a.json"), "{}");
+			await writeFile(path.join(dir, "a.elpx"), "zip");
+			await writeFile(path.join(dir, "c.elpx"), "zip");
+
+			expect(await findLegacyJsonFiles(dir)).toEqual([
+				{ baseName: "a", jsonPath: path.join(dir, "a.json") },
+				{ baseName: "b", jsonPath: path.join(dir, "b.json") },
+			]);
+		} finally {
+			await rm(dir, { recursive: true, force: true });
+		}
+	});
+});
+
+// #456: --link-authors enlaza lo ya importado leyendo solo los .json.
+describe("runLinkLegacyAuthors", () => {
+	let dir: string;
+
+	beforeEach(async () => {
+		dir = await mkdtemp(path.join(tmpdir(), "legacy-link-"));
+		// Sin .elpx: no hace falta volver a descargar los paquetes.
+		for (const [id, email] of [
+			["es_enlazar", "Autora@Ejemplo.test"],
+			["es_ya", "autora@ejemplo.test"],
+			["es_reasignado", "autora@ejemplo.test"],
+			["es_sin_cuenta", "nadie@ejemplo.test"],
+			["es_no_importado", "autora@ejemplo.test"],
+		] as const) {
+			await writeFile(
+				path.join(dir, `${id}.json`),
+				JSON.stringify({ idODE: id, publicatorEmailStr: email }),
+			);
+		}
+		await writeFile(path.join(dir, "roto.json"), "{no es json");
+	});
+
+	afterEach(async () => {
+		await rm(dir, { recursive: true, force: true });
+	});
+
+	function deps(links: Array<[string, string, boolean]>) {
+		const base = buildMockDeps("/tmp/no-se-usa");
+		return buildMockDeps("/tmp/no-se-usa", {
+			findLegacyAuthorAccount: async (_db, email) =>
+				email === "autora@ejemplo.test"
+					? { id: "autora-1", deleted: false }
+					: null,
+			linkLegacyResourceAuthor: async (_db, resourceId, userId, opts) => {
+				links.push([resourceId, userId, opts.dryRun]);
+				if (resourceId === "r-es_ya") return { outcome: "already_linked" };
+				if (resourceId === "r-es_reasignado")
+					return { outcome: "kept_creator", createdBy: "editora" };
+				return { outcome: "linked" };
+			},
+			repo: {
+				...base.repo,
+				findLegacyResourceByExternalId: async (_db, _source, externalId) =>
+					externalId === "es_no_importado"
+						? null
+						: { id: `r-${externalId}`, slug: externalId },
+			},
+		});
+	}
+
+	test("enlaza lo que sigue a nombre del sistema, respeta al creador real y lista lo que no tiene cuenta", async () => {
+		const links: Array<[string, string, boolean]> = [];
+
+		const report = await runLinkLegacyAuthors(
+			{ sourceDir: dir, dryRun: false },
+			deps(links),
+		);
+
+		expect(links).toEqual([
+			["r-es_enlazar", "autora-1", false],
+			["r-es_reasignado", "autora-1", false],
+			["r-es_ya", "autora-1", false],
+		]);
+		expect(report.totals).toEqual({
+			processed: 6,
+			linked: 1,
+			alreadyLinked: 1,
+			keptCreator: 1,
+			withoutAccount: 1,
+			notImported: 1,
+			errored: 1,
+		});
+		expect(report.records).toContainEqual({
+			externalId: "es_enlazar",
+			outcome: "linked",
+			resourceId: "r-es_enlazar",
+			userId: "autora-1",
+		});
+		expect(report.records).toContainEqual({
+			externalId: "es_reasignado",
+			outcome: "kept_creator",
+			resourceId: "r-es_reasignado",
+			userId: "autora-1",
+			createdBy: "editora",
+		});
+		expect(report.records).toContainEqual({
+			externalId: "es_no_importado",
+			outcome: "not_imported",
+		});
+		expect(report.records.find((r) => r.externalId === "roto")?.outcome).toBe(
+			"error",
+		);
+		expect(report.records.map((r) => r.externalId)).not.toContain("es_ya");
+		expect(report.authorsWithoutAccount).toEqual([
+			{
+				externalId: "es_sin_cuenta",
+				email: "nadie@ejemplo.test",
+				reason: "no_account",
+			},
+		]);
+	});
+
+	test("--dry-run pasa el modo al repositorio y marca would_link", async () => {
+		const links: Array<[string, string, boolean]> = [];
+
+		const report = await runLinkLegacyAuthors(
+			{ sourceDir: dir, dryRun: true },
+			deps(links),
+		);
+
+		expect(links.every(([, , dryRun]) => dryRun)).toBe(true);
+		expect(report.dryRun).toBe(true);
+		expect(report.totals.linked).toBe(1);
+		expect(report.records).toContainEqual({
+			externalId: "es_enlazar",
+			outcome: "would_link",
+			resourceId: "r-es_enlazar",
+			userId: "autora-1",
+		});
 	});
 });
