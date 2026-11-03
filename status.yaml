@@ -3453,3 +3453,33 @@ tasks:
       funciona bajo Bun en macOS y en la imagen Debian 13, asi que no hace
       falta Node. Pendiente: piloto con paquetes reales y publicar la imagen
       thumbnailer en el CI.
+  T-2026-11-03-12011140:
+    date: 2026-11-03
+    agent: "backend-api-servicios"
+    task: "Revisión de #471: la miniatura screenshot.png no depende del visor HTML"
+    status: Done
+    related: ["#409", "#471", "#466", "#483"]
+    notes: >
+      buildElpxPreview devolvía null sin index.html aunque hubiera
+      screenshot.png, y la tarjeta caía al marcador. Ahora elpxPreview existe
+      si hay visor o miniatura y previewUrl es string | null en la API y en el
+      frontend: el iframe, «Ver en línea» y «Ponlo en tu web» dependen de
+      previewUrl, no de que haya elpxPreview. La miniatura de un recurso no
+      publicado sigue firmada. Pruebas nuevas de buildElpxPreview, de la API
+      (ficha, listado, borrador firmado), de la tarjeta y de la ficha.
+      Detalle en docs/hotfixes/pr-471-conflictos/validation.md.
+  T-2026-11-03-12090790:
+    date: 2026-11-03
+    agent: "backend-api-servicios"
+    task: "Integrar en #512 la revisión de #471 (miniatura sin visor HTML)"
+    status: Done
+    related: ["#470", "#512", "#471", "#409"]
+    notes: >
+      Merge de feat/issue-409-miniaturas. Conflictos en preview.ts, su test y
+      el comentario de resourceCardMedia. buildElpxPreview conserva
+      thumbnailUrl (#470) y devuelve null solo si no hay visor, ni
+      screenshot.png, ni miniatura generada; previewUrl sigue a null sin
+      index.html. Orden de la tarjeta sin iframe: screenshot.png, imagen
+      legacy, generada y marcador. Las pruebas de #471 esperan
+      thumbnailUrl: null y comprueban que el paquete sin index.html queda en
+      thumbnailStatus skipped, así que la tarjeta muestra screenshot.png.

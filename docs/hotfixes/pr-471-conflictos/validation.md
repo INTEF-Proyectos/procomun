@@ -51,3 +51,34 @@ Los tipos y el lint vuelven a pasar. Se repite la suite completa tras los ajuste
 - bun run lint y check-tracking: correctos, con avisos preexistentes.
 - No se ejecutaron pruebas e2e. Se mantienen los permisos de recursos privados.
 - Resolucion lista para revision del PR; sin nuevas decisiones de arquitectura.
+
+## 2026-11-03: revisión, miniatura sin visor HTML
+
+La revisión encontró que `buildElpxPreview` devolvía `null` si el paquete no
+tenía `index.html`, aunque trajera `screenshot.png` en la raíz. El procesador
+admite esos paquetes y calcula `hasPreview` y `hasScreenshot` por separado, así
+que la tarjeta perdía la miniatura y caía al marcador del tipo.
+
+Cambio de contrato: `elpxPreview` existe si hay visor o miniatura, y solo es
+`null` si no hay ninguno de los dos. `previewUrl` pasa a ser `string | null`
+(`null` = sin visor) en la API (`ElpxPreview`) y en el frontend
+(`ElpxCardPreview`). Que `elpxPreview` no sea `null` ya no implica que haya
+visor: el iframe de la ficha, «Ver en línea», «Ponlo en tu web» y el iframe de
+reserva de la tarjeta dependen de `previewUrl`. La miniatura cuelga del mismo
+prefijo que el visor: URL estable si está publicado y enlace firmado si no
+(#466, #483).
+
+Consumidores revisados: tarjetas (`resourceCardMedia`, `ResourceCard`, portada,
+catálogo, colecciones, recomendados), ficha (`ResourceDetailIsland` y el relay
+de embeds), «Ponlo en tu web», edición (`EditarPageBase` y
+`/api/admin/resources/:id/elpx`, que ya daban `previewUrl: null` sin
+`index.html`) y los e2e del `.elpx`. Solo la ficha necesitaba un ajuste: el
+relay de embeds recibe ahora el `previewUrl` ya derivado.
+
+Pruebas nuevas (rojo → verde): 5 de `buildElpxPreview` (publicado y cuatro
+estados no publicados, con el token verificado) y 3 de la API (ficha, listado
+y miniatura firmada de un borrador, servida sin cookies). En el frontend, el
+tipo con `previewUrl: null` daba 5 errores de tipos antes del cambio. Además,
+pruebas de caracterización del procesador (sin `index.html`, con captura), de
+la ruta (la captura se sirve y la URL del visor da 404), de la edición, de la
+tarjeta (imagen sin iframe) y de la ficha (sin visor ni «Ponlo en tu web»).

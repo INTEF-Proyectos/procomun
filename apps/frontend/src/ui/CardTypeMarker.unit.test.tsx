@@ -56,6 +56,28 @@ describe("ResourceCard (#409)", () => {
 		expect(html).toContain("🚀");
 		expect(html).toMatch(/aria-hidden="true"[^>]*>🚀/);
 	});
+
+	// Revisión de #471: screenshot.png en la raíz y sin index.html.
+	test("con screenshot.png y sin visor pinta la imagen, sin iframe ni marcador", () => {
+		const html = renderToStaticMarkup(
+			<ResourceCard
+				href="/recurso?slug=r1"
+				resource={{
+					...BASE,
+					elpxPreview: {
+						hash: "abc",
+						previewUrl: null,
+						screenshotUrl: "/api/v1/elpx/abc/screenshot.png",
+						// #470 no encola la captura de un paquete sin index.html.
+						thumbnailUrl: null,
+					},
+				}}
+			/>,
+		);
+		expect(html).toContain('src="/api/v1/elpx/abc/screenshot.png"');
+		expect(html).not.toContain("<iframe");
+		expect(html).not.toContain("🚀");
+	});
 });
 
 // #470: miniatura generada en el servidor; los listados ya no cargan iframes.

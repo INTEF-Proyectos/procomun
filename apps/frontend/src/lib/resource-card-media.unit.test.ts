@@ -1,4 +1,5 @@
 import { describe, expect, test } from "bun:test";
+import type { ElpxCardPreview } from "./api-client.ts";
 import { resourceCardMedia } from "./resource-card-media.ts";
 
 const PREVIEW =
@@ -91,5 +92,41 @@ describe("resourceCardMedia", () => {
 			kind: "empty",
 			icon: null,
 		});
+	});
+});
+
+// Revisión de #471: lo que da la API para un paquete con screenshot.png en la
+// raíz y sin index.html. Hay miniatura, pero no visor.
+describe("resourceCardMedia con miniatura y sin visor (#471)", () => {
+	// Así lo da la API: #470 no encola la captura si no hay index.html.
+	const SHOT_ONLY: ElpxCardPreview = {
+		hash: "abc",
+		previewUrl: null,
+		screenshotUrl: "/api/v1/elpx/abc/screenshot.png",
+		thumbnailUrl: null,
+	};
+
+	test("la tarjeta usa screenshot.png, no el marcador del tipo", () => {
+		expect(
+			resourceCardMedia({ resourceType: "proyecto", elpxPreview: SHOT_ONLY }),
+		).toEqual({ kind: "image", url: "/api/v1/elpx/abc/screenshot.png" });
+	});
+
+	test("la imagen de metadatos queda detrás de screenshot.png", () => {
+		expect(
+			resourceCardMedia({ thumbnailUrl: PREVIEW, elpxPreview: SHOT_ONLY }),
+		).toEqual({ kind: "image", url: "/api/v1/elpx/abc/screenshot.png" });
+	});
+
+	test("sin visor ni miniatura queda el marcador del tipo", () => {
+		const empty: ElpxCardPreview = {
+			hash: "abc",
+			previewUrl: null,
+			screenshotUrl: null,
+			thumbnailUrl: null,
+		};
+		expect(
+			resourceCardMedia({ resourceType: "proyecto", elpxPreview: empty }),
+		).toEqual({ kind: "empty", icon: "🚀" });
 	});
 });

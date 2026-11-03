@@ -22,7 +22,9 @@ function safeImageUrl(value: string | null | undefined): string | null {
  * Medio de la tarjeta: la miniatura screenshot.png de eXe 4 (#409), después
  * la imagen de metadatos (preview legacy), después la miniatura generada en
  * el servidor (#470) y, sin nada, el marcador del tipo de recurso. Ningún
- * listado carga el paquete en un iframe (#470, ADR-0046).
+ * listado carga el paquete en un iframe (#470, ADR-0046). La miniatura no
+ * depende del visor: con screenshot.png y sin index.html, `previewUrl` es null
+ * y la tarjeta pinta la imagen igual (#471).
  */
 export function resourceCardMedia(resource: {
 	thumbnailUrl?: string | null;

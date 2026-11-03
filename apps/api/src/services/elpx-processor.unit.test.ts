@@ -369,6 +369,22 @@ describe("processElpxUpload", () => {
 
 		expect(result.hasScreenshot).toBe(false);
 	});
+
+	// Revisión de #471: la miniatura y el visor se detectan por separado.
+	it("detecta screenshot.png aunque el paquete no traiga index.html", async () => {
+		const shotOnlyPath = path.join(tempDir, "screenshot-sin-index.elpx");
+		await createZipFile(shotOnlyPath, {
+			"content.xml": SAMPLE_CONTENT_XML,
+			"screenshot.png": "png",
+		});
+		const baseDir = path.join(tempDir, "process-output-shot-only");
+		await mkdir(baseDir, { recursive: true });
+
+		const result = await processElpxUpload(shotOnlyPath, baseDir);
+
+		expect(result.hasPreview).toBe(false);
+		expect(result.hasScreenshot).toBe(true);
+	});
 });
 
 // ---------------------------------------------------------------------------

@@ -234,7 +234,9 @@ export function ResourceDetailContent({
 	// Se derivan los valores, no solo los booleanos: un `hasPreview: boolean` no
 	// permite a TypeScript estrechar `resource.elpxPreview` en los usos, y menos
 	// dentro de un closure. Con el valor ya extraído, el narrowing es real.
-	const previewUrl = resource.elpxPreview?.previewUrl;
+	// El visor sale de `previewUrl`, no de que haya `elpxPreview`: un paquete
+	// con screenshot.png y sin index.html tiene miniatura, pero no visor (#471).
+	const previewUrl = resource.elpxPreview?.previewUrl ?? undefined;
 	const hasPreview = !!previewUrl;
 	const mediaItems = resource.mediaItems ?? [];
 	const hasFiles = mediaItems.length > 0;
@@ -250,7 +252,7 @@ export function ResourceDetailContent({
 	const previewIframeRef = useRef<HTMLIFrameElement | null>(null);
 	const { activeEmbed, close: closeEmbed } = useElpxEmbedRelay(
 		previewIframeRef,
-		resource.elpxPreview?.previewUrl,
+		previewUrl,
 	);
 	const [exportReady, setExportReady] = useState(false);
 	const [exportingFormat, setExportingFormat] =
