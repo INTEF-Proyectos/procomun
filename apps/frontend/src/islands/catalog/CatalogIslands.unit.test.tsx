@@ -431,6 +431,17 @@ describe("nombres de autor pulsables (#458)", () => {
 		expect(html).not.toContain("para Cedec");
 	});
 
+	// Revisión de #487: la ficha de autor solo existe con algún recurso
+	// publicado. La vista previa de un recurso sin publicar (la ve quien lo
+	// creó o el equipo editorial) no enlaza a una ficha que puede dar 404.
+	for (const status of ["draft", "review", "archived"]) {
+		test(`en la ficha de un recurso ${status} el nombre de la cuenta no enlaza`, () => {
+			const html = renderDetail({ editorialStatus: status }, "curator");
+			expect(html).toContain('<p class="detail-author-name">Autora</p>');
+			expect(html).not.toContain(url("autor/"));
+		});
+	}
+
 	test("en la ficha de un importado sin cuenta no hay enlace de publicador", () => {
 		const html = renderDetail(
 			{ createdBy: null, createdByName: null, author: "Ana López" },

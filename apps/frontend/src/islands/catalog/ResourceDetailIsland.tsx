@@ -229,6 +229,13 @@ export function ResourceDetailContent({
 	// libre, a una búsqueda con su nombre. Los importados no tienen cuenta.
 	const publisherId =
 		resource.createdBy && resource.createdByName ? resource.createdBy : null;
+	// La ficha de autor solo existe con algún recurso publicado (#487): en la
+	// vista previa de uno sin publicar el nombre va sin enlace, porque la cuenta
+	// puede no tener ninguno y el enlace daría 404.
+	const publisherHref =
+		publisherId && resource.editorialStatus === "published"
+			? publisherId
+			: null;
 	const authorNames = splitAuthorNames(resource.author);
 	// Sin cuenta (p. ej. importados) va primero el publicador y la lista de
 	// autores debajo (#457); con cuenta, la cuenta, la autoría y el publicador.
@@ -402,8 +409,10 @@ export function ResourceDetailContent({
 						</div>
 						<div>
 							<p className="detail-author-name">
-								{publisherId ? (
-									<PublisherLink id={publisherId} name={authorName} />
+								{publisherHref ? (
+									<PublisherLink id={publisherHref} name={authorName} />
+								) : publisherId ? (
+									authorName
 								) : publisherFirst ? (
 									resource.publisher
 								) : authorNames.length > 0 ? (
