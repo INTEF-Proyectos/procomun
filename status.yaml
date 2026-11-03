@@ -3450,3 +3450,24 @@ tasks:
       credenciales, perfil y recursos. Se puede repetir y deja informe.
       Tests de mapeo, repositorio (PGlite) y CLI. Pendiente: lanzar la
       corrección en las bases ya cargadas con #488.
+  T-2026-11-03-14021773:
+    date: 2026-11-03
+    agent: "ingestas-y-migraciones"
+    task: "Errores de los importadores legacy sin datos de la base de datos en el informe ni en la consola"
+    status: Done
+    related: ["#488", "#456", "ADR-0037"]
+    notes: >
+      Revisión del PR #488: el catch de import:legacy-users guardaba
+      error.message en el informe y lo escribía en consola, y el mensaje de
+      Drizzle lleva la consulta y sus parámetros (el hash y el correo).
+      apps/cli/src/import-errors.ts resume el error en un código
+      (duplicate_email, constraint_violation con el nombre de la
+      restricción, db_error, unexpected_error, invalid_record, import_error)
+      con el SQLSTATE, sin message, detail, query ni params. Aplicado en
+      import:legacy-users, --fix-roles, import:legacy-procomun (registro de
+      error y aviso de search_vector) y --fix-published. Los errores que
+      salen de los bucles llegan al manejador del CLI sin la consulta. El
+      registro de error de usuarios lleva legacyUid para reintentarlo. Tests
+      con fallos reales en PGlite (CHECK y trigger sobre la credencial con un
+      hash sintético, trigger en --fix-roles, error de Drizzle con un correo
+      en el importador de recursos).

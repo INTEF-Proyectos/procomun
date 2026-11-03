@@ -125,3 +125,11 @@ Los JSON/`.elpx` de `ode-export/` contienen datos personales reales (nombres y e
 - [x] Tests de la tabla, los desconocidos, la precedencia con varios roles y la corrección (repetible, solo legacy, admin/curator intactos, bloqueo conservado).
 - [x] Adenda de ADR-0037 del 2026-11-03.
 - [ ] Lanzar `--fix-roles --dry-run` en cada base ya cargada con #488, revisar los `kept` y aplicar la corrección.
+
+## Errores sin datos de la base de datos — 2026-11-03 (revisión del PR #488)
+
+- [x] `apps/cli/src/import-errors.ts`: códigos `duplicate_email`, `constraint_violation` (con el nombre de la restricción), `db_error`, `unexpected_error`, `invalid_record` e `import_error`, con el SQLSTATE. Nunca copia `message`, `detail`, `query` ni `params` de un error de la base de datos.
+- [x] `import:legacy-users` y `--fix-roles`: el registro de error lleva `legacyUid`, código y mensaje controlado. Lo mismo en la consola.
+- [x] `import:legacy-procomun` y `--fix-published`: lo mismo para el registro de error y el aviso de `search_vector`. Se conservan los mensajes propios del procesado del `.elpx`.
+- [x] Los errores que salen de los bucles de ambos comandos llegan al manejador del CLI sin la consulta.
+- [x] Tests con fallos reales en PGlite: una restricción CHECK y un trigger que rechazan la credencial (con un hash sintético), un trigger en `--fix-roles` y un error de Drizzle con un correo como parámetro en el importador de recursos. Se comprueba que ni el informe ni la consola llevan el valor.
