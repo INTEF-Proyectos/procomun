@@ -3400,3 +3400,24 @@ tasks:
       referencias en el CI. Validado reproduciendo el conflicto de #465 contra
       main: la union automatica da un status.yaml identico a la resolucion
       manual (diff vacio) y check-tracking lo acepta.
+  T-2026-11-03-10205261:
+    date: 2026-11-03
+    agent: "qa-validacion"
+    task: "Verdadero o falso de un .elpx legacy que no se mostraba (#498)"
+    status: Done
+    related: ["#498", "#431", "#464", "#466"]
+    notes: >
+      El paquete es_2025040722_9193310 sí trae trueorfalse.js, su CSS y su
+      plantilla. El div del iDevice va vacío, con db-no-data, y los datos solo
+      están en content.xml (jsonProperties). Con main, que los recupera desde
+      #464, la actividad se monta: se sirvió el paquete con
+      serveElpxExtractedContent y se cargó html/felicio.html en Chromium
+      headless (pregunta, Verdadero/Falso y Comprobar en el DOM, sin 404). Sin
+      esos datos el div queda vacío, como en la captura de la issue, así que lo
+      más probable es que el servidor del aviso no tuviera aún #464. Sin cambio
+      de código: test de regresión con un paquete sintético con la misma forma.
+      Los tres tests de .elpx legacy de #431 daban 404 desde #466 porque no
+      registraban su hash como publicado; ahora lo registran. Riesgo abierto:
+      scripts/check-coverage.ts ignora el código de salida de bun test, así que
+      el CI sale en verde con tests en rojo (en main: 4 fail, uno de ellos en
+      resource version admin API).

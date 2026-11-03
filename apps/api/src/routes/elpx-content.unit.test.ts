@@ -302,3 +302,110 @@ describe("iDevice JSON de un .elpx legacy sin datos en el HTML (issue #431)", ()
 		expect(body).not.toContain("data-idevice-json-data");
 	});
 });
+
+// Verdadero o falso de un .elpx del Procomún antiguo (es_2025040722_9193310).
+// El paquete trae el código del iDevice, pero el div va vacío, con la clase
+// db-no-data y sin datos: estos solo están en content.xml. eXe monta la
+// actividad si el div lleva los datos y puede pedir su plantilla con
+// data-idevice-path + data-idevice-template, relativos a la página (#498).
+describe("Verdadero o falso de un .elpx legacy (issue #498)", () => {
+	const TOF_HASH = "0498049804980498049804980498049804980498";
+	const PAGE = "html/felicio.html";
+	const tofData = {
+		id: "idevice-52",
+		typeGame: "TrueOrFalse",
+		eXeGameInstructions: "",
+		msgs: { msgTrue: "True", msgFalse: "False", msgScoreScorm: "can't" },
+		questionsRandom: false,
+		percentageQuestions: 100,
+		questionsGame: [
+			{
+				question:
+					"<p><strong>AFIRMACIÓ 12:</strong></p>\n<p>El símbol de l’estany, Sn, deriva del llatí stannum.</p>",
+				feedback: "",
+				suggestion: "",
+				solution: 1,
+			},
+		],
+		isScorm: 0,
+		ideviceId: "idevice-52",
+	};
+
+	beforeAll(async () => {
+		const dir = path.join(tmpRoot, "elpx", TOF_HASH);
+		const ideviceDir = path.join(dir, "idevices", "trueorfalse");
+		await mkdir(path.join(dir, "html"), { recursive: true });
+		await mkdir(ideviceDir, { recursive: true });
+		await seedPublishedElpxHash(TOF_HASH, dir);
+		await writeFile(
+			path.join(dir, "content.xml"),
+			`<?xml version="1.0" encoding="UTF-8"?>
+<ode><odeNavStructures><odeNavStructure><odePagStructures><odePagStructure><odeComponents>
+<odeComponent><odeIdeviceId>idevice-tof</odeIdeviceId><odeIdeviceTypeName>trueorfalse</odeIdeviceTypeName>
+<htmlView><![CDATA[]]></htmlView>
+<jsonProperties><![CDATA[${JSON.stringify(tofData)}]]></jsonProperties></odeComponent>
+</odeComponents></odePagStructure></odePagStructures></odeNavStructure></odeNavStructures></ode>`,
+			"utf8",
+		);
+		await writeFile(
+			path.join(dir, PAGE),
+			[
+				"<html><head><title>Felició</title>",
+				'<script src="../libs/exe_export.js"></script>',
+				'<script src="../idevices/trueorfalse/trueorfalse.js"></script>',
+				'<link rel="stylesheet" href="../idevices/trueorfalse/trueorfalse.css">',
+				"</head><body>",
+				'<article class="box"><header class="box-head"><h1 class="box-title">Qüestió V O F?</h1></header>',
+				'<div class="box-content"><div id="idevice-tof" class="idevice_node trueorfalse db-no-data" data-idevice-path="../idevices/trueorfalse/" data-idevice-type="trueorfalse">\n\n</div></div>',
+				"</article></body></html>",
+			].join("\n"),
+			"utf8",
+		);
+		await writeFile(
+			path.join(ideviceDir, "trueorfalse.js"),
+			"var $trueorfalse = {};",
+			"utf8",
+		);
+		await writeFile(
+			path.join(ideviceDir, "trueorfalse.html"),
+			'<div class="exe-trueorfalse-container">\n  {content}\n</div>',
+			"utf8",
+		);
+	});
+
+	test("pone en el div vacío los datos de content.xml", async () => {
+		const res = await app.request(`/api/v1/elpx/${TOF_HASH}/${PAGE}`);
+		const body = await res.text();
+
+		expect(res.status).toBe(200);
+		const tag = body.match(/<div id="idevice-tof"[^>]*>/)?.[0] ?? "";
+		expect(tag).toContain('class="idevice_node trueorfalse db-no-data"');
+		expect(tag).toContain('data-idevice-component-type="json"');
+		expect(tag).toContain('data-idevice-template="trueorfalse.html"');
+		// eXe pide la plantilla con esta ruta: tiene que seguir siendo relativa.
+		expect(tag).toContain('data-idevice-path="../idevices/trueorfalse/"');
+		expect(readIdeviceJson(tag)).toEqual(tofData);
+		expect(body).toContain(
+			`<script src="/api/v1/elpx/${TOF_HASH}/idevices/trueorfalse/trueorfalse.js" crossorigin="anonymous">`,
+		);
+	});
+
+	test("sirve el código y la plantilla del iDevice con CORS", async () => {
+		const pageUrl = `http://localhost/api/v1/elpx/${TOF_HASH}/${PAGE}`;
+		const templateUrl = new URL(
+			"../idevices/trueorfalse/trueorfalse.html",
+			pageUrl,
+		);
+		const js = await app.request(
+			`/api/v1/elpx/${TOF_HASH}/idevices/trueorfalse/trueorfalse.js`,
+		);
+		const template = await app.request(templateUrl.pathname);
+
+		expect(js.status).toBe(200);
+		expect(js.headers.get("content-type")).toBe("application/javascript");
+		// El contenido es de origen opaco: eXe pide la plantilla con fetch CORS.
+		expect(template.status).toBe(200);
+		expect(template.headers.get("access-control-allow-origin")).toBe("*");
+		expect(await template.text()).toContain("{content}");
+	});
+});
