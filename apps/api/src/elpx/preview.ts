@@ -1,3 +1,5 @@
+import { elpxPreviewUrlForStatus } from "./preview-token.ts";
+
 export type ElpxPreview = {
 	hash: string;
 	previewUrl: string;
@@ -5,14 +7,19 @@ export type ElpxPreview = {
 	screenshotUrl: string | null;
 };
 
+/**
+ * Los listados publicos usan la URL estable. Las rutas autorizadas que pasan
+ * un estado no publicado reciben un enlace firmado tambien para la miniatura.
+ */
 export function buildElpxPreview(
 	elpx:
 		| { hash?: string; hasPreview?: boolean; hasScreenshot?: boolean }
 		| null
 		| undefined,
+	editorialStatus: string | null | undefined = "published",
 ): ElpxPreview | null {
 	if (!elpx?.hasPreview || !elpx.hash) return null;
-	const previewUrl = `/api/v1/elpx/${elpx.hash}/`;
+	const previewUrl = elpxPreviewUrlForStatus(elpx.hash, editorialStatus);
 	return {
 		hash: elpx.hash,
 		previewUrl,

@@ -76,6 +76,8 @@ export function printHelp(log: Pick<typeof console, "log"> = console) {
 	);
 	log.log(
 		"  elpx:screenshots [--dry-run]  Detecta screenshot.png en los paquetes ya subidos (#409)",
+	);
+	log.log(
 		"  catalog:area-keywords [--apply] [--include <id,id>] [--report-dir <ruta>]",
 	);
 	log.log(

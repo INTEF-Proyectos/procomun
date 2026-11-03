@@ -3,6 +3,7 @@ import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { Hono } from "hono";
+import { seedPublishedElpxHash } from "../test-fixtures/published-elpx.ts";
 import {
 	AUTHOR_ASSET_CSP,
 	elpxContentRoutes,
@@ -38,6 +39,8 @@ beforeAll(async () => {
 
 	const elpxDir = path.join(tmpRoot, "elpx", HASH);
 	await mkdir(elpxDir, { recursive: true });
+	// Issue #466: la ruta pública solo sirve hashes de recursos publicados.
+	await seedPublishedElpxHash(HASH, elpxDir);
 	await writeFile(path.join(elpxDir, "evil.svg"), SVG_BODY, "utf8");
 	await writeFile(path.join(elpxDir, "styles.css"), "body{color:red}", "utf8");
 	await writeFile(path.join(elpxDir, "data.bin"), "binario", "utf8");
@@ -238,6 +241,12 @@ describe("iDevice JSON de eXe (issue #431)", () => {
 // content.xml (jsonProperties), así que se recuperan de ahí al servir (#431).
 describe("iDevice JSON de un .elpx legacy sin datos en el HTML (issue #431)", () => {
 	const LEGACY_HASH = "fedcba9876543210fedcba9876543210fedcba98";
+	beforeAll(async () => {
+		await seedPublishedElpxHash(
+			LEGACY_HASH,
+			path.join(tmpRoot, "elpx", LEGACY_HASH),
+		);
+	});
 	const formData = {
 		eXeFormInstructions: '<p>Lee el párrafo y completa "las palabras".</p>',
 		questionsData: [

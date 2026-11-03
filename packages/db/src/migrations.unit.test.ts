@@ -404,7 +404,10 @@ describe("migración 0014_knowledge_areas", () => {
 			(item) => item.tag === "0014_knowledge_areas",
 		);
 		expect(entry).toBeDefined();
-		const others = journal.entries.filter((item) => item !== entry);
+		// Las posteriores, como 0015, no forman parte de las anteriores a 0014.
+		const others = journal.entries.filter(
+			(item) => item.tag < "0014_knowledge_areas",
+		);
 		expect(Math.max(...others.map((item) => item.when))).toBeLessThan(
 			entry?.when ?? 0,
 		);
@@ -495,5 +498,23 @@ describe("migración 0013_resource_views", () => {
 		} finally {
 			await db.close();
 		}
+	});
+});
+
+describe("journal combinado de areas y miniaturas (#471)", () => {
+	test("conserva 0014 y aplica 0015 despues con otro idx y when", async () => {
+		const journal = JSON.parse(
+			await readFile(path.join(migrationsDir, "meta/_journal.json"), "utf8"),
+		) as { entries: Array<{ idx: number; tag: string; when: number }> };
+		const areas = journal.entries.find(
+			(entry) => entry.tag === "0014_knowledge_areas",
+		);
+		const screenshots = journal.entries.find(
+			(entry) => entry.tag === "0015_elpx_has_screenshot",
+		);
+		expect(areas).toBeDefined();
+		expect(screenshots).toBeDefined();
+		expect(screenshots?.idx ?? -1).toBe((areas?.idx ?? 0) + 1);
+		expect(screenshots?.when ?? 0).toBeGreaterThan(areas?.when ?? 0);
 	});
 });
