@@ -13,8 +13,8 @@
 			"!!**/.cursor",
 			"!!**/.grok",
 			"!!**/.omc",
-			"!apps/frontend/public/elpx/**",
-			"!apps/api/static/elpx/**"
+			"!apps/frontend/public/elpx",
+			"!apps/api/static/elpx"
 		]
 	},
 	"formatter": {

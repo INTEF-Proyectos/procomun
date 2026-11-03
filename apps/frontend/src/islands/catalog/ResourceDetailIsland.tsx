@@ -40,7 +40,6 @@ import {
 	buildPublicEmbedIframeCode,
 	CONTENT_IFRAME_SANDBOX,
 } from "../../lib/embed-sandbox.ts";
-import { hasMinRole } from "../../lib/shared-utils.ts";
 import * as m from "../../paraglide/messages.js";
 import { getLocale } from "../../paraglide/runtime.js";
 
