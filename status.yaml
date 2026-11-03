@@ -3400,3 +3400,30 @@ tasks:
       referencias en el CI. Validado reproduciendo el conflicto de #465 contra
       main: la union automatica da un status.yaml identico a la resolucion
       manual (diff vacio) y check-tracking lo acepta.
+  T-2026-11-03-12373636:
+    date: 2026-11-03
+    agent: "frontend-ux-accesibilidad + qa-validacion"
+    task: "La foto de Gravatar se carga en el menú y en el perfil"
+    status: Done
+    related: ["#514", "#504", "ADR-0037"]
+    notes: >
+      Nadie veía su foto de Gravatar, ni los usuarios nuevos ni los antiguos.
+      gravatarUrl (shared-utils.ts) resumía el correo con un hash propio de 64
+      bits (16 caracteres hex), y Gravatar solo reconoce el SHA-256 o el MD5
+      del correo recortado y en minúsculas: con otro identificador devuelve
+      d=mp, la silueta. El perfil, además, resumía `${id}@procomun.es` en vez
+      del correo de la sesión. La CSP no intervenía: las páginas de la
+      aplicación no envían CSP, Referrer-Policy ni COEP (nginx.conf solo pone
+      X-Frame-Options y nosniff), y Gravatar sirve image/jpeg sin CORP.
+      Nuevo lib/gravatar.ts: SHA-256 con crypto.subtle del correo normalizado,
+      calculado una vez al cargar la sesión (toNavUser en el menú y
+      profileAvatarUrl, s=192, en el perfil, que lo guarda en
+      PublicUserProfile.avatarUrl). Solo se resume el correo del propio
+      usuario. Sin crypto.subtle (página sin HTTPS) o si la imagen no carga,
+      el componente UserAvatar muestra la inicial del nombre. No hay foto de
+      perfil propia en main: user.image no se usa para representar al usuario
+      (ADR-0037); cuando exista user_profile.image irá en avatarUrl antes que
+      Gravatar. Si se mantiene Gravatar lo decide #504. Tests rojo → verde en
+      gravatar.unit.test.ts (ejemplo de la documentación de Gravatar, forma
+      de la URL, normalización), UserAvatar.unit.test.tsx,
+      LayoutIslands.unit.test.tsx y PublicDashboardIsland.unit.test.tsx.
