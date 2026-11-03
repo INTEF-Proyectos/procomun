@@ -8,6 +8,7 @@ import type { AuthEnv } from "../auth/middleware.ts";
 import { getDb } from "../db.ts";
 import { app } from "../index.ts";
 import { adminRoutes } from "./admin/index.ts";
+import { CONTENT_HTML_CSP } from "./elpx-content.ts";
 
 // Issue #466: el contenido del .elpx por hash solo se sirve sin más si el
 // recurso está publicado. Para lo demás, quien tiene acceso recibe un enlace
@@ -228,5 +229,31 @@ describe("contenido .elpx por hash según el estado del recurso (#466)", () => {
 				)
 			).status,
 		).toBe(404);
+	});
+});
+
+// #317: el enlace firmado sirve el mismo HTML que la ruta pública, así que
+// lleva la CSP sin `allow-popups-to-escape-sandbox` (auditoría H-1) y el
+// artefacto de eXe seguido de la fachada genérica (ADR-0033).
+describe("vista previa firmada con el origen opaco de #317", () => {
+	test("un borrador se sirve con la CSP endurecida, el artefacto y la fachada", async () => {
+		const previewUrl = await adminPreviewUrl(
+			authorApp,
+			seeded.draft.resourceId,
+		);
+		const res = await app.request(previewUrl);
+		expect(res.status).toBe(200);
+		expect(res.headers.get("content-security-policy")).toBe(CONTENT_HTML_CSP);
+
+		const html = await res.text();
+		const shim = html.indexOf(
+			'<script src="/api/v1/elpx/embed-shim.js" crossorigin="anonymous"></script>',
+		);
+		const facade = html.indexOf(
+			'<script src="/api/v1/elpx/embed-facade.js" crossorigin="anonymous"></script>',
+		);
+		expect(shim).toBeGreaterThan(-1);
+		expect(facade).toBeGreaterThan(shim);
+		expect(facade).toBeLessThan(html.indexOf("</head>"));
 	});
 });
