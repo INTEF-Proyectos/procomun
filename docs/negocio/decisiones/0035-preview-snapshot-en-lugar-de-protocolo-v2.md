@@ -52,3 +52,7 @@ Es el mismo desajuste detectado y corregido en los adaptadores de WordPress, Moo
 * `apps/api/src/routes/preview.ts` conserva íntegra la política de servido —cabeceras de endurecimiento, CSP sandbox byte a byte idéntica al core, ETag/304, rangos 206/416 y la redirección relativa de la URL desnuda—; solo pierde la capa fija.
 * Enmienda ADR-0038 en sus puntos 1 y 10; el resto de su topología sigue vigente.
 * Contrato actualizado en `docs/preview-serving-contract.md`.
+
+## Nota 2026-11-03 — dos rutas de «preview» distintas
+
+Esta ADR define `/api/v1/preview-session` y `/api/v1/preview/{previewId}/*`: el snapshot efímero que publica el editor embebido, guardado en memoria. Es otra ruta que `/api/v1/elpx/preview/{hash}/{token}/*` (#466, ADR-0026, adenda 2026-10-27), el enlace firmado para ver el `.elpx` ya guardado de un recurso no publicado. Las dos son capabilities sin sesión y se redactan igual en `api_access_logs`, pero no comparten código, almacén ni caducidad. Ninguna se renombra.

@@ -91,6 +91,7 @@ export function registerRoutes(app: Hono<AuthEnv>) {
 	app.use("/api/v1/preview-session/*", previewMultipartBodyLimit);
 	// Authenticated preview-session management API (owner-gated) + the authless,
 	// capability-URL serving route for the opaque preview iframe.
+	// Editor snapshots (ADR-0035), not the #466 signed /api/v1/elpx/preview/… above.
 	app.route("/api/v1/preview-session", previewSessionRoutes);
 	app.route("/api/v1/preview", previewRoutes);
 	app.route("/api/v1/thumbnails", thumbnailRoutes);
