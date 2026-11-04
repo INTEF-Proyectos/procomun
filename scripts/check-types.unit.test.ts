@@ -5,6 +5,7 @@ import {
 	formatVerdict,
 	summarizeByFile,
 	TYPE_ERROR_BASELINE,
+	tscFailedWithoutDiagnostics,
 } from "./check-types.ts";
 
 const SAMPLE = [
@@ -124,5 +125,19 @@ describe("check-types: reporte", () => {
 		const { message, exitCode } = formatVerdict(compareWithBaseline(0, 0));
 		expect(exitCode).toBe(0);
 		expect(message).toContain("typecheck limpio");
+	});
+});
+
+describe("check-types: tsc que falla sin diagnósticos", () => {
+	test("código distinto de 0 sin ningún error TS es un fallo de tsc, no un typecheck limpio", () => {
+		// p. ej. bunx no encuentra tsc o el proceso muere: 0 diagnósticos y,
+		// sin mirar el código de salida, el paso salía en verde.
+		expect(tscFailedWithoutDiagnostics(1, 0)).toBe(true);
+		expect(tscFailedWithoutDiagnostics(null, 0)).toBe(true);
+	});
+
+	test("con diagnósticos decide el ratchet, y con código 0 no hay fallo de tsc", () => {
+		expect(tscFailedWithoutDiagnostics(2, 3)).toBe(false);
+		expect(tscFailedWithoutDiagnostics(0, 0)).toBe(false);
 	});
 });
