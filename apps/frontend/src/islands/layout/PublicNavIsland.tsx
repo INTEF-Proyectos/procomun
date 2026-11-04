@@ -1,19 +1,24 @@
 import { useEffect, useRef, useState } from "react";
 import "../../lib/paraglide-client.ts";
+import type { SessionUser } from "../../lib/api-client.ts";
 import { getApiClient } from "../../lib/get-api-client.ts";
+import { gravatarUrl } from "../../lib/gravatar.ts";
 import { buildHelpHref } from "../../lib/help-content.ts";
 import { LOCALE_LABELS } from "../../lib/i18n.ts";
 import { url } from "../../lib/paths.ts";
-import { gravatarUrl } from "../../lib/shared-utils.ts";
 import * as m from "../../paraglide/messages.js";
 import { baseLocale, getLocale, locales } from "../../paraglide/runtime.js";
+import { UserAvatar } from "../../ui/UserAvatar.tsx";
 import "./PublicNavIsland.css";
 
-interface NavUser {
-	id: string;
-	email: string;
-	name: string;
-	role: string;
+interface NavUser extends SessionUser {
+	/** Gravatar del correo de la sesión; `null` si no pudo calcularse. */
+	avatarUrl: string | null;
+}
+
+/** Usuario del menú con su avatar, calculado una vez al cargar la sesión (#514). */
+export async function toNavUser(user: SessionUser): Promise<NavUser> {
+	return { ...user, avatarUrl: await gravatarUrl(user.email) };
 }
 
 const HIGH_ROLES = new Set(["curator", "admin"]);
@@ -126,7 +131,7 @@ export function PublicNavIsland() {
 			try {
 				const api = await getApiClient();
 				const session = await api.getSession();
-				setUser(session?.user ?? null);
+				setUser(session?.user ? await toNavUser(session.user) : null);
 			} catch {
 				setUser(null);
 			} finally {
@@ -213,7 +218,6 @@ export function PublicNavIsland() {
 	// Logged in → show extra nav links + Publicar (if author+) + avatar dropdown
 	const isHighRole = HIGH_ROLES.has(user.role);
 	const canPublish = user.role !== "reader";
-	const avatarSrc = gravatarUrl(user.email);
 	const displayName = user.name || user.email.split("@")[0] || user.email;
 
 	return (
@@ -260,20 +264,12 @@ export function PublicNavIsland() {
 					aria-haspopup="true"
 					aria-label={m.nav_user_menu({ name: displayName })}
 				>
-					<img
-						src={avatarSrc}
-						alt=""
+					<UserAvatar
+						src={user.avatarUrl}
+						name={displayName}
 						className="pnav-avatar-img"
-						onError={(e) => {
-							(e.target as HTMLImageElement).style.display = "none";
-							(
-								e.target as HTMLImageElement
-							).nextElementSibling?.classList.remove("pnav-hidden");
-						}}
+						fallbackClassName="pnav-avatar-fallback"
 					/>
-					<span className="pnav-avatar-fallback pnav-hidden" aria-hidden="true">
-						{displayName.charAt(0).toUpperCase()}
-					</span>
 				</button>
 
 				{menuOpen && (
@@ -283,7 +279,12 @@ export function PublicNavIsland() {
 						aria-label={m.nav_user_menu_label()}
 					>
 						<div className="pnav-dropdown-header">
-							<img src={avatarSrc} alt="" className="pnav-dropdown-avatar" />
+							<UserAvatar
+								src={user.avatarUrl}
+								name={displayName}
+								className="pnav-dropdown-avatar"
+								fallbackClassName="pnav-dropdown-avatar pnav-dropdown-avatar-fallback"
+							/>
 							<div className="pnav-dropdown-info">
 								<span className="pnav-dropdown-name">{displayName}</span>
 								<span className="pnav-dropdown-email">{user.email}</span>
