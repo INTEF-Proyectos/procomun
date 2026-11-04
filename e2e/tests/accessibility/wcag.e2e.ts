@@ -12,9 +12,19 @@ type AxePage = ConstructorParameters<typeof AxeBuilder>[0]["page"];
 
 function analyzePage(page: Page) {
 	// Puente entre las dos copias de tipos de playwright-core (mismo API).
-	return new AxeBuilder({ page: page as unknown as AxePage })
-		.withTags(["wcag2a", "wcag2aa"])
-		.analyze();
+	return (
+		new AxeBuilder({ page: page as unknown as AxePage })
+			.withTags(["wcag2a", "wcag2aa"])
+			// #529: se audita nuestra interfaz, no el contenido de los paquetes.
+			// Dentro del iframe del .elpx vive el HTML que exporta eXeLearning con
+			// los materiales de cada autor: su contador de paginas, por ejemplo,
+			// pinta «Page 1/6» en #777777 sobre blanco (4,47:1). Eso no lo podemos
+			// arreglar desde aqui, y hasta que #471 y #512 saquen el iframe de los
+			// listados aparece en la portada. La accesibilidad del paquete es otro
+			// asunto y tiene su propio alcance.
+			.exclude("iframe")
+			.analyze()
+	);
 }
 
 async function expectNoCriticalA11yViolations(page: Page) {

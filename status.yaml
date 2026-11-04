@@ -3470,4 +3470,11 @@ tasks:
       un aclarado futuro falla en bun test y no solo en el e2e; verificado que
       falla al revertir el tono. wcag.e2e.ts espera contenido real antes de
       pasar axe (gotoSettled) en las seis paginas que analizaba: antes veia
-      «Cargando...». Queda fuera servir Material Symbols desde la plataforma.
+      «Cargando...». Al esperar el contenido real aparecio un defecto nuevo
+      que no estaba en la issue: axe entra en el iframe del .elpx y audita el
+      HTML que exporta eXeLearning con los materiales del autor (su contador
+      de paginas pinta «Page 1/6» en #777777 sobre blanco, 4,47:1). No se
+      puede arreglar desde la plataforma, asi que el analisis excluye los
+      iframes: se audita nuestra interfaz. Hasta que #471 y #512 saquen el
+      iframe de los listados, ese contenido se cuela en la portada.
+      Queda fuera servir Material Symbols desde la plataforma.
