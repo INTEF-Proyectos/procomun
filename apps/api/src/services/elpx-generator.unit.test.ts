@@ -82,6 +82,21 @@ describe("generateElpxFromFiles", () => {
 		expect(metadata.license).toBe("cc-by-sa");
 	});
 
+	it("sin idioma no declara español en el paquete (#473)", async () => {
+		const filePath = await makeTempFile("test-sin-idioma", "a.txt", "a");
+		const outputPath = path.join(TEMP_DIR, "test-sin-idioma-output.elpx");
+
+		await generateElpxFromFiles({
+			title: "Recurso sin idioma",
+			files: [{ filename: "a.txt", filePath }],
+			outputPath,
+		});
+
+		const metadata = await parseElpxMetadata(outputPath);
+		expect(metadata.title).toBe("Recurso sin idioma");
+		expect(metadata.language).toBe("");
+	});
+
 	it("el .elpx generado pasa por processElpxUpload y tiene preview", async () => {
 		const filePath = await makeTempFile("test3", "video.mp4", "fake-mp4-data");
 		const outputPath = path.join(TEMP_DIR, "test3-output.elpx");
