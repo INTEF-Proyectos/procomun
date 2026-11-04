@@ -3697,3 +3697,28 @@ tasks:
       antes: guarda en PublicCollectionsIsland, tipo string | null en
       api-client y test de regresion. Test ajustado: el toEqual de totals en
       el caso en seco incluye la clave nueva reindexFailed.
+  T-2026-11-04-16555820:
+    date: 2026-11-04
+    agent: "ingestas-y-migraciones + seguridad-privacidad-legal"
+    task: "Poner #488 al dia con main: el bloqueo de cuentas dentro de createAuth"
+    status: Done
+    related: ["#488", "#456", "#507", "#515", "#525"]
+    notes: >
+      7 conflictos tras entrar #475, #523 y #525 en main. El serio era
+      apps/api/src/auth/config.ts: main ya tiene createAuth(env) con
+      resolveNewUserRole y defaultRole REGISTRATION_ROLE (de #515/#525), y
+      este PR traia el betterAuth suelto con el bloqueo de cuentas. Se parte
+      de la estructura de main y se injertan las cuatro aportaciones de #488:
+      la constante BLOCKED_USER_MESSAGE fuera de la funcion, el hook
+      session.create.before que impide iniciar sesion a una cuenta con
+      is_active false, la actualizacion del hash heredado en el hook after de
+      /sign-in/email, y password: legacyAwarePasswordOptions con
+      bannedUserMessage en el plugin admin. El defaultRole se queda en
+      REGISTRATION_ROLE, que ya es editor: coincide con lo que pedia #507 y
+      deja de ser author. En el journal este PR conserva la 0017_user_profile,
+      que reclamo primero, y la de #471 pasa a 0018. Los demas conflictos eran
+      aniadidos de los dos lados (setup.ts, los dos docs de la epica y los dos
+      ficheros de test, estos ultimos con la cola compartida que hay que cerrar
+      a mano). Los dos hallazgos de la revision ya estaban corregidos antes de
+      este merge: el mapeo de roles en 4b689721 y el saneado de errores en
+      694e4c9e.
