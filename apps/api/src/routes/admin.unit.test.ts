@@ -1322,6 +1322,73 @@ describe("Rutas admin — colecciones", () => {
 		expect(deleteRes.status).toBe(200);
 	});
 
+	// #486: el estado editorial de una colección solo admite valores válidos.
+	test("POST /api/admin/collections → 400 con un estado editorial inventado", async () => {
+		const res = await app.request("/api/admin/collections", {
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({
+				title: "Colección con estado inventado",
+				description: "No debe guardarse",
+				editorialStatus: "foo",
+			}),
+		});
+		expect(res.status).toBe(400);
+		const body = await res.json();
+		expect(
+			body.details.some(
+				(e: { field: string }) => e.field === "editorialStatus",
+			),
+		).toBe(true);
+	});
+
+	test("PATCH /api/admin/collections/:id → 400 con un estado inventado y la colección no cambia", async () => {
+		const createRes = await app.request("/api/admin/collections", {
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({
+				title: "Colección de estado válido",
+				description: "Empieza en borrador",
+			}),
+		});
+		expect(createRes.status).toBe(201);
+		const { id } = await createRes.json();
+
+		for (const editorialStatus of ["publicado", "foo"]) {
+			const patchRes = await app.request(`/api/admin/collections/${id}`, {
+				method: "PATCH",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify({
+					title: "No debe cambiar",
+					editorialStatus,
+				}),
+			});
+			expect(patchRes.status).toBe(400);
+			const body = await patchRes.json();
+			expect(
+				body.details.some(
+					(e: { field: string }) => e.field === "editorialStatus",
+				),
+			).toBe(true);
+		}
+
+		const getRes = await app.request(`/api/admin/collections/${id}`);
+		const collection = await getRes.json();
+		expect(collection.editorialStatus).toBe("draft");
+		expect(collection.title).toBe("Colección de estado válido");
+
+		const validRes = await app.request(`/api/admin/collections/${id}`, {
+			method: "PATCH",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({ editorialStatus: "archived" }),
+		});
+		expect(validRes.status).toBe(200);
+		const archived = await (
+			await app.request(`/api/admin/collections/${id}`)
+		).json();
+		expect(archived.editorialStatus).toBe("archived");
+	});
+
 	test("reader no puede acceder a colecciones", async () => {
 		const readerApp = createAdminApp({ id: "r1", role: "reader" });
 		const res = await readerApp.request("/api/admin/collections");

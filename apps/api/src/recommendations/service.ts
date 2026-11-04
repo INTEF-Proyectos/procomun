@@ -110,10 +110,23 @@ export async function loadRecommendationSignalRows(
 	//  - same resource_type / language
 	//  - shared keyword tokens (comma-separated text field)
 	//  - same created_by or normalized author label
-	//  - co-occurrence in collection_resources
+	//  - co-occurrence in published collections
 	//  - FTS ts_rank of candidate search_vector vs seed title+keywords
 	// Catalog keywords count as keywords (ADR-0042).
 	const candidateKeywords = sql`concat_ws(',', c.keywords, ${catalogLabelsSql(sql.raw("c.id"))})`;
+	// Issue #485: una colección en borrador, en revisión o archivada todavía no
+	// es pública y no debe influir en la ficha. Se comparte entre la señal y el
+	// filtro de candidatos para que no se desalineen.
+	const publishedCollectionPairs = sql`
+		FROM collection_resources cr_seed
+		INNER JOIN collections col
+			ON col.id = cr_seed.collection_id
+			AND col.editorial_status = 'published'
+		INNER JOIN collection_resources cr_cand
+			ON cr_cand.collection_id = cr_seed.collection_id
+			AND cr_cand.resource_id = c.id
+		WHERE cr_seed.resource_id = s.id
+	`;
 	const raw: unknown = await db.execute(sql`
 		WITH seed AS (
 			SELECT
@@ -204,11 +217,7 @@ export async function loadRecommendationSignalRows(
 			END AS same_author,
 			(
 				SELECT count(DISTINCT cr_seed.collection_id)::int
-				FROM collection_resources cr_seed
-				INNER JOIN collection_resources cr_cand
-					ON cr_cand.collection_id = cr_seed.collection_id
-					AND cr_cand.resource_id = c.id
-				WHERE cr_seed.resource_id = s.id
+				${publishedCollectionPairs}
 			) AS collection_cooccurrence,
 			CASE
 				WHEN c.search_vector IS NULL OR sq.tsq IS NULL THEN 0
@@ -257,11 +266,7 @@ export async function loadRecommendationSignalRows(
 				)
 				OR EXISTS (
 					SELECT 1
-					FROM collection_resources cr_seed
-					INNER JOIN collection_resources cr_cand
-						ON cr_cand.collection_id = cr_seed.collection_id
-						AND cr_cand.resource_id = c.id
-					WHERE cr_seed.resource_id = s.id
+					${publishedCollectionPairs}
 				)
 				OR (
 					c.search_vector IS NOT NULL

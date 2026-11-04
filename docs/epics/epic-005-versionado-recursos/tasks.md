@@ -42,3 +42,8 @@
 - [x] Servir la previsualización histórica desde un endpoint admin autenticado con el mismo sandbox.
 - [x] Mantener descarga admin y restauración no destructiva.
 - [x] Añadir regresiones de repositorio, API pública y panel de historial.
+
+## Vista previa histórica con estilos y subpáginas — 2026-11-03 (issue #482)
+- [x] La ruta de vista previa histórica comprueba el acceso y redirige al enlace firmado de #466; el enlace firmado acepta hashes históricos.
+- [x] Regresión rojo → verde en `apps/api/src/routes/version-preview-access.unit.test.ts` (autora, curator y admin; CSS, script, imagen y subpágina sin cookies; 403 sin acceso).
+- [x] Adendas fechadas en ADR-0026 y ADR-0008, y entrada en `status.yaml`.

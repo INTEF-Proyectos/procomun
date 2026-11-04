@@ -125,6 +125,49 @@ describe("getRelatedResourcesById — multi-signal ranking", () => {
 		expect(co.score).toBeGreaterThan(kw.score);
 	});
 
+	// #485: una colección en borrador, en revisión o archivada no es pública;
+	// no debe influir en qué se recomienda en la ficha.
+	test("solo cuentan las colecciones publicadas (#485)", async () => {
+		const unique = () => crypto.randomUUID().slice(0, 8);
+		// Sin materias, niveles, palabras clave, tipo, autoría ni palabras del
+		// título en común: lo único que relaciona A y B es la colección.
+		const a = await publish({
+			title: `Alfa ${unique()}`,
+			resourceType: `tipo-${unique()}`,
+			keywords: `kw-${unique()}`,
+		});
+		const b = await publish({
+			title: `Beta ${unique()}`,
+			resourceType: `tipo-${unique()}`,
+			keywords: `kw-${unique()}`,
+		});
+
+		async function collectionWith(editorialStatus: string) {
+			const collection = await repo.createCollection(db(), {
+				title: `Colección ${editorialStatus} ${unique()}`,
+				description: "Agrupación de prueba",
+				curatorId: "1",
+				editorialStatus,
+			});
+			await repo.addResourceToCollection(db(), collection.id, a.id);
+			await repo.addResourceToCollection(db(), collection.id, b.id);
+		}
+
+		await collectionWith("draft");
+		await collectionWith("review");
+		await collectionWith("archived");
+
+		const hidden = await getRelatedResourcesById(db(), a.id, 6);
+		expect(hidden.data.map((r) => r.id)).not.toContain(b.id);
+
+		await collectionWith("published");
+		const shown = await getRelatedResourcesById(db(), a.id, 6);
+		const related = shown.data.find((r) => r.id === b.id);
+		if (!related) throw new Error("expected B via the published collection");
+		// Solo suma la publicada; las otras tres no cuentan.
+		expect(related.signals.collectionCooccurrence).toBe(1);
+	});
+
 	test("sameAuthor strip lists extras not already in related", async () => {
 		const author = "María García Recom";
 		const seed = await publish({
