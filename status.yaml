@@ -3477,4 +3477,13 @@ tasks:
       puede arreglar desde la plataforma, asi que el analisis excluye los
       iframes: se audita nuestra interfaz. Hasta que #471 y #512 saquen el
       iframe de los listados, ese contenido se cuela en la portada.
+      Esperar el contenido real destapo dos defectos mas que el test no veia
+      porque analizaba paginas vacias, y van en el mismo PR: en la ficha,
+      .meta-section-title usaba --color-on-surface-variant con opacity 0.6,
+      que compone #878c98 sobre #eef4ff, 3,05:1 a 12 px en negrita; se quita
+      la opacidad y queda en 8,48:1 (las demas opacidades del fichero estan
+      en controles :disabled, que WCAG 1.4.3 exceptua). Y en el panel de
+      administracion, el select de «Generar recursos de prueba» tenia el
+      rotulo en un <span> suelto y se quedaba sin nombre accesible; se asocia
+      con aria-labelledby para reutilizar el texto visible.
       Queda fuera servir Material Symbols desde la plataforma.

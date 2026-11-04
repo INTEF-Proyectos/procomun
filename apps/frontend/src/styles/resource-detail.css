@@ -743,7 +743,10 @@
 	text-transform: uppercase;
 	letter-spacing: var(--tracking-widest);
 	color: var(--color-on-surface-variant);
-	opacity: 0.6;
+	/* #529: con opacity 0.6 el color compuesto era #878c98 sobre #eef4ff, 3,05:1
+	   a 12 px en negrita, cuando el minimo es 4,5:1. El token solo da 8,4:1.
+	   Las demas opacidades del fichero estan en controles :disabled, que WCAG
+	   1.4.3 exceptua. */
 	margin-bottom: var(--space-6);
 }
 
