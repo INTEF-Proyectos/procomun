@@ -3565,3 +3565,28 @@ tasks:
       que no sea color, asi que llevan subrayado siempre y el hover pasa a
       cambiar el color. Preexistia; el test no lo veia.
       Queda fuera servir Material Symbols desde la plataforma.
+  T-2026-11-04-15511098:
+    date: 2026-11-04
+    agent: "ingestas-y-migraciones + qa-validacion"
+    task: "Atender la revision de #471: el relleno de miniaturas no persiste false a ciegas"
+    status: Done
+    related: ["#471", "#409", "ADR-0011"]
+    notes: >
+      Hallazgo de jacoboAlcantara: elpx:screenshots pasaba project.extractPath
+      tal cual a hasRootScreenshot. Con UPLOAD_STORAGE_DIR relativo (admitido
+      en ADR-0011), la ruta que guardo la API ejecutandose desde apps/api
+      apunta a otro directorio al lanzar el CLI desde la raiz: el escaneo no
+      encontraba nada y el comando persistia has_screenshot=false sobre una
+      captura que sigue en disco, asi que la tarjeta dejaba de usarla. Ahora el
+      dep es inspectExtraction y devuelve screenshot, no-screenshot o
+      unreachable: solo se escribe con las dos primeras. Con unreachable se
+      avisa por consola con la ruta y se deja el estado como estaba, y se
+      cuenta en report.unreachable (sale en la linea de resumen como
+      sin_localizar). resolveExtractionDir prueba la ruta guardada y, si no
+      esta, <almacen>/elpx/<hash>, que es como la construye buildElpxPath: asi
+      se recupera el caso del almacen relativo en vez de solo saltarlo. El
+      primer punto de la revision (buildElpxPreview devolvia null con
+      hasScreenshot true y hasPreview false) ya estaba corregido antes, con
+      tests que cubren tambien la URL firmada de la miniatura en recursos no
+      publicados. Tests ajustados: los dos toEqual del informe incluyen la
+      clave nueva unreachable y el helper del test usa el dep nuevo.
