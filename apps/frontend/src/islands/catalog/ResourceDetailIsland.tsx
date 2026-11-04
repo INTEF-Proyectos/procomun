@@ -12,6 +12,9 @@ import { url } from "../../lib/paths.ts";
 import {
 	FILE_ICONS,
 	formatBytes,
+	languageLabel,
+	resourceTypeLabel,
+	searchHref,
 	statusLabelOf,
 } from "../../lib/resource-display.ts";
 import {
@@ -27,7 +30,11 @@ import { ResourceCard } from "../../ui/ResourceCard.tsx";
 import { FavoriteIsland } from "../social/FavoriteIsland.tsx";
 import { RatingIsland } from "../social/RatingIsland.tsx";
 import { ReportButton } from "../social/ReportButton.tsx";
-import { EducationalClassificationList } from "./EducationalClassificationList.tsx";
+import {
+	EducationalClassificationList,
+	SearchValue,
+	SearchValueList,
+} from "./EducationalClassificationList.tsx";
 import { EmbedModal } from "./EmbedModal.tsx";
 import "../../lib/paraglide-client.ts";
 import * as m from "../../paraglide/messages.js";
@@ -533,8 +540,9 @@ export function ResourceDetailContent({
 						</section>
 					) : null}
 
-					{/* Embed / Ponlo en tu web */}
-					{hasPreview ? (
+					{/* Embed / Ponlo en tu web: solo lo publicado (#466). La vista
+					    previa de un borrador es un enlace firmado que caduca. */}
+					{hasPreview && resource.editorialStatus === "published" ? (
 						<EmbedSection
 							title={resource.title}
 							previewUrl={previewUrl}
@@ -625,7 +633,11 @@ export function ResourceDetailContent({
 										</div>
 										<div>
 											<p className="meta-row-label">{m.detail_type()}</p>
-											<p className="meta-row-value">{resource.resourceType}</p>
+											<p className="meta-row-value">
+												<SearchValue
+													value={resourceTypeLabel(resource.resourceType)}
+												/>
+											</p>
 										</div>
 									</div>
 								) : null}
@@ -639,7 +651,9 @@ export function ResourceDetailContent({
 										</div>
 										<div>
 											<p className="meta-row-label">{m.detail_language()}</p>
-											<p className="meta-row-value">{resource.language}</p>
+											<p className="meta-row-value">
+												<SearchValue value={languageLabel(resource.language)} />
+											</p>
 										</div>
 									</div>
 								) : null}
@@ -654,7 +668,7 @@ export function ResourceDetailContent({
 										<div>
 											<p className="meta-row-label">{m.detail_subjects()}</p>
 											<p className="meta-row-value">
-												{resource.subjects.join(", ")}
+												<SearchValueList values={resource.subjects} />
 											</p>
 										</div>
 									</div>
@@ -705,9 +719,13 @@ export function ResourceDetailContent({
 										</a>
 									))}
 									{keywords.map((keyword) => (
-										<span key={keyword} className="meta-tag">
+										<a
+											key={keyword}
+											className="meta-tag"
+											href={searchHref(keyword)}
+										>
 											{keyword}
-										</span>
+										</a>
 									))}
 								</div>
 							</div>

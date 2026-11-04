@@ -142,3 +142,17 @@ El middleware de sesión se ejecuta en todas las rutas. Los guards de RBAC se ap
 * Si un curator devuelve un recurso ajeno de revisión a borrador, pierde el acceso aunque quede como curator asignado. Esto sustituye, solo para el estado `draft`, lo que se decidió en DEF-009 (#205); al publicar o archivar lo sigue conservando.
 * La regla vive en un solo sitio, `packages/db/src/validation.ts`: `isOthersPrivateDraft`, `canViewResource` (lectura) y `canManageResource` (gestión). El listado aplica la misma regla en SQL (`listResources({ hideOthersDraftsFor })`) y las subidas la usan en `canManageResourceUpload`. El frontend importa las mismas funciones, así que el botón «Eliminar recurso» (#454) sigue la regla sin cambios.
 * Las etiquetas de un recurso (`GET`/`PUT /api/admin/tags/resources/:id`) siguen la misma regla: la lectura usa `canViewResource` (404 a un borrador ajeno) y la escritura `canManageResource` (403). Antes cualquier curator las cambiaba en cualquier recurso.
+
+## Adenda 2026-10-27 — permiso en la URL para el contenido .elpx no publicado (#466)
+
+El contenido de un `.elpx` se ve en un iframe de origen opaco (ADR-0026), donde la cookie de sesión no acompaña a los subrecursos. Para ese caso la autorización no se comprueba en cada petición, sino al emitir el enlace:
+
+* `canViewResource` (ficha) y `requireManageableResource` (administración) deciden quién recibe un enlace firmado de vista previa para un recurso no publicado.
+* El enlace (`/api/v1/elpx/preview/<hash>/<token>/`) es un permiso al portador limitado a ese hash y a 2 horas, firmado con el secreto de better-auth.
+* Sin enlace firmado, el contenido de un recurso no publicado responde 404 a todo el mundo, también a quien tiene sesión.
+
+Detalle técnico y validación en la adenda 2026-10-27 de la [ADR-0026](0026-apertura-segura-elpx.md).
+
+## Adenda 2026-11-03 — vista previa de versiones históricas (#482)
+
+La vista previa de una versión histórica sigue la regla de la adenda anterior. `requireManageableResource` comprueba el acceso en la ruta de administración, que redirige al enlace firmado del hash de esa versión. Quien no gestiona el recurso recibe 403 y no obtiene enlace. Detalle en la adenda 2026-11-03 de la [ADR-0026](0026-apertura-segura-elpx.md).

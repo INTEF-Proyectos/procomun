@@ -2,6 +2,7 @@ import { describe, expect, test } from "bun:test";
 import {
 	validateCollection,
 	validateCreateResource,
+	validateResourceForStatus,
 	validateStatus,
 	validateTaxonomy,
 	validateTransition,
@@ -346,6 +347,52 @@ describe("validateCollection", () => {
 		const r = validateCollection({ title: "", description: "D" });
 		expect(r.valid).toBe(false);
 	});
+
+	// #486: el estado editorial solo admite los mismos valores que los recursos.
+	test("acepta los estados editoriales válidos", () => {
+		for (const editorialStatus of [
+			"draft",
+			"review",
+			"published",
+			"archived",
+		]) {
+			const r = validateCollection({
+				title: "Col",
+				description: "D",
+				editorialStatus,
+			});
+			expect(r.valid).toBe(true);
+		}
+	});
+
+	test("sin estado editorial pasa (se usa el de por defecto)", () => {
+		const r = validateCollection({ title: "Col", description: "D" });
+		expect(r.valid).toBe(true);
+	});
+
+	test("rechaza un estado editorial inventado", () => {
+		for (const editorialStatus of ["publicado", "foo", "", "PUBLISHED"]) {
+			const r = validateCollection({
+				title: "Col",
+				description: "D",
+				editorialStatus,
+			});
+			expect(r.valid).toBe(false);
+			expect(r.errors.find((e) => e.field === "editorialStatus")).toBeTruthy();
+		}
+	});
+
+	test("rechaza un estado editorial que no es texto", () => {
+		for (const editorialStatus of [null, 1, true, ["published"]]) {
+			const r = validateCollection({
+				title: "Col",
+				description: "D",
+				editorialStatus,
+			});
+			expect(r.valid).toBe(false);
+			expect(r.errors.find((e) => e.field === "editorialStatus")).toBeTruthy();
+		}
+	});
 });
 
 describe("validateTaxonomy", () => {
@@ -442,6 +489,38 @@ describe("validateStatusTransition", () => {
 		expect(r.errors.find((e) => e.field === "status")?.message).toContain(
 			"Rol insuficiente",
 		);
+	});
+});
+
+// Issue #408: al pasar a revisión o publicar se exige el recurso completo.
+describe("validateResourceForStatus", () => {
+	const stored = {
+		...validPayload,
+		keywords: null,
+		publisher: null,
+	};
+
+	test("review y published exigen los campos obligatorios del alta", () => {
+		const incomplete = { ...stored, description: " ", author: null };
+		for (const status of ["review", "published"]) {
+			const result = validateResourceForStatus(incomplete, status);
+			expect(result.valid).toBe(false);
+			expect(result.errors.map((e) => e.field).sort()).toEqual([
+				"author",
+				"description",
+			]);
+		}
+	});
+
+	test("un recurso completo puede ir a revisión y publicarse", () => {
+		expect(validateResourceForStatus(stored, "review").valid).toBe(true);
+		expect(validateResourceForStatus(stored, "published").valid).toBe(true);
+	});
+
+	test("draft y archived no exigen nada", () => {
+		const empty = { title: "", description: "", resourceType: null };
+		expect(validateResourceForStatus(empty, "draft").valid).toBe(true);
+		expect(validateResourceForStatus(empty, "archived").valid).toBe(true);
 	});
 });
 

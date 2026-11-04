@@ -32,6 +32,12 @@ export const tags = pgTable(
 		),
 		/** Palabra clave del catálogo controlado (ADR-0042). */
 		catalog: boolean("catalog").notNull().default(false),
+		/**
+		 * Término de catálogo retirado porque pasa a ser un área de
+		 * conocimiento (#448). No se ofrece para nuevas selecciones; los
+		 * recursos que ya lo tienen lo conservan.
+		 */
+		retiredAt: timestamp("retired_at"),
 		createdBy: text("created_by").references(() => user.id, {
 			onDelete: "set null",
 		}),
