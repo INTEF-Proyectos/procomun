@@ -120,3 +120,22 @@ Justificación principal:
    (a) Better Auth deja de mantenerse o pierde compatibilidad con Bun.
    (b) El esquema de tablas impuesto genera fricción no asumible con el modelo de dominio.
    (c) Requisitos de MFA o auth avanzado exceden las capacidades de los plugins disponibles.
+
+## Adenda 2026-11-04 — la recuperación de contraseña, conectada (#531)
+
+**Problema.** Esta ADR daba la recuperación de contraseña por disponible «sin desarrollo adicional» porque Better Auth la trae. Pero `sendResetPassword` no estaba configurado, así que `POST /api/auth/request-password-reset` no enviaba nada, y no había ni enlace en la pantalla de acceso ni pantalla para la contraseña nueva. Quien olvidaba la contraseña se quedaba fuera. Y es la **única vía de entrada** de los usuarios importados cuya contraseña no se pudo traer (#488: un hash en formato no admitido no se importa).
+
+**Decisión.** Se conecta con la capa de correo de ADR-0031, igual que la verificación:
+
+* `buildPasswordResetOptions` (`apps/api/src/email/transport.ts`) aporta `sendResetPassword` y `resetPasswordTokenExpiresIn` a `emailAndPassword`.
+* **Caducidad de 1 hora** por defecto, configurable con `PASSWORD_RESET_EXPIRES_IN` entre 60 s y 24 h. El tope es deliberado: mientras vale, el enlace **equivale a la contraseña**.
+* Enlace de un solo uso, que es el comportamiento propio de Better Auth. El correo lo dice, para que nadie lo guarde esperando reutilizarlo.
+* Pantallas `/recuperar` (pedir) y `/restablecer` (elegir la nueva), con el enlace «¿Has olvidado tu contraseña?» bajo el botón de acceso.
+
+**No revelar qué correos están registrados.** La pantalla de petición responde **siempre lo mismo**, exista o no la cuenta. En el cliente, `requestPasswordReset` devuelve `ok` salvo fallo de red: un error del servidor aquí solo puede delatar que esa cuenta no está, y eso convertiría la pantalla en un comprobador de correos. El fallo de red sí se distingue, porque ahí no se ha enviado nada y hay que reintentar. Hay un test de integración que compara código y cuerpo de las dos respuestas.
+
+**El enlace y los logs.** El token viaja en la query de una ruta del frontend (`/restablecer?token=…`). Con #524 el `access_log` de nginx **no registra la query**, así que queda como `/restablecer?:query`; y `api_access_logs` guarda solo la ruta, sin query. **Esto depende de que #524 entre**: hasta entonces, un token de recuperación aparecería entero en el `access_log` de la imagen `frontend`.
+
+**El correo no repite el destinatario en el cuerpo.** Ya va en el `to`, y así un reenvío no lo reparte otra vez.
+
+**Validación.** `apps/api/src/email/transport.unit.test.ts` (contenido del correo, caducidad en minutos u horas, límites de la variable) y `apps/api/src/auth/password-reset.integration.test.ts`, contra la instancia real de Better Auth: la capa de correo recibe el enlace, la respuesta es la misma exista o no la cuenta, `sendResetPassword` está configurado y la contraseña de siempre sigue valiendo si no se usa el enlace.

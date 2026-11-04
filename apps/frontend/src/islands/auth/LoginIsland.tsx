@@ -151,6 +151,13 @@ export function LoginIsland() {
 					>
 						{submitting ? m.auth_submitting() : m.auth_submit()}
 					</button>
+
+					{/* #531: sin esto, quien olvida la contraseña no tiene salida.
+					    Es la única vía de entrada de los importados cuya contraseña
+					    no se pudo traer (#488). */}
+					<p className="login-forgot">
+						<a href={url("recuperar")}>{m.auth_forgot_link()}</a>
+					</p>
 				</form>
 
 				{/* OIDC */}

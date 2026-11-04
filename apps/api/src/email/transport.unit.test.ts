@@ -2,10 +2,14 @@ import { describe, expect, test } from "bun:test";
 import {
 	allowsLogEmailTransport,
 	buildEmailVerificationOptions,
+	buildPasswordResetEmail,
+	buildPasswordResetOptions,
 	buildVerificationEmail,
+	type EmailMessage,
 	getEmailTransport,
 	LogEmailTransport,
 	resolveEmailVerificationConfig,
+	resolvePasswordResetConfig,
 	resolveSmtpConfig,
 	SmtpEmailTransport,
 } from "./transport.ts";
@@ -355,5 +359,113 @@ describe("SmtpEmailTransport", () => {
 			text: "Enlace de verificación",
 			html: "<p>Enlace</p>",
 		});
+	});
+});
+
+// #531: no habia forma de recuperar una contraseña olvidada. ADR-0007 la daba
+// por disponible «sin desarrollo adicional», pero `sendResetPassword` no
+// estaba configurado. Es la unica via de entrada de los usuarios importados
+// cuya contraseña no se puede traer (#488).
+describe("buildPasswordResetEmail (#531)", () => {
+	test("lleva el enlace y dice que caduca y que es de un solo uso", () => {
+		const message = buildPasswordResetEmail({
+			email: "autora@ejemplo.test",
+			url: "https://procomun.test/restablecer?token=abc",
+			expiresIn: 3600,
+		});
+
+		expect(message.to).toBe("autora@ejemplo.test");
+		expect(message.subject).toContain("Procomún");
+		expect(message.text).toContain(
+			"https://procomun.test/restablecer?token=abc",
+		);
+		// Que el usuario sepa que tiene prisa y que el enlace no se reutiliza.
+		expect(message.text).toContain("1 hora");
+		expect(message.text).toContain("una sola vez");
+		// Y que hacer si no lo ha pedido el.
+		expect(message.text.toLowerCase()).toContain("no has solicitado");
+	});
+
+	test("expresa la caducidad en minutos cuando no llega a una hora", () => {
+		const message = buildPasswordResetEmail({
+			email: "a@b.test",
+			url: "https://procomun.test/restablecer?token=x",
+			expiresIn: 900,
+		});
+
+		expect(message.text).toContain("15 minutos");
+	});
+
+	test("no lleva el correo en el cuerpo, que ya va en el destinatario", () => {
+		// Si alguien reenvia el mensaje, no hace falta repetir el dato.
+		const message = buildPasswordResetEmail({
+			email: "autora@ejemplo.test",
+			url: "https://procomun.test/restablecer?token=abc",
+			expiresIn: 3600,
+		});
+
+		expect(message.text).not.toContain("autora@ejemplo.test");
+	});
+});
+
+describe("resolvePasswordResetConfig (#531)", () => {
+	test("por defecto caduca en una hora", () => {
+		expect(resolvePasswordResetConfig({}).expiresIn).toBe(3600);
+	});
+
+	test("admite otra caducidad por entorno", () => {
+		expect(
+			resolvePasswordResetConfig({ PASSWORD_RESET_EXPIRES_IN: "900" })
+				.expiresIn,
+		).toBe(900);
+	});
+
+	test("rechaza una caducidad que no es un entero valido", () => {
+		expect(() =>
+			resolvePasswordResetConfig({ PASSWORD_RESET_EXPIRES_IN: "cero" }),
+		).toThrow();
+		expect(() =>
+			resolvePasswordResetConfig({ PASSWORD_RESET_EXPIRES_IN: "0" }),
+		).toThrow();
+	});
+
+	test("no acepta una caducidad larguisima: el enlace da acceso a la cuenta", () => {
+		expect(() =>
+			resolvePasswordResetConfig({
+				PASSWORD_RESET_EXPIRES_IN: String(60 * 60 * 25),
+			}),
+		).toThrow();
+	});
+});
+
+describe("buildPasswordResetOptions (#531)", () => {
+	test("envia el correo con el enlace que da better-auth", async () => {
+		const sent: EmailMessage[] = [];
+		const transport = {
+			sendEmail: async (message: EmailMessage) => {
+				sent.push(message);
+			},
+		};
+		const options = buildPasswordResetOptions(
+			{ expiresIn: 3600 },
+			{},
+			() => transport,
+		);
+
+		await options.sendResetPassword({
+			user: { email: "autora@ejemplo.test" },
+			url: "https://procomun.test/restablecer?token=abc",
+		});
+
+		expect(sent).toHaveLength(1);
+		expect(sent[0]?.to).toBe("autora@ejemplo.test");
+		expect(sent[0]?.text).toContain("token=abc");
+	});
+
+	test("expone la caducidad que espera better-auth", () => {
+		expect(
+			buildPasswordResetOptions({ expiresIn: 900 }, {})
+				.resetPasswordTokenExpiresIn,
+		).toBe(900);
 	});
 });

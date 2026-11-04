@@ -400,6 +400,9 @@ export interface ApiClient {
 		callbackURL?: string,
 	): Promise<SignInResult>;
 	signIn(email: string, password: string): Promise<SignInResult>;
+	/** #531: siempre ok salvo fallo de red, para no revelar qué correos hay. */
+	requestPasswordReset(email: string): Promise<SignInResult>;
+	resetPassword(token: string, newPassword: string): Promise<SignInResult>;
 	signInOidc(): Promise<SignInResult>;
 	signOut(): Promise<void>;
 

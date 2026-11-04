@@ -235,3 +235,85 @@ export function buildVerificationEmail(params: {
 			"Si no has solicitado esta cuenta, ignora este mensaje.",
 	};
 }
+
+/**
+ * Recuperación de contraseña (issue #531).
+ *
+ * ADR-0007 la daba por disponible «sin desarrollo adicional», pero
+ * `sendResetPassword` no estaba configurado, así que no se enviaba nada. Es la
+ * única vía de entrada de los usuarios importados cuya contraseña no se puede
+ * traer (#488, formato de hash no admitido).
+ */
+export type PasswordResetConfig = {
+	/** Segundos que vale el enlace. Da acceso a la cuenta: corto a propósito. */
+	expiresIn: number;
+};
+
+export function resolvePasswordResetConfig(
+	env: RuntimeEnv = process.env,
+): PasswordResetConfig {
+	return {
+		expiresIn: parseStrictInteger(
+			"PASSWORD_RESET_EXPIRES_IN",
+			env.PASSWORD_RESET_EXPIRES_IN,
+			3600,
+			// Máximo un día: el enlace equivale a la contraseña mientras vale.
+			{ min: 60, max: 60 * 60 * 24 },
+		),
+	};
+}
+
+/** «1 hora», «15 minutos»: lo que se le dice a quien recibe el correo. */
+function formatExpiry(seconds: number): string {
+	if (seconds % 3600 === 0) {
+		const hours = seconds / 3600;
+		return hours === 1 ? "1 hora" : `${hours} horas`;
+	}
+	const minutes = Math.round(seconds / 60);
+	return minutes === 1 ? "1 minuto" : `${minutes} minutos`;
+}
+
+export function buildPasswordResetEmail(params: {
+	email: string;
+	url: string;
+	expiresIn: number;
+}): EmailMessage {
+	return {
+		to: params.email,
+		subject: "Restablece tu contraseña en Procomún",
+		// Sin el correo en el cuerpo: ya va en el destinatario y así un reenvío
+		// no lo reparte otra vez.
+		text:
+			"Hola,\n\n" +
+			"Has pedido restablecer tu contraseña en Procomún. Abre este enlace para elegir una nueva:\n" +
+			`${params.url}\n\n` +
+			`El enlace vale ${formatExpiry(params.expiresIn)} y solo se puede usar una sola vez.\n\n` +
+			"Si no has solicitado el cambio, ignora este mensaje: tu contraseña sigue siendo la misma.",
+	};
+}
+
+/** Opciones `emailAndPassword` de better-auth para el restablecimiento. */
+export function buildPasswordResetOptions(
+	config: PasswordResetConfig,
+	env: RuntimeEnv = process.env,
+	transport: (env: RuntimeEnv) => EmailPort = getEmailTransport,
+) {
+	return {
+		sendResetPassword: async ({
+			user,
+			url,
+		}: {
+			user: { email: string };
+			url: string;
+		}): Promise<void> => {
+			await transport(env).sendEmail(
+				buildPasswordResetEmail({
+					email: user.email,
+					url,
+					expiresIn: config.expiresIn,
+				}),
+			);
+		},
+		resetPasswordTokenExpiresIn: config.expiresIn,
+	};
+}

@@ -229,6 +229,51 @@ export class HttpApiClient implements ApiClient {
 		return { ok: false, error: data?.message ?? "Credenciales incorrectas" };
 	}
 
+	/**
+	 * Pide el correo de recuperación (#531). **Siempre responde ok** salvo
+	 * fallo de red: un error del servidor aquí solo puede delatar que esa
+	 * cuenta no existe, y eso convertiría la pantalla en un comprobador de
+	 * correos registrados. Un fallo de red sí se distingue, porque ahí no se ha
+	 * enviado nada y el usuario tiene que reintentar.
+	 */
+	async requestPasswordReset(email: string): Promise<SignInResult> {
+		try {
+			await fetch("/api/auth/request-password-reset", {
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				credentials: "include",
+				body: JSON.stringify({ email, redirectTo: "/restablecer" }),
+			});
+			return { ok: true };
+		} catch {
+			return {
+				ok: false,
+				error: "No se ha podido conectar. Inténtalo de nuevo.",
+			};
+		}
+	}
+
+	/** Fija la contraseña nueva con el token del enlace (#531). */
+	async resetPassword(
+		token: string,
+		newPassword: string,
+	): Promise<SignInResult> {
+		const res = await fetch("/api/auth/reset-password", {
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			credentials: "include",
+			body: JSON.stringify({ token, newPassword }),
+		});
+		if (res.ok) return { ok: true };
+		const data = await res.json().catch(() => null);
+		return {
+			ok: false,
+			error:
+				data?.message ??
+				"El enlace no vale: puede haber caducado o haberse usado ya.",
+		};
+	}
+
 	async signInOidc(): Promise<SignInResult> {
 		const res = await fetch("/api/auth/sign-in/oauth2", {
 			method: "POST",

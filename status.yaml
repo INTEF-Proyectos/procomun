@@ -3626,3 +3626,29 @@ tasks:
       antes: guarda en PublicCollectionsIsland, tipo string | null en
       api-client y test de regresion. Test ajustado: el toEqual de totals en
       el caso en seco incluye la clave nueva reindexFailed.
+  T-2026-11-04-17363145:
+    date: 2026-11-04
+    agent: "backend-api-servicios + frontend-ux-accesibilidad + seguridad-privacidad-legal"
+    task: "Recuperar la contrasena olvidada desde la pantalla de acceso"
+    status: Done
+    related: ["#531", "#494", "#488", "#524", "ADR-0007", "ADR-0031"]
+    notes: >
+      ADR-0007 daba la recuperacion por disponible sin desarrollo adicional
+      porque better-auth la trae, pero sendResetPassword no estaba configurado:
+      request-password-reset no enviaba nada y no habia ni enlace en el acceso
+      ni pantalla para la contrasena nueva. Era la unica via de entrada de los
+      importados cuya contrasena no se pudo traer (#488). Se conecta con la
+      capa de correo de ADR-0031: buildPasswordResetOptions aporta
+      sendResetPassword y resetPasswordTokenExpiresIn, con caducidad de 1 hora
+      por defecto y PASSWORD_RESET_EXPIRES_IN entre 60 s y 24 h (tope
+      deliberado: mientras vale, el enlace equivale a la contrasena). Pantallas
+      /recuperar y /restablecer, con enlace bajo el boton de acceso. La
+      peticion responde siempre lo mismo exista o no la cuenta: en el cliente
+      requestPasswordReset devuelve ok salvo fallo de red, porque un error del
+      servidor solo puede delatar que esa cuenta no existe y convertiria la
+      pantalla en un comprobador de correos registrados. Test de integracion
+      que compara codigo y cuerpo de las dos respuestas. El endpoint de
+      better-auth 1.7 se llama requestPasswordReset, no forgetPassword: se
+      comprobo sobre la instancia real. El token va en la query de
+      /restablecer, asi que depende de #524 para no quedar en el access_log de
+      nginx. El correo no repite el destinatario en el cuerpo.
