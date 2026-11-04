@@ -70,7 +70,7 @@ function generateId(): string {
 function buildContentXml(
 	title: string,
 	author: string,
-	language: string,
+	language: string | undefined,
 	license: string,
 	files: GeneratorFileEntry[],
 ): string {
@@ -99,7 +99,7 @@ function buildContentXml(
     <odeProperty><key>pp_description</key><value></value></odeProperty>
     <odeProperty><key>pp_author</key><value>${escapeXml(author)}</value></odeProperty>
     <odeProperty><key>license</key><value>${escapeXml(license)}</value></odeProperty>
-    <odeProperty><key>lom_general_language</key><value>${escapeXml(language)}</value></odeProperty>
+    <odeProperty><key>lom_general_language</key><value>${escapeXml(language ?? "")}</value></odeProperty>
     <odeProperty><key>pp_learningResourceType</key><value></value></odeProperty>
   </odeProperties>
   <odeNavStructures>
@@ -210,7 +210,8 @@ function sanitizeAndDeduplicateFilenames(
  *
  * @param opts.title      Resource title (used in metadata and index page)
  * @param opts.author     Resource author (optional)
- * @param opts.language   ISO 639-1 language code, defaults to "es"
+ * @param opts.language   ISO 639-1 language code; sin él, lom_general_language
+ *                        queda vacío en lugar de suponer «es» (#473)
  * @param opts.license    License identifier, defaults to "cc-by"
  * @param opts.files      List of files to bundle (each must have a local filePath)
  * @param opts.outputPath Absolute path where the resulting .elpx ZIP will be written
@@ -223,13 +224,7 @@ export async function generateElpxFromFiles(opts: {
 	files: GeneratorFileEntry[];
 	outputPath: string;
 }): Promise<void> {
-	const {
-		title,
-		author = "",
-		language = "es",
-		license = "cc-by",
-		outputPath,
-	} = opts;
+	const { title, author = "", language, license = "cc-by", outputPath } = opts;
 	const files = sanitizeAndDeduplicateFilenames(opts.files);
 
 	const workDir = path.join(

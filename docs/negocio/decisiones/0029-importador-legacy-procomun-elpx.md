@@ -241,3 +241,26 @@ Desde #425 el importador guardaba en `resources.thumbnail_url` la URL de `previe
 * Solo se descarga de `ode.educacion.es`, también al seguir redirecciones (como mucho 3), con un límite de 2 MB y 15 s. El tipo se decide por los primeros bytes (PNG, JPEG, GIF o WebP), no por la cabecera ni la extensión: un HTML o un SVG nunca se guarda como miniatura.
 * Si no se puede copiar, el recurso entra sin miniatura y el informe lo avisa (`preview: no se copia la imagen …`). Nunca se guarda la URL remota.
 * `import:legacy-procomun --copy-previews [--dry-run]` hace lo mismo con lo ya importado. Los fallos definitivos (otro host, no es imagen, 404, tamaño) retiran la miniatura. Los pasajeros (red, 5xx, 429) la dejan para repetir el comando. El informe guarda la URL de origen de cada recurso.
+
+## Actualización 2026-10-26 — sin idioma por defecto (issue #473)
+
+### Contexto
+
+El importador ponía `"es"` a todo recurso sin idioma reconocible y, si faltaba `generalLanguageStr`, tomaba `educationalLanguageStr`. Ese campo es el «Idioma destinatario» (LOM 5.11, el del alumnado): un recurso en inglés para alumnado hispanohablante quedaba en español. El código `va` (valenciano), que el Procomún antiguo usa en unos 620 recursos, tampoco se reconocía y acababa en `"es"`.
+
+### Decisión
+
+* `resources.language` admite `null` (migración `0016_resource_language_nullable` y `setup.ts`).
+* El idioma sale solo de `generalLanguageStr`. Si no hay un valor reconocible, el recurso entra sin idioma con un warning en el informe.
+* `va` se normaliza a `ca` (en ISO 639 el valenciano es catalán; BCP 47 `ca-valencia`). `VALID_LANGUAGES` no cambia.
+* La ficha oculta «Idioma» si está vacío y el editor muestra «Sin indicar» en vez de preseleccionar «Español».
+
+### Corrección de lo ya importado
+
+`import:legacy-procomun --fix-language --source-dir <ruta> [--dry-run]` relee los JSON y aplica el idioma de origen (o ninguno) a los recursos que siguen en `"es"` y cuyo `generalLanguageStr` no da `"es"`. Ese `"es"` solo pudo venir del valor por defecto o del «Idioma destinatario»; los recursos con otro idioma se respetan porque vino del origen o de una edición. No se distingue un `"es"` puesto a mano después de importar: también se corregiría.
+
+### Consecuencias
+
+* Sin idioma, los niveles ELE no se asignan (la regla exige `es`) y el recurso queda pendiente de revisión.
+* Idiomas declarados fuera de `VALID_LANGUAGES` (`ar`, `la`, `zh`…) quedan sin idioma en lugar de en español.
+* La búsqueda usa el diccionario `spanish` cuando el idioma es `null`, igual que antes.
