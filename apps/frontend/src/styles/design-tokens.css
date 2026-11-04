@@ -106,7 +106,14 @@
 	--color-inverse-on-surface: #eaf1ff;
 
 	/* Outline */
-	--color-outline: #737686;
+	/* #529: 34 reglas usan este token como color de texto. Con #737686 todas
+	   quedaban en 4,28:1 sobre la portada y 4,08:1 sobre la caja del login,
+	   por debajo del 4,5:1 que pide WCAG 2.1 AA para texto normal, y axe
+	   tumbaba wcag.e2e.ts. #6c6f7f es el tono mas claro que cumple en los
+	   tres fondos claros (4,98:1 en blanco, 4,74:1 en #f8f9ff y 4,51:1 en
+	   #eef4ff). Sus 35 usos como borde solo ganan contraste.
+	   Lo vigila design-tokens.unit.test.ts. */
+	--color-outline: #6c6f7f;
 	--color-outline-variant: #c3c5d7;
 
 	/* Semantic aliases */
