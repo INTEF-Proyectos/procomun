@@ -8,7 +8,7 @@ export interface Resource {
 	slug: string;
 	title: string;
 	description: string;
-	language: string;
+	language: string | null;
 	license: string;
 	resourceType: string;
 	keywords: string | null;
@@ -55,7 +55,7 @@ export interface RelatedResource {
 	title: string;
 	description: string;
 	resourceType: string;
-	language: string;
+	language: string | null;
 	license: string;
 	author: string | null;
 	editorialStatus?: string;
@@ -112,7 +112,7 @@ export interface CollectionResourceRecord {
 	slug: string;
 	description: string;
 	resourceType: string;
-	language: string;
+	language: string | null;
 	license: string;
 	author: string | null;
 	createdByName?: string | null;

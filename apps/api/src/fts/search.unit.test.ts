@@ -329,6 +329,26 @@ describe("FTS Search & Indexing", () => {
 		expect(result.data.some((r) => r.id === id)).toBe(false);
 	});
 
+	test("un recurso sin idioma se indexa y aparece en la búsqueda (#473)", async () => {
+		const { id } = await createResource(testDb, {
+			title: "Recurso sin idioma xyzsinidioma",
+			description: "Importado sin idioma declarado",
+			language: "es",
+			license: "cc-by",
+			resourceType: "documento",
+		});
+		await db.execute(
+			sql`UPDATE resources SET language = NULL, editorial_status = 'published' WHERE id = ${id}`,
+		);
+		await updateSearchVector(testDb, id);
+
+		const result = await searchResources(testDb, {
+			query: "xyzsinidioma",
+			status: "published",
+		});
+		expect(result.data.map((r) => r.id)).toEqual([id]);
+	});
+
 	test("search does not return draft resources", async () => {
 		const { id } = await createResource(testDb, {
 			title: "Borrador con término único xyzborrador",
