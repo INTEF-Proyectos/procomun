@@ -3194,6 +3194,39 @@ tasks:
       el formulario pasa de 0 a 13 campos. Tres tests en
       elpx-content.unit.test.ts (rojo → verde). Deuda: no se traducen las
       URL asset:// dentro de jsonProperties (solo {{context_path}}).
+
+  T-2026-10-26-22335129:
+    date: 2026-10-26
+    agent: "ingestas-y-migraciones"
+    task: "No asignar español por defecto a los recursos sin idioma"
+    status: Done
+    related: ["#473", "ADR-0029"]
+    notes: >
+      normalizeLanguage() devolvía "es" si no reconocía nada y el importador
+      tomaba educationalLanguageStr («Idioma destinatario») como sustituto.
+      Ahora el idioma sale solo de generalLanguageStr, sin valor queda null
+      (migración 0016 y setup.ts) y "va" (valenciano) pasa a "ca". La ficha
+      ya ocultaba «Idioma» vacío; el editor muestra «Sin indicar».
+      import:legacy-procomun --fix-language [--dry-run] corrige lo importado
+      que sigue en "es" sin declararlo en origen. Pendiente: ejecutarlo sobre
+      la exportación real.
+
+  T-2026-11-03-12042407:
+    date: 2026-11-03
+    agent: "qa-validacion"
+    task: "Revisión del PR #475: consumidores que suponían idioma no nulo"
+    status: Done
+    related: ["#473", "#475"]
+    notes: >
+      El detalle de una colección rompía con language = null
+      (resource.language.toUpperCase()): ahora lo oculta y
+      CollectionResourceRecord.language es string | null. También pasan a
+      nullable RelatedResource, RelatedResourceCard, SignalRow y
+      ResourceMetadata. El .elpx generado desde los ficheros del recurso ya
+      no declara lom_general_language = es si el recurso no tiene idioma.
+      Tests de regresión en colecciones, recomendados, búsqueda y generador.
+      Sin tocar: ResourceEditorIsland, ResourceFormIsland, catalog-controller
+      y elpx-export.ts no se usan en producción.
   T-2026-10-26-07220488:
     date: 2026-10-26
     agent: "seguridad-privacidad-legal"
@@ -3400,6 +3433,33 @@ tasks:
       referencias en el CI. Validado reproduciendo el conflicto de #465 contra
       main: la union automatica da un status.yaml identico a la resolucion
       manual (diff vacio) y check-tracking lo acepta.
+  T-2026-11-03-12373636:
+    date: 2026-11-03
+    agent: "frontend-ux-accesibilidad + qa-validacion"
+    task: "La foto de Gravatar se carga en el menú y en el perfil"
+    status: Done
+    related: ["#514", "#504", "ADR-0037"]
+    notes: >
+      Nadie veía su foto de Gravatar, ni los usuarios nuevos ni los antiguos.
+      gravatarUrl (shared-utils.ts) resumía el correo con un hash propio de 64
+      bits (16 caracteres hex), y Gravatar solo reconoce el SHA-256 o el MD5
+      del correo recortado y en minúsculas: con otro identificador devuelve
+      d=mp, la silueta. El perfil, además, resumía `${id}@procomun.es` en vez
+      del correo de la sesión. La CSP no intervenía: las páginas de la
+      aplicación no envían CSP, Referrer-Policy ni COEP (nginx.conf solo pone
+      X-Frame-Options y nosniff), y Gravatar sirve image/jpeg sin CORP.
+      Nuevo lib/gravatar.ts: SHA-256 con crypto.subtle del correo normalizado,
+      calculado una vez al cargar la sesión (toNavUser en el menú y
+      profileAvatarUrl, s=192, en el perfil, que lo guarda en
+      PublicUserProfile.avatarUrl). Solo se resume el correo del propio
+      usuario. Sin crypto.subtle (página sin HTTPS) o si la imagen no carga,
+      el componente UserAvatar muestra la inicial del nombre. No hay foto de
+      perfil propia en main: user.image no se usa para representar al usuario
+      (ADR-0037); cuando exista user_profile.image irá en avatarUrl antes que
+      Gravatar. Si se mantiene Gravatar lo decide #504. Tests rojo → verde en
+      gravatar.unit.test.ts (ejemplo de la documentación de Gravatar, forma
+      de la URL, normalización), UserAvatar.unit.test.tsx,
+      LayoutIslands.unit.test.tsx y PublicDashboardIsland.unit.test.tsx.
   T-2026-11-03-11185577:
     date: 2026-11-03
     agent: "devops-sre + qa-validacion"
@@ -3542,3 +3602,29 @@ tasks:
       que no sea color, asi que llevan subrayado siempre y el hover pasa a
       cambiar el color. Preexistia; el test no lo veia.
       Queda fuera servir Material Symbols desde la plataforma.
+  T-2026-11-04-15363556:
+    date: 2026-11-04
+    agent: "ingestas-y-migraciones + qa-validacion"
+    task: "Atender la revision de #475: --fix-language reindexa la busqueda"
+    status: Done
+    related: ["#475", "#473", "#543"]
+    notes: >
+      Hallazgo de jacoboAlcantara en la revision de #475: --fix-language
+      corregia resources.language pero no regeneraba search_vector, que se
+      calcula con la configuracion del idioma, y no hay trigger que lo haga.
+      El recurso dejaba de encontrarse por su texto y repetir la pasada no lo
+      arreglaba porque ya lo daba por «sin cambios». Ahora, tras una
+      correccion real (nunca en seco), se llama a updateSearchVector. Si la
+      reindexacion falla se cuenta en totals.reindexFailed, se marca
+      reindexError en el registro y se avisa por consola de que el idioma ya
+      esta corregido y hay que reindexar a mano con el comando de
+      reindexacion, porque otra pasada lo dara por sin cambios. El mensaje del
+      error no se copia: summarizeReindexError deja solo el tipo, porque los
+      errores de Drizzle traen la consulta SQL y sus parametros, y aqui los
+      parametros incluyen el texto del recurso (garantia de #543). Test de
+      integracion rojo a verde comprobando el indice con to_tsquery('english')
+      y tests del saneador. El primer punto de la revision (TypeError al
+      pintar una coleccion con un recurso sin idioma) ya estaba corregido
+      antes: guarda en PublicCollectionsIsland, tipo string | null en
+      api-client y test de regresion. Test ajustado: el toEqual de totals en
+      el caso en seco incluye la clave nueva reindexFailed.
