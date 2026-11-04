@@ -103,8 +103,18 @@ export function formatVerdict(
 	};
 }
 
-/** Lanza tsc y devuelve su salida completa. */
-async function runTsc(): Promise<string> {
+/** tsc ha fallado sin emitir diagnósticos (no encontrado, muerto por una
+ *  señal…). Sin esta comprobación cuenta como 0 errores y el paso sale en
+ *  verde. Con diagnósticos, el código de salida es 1 y decide el ratchet. */
+export function tscFailedWithoutDiagnostics(
+	exitCode: number | null,
+	count: number,
+): boolean {
+	return exitCode !== 0 && count === 0;
+}
+
+/** Lanza tsc y devuelve su salida completa y su código de salida. */
+async function runTsc(): Promise<{ output: string; exitCode: number | null }> {
 	const proc = Bun.spawn(["bunx", "tsc", "--noEmit"], {
 		stdout: "pipe",
 		stderr: "pipe",
@@ -116,13 +126,23 @@ async function runTsc(): Promise<string> {
 		new Response(proc.stdout).text(),
 		new Response(proc.stderr).text(),
 	]);
-	await proc.exited;
-	return `${stdout}\n${stderr}`;
+	const exitCode = await proc.exited;
+	return { output: `${stdout}\n${stderr}`, exitCode };
 }
 
 async function main() {
-	const output = await runTsc();
-	const verdict = compareWithBaseline(countTypeErrors(output));
+	const { output, exitCode: tscExitCode } = await runTsc();
+	const count = countTypeErrors(output);
+
+	if (tscFailedWithoutDiagnostics(tscExitCode, count)) {
+		console.error(output);
+		console.error(
+			`❌ tsc terminó con código ${tscExitCode} sin ningún diagnóstico: no se ha comprobado nada.`,
+		);
+		process.exit(1);
+	}
+
+	const verdict = compareWithBaseline(count);
 	const { message, exitCode } = formatVerdict(verdict, output);
 
 	if (exitCode === 0) {
