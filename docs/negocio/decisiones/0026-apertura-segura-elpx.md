@@ -73,3 +73,38 @@ Se adopta la **Opción 2** (defensa en profundidad A + B).
 **Largo plazo.** La solución de fondo es la opción 3 de la [ADR-0027](0027-reproduccion-segura-embeds-elpx.md): servir los `.elpx` desde un origen separado sin cookies y quitar el sandbox.
 
 **Validación.** `e2e/tests/public/elpx-nested-frame.e2e.ts` monta un paquete sintético con un HTML que anida otro en el visor de la ficha y comprueba que el hijo carga (falla con `'self'` y con `*`). `apps/api/src/routes/public-version-access.unit.test.ts` comprueba sobre la app completa que ni la ruta pública ni la previsualización histórica devuelven `frame-ancestors` ni `X-Frame-Options`.
+
+## Adenda 2026-10-27 — el contenido por hash mira el estado del recurso (#466)
+
+**Problema.** `/api/v1/elpx/<hash>/` servía el paquete sin mirar el estado editorial. Un enlace guardado antes de despublicar un recurso, o de devolverlo a borrador, seguía abriendo el contenido.
+
+**Por qué no basta con la sesión.** Se comprobó en Chromium con un iframe `sandbox="allow-scripts allow-popups allow-popups-to-escape-sandbox"` y esta misma CSP `sandbox`, con la cookie `SameSite=Lax`. La cookie solo viaja en la petición del documento inicial, que la lanza la página padre. No viaja en nada de lo que pide el documento de origen opaco: CSS, imágenes, scripts con y sin `crossorigin`, iframes hijos ni la navegación a otra página del paquete. Exigir sesión rompería la vista previa del autor. Una cookie aparte con `SameSite=None` tampoco sirve: los scripts con `crossorigin="anonymous"` no llevan credenciales desde un origen opaco.
+
+**Decisión.**
+* Recurso publicado: `/api/v1/elpx/<hash>/` se sirve igual que antes, también para «Ponlo en tu web».
+* Cualquier otro estado, o un hash sin proyecto: esa URL responde 404, con sesión o sin ella.
+* Quien puede ver el recurso recibe un enlace firmado `/api/v1/elpx/preview/<hash>/<caducidad>.<firma>/`. La firma es un HMAC-SHA256 de hash + caducidad con el secreto de better-auth (`BETTER_AUTH_SECRET`) y caduca a las 2 horas. Lo emiten solo las rutas que ya comprueban el acceso: la ficha (`canViewResource`), `GET /api/admin/resources/:id/elpx`, el historial de versiones y las respuestas de subida y guardado del editor. Las URL relativas del paquete se reescriben con ese prefijo, de modo que los subrecursos y las subpáginas llevan el permiso sin cookies.
+* El enlace firmado no se ata al usuario. Es un permiso al portador limitado a un hash y a 2 horas.
+* La ficha solo muestra «Ponlo en tu web» en recursos publicados.
+* Sigue bajo `location ^~ /api/v1/elpx/` de `nginx.conf`, sin `X-Frame-Options`, y con la misma CSP `sandbox`.
+
+**Implementación.** `apps/api/src/elpx/preview-token.ts` (firma, verificación y `elpxPreviewUrlForStatus`), `apps/api/src/routes/elpx-content.ts` (comprobación del estado y ruta `/preview/:hash/:token/*`) y `getElpxResourceStatusByHash` en `packages/db/src/repository/elpx-projects.ts`.
+
+**Fuera de alcance.** La vista previa de versiones históricas (`/api/admin/resources/:id/versions/:vid/preview/`) sigue dependiendo de la cookie de sesión. Por lo comprobado, en Chromium sus subrecursos no la llevan. Se trata en #482.
+
+**Validación.** `apps/api/src/routes/elpx-content-access.unit.test.ts` (borrador y revisión dan 404 por la URL estable; la autora, el curator y el admin reciben un enlace firmado que sirve el HTML, el CSS y las subpáginas sin cookies; un token alterado o de otro hash da 404; lo publicado no cambia) y `apps/api/src/elpx/preview-token.unit.test.ts` (caducidad, otro hash, otro secreto, firma alterada).
+
+## Adenda 2026-11-03 — la vista previa histórica usa el enlace firmado (#482)
+
+**Problema.** La vista previa de una versión histórica (`/api/admin/resources/:id/versions/:vid/preview/`) autorizaba con la cookie de sesión en cada petición. Como se comprobó en #466, en el iframe de origen opaco la cookie solo viaja en la petición del documento inicial. El HTML cargaba, pero sus CSS, scripts, imágenes y subpáginas respondían 401. Además, el documento quedaba bajo `location /api/` de `nginx.conf`, con `X-Frame-Options`, que bloquea los iframes hijos del paquete (adenda 2026-10-14).
+
+**Decisión.**
+* La ruta de administración sigue siendo la URL que da el historial y sigue comprobando el acceso con la sesión (`requireManageableResource`, la versión pertenece al recurso y tiene vista previa). Ya no sirve el contenido: responde `302` al enlace firmado `/api/v1/elpx/preview/<hash>/<token>/` de la adenda 2026-10-27, con `Cache-Control: no-store`. Sin acceso responde 403 o 404 y no redirige.
+* El token se firma al abrir la vista previa, no al listar el historial: no caduca aunque la página lleve horas abierta y el listado no reparte un token por cada versión.
+* El enlace firmado sirve también un hash histórico. El token solo lo emiten rutas que ya comprueban el acceso. La URL estable `/api/v1/elpx/<hash>/` sigue sin servir hashes históricos (#323).
+* Consecuencia: un enlace firmado de la versión vigente sigue abriéndose hasta que caduca (2 h) aunque se suba una versión nueva. Antes respondía 404 en cuanto pasaba a histórica.
+* El contenido se sirve desde `location ^~ /api/v1/elpx/`, con la misma CSP `sandbox` y sin `X-Frame-Options`, como la vista previa de la versión vigente. Los iframes hijos del paquete dejan de quedar bloqueados por esa cabecera (no se ha comprobado con un e2e).
+
+**Implementación.** `handleHistoricalPreview` en `apps/api/src/routes/admin/versions.ts` y `handleSignedPreview` en `apps/api/src/routes/elpx-content.ts`, que deja de rechazar los hashes históricos.
+
+**Validación.** `apps/api/src/routes/version-preview-access.unit.test.ts` (nuevo): la autora, el curator y el admin abren la vista previa con sesión solo en la primera petición y cargan sin cookies, sobre la app completa, el CSS, el script, la imagen y la subpágina (rojo → verde: respondían 401). Sin acceso, el historial y la vista previa dan 403 sin redirigir. Sin sesión, la ruta no redirige. El hash histórico sigue en 404 por la URL estable y con un token alterado. `public-version-access.unit.test.ts` pasa a esperar la redirección.

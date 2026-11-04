@@ -4,11 +4,12 @@ import { logActivity } from "../../activity/log.ts";
 import type { AuthEnv } from "../../auth/middleware.ts";
 import { getCurrentUser, hasMinRole } from "../../auth/roles.ts";
 import { getDb } from "../../db.ts";
-import { updateSearchVector } from "../../fts/search.ts";
 import {
-	remainingPathAfter,
-	serveElpxExtractedContent,
-} from "../elpx-content.ts";
+	buildSignedElpxPreviewUrl,
+	elpxPreviewUrlForStatus,
+} from "../../elpx/preview-token.ts";
+import { updateSearchVector } from "../../fts/search.ts";
+import { remainingPathAfter } from "../elpx-content.ts";
 import { requireManageableResource } from "./guards.ts";
 
 const db = () => getDb().db;
@@ -29,9 +30,10 @@ function buildPreviewUrl(
 	hash: string | null,
 	hasPreview: boolean | null,
 	isCurrent: boolean,
+	editorialStatus: string,
 ): string | null {
 	if (!hash || !hasPreview) return null;
-	if (isCurrent) return `/api/v1/elpx/${hash}/`;
+	if (isCurrent) return elpxPreviewUrlForStatus(hash, editorialStatus);
 	return buildAdminPreviewUrl(resourceId, versionId);
 }
 
@@ -54,6 +56,7 @@ export function registerResourceVersionRoutes(routes: Hono<AuthEnv>) {
 					version.elpxHash,
 					version.hasPreview,
 					Boolean(version.isCurrent),
+					check.data.editorialStatus,
 				),
 			})),
 		);
@@ -77,12 +80,19 @@ export function registerResourceVersionRoutes(routes: Hono<AuthEnv>) {
 			return c.json({ error: "Previsualización no disponible" }, 404);
 		}
 
-		const rewriteBaseUrl = buildAdminPreviewUrl(id, versionId);
-		return serveElpxExtractedContent({
-			hash: version.elpxHash,
-			rawFile: remainingPathAfter(new URL(c.req.url).pathname, "preview"),
-			rewriteBaseUrl,
-			corsLocalScripts: false,
+		// Issue #482: el iframe de origen opaco solo manda la cookie en esta
+		// primera petición; los CSS, scripts, imágenes y subpáginas salen sin
+		// ella. Tras comprobar el acceso se redirige al enlace firmado de #466,
+		// que reescribe el paquete con su propio prefijo. El token se firma al
+		// abrir la vista previa, así que no caduca aunque el historial lleve
+		// horas abierto.
+		const rawFile = remainingPathAfter(new URL(c.req.url).pathname, "preview");
+		return new Response(null, {
+			status: 302,
+			headers: {
+				Location: `${buildSignedElpxPreviewUrl(version.elpxHash)}${rawFile}`,
+				"Cache-Control": "no-store",
+			},
 		});
 	}
 

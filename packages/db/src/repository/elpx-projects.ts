@@ -146,3 +146,26 @@ export async function listElpxProjectsByResourceIds(
 	}
 	return [...byResource.values()];
 }
+
+/**
+ * Estado editorial del recurso al que pertenece un hash de .elpx (issue #466).
+ * `null` si el hash no corresponde a ningún proyecto.
+ */
+export async function getElpxResourceStatusByHash(
+	db: DrizzleDB,
+	hash: string,
+): Promise<{ resourceId: string; editorialStatus: string } | null> {
+	const rows = await db
+		.select({
+			resourceId: resources.id,
+			editorialStatus: resources.editorialStatus,
+		})
+		.from(elpxProjects)
+		.innerJoin(resources, eq(elpxProjects.resourceId, resources.id))
+		.where(eq(elpxProjects.hash, hash))
+		.limit(1);
+	const row = rows[0];
+	return row
+		? { resourceId: row.resourceId, editorialStatus: row.editorialStatus }
+		: null;
+}

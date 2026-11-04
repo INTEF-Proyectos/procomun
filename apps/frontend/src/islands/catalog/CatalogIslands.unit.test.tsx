@@ -270,6 +270,26 @@ describe("Catalog islands", () => {
 		expect(renderDetail({}, "reader")).not.toContain("detail-views");
 	});
 
+	test("«Ponlo en tu web» solo aparece en un recurso publicado (#466)", () => {
+		const elpxPreview = { hash: "abc", previewUrl: "/api/v1/elpx/abc/" };
+		expect(renderDetail({ elpxPreview }, "reader")).toContain("embed-section");
+		for (const editorialStatus of ["draft", "review"]) {
+			const html = renderDetail(
+				{
+					editorialStatus,
+					elpxPreview: {
+						hash: "abc",
+						previewUrl: "/api/v1/elpx/preview/abc/123.firma/",
+					},
+				},
+				"admin",
+			);
+			expect(html).not.toContain("embed-section");
+			// La vista previa sigue disponible para quien tiene acceso.
+			expect(html).toContain("/api/v1/elpx/preview/abc/123.firma/");
+		}
+	});
+
 	test("la tarjeta de un recurso no publicado no muestra su valoración (#461)", () => {
 		const card = (editorialStatus: string) =>
 			renderToStaticMarkup(

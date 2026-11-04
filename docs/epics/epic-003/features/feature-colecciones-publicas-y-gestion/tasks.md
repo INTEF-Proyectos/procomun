@@ -33,3 +33,12 @@ Completado con desviación controlada en routing público
 
 ## Riesgos abiertos 2026-05-25
 - El backoffice de colecciones sigue sin diferenciar permisos finos entre "ver" y "gestionar"; el modelo actual concede gestión completa a `curator`, alineado con el defecto reportado, pero conviene formalizarlo en negocio si se necesita solo lectura parcial para algunos casos.
+
+## Seguimiento 2026-11-03 — estado editorial validado (#486)
+- [x] `validateCollection` (`packages/db/src/validation.ts`) rechaza un `editorialStatus` que no esté en `VALID_STATUSES` (`draft`, `review`, `published`, `archived`). El alta y el `PATCH /api/admin/collections/:id` responden 400 y la colección no cambia.
+- [x] Regresión rojo → verde en `apps/api/src/resources/validation.unit.test.ts` y `apps/api/src/routes/admin.unit.test.ts`.
+- [x] Ejecutar `bun run test` y `bun run check-types` en raíz con salida satisfactoria.
+
+## Riesgos abiertos 2026-11-03
+- La columna `collections.editorial_status` sigue sin `CHECK` en la base de datos, igual que la de los recursos: la validación vive en la API. Una fila con un estado inventado guardada antes del arreglo da 400 en cualquier `PATCH` hasta que se le asigne un estado válido (el formulario de edición siempre lo envía).
+- Las reglas de transición por rol de las colecciones quedan fuera: desde #433 solo las crean admin y curator.
