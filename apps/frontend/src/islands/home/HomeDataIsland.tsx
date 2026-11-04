@@ -497,12 +497,12 @@ export function HomeDataIsland() {
 							perfil, guarda tus recursos favoritos y participa en comunidades
 							especializadas.
 						</p>
+						{/* #535: «Saber mas» enlazaba a `sobre`, una ruta que no
+						    existe en App.tsx, y llevaba a una pagina vacia. Se quita
+						    el boton; no hay pagina institucional que ofrecer todavia. */}
 						<div className="home-cta-buttons">
 							<a href={url("registro")} className="home-cta-btn-primary">
 								Empezar ahora
-							</a>
-							<a href={url("sobre")} className="home-cta-btn-ghost">
-								Saber mas
 							</a>
 						</div>
 					</div>
