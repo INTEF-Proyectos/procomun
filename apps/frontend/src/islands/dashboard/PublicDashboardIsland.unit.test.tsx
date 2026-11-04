@@ -4,8 +4,13 @@ import type { DashboardSummary } from "../../lib/types/user-extended.ts";
 import {
 	hasEmailVerificationSuccess,
 	PublicDashboardIsland,
+	profileAvatarUrl,
 	withFavoriteCount,
 } from "./PublicDashboardIsland.tsx";
+
+function sha256Hex(value: string): string {
+	return new Bun.CryptoHasher("sha256").update(value).digest("hex");
+}
 
 const baseDashboard: DashboardSummary = {
 	user: {
@@ -37,6 +42,18 @@ describe("withFavoriteCount (DEF-005 / #202)", () => {
 	test("no permite contadores negativos", () => {
 		expect(withFavoriteCount(baseDashboard, -3).favoriteCount).toBe(0);
 		expect(withFavoriteCount(baseDashboard, -3).user.favoriteCount).toBe(0);
+	});
+});
+
+describe("profileAvatarUrl (#514)", () => {
+	test("usa el correo de la sesión y no un correo inventado con el id", async () => {
+		const sessionUser = { id: "u1", email: "Docente.Prueba@example.org " };
+		const url = await profileAvatarUrl(sessionUser);
+
+		expect(url).toBe(
+			`https://www.gravatar.com/avatar/${sha256Hex("docente.prueba@example.org")}?s=192&d=mp`,
+		);
+		expect(url).not.toContain(sha256Hex("u1@procomun.es"));
 	});
 });
 

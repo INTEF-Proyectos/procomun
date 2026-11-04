@@ -2,33 +2,6 @@
  * Shared utility functions used across multiple islands and pages.
  */
 
-/** Simple hash for gravatar URLs — deterministic, synchronous. */
-function hashPair(str: string): string {
-	let h1 = 0xdeadbeef;
-	let h2 = 0x41c6ce57;
-	for (let i = 0; i < str.length; i++) {
-		const ch = str.charCodeAt(i);
-		h1 = Math.imul(h1 ^ ch, 2654435761);
-		h2 = Math.imul(h2 ^ ch, 1597334677);
-	}
-	h1 =
-		Math.imul(h1 ^ (h1 >>> 16), 2246822507) ^
-		Math.imul(h2 ^ (h2 >>> 13), 3266489909);
-	h2 =
-		Math.imul(h2 ^ (h2 >>> 16), 2246822507) ^
-		Math.imul(h1 ^ (h1 >>> 13), 3266489909);
-	return (
-		(h2 >>> 0).toString(16).padStart(8, "0") +
-		(h1 >>> 0).toString(16).padStart(8, "0")
-	);
-}
-
-/** Generate a Gravatar URL for an email. Uses `d=mp` fallback (mystery person). */
-export function gravatarUrl(email: string, size = 80): string {
-	const hash = hashPair(email.trim().toLowerCase());
-	return `https://www.gravatar.com/avatar/${hash}?s=${size}&d=mp`;
-}
-
 /** Format a date value for display in Spanish locale. */
 export function formatDate(
 	value: string | number | Date | null | undefined,
