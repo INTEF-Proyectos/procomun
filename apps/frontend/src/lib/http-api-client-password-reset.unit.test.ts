@@ -1,4 +1,4 @@
-import { describe, expect, test } from "bun:test";
+import { afterEach, describe, expect, test } from "bun:test";
 import { HttpApiClient } from "./http-api-client.ts";
 
 /**
@@ -23,6 +23,14 @@ function withFetch(handler: (url: string, init?: RequestInit) => Response): {
 }
 
 const ok = () => new Response("{}", { status: 200 });
+
+// Se restaura el fetch original: dejarlo sustituido rompe cualquier test
+// posterior que haga una peticion de verdad. Me paso con el flujo OIDC de
+// #515, que habla con un proveedor de prueba y se comia mi stub.
+const originalFetch = globalThis.fetch;
+afterEach(() => {
+	globalThis.fetch = originalFetch;
+});
 
 describe("requestPasswordReset (#531)", () => {
 	test("pide el correo con la URL de retorno de la pantalla nueva", async () => {

@@ -3652,3 +3652,11 @@ tasks:
       comprobo sobre la instancia real. El token va en la query de
       /restablecer, asi que depende de #524 para no quedar en el access_log de
       nginx. El correo no repite el destinatario en el cuerpo.
+      Fallo propio que conviene recordar: el primer test del cliente sustituia
+      globalThis.fetch y no lo restauraba. Los ficheros de bun test comparten
+      proceso, asi que el flujo OIDC de #515, que habla con un proveedor de
+      prueba real, se comia ese stub y /sign-in/social devolvia 404: 2 tests
+      ajenos en rojo solo en la suite completa. No se reproduce ejecutando los
+      ficheros por separado. Se adopta el patron que ya usa
+      http-api-client-signup.unit.test.ts: guardar el fetch original y
+      restaurarlo en afterEach.
