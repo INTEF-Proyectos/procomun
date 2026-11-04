@@ -4,6 +4,8 @@ import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import * as repo from "@procomun/db/repository";
+import { resources } from "@procomun/db/schema";
+import { eq } from "drizzle-orm";
 import { Hono } from "hono";
 import type { AuthEnv } from "../../auth/middleware.ts";
 import { getDb } from "../../db.ts";
@@ -133,5 +135,25 @@ describe("automatic ELPX versioning", () => {
 		expect(history[0]?.versionNumber).toBe(1);
 		expect(history[0]?.elpxProjectId).not.toBe(previous.id);
 		expect(existsSync(previous.extractPath)).toBe(false);
+	});
+});
+
+describe("POST /api/admin/elpx/generate/:resourceId", () => {
+	test("un recurso sin idioma no recibe español en el paquete generado (#473)", async () => {
+		const app = createApp();
+		const { id } = await seedResource();
+		await getDb()
+			.db.update(resources)
+			.set({ language: null })
+			.where(eq(resources.id, id));
+
+		const res = await app.request(`/api/admin/elpx/generate/${id}`, {
+			method: "POST",
+		});
+		expect(res.status).toBe(200);
+
+		const project = await repo.getElpxProjectByResourceId(getDb().db, id);
+		const metadata = project?.elpxMetadata as { language?: string } | null;
+		expect(metadata?.language).toBe("");
 	});
 });
