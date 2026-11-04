@@ -3426,6 +3426,23 @@ tasks:
       en verde (unit 1307, integration 22, ui 79, check-coverage 1329 pass /
       0 fail, 91,24 %). Los PR abiertos con tests en rojo pasarán a rojo en el
       CI al integrar main.
+  T-2026-11-03-10410356:
+    date: 2026-11-03
+    agent: "seguridad-privacidad-legal"
+    task: "La vista previa de versiones históricas carga estilos y subpáginas"
+    status: Done
+    related: ["#482", "#466", "#323", "ADR-0026", "ADR-0008"]
+    notes: >
+      La vista previa histórica (/api/admin/resources/:id/versions/:vid/preview/)
+      autorizaba con la cookie en cada petición, y en el iframe de origen
+      opaco solo la lleva el documento inicial: CSS, scripts, imágenes y
+      subpáginas respondían 401. Ahora esa ruta comprueba el acceso y
+      redirige (302, no-store) al enlace firmado de #466, firmado al abrir;
+      el enlace firmado deja de rechazar los hashes históricos. La URL
+      estable /api/v1/elpx/<hash>/ sigue sin servirlos (#323). Como sale de
+      /api/v1/elpx/, tampoco lleva X-Frame-Options. Test nuevo
+      version-preview-access.unit.test.ts (rojo → verde) y
+      public-version-access.unit.test.ts espera la redirección.
   T-2026-11-03-10255271:
     date: 2026-11-03
     agent: "busqueda-y-descubrimiento"
