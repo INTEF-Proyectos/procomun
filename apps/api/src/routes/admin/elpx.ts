@@ -315,7 +315,8 @@ elpxAdminRoutes.post(
 			await generateElpxFromFiles({
 				title: resource.title,
 				author: resource.author ?? "",
-				language: resource.language ?? "es",
+				// Sin idioma no se declara ninguno en el paquete (#473).
+				language: resource.language ?? undefined,
 				license: resource.license ?? "cc-by",
 				files: filesToBundle,
 				outputPath: tempOutput,

@@ -362,6 +362,33 @@ describe("Catalog islands", () => {
 		expect(renderDetail({}, "admin")).toContain("Editar recurso");
 	});
 
+	test("la ficha oculta «Idioma» si el recurso no tiene idioma (#473)", () => {
+		expect(renderDetail({ language: null }, "admin")).not.toContain(">Idioma<");
+		expect(renderDetail({ language: "en" }, "admin")).toContain(">Idioma<");
+	});
+
+	test("los recomendados sin idioma no muestran ninguno (#473)", () => {
+		const card = {
+			id: "rel-1",
+			slug: "relacionado",
+			title: "Relacionado",
+			description: "",
+			resourceType: "proyecto",
+			language: null,
+			license: "cc-by",
+			author: null,
+			score: 1,
+		};
+		const html = renderDetail({ language: null }, "reader", {
+			data: [card],
+			sameAuthor: [],
+			limit: 6,
+		});
+
+		expect(html).toContain("Relacionado");
+		expect(html).not.toContain("rc-type-label");
+	});
+
 	// #459: los valores de los detalles técnicos llevan a una búsqueda.
 	const search = (q: string) =>
 		`href="${url(`explorar?q=${encodeURIComponent(q)}`)}"`;

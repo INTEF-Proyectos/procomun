@@ -66,6 +66,97 @@ function readCollectionLocation(search: string): CollectionLocationState {
 	};
 }
 
+/** Detalle de una colección pública; sin estado, para poder probarlo. */
+export function CollectionDetailContent({
+	detail,
+	onBack,
+}: {
+	detail: CollectionDetailRecord;
+	onBack: () => void;
+}) {
+	return (
+		<section className="collections-shell">
+			<button type="button" className="collections-back-link" onClick={onBack}>
+				Volver al listado
+			</button>
+
+			<header
+				className="collection-detail-hero"
+				style={coverStyle(detail.coverImageUrl)}
+			>
+				<div className="collection-detail-overlay">
+					<p className="collections-eyebrow">Colección pública</p>
+					<h1>{detail.title}</h1>
+					<p>{detail.description}</p>
+					<ul
+						className="collection-detail-meta"
+						aria-label="Metadatos de la colección"
+					>
+						<li>{detail.resourceCount ?? detail.resources.length} recursos</li>
+						<li>Curator: {detail.curatorName ?? "Equipo editorial"}</li>
+						<li>
+							Actualizada {formatDateLong(detail.updatedAt ?? detail.createdAt)}
+						</li>
+					</ul>
+				</div>
+			</header>
+
+			<section
+				className="collection-detail-section"
+				aria-labelledby="collection-resources-title"
+			>
+				<div className="collections-section-head">
+					<div>
+						<p className="collections-eyebrow">Recursos asociados</p>
+						<h2 id="collection-resources-title">Listado de recursos</h2>
+					</div>
+				</div>
+				<div className="collection-resource-grid">
+					{detail.resources.map((resource) => {
+						const media = resourceCardMedia(resource);
+						return (
+							<a
+								key={resource.resourceId}
+								href={url(`recurso?slug=${resource.slug}`)}
+								className="collection-resource-card"
+							>
+								{media.kind === "image" ? (
+									<div className="col-res-preview">
+										<img src={media.url} alt="" />
+									</div>
+								) : media.kind === "preview" ? (
+									<CollectionIframePreview src={media.url} />
+								) : (
+									// #409: sin imagen ni visor, el marcador del tipo de
+									// recurso en vez de un hueco vacio.
+									<div className="col-res-preview col-res-preview-empty">
+										<CardTypeMarker icon={media.icon} />
+									</div>
+								)}
+								<p className="collection-resource-type">
+									{resource.resourceType}
+								</p>
+								<h3>{resource.title}</h3>
+								<p>{truncate(resource.description ?? "", 180)}</p>
+								<div className="collection-resource-meta">
+									{/* Sin idioma en origen no se muestra ninguno (#473). */}
+									{resource.language && (
+										<span>{resource.language.toUpperCase()}</span>
+									)}
+									<span>{resource.license}</span>
+									<span>
+										{resource.author ?? resource.createdByName ?? "Sin autor"}
+									</span>
+								</div>
+							</a>
+						);
+					})}
+				</div>
+			</section>
+		</section>
+	);
+}
+
 export function PublicCollectionsIsland() {
 	const [query, setQuery] = useState("");
 	const [appliedQuery, setAppliedQuery] = useState("");
@@ -185,90 +276,13 @@ export function PublicCollectionsIsland() {
 
 	if (detail) {
 		return (
-			<section className="collections-shell">
-				<button
-					type="button"
-					className="collections-back-link"
-					onClick={() => {
-						syncUrl({ slug: null });
-						void loadList(page, appliedQuery);
-					}}
-				>
-					Volver al listado
-				</button>
-
-				<header
-					className="collection-detail-hero"
-					style={coverStyle(detail.coverImageUrl)}
-				>
-					<div className="collection-detail-overlay">
-						<p className="collections-eyebrow">Colección pública</p>
-						<h1>{detail.title}</h1>
-						<p>{detail.description}</p>
-						<ul
-							className="collection-detail-meta"
-							aria-label="Metadatos de la colección"
-						>
-							<li>
-								{detail.resourceCount ?? detail.resources.length} recursos
-							</li>
-							<li>Curator: {detail.curatorName ?? "Equipo editorial"}</li>
-							<li>
-								Actualizada{" "}
-								{formatDateLong(detail.updatedAt ?? detail.createdAt)}
-							</li>
-						</ul>
-					</div>
-				</header>
-
-				<section
-					className="collection-detail-section"
-					aria-labelledby="collection-resources-title"
-				>
-					<div className="collections-section-head">
-						<div>
-							<p className="collections-eyebrow">Recursos asociados</p>
-							<h2 id="collection-resources-title">Listado de recursos</h2>
-						</div>
-					</div>
-					<div className="collection-resource-grid">
-						{detail.resources.map((resource) => {
-							const media = resourceCardMedia(resource);
-							return (
-								<a
-									key={resource.resourceId}
-									href={url(`recurso?slug=${resource.slug}`)}
-									className="collection-resource-card"
-								>
-									{media.kind === "image" ? (
-										<div className="col-res-preview">
-											<img src={media.url} alt="" />
-										</div>
-									) : media.kind === "preview" ? (
-										<CollectionIframePreview src={media.url} />
-									) : (
-										<div className="col-res-preview col-res-preview-empty">
-											<CardTypeMarker icon={media.icon} />
-										</div>
-									)}
-									<p className="collection-resource-type">
-										{resource.resourceType}
-									</p>
-									<h3>{resource.title}</h3>
-									<p>{truncate(resource.description ?? "", 180)}</p>
-									<div className="collection-resource-meta">
-										<span>{resource.language.toUpperCase()}</span>
-										<span>{resource.license}</span>
-										<span>
-											{resource.author ?? resource.createdByName ?? "Sin autor"}
-										</span>
-									</div>
-								</a>
-							);
-						})}
-					</div>
-				</section>
-			</section>
+			<CollectionDetailContent
+				detail={detail}
+				onBack={() => {
+					syncUrl({ slug: null });
+					void loadList(page, appliedQuery);
+				}}
+			/>
 		);
 	}
 

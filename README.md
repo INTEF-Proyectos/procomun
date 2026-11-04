@@ -160,6 +160,8 @@ Flags disponibles: `--source-dir <ruta>` (obligatorio), `--dry-run` (valida y ma
 
 Para corregir lo importado antes de leer `published`: `make cli ARGS="import:legacy-procomun --fix-published --source-dir <ruta> --dry-run"` (y sin `--dry-run` para aplicarlo). Pasa a borrador los recursos cuyo JSON no trae `published: 1`, salvo los que un curator ya ha revisado o destacado.
 
+Para corregir el idioma «es» puesto por defecto (#473): `make cli ARGS="import:legacy-procomun --fix-language --source-dir <ruta> --dry-run"` (y sin `--dry-run` para aplicarlo). Relee `generalLanguageStr` y cambia los recursos que siguen en «es» y cuyo origen no lo declara: quedan sin idioma o con el suyo (el valenciano `va` pasa a `ca`). Un idioma distinto de «es» no se toca.
+
 Al terminar escribe un `informe_ingesta-<runId>.json` con el desglose (importados, omitidos por ya existir, bloqueados por licencia no reconocida u otros motivos, y warnings tolerables).
 
 **Con PGlite (por defecto, sin `DATABASE_URL`)**: detén el servidor de desarrollo (`make up` / `make up-api`) antes de lanzar el import — PGlite es una base de datos embebida de un solo proceso y no soporta que dos procesos abran el mismo directorio de datos a la vez. Con PostgreSQL real (`make up-postgres` o `DATABASE_URL` configurada) no hace falta parar nada, ya que Postgres sí admite conexiones concurrentes de varios procesos.
