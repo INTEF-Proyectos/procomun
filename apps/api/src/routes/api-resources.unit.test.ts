@@ -255,3 +255,77 @@ describe("API Resources — permisos", () => {
 		).toBe(403);
 	});
 });
+
+// #537: la interfaz no deja a un reader crear recursos (NuevoPage lo bloquea),
+// pero esta API solo comprobaba que hubiera usuario. Una clave de API de una
+// cuenta reader creaba recursos en borrador o en revisión.
+describe("API Resources — rol mínimo (#537)", () => {
+	test("POST /api/v1/publish/resources → 403 con rol reader", async () => {
+		const app = createApiApp({
+			id: "reader-537",
+			role: "reader",
+			email: "reader537@example.com",
+			name: "Lectora",
+		});
+		const res = await app.request("/api/v1/publish/resources", {
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify(validResource),
+		});
+		expect(res.status).toBe(403);
+		const body = await res.json();
+		expect(body.error).toContain("Permisos insuficientes");
+	});
+
+	test("POST /api/v1/publish/resources → 403 con rol reader también en revisión", async () => {
+		const app = createApiApp({
+			id: "reader-537-review",
+			role: "reader",
+			email: "reader537r@example.com",
+			name: "Lectora",
+		});
+		const res = await app.request("/api/v1/publish/resources", {
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({
+				...validResource,
+				editorialStatus: "review",
+			}),
+		});
+		expect(res.status).toBe(403);
+	});
+
+	test("POST /api/v1/publish/resources → 201 desde author en adelante", async () => {
+		for (const role of ["author", "editor", "curator", "admin"]) {
+			const app = createApiApp({
+				id: `user-537-${role}`,
+				role,
+				email: `${role}537@example.com`,
+				name: role,
+			});
+			const res = await app.request("/api/v1/publish/resources", {
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify({
+					...validResource,
+					title: `Recurso de ${role} (#537)`,
+				}),
+			});
+			expect(res.status).toBe(201);
+		}
+	});
+
+	test("un usuario sin rol se trata como reader", async () => {
+		const app = createApiApp({
+			id: "sin-rol-537",
+			email: "sinrol537@example.com",
+			name: "Sin rol",
+		});
+		const res = await app.request("/api/v1/publish/resources", {
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify(validResource),
+		});
+		expect(res.status).toBe(403);
+	});
+});
