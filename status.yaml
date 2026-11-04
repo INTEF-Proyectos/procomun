@@ -3448,3 +3448,48 @@ tasks:
       'published'. Las reglas de transición por rol de las colecciones quedan
       fuera: desde #433 solo las crean admin y curator. Tests rojo → verde en validation.unit.test.ts y
       admin.unit.test.ts.
+  T-2026-11-04-13404809:
+    date: 2026-11-04
+    agent: "frontend-ux-accesibilidad + qa-validacion"
+    task: "Contraste WCAG AA en la portada y el login"
+    status: Done
+    related: ["#529", "#528", "#492"]
+    notes: >
+      axe tumbaba wcag.e2e.ts en la portada y el login. La causa no eran tres
+      puntos sueltos: --color-outline, que 34 reglas usan como color de texto
+      (y 35 como borde), estaba en 4,28:1 sobre la portada y 4,08:1 sobre la
+      caja del login, por debajo del 4,5:1 de WCAG 2.1 AA para texto normal.
+      Pasa a #6c6f7f, el tono mas claro que cumple en los tres fondos claros
+      (4,98:1 en blanco, 4,74:1 en surface-bright y 4,51:1 en
+      surface-container-low); los usos como borde solo ganan contraste. El pie
+      publico tenia #94a3b8 fijo a 2,45:1 en dos reglas y pasa a usar el
+      token (4,76:1). Nota: los hexes que se propusieron primero estaban mal
+      calculados (#6b7a8f da 4,18:1, no 3,02:1) y el texto del pie es de 12 y
+      10 px, no de 24, asi que necesita 4,5:1 y no 3:1. Nuevo
+      design-tokens.unit.test.ts: lee el CSS y comprueba los ratios, asi que
+      un aclarado futuro falla en bun test y no solo en el e2e; verificado que
+      falla al revertir el tono. wcag.e2e.ts espera contenido real antes de
+      pasar axe (gotoSettled) en las seis paginas que analizaba: antes veia
+      «Cargando...». Al esperar el contenido real aparecio un defecto nuevo
+      que no estaba en la issue: axe entra en el iframe del .elpx y audita el
+      HTML que exporta eXeLearning con los materiales del autor (su contador
+      de paginas pinta «Page 1/6» en #777777 sobre blanco, 4,47:1). No se
+      puede arreglar desde la plataforma, asi que el analisis excluye los
+      iframes: se audita nuestra interfaz. Hasta que #471 y #512 saquen el
+      iframe de los listados, ese contenido se cuela en la portada.
+      Esperar el contenido real destapo dos defectos mas que el test no veia
+      porque analizaba paginas vacias, y van en el mismo PR: en la ficha,
+      .meta-section-title usaba --color-on-surface-variant con opacity 0.6,
+      que compone #878c98 sobre #eef4ff, 3,05:1 a 12 px en negrita; se quita
+      la opacidad y queda en 8,48:1 (las demas opacidades del fichero estan
+      en controles :disabled, que WCAG 1.4.3 exceptua). Y en el panel de
+      administracion, el select de «Generar recursos de prueba» tenia el
+      rotulo en un <span> suelto y se quedaba sin nombre accesible; se asocia
+      con aria-labelledby para reutilizar el texto visible.
+      Tercer defecto destapado: link-in-text-block en la ficha y en explorar.
+      .breadcrumb a y .tag-breadcrumb a van en azul primario (#003fb1) dentro
+      de un bloque de texto gris (#434654): 1,04:1 entre enlace y texto, y
+      sin subrayado. WCAG pide distinguirlos por 3:1 de color o por un estilo
+      que no sea color, asi que llevan subrayado siempre y el hover pasa a
+      cambiar el color. Preexistia; el test no lo veia.
+      Queda fuera servir Material Symbols desde la plataforma.
