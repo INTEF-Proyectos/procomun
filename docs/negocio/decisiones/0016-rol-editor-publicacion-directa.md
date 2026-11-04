@@ -56,3 +56,13 @@ Archivos modificados:
 - `apps/frontend/src/islands/admin/AdminUsersSection.tsx` — selector de roles
 - `packages/db/src/seed-data.ts` — usuario demo editor
 - Tests actualizados en `permissions.unit.test.ts` y `validation-transitions.unit.test.ts`
+
+## Actualización 2026-11-03: las cuentas nuevas se crean como editor (#515)
+
+Sustituye la frase «El rol mínimo asignable a una cuenta registrada es `author`» de la nota sobre el rol `reader`.
+
+* Las cuentas creadas mediante el registro nacen como `editor`. Vale para los dos flujos de registro que hay: email y contraseña (`/api/auth/sign-up/email`) y el primer inicio de sesión OIDC (`/api/auth/callback/oidc`).
+* Lo aplica el servidor, no la interfaz: `defaultRole` del plugin admin de Better Auth y el hook `user.create.before` de `apps/api/src/auth/config.ts`, con la regla en `apps/api/src/auth/registration-role.ts`. Better Auth responde 400 si el cuerpo del registro trae `role`, y el hook descarta cualquier rol que llegue en el perfil del proveedor OIDC.
+* El alta desde administración no es registro y no cambia: el backoffice (`POST /api/admin/users`) y la CLI (`user:create`) proponen `author` y guardan el rol que elige el admin. El endpoint `/api/auth/admin/create-user` del plugin respeta el rol que se le pase desde el servidor.
+* Las cuentas existentes conservan su rol. Los usuarios importados del Procomún antiguo se tratan en #507.
+* La columna `user.role` mantiene `author` como valor por defecto en la base de datos. No interviene: todas las altas indican el rol.
