@@ -4,6 +4,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import type { LegacyOdeJson } from "@procomun/db/legacy-import";
 import {
+	normalizeLanguage,
 	resolveLegacyExternalId,
 	resolveLegacyPublicationStatus,
 } from "@procomun/db/legacy-import";
@@ -17,6 +18,7 @@ import {
 	runCopyLegacyPreviews,
 	runImportLegacyProcomun,
 	runLinkLegacyAuthors,
+	summarizeReindexError,
 } from "./import-legacy-procomun.ts";
 
 type Deps = Awaited<ReturnType<typeof loadImportLegacyProcomunDependencies>>;
@@ -115,6 +117,7 @@ function buildMockDeps(
 		// que esperan los tests existentes.
 		resolveLegacyExternalId,
 		resolveLegacyPublicationStatus,
+		normalizeLanguage,
 		mapLegacyRecord: (() => ({
 			externalId: "es_mock",
 			blocking: false,
@@ -164,6 +167,10 @@ function buildMockDeps(
 				elpxProjectId: "mock-elpx-id",
 			}),
 			getElpxProjectByHash: async () => null,
+			fixLegacyResourceLanguage: async () => ({
+				outcome: "not_found",
+				resourceId: null,
+			}),
 			unpublishUnreviewedLegacyResource: async () => ({
 				outcome: "not_found",
 				resourceId: null,
@@ -347,6 +354,10 @@ describe("runImportLegacyProcomun (deps mockeadas)", () => {
 				backfillLegacyEducationalAreas: async () => [],
 				findLegacyResourceByExternalId: async () => null,
 				getElpxProjectByHash: async () => null,
+				fixLegacyResourceLanguage: async () => ({
+					outcome: "not_found",
+					resourceId: null,
+				}),
 				unpublishUnreviewedLegacyResource: async () => ({
 					outcome: "not_found",
 					resourceId: null,
@@ -380,6 +391,10 @@ describe("runImportLegacyProcomun (deps mockeadas)", () => {
 					slug: "existing",
 				}),
 				getElpxProjectByHash: async () => null,
+				fixLegacyResourceLanguage: async () => ({
+					outcome: "not_found",
+					resourceId: null,
+				}),
 				unpublishUnreviewedLegacyResource: async () => ({
 					outcome: "not_found",
 					resourceId: null,
@@ -413,6 +428,10 @@ describe("runImportLegacyProcomun (deps mockeadas)", () => {
 				backfillLegacyEducationalAreas: async () => [],
 				findLegacyResourceByExternalId: async () => null,
 				getElpxProjectByHash: async () => null,
+				fixLegacyResourceLanguage: async () => ({
+					outcome: "not_found",
+					resourceId: null,
+				}),
 				unpublishUnreviewedLegacyResource: async () => ({
 					outcome: "not_found",
 					resourceId: null,
@@ -638,6 +657,10 @@ describe("runImportLegacyProcomun (deps mockeadas)", () => {
 					};
 				},
 				getElpxProjectByHash: async () => null,
+				fixLegacyResourceLanguage: async () => ({
+					outcome: "not_found",
+					resourceId: null,
+				}),
 				unpublishUnreviewedLegacyResource: async () => ({
 					outcome: "not_found",
 					resourceId: null,
@@ -715,6 +738,10 @@ describe("runImportLegacyProcomun (deps mockeadas)", () => {
 				findLegacyResourceByExternalId: async () => null,
 				// Ambas ejecuciones ven "no existe" — la carrera pasa el pre-check.
 				getElpxProjectByHash: async () => null,
+				fixLegacyResourceLanguage: async () => ({
+					outcome: "not_found",
+					resourceId: null,
+				}),
 				unpublishUnreviewedLegacyResource: async () => ({
 					outcome: "not_found",
 					resourceId: null,
@@ -997,6 +1024,36 @@ describe("runCopyLegacyPreviews", () => {
 			"would_copy",
 			"would_remove",
 		]);
+	});
+});
+
+// Revisión de #475 (y la garantía de #543): el fallo al reindexar se resume
+// sin el mensaje del error, porque los de Drizzle traen la consulta SQL y sus
+// parámetros, y aquí los parámetros incluyen el texto del recurso.
+describe("summarizeReindexError (revisión #475)", () => {
+	test("no copia el mensaje del error ni sus parámetros", () => {
+		const err = new Error(
+			"Failed query: update resources set search_vector = ... params: Running stories, secreto-del-recurso",
+		);
+		const summary = summarizeReindexError(err);
+
+		expect(summary).not.toContain("Failed query");
+		expect(summary).not.toContain("secreto-del-recurso");
+		expect(summary).not.toContain("Running stories");
+		expect(summary).not.toContain("search_vector");
+	});
+
+	test("conserva el tipo de error, que sirve para diagnosticar", () => {
+		class DrizzleQueryError extends Error {}
+		expect(summarizeReindexError(new DrizzleQueryError("x"))).toContain(
+			"DrizzleQueryError",
+		);
+		expect(summarizeReindexError(new TypeError("x"))).toContain("TypeError");
+	});
+
+	test("admite algo que no es un Error", () => {
+		expect(summarizeReindexError("texto suelto")).toContain("string");
+		expect(summarizeReindexError(undefined)).toContain("undefined");
 	});
 });
 

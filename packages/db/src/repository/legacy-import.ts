@@ -23,7 +23,7 @@ export interface LegacyResourceInput {
 	sourceUri: string | null;
 	title: string;
 	description: string;
-	language: string;
+	language: string | null;
 	/** No debe ser null aquí: comprobar MappingResult.blocking antes de llamar */
 	license: string;
 	resourceType: string;
@@ -297,6 +297,55 @@ export async function unpublishUnreviewedLegacyResource(
 			);
 	}
 	return { outcome: "unpublished", resourceId: row.id };
+}
+
+export type FixLegacyLanguageResult =
+	| { outcome: "not_found"; resourceId: null }
+	| {
+			outcome: "fixed" | "unchanged" | "kept";
+			resourceId: string;
+			/** Idioma que tenía antes de esta pasada. */
+			language: string | null;
+	  };
+
+/**
+ * Corrección de #473: hasta el arreglo el importador ponía "es" a lo que no
+ * traía un idioma reconocible en generalLanguageStr (sin idioma, "va", o solo
+ * el «Idioma destinatario»). Solo se toca un recurso que siga en "es": un
+ * idioma distinto vino del origen o de una edición y se respeta ("kept").
+ */
+export async function fixLegacyResourceLanguage(
+	db: DrizzleDB,
+	importSource: string,
+	externalId: string,
+	sourceLanguage: string | null,
+	options: { dryRun: boolean },
+): Promise<FixLegacyLanguageResult> {
+	const [row] = await db
+		.select({ id: resources.id, language: resources.language })
+		.from(resources)
+		.where(
+			and(
+				eq(resources.importSource, importSource),
+				eq(resources.externalId, externalId),
+				isNull(resources.deletedAt),
+			),
+		)
+		.limit(1);
+	if (!row) return { outcome: "not_found", resourceId: null };
+	if (row.language === sourceLanguage) {
+		return { outcome: "unchanged", resourceId: row.id, language: row.language };
+	}
+	if (row.language !== "es") {
+		return { outcome: "kept", resourceId: row.id, language: row.language };
+	}
+	if (!options.dryRun) {
+		await db
+			.update(resources)
+			.set({ language: sourceLanguage, updatedAt: new Date() })
+			.where(and(eq(resources.id, row.id), eq(resources.language, "es")));
+	}
+	return { outcome: "fixed", resourceId: row.id, language: row.language };
 }
 
 /**

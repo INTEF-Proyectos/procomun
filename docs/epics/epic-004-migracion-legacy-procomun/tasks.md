@@ -97,6 +97,24 @@ Los JSON/`.elpx` de `ode-export/` contienen datos personales reales (nombres y e
 - [ ] Ejecutar `--fix-published --dry-run` sobre el directorio de exportación real, revisar el informe y lanzar la corrección.
 - [ ] Valorar si la previsualización por hash debe comprobar el estado del recurso.
 
+## Idioma sin valor por defecto — 2026-10-26 (issue #473)
+
+- [x] `normalizeLanguage()` devuelve `null` en vez de `"es"` y normaliza `va` a `ca`.
+- [x] El idioma sale solo de `generalLanguageStr`; `educationalLanguageStr` ya no lo sustituye.
+- [x] `resources.language` admite `null` (migración 0016 y `setup.ts`); el editor no preselecciona «Español» si falta.
+- [x] Corrección única `--fix-language` con `--dry-run`, que solo toca recursos que siguen en `"es"`.
+- [x] Tests de normalización, mapeo, migración, ficha e integración; ADR-0029 y README actualizados.
+- [ ] Ejecutar `--fix-language --dry-run` sobre el directorio de exportación real, revisar el informe y lanzar la corrección.
+
+## Revisión del PR #475 — 2026-11-03 (issue #473)
+
+- [x] El detalle de una colección oculta el idioma vacío en lugar de romper con `language = null`; `CollectionResourceRecord.language` es `string | null`.
+- [x] Tipos de recomendados (`RelatedResource`, `RelatedResourceCard`, `SignalRow`) y `ResourceMetadata` con `language: string | null`.
+- [x] El `.elpx` generado desde los ficheros de un recurso sin idioma deja `lom_general_language` vacío en vez de `es`.
+- [x] Tests de regresión: detalle de colección, recomendados, búsqueda FTS y generador `.elpx`.
+- [ ] Decidir si el alta manual (`NuevoPage`, `POST /api/admin/resources/draft`) debe seguir proponiendo «Español» por defecto.
+- [ ] Retirar `ResourceEditorIsland`, `ResourceFormIsland`, `catalog-controller.ts` y `elpx-export.ts`, que no se usan en producción y aún suponen `"es"`.
+
 ## Autoría de los recursos importados — 2026-11-03 (issue #456)
 
 - [x] Leer `publicatorEmailStr` (sin espacios ni mayúsculas) y asignar el recurso a la cuenta con ese correo (`resources.created_by`). Sin tocar `author`, `otherAuthors` ni `publisher`.

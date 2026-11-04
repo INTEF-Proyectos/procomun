@@ -14,13 +14,14 @@ import {
 	uploadSessions,
 	user,
 } from "@procomun/db/schema";
-import { eq, inArray } from "drizzle-orm";
+import { eq, inArray, sql } from "drizzle-orm";
 import { Hono } from "hono";
 import { elpxContentRoutes } from "../../../api/src/routes/elpx-content.ts";
 import { computeFileSha256 } from "../../../api/src/uploads/config.ts";
 import {
 	loadImportLegacyProcomunDependencies,
 	runBackfillLegacyEducationalAreas,
+	runFixLegacyLanguage,
 	runFixLegacyPublished,
 	runImportLegacyProcomun,
 	runLinkLegacyAuthors,
@@ -687,6 +688,200 @@ describe("import:legacy-procomun — estado de publicación del origen (issue #4
 		);
 		expect(again.totals.unpublished).toBe(0);
 		expect(again.totals.notPublished).toBe(1);
+	});
+});
+
+// Issue #473: lo importado antes del arreglo recibió "es" sin idioma en origen.
+describe("import:legacy-procomun — idioma sin valor en origen (issue #473)", () => {
+	let deps: Awaited<ReturnType<typeof loadImportLegacyProcomunDependencies>>;
+	let sourceDir: string;
+	const SOURCES = {
+		"sin-idioma": { educationalLanguageStr: ["es"] },
+		valenciano: { generalLanguageStr: ["va"] },
+		ingles: { generalLanguageStr: ["en"] },
+		editado: {},
+	} as const;
+
+	beforeAll(async () => {
+		process.env.UPLOAD_STORAGE_DIR = await mkdtemp(
+			path.join(tmpdir(), "legacy-import-storage-language-"),
+		);
+		deps = await loadImportLegacyProcomunDependencies();
+		sourceDir = await mkdtemp(path.join(tmpdir(), "legacy-import-language-"));
+		for (const [name, language] of Object.entries(SOURCES)) {
+			await createMinimalElpx(
+				path.join(sourceDir, `${name}.elpx`),
+				`language-${name}`,
+			);
+			await writeFile(
+				path.join(sourceDir, `${name}.json`),
+				JSON.stringify({
+					idODE: `es_language_${name}`,
+					titleStr: `Recurso ${name}`,
+					descriptionStr: "Recurso para probar el idioma de origen.",
+					rightsCopyrightAndOtherRestrictionsStr:
+						"creative commons: attribution",
+					resourceType: ["documento"],
+					published: 1,
+					...language,
+				}),
+			);
+		}
+	});
+
+	async function languageOf(name: string) {
+		const [row] = await deps
+			.getDb()
+			.db.select({ language: resources.language })
+			.from(resources)
+			.where(eq(resources.externalId, `es_language_${name}`));
+		return row?.language;
+	}
+
+	test("se importa sin idioma lo que no lo trae y «va» como catalán", async () => {
+		await runImportLegacyProcomun({ sourceDir, dryRun: false }, deps);
+		expect(await languageOf("sin-idioma")).toBeNull();
+		expect(await languageOf("valenciano")).toBe("ca");
+		expect(await languageOf("ingles")).toBe("en");
+	});
+
+	test("--fix-language quita el «es» por defecto y respeta un idioma editado; en seco no escribe", async () => {
+		const db = deps.getDb().db;
+		// Simula lo importado antes del arreglo: "es" por defecto, y uno
+		// editado a mano después a gallego.
+		await db
+			.update(resources)
+			.set({ language: "es" })
+			.where(
+				inArray(resources.externalId, [
+					"es_language_sin-idioma",
+					"es_language_valenciano",
+				]),
+			);
+		await db
+			.update(resources)
+			.set({ language: "gl" })
+			.where(eq(resources.externalId, "es_language_editado"));
+
+		const dry = await runFixLegacyLanguage({ sourceDir, dryRun: true }, deps);
+		expect(dry.totals).toEqual({
+			processed: 4,
+			fixed: 2,
+			unchanged: 1,
+			kept: 1,
+			notFound: 0,
+			errored: 0,
+			// En seco no se reindexa, asi que nunca puede fallar (revisión #475).
+			reindexFailed: 0,
+		});
+		expect(dry.records).toContainEqual(
+			expect.objectContaining({
+				externalId: "es_language_sin-idioma",
+				outcome: "would_fix",
+				from: "es",
+				to: null,
+			}),
+		);
+		expect(await languageOf("sin-idioma")).toBe("es");
+
+		const real = await runFixLegacyLanguage({ sourceDir, dryRun: false }, deps);
+		expect(real.totals.fixed).toBe(2);
+		expect(await languageOf("sin-idioma")).toBeNull();
+		expect(await languageOf("valenciano")).toBe("ca");
+		expect(await languageOf("ingles")).toBe("en");
+		expect(await languageOf("editado")).toBe("gl");
+
+		const again = await runFixLegacyLanguage(
+			{ sourceDir, dryRun: false },
+			deps,
+		);
+		expect(again.totals.fixed).toBe(0);
+	});
+});
+
+// Hallazgo de la revisión de #475: --fix-language corregía
+// resources.language pero dejaba search_vector calculado con el idioma
+// anterior, así que el recurso dejaba de encontrarse por su texto. Repetir la
+// pasada no lo arreglaba: lo daba por «sin cambios».
+describe("import:legacy-procomun — --fix-language reindexa la búsqueda (revisión #475)", () => {
+	let deps: Awaited<ReturnType<typeof loadImportLegacyProcomunDependencies>>;
+	let sourceDir: string;
+	const EXTERNAL_ID = "es_reindex_running";
+
+	beforeAll(async () => {
+		process.env.UPLOAD_STORAGE_DIR = await mkdtemp(
+			path.join(tmpdir(), "legacy-import-storage-reindex-"),
+		);
+		deps = await loadImportLegacyProcomunDependencies();
+		sourceDir = await mkdtemp(path.join(tmpdir(), "legacy-import-reindex-"));
+		await createMinimalElpx(
+			path.join(sourceDir, "running.elpx"),
+			"reindex-running",
+		);
+		// El origen declara inglés: el recurso quedó en "es" por el valor por
+		// defecto de antes del arreglo.
+		await writeFile(
+			path.join(sourceDir, "running.json"),
+			JSON.stringify({
+				idODE: EXTERNAL_ID,
+				titleStr: "Running stories",
+				descriptionStr: "Recurso para probar la reindexación del idioma.",
+				rightsCopyrightAndOtherRestrictionsStr: "creative commons: attribution",
+				resourceType: ["documento"],
+				published: 1,
+				generalLanguageStr: ["en"],
+			}),
+		);
+	});
+
+	async function resourceRow() {
+		const [row] = await deps
+			.getDb()
+			.db.select({ id: resources.id, language: resources.language })
+			.from(resources)
+			.where(eq(resources.externalId, EXTERNAL_ID));
+		return row;
+	}
+
+	/**
+	 * ¿Encuentra el índice la palabra «running» con la configuración inglesa?
+	 * Es lo que hace el buscador: con el vector calculado en español, «running»
+	 * no se reduce a su raíz y la consulta en inglés no casa.
+	 */
+	async function indexFindsRunningInEnglish(id: string) {
+		const rows = (await deps.getDb().db.execute(sql`
+			select 1 from resources
+			where id = ${id}
+			  and search_vector @@ to_tsquery('english', 'running')
+		`)) as unknown as { rows?: unknown[] } | unknown[];
+		const list = Array.isArray(rows) ? rows : (rows.rows ?? []);
+		return list.length > 0;
+	}
+
+	test("tras corregir el idioma, la búsqueda en inglés encuentra el recurso", async () => {
+		await runImportLegacyProcomun({ sourceDir, dryRun: false }, deps);
+		const db = deps.getDb().db;
+		const row = await resourceRow();
+		if (!row) throw new Error("no se importó el recurso de prueba");
+
+		// Estado previo al arreglo: idioma "es" e índice calculado en español.
+		await db
+			.update(resources)
+			.set({ language: "es" })
+			.where(eq(resources.id, row.id));
+		await deps.updateSearchVector(db, row.id);
+
+		// En seco no debe escribir ni reindexar.
+		const dry = await runFixLegacyLanguage({ sourceDir, dryRun: true }, deps);
+		expect(dry.totals.fixed).toBe(1);
+		expect((await resourceRow())?.language).toBe("es");
+
+		const real = await runFixLegacyLanguage({ sourceDir, dryRun: false }, deps);
+		expect(real.totals.fixed).toBe(1);
+		expect((await resourceRow())?.language).toBe("en");
+
+		// Lo que fallaba: el índice seguía en español y la búsqueda daba 0.
+		expect(await indexFindsRunningInEnglish(row.id)).toBe(true);
 	});
 });
 
