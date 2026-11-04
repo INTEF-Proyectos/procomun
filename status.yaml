@@ -3419,3 +3419,51 @@ tasks:
       ayuda describe la publicación directa del editor. Tests:
       editorial-transitions-by-role.unit.test.ts (API por rol) y
       EditorialActions.unit.test.tsx (acciones visibles por rol y estado).
+  T-2026-11-03-10410356:
+    date: 2026-11-03
+    agent: "seguridad-privacidad-legal"
+    task: "La vista previa de versiones históricas carga estilos y subpáginas"
+    status: Done
+    related: ["#482", "#466", "#323", "ADR-0026", "ADR-0008"]
+    notes: >
+      La vista previa histórica (/api/admin/resources/:id/versions/:vid/preview/)
+      autorizaba con la cookie en cada petición, y en el iframe de origen
+      opaco solo la lleva el documento inicial: CSS, scripts, imágenes y
+      subpáginas respondían 401. Ahora esa ruta comprueba el acceso y
+      redirige (302, no-store) al enlace firmado de #466, firmado al abrir;
+      el enlace firmado deja de rechazar los hashes históricos. La URL
+      estable /api/v1/elpx/<hash>/ sigue sin servirlos (#323). Como sale de
+      /api/v1/elpx/, tampoco lleva X-Frame-Options. Test nuevo
+      version-preview-access.unit.test.ts (rojo → verde) y
+      public-version-access.unit.test.ts espera la redirección.
+  T-2026-11-03-10255271:
+    date: 2026-11-03
+    agent: "busqueda-y-descubrimiento"
+    task: "Las recomendaciones solo cuentan colecciones publicadas"
+    status: Done
+    related: ["#485", "#433", "ADR-0036"]
+    notes: >
+      La señal collection_cooccurrence y el filtro de candidatos de
+      apps/api/src/recommendations/service.ts contaban cualquier fila de
+      collection_resources, así que una colección en borrador, en revisión o
+      archivada influía en la ficha pública. Ahora las dos partes comparten un
+      fragmento SQL que une con collections y exige editorial_status =
+      'published'. Adenda fechada en
+      ADR-0036. Test rojo → verde en service.unit.test.ts.
+  T-2026-11-03-10131596:
+    date: 2026-11-03
+    agent: "backend-api-servicios"
+    task: "El estado editorial de una colección solo admite valores válidos"
+    status: Done
+    related: ["#486", "#433"]
+    notes: >
+      validateCollection no comprobaba editorialStatus, y el alta y el PATCH
+      de /api/admin/collections guardaban cualquier texto: con "publicado" o
+      "foo" la colección desaparecía de los listados públicos y de los
+      filtros por estado sin ningún error. Ahora solo admite los estados de
+      los recursos (VALID_STATUSES: draft, review, published, archived); con
+      otro valor la API devuelve 400 y la colección no cambia. Sin migración:
+      resources.editorial_status tampoco tiene CHECK, y el seed solo usa
+      'published'. Las reglas de transición por rol de las colecciones quedan
+      fuera: desde #433 solo las crean admin y curator. Tests rojo → verde en validation.unit.test.ts y
+      admin.unit.test.ts.

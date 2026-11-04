@@ -153,6 +153,10 @@ El contenido de un `.elpx` se ve en un iframe de origen opaco (ADR-0026), donde 
 
 Detalle técnico y validación en la adenda 2026-10-27 de la [ADR-0026](0026-apertura-segura-elpx.md).
 
+## Adenda 2026-11-03 — vista previa de versiones históricas (#482)
+
+La vista previa de una versión histórica sigue la regla de la adenda anterior. `requireManageableResource` comprueba el acceso en la ruta de administración, que redirige al enlace firmado del hash de esa versión. Quien no gestiona el recurso recibe 403 y no obtiene enlace. Detalle en la adenda 2026-11-03 de la [ADR-0026](0026-apertura-segura-elpx.md).
+
 ## Actualización 2026-11-03 — el editor publica directamente y no envía a revisión (#506)
 
 * El editor ya no puede pasar un borrador a revisión (`draft → review`). Publica directamente (`draft → published`) cuando el recurso cumple las validaciones de publicación (#408). Precisa lo que decía [ADR-0016](0016-rol-editor-publicacion-directa.md): el editor hereda las capacidades del author salvo esta transición.
