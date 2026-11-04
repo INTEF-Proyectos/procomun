@@ -2,6 +2,7 @@ import { describe, expect, test } from "bun:test";
 import { readdir, readFile } from "node:fs/promises";
 import path from "node:path";
 import { PGlite } from "@electric-sql/pglite";
+import { SCHEMA_STATEMENTS } from "./setup.ts";
 
 const migrationsDir = path.resolve(import.meta.dir, "../migrations");
 
@@ -460,6 +461,52 @@ describe("migración 0013_resource_views", () => {
 				"SELECT count(*)::int AS n FROM resource_view_sessions",
 			);
 			expect(left.rows[0]?.n).toBe(0);
+		} finally {
+			await db.close();
+		}
+	});
+});
+
+// Issue #473: un recurso sin idioma en origen se guarda sin idioma, no "es".
+describe("migración 0016_resource_language_nullable", () => {
+	const OLD_RESOURCES =
+		'CREATE TABLE "resources" (id TEXT PRIMARY KEY, title TEXT NOT NULL, language VARCHAR(10) NOT NULL)';
+	const NULL_LANGUAGE_INSERT = `INSERT INTO "resources" (id, title, language) VALUES ('r2', 'Sin idioma', NULL)`;
+
+	test("está en el journal y quita el NOT NULL de resources.language", async () => {
+		const journal = JSON.parse(
+			await readFile(path.join(migrationsDir, "meta/_journal.json"), "utf8"),
+		) as { entries: Array<{ tag: string }> };
+		expect(journal.entries.map((entry) => entry.tag)).toContain(
+			"0016_resource_language_nullable",
+		);
+
+		const migration = await readFile(
+			path.join(migrationsDir, "0016_resource_language_nullable.sql"),
+			"utf8",
+		);
+		const db = new PGlite();
+		try {
+			await db.exec(OLD_RESOURCES);
+			await expect(db.exec(NULL_LANGUAGE_INSERT)).rejects.toThrow();
+			await db.exec(migration);
+			await db.exec(migration);
+			await db.exec(NULL_LANGUAGE_INSERT);
+		} finally {
+			await db.close();
+		}
+	});
+
+	test("el esquema de arranque (setup.ts) también lo quita en una base previa", async () => {
+		const db = new PGlite();
+		try {
+			await db.exec(OLD_RESOURCES);
+			const dropNotNull = SCHEMA_STATEMENTS.find((statement) =>
+				/ALTER COLUMN language DROP NOT NULL/i.test(statement),
+			);
+			expect(dropNotNull).toBeDefined();
+			await db.exec(dropNotNull as string);
+			await db.exec(NULL_LANGUAGE_INSERT);
 		} finally {
 			await db.close();
 		}

@@ -8,6 +8,7 @@
  *   bun run apps/cli/src/index.ts import:legacy-procomun --backfill-categories [--dry-run] [--report-dir <ruta>]
  *   bun run apps/cli/src/index.ts import:legacy-procomun --fix-published --source-dir <ruta> [--dry-run] [--report-dir <ruta>]
  *   bun run apps/cli/src/index.ts import:legacy-procomun --copy-previews [--dry-run] [--report-dir <ruta>]
+ *   bun run apps/cli/src/index.ts import:legacy-procomun --fix-language --source-dir <ruta> [--dry-run] [--report-dir <ruta>]
  */
 import { mkdir, readdir, rename, rm, stat, unlink } from "node:fs/promises";
 import path from "node:path";
@@ -69,6 +70,7 @@ export async function loadImportLegacyProcomunDependencies() {
 		listLegacyRemoteThumbnails: repo.listLegacyRemoteThumbnails,
 		setResourceThumbnailUrl: repo.setResourceThumbnailUrl,
 		mapLegacyRecord: legacyImport.mapLegacyRecord,
+		normalizeLanguage: legacyImport.normalizeLanguage,
 		resolveLegacyPublicationStatus: legacyImport.resolveLegacyPublicationStatus,
 		resolveLegacyExternalId: legacyImport.resolveLegacyExternalId,
 		ensureLegacyImportSystemUser: legacyImport.ensureLegacyImportSystemUser,
@@ -78,6 +80,7 @@ export async function loadImportLegacyProcomunDependencies() {
 		repo: {
 			backfillLegacyEducationalAreas: repo.backfillLegacyEducationalAreas,
 			findLegacyResourceByExternalId: repo.findLegacyResourceByExternalId,
+			fixLegacyResourceLanguage: repo.fixLegacyResourceLanguage,
 			getElpxProjectByHash: repo.getElpxProjectByHash,
 			importLegacyResourceWithElpx: repo.importLegacyResourceWithElpx,
 			unpublishUnreviewedLegacyResource: repo.unpublishUnreviewedLegacyResource,
@@ -222,6 +225,7 @@ function parseCliArgs(args: string[]) {
 			"source-dir": { type: "string" },
 			"backfill-categories": { type: "boolean", default: false },
 			"fix-published": { type: "boolean", default: false },
+			"fix-language": { type: "boolean", default: false },
 			"copy-previews": { type: "boolean", default: false },
 			"dry-run": { type: "boolean", default: false },
 			limit: { type: "string" },
@@ -233,12 +237,15 @@ function parseCliArgs(args: string[]) {
 
 	const backfillCategories = Boolean(values["backfill-categories"]);
 	const fixPublished = Boolean(values["fix-published"]);
+	const fixLanguage = Boolean(values["fix-language"]);
 	const copyPreviews = Boolean(values["copy-previews"]);
 	if (
-		[backfillCategories, fixPublished, copyPreviews].filter(Boolean).length > 1
+		[backfillCategories, fixPublished, fixLanguage, copyPreviews].filter(
+			Boolean,
+		).length > 1
 	) {
 		throw new Error(
-			"--backfill-categories, --fix-published y --copy-previews no se pueden combinar",
+			"--backfill-categories, --fix-published, --fix-language y --copy-previews no se pueden combinar",
 		);
 	}
 	const sourceDir = values["source-dir"];
@@ -257,6 +264,7 @@ function parseCliArgs(args: string[]) {
 		sourceDir: sourceDir ? path.resolve(sourceDir) : "",
 		backfillCategories,
 		fixPublished,
+		fixLanguage,
 		copyPreviews,
 		dryRun: Boolean(values["dry-run"]),
 		limit,
@@ -312,6 +320,19 @@ async function runImportLegacyProcomunCommand(
 				`revisados=${t.processed} publicados_en_origen=${t.publishedAtSource} ` +
 				`a_borrador=${t.unpublished} ya_revisados=${t.reviewed} ` +
 				`no_publicados=${t.notPublished} no_importados=${t.notFound} errores=${t.errored}`,
+		);
+		await closeDbAndExit(deps, t.errored > 0 ? 1 : 0);
+		return;
+	}
+
+	if (options.fixLanguage) {
+		const fixReport = await runFixLegacyLanguage(options, deps);
+		await writeReport(options, "correccion-idioma", fixReport);
+		const t = fixReport.totals;
+		console.log(
+			`[import:legacy-procomun] Completado. ${options.dryRun ? "(dry-run) " : ""}` +
+				`revisados=${t.processed} corregidos=${t.fixed} sin_cambios=${t.unchanged} ` +
+				`respetados=${t.kept} no_importados=${t.notFound} errores=${t.errored}`,
 		);
 		await closeDbAndExit(deps, t.errored > 0 ? 1 : 0);
 		return;
@@ -535,6 +556,177 @@ export async function runFixLegacyPublished(
 			console.error(
 				`[error] ${resolved.externalId}: ${formatImportError(summary)}`,
 			);
+		}
+	}
+
+	return {
+		runId: crypto.randomUUID(),
+		sourceDir: options.sourceDir,
+		dryRun: options.dryRun,
+		startedAt,
+		finishedAt: new Date().toISOString(),
+		totals,
+		records,
+	};
+}
+
+type FixLanguageRecord = { externalId: string } & (
+	| {
+			outcome: "fixed" | "would_fix" | "kept";
+			resourceId: string;
+			from: string | null;
+			to: string | null;
+			/**
+			 * El idioma se corrigio pero la reindexacion fallo (revisión #475).
+			 * El recurso queda con el indice del idioma anterior y una segunda
+			 * pasada lo dara por «sin cambios», asi que hay que reindexarlo con
+			 * el comando de reindexacion.
+			 */
+			reindexError?: string;
+	  }
+	| { outcome: "not_found" }
+	| { outcome: "error"; message: string }
+);
+
+export interface FixLegacyLanguageReport {
+	runId: string;
+	sourceDir: string;
+	dryRun: boolean;
+	startedAt: string;
+	finishedAt: string;
+	totals: {
+		processed: number;
+		fixed: number;
+		unchanged: number;
+		kept: number;
+		notFound: number;
+		errored: number;
+		/**
+		 * Idioma corregido pero indice de busqueda sin regenerar (revisión
+		 * #475). Esos recursos necesitan una reindexacion manual: otra pasada
+		 * de --fix-language los dara por «sin cambios».
+		 */
+		reindexFailed: number;
+	};
+	/** Sin los que ya coinciden con el origen: esos solo se cuentan. */
+	records: FixLanguageRecord[];
+}
+
+/**
+ * `--fix-language` (issue #473): hasta el arreglo el importador ponía "es" a
+ * lo que no traía idioma reconocible en generalLanguageStr, y la reimportación
+ * omite lo ya importado. Esta pasada relee los JSON y corrige los recursos que
+ * siguen en "es" (ver fixLegacyResourceLanguage); un idioma distinto se
+ * respeta porque vino del origen o de una edición.
+ */
+/**
+ * Resumen del fallo al reindexar, sin el mensaje del error (revisión #475,
+ * issue #543). Los errores de Drizzle traen la consulta SQL y sus parametros,
+ * y aqui los parametros incluyen el texto del recurso. Se queda el tipo de
+ * error, que basta para diagnosticar y no lleva datos.
+ */
+export function summarizeReindexError(err: unknown): string {
+	const name =
+		err instanceof Error && err.constructor?.name
+			? err.constructor.name
+			: typeof err;
+	return `fallo al reindexar (${name}); detalle no registrado para no copiar la consulta ni sus parametros`;
+}
+
+export async function runFixLegacyLanguage(
+	options: { sourceDir: string; dryRun: boolean },
+	deps: Deps,
+): Promise<FixLegacyLanguageReport> {
+	const startedAt = new Date().toISOString();
+	await deps.waitForDb();
+	const db = deps.getDb().db;
+	const { pairs } = await findLegacySourcePairs(options.sourceDir);
+
+	const totals = {
+		processed: 0,
+		fixed: 0,
+		unchanged: 0,
+		kept: 0,
+		notFound: 0,
+		errored: 0,
+		/** Idioma corregido pero indice sin regenerar (revisión #475). */
+		reindexFailed: 0,
+	};
+	const records: FixLanguageRecord[] = [];
+
+	for await (const resolved of iterateResolvedPairs(
+		pairs,
+		deps.resolveLegacyExternalId,
+	)) {
+		totals.processed++;
+		const { externalId } = resolved;
+		if (!resolved.json) {
+			totals.errored++;
+			records.push({
+				externalId,
+				outcome: "error",
+				message: `No se pudo leer/parsear el JSON: ${resolved.parseError}`,
+			});
+			continue;
+		}
+		const to = deps.normalizeLanguage(resolved.json.generalLanguageStr);
+		try {
+			const result = await deps.repo.fixLegacyResourceLanguage(
+				db,
+				IMPORT_SOURCE,
+				externalId,
+				to,
+				{ dryRun: options.dryRun },
+			);
+			if (result.outcome === "not_found") {
+				totals.notFound++;
+				records.push({ externalId, outcome: "not_found" });
+				continue;
+			}
+			if (result.outcome === "unchanged") {
+				totals.unchanged++;
+				continue;
+			}
+			const from = result.language;
+			// El idioma decide la configuracion de to_tsvector, y no hay trigger
+			// que regenere el indice al cambiarlo: sin esto el recurso se queda
+			// indexado en el idioma anterior y deja de encontrarse por su texto,
+			// y repetir la pasada no lo arregla porque ya lo da por «sin
+			// cambios» (revisión #475). En seco no se escribe nada.
+			let reindexError: string | undefined;
+			if (result.outcome === "fixed" && !options.dryRun) {
+				try {
+					await deps.updateSearchVector(db, result.resourceId);
+				} catch (err) {
+					reindexError = summarizeReindexError(err);
+					totals.reindexFailed++;
+					console.error(
+						`[reindexado] ${externalId}: ${reindexError}. El idioma ya esta corregido; reindexa este recurso con el comando de reindexacion, porque otra pasada de --fix-language lo dara por «sin cambios».`,
+					);
+				}
+			}
+			if (result.outcome === "fixed") {
+				totals.fixed++;
+				console.log(
+					`[idioma${options.dryRun ? " (dry-run)" : ""}] ${externalId}: es -> ${to ?? "sin idioma"}`,
+				);
+			} else totals.kept++;
+			records.push({
+				externalId,
+				outcome:
+					result.outcome === "fixed" && options.dryRun
+						? "would_fix"
+						: result.outcome,
+				resourceId: result.resourceId,
+				from,
+				to,
+				...(reindexError ? { reindexError } : {}),
+			});
+		} catch (err) {
+			totals.errored++;
+			const message = err instanceof Error ? err.message : String(err);
+			records.push({ externalId, outcome: "error", message });
+			console.error(`[error] ${externalId}: ${message}`);
 		}
 	}
 
