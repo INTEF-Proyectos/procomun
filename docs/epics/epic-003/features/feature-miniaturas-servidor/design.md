@@ -121,3 +121,15 @@ Componentes:
 * **Ruta, con recursos reales:** borrador, revisión, publicado y archivado por la URL estable, con sus cabeceras de caché; publicado → archivado da 404 en la petición siguiente y archivado → borrador → publicado vuelve a dar 200; el enlace firmado sirve el borrador con `private, no-store` y rechaza el token alterado, caducado, de otro fichero o del paquete.
 * **Emisión:** la ficha del borrador para su autora, el panel, los favoritos de un recurso archivado (con y sin permiso) y el listado de administración no contienen ninguna `/api/v1/thumbnails/<fichero>` sin firma de un recurso no publicado.
 * **`screenshot.png`** por el enlace firmado del paquete: `private, no-store`.
+
+## Actualización 2026-11-04 — estado aceptado y el interceptor en el contexto (revisión de #481)
+
+**Estado.** ADR-0046 está **Aceptada** desde el 2026-11-03, con las siete decisiones de @juanda recogidas en su sección «Decisiones del 2026-11-03». La cabecera de este documento y de `requirements.md` decía «Propuesto» y el diseño hablaba de preguntas pendientes: ya no las hay. Se conserva el texto anterior, como pide `AGENTS.md`.
+
+**Corrección del aislamiento.** Donde arriba dice `page.route("**/*")` conservando `ELPX_HTML_CSP`, hay que leer:
+
+* **`browserContext.route("**/*", …)` registrado antes de crear o navegar ninguna página.** `page.route()` no intercepta la primera petición de una ventana emergente (así lo documenta Playwright), y la red Docker `internal` no impide hablar con `app`, que está en la misma red.
+* **CSP propia para la captura, sin `allow-popups` ni `allow-popups-to-escape-sandbox`.** Se mantienen el origen opaco y `serviceWorkers: "block"`.
+* **Criterio de aceptación:** una prueba de integración con un paquete que intente abrir una ventana hacia un servidor que simule la API y reciba **cero peticiones**.
+
+El detalle y el porqué están en la adenda del 2026-11-04 de ADR-0046.

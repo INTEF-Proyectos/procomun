@@ -88,3 +88,14 @@ Decisión en la [«Adenda 2026-11-03 — acceso a las miniaturas según el estad
 * **CA-8 (copia de trabajo).** La miniatura de un proyecto que no es el vigente de un recurso publicado no sale por la URL estable.
 * **CA-9 (borrado).** La miniatura de un recurso borrado no se sirve por ninguna de las dos rutas.
 * **CA-10 (#471).** `elpxPreview` sigue existiendo si hay visor o miniatura, y la miniatura no depende del visor.
+
+## Actualización 2026-11-04 — ADR-0046 aceptada (revisión de #481)
+
+La cabecera dice «ADR-0046 (Propuesto)»: desde el 2026-11-03 está **Aceptada**, con las decisiones de @juanda en su sección «Decisiones del 2026-11-03». Lo que cambia sobre lo escrito arriba:
+
+* el iframe sale de los listados al desplegar, sin esperar al relleno;
+* el relleno es solo de lo que no tiene `screenshot.png` ni `preview` legacy;
+* la captura es solo del contenido, sin la navegación de eXeLearning;
+* si Playwright no va bien con Bun, el `thumbnailer` usa Node.
+
+Requisito nuevo que sale de la revisión: **el acceso a la miniatura de un recurso no publicado sigue la regla de ADR-0026**, con enlace firmado, no la ruta pública inmutable de #472. Está en la adenda «acceso a las miniaturas según el estado editorial» de ADR-0046.

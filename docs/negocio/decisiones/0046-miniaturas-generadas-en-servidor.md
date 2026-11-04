@@ -146,3 +146,20 @@ Qué cambia en las opciones:
 9. **nginx.** En la etapa `frontend` del `Dockerfile` (nginx), la `location` de estáticos por extensión (`\.(js|css|png|jpg|…)$`) gana a `location /api/` y se queda con `/api/v1/thumbnails/*.jpg`: las busca como ficheros del frontend y no llegan a la API. Se añade `location ^~ /api/v1/thumbnails/`, igual que la de `/api/v1/elpx/`, para que lleguen a la API y conserven su `Cache-Control`.
 
 Prevalece sobre el punto 5 de la decisión y sobre RNF-5 de `requirements.md` en lo que dicen de la ruta y de la caché inmutable. Los criterios de aceptación están en `requirements.md` y las pruebas en `design.md`, en sus secciones del 2026-11-03.
+
+## Adenda 2026-11-04 — el interceptor va en el contexto, no en la página (revisión de #481)
+
+**Problema.** El punto 2 de la decisión y el `design.md` describían el bloqueo de peticiones con `page.route("**/*", …)` conservando `ELPX_HTML_CSP`. Dos agujeros, señalados en la revisión de este PR:
+
+1. **`page.route()` no intercepta la primera petición de una ventana emergente.** Lo documenta Playwright y recomienda `browserContext.route()` para cubrirla ([`page.route`](https://playwright.dev/docs/api/class-page#page-route)). Un paquete que abra una ventana dejaría esa primera petición fuera del interceptor.
+2. **`ELPX_HTML_CSP` lleva `allow-popups` y `allow-popups-to-escape-sandbox`,** así que el contenido del autor puede abrir esa ventana. Y la red Docker `internal: true` no lo impide: evita la salida a internet, pero permite hablar con los contenedores de la misma red, y ahí está `app`. Las dos medidas juntas no garantizaban que el contenido no pudiera pedir a la API.
+
+**Decisión.**
+
+1. **`browserContext.route("**/*", …)` registrado antes de crear o navegar ninguna página.** Sirve solo el origen ficticio y los ficheros contenidos en el directorio del paquete (con la comprobación de contención por `realpath` que ya estaba) y aborta todo lo demás en todo el contexto.
+2. **CSP propia para la captura, sin ventanas emergentes:** se quitan `allow-popups` y `allow-popups-to-escape-sandbox`. No se reutiliza `ELPX_HTML_CSP` tal cual, porque ahí esos permisos existen por un motivo distinto —el visor real del paquete, donde el usuario sí puede querer abrir un enlace—, y la captura no los necesita. Se mantienen el origen opaco (sin `allow-same-origin`) y `serviceWorkers: "block"`, que la ADR ya contemplaba.
+3. **Defensa en profundidad, no sustituto.** La red interna, el almacenamiento en solo lectura, el usuario sin privilegios y los límites de memoria y CPU siguen; lo que cambia es que ya no se cuenta con ellos para impedir las peticiones a la API.
+
+**Validación exigida antes de dar por buena la implementación.** Una prueba de integración con un paquete que intente abrir una ventana hacia un servidor que simule la API, comprobando que ese servidor recibe **cero peticiones**, y cobertura de la primera navegación de una ventana emergente en las pruebas del interceptor de contexto.
+
+**Procedencia.** Hallazgo de diseño de la revisión de #481, no una vulnerabilidad reproducida: este PR solo trae documentación. Queda como criterio de aceptación para #470.
