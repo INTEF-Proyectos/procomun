@@ -554,6 +554,18 @@ export function validateCollection(body: unknown): ValidationResult {
 			message: "La URL de portada no puede superar 2000 caracteres",
 		});
 	}
+	// #486: sin esta comprobación se guardaba cualquier texto y la colección
+	// desaparecía de los listados y de los filtros por estado. Las reglas de
+	// transición por rol no se comprueban aquí.
+	if (
+		b.editorialStatus !== undefined &&
+		!VALID_STATUSES.includes(b.editorialStatus as EditorialStatus)
+	) {
+		errors.push({
+			field: "editorialStatus",
+			message: `Estado no válido. Valores permitidos: ${VALID_STATUSES.join(", ")}`,
+		});
+	}
 	return { valid: errors.length === 0, errors };
 }
 
