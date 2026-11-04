@@ -454,7 +454,8 @@ export default function EditarPage() {
 		const payload = {
 			title: titleRef.current?.value ?? "",
 			description: descriptionRef.current?.value ?? "",
-			language: languageRef.current?.value ?? "es",
+			// Vacío = «Sin indicar»: se omite para no asignar un idioma (#473).
+			language: languageRef.current?.value || undefined,
 			license: licenseRef.current?.value ?? "cc-by",
 			resourceType: resourceTypeRef.current?.value ?? "documento",
 			// Al crear el autor es obligatorio y uno existente no se puede borrar,
@@ -1107,8 +1108,10 @@ export default function EditarPage() {
 									<select
 										id="ed-language"
 										ref={languageRef}
-										defaultValue={res.language ?? "es"}
+										defaultValue={res.language ?? ""}
 									>
+										{/* Sin idioma en origen: no se asume español (#473). */}
+										{!res.language && <option value="">Sin indicar</option>}
 										<option value="es">Español</option>
 										<option value="en">Inglés</option>
 										<option value="ca">Catalán</option>
