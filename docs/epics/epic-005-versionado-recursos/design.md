@@ -48,3 +48,9 @@ Solo la versión vigente se expone en la API pública ordinaria (RF-008):
 - La previsualización histórica usa `GET /api/admin/resources/:resourceId/versions/:versionId/preview/*`, autenticada y con el mismo aislamiento `sandbox` (sin `allow-same-origin`) que el endpoint público. Los subrecursos se reescriben a esa ruta para no reabrir el hash público.
 
 Restaurar una versión anterior crea una nueva versión vigente que reutiliza el ELPX histórico; a partir de ese momento su hash y su upload vuelven a ser públicos.
+
+## Vista previa histórica con enlace firmado — 2026-11-03 (issue #482)
+
+- La URL del historial sigue siendo `GET /api/admin/resources/:resourceId/versions/:versionId/preview/*`. Comprueba el acceso con la sesión y responde `302` al enlace firmado `/api/v1/elpx/preview/<hash>/<token>/` (ADR-0026, adendas 2026-10-27 y 2026-11-03).
+- Los subrecursos y las subpáginas se reescriben con el prefijo firmado, no con la ruta de administración: el iframe de origen opaco no manda la cookie en esas peticiones.
+- El hash histórico sigue sin servirse por `GET /api/v1/elpx/:hash/` (RF-008).
