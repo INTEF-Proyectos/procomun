@@ -27,7 +27,7 @@ export type RelatedResourceCard = {
 	title: string;
 	description: string;
 	resourceType: string;
-	language: string;
+	language: string | null;
 	license: string;
 	author: string | null;
 	editorialStatus: string;
@@ -52,7 +52,7 @@ type SignalRow = {
 	title: string;
 	description: string;
 	resource_type: string;
-	language: string;
+	language: string | null;
 	license: string;
 	author: string | null;
 	editorial_status: string;
