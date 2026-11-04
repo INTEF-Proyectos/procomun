@@ -322,14 +322,14 @@ export function mapLegacyRecord(
 		);
 	}
 
-	const languageResult = normalizeLanguage([
-		...(json.generalLanguageStr ?? []),
-		...(json.educationalLanguageStr ?? []),
-	]);
-	if (languageResult.guessed) {
+	// Solo el idioma del recurso (generalLanguageStr). educationalLanguageStr es
+	// el «Idioma destinatario» (el del alumnado) y no sirve de sustituto: un
+	// recurso en inglés para alumnado hispanohablante quedaría en español (#473).
+	const language = normalizeLanguage(json.generalLanguageStr);
+	if (!language) {
 		warnings.push({
 			field: "language",
-			message: `Idioma no reconocido en los metadatos de origen, se asume "${languageResult.language}"`,
+			message: `Sin idioma reconocible en generalLanguageStr (${JSON.stringify(json.generalLanguageStr ?? null)}); se importa sin idioma`,
 		});
 	}
 
@@ -473,7 +473,7 @@ export function mapLegacyRecord(
 		sourceUri,
 		title,
 		description,
-		language: languageResult.language,
+		language,
 		license: articleWithoutLicense ? DEFAULT_LICENSE : licenseResult.license,
 		resourceType,
 		subjects,

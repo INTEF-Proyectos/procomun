@@ -209,6 +209,12 @@ Cierra lo pendiente de la sección anterior con lo que decidió Producto en #380
 
 Para lo importado antes, `import:legacy-procomun --fix-published --source-dir <ruta> [--dry-run]` relee los JSON y pasa a borrador los recursos publicados sin revisión editorial (sin `assignedCuratorId`, `curatedAt` ni `featuredAt`). Detalle en ADR-0029, actualización 2026-10-22.
 
+## Idioma sin valor por defecto — 2026-10-26 (issue #473)
+
+`resources.language` sale solo de `generalLanguageStr` y admite `null`. Sin idioma reconocible el recurso entra sin idioma (warning `language` en el informe), ya no con `"es"`. `educationalLanguageStr` deja de ser sustituto: es el «Idioma destinatario» (el del alumnado), no el del recurso. El código `va` del Procomún antiguo (valenciano) se normaliza a `ca`. Sin idioma, los niveles ELE no se asignan (la regla pide `es`). La ficha ya ocultaba «Idioma» cuando está vacío.
+
+Para lo importado antes, `import:legacy-procomun --fix-language --source-dir <ruta> [--dry-run]` relee `generalLanguageStr` y corrige solo los recursos que siguen en `"es"` y cuyo origen no lo declara. Detalle en ADR-0029, actualización 2026-10-26 (#473).
+
 ## Autoría desde `publicatorEmailStr` — 2026-11-03 (issue #456)
 
 En el Procomún antiguo el correo identifica la cuenta. El importador busca la cuenta con el `publicatorEmailStr` del JSON (sin espacios ni mayúsculas) y la guarda en `resources.created_by`, que es lo que usan «Mis recursos», la ficha de autor y los permisos. Los campos de autoría en texto no cambian.

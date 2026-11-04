@@ -21,7 +21,6 @@ export {
 	mapLegacyRecord,
 	resolveLegacyExternalId,
 } from "./field-mapper.ts";
-export type { LanguageNormalizationResult } from "./normalize-language.ts";
 export { normalizeLanguage } from "./normalize-language.ts";
 export type {
 	LicenseCode,

@@ -9,6 +9,7 @@
  *   bun run apps/cli/src/index.ts import:legacy-procomun --backfill-categories [--dry-run] [--report-dir <ruta>]
  *   bun run apps/cli/src/index.ts import:legacy-procomun --fix-published --source-dir <ruta> [--dry-run] [--report-dir <ruta>]
  *   bun run apps/cli/src/index.ts import:legacy-procomun --copy-previews [--dry-run] [--report-dir <ruta>]
+ *   bun run apps/cli/src/index.ts import:legacy-procomun --fix-language --source-dir <ruta> [--dry-run] [--report-dir <ruta>]
  *   bun run apps/cli/src/index.ts import:legacy-procomun --link-authors --source-dir <ruta> [--dry-run] [--report-dir <ruta>]
  */
 import { mkdir, readdir, rename, rm, stat, unlink } from "node:fs/promises";
@@ -18,6 +19,7 @@ import {
 	assertLegacyCategoryDestinations,
 	type EducationalImportResourceNote,
 	IMPORT_SOURCE,
+	LEGACY_IMPORT_SYSTEM_USER_ID,
 	type LegacyOdeJson,
 	normalizeLegacyPublicatorEmail,
 	summarizeLegacyEducationalImport,
@@ -70,6 +72,7 @@ export async function loadImportLegacyProcomunDependencies() {
 		findLegacyAuthorAccount: repo.findLegacyAuthorAccount,
 		linkLegacyResourceAuthor: repo.linkLegacyResourceAuthor,
 		mapLegacyRecord: legacyImport.mapLegacyRecord,
+		normalizeLanguage: legacyImport.normalizeLanguage,
 		resolveLegacyPublicationStatus: legacyImport.resolveLegacyPublicationStatus,
 		resolveLegacyExternalId: legacyImport.resolveLegacyExternalId,
 		ensureLegacyImportSystemUser: legacyImport.ensureLegacyImportSystemUser,
@@ -79,6 +82,7 @@ export async function loadImportLegacyProcomunDependencies() {
 		repo: {
 			backfillLegacyEducationalAreas: repo.backfillLegacyEducationalAreas,
 			findLegacyResourceByExternalId: repo.findLegacyResourceByExternalId,
+			fixLegacyResourceLanguage: repo.fixLegacyResourceLanguage,
 			getElpxProjectByHash: repo.getElpxProjectByHash,
 			importLegacyResourceWithElpx: repo.importLegacyResourceWithElpx,
 			unpublishUnreviewedLegacyResource: repo.unpublishUnreviewedLegacyResource,
@@ -206,6 +210,20 @@ export interface AuthorWithoutAccount {
 	reason: "no_email" | "no_account" | "deleted_account";
 }
 
+/**
+ * Recurso cuyo `publicatorEmailStr` no lleva a ninguna cuenta, pero que ya
+ * tiene un creador real (reasignado a mano). No esta pendiente de asociacion:
+ * se informa aparte para no inducir a pensar que sigue sin autor
+ * (hallazgo P3 de la revisión de #508).
+ */
+export interface SourceEmailWithoutAccount {
+	externalId: string;
+	email: string | null;
+	reason: AuthorWithoutAccount["reason"];
+	/** Creador real que se conserva. */
+	createdBy: string;
+}
+
 /** Qué ha pasado con el creador de un recurso ya importado (#456). */
 type AuthorLinkOutcome =
 	| "linked"
@@ -276,7 +294,11 @@ export interface ImportLegacyProcomunReport {
 		 * los nuevos y los ya importados que estaban a nombre del sistema.
 		 */
 		authorLinked: number;
-		/** Recursos que siguen a nombre del sistema (ver authorsWithoutAccount). */
+		/**
+		 * Recursos pendientes de asociacion: creador nulo o usuario de sistema
+		 * (ver authorsWithoutAccount). No incluye los que ya tienen creador real
+		 * aunque su correo de origen no lleve a ninguna cuenta (revisión #508).
+		 */
 		authorWithoutAccount: number;
 		/** De los procesados, los que son artículos (`type: "POST"`, #446). */
 		articles: number;
@@ -286,6 +308,8 @@ export interface ImportLegacyProcomunReport {
 	incompletePairs: string[];
 	records: RecordOutcome[];
 	authorsWithoutAccount: AuthorWithoutAccount[];
+	/** Diagnostico del correo de origen en recursos que ya tienen autor. */
+	sourceEmailWithoutAccount: SourceEmailWithoutAccount[];
 	categorizacionEducativa: ReturnType<typeof summarizeLegacyEducationalImport>;
 }
 
@@ -296,6 +320,7 @@ function parseCliArgs(args: string[]) {
 			"source-dir": { type: "string" },
 			"backfill-categories": { type: "boolean", default: false },
 			"fix-published": { type: "boolean", default: false },
+			"fix-language": { type: "boolean", default: false },
 			"copy-previews": { type: "boolean", default: false },
 			"link-authors": { type: "boolean", default: false },
 			"dry-run": { type: "boolean", default: false },
@@ -308,15 +333,20 @@ function parseCliArgs(args: string[]) {
 
 	const backfillCategories = Boolean(values["backfill-categories"]);
 	const fixPublished = Boolean(values["fix-published"]);
+	const fixLanguage = Boolean(values["fix-language"]);
 	const copyPreviews = Boolean(values["copy-previews"]);
 	const linkAuthors = Boolean(values["link-authors"]);
 	if (
-		[backfillCategories, fixPublished, copyPreviews, linkAuthors].filter(
-			Boolean,
-		).length > 1
+		[
+			backfillCategories,
+			fixPublished,
+			fixLanguage,
+			copyPreviews,
+			linkAuthors,
+		].filter(Boolean).length > 1
 	) {
 		throw new Error(
-			"--backfill-categories, --fix-published, --copy-previews y --link-authors no se pueden combinar",
+			"--backfill-categories, --fix-published, --fix-language, --copy-previews y --link-authors no se pueden combinar",
 		);
 	}
 	const sourceDir = values["source-dir"];
@@ -335,6 +365,7 @@ function parseCliArgs(args: string[]) {
 		sourceDir: sourceDir ? path.resolve(sourceDir) : "",
 		backfillCategories,
 		fixPublished,
+		fixLanguage,
 		copyPreviews,
 		linkAuthors,
 		dryRun: Boolean(values["dry-run"]),
@@ -390,6 +421,19 @@ export async function importLegacyProcomun(args: string[]) {
 				`revisados=${t.processed} publicados_en_origen=${t.publishedAtSource} ` +
 				`a_borrador=${t.unpublished} ya_revisados=${t.reviewed} ` +
 				`no_publicados=${t.notPublished} no_importados=${t.notFound} errores=${t.errored}`,
+		);
+		await closeDbAndExit(deps, t.errored > 0 ? 1 : 0);
+		return;
+	}
+
+	if (options.fixLanguage) {
+		const fixReport = await runFixLegacyLanguage(options, deps);
+		await writeReport(options, "correccion-idioma", fixReport);
+		const t = fixReport.totals;
+		console.log(
+			`[import:legacy-procomun] Completado. ${options.dryRun ? "(dry-run) " : ""}` +
+				`revisados=${t.processed} corregidos=${t.fixed} sin_cambios=${t.unchanged} ` +
+				`respetados=${t.kept} no_importados=${t.notFound} errores=${t.errored}`,
 		);
 		await closeDbAndExit(deps, t.errored > 0 ? 1 : 0);
 		return;
@@ -611,6 +655,181 @@ export async function runFixLegacyPublished(
 			const message = err instanceof Error ? err.message : String(err);
 			records.push({ ...trace, outcome: "error", message });
 			console.error(`[error] ${resolved.externalId}: ${message}`);
+		}
+	}
+
+	return {
+		runId: crypto.randomUUID(),
+		sourceDir: options.sourceDir,
+		dryRun: options.dryRun,
+		startedAt,
+		finishedAt: new Date().toISOString(),
+		totals,
+		records,
+	};
+}
+
+type FixLanguageRecord = { externalId: string } & (
+	| {
+			outcome: "fixed" | "would_fix" | "kept";
+			resourceId: string;
+			from: string | null;
+			to: string | null;
+			/**
+			 * El idioma se corrigio pero la reindexacion fallo (revisión #475).
+			 * El recurso queda con el indice del idioma anterior y una segunda
+			 * pasada lo dara por «sin cambios», asi que hay que reindexarlo con
+			 * el comando de reindexacion.
+			 */
+			reindexError?: string;
+	  }
+	| { outcome: "not_found" }
+	| { outcome: "error"; message: string }
+);
+
+export interface FixLegacyLanguageReport {
+	runId: string;
+	sourceDir: string;
+	dryRun: boolean;
+	startedAt: string;
+	finishedAt: string;
+	totals: {
+		processed: number;
+		fixed: number;
+		unchanged: number;
+		kept: number;
+		notFound: number;
+		errored: number;
+		/**
+		 * Idioma corregido pero indice de busqueda sin regenerar (revisión
+		 * #475). Esos recursos necesitan una reindexacion manual: otra pasada
+		 * de --fix-language los dara por «sin cambios».
+		 */
+		reindexFailed: number;
+	};
+	/** Sin los que ya coinciden con el origen: esos solo se cuentan. */
+	records: FixLanguageRecord[];
+}
+
+/**
+ * `--fix-language` (issue #473): hasta el arreglo el importador ponía "es" a
+ * lo que no traía idioma reconocible en generalLanguageStr, y la reimportación
+ * omite lo ya importado. Esta pasada relee los JSON y corrige los recursos que
+ * siguen en "es" (ver fixLegacyResourceLanguage); un idioma distinto se
+ * respeta porque vino del origen o de una edición.
+ */
+/**
+ * Resumen del fallo al reindexar, sin el mensaje del error (revisión #475,
+ * issue #543). Los errores de Drizzle traen la consulta SQL y sus parametros,
+ * y aqui los parametros incluyen el texto del recurso. Se queda el tipo de
+ * error, que basta para diagnosticar y no lleva datos.
+ */
+export function summarizeStepError(step: string, err: unknown): string {
+	const name =
+		err instanceof Error && err.constructor?.name
+			? err.constructor.name
+			: typeof err;
+	return `fallo al ${step} (${name}); detalle no registrado para no copiar la consulta ni sus parametros`;
+}
+
+export function summarizeReindexError(err: unknown): string {
+	return summarizeStepError("reindexar", err);
+}
+
+export async function runFixLegacyLanguage(
+	options: { sourceDir: string; dryRun: boolean },
+	deps: Deps,
+): Promise<FixLegacyLanguageReport> {
+	const startedAt = new Date().toISOString();
+	await deps.waitForDb();
+	const db = deps.getDb().db;
+	const { pairs } = await findLegacySourcePairs(options.sourceDir);
+
+	const totals = {
+		processed: 0,
+		fixed: 0,
+		unchanged: 0,
+		kept: 0,
+		notFound: 0,
+		errored: 0,
+		/** Idioma corregido pero indice sin regenerar (revisión #475). */
+		reindexFailed: 0,
+	};
+	const records: FixLanguageRecord[] = [];
+
+	for await (const resolved of iterateResolvedPairs(
+		pairs,
+		deps.resolveLegacyExternalId,
+	)) {
+		totals.processed++;
+		const { externalId } = resolved;
+		if (!resolved.json) {
+			totals.errored++;
+			records.push({
+				externalId,
+				outcome: "error",
+				message: `No se pudo leer/parsear el JSON: ${resolved.parseError}`,
+			});
+			continue;
+		}
+		const to = deps.normalizeLanguage(resolved.json.generalLanguageStr);
+		try {
+			const result = await deps.repo.fixLegacyResourceLanguage(
+				db,
+				IMPORT_SOURCE,
+				externalId,
+				to,
+				{ dryRun: options.dryRun },
+			);
+			if (result.outcome === "not_found") {
+				totals.notFound++;
+				records.push({ externalId, outcome: "not_found" });
+				continue;
+			}
+			if (result.outcome === "unchanged") {
+				totals.unchanged++;
+				continue;
+			}
+			const from = result.language;
+			// El idioma decide la configuracion de to_tsvector, y no hay trigger
+			// que regenere el indice al cambiarlo: sin esto el recurso se queda
+			// indexado en el idioma anterior y deja de encontrarse por su texto,
+			// y repetir la pasada no lo arregla porque ya lo da por «sin
+			// cambios» (revisión #475). En seco no se escribe nada.
+			let reindexError: string | undefined;
+			if (result.outcome === "fixed" && !options.dryRun) {
+				try {
+					await deps.updateSearchVector(db, result.resourceId);
+				} catch (err) {
+					reindexError = summarizeReindexError(err);
+					totals.reindexFailed++;
+					console.error(
+						`[reindexado] ${externalId}: ${reindexError}. El idioma ya esta corregido; reindexa este recurso con el comando de reindexacion, porque otra pasada de --fix-language lo dara por «sin cambios».`,
+					);
+				}
+			}
+			if (result.outcome === "fixed") {
+				totals.fixed++;
+				console.log(
+					`[idioma${options.dryRun ? " (dry-run)" : ""}] ${externalId}: es -> ${to ?? "sin idioma"}`,
+				);
+			} else totals.kept++;
+			records.push({
+				externalId,
+				outcome:
+					result.outcome === "fixed" && options.dryRun
+						? "would_fix"
+						: result.outcome,
+				resourceId: result.resourceId,
+				from,
+				to,
+				...(reindexError ? { reindexError } : {}),
+			});
+		} catch (err) {
+			totals.errored++;
+			const message = err instanceof Error ? err.message : String(err);
+			records.push({ externalId, outcome: "error", message });
+			console.error(`[error] ${externalId}: ${message}`);
 		}
 	}
 
@@ -982,6 +1201,7 @@ export async function runImportLegacyProcomun(
 	let articles = 0;
 	let skippedWithoutAuthor = 0;
 	const authorsWithoutAccount: AuthorWithoutAccount[] = [];
+	const sourceEmailWithoutAccount: SourceEmailWithoutAccount[] = [];
 	const resolveAuthor = createLegacyAuthorResolver(deps, db);
 
 	// Streaming: se itera par a par (ver iterateResolvedPairs) y se corta en
@@ -1051,10 +1271,54 @@ export async function runImportLegacyProcomun(
 			} else {
 				// #456: el recurso es de la cuenta con su publicatorEmailStr. Sin
 				// cuenta sigue a nombre del sistema y se lista en el informe.
-				const author = await resolveAuthor(mapping.publicatorEmail);
-				const countAuthor = (linked: boolean) => {
+				//
+				// Hallazgo P2 de la revisión de #508: esto quedaba fuera del
+				// manejo de errores por recurso, asi que un rechazo aqui abortaba
+				// el lote y no se escribia el informe, aunque ya se hubieran
+				// importado recursos antes. Ahora se registra y se sigue con el
+				// siguiente ODE, como hace runLinkLegacyAuthors. El mensaje va
+				// saneado: la consulta que envuelve lleva el correo como
+				// parametro (#543).
+				let author: LegacyAuthor;
+				try {
+					author = await resolveAuthor(mapping.publicatorEmail);
+				} catch (err) {
+					errored++;
+					const message = summarizeStepError("buscar la cuenta del autor", err);
+					records.push({
+						outcome: "error",
+						externalId: mapping.externalId || pair.baseName,
+						message,
+					});
+					console.error(`[error] ${mapping.externalId}: ${message}`);
+					continue;
+				}
+				/**
+				 * `existingCreatedBy`: creador real del recurso ya importado, si
+				 * lo tiene. Hallazgo P3 de la revisión de #508: un recurso
+				 * reasignado a mano cuyo correo de origen no lleva a ninguna
+				 * cuenta no esta pendiente de asociacion, y listarlo en
+				 * authorsWithoutAccount inducia a pensar que seguia sin autor.
+				 * El diagnostico del correo se informa aparte.
+				 */
+				const countAuthor = (
+					linked: boolean,
+					existingCreatedBy?: string | null,
+				) => {
 					if (linked) authorLinked++;
 					if (author.userId !== null) return;
+					const hasRealCreator =
+						!!existingCreatedBy &&
+						existingCreatedBy !== LEGACY_IMPORT_SYSTEM_USER_ID;
+					if (hasRealCreator) {
+						sourceEmailWithoutAccount.push({
+							externalId: mapping.externalId,
+							email: mapping.publicatorEmail,
+							reason: author.reason,
+							createdBy: existingCreatedBy as string,
+						});
+						return;
+					}
 					authorsWithoutAccount.push({
 						externalId: mapping.externalId,
 						email: mapping.publicatorEmail,
@@ -1068,17 +1332,34 @@ export async function runImportLegacyProcomun(
 				);
 				if (existing) {
 					skippedExisting++;
-					// Reimportar enlaza lo que ya tiene cuenta (idempotente).
-					const link = await linkExistingResourceAuthor(
-						deps,
-						db,
-						existing.id,
-						author,
-						options.dryRun,
-					);
+					// Reimportar enlaza lo que ya tiene cuenta (idempotente). Un
+					// fallo aqui tampoco debe abortar el lote (revisión #508).
+					let link: ExistingAuthorLink;
+					try {
+						link = await linkExistingResourceAuthor(
+							deps,
+							db,
+							existing.id,
+							author,
+							options.dryRun,
+						);
+					} catch (err) {
+						errored++;
+						const message = summarizeStepError(
+							"enlazar el autor del recurso ya importado",
+							err,
+						);
+						records.push({
+							outcome: "error",
+							externalId: mapping.externalId,
+							message,
+						});
+						console.error(`[error] ${mapping.externalId}: ${message}`);
+						continue;
+					}
 					const linked =
 						link.outcome === "linked" || link.outcome === "would_link";
-					countAuthor(linked);
+					countAuthor(linked, existing.createdBy);
 					records.push({
 						outcome: "skipped_existing",
 						externalId: mapping.externalId,
@@ -1180,6 +1461,7 @@ export async function runImportLegacyProcomun(
 		incompletePairs: incomplete,
 		records,
 		authorsWithoutAccount,
+		sourceEmailWithoutAccount,
 		categorizacionEducativa: summarizeLegacyEducationalImport(educationalNotes),
 	};
 }

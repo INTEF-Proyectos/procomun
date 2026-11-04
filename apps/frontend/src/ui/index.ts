@@ -53,3 +53,5 @@ export type { StarRatingProps } from "./StarRating.tsx";
 export { StarRating } from "./StarRating.tsx";
 export type { Tab, TabsProps } from "./Tabs.tsx";
 export { Tabs } from "./Tabs.tsx";
+export type { UserAvatarProps } from "./UserAvatar.tsx";
+export { UserAvatar } from "./UserAvatar.tsx";
