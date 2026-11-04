@@ -18,11 +18,15 @@
 
 .breadcrumb a {
 	color: var(--color-primary);
-	text-decoration: none;
+	/* #529: el enlace va en azul primario dentro de un bloque de texto gris
+	   (#003fb1 sobre #434654: 1,04:1 entre ambos). WCAG pide distinguirlo del
+	   texto que lo rodea por 3:1 de color o por un estilo que no sea color, asi
+	   que lleva subrayado siempre y no solo al pasar por encima. */
+	text-decoration: underline;
 }
 
 .breadcrumb a:hover {
-	text-decoration: underline;
+	color: var(--color-on-surface);
 }
 
 .breadcrumb .sep {
@@ -743,7 +747,10 @@
 	text-transform: uppercase;
 	letter-spacing: var(--tracking-widest);
 	color: var(--color-on-surface-variant);
-	opacity: 0.6;
+	/* #529: con opacity 0.6 el color compuesto era #878c98 sobre #eef4ff, 3,05:1
+	   a 12 px en negrita, cuando el minimo es 4,5:1. El token solo da 8,4:1.
+	   Las demas opacidades del fichero estan en controles :disabled, que WCAG
+	   1.4.3 exceptua. */
 	margin-bottom: var(--space-6);
 }
 

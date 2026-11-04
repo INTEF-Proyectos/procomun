@@ -271,7 +271,8 @@ body.nav-search-visible .public-nav-search {
 }
 
 .public-footer-social-icon {
-	color: #94a3b8;
+	/* #529: 2,45:1. El token cumple y quita un color fijo. */
+	color: var(--color-outline);
 	text-decoration: none;
 	transition: color 200ms ease;
 }
@@ -315,7 +316,8 @@ body.nav-search-visible .public-nav-search {
 .public-footer-bottom p {
 	font-family: var(--font-body);
 	font-size: 10px;
-	color: #94a3b8;
+	/* #529: 2,45:1. El token cumple y quita un color fijo. */
+	color: var(--color-outline);
 	letter-spacing: 0.05em;
 }
 
