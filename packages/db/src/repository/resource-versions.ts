@@ -22,7 +22,7 @@ import type { DrizzleDB } from "./shared.ts";
 export type ResourceVersionSnapshot = {
 	title: string;
 	description: string;
-	language: string;
+	language: string | null;
 	license: string;
 	resourceType: string;
 	keywords: string | null;
@@ -52,7 +52,7 @@ export function parseVersionSnapshot(value: unknown): ResourceVersionSnapshot {
 	return {
 		title: toStringOrNull(raw.title) ?? "",
 		description: toStringOrNull(raw.description) ?? "",
-		language: toStringOrNull(raw.language) ?? "",
+		language: toStringOrNull(raw.language),
 		license: toStringOrNull(raw.license) ?? "",
 		resourceType: toStringOrNull(raw.resourceType) ?? "",
 		keywords: toStringOrNull(raw.keywords),

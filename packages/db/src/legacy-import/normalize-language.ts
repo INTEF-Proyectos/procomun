@@ -1,18 +1,15 @@
 import { VALID_LANGUAGES } from "../validation.ts";
 
-export interface LanguageNormalizationResult {
-	language: (typeof VALID_LANGUAGES)[number];
-	/** true si no se reconoció ningún candidato y se usó el idioma por defecto */
-	guessed: boolean;
-}
-
-const FALLBACK_LANGUAGE: (typeof VALID_LANGUAGES)[number] = "es";
+type Language = (typeof VALID_LANGUAGES)[number];
 
 // Variantes ISO 639-2/regionales vistas en metadatos legacy, mapeadas a los
 // códigos ISO 639-1 soportados por VALID_LANGUAGES.
-const LANGUAGE_ALIASES: Record<string, (typeof VALID_LANGUAGES)[number]> = {
+const LANGUAGE_ALIASES: Record<string, Language> = {
 	spa: "es",
 	cat: "ca",
+	// El Procomún antiguo etiqueta el valenciano como "va" (no es ISO 639);
+	// en ISO es catalán (BCP 47: ca-valencia). Issue #473.
+	va: "ca",
 	eng: "en",
 	eus: "eu",
 	baq: "eu",
@@ -26,30 +23,21 @@ const LANGUAGE_ALIASES: Record<string, (typeof VALID_LANGUAGES)[number]> = {
 };
 
 /**
- * Normaliza los candidatos de idioma del JSON legacy (generalLanguageStr,
- * educationalLanguageStr) al enum VALID_LANGUAGES. Si ninguno es reconocible,
- * hace fallback a "es" marcado como `guessed: true` (tolerable, no bloqueante).
+ * Normaliza los candidatos de idioma del JSON legacy (generalLanguageStr) al
+ * enum VALID_LANGUAGES. Si ninguno es reconocible devuelve null: no se asume
+ * un idioma que no esté en origen (issue #473).
  */
 export function normalizeLanguage(
 	values: (string | null | undefined)[] | null | undefined,
-): LanguageNormalizationResult {
-	const candidates = (values ?? []).filter(
-		(v): v is string => typeof v === "string" && v.trim().length > 0,
-	);
-
-	for (const raw of candidates) {
+): Language | null {
+	for (const raw of values ?? []) {
+		if (typeof raw !== "string") continue;
 		const code = raw.trim().toLowerCase().split(/[-_]/)[0] ?? "";
 		if ((VALID_LANGUAGES as readonly string[]).includes(code)) {
-			return {
-				language: code as (typeof VALID_LANGUAGES)[number],
-				guessed: false,
-			};
+			return code as Language;
 		}
 		const aliased = LANGUAGE_ALIASES[code];
-		if (aliased) {
-			return { language: aliased, guessed: false };
-		}
+		if (aliased) return aliased;
 	}
-
-	return { language: FALLBACK_LANGUAGE, guessed: true };
+	return null;
 }
