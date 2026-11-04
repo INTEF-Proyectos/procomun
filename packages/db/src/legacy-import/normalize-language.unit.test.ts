@@ -3,55 +3,33 @@ import { normalizeLanguage } from "./normalize-language.ts";
 
 describe("normalizeLanguage", () => {
 	it("accepts a directly valid ISO 639-1 code", () => {
-		expect(normalizeLanguage(["es"])).toEqual({
-			language: "es",
-			guessed: false,
-		});
-		expect(normalizeLanguage(["ca"])).toEqual({
-			language: "ca",
-			guessed: false,
-		});
+		expect(normalizeLanguage(["es"])).toBe("es");
+		expect(normalizeLanguage(["ca"])).toBe("ca");
 	});
 
 	it("normalizes case and regional suffixes", () => {
-		expect(normalizeLanguage(["ES"])).toEqual({
-			language: "es",
-			guessed: false,
-		});
-		expect(normalizeLanguage(["pt-BR"])).toEqual({
-			language: "pt",
-			guessed: false,
-		});
+		expect(normalizeLanguage(["ES"])).toBe("es");
+		expect(normalizeLanguage(["pt-BR"])).toBe("pt");
+		expect(normalizeLanguage(["ca-valencia"])).toBe("ca");
 	});
 
 	it("maps ISO 639-2 aliases seen in legacy metadata", () => {
-		expect(normalizeLanguage(["spa"])).toEqual({
-			language: "es",
-			guessed: false,
-		});
-		expect(normalizeLanguage(["cat"])).toEqual({
-			language: "ca",
-			guessed: false,
-		});
+		expect(normalizeLanguage(["spa"])).toBe("es");
+		expect(normalizeLanguage(["cat"])).toBe("ca");
+	});
+
+	it("maps the legacy Valencian code «va» to Catalan (issue #473)", () => {
+		expect(normalizeLanguage(["va"])).toBe("ca");
 	});
 
 	it("falls through to the next candidate when the first is empty", () => {
-		expect(normalizeLanguage(["", "es"])).toEqual({
-			language: "es",
-			guessed: false,
-		});
+		expect(normalizeLanguage(["", "es"])).toBe("es");
 	});
 
-	it("falls back to Spanish and marks it as guessed when nothing matches", () => {
-		expect(normalizeLanguage(["xx"])).toEqual({
-			language: "es",
-			guessed: true,
-		});
-		expect(normalizeLanguage(null)).toEqual({ language: "es", guessed: true });
-		expect(normalizeLanguage([])).toEqual({ language: "es", guessed: true });
-		expect(normalizeLanguage([null, undefined, ""])).toEqual({
-			language: "es",
-			guessed: true,
-		});
+	it("returns null instead of assuming Spanish when nothing matches (issue #473)", () => {
+		expect(normalizeLanguage(["xx"])).toBeNull();
+		expect(normalizeLanguage(null)).toBeNull();
+		expect(normalizeLanguage([])).toBeNull();
+		expect(normalizeLanguage([null, undefined, ""])).toBeNull();
 	});
 });

@@ -3210,6 +3210,38 @@ tasks:
       de metadatos (preview legacy), iframe como reserva para no deshacer
       #426 y, sin nada, el marcador del tipo con aria-hidden. Comando
       elpx:screenshots [--dry-run] para los paquetes ya subidos.
+  T-2026-10-26-22335129:
+    date: 2026-10-26
+    agent: "ingestas-y-migraciones"
+    task: "No asignar español por defecto a los recursos sin idioma"
+    status: Done
+    related: ["#473", "ADR-0029"]
+    notes: >
+      normalizeLanguage() devolvía "es" si no reconocía nada y el importador
+      tomaba educationalLanguageStr («Idioma destinatario») como sustituto.
+      Ahora el idioma sale solo de generalLanguageStr, sin valor queda null
+      (migración 0016 y setup.ts) y "va" (valenciano) pasa a "ca". La ficha
+      ya ocultaba «Idioma» vacío; el editor muestra «Sin indicar».
+      import:legacy-procomun --fix-language [--dry-run] corrige lo importado
+      que sigue en "es" sin declararlo en origen. Pendiente: ejecutarlo sobre
+      la exportación real.
+
+  T-2026-11-03-12042407:
+    date: 2026-11-03
+    agent: "qa-validacion"
+    task: "Revisión del PR #475: consumidores que suponían idioma no nulo"
+    status: Done
+    related: ["#473", "#475"]
+    notes: >
+      El detalle de una colección rompía con language = null
+      (resource.language.toUpperCase()): ahora lo oculta y
+      CollectionResourceRecord.language es string | null. También pasan a
+      nullable RelatedResource, RelatedResourceCard, SignalRow y
+      ResourceMetadata. El .elpx generado desde los ficheros del recurso ya
+      no declara lom_general_language = es si el recurso no tiene idioma.
+      Tests de regresión en colecciones, recomendados, búsqueda y generador.
+      Sin tocar: ResourceEditorIsland, ResourceFormIsland, catalog-controller
+      y elpx-export.ts no se usan en producción.
   T-2026-10-26-07220488:
     date: 2026-10-26
     agent: "seguridad-privacidad-legal"
@@ -3500,6 +3532,54 @@ tasks:
       administración. Migración 0019 con índices parciales y location ^~ para
       las miniaturas en nginx.conf. elpxPreview sigue existiendo con visor o
       miniatura (#471).
+  T-2026-11-03-12314847:
+    date: 2026-11-03
+    agent: "backend-api-servicios"
+    task: "Las cuentas nuevas creadas mediante el registro son editor (#515)"
+    status: Done
+    related: ["#515", "#507", "#506", "ADR-0016"]
+    notes: >
+      defaultRole del plugin admin pasa de author a editor, y el hook
+      user.create.before fija el rol con resolveNewUserRole
+      (apps/api/src/auth/registration-role.ts): toda alta de Better Auth es
+      editor salvo /admin/create-user, que conserva el rol pedido. Vale para
+      el registro con email y contraseña y para el primer inicio de sesión
+      OIDC. Better Auth ya respondía 400 a un role en el cuerpo del registro;
+      el hook cubre además el perfil del proveedor. config.ts exporta
+      createAuth(env) para que el test monte un proveedor OIDC propio
+      (Bun.serve). El alta del backoffice y la CLI no pasan por Better Auth y
+      siguen proponiendo author. Las cuentas existentes no cambian. Tests:
+      registration.unit.test.ts (registro, rol manipulado, OIDC, altas de
+      administración, login de una cuenta existente) y
+      registration-role.unit.test.ts. ADR-0016 lleva una actualización
+      fechada.
+  T-2026-11-03-12373636:
+    date: 2026-11-03
+    agent: "frontend-ux-accesibilidad + qa-validacion"
+    task: "La foto de Gravatar se carga en el menú y en el perfil"
+    status: Done
+    related: ["#514", "#504", "ADR-0037"]
+    notes: >
+      Nadie veía su foto de Gravatar, ni los usuarios nuevos ni los antiguos.
+      gravatarUrl (shared-utils.ts) resumía el correo con un hash propio de 64
+      bits (16 caracteres hex), y Gravatar solo reconoce el SHA-256 o el MD5
+      del correo recortado y en minúsculas: con otro identificador devuelve
+      d=mp, la silueta. El perfil, además, resumía `${id}@procomun.es` en vez
+      del correo de la sesión. La CSP no intervenía: las páginas de la
+      aplicación no envían CSP, Referrer-Policy ni COEP (nginx.conf solo pone
+      X-Frame-Options y nosniff), y Gravatar sirve image/jpeg sin CORP.
+      Nuevo lib/gravatar.ts: SHA-256 con crypto.subtle del correo normalizado,
+      calculado una vez al cargar la sesión (toNavUser en el menú y
+      profileAvatarUrl, s=192, en el perfil, que lo guarda en
+      PublicUserProfile.avatarUrl). Solo se resume el correo del propio
+      usuario. Sin crypto.subtle (página sin HTTPS) o si la imagen no carga,
+      el componente UserAvatar muestra la inicial del nombre. No hay foto de
+      perfil propia en main: user.image no se usa para representar al usuario
+      (ADR-0037); cuando exista user_profile.image irá en avatarUrl antes que
+      Gravatar. Si se mantiene Gravatar lo decide #504. Tests rojo → verde en
+      gravatar.unit.test.ts (ejemplo de la documentación de Gravatar, forma
+      de la URL, normalización), UserAvatar.unit.test.tsx,
+      LayoutIslands.unit.test.tsx y PublicDashboardIsland.unit.test.tsx.
   T-2026-11-03-11185577:
     date: 2026-11-03
     agent: "devops-sre + qa-validacion"
@@ -3644,3 +3724,46 @@ tasks:
       tests que cubren tambien la URL firmada de la miniatura en recursos no
       publicados. Tests ajustados: los dos toEqual del informe incluyen la
       clave nueva unreachable y el helper del test usa el dep nuevo.
+  T-2026-11-04-15363556:
+    date: 2026-11-04
+    agent: "ingestas-y-migraciones + qa-validacion"
+    task: "Atender la revision de #475: --fix-language reindexa la busqueda"
+    status: Done
+    related: ["#475", "#473", "#543"]
+    notes: >
+      Hallazgo de jacoboAlcantara en la revision de #475: --fix-language
+      corregia resources.language pero no regeneraba search_vector, que se
+      calcula con la configuracion del idioma, y no hay trigger que lo haga.
+      El recurso dejaba de encontrarse por su texto y repetir la pasada no lo
+      arreglaba porque ya lo daba por «sin cambios». Ahora, tras una
+      correccion real (nunca en seco), se llama a updateSearchVector. Si la
+      reindexacion falla se cuenta en totals.reindexFailed, se marca
+      reindexError en el registro y se avisa por consola de que el idioma ya
+      esta corregido y hay que reindexar a mano con el comando de
+      reindexacion, porque otra pasada lo dara por sin cambios. El mensaje del
+      error no se copia: summarizeReindexError deja solo el tipo, porque los
+      errores de Drizzle traen la consulta SQL y sus parametros, y aqui los
+      parametros incluyen el texto del recurso (garantia de #543). Test de
+      integracion rojo a verde comprobando el indice con to_tsquery('english')
+      y tests del saneador. El primer punto de la revision (TypeError al
+      pintar una coleccion con un recurso sin idioma) ya estaba corregido
+      antes: guarda en PublicCollectionsIsland, tipo string | null en
+      api-client y test de regresion. Test ajustado: el toEqual de totals en
+      el caso en seco incluye la clave nueva reindexFailed.
+  T-2026-11-04-16102520:
+    date: 2026-11-04
+    agent: "ingestas-y-migraciones"
+    task: "Renumerar la migracion de #471 a 0017 al entrar antes la 0016"
+    status: Done
+    related: ["#471", "#473", "#475"]
+    notes: >
+      #475 se mezclo primero y dejo la 0016_resource_language_nullable en main,
+      asi que la 0015_elpx_has_screenshot de #471 pasa a
+      0017_elpx_has_screenshot, con su propio idx y un when posterior, como
+      manda AGENTS.md (el que se mezcla despues renumera). El test del journal
+      ya no exige que sea la inmediatamente siguiente a 0014: comprueba que va
+      despues, con idx y when propios, y que es la ultima entrada para que se
+      aplique al final. Tambien se resolvio el conflicto de
+      PublicCollectionsIsland.tsx: #475 extrajo el detalle a
+      CollectionDetailContent, asi que el marcador por tipo de #409 se ha
+      llevado dentro de ese componente conservando la guarda de idioma de #473.

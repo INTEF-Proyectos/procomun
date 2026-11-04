@@ -2,6 +2,7 @@ import { describe, expect, test } from "bun:test";
 import { readdir, readFile } from "node:fs/promises";
 import path from "node:path";
 import { PGlite } from "@electric-sql/pglite";
+import { SCHEMA_STATEMENTS } from "./setup.ts";
 
 const migrationsDir = path.resolve(import.meta.dir, "../migrations");
 
@@ -202,11 +203,11 @@ describe("migración elpx_projects.has_screenshot (issue #409)", () => {
 			await readFile(path.join(migrationsDir, "meta/_journal.json"), "utf8"),
 		) as { entries: Array<{ tag: string }> };
 		expect(journal.entries.map((entry) => entry.tag)).toContain(
-			"0015_elpx_has_screenshot",
+			"0017_elpx_has_screenshot",
 		);
 
 		const migration = await readFile(
-			path.join(migrationsDir, "0015_elpx_has_screenshot.sql"),
+			path.join(migrationsDir, "0017_elpx_has_screenshot.sql"),
 			"utf8",
 		);
 		const db = new PGlite();
@@ -501,8 +502,55 @@ describe("migración 0013_resource_views", () => {
 	});
 });
 
+// Issue #473: un recurso sin idioma en origen se guarda sin idioma, no "es".
+describe("migración 0016_resource_language_nullable", () => {
+	const OLD_RESOURCES =
+		'CREATE TABLE "resources" (id TEXT PRIMARY KEY, title TEXT NOT NULL, language VARCHAR(10) NOT NULL)';
+	const NULL_LANGUAGE_INSERT = `INSERT INTO "resources" (id, title, language) VALUES ('r2', 'Sin idioma', NULL)`;
+
+	test("está en el journal y quita el NOT NULL de resources.language", async () => {
+		const journal = JSON.parse(
+			await readFile(path.join(migrationsDir, "meta/_journal.json"), "utf8"),
+		) as { entries: Array<{ tag: string }> };
+		expect(journal.entries.map((entry) => entry.tag)).toContain(
+			"0016_resource_language_nullable",
+		);
+
+		const migration = await readFile(
+			path.join(migrationsDir, "0016_resource_language_nullable.sql"),
+			"utf8",
+		);
+		const db = new PGlite();
+		try {
+			await db.exec(OLD_RESOURCES);
+			await expect(db.exec(NULL_LANGUAGE_INSERT)).rejects.toThrow();
+			await db.exec(migration);
+			await db.exec(migration);
+			await db.exec(NULL_LANGUAGE_INSERT);
+		} finally {
+			await db.close();
+		}
+	});
+
+	test("el esquema de arranque (setup.ts) también lo quita en una base previa", async () => {
+		const db = new PGlite();
+		try {
+			await db.exec(OLD_RESOURCES);
+			const dropNotNull = SCHEMA_STATEMENTS.find((statement) =>
+				/ALTER COLUMN language DROP NOT NULL/i.test(statement),
+			);
+			expect(dropNotNull).toBeDefined();
+			await db.exec(dropNotNull as string);
+			await db.exec(NULL_LANGUAGE_INSERT);
+		} finally {
+			await db.close();
+		}
+	});
+});
+
+// Renumerada a 0017 al mezclarse despues que la 0016 de #473 (AGENTS.md).
 describe("journal combinado de areas y miniaturas (#471)", () => {
-	test("conserva 0014 y aplica 0015 despues con otro idx y when", async () => {
+	test("conserva 0014 y aplica la de miniaturas despues, con otro idx y when", async () => {
 		const journal = JSON.parse(
 			await readFile(path.join(migrationsDir, "meta/_journal.json"), "utf8"),
 		) as { entries: Array<{ idx: number; tag: string; when: number }> };
@@ -510,12 +558,17 @@ describe("journal combinado de areas y miniaturas (#471)", () => {
 			(entry) => entry.tag === "0014_knowledge_areas",
 		);
 		const screenshots = journal.entries.find(
-			(entry) => entry.tag === "0015_elpx_has_screenshot",
+			(entry) => entry.tag === "0017_elpx_has_screenshot",
 		);
 		expect(areas).toBeDefined();
 		expect(screenshots).toBeDefined();
-		expect(screenshots?.idx ?? -1).toBe((areas?.idx ?? 0) + 1);
+		// Ya no es la inmediatamente siguiente a 0014: entre medias esta la 0016
+		// de #473, que se mezclo antes. Lo que importa es que va despues, con su
+		// propio idx y su propio when, y que 0014 se conserva.
+		expect(screenshots?.idx ?? -1).toBeGreaterThan(areas?.idx ?? 0);
 		expect(screenshots?.when ?? 0).toBeGreaterThan(areas?.when ?? 0);
+		// Y que es la ultima del journal, para que se aplique al final.
+		expect(journal.entries.at(-1)?.tag).toBe("0017_elpx_has_screenshot");
 	});
 });
 
