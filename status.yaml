@@ -3552,3 +3552,29 @@ tasks:
       que no sea color, asi que llevan subrayado siempre y el hover pasa a
       cambiar el color. Preexistia; el test no lo veia.
       Queda fuera servir Material Symbols desde la plataforma.
+  T-2026-11-04-15363556:
+    date: 2026-11-04
+    agent: "ingestas-y-migraciones + qa-validacion"
+    task: "Atender la revision de #475: --fix-language reindexa la busqueda"
+    status: Done
+    related: ["#475", "#473", "#543"]
+    notes: >
+      Hallazgo de jacoboAlcantara en la revision de #475: --fix-language
+      corregia resources.language pero no regeneraba search_vector, que se
+      calcula con la configuracion del idioma, y no hay trigger que lo haga.
+      El recurso dejaba de encontrarse por su texto y repetir la pasada no lo
+      arreglaba porque ya lo daba por «sin cambios». Ahora, tras una
+      correccion real (nunca en seco), se llama a updateSearchVector. Si la
+      reindexacion falla se cuenta en totals.reindexFailed, se marca
+      reindexError en el registro y se avisa por consola de que el idioma ya
+      esta corregido y hay que reindexar a mano con el comando de
+      reindexacion, porque otra pasada lo dara por sin cambios. El mensaje del
+      error no se copia: summarizeReindexError deja solo el tipo, porque los
+      errores de Drizzle traen la consulta SQL y sus parametros, y aqui los
+      parametros incluyen el texto del recurso (garantia de #543). Test de
+      integracion rojo a verde comprobando el indice con to_tsquery('english')
+      y tests del saneador. El primer punto de la revision (TypeError al
+      pintar una coleccion con un recurso sin idioma) ya estaba corregido
+      antes: guarda en PublicCollectionsIsland, tipo string | null en
+      api-client y test de regresion. Test ajustado: el toEqual de totals en
+      el caso en seco incluye la clave nueva reindexFailed.

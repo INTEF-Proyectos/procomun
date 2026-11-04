@@ -546,6 +546,13 @@ type FixLanguageRecord = { externalId: string } & (
 			resourceId: string;
 			from: string | null;
 			to: string | null;
+			/**
+			 * El idioma se corrigio pero la reindexacion fallo (revisión #475).
+			 * El recurso queda con el indice del idioma anterior y una segunda
+			 * pasada lo dara por «sin cambios», asi que hay que reindexarlo con
+			 * el comando de reindexacion.
+			 */
+			reindexError?: string;
 	  }
 	| { outcome: "not_found" }
 	| { outcome: "error"; message: string }
@@ -576,6 +583,20 @@ export interface FixLegacyLanguageReport {
  * siguen en "es" (ver fixLegacyResourceLanguage); un idioma distinto se
  * respeta porque vino del origen o de una edición.
  */
+/**
+ * Resumen del fallo al reindexar, sin el mensaje del error (revisión #475,
+ * issue #543). Los errores de Drizzle traen la consulta SQL y sus parametros,
+ * y aqui los parametros incluyen el texto del recurso. Se queda el tipo de
+ * error, que basta para diagnosticar y no lleva datos.
+ */
+export function summarizeReindexError(err: unknown): string {
+	const name =
+		err instanceof Error && err.constructor?.name
+			? err.constructor.name
+			: typeof err;
+	return `fallo al reindexar (${name}); detalle no registrado para no copiar la consulta ni sus parametros`;
+}
+
 export async function runFixLegacyLanguage(
 	options: { sourceDir: string; dryRun: boolean },
 	deps: Deps,
@@ -592,6 +613,8 @@ export async function runFixLegacyLanguage(
 		kept: 0,
 		notFound: 0,
 		errored: 0,
+		/** Idioma corregido pero indice sin regenerar (revisión #475). */
+		reindexFailed: 0,
 	};
 	const records: FixLanguageRecord[] = [];
 
@@ -629,6 +652,23 @@ export async function runFixLegacyLanguage(
 				continue;
 			}
 			const from = result.language;
+			// El idioma decide la configuracion de to_tsvector, y no hay trigger
+			// que regenere el indice al cambiarlo: sin esto el recurso se queda
+			// indexado en el idioma anterior y deja de encontrarse por su texto,
+			// y repetir la pasada no lo arregla porque ya lo da por «sin
+			// cambios» (revisión #475). En seco no se escribe nada.
+			let reindexError: string | undefined;
+			if (result.outcome === "fixed" && !options.dryRun) {
+				try {
+					await deps.updateSearchVector(db, result.resourceId);
+				} catch (err) {
+					reindexError = summarizeReindexError(err);
+					totals.reindexFailed++;
+					console.error(
+						`[reindexado] ${externalId}: ${reindexError}. El idioma ya esta corregido; reindexa este recurso con el comando de reindexacion, porque otra pasada de --fix-language lo dara por «sin cambios».`,
+					);
+				}
+			}
 			if (result.outcome === "fixed") {
 				totals.fixed++;
 				console.log(
@@ -644,6 +684,7 @@ export async function runFixLegacyLanguage(
 				resourceId: result.resourceId,
 				from,
 				to,
+				...(reindexError ? { reindexError } : {}),
 			});
 		} catch (err) {
 			totals.errored++;
