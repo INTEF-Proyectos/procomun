@@ -1,6 +1,10 @@
 import { spawn } from "node:child_process";
 
-import { buildBunTestArgs, findStandardTestFiles } from "./run-bun-suite.ts";
+import {
+	buildBunTestArgs,
+	findStandardTestFiles,
+	isPassingBunExit,
+} from "./run-bun-suite.ts";
 
 const THRESHOLD = 90;
 const ALL_FILES_REGEX = /All files\s+\|\s+([\d.]+)\s+\|\s+([\d.]+)/;
@@ -35,6 +39,54 @@ export function extractLineCoverage(output: string) {
 	return match?.[2] ? Number.parseFloat(match[2]) : null;
 }
 
+// Fallos del resumen final de bun test (« 4 fail»). Se toma la última línea
+// por si algún test imprime algo parecido antes del resumen.
+export function extractFailedTestCount(output: string) {
+	const matches = [...stripAnsiCodes(output).matchAll(/^\s*(\d+) fail\s*$/gm)];
+	const last = matches.at(-1);
+	return last?.[1] ? Number.parseInt(last[1], 10) : null;
+}
+
+export type CoverageVerdict = {
+	ok: boolean;
+	coverage: number | null;
+	errors: string[];
+};
+
+// Decide si el paso «Run Tests & Coverage» pasa. Antes solo miraba el
+// coverage e ignoraba el código de salida: con «1308 pass / 4 fail» el CI
+// salía en verde. Ahora exige las dos cosas: tests en verde y umbral.
+export function evaluateCoverageRun(
+	exitCode: number | null,
+	output: string,
+	threshold = THRESHOLD,
+): CoverageVerdict {
+	const errors: string[] = [];
+	const failed = extractFailedTestCount(output);
+
+	if (failed !== null && failed > 0) {
+		errors.push(`❌ bun test informa de ${failed} test(s) fallido(s)`);
+	} else if (exitCode === null) {
+		errors.push("❌ bun test no terminó (proceso interrumpido por una señal)");
+	} else if (!isPassingBunExit(exitCode, stripAnsiCodes(output))) {
+		errors.push(`❌ bun test terminó con código ${exitCode}`);
+	}
+
+	const coverage = extractLineCoverage(output);
+
+	if (coverage === null) {
+		errors.push(
+			"❌ No se pudo determinar el coverage de la salida de bun test --coverage",
+		);
+	} else if (coverage < threshold) {
+		errors.push(
+			`❌ El coverage (${coverage}%) está por debajo del límite mínimo (${threshold}%)`,
+		);
+	}
+
+	return { ok: errors.length === 0, coverage, errors };
+}
+
 async function runCoverage() {
 	const files = await findStandardTestFiles();
 
@@ -60,27 +112,27 @@ async function runCoverage() {
 		process.stderr.write(data);
 	});
 
-	proc.on("close", (_code) => {
-		const coverage = extractLineCoverage(output);
+	proc.on("error", (error) => {
+		console.error(`❌ No se pudo lanzar bun test: ${error.message}`);
+		process.exit(1);
+	});
 
-		if (coverage !== null) {
-			console.log(`\nCoverage de líneas: ${coverage}%`);
+	proc.on("close", (code) => {
+		const verdict = evaluateCoverageRun(code, output);
 
-			if (coverage < THRESHOLD) {
-				console.error(
-					`❌ El coverage (${coverage}%) está por debajo del límite mínimo (${THRESHOLD}%)`,
-				);
-				process.exit(1);
-			} else {
-				console.log(`✅ Coverage suficiente (>= ${THRESHOLD}%)`);
-				process.exit(0);
+		if (verdict.coverage !== null) {
+			console.log(`\nCoverage de líneas: ${verdict.coverage}%`);
+		}
+
+		if (!verdict.ok) {
+			for (const error of verdict.errors) {
+				console.error(error);
 			}
-		} else {
-			console.error(
-				"❌ No se pudo determinar el coverage de la salida de bun test --coverage",
-			);
 			process.exit(1);
 		}
+
+		console.log(`✅ Tests en verde y coverage suficiente (>= ${THRESHOLD}%)`);
+		process.exit(0);
 	});
 }
 
