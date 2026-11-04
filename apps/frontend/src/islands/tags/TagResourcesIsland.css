@@ -12,11 +12,13 @@
 
 .tag-breadcrumb a {
 	color: var(--color-primary, #0f4ccf);
-	text-decoration: none;
+	/* #529: mismo caso que .breadcrumb a. Enlace azul dentro de un bloque de
+	   texto gris: hay que distinguirlo por algo que no sea el color. */
+	text-decoration: underline;
 }
 
 .tag-breadcrumb a:hover {
-	text-decoration: underline;
+	color: var(--color-on-surface);
 }
 
 .tag-eyebrow {
