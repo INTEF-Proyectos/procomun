@@ -291,5 +291,10 @@
 	"api_keys_admin_filter_status": "Filter by status",
 	"api_keys_admin_filter_all_users": "All users",
 	"api_keys_admin_filter_all_status": "All statuses",
-	"api_keys_admin_col_user": "User"
+	"api_keys_admin_col_user": "User",
+	"role_reader": "Reader",
+	"role_author": "Author",
+	"role_editor": "Editor",
+	"role_curator": "Curator",
+	"role_admin": "Administrator"
 }

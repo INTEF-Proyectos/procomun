@@ -3417,3 +3417,19 @@ tasks:
       'published'. Las reglas de transición por rol de las colecciones quedan
       fuera: desde #433 solo las crean admin y curator. Tests rojo → verde en validation.unit.test.ts y
       admin.unit.test.ts.
+  T-2026-11-04-13020315:
+    date: 2026-11-04
+    agent: "frontend-ux-accesibilidad"
+    task: "La insignia de rol del perfil sale traducida"
+    status: Done
+    related: ["#534", "#494"]
+    notes: >
+      La cabecera del perfil pintaba user.role en crudo en la insignia, asi
+      que se veia la clave sin traducir ("AUTHOR", en mayusculas por el CSS
+      de la insignia). Se anaden los mensajes role_reader, role_author,
+      role_editor, role_curator y role_admin a los cinco idiomas de Paraglide
+      y un helper roleLabel en apps/frontend/src/lib/role-label.ts, que trata
+      un rol desconocido o ausente como reader igual que hasMinRole. Las
+      etiquetas en castellano son las mismas que ROLE_OPTIONS de
+      AdminUsersSection, para que el perfil y la administracion no llamen
+      distinto al mismo rol. Test rojo a verde en role-label.unit.test.ts.

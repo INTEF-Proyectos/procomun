@@ -291,5 +291,10 @@
 	"api_keys_admin_filter_status": "Iragazi egoeraren arabera",
 	"api_keys_admin_filter_all_users": "Erabiltzaile guztiak",
 	"api_keys_admin_filter_all_status": "Egoera guztiak",
-	"api_keys_admin_col_user": "Erabiltzailea"
+	"api_keys_admin_col_user": "Erabiltzailea",
+	"role_reader": "Irakurlea",
+	"role_author": "Egilea",
+	"role_editor": "Editorea",
+	"role_curator": "Kuratorea",
+	"role_admin": "Administratzailea"
 }

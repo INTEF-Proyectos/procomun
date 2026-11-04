@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import type { Resource } from "../../lib/api-client.ts";
 import { getApiClient } from "../../lib/get-api-client.ts";
 import { url } from "../../lib/paths.ts";
+import { roleLabel } from "../../lib/role-label.ts";
 import {
 	computeResourceBadges,
 	DEFAULT_BADGE_CONFIG,
@@ -742,7 +743,7 @@ export function PublicDashboardIsland() {
 								</button>
 							</div>
 							<div className="dashboard-badges">
-								<Badge variant="primary">{user.role}</Badge>
+								<Badge variant="primary">{roleLabel(user.role)}</Badge>
 								<span className="dashboard-stat">
 									<strong>{dashboard.publishedCount}</strong>{" "}
 									{m.profile_published()}

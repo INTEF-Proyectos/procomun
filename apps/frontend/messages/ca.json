@@ -291,5 +291,10 @@
 	"api_keys_admin_filter_status": "Filtrar per estat",
 	"api_keys_admin_filter_all_users": "Tots els usuaris",
 	"api_keys_admin_filter_all_status": "Tots els estats",
-	"api_keys_admin_col_user": "Usuari"
+	"api_keys_admin_col_user": "Usuari",
+	"role_reader": "Lector",
+	"role_author": "Autor",
+	"role_editor": "Editor",
+	"role_curator": "Curador",
+	"role_admin": "Administrador"
 }
