@@ -203,11 +203,11 @@ describe("migración elpx_projects.has_screenshot (issue #409)", () => {
 			await readFile(path.join(migrationsDir, "meta/_journal.json"), "utf8"),
 		) as { entries: Array<{ tag: string }> };
 		expect(journal.entries.map((entry) => entry.tag)).toContain(
-			"0017_elpx_has_screenshot",
+			"0018_elpx_has_screenshot",
 		);
 
 		const migration = await readFile(
-			path.join(migrationsDir, "0017_elpx_has_screenshot.sql"),
+			path.join(migrationsDir, "0018_elpx_has_screenshot.sql"),
 			"utf8",
 		);
 		const db = new PGlite();
@@ -548,7 +548,8 @@ describe("migración 0016_resource_language_nullable", () => {
 	});
 });
 
-// Renumerada a 0017 al mezclarse despues que la 0016 de #473 (AGENTS.md).
+// Renumerada a 0018: la 0016 de #473 ya esta en main y #488 reclamo la 0017
+// para user_profile, asi que esta va detras (AGENTS.md: renumera el ultimo).
 describe("journal combinado de areas y miniaturas (#471)", () => {
 	test("conserva 0014 y aplica la de miniaturas despues, con otro idx y when", async () => {
 		const journal = JSON.parse(
@@ -558,7 +559,7 @@ describe("journal combinado de areas y miniaturas (#471)", () => {
 			(entry) => entry.tag === "0014_knowledge_areas",
 		);
 		const screenshots = journal.entries.find(
-			(entry) => entry.tag === "0017_elpx_has_screenshot",
+			(entry) => entry.tag === "0018_elpx_has_screenshot",
 		);
 		expect(areas).toBeDefined();
 		expect(screenshots).toBeDefined();
@@ -568,6 +569,6 @@ describe("journal combinado de areas y miniaturas (#471)", () => {
 		expect(screenshots?.idx ?? -1).toBeGreaterThan(areas?.idx ?? 0);
 		expect(screenshots?.when ?? 0).toBeGreaterThan(areas?.when ?? 0);
 		// Y que es la ultima del journal, para que se aplique al final.
-		expect(journal.entries.at(-1)?.tag).toBe("0017_elpx_has_screenshot");
+		expect(journal.entries.at(-1)?.tag).toBe("0018_elpx_has_screenshot");
 	});
 });

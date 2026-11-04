@@ -3713,3 +3713,17 @@ tasks:
       PublicCollectionsIsland.tsx: #475 extrajo el detalle a
       CollectionDetailContent, asi que el marcador por tipo de #409 se ha
       llevado dentro de ese componente conservando la guarda de idioma de #473.
+  T-2026-11-04-16581883:
+    date: 2026-11-04
+    agent: "ingestas-y-migraciones"
+    task: "La migracion de #471 pasa de 0017 a 0018"
+    status: Done
+    related: ["#471", "#488", "#473"]
+    notes: >
+      Corrige la decision de la entrada T-2026-11-04-15511098, que la movio de
+      0015 a 0017 cuando main solo tenia hasta la 0016. #488 reclamo la 0017
+      para user_profile antes (lo dice su descripcion: 0012-0016 estaban en PR
+      abiertos), asi que la de miniaturas pasa a 0018_elpx_has_screenshot con
+      un when posterior, y #488 conserva la suya. AGENTS.md: renumera el que se
+      mezcla despues. Si #471 acabase entrando antes que #488, no hace falta
+      tocar nada: el journal aplica por idx y 0018 va detras de todo.
