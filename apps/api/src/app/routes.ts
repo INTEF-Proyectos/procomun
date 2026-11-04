@@ -1,6 +1,6 @@
 import type { Hono } from "hono";
 import type { AuthEnv } from "../auth/middleware.ts";
-import { resolveOidcEndSessionUrl } from "../auth/oidc-discovery.ts";
+import { getCachedOidcEndSessionUrl } from "../auth/oidc-discovery.ts";
 import { tokenAuthMiddleware } from "../auth/token-auth.ts";
 import { resolveEmailVerificationConfig } from "../email/transport.ts";
 import { adminRoutes } from "../routes/admin/index.ts";
@@ -19,14 +19,15 @@ import { uploadRoutes } from "../routes/uploads.ts";
 
 export function registerRoutes(app: Hono<AuthEnv>) {
 	app.get("/health", (c) => c.json({ status: "ok" }));
-	app.get("/api/v1/config", async (c) =>
+	app.get("/api/v1/config", (c) =>
 		c.json({
 			oidcEnabled: process.env.OIDC_ENABLED === "true",
 			emailVerificationRequired: resolveEmailVerificationConfig(process.env)
 				.enabled,
 			// #542: sale de end_session_endpoint del documento de descubrimiento,
-			// no de la ruta de Duende. El acierto se guarda en caché.
-			oidcEndSessionUrl: await resolveOidcEndSessionUrl(process.env),
+			// no de la ruta de Duende. Se lee de la caché y nunca se espera a la
+			// red aquí: el calentado va en segundo plano (ver oidc-discovery.ts).
+			oidcEndSessionUrl: getCachedOidcEndSessionUrl(process.env),
 		}),
 	);
 

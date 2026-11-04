@@ -1,7 +1,9 @@
 import { beforeEach, describe, expect, test } from "bun:test";
 import {
 	clearOidcDiscoveryCache,
+	getCachedOidcEndSessionUrl,
 	resolveOidcEndSessionUrl,
+	warmOidcEndSessionUrl,
 } from "./oidc-discovery.ts";
 
 /**
@@ -144,5 +146,113 @@ describe("resolveOidcEndSessionUrl (#542)", () => {
 		expect(provider.calls).toEqual([
 			`${ISSUER}/.well-known/openid-configuration`,
 		]);
+	});
+});
+
+/**
+ * El endpoint `/api/v1/config` no debe esperar a la red. Lo descubrió el CI:
+ * otro test deja `OIDC_ISSUER` apuntando a un proveedor de prueba ya cerrado
+ * —los ficheros de `bun test` comparten proceso— y la petición agotaba el tope
+ * de 2 s mientras el endpoint esperaba, así que el test del config se pasaba de
+ * su límite.
+ */
+describe("getCachedOidcEndSessionUrl: nunca espera a la red", () => {
+	beforeEach(() => {
+		clearOidcDiscoveryCache();
+	});
+
+	const ENABLED = { OIDC_ENABLED: "true", OIDC_ISSUER: ISSUER };
+
+	test("con la caché fría devuelve null al momento y calienta por detrás", async () => {
+		const endSession = `${ISSUER}/logout`;
+		const provider = fakeProvider({ end_session_endpoint: endSession });
+
+		// Sin await: si esto esperase a la red, el valor no seria null.
+		expect(getCachedOidcEndSessionUrl(ENABLED, provider.fetch)).toBeNull();
+
+		// El calentado va en segundo plano; despues ya esta en cache.
+		await Promise.resolve();
+		await new Promise((resolve) => setTimeout(resolve, 10));
+		expect(getCachedOidcEndSessionUrl(ENABLED, provider.fetch)).toBe(
+			endSession,
+		);
+		expect(provider.calls).toHaveLength(1);
+	});
+
+	test("un proveedor que no responde no cuelga la llamada", () => {
+		const colgado = (() =>
+			new Promise(() => {
+				// Nunca resuelve: es el caso del proveedor de prueba ya cerrado.
+			})) as unknown as typeof fetch;
+
+		// Lo que fallaba: aqui se esperaban los 2 s del tope.
+		expect(getCachedOidcEndSessionUrl(ENABLED, colgado)).toBeNull();
+		expect(getCachedOidcEndSessionUrl(ENABLED, colgado)).toBeNull();
+	});
+
+	test("no lanza una consulta por llamada", () => {
+		const colgado = (() => new Promise(() => {})) as unknown as typeof fetch;
+		let calls = 0;
+		const contando = ((...args: unknown[]) => {
+			calls++;
+			return (colgado as (...a: unknown[]) => unknown)(...args);
+		}) as unknown as typeof fetch;
+
+		for (let i = 0; i < 5; i++) getCachedOidcEndSessionUrl(ENABLED, contando);
+		expect(calls).toBe(1);
+	});
+
+	test("sin OIDC activo no consulta nada, aunque haya issuer", () => {
+		const provider = fakeProvider({ end_session_endpoint: `${ISSUER}/logout` });
+
+		expect(
+			getCachedOidcEndSessionUrl(
+				{ OIDC_ENABLED: "false", OIDC_ISSUER: ISSUER },
+				provider.fetch,
+			),
+		).toBeNull();
+		expect(provider.calls).toEqual([]);
+	});
+
+	test("OIDC_END_SESSION_URL se devuelve al momento y sin consultar", () => {
+		const forced = "https://sso.example.org/salir";
+		const provider = fakeProvider({ end_session_endpoint: "https://otra/x" });
+
+		expect(
+			getCachedOidcEndSessionUrl(
+				{ ...ENABLED, OIDC_END_SESSION_URL: forced },
+				provider.fetch,
+			),
+		).toBe(forced);
+		expect(provider.calls).toEqual([]);
+	});
+});
+
+describe("warmOidcEndSessionUrl", () => {
+	beforeEach(() => {
+		clearOidcDiscoveryCache();
+	});
+
+	test("deja la caché lista cuando OIDC está activo", async () => {
+		const endSession = `${ISSUER}/logout`;
+		const provider = fakeProvider({ end_session_endpoint: endSession });
+
+		await warmOidcEndSessionUrl(
+			{ OIDC_ENABLED: "true", OIDC_ISSUER: ISSUER },
+			provider.fetch,
+		);
+
+		expect(
+			getCachedOidcEndSessionUrl(
+				{ OIDC_ENABLED: "true", OIDC_ISSUER: ISSUER },
+				provider.fetch,
+			),
+		).toBe(endSession);
+	});
+
+	test("sin OIDC activo no consulta nada", async () => {
+		const provider = fakeProvider({});
+		expect(await warmOidcEndSessionUrl({}, provider.fetch)).toBeNull();
+		expect(provider.calls).toEqual([]);
 	});
 });

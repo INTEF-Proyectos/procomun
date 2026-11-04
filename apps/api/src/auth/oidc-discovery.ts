@@ -10,14 +10,20 @@
  * para un proveedor que no la publique.
  */
 
-/** El documento de descubrimiento no debe colgar `/api/v1/config`. */
-const DISCOVERY_TIMEOUT_MS = 5_000;
+/** Tope de la consulta. Nunca la espera `/api/v1/config`: ver más abajo. */
+const DISCOVERY_TIMEOUT_MS = 2_000;
+
+/** Consultas en vuelo, para no lanzar una por petición. */
+const inFlight = new Map<string, Promise<string | null>>();
 
 /** Solo se guardan los aciertos: un fallo de red se vuelve a intentar. */
 const cache = new Map<string, string | null>();
 
 export function clearOidcDiscoveryCache() {
 	cache.clear();
+	// También las consultas en vuelo: si quedara una, su promesa seguiría
+	// bloqueando los reintentos de ese issuer para el resto del proceso.
+	inFlight.clear();
 }
 
 /** Una URL absoluta http(s), para no devolver `javascript:` ni una ruta suelta. */
@@ -64,4 +70,53 @@ export async function resolveOidcEndSessionUrl(
 	} catch {
 		return null;
 	}
+}
+
+/**
+ * URL de cierre de sesión **sin esperar a la red**, para servir
+ * `/api/v1/config`.
+ *
+ * Que un endpoint dependa de una petición a un tercero es un defecto: lo pagan
+ * su latencia y su previsibilidad. Lo descubrió el CI, donde otro test deja
+ * `OIDC_ISSUER` apuntando a un proveedor de prueba ya cerrado —los ficheros de
+ * `bun test` comparten proceso— y la petición agotaba el tope mientras el
+ * endpoint esperaba.
+ *
+ * Así que esto solo lee la caché. Si está fría, lanza el calentado en segundo
+ * plano y devuelve `null` esta vez: la interfaz no ofrece el cierre de sesión
+ * del proveedor hasta que se sepa, que es el mismo comportamiento que cuando el
+ * proveedor no lo publica. `warmOidcEndSessionUrl` lo calienta al arrancar, así
+ * que en la práctica ya está resuelto cuando alguien cierra sesión.
+ */
+export function getCachedOidcEndSessionUrl(
+	env: Record<string, string | undefined>,
+	fetchImpl: typeof fetch = fetch,
+): string | null {
+	const forced = asHttpUrl(env.OIDC_END_SESSION_URL);
+	if (forced) return forced;
+	// Sin OIDC activo la URL no sirve de nada: no se consulta nada.
+	if (env.OIDC_ENABLED !== "true" || !env.OIDC_ISSUER) return null;
+
+	const discoveryUrl = discoveryUrlFor(env.OIDC_ISSUER);
+	const cached = cache.get(discoveryUrl);
+	if (cached !== undefined) return cached;
+
+	if (!inFlight.has(discoveryUrl)) {
+		inFlight.set(
+			discoveryUrl,
+			resolveOidcEndSessionUrl(env, fetchImpl).finally(() => {
+				inFlight.delete(discoveryUrl);
+			}),
+		);
+	}
+	return null;
+}
+
+/** Calienta la caché al arrancar. Un fallo no impide arrancar. */
+export async function warmOidcEndSessionUrl(
+	env: Record<string, string | undefined> = process.env,
+	fetchImpl: typeof fetch = fetch,
+): Promise<string | null> {
+	if (env.OIDC_ENABLED !== "true") return null;
+	return resolveOidcEndSessionUrl(env, fetchImpl);
 }

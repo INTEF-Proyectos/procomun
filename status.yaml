@@ -3647,3 +3647,27 @@ tasks:
       antes: guarda en PublicCollectionsIsland, tipo string | null en
       api-client y test de regresion. Test ajustado: el toEqual de totals en
       el caso en seco incluye la clave nueva reindexFailed.
+  T-2026-11-04-17115230:
+    date: 2026-11-04
+    agent: "backend-api-servicios"
+    task: "El config de OIDC no espera a la red"
+    status: Done
+    related: ["#542", "#546", "#525"]
+    notes: >
+      Correccion de la entrada T-2026-11-04-13045419. La primera version
+      consultaba el documento de descubrimiento dentro de GET /api/v1/config
+      con await: un endpoint pasaba a depender de una peticion a un tercero.
+      Lo delato el CI de #546: registration.unit.test.ts de #525 deja
+      OIDC_ISSUER apuntando a un proveedor de prueba ya cerrado, y como los
+      ficheros de bun test comparten proceso la peticion agotaba el tope
+      mientras el endpoint esperaba, asi que el test del config se pasaba de
+      su limite de 5 s. Ahora getCachedOidcEndSessionUrl solo lee la cache y
+      nunca espera: con la cache fria lanza el calentado en segundo plano y
+      devuelve null esa vez, que es lo mismo que cuando el proveedor no publica
+      el campo. Una sola consulta en vuelo por issuer. warmOidcEndSessionUrl
+      calienta al arrancar la API (solo si import.meta.main, para no hacerlo en
+      los tests) y un fallo no impide arrancar. No se consulta nada si
+      OIDC_ENABLED no es true. El tope baja a 2 s. Y clearOidcDiscoveryCache
+      limpia tambien las consultas en vuelo: sin eso, una colgada bloqueaba los
+      reintentos de ese issuer el resto del proceso, defecto que saco a la luz
+      uno de los tests nuevos.
