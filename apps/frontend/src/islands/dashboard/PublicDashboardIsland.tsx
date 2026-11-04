@@ -1,11 +1,11 @@
 import { useCallback, useEffect, useState } from "react";
-import type { Resource } from "../../lib/api-client.ts";
+import type { Resource, SessionUser } from "../../lib/api-client.ts";
 import { getApiClient } from "../../lib/get-api-client.ts";
+import { gravatarUrl } from "../../lib/gravatar.ts";
 import { url } from "../../lib/paths.ts";
 import {
 	computeResourceBadges,
 	DEFAULT_BADGE_CONFIG,
-	gravatarUrl,
 	hasMinRole,
 } from "../../lib/shared-utils.ts";
 import type {
@@ -18,6 +18,7 @@ import { ResourceCard } from "../../ui/ResourceCard.tsx";
 import { ResourceGrid } from "../../ui/ResourceGrid.tsx";
 import { Skeleton } from "../../ui/Skeleton.tsx";
 import { Tabs } from "../../ui/Tabs.tsx";
+import { UserAvatar } from "../../ui/UserAvatar.tsx";
 import { ApiKeysTab } from "./ApiKeysTab.tsx";
 import "./PublicDashboardIsland.css";
 import "../../lib/paraglide-client.ts";
@@ -37,6 +38,19 @@ export function withFavoriteCount(
 		favoriteCount: next,
 		user: { ...dashboard.user, favoriteCount: next },
 	};
+}
+
+/** El avatar del perfil mide 6rem (96 px): se pide al doble para pantallas densas. */
+const PROFILE_AVATAR_SIZE = 192;
+
+/**
+ * Gravatar del correo de la sesión para la cabecera del perfil (#514). Antes se
+ * resumía `${id}@procomun.es`, un correo que no existe, y salía siempre la silueta.
+ */
+export function profileAvatarUrl(
+	user: Pick<SessionUser, "email">,
+): Promise<string | null> {
+	return gravatarUrl(user.email, PROFILE_AVATAR_SIZE);
 }
 
 export function hasEmailVerificationSuccess(search: string): boolean {
@@ -379,7 +393,7 @@ export function PublicDashboardIsland() {
 			}
 
 			// Fetch dashboard data + badge config + perfil persistido (DEF-004: incluye bio)
-			const [dashData, config, profile] = await Promise.all([
+			const [dashData, config, profile, avatarUrl] = await Promise.all([
 				api.getUserDashboard().catch(() => ({
 					draftCount: 0,
 					publishedCount: 0,
@@ -389,6 +403,7 @@ export function PublicDashboardIsland() {
 				})),
 				api.getBadgeConfig().catch(() => null),
 				api.getMyProfile().catch(() => null),
+				profileAvatarUrl(user),
 			]);
 			if (config) setBadgeConfig(config);
 
@@ -401,7 +416,7 @@ export function PublicDashboardIsland() {
 						user.name ||
 						user.email.split("@")[0] ||
 						user.email,
-					avatarUrl: null,
+					avatarUrl,
 					bio: profile?.bio ?? null,
 					role: user.role,
 					resourceCount:
@@ -551,9 +566,6 @@ export function PublicDashboardIsland() {
 	}
 
 	const { user } = dashboard;
-	const avatarSrc = gravatarUrl(
-		user.name ? `${user.id}@procomun.es` : "default@procomun.es",
-	);
 
 	// Read ?tab= param from URL
 	const tabParam =
@@ -698,7 +710,12 @@ export function PublicDashboardIsland() {
 				<div className="dashboard-profile-left">
 					{/* Avatar */}
 					<div className="dashboard-avatar">
-						<img src={avatarSrc} alt="" className="dashboard-avatar-img" />
+						<UserAvatar
+							src={user.avatarUrl}
+							name={user.name}
+							className="dashboard-avatar-img"
+							fallbackClassName="dashboard-avatar-fallback"
+						/>
 					</div>
 					{editing && (
 						<a
