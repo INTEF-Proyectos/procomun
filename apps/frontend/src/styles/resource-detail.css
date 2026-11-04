@@ -18,11 +18,15 @@
 
 .breadcrumb a {
 	color: var(--color-primary);
-	text-decoration: none;
+	/* #529: el enlace va en azul primario dentro de un bloque de texto gris
+	   (#003fb1 sobre #434654: 1,04:1 entre ambos). WCAG pide distinguirlo del
+	   texto que lo rodea por 3:1 de color o por un estilo que no sea color, asi
+	   que lleva subrayado siempre y no solo al pasar por encima. */
+	text-decoration: underline;
 }
 
 .breadcrumb a:hover {
-	text-decoration: underline;
+	color: var(--color-on-surface);
 }
 
 .breadcrumb .sep {

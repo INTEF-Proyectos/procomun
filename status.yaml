@@ -3486,4 +3486,10 @@ tasks:
       administracion, el select de «Generar recursos de prueba» tenia el
       rotulo en un <span> suelto y se quedaba sin nombre accesible; se asocia
       con aria-labelledby para reutilizar el texto visible.
+      Tercer defecto destapado: link-in-text-block en la ficha y en explorar.
+      .breadcrumb a y .tag-breadcrumb a van en azul primario (#003fb1) dentro
+      de un bloque de texto gris (#434654): 1,04:1 entre enlace y texto, y
+      sin subrayado. WCAG pide distinguirlos por 3:1 de color o por un estilo
+      que no sea color, asi que llevan subrayado siempre y el hover pasa a
+      cambiar el color. Preexistia; el test no lo veia.
       Queda fuera servir Material Symbols desde la plataforma.
