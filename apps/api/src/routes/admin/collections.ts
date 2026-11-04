@@ -1,7 +1,11 @@
 import * as repo from "@procomun/db/repository";
 import { canViewResource, validateCollection } from "@procomun/db/validation";
 import { logActivity } from "../../activity/log.ts";
-import { canManageCollection, getCurrentUser } from "../../auth/roles.ts";
+import {
+	canManageCollection,
+	getCurrentUser,
+	hasMinRole,
+} from "../../auth/roles.ts";
 import { ensureCurrentUser } from "../../auth/user-sync.ts";
 import { getDb } from "../../db.ts";
 import { buildCrudRoutes } from "../crud-builder.ts";
@@ -47,8 +51,12 @@ const collectionRoutes = buildCrudRoutes({
 	validateUpdate: validateCollection,
 	mergeOnUpdate: true,
 	canManage: canManageCollection,
-	listFilters: (_user) => ({
+	listFilters: (user) => ({
 		curatorId: undefined,
+		// #538: el curator no ve en el listado los borradores de otro curator;
+		// el admin, todos. Misma regla que canManageCollection, y que #460 en
+		// los recursos.
+		hideOthersDraftsFor: hasMinRole(user.role, "admin") ? undefined : user.id,
 	}),
 	prepareCreate: async (body, user) => {
 		await ensureCurrentUser(user);
