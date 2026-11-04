@@ -182,14 +182,35 @@ const all = walk(conf);
 const maps = all.filter((d) => d.name === "map");
 const findMap = (from: string, to: string) =>
 	maps.find((m) => m.args[0] === from && m.args[1] === to);
-const uriMap = findMap("$request_uri", "$redacted_uri");
-const refererMap = findMap("$http_referer", "$redacted_referer");
+const requestPathMap = findMap("$request_uri", "$request_path");
+const pathMap = findMap("$request_path", "$redacted_path");
+const refererPathMap = findMap("$http_referer", "$referer_path");
+const refererRedactMap = findMap("$referer_path", "$redacted_referer");
+
+/**
+ * Lo que acaba en el log para una URI de peticion, imitando lo que hace nginx:
+ * Los dos maps encadenados: el primero quita la query y deja el marcador, el
+ * segundo redacta la ruta. Se parte de `$request_uri` y no de `$uri` porque
+ * `$uri` es la ruta despues del try_files del SPA (revisión #524).
+ */
+function uriMap(input: string): string {
+	if (!requestPathMap || !pathMap) throw new Error("Faltan los maps de la URI");
+	return evalMap(pathMap, evalMap(requestPathMap, input));
+}
+
+/** Lo que acaba en el log para el Referer: los dos maps encadenados. */
+function refererMap(input: string): string {
+	if (!refererPathMap || !refererRedactMap) {
+		throw new Error("Faltan los maps del Referer");
+	}
+	return evalMap(refererRedactMap, evalMap(refererPathMap, input));
+}
 
 const FORMAT_NAME = "main_redacted";
 // El formato `main` de nginx:alpine (combined + X-Forwarded-For) con la URI y
 // el Referer redactados en lugar de `$request` y `$http_referer`.
 const EXPECTED_FORMAT =
-	'$remote_addr - $remote_user [$time_local] "$request_method $redacted_uri $server_protocol" ' +
+	'$remote_addr - $remote_user [$time_local] "$request_method $redacted_path $server_protocol" ' +
 	'$status $body_bytes_sent "$redacted_referer" ' +
 	'"$http_user_agent" "$http_x_forwarded_for"';
 
@@ -200,18 +221,32 @@ const VERIFY_JWT =
 	"eyJhbGciOiJIUzI1NiJ9.eyJlbWFpbCI6ImFAYi5lcyJ9.c2VjcmV0by1kZS1wcnVlYmE";
 
 describe("nginx.conf: el access_log no guarda URL de capacidad", () => {
-	it("tiene un map de $request_uri a $redacted_uri que por defecto deja la URI", () => {
-		expect(uriMap).toBeDefined();
-		const fallback = uriMap?.block?.find((e) => e.name === "default");
-		expect(fallback?.args).toEqual(["$request_uri"]);
+	it("tiene los dos maps de la URI: quitar la query y redactar la ruta", () => {
+		expect(requestPathMap).toBeDefined();
+		expect(pathMap).toBeDefined();
+		// Parte de $request_uri, no de $uri: $uri es la ruta despues del
+		// try_files del SPA y el log perderia la ruta pedida (revisión #524).
+		expect(
+			requestPathMap?.block?.find((e) => e.name === "default")?.args,
+		).toEqual(["$request_uri"]);
+		expect(pathMap?.block?.find((e) => e.name === "default")?.args).toEqual([
+			"$request_path",
+		]);
 	});
 
 	// El HTML del .elpx sale con Referrer-Policy: same-origin, así que sus
 	// CSS, JS e imágenes llevan la URL firmada en el Referer.
-	it("tiene un map de $http_referer a $redacted_referer que por defecto deja el Referer", () => {
-		expect(refererMap).toBeDefined();
-		const fallback = refererMap?.block?.find((e) => e.name === "default");
-		expect(fallback?.args).toEqual(["$http_referer"]);
+	it("tiene los dos maps del Referer: quitar la query y redactar la ruta", () => {
+		expect(refererPathMap).toBeDefined();
+		expect(refererRedactMap).toBeDefined();
+		// El primero parte del Referer en crudo y, sin query, lo deja igual.
+		expect(
+			refererPathMap?.block?.find((e) => e.name === "default")?.args,
+		).toEqual(["$http_referer"]);
+		// El segundo encadena sobre el resultado del primero.
+		expect(
+			refererRedactMap?.block?.find((e) => e.name === "default")?.args,
+		).toEqual(["$referer_path"]);
 	});
 
 	it("define un log_format con los campos de main y la URI y el Referer redactados", () => {
@@ -257,7 +292,7 @@ const URI_CASES: [string, string, string][] = [
 	[
 		"recurso del paquete con query",
 		`/api/v1/elpx/preview/${HASH}/${TOKEN}/libs/jquery.js?v=3`,
-		`/api/v1/elpx/preview/${HASH}/:token/libs/jquery.js?v=3`,
+		`/api/v1/elpx/preview/${HASH}/:token/libs/jquery.js?:query`,
 	],
 	[
 		"token mal formado: se tapa igual",
@@ -287,40 +322,72 @@ const URI_CASES: [string, string, string][] = [
 	[
 		"verificación de correo de Better Auth (?token=)",
 		`/api/auth/verify-email?token=${VERIFY_JWT}&callbackURL=%2F`,
-		"/api/auth/verify-email?token=:token&callbackURL=%2F",
+		"/api/auth/verify-email?:query",
 	],
 	[
 		"token como último parámetro",
 		`/api/v1/algo?pagina=2&token=${VERIFY_JWT}`,
-		"/api/v1/algo?pagina=2&token=:token",
+		"/api/v1/algo?:query",
 	],
 ];
 
-const UNCHANGED = [
-	"/",
-	"/recursos/fotosintesis?page=2",
-	"/api/v1/resources/42/comments",
-	`/api/v1/elpx/${HASH}/index.html`,
-	`/api/v1/elpx/preview/${HASH}`,
-	"/api/v1/preview-session",
-	"/api/v1/previews/42",
-	"/api/v1/search?q=token",
-	"/api/v1/search?q=preview&sort=recent",
-	"/api/v1/algo?access_token_hint=1",
+// Rutas sin capacidad: la ruta se conserva tal cual. Desde la revisión de
+// #524 la query nunca se registra, asi que si la habia queda el marcador
+// `?:query` en su lugar.
+const UNCHANGED: [string, string][] = [
+	["/", "/"],
+	["/recursos/fotosintesis?page=2", "/recursos/fotosintesis?:query"],
+	["/api/v1/resources/42/comments", "/api/v1/resources/42/comments"],
+	[`/api/v1/elpx/${HASH}/index.html`, `/api/v1/elpx/${HASH}/index.html`],
+	[`/api/v1/elpx/preview/${HASH}`, `/api/v1/elpx/preview/${HASH}`],
+	["/api/v1/preview-session", "/api/v1/preview-session"],
+	["/api/v1/previews/42", "/api/v1/previews/42"],
+	["/api/v1/search?q=token", "/api/v1/search?:query"],
+	["/api/v1/search?q=preview&sort=recent", "/api/v1/search?:query"],
+	["/api/v1/algo?access_token_hint=1", "/api/v1/algo?:query"],
 ];
+
+// Hallazgos de la revisión de #524. Cada uno es una forma de colar un secreto
+// en el access_log que las regex por nombre de parámetro no cubren.
+const BYPASS_CASES: [string, string][] = [
+	[
+		"el mismo parámetro dos veces: la regex solo tapaba el último",
+		`/api/auth/verify-email?token=${VERIFY_JWT}&token=${VERIFY_JWT}`,
+	],
+	[
+		"nombre del parámetro percent-encoded: Better Auth lo decodifica igual",
+		`/api/auth/verify-email?t%6fken=${VERIFY_JWT}`,
+	],
+	[
+		"ruta sensible y query juntas: al casar la ruta no se tocaba la query",
+		`/api/v1/preview/${PREVIEW_ID}/index.html?token=${VERIFY_JWT}`,
+	],
+];
+
+describe("ninguna variante deja un secreto en el log (revisión #524)", () => {
+	for (const [label, input] of BYPASS_CASES) {
+		it(`URI: ${label}`, () => {
+			expect(uriMap(input)).not.toContain(VERIFY_JWT);
+		});
+
+		it(`Referer: ${label}`, () => {
+			expect(refererMap(`https://procomun.example${input}`)).not.toContain(
+				VERIFY_JWT,
+			);
+		});
+	}
+});
 
 describe("map $request_uri → $redacted_uri", () => {
 	for (const [label, input, expected] of URI_CASES) {
 		it(`tapa la capacidad: ${label}`, () => {
-			if (!uriMap) throw new Error("Falta el map de $request_uri");
-			expect(evalMap(uriMap, input)).toBe(expected);
+			expect(uriMap(input)).toBe(expected);
 		});
 	}
 
 	it("no deja ningún secreto de los ejemplos en la URI redactada", () => {
-		if (!uriMap) throw new Error("Falta el map de $request_uri");
 		for (const [, input] of URI_CASES) {
-			const out = evalMap(uriMap, input);
+			const out = uriMap(input);
 			for (const secret of [TOKEN, PREVIEW_ID, VERIFY_JWT, "no-es-un-token"]) {
 				expect(out).not.toContain(secret);
 			}
@@ -328,27 +395,24 @@ describe("map $request_uri → $redacted_uri", () => {
 	});
 
 	it("tapa el token del enlace que genera de verdad la API", () => {
-		if (!uriMap) throw new Error("Falta el map de $request_uri");
 		const url = buildSignedElpxPreviewUrl(HASH);
 		const token = url.slice(`${ELPX_PREVIEW_PREFIX}/${HASH}/`.length, -1);
 		expect(token.length).toBeGreaterThan(40);
-		expect(evalMap(uriMap, `${url}html/pagina.html`)).toBe(
+		expect(uriMap(`${url}html/pagina.html`)).toBe(
 			`${ELPX_PREVIEW_PREFIX}/${HASH}/:token/html/pagina.html`,
 		);
 	});
 
-	for (const input of UNCHANGED) {
-		it(`deja igual una URI sin capacidad: ${input}`, () => {
-			if (!uriMap) throw new Error("Falta el map de $request_uri");
-			expect(evalMap(uriMap, input)).toBe(input);
+	for (const [input, expected] of UNCHANGED) {
+		it(`conserva la ruta de una URI sin capacidad: ${input}`, () => {
+			expect(uriMap(input)).toBe(expected);
 		});
 	}
 
 	// Con una línea de petición mal formada $request_uri llega vacía. Se
 	// escribe "-" y no la línea en crudo, que no pasaría por la redacción.
 	it("escribe - si la petición no trae URI", () => {
-		if (!uriMap) throw new Error("Falta el map de $request_uri");
-		expect(evalMap(uriMap, "")).toBe("-");
+		expect(uriMap("")).toBe("-");
 	});
 });
 
@@ -357,18 +421,13 @@ describe("map $http_referer → $redacted_referer", () => {
 
 	for (const [label, input, expected] of URI_CASES) {
 		it(`tapa la capacidad en el Referer: ${label}`, () => {
-			if (!refererMap) throw new Error("Falta el map de $http_referer");
-			expect(evalMap(refererMap, `${ORIGIN}${input}`)).toBe(
-				`${ORIGIN}${expected}`,
-			);
+			expect(refererMap(`${ORIGIN}${input}`)).toBe(`${ORIGIN}${expected}`);
 		});
 	}
 
 	it("tapa también un Referer con puerto y http", () => {
-		if (!refererMap) throw new Error("Falta el map de $http_referer");
 		expect(
-			evalMap(
-				refererMap,
+			refererMap(
 				`http://localhost:8080/api/v1/elpx/preview/${HASH}/${TOKEN}/index.html`,
 			),
 		).toBe(
@@ -376,17 +435,15 @@ describe("map $http_referer → $redacted_referer", () => {
 		);
 	});
 
-	for (const input of UNCHANGED.map((u) => `${ORIGIN}${u}`)) {
-		it(`deja igual un Referer sin capacidad: ${input}`, () => {
-			if (!refererMap) throw new Error("Falta el map de $http_referer");
-			expect(evalMap(refererMap, input)).toBe(input);
+	for (const [input, expected] of UNCHANGED) {
+		it(`conserva la ruta de un Referer sin capacidad: ${input}`, () => {
+			expect(refererMap(`${ORIGIN}${input}`)).toBe(`${ORIGIN}${expected}`);
 		});
 	}
 
 	// Sin la cabecera, $http_referer sale "-" en el formato main. El map da
 	// una cadena vacía, así que se pone "-" a mano para no cambiar el log.
 	it("escribe - si no hay Referer, como el formato main", () => {
-		if (!refererMap) throw new Error("Falta el map de $http_referer");
-		expect(evalMap(refererMap, "")).toBe("-");
+		expect(refererMap("")).toBe("-");
 	});
 });

@@ -3629,3 +3629,30 @@ tasks:
       antes: guarda en PublicCollectionsIsland, tipo string | null en
       api-client y test de regresion. Test ajustado: el toEqual de totals en
       el caso en seco incluye la clave nueva reindexFailed.
+  T-2026-11-04-16381948:
+    date: 2026-11-04
+    agent: "devops-sre + seguridad-privacidad-legal"
+    task: "Atender la revision de #524: el access_log no registra la query"
+    status: Done
+    related: ["#524", "#466", "#536", "#317"]
+    notes: >
+      Dos hallazgos P2 de jacoboAlcantara, los dos reales. Tapar los secretos
+      por nombre de parametro no funcionaba: ?token=A&token=B dejaba el primero
+      porque la regex era codiciosa, ?t%6fken=A no casaba con token= aunque
+      Better Auth lo decodifique igual, y al casar primero una ruta sensible el
+      map devolvia su resultado sin aplicar la redaccion de la query. En vez de
+      perseguir variantes se deja de registrar la query: dos maps encadenados,
+      el primero la quita y deja el marcador ?:query y el segundo redacta la
+      ruta (token del enlace firmado a :token conservando el hash, e id de la
+      vista previa a :previewId). El Referer pasa por la misma pareja de maps,
+      quitando tambien el fragmento. Importante: los maps parten de
+      $request_uri y no de $uri. Con $uri el primer intento registraba
+      /index.html para cualquier ruta del SPA, porque $uri es la ruta despues
+      del try_files; se detecto probando con nginx real. Verificado con
+      nginx:alpine en Docker: nginx -t pasa con los maps encadenados y, con
+      peticiones reales de los tres bypass mas el Referer, el access_log sale
+      con ?:query, :token y :previewId y grep del secreto da 0; /recursos/
+      foto?page=2 y /explorar?q=... conservan su ruta. Contrapartida
+      documentada en operaciones.md: el log pierde los parametros de busqueda y
+      paginacion, y si hacen falta se añaden a una lista permitida uno a uno.
+      Los 6 casos de la revision estan en el test, rojo a verde.
