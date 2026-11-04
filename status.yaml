@@ -3417,3 +3417,24 @@ tasks:
       'published'. Las reglas de transición por rol de las colecciones quedan
       fuera: desde #433 solo las crean admin y curator. Tests rojo → verde en validation.unit.test.ts y
       admin.unit.test.ts.
+  T-2026-11-04-13124130:
+    date: 2026-11-04
+    agent: "seguridad-privacidad-legal"
+    task: "api_access_logs no guarda el token de los enlaces firmados"
+    status: Done
+    related: ["#536", "#466", "#524", "#317"]
+    notes: >
+      auditMiddleware guardaba c.req.path entero en api_access_logs. En el
+      enlace firmado de un recurso no publicado (#466) el permiso va en la
+      propia URL, /api/v1/elpx/preview/<hash>/<token>/..., asi que quien
+      pudiera leer la tabla podia abrir el contenido no publicado mientras el
+      enlace no caducase (2 h). redactAuditPath cambia el token por :token y
+      conserva el hash, con el mismo marcador que el access_log de nginx
+      (#524). La query no llega a esta tabla, asi que el ?token= de la
+      verificacion de correo nunca estuvo afectado. Las rutas de la
+      instantanea del editor (#317) anadiran su :previewId cuando existan. La
+      issue decia sacarlo a un PR contra main si #317 no se mezclaba pronto,
+      y sigue en borrador. Nota: la tabla api_access_logs no se crea en la
+      base de test (setup.ts no la incluye) y el insert es fire-and-forget con
+      el error tragado, asi que el test del middleware espia el insert en vez
+      de consultar la tabla. Documentado en operaciones.md.
