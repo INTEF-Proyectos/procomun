@@ -33,7 +33,17 @@ async function seedResource() {
 	});
 }
 
-async function seedVersion(resourceId: string, hash: string) {
+// Hash único por llamada. La base PGlite en memoria es una sola para toda la
+// ejecución de `bun test` y `elpx_projects.hash` es UNIQUE: con literales como
+// "b".repeat(64), que elpx-processor.unit.test.ts también registra, el test
+// fallaba o no según el orden en que bun ejecutase los ficheros.
+function uniqueHash() {
+	return new Bun.CryptoHasher("sha256")
+		.update(crypto.randomUUID())
+		.digest("hex");
+}
+
+async function seedVersion(resourceId: string, hash = uniqueHash()) {
 	const { id: elpxProjectId } = await repo.createElpxProject(getDb().db, {
 		resourceId,
 		hash,
@@ -60,8 +70,9 @@ describe("resource version admin API", () => {
 
 	test("lists immutable history without change notes", async () => {
 		const { id } = await seedResource();
-		await seedVersion(id, "a".repeat(64));
-		await seedVersion(id, "b".repeat(64));
+		await seedVersion(id);
+		const currentHash = uniqueHash();
+		await seedVersion(id, currentHash);
 
 		const res = await authorApp.request(`/api/admin/resources/${id}/versions`);
 		expect(res.status).toBe(200);
@@ -75,15 +86,15 @@ describe("resource version admin API", () => {
 		);
 		// El recurso es un borrador: la versión vigente lleva enlace firmado (#466).
 		expect(String(history[0]?.previewUrl)).toStartWith(
-			`/api/v1/elpx/preview/${"b".repeat(64)}/`,
+			`/api/v1/elpx/preview/${currentHash}/`,
 		);
 		expect("changeNotes" in (history[0] ?? {})).toBe(false);
 	});
 
 	test("curator restores by creating a new current version", async () => {
 		const { id } = await seedResource();
-		const first = await seedVersion(id, "c".repeat(64));
-		await seedVersion(id, "d".repeat(64));
+		const first = await seedVersion(id);
+		await seedVersion(id);
 
 		const forbidden = await authorApp.request(
 			`/api/admin/resources/${id}/versions/${first.id}/restore`,

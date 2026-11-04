@@ -116,6 +116,27 @@ export function hasPassingBunSummary(output: string) {
 	return /\n\s*0 fail\b/.test(output) && !/\n\s*[1-9]\d* fail\b/.test(output);
 }
 
+// bun test ha ido bien: código 0, o 99/100 con un resumen de 0 fallos (bun a
+// veces sale así sin que falle nada). Lo comparten run-bun-suite y
+// check-coverage para que los dos decidan igual.
+export function isPassingBunExit(
+	exitCode: number | null,
+	output: string,
+): boolean {
+	if (exitCode === 0) {
+		return true;
+	}
+
+	return (exitCode === 99 || exitCode === 100) && hasPassingBunSummary(output);
+}
+
+// Código con el que sale el script cuando bun test falla. Bun.spawnSync da
+// exitCode null si una señal mata a bun test (p. ej. el OOM killer) y
+// process.exit(null) sale con 0: la suite caída pasaba por verde.
+export function failureExitCode(exitCode: number | null): number {
+	return exitCode ? exitCode : 1;
+}
+
 export function getNoTestsMessage(suite: SuiteName): string {
 	const definition = SUITE_DEFINITIONS[suite];
 
@@ -178,17 +199,14 @@ async function main() {
 	}
 
 	const combinedOutput = `${stdout}\n${stderr}`;
-	if (
-		(result.exitCode === 99 || result.exitCode === 100) &&
-		hasPassingBunSummary(combinedOutput)
-	) {
+	if (isPassingBunExit(result.exitCode, combinedOutput)) {
 		console.warn(
 			`bun test returned exit code ${result.exitCode} despite reporting 0 failures; normalizing to success.`,
 		);
 		process.exit(0);
 	}
 
-	process.exit(result.exitCode);
+	process.exit(failureExitCode(result.exitCode));
 }
 
 if (import.meta.main) {
