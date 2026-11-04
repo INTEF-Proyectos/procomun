@@ -16,7 +16,7 @@ export interface ResourceSummary {
 	title: string;
 	description: string;
 	resourceType: string;
-	language: string;
+	language: string | null;
 	license: string;
 	author?: string | null;
 	/** Cuenta que publica: su nombre enlaza a su ficha (#458). */
@@ -44,7 +44,7 @@ export interface ResourceDetail
 export interface ResourceMetadata {
 	author?: string | null;
 	publisher?: string | null;
-	language: string;
+	language: string | null;
 	license: ResourceLicense;
 	resourceType: string;
 	subjects: string[];
