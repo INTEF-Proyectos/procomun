@@ -353,6 +353,52 @@ describe("validateCollection", () => {
 		const r = validateCollection({ title: "", description: "D" });
 		expect(r.valid).toBe(false);
 	});
+
+	// #486: el estado editorial solo admite los mismos valores que los recursos.
+	test("acepta los estados editoriales válidos", () => {
+		for (const editorialStatus of [
+			"draft",
+			"review",
+			"published",
+			"archived",
+		]) {
+			const r = validateCollection({
+				title: "Col",
+				description: "D",
+				editorialStatus,
+			});
+			expect(r.valid).toBe(true);
+		}
+	});
+
+	test("sin estado editorial pasa (se usa el de por defecto)", () => {
+		const r = validateCollection({ title: "Col", description: "D" });
+		expect(r.valid).toBe(true);
+	});
+
+	test("rechaza un estado editorial inventado", () => {
+		for (const editorialStatus of ["publicado", "foo", "", "PUBLISHED"]) {
+			const r = validateCollection({
+				title: "Col",
+				description: "D",
+				editorialStatus,
+			});
+			expect(r.valid).toBe(false);
+			expect(r.errors.find((e) => e.field === "editorialStatus")).toBeTruthy();
+		}
+	});
+
+	test("rechaza un estado editorial que no es texto", () => {
+		for (const editorialStatus of [null, 1, true, ["published"]]) {
+			const r = validateCollection({
+				title: "Col",
+				description: "D",
+				editorialStatus,
+			});
+			expect(r.valid).toBe(false);
+			expect(r.errors.find((e) => e.field === "editorialStatus")).toBeTruthy();
+		}
+	});
 });
 
 describe("validateTaxonomy", () => {
