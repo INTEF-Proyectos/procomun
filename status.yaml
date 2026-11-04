@@ -3489,7 +3489,23 @@ tasks:
       un rol desconocido o ausente como reader igual que hasMinRole. Las
       etiquetas en castellano son las mismas que ROLE_OPTIONS de
       AdminUsersSection, para que el perfil y la administracion no llamen
-      distinto al mismo rol. Test rojo a verde en role-label.unit.test.ts.
+      distinto al mismo rol.
+      Historia del sitio donde vive: primero en apps/frontend/src/lib/
+      role-label.ts importando el barrel paraglide/messages.js, pero la suite
+      de cobertura solo recorre los .ts (los .tsx de las islas van en test:ui,
+      que no mide cobertura) y hasta entonces ningun .ts cargaba ese barrel:
+      los casi 300 mensajes generados entraron en el denominador y la
+      cobertura cayo del 91 % al 49,38 %. El segundo intento, importar los
+      mensajes de uno en uno, arreglo la cobertura pero rompio la aplicacion:
+      el plugin de Vite solo emite el barrel, no los modulos por mensaje (esos
+      los genera el CLI), asi que el dev server respondia «Failed to resolve
+      import "../paraglide/messages/role_admin.js"», la isla del perfil no
+      cargaba y caian 3 e2e (logout, backoffice y «mis recursos»): la pagina
+      salia sin ningun encabezado. check-types no lo detecta. Solucion:
+      roleLabel vive en la propia isla, que ya importa el barrel, y su test en
+      PublicDashboardIsland.unit.test.tsx, que corre en test:ui. Cobertura
+      91,24 %. Regla general: ningun .ts de produccion debe importar el barrel
+      de Paraglide, y los modulos por mensaje no existen en el dev server.
   T-2026-11-04-13404809:
     date: 2026-11-04
     agent: "frontend-ux-accesibilidad + qa-validacion"

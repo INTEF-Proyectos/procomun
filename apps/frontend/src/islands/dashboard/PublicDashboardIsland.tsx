@@ -2,7 +2,6 @@ import { useCallback, useEffect, useState } from "react";
 import type { Resource } from "../../lib/api-client.ts";
 import { getApiClient } from "../../lib/get-api-client.ts";
 import { url } from "../../lib/paths.ts";
-import { roleLabel } from "../../lib/role-label.ts";
 import {
 	computeResourceBadges,
 	DEFAULT_BADGE_CONFIG,
@@ -42,6 +41,30 @@ export function withFavoriteCount(
 
 export function hasEmailVerificationSuccess(search: string): boolean {
 	return new URLSearchParams(search).get("verified") === "1";
+}
+
+/**
+ * Etiqueta traducida de un rol (#534). La insignia pintaba `user.role` en
+ * crudo y se veia la clave sin traducir («AUTHOR», en mayusculas por el CSS).
+ * Un rol desconocido o ausente se trata como `reader`, igual que `hasMinRole`.
+ *
+ * Vive aqui, y no en un modulo de `lib/`, por dos motivos: esta isla ya importa
+ * el barrel de Paraglide, y un `.ts` que lo importe mete los casi 300 mensajes
+ * generados en el denominador de la cobertura (que solo recorre los `.ts`) y la
+ * hunde del 91 % al 49 %. Importar los mensajes de uno en uno tampoco vale: el
+ * plugin de Vite solo emite el barrel, no los modulos por mensaje, y el dev
+ * server responde «Failed to resolve import».
+ */
+const ROLE_LABELS: Record<string, () => string> = {
+	reader: m.role_reader,
+	author: m.role_author,
+	editor: m.role_editor,
+	curator: m.role_curator,
+	admin: m.role_admin,
+};
+
+export function roleLabel(role: string | null | undefined): string {
+	return (ROLE_LABELS[role ?? "reader"] ?? m.role_reader)();
 }
 
 function FavoritesTab({
