@@ -3626,3 +3626,31 @@ tasks:
       antes: guarda en PublicCollectionsIsland, tipo string | null en
       api-client y test de regresion. Test ajustado: el toEqual de totals en
       el caso en seco incluye la clave nueva reindexFailed.
+  T-2026-11-04-18140988:
+    date: 2026-11-04
+    agent: "backend-api-servicios + frontend-ux-accesibilidad + seguridad-privacidad-legal"
+    task: "Pestaña Cuenta: cambiar la contraseña y el correo"
+    status: Done
+    related: ["#532", "#494", "#508", "#517", "#488", "ADR-0007", "ADR-0031"]
+    notes: >
+      Pestaña «Cuenta» en /perfil con cambio de contraseña (actual, nueva,
+      repeticion e indicador de fortaleza) y de correo. Decision de la issue:
+      se permite cambiar el correo. No desvincula nada de lo importado porque
+      #508 fija created_by y nunca pisa un creador real, y #488 identifica la
+      cuenta antigua por legacy-procomun:user:<uid> y no por el correo; solo
+      afecta a importaciones futuras con el correo antiguo, que caen en el
+      usuario de sistema y salen en el informe. Flujo de Better Auth 1.7
+      leido en su codigo, no supuesto: con el correo verificado avisa primero
+      a la direccion antigua y despues verifica la nueva; sin verificar va
+      directo a la nueva; updateEmailWithoutVerification desactivado; cambiar
+      a un correo ocupado responde igual que a uno libre. El correo de
+      verificacion se reescribe porque decia «activar tu cuenta» tambien al
+      cambiar de correo. changePassword con revokeOtherSessions. Indicador de
+      fortaleza sin dependencias. En las cuentas solo OIDC (sin credential en
+      /list-accounts) la pestaña no ofrece nada. El codigo INVALID_PASSWORD se
+      fija contra la instancia real porque el cliente se fia de el. Faltaba
+      «account» en la lista blanca de ?tab= del perfil, asi que el enlace de
+      verificacion habria caido en otra pestaña: se extrae PROFILE_TABS y se
+      prueba. Sin el arreglo fallan los dos tests de integracion que prueban la
+      funcionalidad, por CHANGE_EMAIL_DISABLED. Los tests del cliente
+      restauran globalThis.fetch desde el principio (leccion de #531).

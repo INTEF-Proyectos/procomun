@@ -400,6 +400,15 @@ export interface ApiClient {
 		callbackURL?: string,
 	): Promise<SignInResult>;
 	signIn(email: string, password: string): Promise<SignInResult>;
+	/** #532: cierra las demás sesiones al cambiarla. */
+	changePassword(
+		currentPassword: string,
+		newPassword: string,
+	): Promise<SignInResult>;
+	/** #532: no cambia al momento; hay que verificar el correo nuevo. */
+	changeEmail(newEmail: string): Promise<SignInResult>;
+	/** #532: false en las cuentas solo de acceso institucional (OIDC). */
+	hasPasswordAccount(): Promise<boolean>;
 	signInOidc(): Promise<SignInResult>;
 	signOut(): Promise<void>;
 

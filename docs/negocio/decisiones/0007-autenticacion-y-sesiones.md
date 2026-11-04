@@ -120,3 +120,28 @@ Justificación principal:
    (a) Better Auth deja de mantenerse o pierde compatibilidad con Bun.
    (b) El esquema de tablas impuesto genera fricción no asumible con el modelo de dominio.
    (c) Requisitos de MFA o auth avanzado exceden las capacidades de los plugins disponibles.
+
+## Adenda 2026-11-04 — la pestaña «Cuenta»: cambiar la contraseña y el correo (#532)
+
+**Problema.** No había pantalla para cambiar la contraseña ni el correo. Better Auth trae el cambio de contraseña, y el de correo estaba desactivado (`/change-email` respondía `CHANGE_EMAIL_DISABLED`).
+
+**Decisión sobre el correo: se permite cambiarlo.** La issue lo dejaba abierto porque el correo identifica al autor en las importaciones (#508, #517). Se permite, por tres motivos:
+
+1. **No desvincula nada de lo ya importado.** #508 fija `resources.created_by` al importar y `linkExistingResourceAuthor` **nunca pisa un creador real**. Los recursos ya asignados siguen siendo de la cuenta aunque cambie el correo.
+2. **#488 no identifica la cuenta antigua por el correo** sino por `legacy-procomun:user:<uid>`, así que reimportar usuarios tampoco depende de él.
+3. **Lo único que cambia es la importación futura.** Un recurso que se importe más adelante con el correo antiguo en `publicatorEmailStr` no encontrará la cuenta, quedará a nombre del usuario de sistema y saldrá en `authorsWithoutAccount` del informe. Es visible y recuperable reasignándolo; impedir que la gente cambie de correo para siempre (quien cambia de centro, de proveedor) es peor.
+
+**Cómo cambia el correo, tal como lo hace Better Auth 1.7:**
+
+* **con el correo actual verificado**, primero un aviso a la dirección **antigua** para confirmar el cambio; después la verificación de la nueva; y solo entonces cambia. Protege la cuenta si alguien ha robado la sesión: el cambio no sigue sin que el dueño lo confirme desde su buzón;
+* **sin verificar** (la mayoría de cuentas importadas, #488 deja `email_verified = false`), directo a verificar la nueva;
+* **`updateEmailWithoutVerification` queda desactivado**: con él, una cuenta sin verificar podría pasar a otro correo sin demostrar que lo controla;
+* **cambiar a un correo que ya tiene cuenta no lo delata**: Better Auth responde lo mismo que con uno libre.
+
+El correo de verificación de Better Auth es el mismo para el alta y para el correo nuevo de un cambio. Decía «Para activar tu cuenta», que es falso en el segundo caso, así que se reescribe para que sirva en los dos.
+
+**Contraseña.** `changePassword` con `revokeOtherSessions: true`: quien la cambia porque sospecha que se la han robado necesita que la otra sesión deje de valer. Indicador de fortaleza orientativo, sin dependencias (zxcvbn pesa unos 800 kB): lo que se exige sigue siendo la longitud mínima de 8.
+
+**Cuentas de acceso institucional.** Si la cuenta no tiene credencial propia (`/list-accounts` sin `credential`), la pestaña no ofrece ninguna de las dos cosas: la contraseña y el correo se gestionan en el proveedor de identidad, y un correo cambiado aquí se desalinearía con el suyo. Si no se puede averiguar, tampoco: ofrecer cambiar una contraseña que no existe acaba en error.
+
+**Validación.** `apps/api/src/auth/account-settings.integration.test.ts`, contra la instancia real de Better Auth: la contraseña nueva sustituye a la vieja; con la actual equivocada no cambia nada y el código es `INVALID_PASSWORD` (el cliente se fía de él); se cierran las demás sesiones; el cambio de correo está activado; sin verificar la dirección nueva el correo no cambia; con el correo verificado el aviso va a la antigua; y cambiar a un correo ocupado no lo delata. Sin el arreglo fallan los dos tests que prueban la funcionalidad, por `CHANGE_EMAIL_DISABLED`.

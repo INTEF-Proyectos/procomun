@@ -3,6 +3,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import type { DashboardSummary } from "../../lib/types/user-extended.ts";
 import {
 	hasEmailVerificationSuccess,
+	PROFILE_TABS,
 	PublicDashboardIsland,
 	profileAvatarUrl,
 	withFavoriteCount,
@@ -66,5 +67,15 @@ describe("PublicDashboardIsland", () => {
 	test("muestra el shell de carga inicial del perfil", () => {
 		const html = renderToStaticMarkup(<PublicDashboardIsland />);
 		expect(html).toContain("dashboard-loading");
+	});
+});
+
+// #532: el enlace que verifica un correo nuevo vuelve a /perfil?tab=account
+// (lo fija changeEmail en http-api-client.ts). Si la pestaña no estuviera en la
+// lista, el usuario caería en otra sin saber si el cambio ha ido bien.
+describe("vuelta a la pestaña Cuenta (#532)", () => {
+	test("?tab=account abre la pestaña Cuenta", () => {
+		const tab = new URLSearchParams("?tab=account").get("tab") ?? "";
+		expect(PROFILE_TABS).toContain(tab);
 	});
 });

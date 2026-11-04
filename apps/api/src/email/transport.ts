@@ -228,10 +228,72 @@ export function buildVerificationEmail(params: {
 	return {
 		to: params.email,
 		subject: "Verifica tu correo electrónico en Procomún",
+		// #532: Better Auth usa este mismo correo para el alta y para verificar
+		// el correo nuevo de un cambio. «Para activar tu cuenta» era falso en el
+		// segundo caso, y quien cambia de correo se asustaría pensando que
+		// alguien ha abierto una cuenta a su nombre.
 		text:
 			"Hola,\n\n" +
-			"Para activar tu cuenta en Procomún confirma tu correo electrónico abriendo este enlace:\n" +
+			"Confirma tu dirección de correo electrónico en Procomún abriendo este enlace:\n" +
 			`${params.url}\n\n` +
-			"Si no has solicitado esta cuenta, ignora este mensaje.",
+			"Si no has creado una cuenta ni has pedido cambiar tu correo en Procomún, ignora este mensaje.",
+	};
+}
+
+/**
+ * Cambio de correo (issue #532).
+ *
+ * Better Auth 1.7, con el correo actual verificado, avisa primero a la
+ * dirección **antigua**: el cambio no sigue hasta que el dueño lo confirma
+ * desde su buzón, y después se verifica el correo nuevo. Es lo que protege a
+ * la cuenta si alguien ha robado la sesión. Con el correo sin verificar (la
+ * mayoría de las cuentas importadas, #488) va directo a verificar el nuevo.
+ */
+export function buildChangeEmailConfirmationEmail(params: {
+	/** Dirección actual, a la que va este aviso. */
+	email: string;
+	newEmail: string;
+	url: string;
+}): EmailMessage {
+	return {
+		to: params.email,
+		subject: "Confirma el cambio de correo en Procomún",
+		text:
+			"Hola,\n\n" +
+			`Se ha pedido cambiar el correo de tu cuenta de Procomún a ${params.newEmail}. ` +
+			"Todavía no ha cambiado nada.\n\n" +
+			"Si lo has pedido tú, confirma el cambio abriendo este enlace. Después te enviaremos otro a la dirección nueva para verificarla:\n" +
+			`${params.url}\n\n` +
+			"Si no has pedido el cambio, ignora este mensaje y cambia tu contraseña: quien lo ha pedido ha entrado en tu cuenta.",
+	};
+}
+
+/** Opciones `user.changeEmail` de Better Auth. */
+export function buildChangeEmailOptions(
+	env: RuntimeEnv = process.env,
+	transport: (env: RuntimeEnv) => EmailPort = getEmailTransport,
+) {
+	return {
+		enabled: true,
+		// Nunca: una cuenta sin verificar podría pasar a otro correo sin
+		// demostrar que lo controla.
+		updateEmailWithoutVerification: false,
+		sendChangeEmailConfirmation: async ({
+			user,
+			newEmail,
+			url,
+		}: {
+			user: { email: string };
+			newEmail: string;
+			url: string;
+		}): Promise<void> => {
+			await transport(env).sendEmail(
+				buildChangeEmailConfirmationEmail({
+					email: user.email,
+					newEmail,
+					url,
+				}),
+			);
+		},
 	};
 }

@@ -6,6 +6,7 @@ import { admin as adminPlugin, genericOAuth } from "better-auth/plugins";
 import { logActivity } from "../activity/log.ts";
 import { getDb } from "../db.ts";
 import {
+	buildChangeEmailOptions,
 	buildEmailVerificationOptions,
 	resolveEmailVerificationConfig,
 } from "../email/transport.ts";
@@ -81,6 +82,14 @@ export function createAuth(env: NodeJS.ProcessEnv = process.env) {
 			enabled: true,
 			minPasswordLength: 8,
 			requireEmailVerification: emailVerificationConfig.enabled,
+		},
+		// #532: el cambio de correo estaba desactivado. Con el correo verificado
+		// se avisa primero a la dirección antigua y después se verifica la nueva;
+		// sin verificar, se verifica la nueva. Nunca cambia sin verificarla.
+		// Cambiarlo no desvincula lo importado: #508 fija created_by y nunca
+		// pisa un creador real (ver la adenda de ADR-0007).
+		user: {
+			changeEmail: buildChangeEmailOptions(env),
 		},
 		session: {
 			expiresIn: 60 * 60 * 24 * 7,
