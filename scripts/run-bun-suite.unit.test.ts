@@ -5,11 +5,13 @@ import { join } from "node:path";
 
 import {
 	buildBunTestArgs,
+	failureExitCode,
 	findStandardTestFiles,
 	findSuiteFiles,
 	getMissingRequiredSuiteMessage,
 	getNoTestsMessage,
 	hasPassingBunSummary,
+	isPassingBunExit,
 } from "./run-bun-suite.ts";
 
 describe("run-bun-suite helpers", () => {
@@ -94,5 +96,23 @@ describe("run-bun-suite helpers", () => {
 	test("hasPassingBunSummary only returns true for green summaries", () => {
 		expect(hasPassingBunSummary(" 32 pass\n 0 fail\n")).toBe(true);
 		expect(hasPassingBunSummary(" 31 pass\n 1 fail\n")).toBe(false);
+	});
+
+	test("isPassingBunExit only accepts exit 0, or 99/100 with a green summary", () => {
+		expect(isPassingBunExit(0, "")).toBe(true);
+		expect(isPassingBunExit(99, " 32 pass\n 0 fail\n")).toBe(true);
+		expect(isPassingBunExit(100, " 32 pass\n 0 fail\n")).toBe(true);
+		expect(isPassingBunExit(99, " 31 pass\n 1 fail\n")).toBe(false);
+		expect(isPassingBunExit(1, " 32 pass\n 0 fail\n")).toBe(false);
+		expect(isPassingBunExit(null, " 32 pass\n 0 fail\n")).toBe(false);
+	});
+
+	test("failureExitCode never turns a failed run into exit 0", () => {
+		// Bun.spawnSync da exitCode null si una señal mata a bun test (p. ej. el
+		// OOM killer), y process.exit(null) sale con 0.
+		expect(failureExitCode(null)).toBe(1);
+		expect(failureExitCode(0)).toBe(1);
+		expect(failureExitCode(99)).toBe(99);
+		expect(failureExitCode(1)).toBe(1);
 	});
 });
