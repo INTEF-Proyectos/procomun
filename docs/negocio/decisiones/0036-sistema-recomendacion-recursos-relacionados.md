@@ -120,3 +120,13 @@ Reabrir la decisión si:
 1. El CTR de la sección es sistemáticamente peor que un baseline de “misma materia”.
 2. El catálogo supera el tamaño donde la consulta SQL no cumple latencia sin materialización.
 3. Hay volumen suficiente de interacciones para justificar CF o embeddings con evidencia.
+
+## Adenda 2026-11-03 — solo cuentan las colecciones publicadas (#485)
+
+**Problema.** La co-ocurrencia en colecciones contaba cualquier fila de `collection_resources`, sin mirar el estado de la colección. Una colección en borrador, en revisión o archivada influía en qué recursos se recomendaban en la ficha pública. No se filtraba contenido no publicado (los candidatos ya son recursos publicados), sino una agrupación que todavía no es pública.
+
+**Decisión.** La señal `collectionCooccurrence` y el filtro de candidatos solo cuentan colecciones con `editorial_status = 'published'`. Es lo que ya decía esta ADR en «Privacidad»: solo co-ocurrencia editorial pública.
+
+**Implementación.** Un único fragmento SQL (`publishedCollectionPairs` en `apps/api/src/recommendations/service.ts`) se usa en la señal y en el filtro, para que no se desalineen.
+
+**Validación.** `apps/api/src/recommendations/service.unit.test.ts`, «solo cuentan las colecciones publicadas (#485)»: con A y B solo relacionados por colecciones en borrador, revisión y archivada, B no sale en la ficha de A; al añadir una publicada sale con `collectionCooccurrence = 1` (rojo → verde).
