@@ -571,6 +571,12 @@ export interface FixLegacyLanguageReport {
 		kept: number;
 		notFound: number;
 		errored: number;
+		/**
+		 * Idioma corregido pero indice de busqueda sin regenerar (revisión
+		 * #475). Esos recursos necesitan una reindexacion manual: otra pasada
+		 * de --fix-language los dara por «sin cambios».
+		 */
+		reindexFailed: number;
 	};
 	/** Sin los que ya coinciden con el origen: esos solo se cuentan. */
 	records: FixLanguageRecord[];
