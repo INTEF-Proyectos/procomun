@@ -207,3 +207,21 @@ packages/db/src/schema/
 apps/api/src/routes/
 └── social.ts                      [NEW] Social API endpoints
 ```
+
+## Seguimiento 2026-11-03 — avatar de Gravatar (#514)
+
+Nadie veía su foto de Gravatar en el menú ni en `/perfil`; todos tenían la silueta `d=mp`.
+
+- Causa: `gravatarUrl` (`apps/frontend/src/lib/shared-utils.ts`) resumía el correo con un hash propio de 64 bits. Gravatar solo reconoce el SHA-256 o el MD5 del correo recortado y en minúsculas (<https://docs.gravatar.com/api/avatars/hash/>), y con cualquier otro valor sirve la imagen por defecto. El perfil, además, resumía `${id}@procomun.es` en lugar del correo de la sesión.
+- La CSP no intervenía: las páginas de la aplicación no envían CSP, `Referrer-Policy` ni COEP (`nginx.conf` solo añade `X-Frame-Options` y `nosniff`), y Gravatar sirve `image/jpeg` sin `Cross-Origin-Resource-Policy`.
+- [x] `apps/frontend/src/lib/gravatar.ts`: SHA-256 con `crypto.subtle` del correo normalizado, y URL `https://www.gravatar.com/avatar/<hash>?s=<tamaño>&d=mp`. Sustituye al helper de `shared-utils.ts`.
+- [x] El hash se calcula una vez, al cargar la sesión: `toNavUser` en `PublicNavIsland` (`s=80`) y `profileAvatarUrl` en `PublicDashboardIsland` (`s=192`, para el avatar de 96 px), que lo guarda en `PublicUserProfile.avatarUrl`. Solo se resume el correo del propio usuario; no se exponen hashes de otros.
+- [x] `apps/frontend/src/ui/UserAvatar.tsx`: muestra la foto y, si no hay URL (sin `crypto.subtle`, es decir, sin HTTPS) o la imagen no carga, la inicial del nombre. Sustituye al `onError` que manipulaba el DOM en el menú.
+- [x] Las demás vistas con avatar (ficha, tarjetas, catálogo, colecciones, backoffice) muestran iniciales o un icono y no piden imagen a Gravatar.
+- [x] Tests rojo → verde: `gravatar.unit.test.ts` (ejemplo de la documentación de Gravatar, SHA-256 calculado con `Bun.CryptoHasher`, normalización, forma de la URL y casos sin hash), `UserAvatar.unit.test.tsx`, `LayoutIslands.unit.test.tsx` y `PublicDashboardIsland.unit.test.tsx`.
+
+## Riesgos abiertos 2026-11-03
+
+- No hay foto de perfil propia en `main`: `user.image` no se usa para representar al usuario (ADR-0037). Cuando exista `user_profile.image`, irá en `avatarUrl` antes que Gravatar.
+- Cada carga de la página envía a Gravatar el hash del correo y la IP del usuario. Si se mantiene la integración se decide en #504.
+- Falta comprobar a mano la carga de una foto real con una cuenta de prueba que tenga Gravatar.
