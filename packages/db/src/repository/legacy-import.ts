@@ -87,7 +87,14 @@ export async function findLegacyResourceByExternalId(
 	externalId: string,
 ) {
 	const rows = await db
-		.select({ id: resources.id, slug: resources.slug })
+		// createdBy: el informe tiene que distinguir un recurso que sigue sin
+		// autor de uno reasignado a mano cuyo correo de origen no lleva a
+		// ninguna cuenta (revisión #508).
+		.select({
+			id: resources.id,
+			slug: resources.slug,
+			createdBy: resources.createdBy,
+		})
 		.from(resources)
 		.where(
 			and(

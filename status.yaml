@@ -3622,3 +3622,31 @@ tasks:
       antes: guarda en PublicCollectionsIsland, tipo string | null en
       api-client y test de regresion. Test ajustado: el toEqual de totals en
       el caso en seco incluye la clave nueva reindexFailed.
+  T-2026-11-04-16215488:
+    date: 2026-11-04
+    agent: "ingestas-y-migraciones + seguridad-privacidad-legal"
+    task: "Atender la revision de #508: errores por recurso e informe de autoria"
+    status: Done
+    related: ["#508", "#456", "#543"]
+    notes: >
+      Dos hallazgos de jacoboAlcantara. P2: resolveAuthor y
+      linkExistingResourceAuthor quedaban fuera del manejo de errores por
+      recurso, asi que un rechazo abortaba el lote y no se escribia el informe
+      aunque ya se hubieran importado recursos antes. Ahora cada uno va en su
+      try: se cuenta en errored, se registra el ODE con el mensaje y se sigue
+      con el siguiente, como hace runLinkLegacyAuthors. El mensaje va saneado
+      con summarizeStepError (generalizacion de summarizeReindexError), porque
+      la consulta que envuelve lleva el correo como parametro (#543); hay un
+      test que comprueba que el informe no contiene la consulta ni el correo.
+      P3: el informe listaba en authorsWithoutAccount recursos que ya tenian
+      creador real reasignado a mano, solo porque su correo de origen no
+      llevaba a ninguna cuenta. findLegacyResourceByExternalId devuelve ahora
+      createdBy y el diagnostico del correo va en una lista aparte,
+      sourceEmailWithoutAccount, con el creador que se conserva; el contador
+      authorWithoutAccount queda para creador nulo o usuario de sistema.
+      Al poner el PR al dia con main hubo 11 conflictos en 7 ficheros por los
+      merges de #475 y #523: los de documentacion se resolvieron conservando
+      las dos adendas, las tres listas de modos del CLI incluyen ahora
+      --fix-language y --link-authors, y en los dos ficheros de test los
+      bloques describe de cada rama comparten el cierre, asi que se cerro a
+      mano el de main y el nuestro lo cierra la cola compartida.

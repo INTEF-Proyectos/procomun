@@ -18,6 +18,7 @@ import {
 	assertLegacyCategoryDestinations,
 	type EducationalImportResourceNote,
 	IMPORT_SOURCE,
+	LEGACY_IMPORT_SYSTEM_USER_ID,
 	type LegacyOdeJson,
 	normalizeLegacyPublicatorEmail,
 	summarizeLegacyEducationalImport,
@@ -205,6 +206,20 @@ export interface AuthorWithoutAccount {
 	reason: "no_email" | "no_account" | "deleted_account";
 }
 
+/**
+ * Recurso cuyo `publicatorEmailStr` no lleva a ninguna cuenta, pero que ya
+ * tiene un creador real (reasignado a mano). No esta pendiente de asociacion:
+ * se informa aparte para no inducir a pensar que sigue sin autor
+ * (hallazgo P3 de la revisión de #508).
+ */
+export interface SourceEmailWithoutAccount {
+	externalId: string;
+	email: string | null;
+	reason: AuthorWithoutAccount["reason"];
+	/** Creador real que se conserva. */
+	createdBy: string;
+}
+
 /** Qué ha pasado con el creador de un recurso ya importado (#456). */
 type AuthorLinkOutcome =
 	| "linked"
@@ -258,12 +273,18 @@ export interface ImportLegacyProcomunReport {
 		 * los nuevos y los ya importados que estaban a nombre del sistema.
 		 */
 		authorLinked: number;
-		/** Recursos que siguen a nombre del sistema (ver authorsWithoutAccount). */
+		/**
+		 * Recursos pendientes de asociacion: creador nulo o usuario de sistema
+		 * (ver authorsWithoutAccount). No incluye los que ya tienen creador real
+		 * aunque su correo de origen no lleve a ninguna cuenta (revisión #508).
+		 */
 		authorWithoutAccount: number;
 	};
 	incompletePairs: string[];
 	records: RecordOutcome[];
 	authorsWithoutAccount: AuthorWithoutAccount[];
+	/** Diagnostico del correo de origen en recursos que ya tienen autor. */
+	sourceEmailWithoutAccount: SourceEmailWithoutAccount[];
 	categorizacionEducativa: ReturnType<typeof summarizeLegacyEducationalImport>;
 }
 
@@ -677,12 +698,16 @@ export interface FixLegacyLanguageReport {
  * y aqui los parametros incluyen el texto del recurso. Se queda el tipo de
  * error, que basta para diagnosticar y no lleva datos.
  */
-export function summarizeReindexError(err: unknown): string {
+export function summarizeStepError(step: string, err: unknown): string {
 	const name =
 		err instanceof Error && err.constructor?.name
 			? err.constructor.name
 			: typeof err;
-	return `fallo al reindexar (${name}); detalle no registrado para no copiar la consulta ni sus parametros`;
+	return `fallo al ${step} (${name}); detalle no registrado para no copiar la consulta ni sus parametros`;
+}
+
+export function summarizeReindexError(err: unknown): string {
+	return summarizeStepError("reindexar", err);
 }
 
 export async function runFixLegacyLanguage(
@@ -1148,6 +1173,7 @@ export async function runImportLegacyProcomun(
 	let errored = 0;
 	let authorLinked = 0;
 	const authorsWithoutAccount: AuthorWithoutAccount[] = [];
+	const sourceEmailWithoutAccount: SourceEmailWithoutAccount[] = [];
 	const resolveAuthor = createLegacyAuthorResolver(deps, db);
 
 	// Streaming: se itera par a par (ver iterateResolvedPairs) y se corta en
@@ -1213,10 +1239,54 @@ export async function runImportLegacyProcomun(
 			} else {
 				// #456: el recurso es de la cuenta con su publicatorEmailStr. Sin
 				// cuenta sigue a nombre del sistema y se lista en el informe.
-				const author = await resolveAuthor(mapping.publicatorEmail);
-				const countAuthor = (linked: boolean) => {
+				//
+				// Hallazgo P2 de la revisión de #508: esto quedaba fuera del
+				// manejo de errores por recurso, asi que un rechazo aqui abortaba
+				// el lote y no se escribia el informe, aunque ya se hubieran
+				// importado recursos antes. Ahora se registra y se sigue con el
+				// siguiente ODE, como hace runLinkLegacyAuthors. El mensaje va
+				// saneado: la consulta que envuelve lleva el correo como
+				// parametro (#543).
+				let author: LegacyAuthor;
+				try {
+					author = await resolveAuthor(mapping.publicatorEmail);
+				} catch (err) {
+					errored++;
+					const message = summarizeStepError("buscar la cuenta del autor", err);
+					records.push({
+						outcome: "error",
+						externalId: mapping.externalId || pair.baseName,
+						message,
+					});
+					console.error(`[error] ${mapping.externalId}: ${message}`);
+					continue;
+				}
+				/**
+				 * `existingCreatedBy`: creador real del recurso ya importado, si
+				 * lo tiene. Hallazgo P3 de la revisión de #508: un recurso
+				 * reasignado a mano cuyo correo de origen no lleva a ninguna
+				 * cuenta no esta pendiente de asociacion, y listarlo en
+				 * authorsWithoutAccount inducia a pensar que seguia sin autor.
+				 * El diagnostico del correo se informa aparte.
+				 */
+				const countAuthor = (
+					linked: boolean,
+					existingCreatedBy?: string | null,
+				) => {
 					if (linked) authorLinked++;
 					if (author.userId !== null) return;
+					const hasRealCreator =
+						!!existingCreatedBy &&
+						existingCreatedBy !== LEGACY_IMPORT_SYSTEM_USER_ID;
+					if (hasRealCreator) {
+						sourceEmailWithoutAccount.push({
+							externalId: mapping.externalId,
+							email: mapping.publicatorEmail,
+							reason: author.reason,
+							createdBy: existingCreatedBy as string,
+						});
+						return;
+					}
 					authorsWithoutAccount.push({
 						externalId: mapping.externalId,
 						email: mapping.publicatorEmail,
@@ -1230,17 +1300,34 @@ export async function runImportLegacyProcomun(
 				);
 				if (existing) {
 					skippedExisting++;
-					// Reimportar enlaza lo que ya tiene cuenta (idempotente).
-					const link = await linkExistingResourceAuthor(
-						deps,
-						db,
-						existing.id,
-						author,
-						options.dryRun,
-					);
+					// Reimportar enlaza lo que ya tiene cuenta (idempotente). Un
+					// fallo aqui tampoco debe abortar el lote (revisión #508).
+					let link: ExistingAuthorLink;
+					try {
+						link = await linkExistingResourceAuthor(
+							deps,
+							db,
+							existing.id,
+							author,
+							options.dryRun,
+						);
+					} catch (err) {
+						errored++;
+						const message = summarizeStepError(
+							"enlazar el autor del recurso ya importado",
+							err,
+						);
+						records.push({
+							outcome: "error",
+							externalId: mapping.externalId,
+							message,
+						});
+						console.error(`[error] ${mapping.externalId}: ${message}`);
+						continue;
+					}
 					const linked =
 						link.outcome === "linked" || link.outcome === "would_link";
-					countAuthor(linked);
+					countAuthor(linked, existing.createdBy);
 					records.push({
 						outcome: "skipped_existing",
 						externalId: mapping.externalId,
@@ -1323,6 +1410,7 @@ export async function runImportLegacyProcomun(
 		incompletePairs: incomplete,
 		records,
 		authorsWithoutAccount,
+		sourceEmailWithoutAccount,
 		categorizacionEducativa: summarizeLegacyEducationalImport(educationalNotes),
 	};
 }

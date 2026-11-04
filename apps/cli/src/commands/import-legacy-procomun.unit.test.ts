@@ -2,8 +2,9 @@ import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import type { LegacyOdeJson } from "@procomun/db/legacy-import";
 import {
+	LEGACY_IMPORT_SYSTEM_USER_ID,
+	type LegacyOdeJson,
 	normalizeLanguage,
 	resolveLegacyExternalId,
 	resolveLegacyPublicationStatus,
@@ -389,6 +390,7 @@ describe("runImportLegacyProcomun (deps mockeadas)", () => {
 				findLegacyResourceByExternalId: async () => ({
 					id: "existing-id",
 					slug: "existing",
+					createdBy: null,
 				}),
 				getElpxProjectByHash: async () => null,
 				fixLegacyResourceLanguage: async () => ({
@@ -1105,6 +1107,129 @@ describe("runImportLegacyProcomun — autoría (issue #456)", () => {
 		};
 	}
 
+	// Hallazgo P2 de la revisión de #508: resolveAuthor y
+	// linkExistingResourceAuthor quedaban fuera del manejo de errores por
+	// recurso, así que un fallo ahí abortaba el lote y no se escribía el
+	// informe, aunque ya se hubieran importado recursos antes.
+	test("un fallo al buscar la cuenta no aborta el lote y queda en el informe", async () => {
+		const { calls, repo } = captureImports();
+		let attempts = 0;
+		const deps = buildMockDeps(storageDir, {
+			mapLegacyRecord: mapWithEmail("autora@ejemplo.test"),
+			findLegacyAuthorAccount: async () => {
+				attempts++;
+				// Un error de base de datos con la consulta y el correo dentro.
+				throw new Error(
+					'Failed query: select ... from "user" where email = $1 params: autora@ejemplo.test',
+				);
+			},
+			repo,
+		});
+
+		const report = await runImportLegacyProcomun(
+			{ sourceDir: dir, dryRun: false },
+			deps,
+		);
+
+		// Antes: la promesa rechazada salía de runImportLegacyProcomun y no
+		// había informe. Ahora el lote sigue y el fallo se registra.
+		expect(attempts).toBe(1);
+		expect(report.totals.errored).toBeGreaterThan(0);
+		const errorRecord = report.records.find((r) => r.outcome === "error");
+		expect(errorRecord).toBeDefined();
+		expect(errorRecord?.externalId).toBeTruthy();
+		// Y no se importa a medias con un autor que no se ha podido resolver.
+		expect(calls).toEqual([]);
+	});
+
+	test("el informe del fallo no lleva la consulta ni el correo (#543)", async () => {
+		const { repo } = captureImports();
+		const deps = buildMockDeps(storageDir, {
+			mapLegacyRecord: mapWithEmail("autora@ejemplo.test"),
+			findLegacyAuthorAccount: async () => {
+				throw new Error(
+					'Failed query: select ... from "user" where email = $1 params: autora@ejemplo.test',
+				);
+			},
+			repo,
+		});
+
+		const report = await runImportLegacyProcomun(
+			{ sourceDir: dir, dryRun: false },
+			deps,
+		);
+
+		const message = JSON.stringify(report);
+		expect(message).not.toContain("Failed query");
+		expect(message).not.toContain("params:");
+		expect(message).not.toContain("autora@ejemplo.test");
+	});
+
+	// Hallazgo P3 de la revisión de #508: el informe listaba en
+	// authorsWithoutAccount recursos que ya tenian un creador real (reasignado a
+	// mano) solo porque su correo de origen no llevaba a ninguna cuenta. Induce
+	// a pensar que siguen sin autor.
+	test("un recurso con creador real no cuenta como pendiente de asociación", async () => {
+		const { repo: baseRepo } = captureImports();
+		const deps = buildMockDeps(storageDir, {
+			mapLegacyRecord: mapWithEmail("desconocida@ejemplo.test"),
+			// El correo de origen no lleva a ninguna cuenta...
+			findLegacyAuthorAccount: async () => null,
+			repo: {
+				...baseRepo,
+				// ...pero el recurso ya existe y lo reasignaron a una cuenta real.
+				findLegacyResourceByExternalId: async () => ({
+					id: "existing-id",
+					slug: "existing",
+					createdBy: "curadora-7",
+				}),
+			},
+		});
+
+		const report = await runImportLegacyProcomun(
+			{ sourceDir: dir, dryRun: false },
+			deps,
+		);
+
+		// Lo que fallaba: aparecia aqui y en el contador de pendientes.
+		expect(report.authorsWithoutAccount).toEqual([]);
+		expect(report.totals.authorWithoutAccount).toBe(0);
+		// El diagnostico del correo se conserva, pero aparte y con el creador.
+		expect(report.sourceEmailWithoutAccount).toEqual([
+			{
+				externalId: "es_mock",
+				email: "desconocida@ejemplo.test",
+				reason: "no_account",
+				createdBy: "curadora-7",
+			},
+		]);
+	});
+
+	test("un recurso a nombre del sistema sí cuenta como pendiente", async () => {
+		const { repo: baseRepo } = captureImports();
+		const deps = buildMockDeps(storageDir, {
+			mapLegacyRecord: mapWithEmail("desconocida@ejemplo.test"),
+			findLegacyAuthorAccount: async () => null,
+			repo: {
+				...baseRepo,
+				findLegacyResourceByExternalId: async () => ({
+					id: "existing-id",
+					slug: "existing",
+					createdBy: LEGACY_IMPORT_SYSTEM_USER_ID,
+				}),
+			},
+		});
+
+		const report = await runImportLegacyProcomun(
+			{ sourceDir: dir, dryRun: false },
+			deps,
+		);
+
+		expect(report.sourceEmailWithoutAccount).toEqual([]);
+		expect(report.authorsWithoutAccount).toHaveLength(1);
+		expect(report.totals.authorWithoutAccount).toBe(1);
+	});
+
 	test("un recurso nuevo pasa a la cuenta con ese correo", async () => {
 		const lookups: string[] = [];
 		const { calls, repo } = captureImports();
@@ -1263,6 +1388,7 @@ describe("runImportLegacyProcomun — autoría (issue #456)", () => {
 					findLegacyResourceByExternalId: async () => ({
 						id: "existing-id",
 						slug: "existing",
+						createdBy: null,
 					}),
 				},
 			});
@@ -1397,7 +1523,7 @@ describe("runLinkLegacyAuthors", () => {
 				findLegacyResourceByExternalId: async (_db, _source, externalId) =>
 					externalId === "es_no_importado"
 						? null
-						: { id: `r-${externalId}`, slug: externalId },
+						: { id: `r-${externalId}`, slug: externalId, createdBy: null },
 			},
 		});
 	}
