@@ -3675,3 +3675,20 @@ tasks:
       antes: guarda en PublicCollectionsIsland, tipo string | null en
       api-client y test de regresion. Test ajustado: el toEqual de totals en
       el caso en seco incluye la clave nueva reindexFailed.
+  T-2026-11-04-16102520:
+    date: 2026-11-04
+    agent: "ingestas-y-migraciones"
+    task: "Renumerar la migracion de #471 a 0017 al entrar antes la 0016"
+    status: Done
+    related: ["#471", "#473", "#475"]
+    notes: >
+      #475 se mezclo primero y dejo la 0016_resource_language_nullable en main,
+      asi que la 0015_elpx_has_screenshot de #471 pasa a
+      0017_elpx_has_screenshot, con su propio idx y un when posterior, como
+      manda AGENTS.md (el que se mezcla despues renumera). El test del journal
+      ya no exige que sea la inmediatamente siguiente a 0014: comprueba que va
+      despues, con idx y when propios, y que es la ultima entrada para que se
+      aplique al final. Tambien se resolvio el conflicto de
+      PublicCollectionsIsland.tsx: #475 extrajo el detalle a
+      CollectionDetailContent, asi que el marcador por tipo de #409 se ha
+      llevado dentro de ese componente conservando la guarda de idioma de #473.
