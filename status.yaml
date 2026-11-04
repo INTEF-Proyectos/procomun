@@ -3419,6 +3419,32 @@ tasks:
       ayuda describe la publicación directa del editor. Tests:
       editorial-transitions-by-role.unit.test.ts (API por rol) y
       EditorialActions.unit.test.tsx (acciones visibles por rol y estado).
+  T-2026-11-03-11185577:
+    date: 2026-11-03
+    agent: "devops-sre + qa-validacion"
+    task: "El CI falla si falla algún test"
+    status: Done
+    related: ["#466", "#505"]
+    notes: >
+      scripts/check-coverage.ts, el paso «Run Tests & Coverage», ignoraba el
+      código de salida de bun test y solo miraba el coverage: main estaba en
+      verde con «1308 pass / 4 fail» (run 41605202802). Ahora falla si bun
+      test sale con código distinto de 0, si el resumen informa de fallos o si
+      una señal mata el proceso, y mantiene el umbral del 90 %. La decisión es
+      una función pura (evaluateCoverageRun) con tests. Revisadas las demás
+      puertas: run-bun-suite.ts salía con 0 si una señal mataba a bun test
+      (process.exit(null)) y check-types.ts daba por limpio un tsc que fallaba
+      sin diagnósticos; los dos corregidos con test. Workflows y Makefile sin
+      continue-on-error ni || true en las puertas. De los 4 fallos de main,
+      los 3 de .elpx legacy (#431) se arreglan con el commit de #505; el de
+      versiones chocaba con la clave única elpx_projects.hash porque
+      elpx-processor.unit.test.ts registra el mismo "b".repeat(64) en la base
+      PGlite en memoria que comparten todos los ficheros; ahora usa hashes
+      aleatorios. Prueba: con un test que falla a propósito, check-coverage
+      sale con 1 (1329 pass / 1 fail, coverage 91,24 %); sin él, bun run test
+      en verde (unit 1307, integration 22, ui 79, check-coverage 1329 pass /
+      0 fail, 91,24 %). Los PR abiertos con tests en rojo pasarán a rojo en el
+      CI al integrar main.
   T-2026-11-03-10410356:
     date: 2026-11-03
     agent: "seguridad-privacidad-legal"
