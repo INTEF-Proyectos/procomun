@@ -469,11 +469,16 @@ function DevToolsSection() {
 			</div>
 			<div className="admin-dev-tools">
 				<div className="admin-dev-tools-row">
-					<span className="admin-dev-tools-label">
+					{/* #529: el rotulo era un <span> suelto, asi que el select no tenia
+					    nombre accesible y axe lo marcaba como defecto serio. Se asocia
+					    con aria-labelledby para reutilizar el texto que ya se ve, en vez
+					    de repetirlo en un aria-label. */}
+					<span className="admin-dev-tools-label" id="admin-seed-count-label">
 						Generar recursos de prueba:
 					</span>
 					<select
 						className="admin-dev-tools-select"
+						aria-labelledby="admin-seed-count-label"
 						value={seedCount}
 						onChange={(e) => setSeedCount(e.target.value)}
 						disabled={seedBusy}
