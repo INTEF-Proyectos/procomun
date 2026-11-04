@@ -208,3 +208,9 @@ Cierra lo pendiente de la sección anterior con lo que decidió Producto en #380
 `mapLegacyRecord` calcula `editorialStatus` con `resolveLegacyPublicationStatus`: solo `published` igual a 1 se publica; 0, ausente o desconocido entra como `draft` (con warning si no es 0 ni 1). El informe guarda `editorialStatus` y `sourcePublished` por registro y `totals.importedAsDraft`.
 
 Para lo importado antes, `import:legacy-procomun --fix-published --source-dir <ruta> [--dry-run]` relee los JSON y pasa a borrador los recursos publicados sin revisión editorial (sin `assignedCuratorId`, `curatedAt` ni `featuredAt`). Detalle en ADR-0029, actualización 2026-10-22.
+
+## Idioma sin valor por defecto — 2026-10-26 (issue #473)
+
+`resources.language` sale solo de `generalLanguageStr` y admite `null`. Sin idioma reconocible el recurso entra sin idioma (warning `language` en el informe), ya no con `"es"`. `educationalLanguageStr` deja de ser sustituto: es el «Idioma destinatario» (el del alumnado), no el del recurso. El código `va` del Procomún antiguo (valenciano) se normaliza a `ca`. Sin idioma, los niveles ELE no se asignan (la regla pide `es`). La ficha ya ocultaba «Idioma» cuando está vacío.
+
+Para lo importado antes, `import:legacy-procomun --fix-language --source-dir <ruta> [--dry-run]` relee `generalLanguageStr` y corrige solo los recursos que siguen en `"es"` y cuyo origen no lo declara. Detalle en ADR-0029, actualización 2026-10-26 (#473).
