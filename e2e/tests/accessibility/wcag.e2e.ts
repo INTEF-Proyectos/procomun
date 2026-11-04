@@ -25,32 +25,44 @@ async function expectNoCriticalA11yViolations(page: Page) {
 	expect(critical).toEqual([]);
 }
 
+/**
+ * Abre una pagina y espera a que haya contenido real antes de que la analice
+ * axe (#529). Las islas piden los datos al hidratar: sin esperar, axe veia el
+ * «Cargando...» y analizaba una pagina que no es la que ve nadie, asi que los
+ * defectos aparecian y desaparecian segun lo que tardase la API.
+ */
+async function gotoSettled(page: Page, url: string) {
+	await page.goto(url);
+	await page.getByRole("heading").first().waitFor({ state: "visible" });
+	await expect(page.getByText(/^Cargando/)).toHaveCount(0);
+}
+
 test.describe("Accessibility - Public pages", () => {
 	test("home page has no critical accessibility violations", async ({
 		page,
 	}) => {
-		await page.goto("/");
+		await gotoSettled(page, "/");
 		await expectNoCriticalA11yViolations(page);
 	});
 
 	test("explore page has no critical accessibility violations", async ({
 		page,
 	}) => {
-		await page.goto("/explorar");
+		await gotoSettled(page, "/explorar");
 		await expectNoCriticalA11yViolations(page);
 	});
 
 	test("resource detail page has no critical accessibility violations", async ({
 		page,
 	}) => {
-		await page.goto(`/recurso?slug=${PUBLISHED_RESOURCE.slug}`);
+		await gotoSettled(page, `/recurso?slug=${PUBLISHED_RESOURCE.slug}`);
 		await expectNoCriticalA11yViolations(page);
 	});
 
 	test("login page has no critical accessibility violations", async ({
 		page,
 	}) => {
-		await page.goto("/login");
+		await gotoSettled(page, "/login");
 		await expectNoCriticalA11yViolations(page);
 	});
 });
@@ -107,13 +119,13 @@ test.describe("Accessibility - Keyboard navigation", () => {
 test.describe("Accessibility - Authenticated pages", () => {
 	test("new resource form has no critical violations", async ({ page }) => {
 		await loginAs(page, "author");
-		await page.goto("/nuevo");
+		await gotoSettled(page, "/nuevo");
 		await expectNoCriticalA11yViolations(page);
 	});
 
 	test("admin panel has no critical violations", async ({ page }) => {
 		await loginAs(page, "admin");
-		await page.goto("/admin");
+		await gotoSettled(page, "/admin");
 		await expectNoCriticalA11yViolations(page);
 	});
 });
