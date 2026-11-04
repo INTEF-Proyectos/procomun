@@ -11,10 +11,11 @@ import {
 } from "../email/transport.ts";
 import { AUTH_DEFAULT_COOKIE_ATTRIBUTES } from "./cookie-config.ts";
 import { ac, admin, author, curator, editor, reader } from "./permissions.ts";
+import { REGISTRATION_ROLE, resolveNewUserRole } from "./registration-role.ts";
 import { getAuthBaseUrl, getFrontendUrl } from "./urls.ts";
 
 // Recibe el entorno para que los tests monten una instancia con su propio
-// proveedor OIDC (#527); la aplicación usa `auth`, creada con process.env.
+// proveedor OIDC (#515, #527); la aplicación usa `auth`, creada con process.env.
 export function createAuth(env: NodeJS.ProcessEnv = process.env) {
 	const frontendUrl = getFrontendUrl(env);
 	const oidcEnabled = env.OIDC_ENABLED === "true";
@@ -31,10 +32,15 @@ export function createAuth(env: NodeJS.ProcessEnv = process.env) {
 		databaseHooks: {
 			user: {
 				create: {
-					before: async (user) => ({
+					before: async (user, ctx) => ({
 						data: {
 							...user,
 							email: user.email.trim().toLowerCase(),
+							// El registro no elige rol (#515): ver registration-role.ts.
+							role: resolveNewUserRole(
+								(user as { role?: unknown }).role,
+								ctx?.path,
+							),
 						},
 					}),
 				},
@@ -90,7 +96,7 @@ export function createAuth(env: NodeJS.ProcessEnv = process.env) {
 					author,
 					reader,
 				},
-				defaultRole: "author",
+				defaultRole: REGISTRATION_ROLE,
 			}),
 			...(oidcEnabled
 				? [
