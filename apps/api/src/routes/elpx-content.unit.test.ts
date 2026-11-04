@@ -263,6 +263,14 @@ describe("iDevice JSON de un .elpx legacy sin datos en el HTML (issue #431)", ()
 <jsonProperties><![CDATA[{"slides":[]}]]></jsonProperties></odeComponent>
 </odeComponents></odePagStructure></odePagStructures></odeNavStructure></odeNavStructures></ode>`;
 
+	// Desde #466 la ruta pública solo sirve hashes de recursos publicados.
+	beforeAll(async () => {
+		await seedPublishedElpxHash(
+			LEGACY_HASH,
+			path.join(tmpRoot, "elpx", LEGACY_HASH),
+		);
+	});
+
 	async function serveLegacy(body: string): Promise<string> {
 		const dir = path.join(
 			process.env.UPLOAD_STORAGE_DIR ?? "",
