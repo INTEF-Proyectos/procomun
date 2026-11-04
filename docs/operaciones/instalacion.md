@@ -53,6 +53,7 @@ Esta guía detalla los pasos necesarios para desplegar Procomun utilizando Docke
 | `BETTER_AUTH_URL` | URL pública de la API para redirecciones de Auth | `http://localhost:3000` |
 | `UPLOAD_STORAGE_DIR` | Directorio local para almacenamiento de archivos | `./local-data/uploads` |
 | `OIDC_ENABLED` | Activar autenticación OIDC | `false` |
+| `OIDC_END_SESSION_URL` | Cierre de sesión del proveedor; vacía, se lee `end_session_endpoint` del documento de descubrimiento (#542) | vacía |
 
 ## Configuración de PostgreSQL
 

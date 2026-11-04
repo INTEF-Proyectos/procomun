@@ -1,0 +1,148 @@
+import { beforeEach, describe, expect, test } from "bun:test";
+import {
+	clearOidcDiscoveryCache,
+	resolveOidcEndSessionUrl,
+} from "./oidc-discovery.ts";
+
+/**
+ * #542: la URL de cierre de sesión se construía como
+ * `${OIDC_ISSUER}/connect/endsession`, que es la de Duende IdentityServer.
+ * Keycloak, Azure AD y los demás la publican en otra ruta, así que sale del
+ * documento de descubrimiento, con `OIDC_END_SESSION_URL` para forzarla.
+ */
+
+const ISSUER = "https://sso.example.org";
+
+/** Proveedor de prueba: responde al documento de descubrimiento. */
+function fakeProvider(
+	document: unknown,
+	options: { status?: number } = {},
+): { fetch: typeof fetch; calls: string[] } {
+	const calls: string[] = [];
+	const fetchImpl = (async (input: RequestInfo | URL) => {
+		calls.push(String(input));
+		return new Response(JSON.stringify(document), {
+			status: options.status ?? 200,
+			headers: { "Content-Type": "application/json" },
+		});
+	}) as unknown as typeof fetch;
+	return { fetch: fetchImpl, calls };
+}
+
+describe("resolveOidcEndSessionUrl (#542)", () => {
+	beforeEach(() => {
+		clearOidcDiscoveryCache();
+	});
+
+	test("lee end_session_endpoint del documento de descubrimiento", async () => {
+		// Ruta de Keycloak, distinta de la de Duende.
+		const endSession = `${ISSUER}/realms/edu/protocol/openid-connect/logout`;
+		const provider = fakeProvider({ end_session_endpoint: endSession });
+
+		const url = await resolveOidcEndSessionUrl(
+			{ OIDC_ISSUER: ISSUER },
+			provider.fetch,
+		);
+
+		expect(url).toBe(endSession);
+		expect(provider.calls).toEqual([
+			`${ISSUER}/.well-known/openid-configuration`,
+		]);
+	});
+
+	test("no construye la ruta de Duende por su cuenta", async () => {
+		const provider = fakeProvider({
+			end_session_endpoint: `${ISSUER}/realms/edu/protocol/openid-connect/logout`,
+		});
+
+		const url = await resolveOidcEndSessionUrl(
+			{ OIDC_ISSUER: ISSUER },
+			provider.fetch,
+		);
+
+		expect(url).not.toContain("/connect/endsession");
+	});
+
+	test("OIDC_END_SESSION_URL manda y no consulta al proveedor", async () => {
+		const forced = "https://sso.example.org/salir";
+		const provider = fakeProvider({ end_session_endpoint: "https://otra/x" });
+
+		const url = await resolveOidcEndSessionUrl(
+			{ OIDC_ISSUER: ISSUER, OIDC_END_SESSION_URL: forced },
+			provider.fetch,
+		);
+
+		expect(url).toBe(forced);
+		expect(provider.calls).toEqual([]);
+	});
+
+	test("sin OIDC_ISSUER devuelve null sin consultar nada", async () => {
+		const provider = fakeProvider({});
+		expect(await resolveOidcEndSessionUrl({}, provider.fetch)).toBeNull();
+		expect(provider.calls).toEqual([]);
+	});
+
+	test("un proveedor que no publica end_session_endpoint da null", async () => {
+		const provider = fakeProvider({ issuer: ISSUER });
+		expect(
+			await resolveOidcEndSessionUrl({ OIDC_ISSUER: ISSUER }, provider.fetch),
+		).toBeNull();
+	});
+
+	test("descarta un end_session_endpoint que no es una URL http(s)", async () => {
+		for (const value of ["javascript:alert(1)", "/logout", "", 42, null]) {
+			clearOidcDiscoveryCache();
+			const provider = fakeProvider({ end_session_endpoint: value });
+			expect(
+				await resolveOidcEndSessionUrl({ OIDC_ISSUER: ISSUER }, provider.fetch),
+			).toBeNull();
+		}
+	});
+
+	test("el acierto se guarda en caché y no repite la consulta", async () => {
+		const endSession = `${ISSUER}/logout`;
+		const provider = fakeProvider({ end_session_endpoint: endSession });
+		const env = { OIDC_ISSUER: ISSUER };
+
+		expect(await resolveOidcEndSessionUrl(env, provider.fetch)).toBe(
+			endSession,
+		);
+		expect(await resolveOidcEndSessionUrl(env, provider.fetch)).toBe(
+			endSession,
+		);
+		expect(provider.calls).toHaveLength(1);
+	});
+
+	test("un fallo no se guarda en caché: el siguiente intento vuelve a probar", async () => {
+		const env = { OIDC_ISSUER: ISSUER };
+		const caido = fakeProvider({}, { status: 503 });
+		expect(await resolveOidcEndSessionUrl(env, caido.fetch)).toBeNull();
+
+		const endSession = `${ISSUER}/logout`;
+		const recuperado = fakeProvider({ end_session_endpoint: endSession });
+		expect(await resolveOidcEndSessionUrl(env, recuperado.fetch)).toBe(
+			endSession,
+		);
+	});
+
+	test("un error de red da null en vez de reventar", async () => {
+		const rota = (async () => {
+			throw new Error("ECONNREFUSED");
+		}) as unknown as typeof fetch;
+
+		expect(
+			await resolveOidcEndSessionUrl({ OIDC_ISSUER: ISSUER }, rota),
+		).toBeNull();
+	});
+
+	test("una barra final en el issuer no duplica la barra", async () => {
+		const provider = fakeProvider({ end_session_endpoint: `${ISSUER}/logout` });
+		await resolveOidcEndSessionUrl(
+			{ OIDC_ISSUER: `${ISSUER}/` },
+			provider.fetch,
+		);
+		expect(provider.calls).toEqual([
+			`${ISSUER}/.well-known/openid-configuration`,
+		]);
+	});
+});

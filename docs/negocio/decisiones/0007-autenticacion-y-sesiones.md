@@ -120,3 +120,19 @@ Justificación principal:
    (a) Better Auth deja de mantenerse o pierde compatibilidad con Bun.
    (b) El esquema de tablas impuesto genera fricción no asumible con el modelo de dominio.
    (c) Requisitos de MFA o auth avanzado exceden las capacidades de los plugins disponibles.
+
+## Adenda 2026-11-04 — la URL de cierre de sesión OIDC sale del descubrimiento (#542)
+
+**Problema.** `GET /api/v1/config` construía la URL de cierre de sesión del proveedor como `${OIDC_ISSUER}/connect/endsession`. Esa es la ruta de Duende IdentityServer, el proveedor de demostración que usa el entorno de desarrollo. Keycloak (`/realms/<realm>/protocol/openid-connect/logout`), Azure AD y los demás la publican en otra ruta, así que con cualquier proveedor real el cierre de sesión institucional apuntaba a una URL que no existe.
+
+**Decisión.** La URL sale de `end_session_endpoint` del documento de descubrimiento (`{OIDC_ISSUER}/.well-known/openid-configuration`), que es donde la especificación de OpenID Connect Session Management dice que está. `OIDC_END_SESSION_URL` la fuerza para un proveedor que no la publique.
+
+**Implementación** (`apps/api/src/auth/oidc-discovery.ts`).
+
+- Orden: `OIDC_END_SESSION_URL` → descubrimiento → `null`. Ya no se construye ninguna ruta por nuestra cuenta.
+- Solo se acepta una URL absoluta `http(s)`, así que un documento manipulado no puede colar un `javascript:` ni una ruta suelta en el enlace de cierre de sesión.
+- Tiempo máximo de 5 s, para que el descubrimiento no cuelgue `/api/v1/config`.
+- Se guarda en caché el resultado de un proveedor que responde, incluido el `null` de uno que no publica el campo (es su configuración). Un fallo de red o un 5xx **no** se guardan: el siguiente intento vuelve a probar, para que un corte momentáneo no deje el cierre de sesión roto hasta reiniciar.
+- Cualquier fallo devuelve `null` y la interfaz deja de ofrecer el cierre de sesión del proveedor, en vez de llevar a una URL inventada.
+
+**Validación.** `apps/api/src/auth/oidc-discovery.unit.test.ts`, con un proveedor de prueba: se lee la ruta de Keycloak, nunca se construye la de Duende, la variable manda y no consulta, sin issuer no consulta nada, un proveedor sin el campo da `null`, se descartan los valores que no son URL http(s), el acierto se guarda en caché y el fallo no, un error de red da `null` y una barra final en el issuer no duplica la barra.

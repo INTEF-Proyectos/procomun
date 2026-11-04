@@ -3417,3 +3417,24 @@ tasks:
       'published'. Las reglas de transición por rol de las colecciones quedan
       fuera: desde #433 solo las crean admin y curator. Tests rojo → verde en validation.unit.test.ts y
       admin.unit.test.ts.
+  T-2026-11-04-13045419:
+    date: 2026-11-04
+    agent: "seguridad-privacidad-legal + backend-api-servicios"
+    task: "La URL de cierre de sesion OIDC sale del documento de descubrimiento"
+    status: Done
+    related: ["#542", "#527", "ADR-0007"]
+    notes: >
+      GET /api/v1/config construia la URL de cierre de sesion como
+      {OIDC_ISSUER}/connect/endsession, la ruta de Duende IdentityServer, el
+      proveedor de demostracion. Keycloak la publica en
+      /realms/<realm>/protocol/openid-connect/logout y Azure AD en otra, asi
+      que con un proveedor real el cierre de sesion institucional apuntaba a
+      una URL inexistente. Ahora sale de end_session_endpoint del documento de
+      descubrimiento, con OIDC_END_SESSION_URL para forzarla. Solo se acepta
+      una URL absoluta http(s), hay limite de 5 s para no colgar
+      /api/v1/config, se guarda en cache el resultado de un proveedor que
+      responde (incluido el null de uno que no publica el campo) y no se
+      guardan los fallos de red ni los 5xx, para que un corte no deje el
+      cierre de sesion roto hasta reiniciar. Adenda fechada en ADR-0007 y
+      variable documentada en .env.example e instalacion.md. Tests con un
+      proveedor de prueba en oidc-discovery.unit.test.ts.
