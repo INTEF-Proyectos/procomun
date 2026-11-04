@@ -20,7 +20,7 @@ colors:
   surface-container-highest: "#d9e3f4"
   on-surface: "#121c28"
   on-surface-variant: "#434654"
-  outline: "#737686"
+  outline: "#6c6f7f"
   outline-variant: "#c3c5d7"
 typography:
   display-lg:
