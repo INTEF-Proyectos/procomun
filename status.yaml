@@ -3400,3 +3400,20 @@ tasks:
       referencias en el CI. Validado reproduciendo el conflicto de #465 contra
       main: la union automatica da un status.yaml identico a la resolucion
       manual (diff vacio) y check-tracking lo acepta.
+  T-2026-11-03-10131596:
+    date: 2026-11-03
+    agent: "backend-api-servicios"
+    task: "El estado editorial de una colección solo admite valores válidos"
+    status: Done
+    related: ["#486", "#433"]
+    notes: >
+      validateCollection no comprobaba editorialStatus, y el alta y el PATCH
+      de /api/admin/collections guardaban cualquier texto: con "publicado" o
+      "foo" la colección desaparecía de los listados públicos y de los
+      filtros por estado sin ningún error. Ahora solo admite los estados de
+      los recursos (VALID_STATUSES: draft, review, published, archived); con
+      otro valor la API devuelve 400 y la colección no cambia. Sin migración:
+      resources.editorial_status tampoco tiene CHECK, y el seed solo usa
+      'published'. Las reglas de transición por rol de las colecciones quedan
+      fuera: desde #433 solo las crean admin y curator. Tests rojo → verde en validation.unit.test.ts y
+      admin.unit.test.ts.
