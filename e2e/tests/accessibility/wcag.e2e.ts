@@ -12,9 +12,19 @@ type AxePage = ConstructorParameters<typeof AxeBuilder>[0]["page"];
 
 function analyzePage(page: Page) {
 	// Puente entre las dos copias de tipos de playwright-core (mismo API).
-	return new AxeBuilder({ page: page as unknown as AxePage })
-		.withTags(["wcag2a", "wcag2aa"])
-		.analyze();
+	return (
+		new AxeBuilder({ page: page as unknown as AxePage })
+			.withTags(["wcag2a", "wcag2aa"])
+			// #529: se audita nuestra interfaz, no el contenido de los paquetes.
+			// Dentro del iframe del .elpx vive el HTML que exporta eXeLearning con
+			// los materiales de cada autor: su contador de paginas, por ejemplo,
+			// pinta «Page 1/6» en #777777 sobre blanco (4,47:1). Eso no lo podemos
+			// arreglar desde aqui, y hasta que #471 y #512 saquen el iframe de los
+			// listados aparece en la portada. La accesibilidad del paquete es otro
+			// asunto y tiene su propio alcance.
+			.exclude("iframe")
+			.analyze()
+	);
 }
 
 async function expectNoCriticalA11yViolations(page: Page) {
@@ -25,32 +35,44 @@ async function expectNoCriticalA11yViolations(page: Page) {
 	expect(critical).toEqual([]);
 }
 
+/**
+ * Abre una pagina y espera a que haya contenido real antes de que la analice
+ * axe (#529). Las islas piden los datos al hidratar: sin esperar, axe veia el
+ * «Cargando...» y analizaba una pagina que no es la que ve nadie, asi que los
+ * defectos aparecian y desaparecian segun lo que tardase la API.
+ */
+async function gotoSettled(page: Page, url: string) {
+	await page.goto(url);
+	await page.getByRole("heading").first().waitFor({ state: "visible" });
+	await expect(page.getByText(/^Cargando/)).toHaveCount(0);
+}
+
 test.describe("Accessibility - Public pages", () => {
 	test("home page has no critical accessibility violations", async ({
 		page,
 	}) => {
-		await page.goto("/");
+		await gotoSettled(page, "/");
 		await expectNoCriticalA11yViolations(page);
 	});
 
 	test("explore page has no critical accessibility violations", async ({
 		page,
 	}) => {
-		await page.goto("/explorar");
+		await gotoSettled(page, "/explorar");
 		await expectNoCriticalA11yViolations(page);
 	});
 
 	test("resource detail page has no critical accessibility violations", async ({
 		page,
 	}) => {
-		await page.goto(`/recurso?slug=${PUBLISHED_RESOURCE.slug}`);
+		await gotoSettled(page, `/recurso?slug=${PUBLISHED_RESOURCE.slug}`);
 		await expectNoCriticalA11yViolations(page);
 	});
 
 	test("login page has no critical accessibility violations", async ({
 		page,
 	}) => {
-		await page.goto("/login");
+		await gotoSettled(page, "/login");
 		await expectNoCriticalA11yViolations(page);
 	});
 });
@@ -107,13 +129,13 @@ test.describe("Accessibility - Keyboard navigation", () => {
 test.describe("Accessibility - Authenticated pages", () => {
 	test("new resource form has no critical violations", async ({ page }) => {
 		await loginAs(page, "author");
-		await page.goto("/nuevo");
+		await gotoSettled(page, "/nuevo");
 		await expectNoCriticalA11yViolations(page);
 	});
 
 	test("admin panel has no critical violations", async ({ page }) => {
 		await loginAs(page, "admin");
-		await page.goto("/admin");
+		await gotoSettled(page, "/admin");
 		await expectNoCriticalA11yViolations(page);
 	});
 });
