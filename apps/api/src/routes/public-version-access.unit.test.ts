@@ -216,8 +216,17 @@ describe("acceso público a versiones históricas (issue #323)", () => {
 	});
 
 	test("la versión histórica se previsualiza desde un endpoint autenticado", async () => {
-		const previewPath = `/api/admin/resources/${resourceId}/versions/${historicalVersionId}/preview/`;
-		const res = await authorApp.request(previewPath);
+		const adminPath = `/api/admin/resources/${resourceId}/versions/${historicalVersionId}/preview/`;
+		// #482: el endpoint autenticado comprueba el acceso y redirige al enlace
+		// firmado, que carga sin cookies.
+		const redirect = await authorApp.request(adminPath);
+		expect(redirect.status).toBe(302);
+		const signed = redirect.headers.get("location") as string;
+		expect(signed).toMatch(
+			new RegExp(`^/api/v1/elpx/preview/${historicalHash}/[^/]+/index\\.html$`),
+		);
+		const previewPath = signed.replace(/index\.html$/, "");
+		const res = await app.request(signed);
 		expect(res.status).toBe(200);
 		const html = await res.text();
 		expect(html).toContain("Historico");
@@ -231,7 +240,7 @@ describe("acceso público a versiones históricas (issue #323)", () => {
 		);
 		expect(res.headers.get("x-frame-options")).toBeNull();
 
-		const css = await authorApp.request(`${previewPath}style.css`);
+		const css = await app.request(`${previewPath}style.css`);
 		expect(css.status).toBe(200);
 		expect(css.headers.get("content-security-policy")).toContain("sandbox");
 	});
