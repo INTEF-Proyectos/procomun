@@ -158,10 +158,6 @@
 	color: var(--color-on-surface-variant);
 }
 
-.pnav-hidden {
-	display: none;
-}
-
 /* Dropdown menu */
 .pnav-dropdown {
 	position: absolute;
@@ -202,6 +198,16 @@
 	object-fit: cover;
 	flex-shrink: 0;
 	background: var(--color-surface-container-high);
+}
+
+/* Inicial cuando no hay foto (#514) */
+.pnav-dropdown-avatar-fallback {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	font-family: var(--font-display);
+	font-weight: 700;
+	color: var(--color-on-surface-variant);
 }
 
 .pnav-dropdown-info {
