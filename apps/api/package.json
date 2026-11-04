@@ -17,9 +17,9 @@
 		"cheerio": "^1.2.0",
 		"drizzle-orm": "0.45.4",
 		"feed": "^6.0.0",
-		"hono": "4.13.11",
+		"hono": "4.13.14",
 		"mammoth": "^1.13.0",
-		"nodemailer": "^10.1.2",
+		"nodemailer": "^10.3.1",
 		"pdf-parse": "^2.4.5"
 	},
 	"devDependencies": {
