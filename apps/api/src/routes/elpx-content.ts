@@ -483,10 +483,12 @@ async function handleContent(c: Context) {
 }
 
 // Vista previa de un recurso no publicado (issue #466, ADR-0026 adenda
-// 2026-10-27). El iframe de origen opaco no manda la cookie de sesión en los
-// subrecursos ni en las subpáginas, así que el permiso viaja en la URL: un
-// token HMAC de hash + caducidad que emiten las rutas que ya comprueban el
-// acceso. Las URL relativas del paquete se reescriben con el mismo prefijo.
+// 2026-10-27) o de una versión histórica (issue #482). El iframe de origen
+// opaco no manda la cookie de sesión en los subrecursos ni en las subpáginas,
+// así que el permiso viaja en la URL: un token HMAC de hash + caducidad que
+// emiten las rutas que ya comprueban el acceso. Las URL relativas del paquete
+// se reescriben con el mismo prefijo. Un hash histórico se sirve aquí porque
+// el token lo prueba (#482); por la URL estable sigue sin servirse (#323).
 async function handleSignedPreview(c: Context) {
 	const hash = c.req.param("hash");
 	const token = c.req.param("token");
@@ -494,9 +496,6 @@ async function handleSignedPreview(c: Context) {
 		return elpxJsonError("Archivo no encontrado", 404);
 	}
 	if (!verifyElpxPreviewToken(hash, token)) {
-		return elpxJsonError("Archivo no encontrado", 404);
-	}
-	if (await repo.isElpxHashHistorical(getDb().db, hash)) {
 		return elpxJsonError("Archivo no encontrado", 404);
 	}
 	if (!(await repo.getElpxResourceStatusByHash(getDb().db, hash))) {
