@@ -3448,6 +3448,47 @@ tasks:
       referencias en el CI. Validado reproduciendo el conflicto de #465 contra
       main: la union automatica da un status.yaml identico a la resolucion
       manual (diff vacio) y check-tracking lo acepta.
+  T-2026-10-27-08211546:
+    date: 2026-10-27
+    agent: "evaluacion-tecnologica"
+    task: "ADR y diseño de las miniaturas generadas en el servidor"
+    status: In Progress
+    related: ["#470", "#409", "#471", "#472", "ADR-0046", "ADR-0026", "ADR-0027"]
+    notes: >
+      ADR-0046 en estado Propuesto, con requirements, design y tasks en
+      docs/epics/epic-003/features/feature-miniaturas-servidor/. Recomienda un
+      servicio thumbnailer con Playwright en un contenedor aparte, sin red ni
+      secretos, y la cola en elpx_projects. Gotenberg como alternativa. Sin
+      código hasta que se decidan las preguntas abiertas de la issue.
+  T-2026-11-03-10094727:
+    date: 2026-11-03
+    agent: "evaluacion-tecnologica"
+    task: "ADR-0046 aceptada con las decisiones de la issue #470"
+    status: Done
+    related: ["#470", "#481", "#471", "ADR-0046"]
+    notes: >
+      @juanda cerró las siete preguntas: Playwright en un contenedor propio,
+      cola con el estado en elpx_projects y bucle en la API, JPEG 640x400 solo
+      del contenido, relleno solo de lo que no tiene imagen propia, el iframe
+      sale de los listados al desplegar y Node si Playwright no va bien con Bun.
+      La implementación va en un PR aparte, apilado sobre #471.
+  T-2026-11-03-12334131:
+    date: 2026-11-03
+    agent: "seguridad-privacidad-legal"
+    task: "ADR-0046: acceso a las miniaturas de recursos no publicados (revisión de #481)"
+    status: Done
+    related: ["#470", "#481", "#512", "#466", "#483", "#472", "ADR-0046", "ADR-0026"]
+    notes: >
+      Atiende la revisión de @jacoboAlcantara con secciones fechadas, sin borrar
+      historia. Adenda de acceso: la URL estable /api/v1/thumbnails/<fichero>
+      solo sirve lo que pertenece a un recurso publicado, con public,
+      max-age=3600 en vez de immutable; lo no publicado va por un enlace firmado
+      (HMAC, 2 h, prefijo propio) con private, no-store; al despublicar da 404 en
+      la petición siguiente; las preview legacy siguen las mismas reglas.
+      Criterios CA-1 a CA-10 y pruebas en requirements y design. Contexto y
+      alternativa de Gotenberg al día con #483. requirements y design con la
+      ADR aceptada y el enlace a las decisiones del 2026-11-03. La
+      implementación va en #512.
   T-2026-11-03-08435265:
     date: 2026-11-03
     agent: "backend-api-servicios"
@@ -3696,6 +3737,32 @@ tasks:
       antes: guarda en PublicCollectionsIsland, tipo string | null en
       api-client y test de regresion. Test ajustado: el toEqual de totals en
       el caso en seco incluye la clave nueva reindexFailed.
+  T-2026-11-04-16594050:
+    date: 2026-11-04
+    agent: "arquitectura-solucion + seguridad-privacidad-legal"
+    task: "Atender la revision de #481: aislamiento del thumbnailer y estado de los documentos"
+    status: Done
+    related: ["#481", "#470", "ADR-0046", "ADR-0026"]
+    notes: >
+      De los cuatro puntos de jacoboAlcantara, dos ya estaban resueltos en
+      adendas del 2026-11-03 (el acceso a las miniaturas segun el estado
+      editorial y el contexto de acceso al contenido desde #483). Los dos que
+      quedaban: 1) P2 de aislamiento, aceptado tal cual lo proponia. El diseño
+      bloqueaba las peticiones con page.route, que segun la documentacion de
+      Playwright no intercepta la primera peticion de una ventana emergente, y
+      ELPX_HTML_CSP permite abrirlas con allow-popups; la red Docker internal
+      no lo tapa porque thumbnailer comparte red con app. Pasa a
+      browserContext.route registrado antes de crear o navegar ninguna pagina,
+      y a una CSP propia de la captura sin allow-popups ni
+      allow-popups-to-escape-sandbox, manteniendo el origen opaco y
+      serviceWorkers block. Se añade como criterio de aceptacion una prueba de
+      integracion con un paquete que intente abrir una ventana hacia un
+      servidor que simule la API y reciba cero peticiones. No se reutiliza
+      ELPX_HTML_CSP porque alli esos permisos existen para el visor real, donde
+      el usuario si puede querer abrir un enlace. 2) requirements.md y
+      design.md decian ADR-0046 (Propuesto) con la ADR ya aceptada: se añade
+      actualizacion fechada en los dos, conservando el texto anterior
+      (AGENTS.md regla 12).
   T-2026-11-04-16102520:
     date: 2026-11-04
     agent: "ingestas-y-migraciones"
