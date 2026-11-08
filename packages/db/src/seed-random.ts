@@ -62,6 +62,7 @@ export interface ElpxSeedConfig {
 		hash: string;
 		extractPath: string;
 		hasPreview: boolean;
+		hasScreenshot?: boolean;
 		metadata: Record<string, string>;
 	}>;
 }
@@ -207,6 +208,7 @@ export async function seedRandomResources(
 						uploadSessionId: null,
 						version: 3,
 						hasPreview: result.hasPreview,
+						hasScreenshot: result.hasScreenshot ?? false,
 						elpxMetadata: result.metadata,
 						createdAt: new Date(),
 						updatedAt: new Date(),
