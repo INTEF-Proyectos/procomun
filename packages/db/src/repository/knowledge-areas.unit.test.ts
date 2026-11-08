@@ -1,11 +1,24 @@
-import { beforeEach, describe, expect, test } from "bun:test";
+import {
+	afterEach,
+	beforeAll,
+	beforeEach,
+	describe,
+	expect,
+	test,
+} from "bun:test";
 import { PGlite } from "@electric-sql/pglite";
 import { drizzle } from "drizzle-orm/pglite";
 import {
 	KNOWLEDGE_AREA_MESSAGES,
 	KNOWLEDGE_AREA_SEED,
 } from "../knowledge-areas.ts";
-import { createResource, ensureUser } from "../repository.ts";
+import {
+	createResource,
+	ensureUser,
+	getResourceById,
+	listResources,
+	updateResource,
+} from "../repository.ts";
 import * as schema from "../schema/index.ts";
 import { createTables } from "../setup.ts";
 import {
@@ -319,5 +332,234 @@ describe("cruce del catálogo de palabras clave con las áreas (#384, #448)", ()
 				(item) => item.keyword.id === "biologia",
 			)?.keyword,
 		).toMatchObject({ retired: true, resources: 1 });
+	});
+});
+
+describe("áreas y familias en el alta, la edición y el buscador (PR 2 de #448)", () => {
+	let db: DrizzleDB;
+	let userId: string;
+	const fp = [{ categoryId: "formacion-profesional", optionId: null }];
+
+	function resourceInput(extra: Record<string, unknown> = {}) {
+		return {
+			title: `Recurso ${crypto.randomUUID()}`,
+			description: "desc",
+			language: "es",
+			license: "cc-by",
+			resourceType: "documento",
+			createdBy: userId,
+			...extra,
+		};
+	}
+
+	async function areaIdsOf(resourceId: string) {
+		return (await listResourceKnowledgeAreas(db, resourceId)).map(
+			(area) => area.id,
+		);
+	}
+
+	// Una sola base para el bloque: cada test usa recursos y marcadores propios,
+	// y el área que se desactiva se vuelve a activar al terminar.
+	beforeAll(async () => {
+		const client = new PGlite();
+		await createTables(client);
+		db = drizzle(client, { schema }) as unknown as DrizzleDB;
+		userId = crypto.randomUUID();
+		await ensureUser(db, {
+			id: userId,
+			email: `${userId}@areas.test`,
+			name: "Autora",
+			role: "author",
+		});
+	});
+
+	afterEach(async () => {
+		await updateKnowledgeArea(db, "ajedrez", { active: true });
+	});
+
+	test("el alta guarda las áreas y las familias de un recurso de FP", async () => {
+		const { id } = await createResource(
+			db,
+			resourceInput({
+				educationalAreas: fp,
+				knowledgeAreaIds: ["ingles", "quimica"],
+				professionalFamilyIds: ["hosteleria-y-turismo"],
+			}),
+		);
+		const resource = await getResourceById(db, id);
+		expect(resource?.knowledgeAreas).toEqual([
+			{
+				id: "ingles",
+				label: "Inglés",
+				blockId: "lenguas-extranjeras",
+				active: true,
+			},
+			{ id: "quimica", label: "Química", blockId: "ciencias", active: true },
+		]);
+		expect(resource?.professionalFamilies).toEqual([
+			{ id: "hosteleria-y-turismo", label: "Hostelería y Turismo" },
+		]);
+	});
+
+	test("una selección no válida no deja el recurso creado", async () => {
+		await updateKnowledgeArea(db, "ajedrez", { active: false });
+		const title = `Sin crear ${crypto.randomUUID()}`;
+		for (const extra of [
+			{ knowledgeAreaIds: ["inventada"] },
+			{ knowledgeAreaIds: ["ajedrez"] },
+			{ professionalFamilyIds: ["sanidad"] },
+		]) {
+			await expect(
+				createResource(db, resourceInput({ title, ...extra })),
+			).rejects.toMatchObject({ status: 400 });
+		}
+		expect((await listResources(db, { search: title })).total).toBe(0);
+	});
+
+	test("la edición sustituye las áreas y conserva las inactivas que ya tenía", async () => {
+		const { id } = await createResource(
+			db,
+			resourceInput({ knowledgeAreaIds: ["ajedrez"] }),
+		);
+		await updateKnowledgeArea(db, "ajedrez", { active: false });
+		await updateResource(db, id, { knowledgeAreaIds: ["ajedrez", "fisica"] });
+		expect(await areaIdsOf(id)).toEqual(["ajedrez", "fisica"]);
+		expect(
+			(await getResourceById(db, id))?.knowledgeAreas?.find(
+				(area) => area.id === "ajedrez",
+			)?.active,
+		).toBe(false);
+
+		const other = await createResource(db, resourceInput());
+		await expect(
+			updateResource(db, other.id, { knowledgeAreaIds: ["ajedrez"] }),
+		).rejects.toThrow(KNOWLEDGE_AREA_MESSAGES.inactiveArea);
+	});
+
+	test("un error en las áreas no guarda el resto de la edición", async () => {
+		const { id } = await createResource(db, resourceInput());
+		const before = await getResourceById(db, id);
+		await expect(
+			updateResource(db, id, {
+				title: "No debe guardarse",
+				keywordIds: ["astronomia"],
+				knowledgeAreaIds: ["fisica", "quimica", "biologia", "geologia"],
+			}),
+		).rejects.toMatchObject({ status: 400, field: "knowledgeAreaIds" });
+		const after = await getResourceById(db, id);
+		expect(after?.title).toBe(before?.title ?? "");
+		expect(after?.catalogKeywords).toEqual([]);
+	});
+
+	test("las familias se validan con la categorización guardada o con la nueva", async () => {
+		const { id } = await createResource(
+			db,
+			resourceInput({ educationalAreas: fp }),
+		);
+		await updateResource(db, id, { professionalFamilyIds: ["sanidad"] });
+		expect(await listResourceProfessionalFamilies(db, id)).toEqual(["sanidad"]);
+
+		// En la misma petición: se pasa a FP y se eligen familias.
+		const primaria = await createResource(
+			db,
+			resourceInput({
+				educationalAreas: [
+					{ categoryId: "educacion-primaria", optionId: null },
+				],
+			}),
+		);
+		await expect(
+			updateResource(db, primaria.id, { professionalFamilyIds: ["sanidad"] }),
+		).rejects.toMatchObject({ status: 400, field: "professionalFamilyIds" });
+		await updateResource(db, primaria.id, {
+			educationalAreas: fp,
+			professionalFamilyIds: ["agraria"],
+		});
+		expect(await listResourceProfessionalFamilies(db, primaria.id)).toEqual([
+			"agraria",
+		]);
+	});
+
+	test("quitar FP borra las familias del recurso", async () => {
+		const { id } = await createResource(
+			db,
+			resourceInput({
+				educationalAreas: fp,
+				professionalFamilyIds: ["sanidad", "agraria"],
+			}),
+		);
+		await updateResource(db, id, {
+			educationalAreas: [{ categoryId: "bachillerato", optionId: null }],
+		});
+		expect(await listResourceProfessionalFamilies(db, id)).toEqual([]);
+		expect((await getResourceById(db, id))?.professionalFamilies).toEqual([]);
+	});
+
+	test("el buscador filtra por cualquiera de las áreas y de las familias", async () => {
+		const marker = crypto.randomUUID().slice(0, 8);
+		const make = (extra: Record<string, unknown>) =>
+			createResource(
+				db,
+				resourceInput({
+					title: `${marker} ${crypto.randomUUID()}`,
+					editorialStatus: "published",
+					...extra,
+				}),
+			);
+		const ingles = await make({
+			educationalAreas: fp,
+			knowledgeAreaIds: ["ingles"],
+			professionalFamilyIds: ["hosteleria-y-turismo"],
+		});
+		const inglesSanidad = await make({
+			educationalAreas: fp,
+			knowledgeAreaIds: ["ingles"],
+			professionalFamilyIds: ["sanidad"],
+		});
+		const quimica = await make({ knowledgeAreaIds: ["quimica"] });
+		await make({ knowledgeAreaIds: ["musica"] });
+
+		const ids = async (opts: Record<string, unknown>) =>
+			(await listResources(db, { search: marker, ...opts })).data
+				.map((row) => row.id)
+				.sort();
+
+		expect(await ids({ knowledgeAreaIds: ["ingles", "quimica"] })).toEqual(
+			[ingles.id, inglesSanidad.id, quimica.id].sort(),
+		);
+		expect(
+			await ids({
+				educationalCategory: "formacion-profesional",
+				knowledgeAreaIds: ["ingles"],
+				professionalFamilyIds: ["hosteleria-y-turismo"],
+			}),
+		).toEqual([ingles.id]);
+		expect(
+			await ids({
+				professionalFamilyIds: ["hosteleria-y-turismo", "sanidad"],
+			}),
+		).toEqual([ingles.id, inglesSanidad.id].sort());
+		expect(
+			(
+				await listResources(db, {
+					search: marker,
+					knowledgeAreaIds: ["quimica"],
+				})
+			).total,
+		).toBe(1);
+	});
+
+	test("un área desactivada sigue sirviendo para filtrar", async () => {
+		const marker = crypto.randomUUID().slice(0, 8);
+		const { id } = await createResource(
+			db,
+			resourceInput({ title: marker, knowledgeAreaIds: ["ajedrez"] }),
+		);
+		await updateKnowledgeArea(db, "ajedrez", { active: false });
+		const listed = await listResources(db, {
+			search: marker,
+			knowledgeAreaIds: ["ajedrez"],
+		});
+		expect(listed.data.map((row) => row.id)).toEqual([id]);
 	});
 });
