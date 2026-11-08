@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useIframeScale } from "../hooks/use-iframe-scale.ts";
 import { resourceCardMedia } from "../lib/resource-card-media.ts";
 import type { ResourceSummary } from "../lib/types/resource-extended.ts";
+import { CardTypeMarker } from "./CardTypeMarker.tsx";
 import "./ResourceCard.css";
 
 export interface ResourceCardProps {
@@ -101,7 +102,7 @@ export function ResourceCard({
 					</div>
 				) : (
 					<div className="rc-image-placeholder">
-						<span className="material-symbols-outlined">description</span>
+						<CardTypeMarker icon={media.icon} />
 					</div>
 				)}
 				{(overlayBadge || (badges && badges.length > 0)) && (

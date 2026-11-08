@@ -3,6 +3,20 @@
  * Implementación actual: HttpApiClient (contra la API del servidor).
  */
 
+/**
+ * Previsualización del .elpx que la API adjunta a cada recurso. El visor y la
+ * miniatura son independientes (revisión de #471): un objeto no nulo no
+ * implica que haya visor. El iframe y «Ponlo en tu web» dependen de
+ * `previewUrl`; la miniatura de la tarjeta, de `screenshotUrl`.
+ */
+export interface ElpxCardPreview {
+	hash: string;
+	/** Visor HTML del paquete (index.html). `null` si el paquete no lo trae. */
+	previewUrl: string | null;
+	/** Miniatura screenshot.png de eXeLearning 4 (#409), si el paquete la trae. */
+	screenshotUrl?: string | null;
+}
+
 export interface Resource {
 	id: string;
 	slug: string;
@@ -33,7 +47,7 @@ export interface Resource {
 	/** Familias profesionales (#448); solo en recursos de FP. */
 	professionalFamilies?: { id: string; label: string }[];
 	mediaItems?: MediaItemRecord[];
-	elpxPreview?: { hash: string; previewUrl: string } | null;
+	elpxPreview?: ElpxCardPreview | null;
 	elpxFileUrl?: string | null;
 	rating?: { average: number; count: number };
 	favoriteCount?: number;
@@ -60,7 +74,7 @@ export interface RelatedResource {
 	author: string | null;
 	editorialStatus?: string;
 	score: number;
-	elpxPreview?: { hash: string; previewUrl: string } | null;
+	elpxPreview?: ElpxCardPreview | null;
 	signals?: {
 		sharedSubjects: number;
 		sharedLevels: number;
@@ -118,7 +132,7 @@ export interface CollectionResourceRecord {
 	createdByName?: string | null;
 	editorialStatus: string;
 	thumbnailUrl?: string | null;
-	elpxPreview?: { hash: string; previewUrl: string } | null;
+	elpxPreview?: ElpxCardPreview | null;
 }
 
 export interface CollectionDetailRecord extends CollectionRecord {

@@ -194,6 +194,41 @@ describe("migración resources.other_authors (issue #417)", () => {
 	});
 });
 
+describe("migración elpx_projects.has_screenshot (issue #409)", () => {
+	const COLUMN_QUERY = `SELECT column_name FROM information_schema.columns
+		WHERE table_name = 'elpx_projects' AND column_name = 'has_screenshot'`;
+
+	test("registra 0015 y añade la columna con false a los proyectos previos", async () => {
+		const journal = JSON.parse(
+			await readFile(path.join(migrationsDir, "meta/_journal.json"), "utf8"),
+		) as { entries: Array<{ tag: string }> };
+		expect(journal.entries.map((entry) => entry.tag)).toContain(
+			"0018_elpx_has_screenshot",
+		);
+
+		const migration = await readFile(
+			path.join(migrationsDir, "0018_elpx_has_screenshot.sql"),
+			"utf8",
+		);
+		const db = new PGlite();
+		try {
+			await db.exec(
+				`CREATE TABLE "elpx_projects" (id TEXT PRIMARY KEY, has_preview BOOLEAN NOT NULL DEFAULT false);
+				INSERT INTO elpx_projects (id) VALUES ('previo');`,
+			);
+			await db.exec(migration);
+			await db.exec(migration);
+			expect((await db.query(COLUMN_QUERY)).rows).toHaveLength(1);
+			const rows = await db.query<{ has_screenshot: boolean }>(
+				"SELECT has_screenshot FROM elpx_projects",
+			);
+			expect(rows.rows).toEqual([{ has_screenshot: false }]);
+		} finally {
+			await db.close();
+		}
+	});
+});
+
 describe("migración de categorización educativa", () => {
 	test("registra 0009 sin sustituir 0000–0008 y crea la tabla con unicidad", async () => {
 		const journal = JSON.parse(
@@ -510,5 +545,30 @@ describe("migración 0016_resource_language_nullable", () => {
 		} finally {
 			await db.close();
 		}
+	});
+});
+
+// Renumerada a 0018: la 0016 de #473 ya esta en main y #488 reclamo la 0017
+// para user_profile, asi que esta va detras (AGENTS.md: renumera el ultimo).
+describe("journal combinado de areas y miniaturas (#471)", () => {
+	test("conserva 0014 y aplica la de miniaturas despues, con otro idx y when", async () => {
+		const journal = JSON.parse(
+			await readFile(path.join(migrationsDir, "meta/_journal.json"), "utf8"),
+		) as { entries: Array<{ idx: number; tag: string; when: number }> };
+		const areas = journal.entries.find(
+			(entry) => entry.tag === "0014_knowledge_areas",
+		);
+		const screenshots = journal.entries.find(
+			(entry) => entry.tag === "0018_elpx_has_screenshot",
+		);
+		expect(areas).toBeDefined();
+		expect(screenshots).toBeDefined();
+		// Ya no es la inmediatamente siguiente a 0014: entre medias esta la 0016
+		// de #473, que se mezclo antes. Lo que importa es que va despues, con su
+		// propio idx y su propio when, y que 0014 se conserva.
+		expect(screenshots?.idx ?? -1).toBeGreaterThan(areas?.idx ?? 0);
+		expect(screenshots?.when ?? 0).toBeGreaterThan(areas?.when ?? 0);
+		// Y que es la ultima del journal, para que se aplique al final.
+		expect(journal.entries.at(-1)?.tag).toBe("0018_elpx_has_screenshot");
 	});
 });
