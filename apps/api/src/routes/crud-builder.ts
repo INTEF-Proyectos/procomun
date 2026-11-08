@@ -10,6 +10,29 @@ import { parsePagination } from "../http/pagination.ts";
 type DbFn = ReturnType<typeof getDb>["db"];
 type User = { id: string; role?: string; name?: string; email?: string };
 
+type CrudErrorBody = {
+	error: string;
+	details?: Array<{ field: string; message: string }>;
+};
+
+/**
+ * Error lanzado por el repositorio con `status` (y, si lo trae, `field`): se
+ * devuelve como respuesta. Con `field`, también en `details`, como los de la
+ * validación, para que el formulario marque el campo (#448).
+ */
+function crudErrorBody(
+	err: unknown,
+	handled: { error: string },
+): CrudErrorBody {
+	const field =
+		typeof err === "object" && err !== null
+			? (err as { field?: unknown }).field
+			: undefined;
+	return typeof field === "string"
+		? { error: handled.error, details: [{ field, message: handled.error }] }
+		: { error: handled.error };
+}
+
 function jsonErrorFromCrudException(
 	err: unknown,
 ): { error: string; status: ContentfulStatusCode } | null {
@@ -59,6 +82,11 @@ export interface CrudRouteConfig<TEntity> {
 
 	validateCreate?: (body: unknown) => ValidationResult;
 	validateUpdate?: (body: unknown) => ValidationResult;
+	/** Reglas de la edición que dependen de lo guardado (p. ej. el estado). */
+	validateUpdateWith?: (
+		entity: TEntity,
+		body: Record<string, unknown>,
+	) => ValidationResult;
 	mergeOnUpdate?: boolean;
 
 	canManage?: (user: User, entity: TEntity) => boolean;
@@ -157,7 +185,7 @@ export function buildCrudRoutes<TEntity>(
 			} catch (err: unknown) {
 				const handled = jsonErrorFromCrudException(err);
 				if (handled) {
-					return c.json({ error: handled.error }, handled.status);
+					return c.json(crudErrorBody(err, handled), handled.status);
 				}
 				throw err;
 			}
@@ -193,6 +221,14 @@ export function buildCrudRoutes<TEntity>(
 						400,
 					);
 			}
+			if (config.validateUpdateWith) {
+				const v = config.validateUpdateWith(entity, body);
+				if (!v.valid)
+					return c.json(
+						{ error: "Validación fallida", details: v.errors },
+						400,
+					);
+			}
 			try {
 				await update(db(), id, body);
 				if (config.afterUpdate) {
@@ -206,7 +242,7 @@ export function buildCrudRoutes<TEntity>(
 			} catch (err: unknown) {
 				const handled = jsonErrorFromCrudException(err);
 				if (handled) {
-					return c.json({ error: handled.error }, handled.status);
+					return c.json(crudErrorBody(err, handled), handled.status);
 				}
 				throw err;
 			}

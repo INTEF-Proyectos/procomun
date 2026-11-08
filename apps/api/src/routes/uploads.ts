@@ -229,6 +229,7 @@ async function getTusServer() {
 							uploadSessionId: upload.id,
 							version: 3,
 							hasPreview: result.hasPreview,
+							hasScreenshot: result.hasScreenshot,
 							elpxMetadata: result.metadata,
 						});
 					} catch (err) {

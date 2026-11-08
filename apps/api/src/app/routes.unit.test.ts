@@ -19,4 +19,12 @@ describe("registerRoutes", () => {
 		expect(typeof config.emailVerificationRequired).toBe("boolean");
 		expect("oidcEndSessionUrl" in config).toBe(true);
 	});
+
+	test("expone el catálogo de áreas de conocimiento sin sesión (#448)", async () => {
+		const app = new Hono<AuthEnv>();
+		registerRoutes(app);
+		const response = await app.request("/api/v1/knowledge-areas");
+		expect(response.status).toBe(200);
+		expect((await response.json()).blocks).toHaveLength(9);
+	});
 });
