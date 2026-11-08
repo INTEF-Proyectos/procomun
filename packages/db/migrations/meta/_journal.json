@@ -99,6 +99,13 @@
 			"when": 1792900000000,
 			"tag": "0016_resource_language_nullable",
 			"breakpoints": true
+		},
+		{
+			"idx": 14,
+			"version": "7",
+			"when": 1793200000000,
+			"tag": "0018_elpx_has_screenshot",
+			"breakpoints": true
 		}
 	]
 }

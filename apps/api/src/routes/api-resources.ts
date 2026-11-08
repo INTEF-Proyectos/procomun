@@ -2,6 +2,8 @@ import * as repo from "@procomun/db/repository";
 import {
 	transitionExclusionError,
 	validateCreateResource,
+	validateResourceForStatus,
+	validateResourceUpdateForStatus,
 	validateUpdateResource,
 } from "@procomun/db/validation";
 import { Hono } from "hono";
@@ -11,6 +13,25 @@ import { canManageResource } from "../auth/roles.ts";
 import { getDb } from "../db.ts";
 
 const apiResourceRoutes = new Hono<AuthEnv>();
+
+/**
+ * Error de una selección que el repositorio rechaza (#448: un área que no
+ * existe o está desactivada, familias sin FP). Va como 400 con el campo,
+ * igual que los de la validación.
+ */
+function selectionError(err: unknown) {
+	const e = (err ?? {}) as { status?: unknown; field?: unknown };
+	if (e.status !== 400 || !(err instanceof Error)) return null;
+	return {
+		error: "Errores de validación",
+		details: [
+			{
+				field: typeof e.field === "string" ? e.field : "body",
+				message: err.message,
+			},
+		],
+	};
+}
 
 // POST /api/v1/resources — Create a new resource
 apiResourceRoutes.post("/", async (c) => {
@@ -60,6 +81,27 @@ apiResourceRoutes.post("/", async (c) => {
 	const data = body as Record<string, unknown>;
 	const db = getDb().db;
 
+	const editorialStatus =
+		data.editorialStatus === "review" ? "review" : "draft";
+
+	// #448: crear directamente en revisión exige un área, como el paso de
+	// borrador a revisión en el backoffice.
+	const forStatus = validateResourceForStatus(
+		{
+			...data,
+			knowledgeAreas: Array.isArray(data.knowledgeAreaIds)
+				? data.knowledgeAreaIds
+				: [],
+		},
+		editorialStatus,
+	);
+	if (!forStatus.valid) {
+		return c.json(
+			{ error: "Errores de validación", details: forStatus.errors },
+			400,
+		);
+	}
+
 	// Ensure user exists in DB
 	await repo.ensureUser(db, {
 		id: user.id,
@@ -67,25 +109,31 @@ apiResourceRoutes.post("/", async (c) => {
 		name: user.name ?? null,
 	});
 
-	const editorialStatus =
-		data.editorialStatus === "review" ? "review" : "draft";
-
-	const result = await repo.createResource(db, {
-		title: data.title as string,
-		description: data.description as string,
-		language: data.language as string,
-		license: data.license as string,
-		resourceType: data.resourceType as string,
-		keywords: (data.keywords as string) ?? undefined,
-		author: (data.author as string) ?? undefined,
-		otherAuthors: (data.otherAuthors as string) ?? undefined,
-		publisher: (data.publisher as string) ?? undefined,
-		subjects: (data.subjects as string[]) ?? undefined,
-		levels: (data.levels as string[]) ?? undefined,
-		educationalAreas: data.educationalAreas,
-		createdBy: user.id,
-		editorialStatus,
-	});
+	let result: { id: string; slug: string };
+	try {
+		result = await repo.createResource(db, {
+			title: data.title as string,
+			description: data.description as string,
+			language: data.language as string,
+			license: data.license as string,
+			resourceType: data.resourceType as string,
+			keywords: (data.keywords as string) ?? undefined,
+			author: (data.author as string) ?? undefined,
+			otherAuthors: (data.otherAuthors as string) ?? undefined,
+			publisher: (data.publisher as string) ?? undefined,
+			subjects: (data.subjects as string[]) ?? undefined,
+			levels: (data.levels as string[]) ?? undefined,
+			educationalAreas: data.educationalAreas,
+			knowledgeAreaIds: data.knowledgeAreaIds,
+			professionalFamilyIds: data.professionalFamilyIds,
+			createdBy: user.id,
+			editorialStatus,
+		});
+	} catch (err) {
+		const invalid = selectionError(err);
+		if (invalid) return c.json(invalid, 400);
+		throw err;
+	}
 
 	await logActivity({
 		userId: user.id,
@@ -131,6 +179,8 @@ apiResourceRoutes.get("/:id", async (c) => {
 		editorialStatus: resource.editorialStatus,
 		catalogKeywords: resource.catalogKeywords,
 		educationalAreas: resource.educationalAreas,
+		knowledgeAreas: resource.knowledgeAreas,
+		professionalFamilies: resource.professionalFamilies,
 		createdAt: resource.createdAt,
 		updatedAt: resource.updatedAt,
 	});
@@ -172,7 +222,20 @@ apiResourceRoutes.put("/:id", async (c) => {
 	}
 
 	const data = body as Record<string, unknown>;
-	await repo.updateResource(db, id, data);
+	const forStatus = validateResourceUpdateForStatus(resource, data);
+	if (!forStatus.valid) {
+		return c.json(
+			{ error: "Errores de validación", details: forStatus.errors },
+			400,
+		);
+	}
+	try {
+		await repo.updateResource(db, id, data);
+	} catch (err) {
+		const invalid = selectionError(err);
+		if (invalid) return c.json(invalid, 400);
+		throw err;
+	}
 
 	await logActivity({
 		userId: user.id,

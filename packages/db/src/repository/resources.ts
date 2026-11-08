@@ -20,6 +20,14 @@ import {
 	setResourceCatalogKeywords,
 } from "./keyword-catalog.ts";
 import {
+	assertResourceKnowledgeAreaIds,
+	listResourceKnowledgeAreas,
+	listResourceProfessionalFamilyRecords,
+	resolveResourceProfessionalFamilies,
+	writeResourceKnowledgeAreas,
+	writeResourceProfessionalFamilies,
+} from "./knowledge-areas.ts";
+import {
 	andWhere,
 	buildSearchTerm,
 	buildSlug,
@@ -43,6 +51,10 @@ type ResourceListOptions = {
 	educationalCategory?: string;
 	/** Opción secundaria. Solo aplica junto a educationalCategory y exige la combinación exacta. */
 	educationalOption?: string;
+	/** Áreas de conocimiento (#448): recursos con cualquiera de ellas. */
+	knowledgeAreaIds?: string[];
+	/** Familias profesionales (#448): recursos con cualquiera de ellas. */
+	professionalFamilyIds?: string[];
 	createdBy?: string;
 	visibleToUserId?: string;
 	/**
@@ -67,6 +79,10 @@ type ResourceMutationInput = {
 	/** Ids del catálogo de palabras clave (ADR-0042). */
 	keywordIds?: unknown;
 	educationalAreas?: unknown;
+	/** Ids de `knowledge_areas` (#448, ADR-0045). */
+	knowledgeAreaIds?: unknown;
+	/** Ids de la lista oficial de familias; solo con FP. */
+	professionalFamilyIds?: unknown;
 	createdBy?: string;
 	editorialStatus?: string;
 };
@@ -112,26 +128,53 @@ const resourceDetailSelection = {
 };
 
 async function listResourceTaxonomyValues(db: DrizzleDB, resourceId: string) {
-	const [subjects, levels, catalogKeywords, educationalAreas] =
-		await Promise.all([
-			db
-				.select({ subject: resourceSubjects.subject })
-				.from(resourceSubjects)
-				.where(eq(resourceSubjects.resourceId, resourceId)),
-			db
-				.select({ level: resourceLevels.level })
-				.from(resourceLevels)
-				.where(eq(resourceLevels.resourceId, resourceId)),
-			listResourceCatalogKeywords(db, resourceId),
-			listResourceEducationalAreas(db, resourceId),
-		]);
+	const [
+		subjects,
+		levels,
+		catalogKeywords,
+		educationalAreas,
+		knowledgeAreas,
+		professionalFamilies,
+	] = await Promise.all([
+		db
+			.select({ subject: resourceSubjects.subject })
+			.from(resourceSubjects)
+			.where(eq(resourceSubjects.resourceId, resourceId)),
+		db
+			.select({ level: resourceLevels.level })
+			.from(resourceLevels)
+			.where(eq(resourceLevels.resourceId, resourceId)),
+		listResourceCatalogKeywords(db, resourceId),
+		listResourceEducationalAreas(db, resourceId),
+		listResourceKnowledgeAreas(db, resourceId),
+		listResourceProfessionalFamilyRecords(db, resourceId),
+	]);
 
 	return {
 		subjects: subjects.map((subject: { subject: string }) => subject.subject),
 		levels: levels.map((level: { level: string }) => level.level),
 		catalogKeywords,
 		educationalAreas,
+		knowledgeAreas,
+		professionalFamilies,
 	};
+}
+
+/** `exists` sobre una tabla de relación: el recurso tiene alguno de los ids. */
+function hasAnyRelatedId(table: "areas" | "families", ids: string[]) {
+	const list = sql.join(
+		ids.map((id) => sql`${id}`),
+		sql`, `,
+	);
+	return table === "areas"
+		? sql`exists (
+				select 1 from resource_knowledge_areas rka
+				where rka.resource_id = ${resources.id} and rka.area_id in (${list})
+			)`
+		: sql`exists (
+				select 1 from resource_professional_families rpf
+				where rpf.resource_id = ${resources.id} and rpf.family_id in (${list})
+			)`;
 }
 
 async function attachResourceTaxonomies<
@@ -189,6 +232,14 @@ export async function listResources(db: DrizzleDB, opts: ResourceListOptions) {
 				)`,
 			);
 		}
+	}
+	// #448: dentro de cada filtro vale cualquiera de los valores; entre
+	// filtros (etapa, área, familia) se exigen todos.
+	if (opts.knowledgeAreaIds?.length) {
+		conditions.push(hasAnyRelatedId("areas", opts.knowledgeAreaIds));
+	}
+	if (opts.professionalFamilyIds?.length) {
+		conditions.push(hasAnyRelatedId("families", opts.professionalFamilyIds));
 	}
 	if (opts.tagSlug) {
 		const slug = opts.tagSlug;
@@ -309,6 +360,18 @@ export async function createResource(
 		data.educationalAreas === undefined
 			? undefined
 			: normalizeEducationalAssignments(data.educationalAreas);
+	// #448: un alta solo admite áreas activas, y familias si es de FP.
+	const knowledgeAreaIds =
+		data.knowledgeAreaIds === undefined
+			? []
+			: await assertResourceKnowledgeAreaIds(db, null, data.knowledgeAreaIds);
+	const professionalFamilyIds =
+		(await resolveResourceProfessionalFamilies(
+			db,
+			null,
+			data.professionalFamilyIds,
+			(educationalAreas ?? []).map((area) => area.categoryId),
+		)) ?? [];
 	const id = crypto.randomUUID();
 	const slug = `${buildSlug(data.title)}-${id.slice(0, 8)}`;
 	const now = new Date();
@@ -345,6 +408,13 @@ export async function createResource(
 
 	if (educationalAreas?.length) {
 		await replaceResourceEducationalAreas(db, id, educationalAreas);
+	}
+
+	if (knowledgeAreaIds.length > 0) {
+		await writeResourceKnowledgeAreas(db, id, knowledgeAreaIds);
+	}
+	if (professionalFamilyIds.length > 0) {
+		await writeResourceProfessionalFamilies(db, id, professionalFamilyIds);
 	}
 
 	// Dual-write: free-text keywords → atomized tags (ADR-0034 / #76)
@@ -417,14 +487,30 @@ export async function updateResource(
 			: undefined;
 	const safe = pickEditableResourceFields(raw);
 
-	// Va primero: una selección inválida (400) no deja el recurso a medias.
+	// Las selecciones se validan antes de escribir nada: una inválida (400) no
+	// deja el recurso a medias (#448).
+	const knowledgeAreaIds =
+		raw.knowledgeAreaIds === undefined
+			? undefined
+			: await assertResourceKnowledgeAreaIds(db, id, raw.knowledgeAreaIds);
+	const professionalFamilyIds = await resolveResourceProfessionalFamilies(
+		db,
+		id,
+		raw.professionalFamilyIds,
+		educationalAreas?.map((area) => area.categoryId),
+	);
 	const { keywordIds } = data as { keywordIds?: unknown };
 	if (keywordIds !== undefined) {
 		await setResourceCatalogKeywords(db, id, keywordIds);
 	}
 
 	// Evita un UPDATE vacío si el cuerpo solo traía claves sensibles filtradas.
-	if (Object.keys(safe).length === 0 && !educationalAreas) {
+	if (
+		Object.keys(safe).length === 0 &&
+		!educationalAreas &&
+		!knowledgeAreaIds &&
+		!professionalFamilyIds
+	) {
 		return;
 	}
 
@@ -441,6 +527,12 @@ export async function updateResource(
 			.where(and(eq(resources.id, id), isNull(resources.deletedAt)));
 		if (educationalAreas) {
 			await replaceResourceEducationalAreas(tx, id, educationalAreas);
+		}
+		if (knowledgeAreaIds) {
+			await writeResourceKnowledgeAreas(tx, id, knowledgeAreaIds);
+		}
+		if (professionalFamilyIds) {
+			await writeResourceProfessionalFamilies(tx, id, professionalFamilyIds);
 		}
 	});
 
