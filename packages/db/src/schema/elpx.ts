@@ -22,6 +22,7 @@ export const elpxProjects = pgTable("elpx_projects", {
 	uploadSessionId: text("upload_session_id"),
 	version: integer("version").notNull().default(3),
 	hasPreview: boolean("has_preview").notNull().default(false),
+	hasScreenshot: boolean("has_screenshot").notNull().default(false),
 	elpxMetadata: jsonb("elpx_metadata"),
 	createdAt: timestamp("created_at").notNull().defaultNow(),
 	updatedAt: timestamp("updated_at").notNull().defaultNow(),
