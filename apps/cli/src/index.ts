@@ -10,6 +10,7 @@ export const CLI_COMMANDS = [
 	"fts:reindex",
 	"import:legacy-procomun",
 	"import:legacy-users",
+	"elpx:screenshots",
 	"catalog:area-keywords",
 	"import:legacy-keywords",
 ] as const;
@@ -30,6 +31,8 @@ const commandLoaders: Record<
 		(await import("./commands/import-legacy-procomun.ts")).importLegacyProcomun,
 	"import:legacy-users": async () =>
 		(await import("./commands/import-legacy-users.ts")).importLegacyUsers,
+	"elpx:screenshots": async () =>
+		(await import("./commands/elpx-screenshots.ts")).elpxScreenshots,
 	"catalog:area-keywords": async () =>
 		(await import("./commands/catalog-area-keywords.ts")).catalogAreaKeywords,
 	"import:legacy-keywords": async () =>
@@ -76,6 +79,7 @@ export function printHelp(log: Pick<typeof console, "log"> = console) {
 	);
 	log.log(
 		"                    Pasa a editor las cuentas legacy importadas como author (#507)",
+		"  elpx:screenshots [--dry-run]  Detecta screenshot.png en los paquetes ya subidos (#409)",
 	);
 	log.log(
 		"  catalog:area-keywords [--apply] [--include <id,id>] [--report-dir <ruta>]",

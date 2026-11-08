@@ -105,6 +105,8 @@
 			"version": "7",
 			"when": 1793100000000,
 			"tag": "0017_user_profile",
+			"when": 1793200000000,
+			"tag": "0018_elpx_has_screenshot",
 			"breakpoints": true
 		}
 	]

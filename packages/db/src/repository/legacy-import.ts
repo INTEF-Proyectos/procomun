@@ -49,6 +49,8 @@ export interface LegacyElpxInput {
 	extractPath: string;
 	originalFilename: string;
 	hasPreview: boolean;
+	/** screenshot.png de eXe 4 en la raíz (#409). */
+	hasScreenshot?: boolean;
 	elpxMetadata: Record<string, unknown> | null;
 }
 
@@ -224,6 +226,7 @@ export async function importLegacyResourceWithElpx(
 			uploadSessionId: input.media.uploadId,
 			version: 3,
 			hasPreview: input.elpx.hasPreview,
+			hasScreenshot: input.elpx.hasScreenshot ?? false,
 			elpxMetadata: input.elpx.elpxMetadata,
 			createdAt: now,
 			updatedAt: now,
