@@ -10,7 +10,11 @@ import {
 } from "@procomun/db/repository";
 import { resources } from "@procomun/db/schema";
 import { and, eq, isNull, sql } from "drizzle-orm";
-import { buildElpxMap, buildElpxPreview } from "../elpx/preview.ts";
+import {
+	buildElpxMap,
+	buildElpxPreview,
+	type ElpxPreview,
+} from "../elpx/preview.ts";
 import { rowsFromExecute } from "../fts/search.ts";
 import {
 	clampRelatedLimit,
@@ -34,7 +38,7 @@ export type RelatedResourceCard = {
 	updatedAt: Date | string | null;
 	score: number;
 	signals: RecommendationSignals;
-	elpxPreview: { hash: string; previewUrl: string } | null;
+	elpxPreview: ElpxPreview | null;
 };
 
 export type RelatedResourcesResult = {

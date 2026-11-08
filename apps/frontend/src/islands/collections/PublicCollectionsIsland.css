@@ -246,6 +246,15 @@
 	object-fit: cover;
 	display: block;
 }
+/* #409: sin imagen ni paquete, marcador del tipo de recurso */
+.col-res-preview-empty {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	background: var(--color-surface-container-highest);
+	font-size: 3rem;
+	color: var(--color-outline);
+}
 .col-res-preview iframe {
 	position: absolute;
 	top: 0;

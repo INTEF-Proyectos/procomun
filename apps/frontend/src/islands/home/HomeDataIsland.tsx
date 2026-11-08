@@ -9,6 +9,7 @@ import { getApiClient } from "../../lib/get-api-client.ts";
 import { url } from "../../lib/paths.ts";
 import { resourceCardMedia } from "../../lib/resource-card-media.ts";
 import { DEFAULT_BADGE_CONFIG, timeAgo } from "../../lib/shared-utils.ts";
+import { CardTypeMarker } from "../../ui/CardTypeMarker.tsx";
 import "./HomeDataIsland.css";
 
 // ---------------------------------------------------------------------------
@@ -117,12 +118,10 @@ function FeaturedSection({
 						/>
 					) : (
 						<div className="home-featured-placeholder">
-							<span
-								className="material-symbols-outlined"
+							<CardTypeMarker
+								icon={heroMedia.icon}
 								style={{ fontSize: "4rem", opacity: 0.3 }}
-							>
-								description
-							</span>
+							/>
 						</div>
 					)}
 				</div>
@@ -171,12 +170,10 @@ function FeaturedSection({
 							/>
 						) : (
 							<div className="home-featured-placeholder">
-								<span
-									className="material-symbols-outlined"
+								<CardTypeMarker
+									icon={secMedia?.kind === "empty" ? secMedia.icon : null}
 									style={{ fontSize: "3rem", opacity: 0.3 }}
-								>
-									description
-								</span>
+								/>
 							</div>
 						)}
 					</div>
@@ -351,12 +348,10 @@ function NewsSection({ resources }: { resources: Resource[] }) {
 								/>
 							) : (
 								<div className="home-news-placeholder">
-									<span
-										className="material-symbols-outlined"
+									<CardTypeMarker
+										icon={media.icon}
 										style={{ fontSize: "2rem", opacity: 0.3 }}
-									>
-										description
-									</span>
+									/>
 								</div>
 							)}
 						</div>

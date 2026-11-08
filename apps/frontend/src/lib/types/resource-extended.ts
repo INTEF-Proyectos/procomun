@@ -1,4 +1,4 @@
-import type { Resource } from "../../lib/api-client.ts";
+import type { ElpxCardPreview, Resource } from "../../lib/api-client.ts";
 import type { RatingSummary } from "./social.ts";
 
 /** License metadata with display info */
@@ -23,7 +23,7 @@ export interface ResourceSummary {
 	createdBy?: string | null;
 	createdByName?: string | null;
 	thumbnailUrl?: string | null;
-	elpxPreview?: { hash: string; previewUrl: string } | null;
+	elpxPreview?: ElpxCardPreview | null;
 	rating?: { average: number; count: number };
 	favoriteCount?: number;
 	editorialStatus: string;

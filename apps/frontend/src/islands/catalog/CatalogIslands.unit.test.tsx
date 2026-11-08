@@ -297,6 +297,25 @@ describe("Catalog islands", () => {
 		}
 	});
 
+	// Revisión de #471: un paquete con screenshot.png y sin index.html tiene
+	// miniatura para las tarjetas, pero la ficha no ofrece un visor inexistente.
+	test("la ficha de un paquete sin visor no ofrece vista previa ni «Ponlo en tu web»", () => {
+		const html = renderDetail(
+			{
+				elpxPreview: {
+					hash: "abc",
+					previewUrl: null,
+					screenshotUrl: "/api/v1/elpx/abc/screenshot.png",
+				},
+			},
+			"reader",
+		);
+		expect(html).not.toContain("elpx-preview-section");
+		expect(html).not.toContain("embed-section");
+		expect(html).not.toContain("<iframe");
+		expect(html).not.toContain("detail-action-primary");
+	});
+
 	test("la tarjeta de un recurso no publicado no muestra su valoración (#461)", () => {
 		const card = (editorialStatus: string) =>
 			renderToStaticMarkup(
