@@ -2,12 +2,16 @@ import * as repo from "@procomun/db/repository";
 import { favorites, ratings } from "@procomun/db/schema";
 import { inArray, sql } from "drizzle-orm";
 import { getDb } from "../db.ts";
-import { buildElpxMap, buildElpxPreview } from "../elpx/preview.ts";
+import {
+	buildElpxMap,
+	buildElpxPreview,
+	type ElpxPreview,
+} from "../elpx/preview.ts";
 
 type ResourceWithId = { id: string };
 
 type ResourceCardSignals = {
-	elpxPreview: { hash: string; previewUrl: string } | null;
+	elpxPreview: ElpxPreview | null;
 	favoriteCount: number;
 	rating: { average: number; count: number };
 };
