@@ -3541,6 +3541,21 @@ tasks:
       publicado sigue firmada. Pruebas nuevas de buildElpxPreview, de la API
       (ficha, listado, borrador firmado), de la tarjeta y de la ficha.
       Detalle en docs/hotfixes/pr-471-conflictos/validation.md.
+  T-2026-11-10-21031689:
+    date: 2026-11-10
+    agent: "seguridad-privacidad-legal + backend-api-servicios + frontend-ux-accesibilidad"
+    task: "Revision de #552: pestana Cuenta"
+    status: Done
+    related: ["#532", "#552", "#551", "ADR-0007", "ADR-0031"]
+    notes: >
+      Sin transporte de correo (produccion sin SMTP_HOST) changeEmail queda
+      apagado y la pestana esconde el formulario de correo segun
+      emailDeliveryEnabled de /api/v1/config; mismo criterio que #551 (apagar
+      el flujo en vez de exigir SMTP al arrancar, porque la imagen va con
+      NODE_ENV=production y el docker-compose no trae SMTP). callbackURL usa
+      url() para respetar ruta base e idioma. changePassword y changeEmail
+      devuelven ok false ante un fallo de red y la pestana ensena
+      auth_connection_error en vez de quedarse muda.
   T-2026-11-03-12314847:
     date: 2026-11-03
     agent: "backend-api-servicios"

@@ -344,6 +344,8 @@ export interface AppConfig {
 	oidcEnabled: boolean;
 	oidcEndSessionUrl: string | null;
 	emailVerificationRequired: boolean;
+	/** Hay transporte de correo; sin él se esconde la recuperación (#551). */
+	emailDeliveryEnabled: boolean;
 }
 
 export interface BadgeConfig {

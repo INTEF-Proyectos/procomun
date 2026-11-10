@@ -93,9 +93,12 @@ function PasswordForm() {
 				setError(
 					result.error === "wrong_current_password"
 						? m.account_password_wrong_current()
-						: (result.error ?? ""),
+						: (result.error ?? m.auth_connection_error()),
 				);
 			}
+		} catch {
+			// #552: sin esto un fallo de red no enseñaba nada.
+			setError(m.auth_connection_error());
 		} finally {
 			setSubmitting(false);
 		}
@@ -172,7 +175,9 @@ function EmailForm({ email }: { email: string }) {
 			const api = await getApiClient();
 			const result = await api.changeEmail(next.trim());
 			if (result.ok) setSent(true);
-			else setError(result.error ?? "");
+			else setError(result.error ?? m.auth_connection_error());
+		} catch {
+			setError(m.auth_connection_error());
 		} finally {
 			setSubmitting(false);
 		}
@@ -220,20 +225,34 @@ function EmailForm({ email }: { email: string }) {
 export function AccountTab({
 	email,
 	initialHasPassword,
+	initialEmailDeliveryEnabled = true,
 }: {
 	email: string;
 	/** Para los tests; en la aplicación se averigua al montar. */
 	initialHasPassword?: boolean;
+	/** Para los tests; en la aplicación sale de /api/v1/config. */
+	initialEmailDeliveryEnabled?: boolean;
 }) {
 	const [hasPassword, setHasPassword] = useState<boolean | undefined>(
 		initialHasPassword,
+	);
+	const [emailDeliveryEnabled, setEmailDeliveryEnabled] = useState(
+		initialEmailDeliveryEnabled,
 	);
 
 	useEffect(() => {
 		if (initialHasPassword !== undefined) return;
 		void (async () => {
 			const api = await getApiClient();
-			setHasPassword(await api.hasPasswordAccount());
+			const [has, config] = await Promise.all([
+				api.hasPasswordAccount(),
+				api.getConfig().catch(() => null),
+			]);
+			// #552: sin correo no se puede verificar la dirección nueva.
+			if (config?.emailDeliveryEnabled === false) {
+				setEmailDeliveryEnabled(false);
+			}
+			setHasPassword(has);
 		})();
 	}, [initialHasPassword]);
 
@@ -248,7 +267,7 @@ export function AccountTab({
 	return (
 		<div className="account-tab">
 			<PasswordForm />
-			<EmailForm email={email} />
+			{emailDeliveryEnabled && <EmailForm email={email} />}
 		</div>
 	);
 }

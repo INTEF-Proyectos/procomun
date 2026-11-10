@@ -87,6 +87,51 @@ describe("changeEmail (#532)", () => {
 	});
 });
 
+// Revisión de #552: un fallo de red se quedaba en una promesa rechazada y la
+// pestaña no decía nada.
+describe("fallos de red en la pestaña Cuenta (#552)", () => {
+	function offline() {
+		globalThis.fetch = (async () => {
+			throw new TypeError("Failed to fetch");
+		}) as unknown as typeof fetch;
+	}
+
+	test("changePassword devuelve ok: false en vez de lanzar", async () => {
+		offline();
+		expect(
+			await new HttpApiClient().changePassword("actual-1234", "nueva-12345"),
+		).toEqual({ ok: false });
+	});
+
+	test("changeEmail devuelve ok: false en vez de lanzar", async () => {
+		offline();
+		expect(await new HttpApiClient().changeEmail("nuevo@ejemplo.test")).toEqual(
+			{ ok: false },
+		);
+	});
+});
+
+// Revisión de #552: con /perfil fijo, quien cambia el correo en inglés o con
+// la app bajo un subdirectorio volvía a una ruta que no es la suya.
+describe("changeEmail respeta el idioma (#552)", () => {
+	test("la vuelta lleva el prefijo de idioma", async () => {
+		const g = globalThis as { document?: unknown };
+		const originalDocument = g.document;
+		g.document = { documentElement: { lang: "en" } };
+		try {
+			const { client, calls } = withFetch(
+				() => new Response("{}", { status: 200 }),
+			);
+			await client.changeEmail("nuevo@ejemplo.test");
+			expect(calls[0]?.body).toMatchObject({
+				callbackURL: "/en/perfil?tab=account",
+			});
+		} finally {
+			g.document = originalDocument;
+		}
+	});
+});
+
 describe("hasPasswordAccount (#532)", () => {
 	test("una cuenta con credencial tiene contraseña", async () => {
 		const { client } = withFetch(() =>

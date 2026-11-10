@@ -28,6 +28,7 @@ import type {
 	UploadSessionRecord,
 	UserRecord,
 } from "./api-client.ts";
+import { url } from "./paths.ts";
 
 /**
  * Cliente HTTP que llama al servidor API real.
@@ -254,16 +255,22 @@ export class HttpApiClient implements ApiClient {
 		currentPassword: string,
 		newPassword: string,
 	): Promise<SignInResult> {
-		const res = await fetch("/api/auth/change-password", {
-			method: "POST",
-			headers: { "Content-Type": "application/json" },
-			credentials: "include",
-			body: JSON.stringify({
-				currentPassword,
-				newPassword,
-				revokeOtherSessions: true,
-			}),
-		});
+		let res: Response;
+		try {
+			res = await fetch("/api/auth/change-password", {
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				credentials: "include",
+				body: JSON.stringify({
+					currentPassword,
+					newPassword,
+					revokeOtherSessions: true,
+				}),
+			});
+		} catch {
+			// Fallo de red (#552): la isla enseña el error de conexión.
+			return { ok: false };
+		}
 		if (res.ok) return { ok: true };
 		const data = await res.json().catch(() => null);
 		if (data?.code === "INVALID_PASSWORD") {
@@ -278,12 +285,21 @@ export class HttpApiClient implements ApiClient {
 	 * hay que verificar la nueva.
 	 */
 	async changeEmail(newEmail: string): Promise<SignInResult> {
-		const res = await fetch("/api/auth/change-email", {
-			method: "POST",
-			headers: { "Content-Type": "application/json" },
-			credentials: "include",
-			body: JSON.stringify({ newEmail, callbackURL: "/perfil?tab=account" }),
-		});
+		let res: Response;
+		try {
+			res = await fetch("/api/auth/change-email", {
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				credentials: "include",
+				// url(): respeta la ruta base y el prefijo de idioma (#552).
+				body: JSON.stringify({
+					newEmail,
+					callbackURL: url("perfil?tab=account"),
+				}),
+			});
+		} catch {
+			return { ok: false };
+		}
 		if (res.ok) return { ok: true };
 		const data = await res.json().catch(() => null);
 		return { ok: false, error: data?.message ?? "No se ha podido cambiar" };

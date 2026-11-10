@@ -103,3 +103,19 @@ describe("AccountTab (#532)", () => {
 		expect(html).not.toContain('type="password"');
 	});
 });
+
+// Revisión de #552: sin transporte de correo el servidor no puede verificar
+// la dirección nueva, así que no se ofrece el cambio.
+describe("AccountTab sin transporte de correo (#552)", () => {
+	test("ofrece la contraseña pero no el cambio de correo", () => {
+		const html = renderToStaticMarkup(
+			<AccountTab
+				email="ana@ejemplo.test"
+				initialHasPassword
+				initialEmailDeliveryEnabled={false}
+			/>,
+		);
+		expect(html).toContain("current-password");
+		expect(html).not.toContain('type="email"');
+	});
+});

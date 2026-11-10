@@ -145,3 +145,9 @@ El correo de verificación de Better Auth es el mismo para el alta y para el cor
 **Cuentas de acceso institucional.** Si la cuenta no tiene credencial propia (`/list-accounts` sin `credential`), la pestaña no ofrece ninguna de las dos cosas: la contraseña y el correo se gestionan en el proveedor de identidad, y un correo cambiado aquí se desalinearía con el suyo. Si no se puede averiguar, tampoco: ofrecer cambiar una contraseña que no existe acaba en error.
 
 **Validación.** `apps/api/src/auth/account-settings.integration.test.ts`, contra la instancia real de Better Auth: la contraseña nueva sustituye a la vieja; con la actual equivocada no cambia nada y el código es `INVALID_PASSWORD` (el cliente se fía de él); se cierran las demás sesiones; el cambio de correo está activado; sin verificar la dirección nueva el correo no cambia; con el correo verificado el aviso va a la antigua; y cambiar a un correo ocupado no lo delata. Sin el arreglo fallan los dos tests que prueban la funcionalidad, por `CHANGE_EMAIL_DISABLED`.
+
+## Adenda 2026-11-10 — revisión de la pestaña Cuenta (#552)
+
+* **Sin transporte de correo no hay cambio de correo.** En producción sin `SMTP_HOST`, `user.changeEmail.enabled` queda en `false`, `/api/v1/config` devuelve `emailDeliveryEnabled: false` y la pestaña Cuenta esconde el formulario de correo; la contraseña se sigue pudiendo cambiar. Mismo criterio que la recuperación (#551): se descarta exigir SMTP al arrancar porque la imagen corre con `NODE_ENV=production` y el `docker-compose.yml` no trae SMTP.
+* La URL de vuelta del cambio de correo se construye con `url()`: respeta la ruta base y el prefijo de idioma.
+* Un fallo de red al cambiar la contraseña o el correo enseña el error de conexión traducido.

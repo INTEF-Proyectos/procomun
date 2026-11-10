@@ -137,7 +137,11 @@ describe("HttpApiClient", () => {
 			jsonResponse({ data: [{ id: "c1" }], total: 1 }),
 			jsonResponse({ id: "c1", slug: "stem" }),
 			emptyResponse(404),
-			jsonResponse({ oidcEnabled: true, emailVerificationRequired: false }),
+			jsonResponse({
+				oidcEnabled: true,
+				emailVerificationRequired: false,
+				emailDeliveryEnabled: true,
+			}),
 			jsonResponse({ users: 7 }),
 		]);
 		const client = new HttpApiClient();
