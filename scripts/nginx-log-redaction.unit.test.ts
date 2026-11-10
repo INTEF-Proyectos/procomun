@@ -149,10 +149,14 @@ const SPECIAL_MAP_KEYS = new Set([
  * Evalúa un `map` con la prioridad de nginx que aplica aquí: cadena exacta,
  * después la primera regex que case en orden de aparición y, si no, `default`.
  */
-function evalMap(map: Directive, input: string): string {
+function evalMap(
+	map: Directive,
+	input: string,
+	extra: Record<string, string> = {},
+): string {
 	const source = (map.args[0] as string).replace(/^\$/, "");
 	const entries = map.block ?? [];
-	const base = { [source]: input };
+	const base = { ...extra, [source]: input };
 	const exact = entries.find(
 		(e) =>
 			!SPECIAL_MAP_KEYS.has(e.name) &&
@@ -182,20 +186,44 @@ const all = walk(conf);
 const maps = all.filter((d) => d.name === "map");
 const findMap = (from: string, to: string) =>
 	maps.find((m) => m.args[0] === from && m.args[1] === to);
-const requestPathMap = findMap("$request_uri", "$request_path");
+const rawPathMap = findMap("$request_uri", "$request_path_raw");
+const queryMarkerMap = findMap("$is_args", "$query_marker");
+const requestPathMap = findMap("$uri", "$request_path");
 const pathMap = findMap("$request_path", "$redacted_path");
 const refererPathMap = findMap("$http_referer", "$referer_path");
 const refererRedactMap = findMap("$referer_path", "$redacted_referer");
 
 /**
- * Lo que acaba en el log para una URI de peticion, imitando lo que hace nginx:
- * Los dos maps encadenados: el primero quita la query y deja el marcador, el
- * segundo redacta la ruta. Se parte de `$request_uri` y no de `$uri` porque
- * `$uri` es la ruta despues del try_files del SPA (revisión #524).
+ * `$uri` de nginx para una petición a la API: la ruta sin query, con los %xx
+ * decodificados y las barras repetidas unidas. Fuera de `/api/` el try_files
+ * del SPA la cambia, pero ahí el map no la usa.
+ */
+function nginxUri(requestUri: string): string {
+	const path = requestUri.split("?")[0] as string;
+	try {
+		return decodeURIComponent(path).replace(/\/{2,}/g, "/");
+	} catch {
+		return path;
+	}
+}
+
+/**
+ * Lo que acaba en el log para una URI de peticion, imitando lo que hace nginx.
+ * Fuera de la API se parte de `$request_uri` y no de `$uri` porque `$uri` es la
+ * ruta despues del try_files del SPA (revisión #524); en la API se parte de
+ * `$uri`, la ruta ya decodificada sobre la que enruta Hono. Después se redacta.
  */
 function uriMap(input: string): string {
-	if (!requestPathMap || !pathMap) throw new Error("Faltan los maps de la URI");
-	return evalMap(pathMap, evalMap(requestPathMap, input));
+	if (!rawPathMap || !queryMarkerMap || !requestPathMap || !pathMap) {
+		throw new Error("Faltan los maps de la URI");
+	}
+	const query = input.includes("?") ? input.slice(input.indexOf("?") + 1) : "";
+	const marker = evalMap(queryMarkerMap, query ? "?" : "");
+	const path = evalMap(requestPathMap, nginxUri(input), {
+		query_marker: marker,
+		request_path_raw: evalMap(rawPathMap, input),
+	});
+	return evalMap(pathMap, path);
 }
 
 /** Lo que acaba en el log para el Referer: los dos maps encadenados. */
@@ -221,14 +249,20 @@ const VERIFY_JWT =
 	"eyJhbGciOiJIUzI1NiJ9.eyJlbWFpbCI6ImFAYi5lcyJ9.c2VjcmV0by1kZS1wcnVlYmE";
 
 describe("nginx.conf: el access_log no guarda URL de capacidad", () => {
-	it("tiene los dos maps de la URI: quitar la query y redactar la ruta", () => {
+	it("tiene los maps de la URI: quitar la query y redactar la ruta", () => {
+		expect(rawPathMap).toBeDefined();
+		expect(queryMarkerMap).toBeDefined();
 		expect(requestPathMap).toBeDefined();
 		expect(pathMap).toBeDefined();
-		// Parte de $request_uri, no de $uri: $uri es la ruta despues del
-		// try_files del SPA y el log perderia la ruta pedida (revisión #524).
+		// Fuera de la API parte de $request_uri, no de $uri: $uri es la ruta
+		// despues del try_files del SPA y el log perderia la ruta pedida
+		// (revisión #524).
+		expect(rawPathMap?.block?.find((e) => e.name === "default")?.args).toEqual([
+			"$request_uri",
+		]);
 		expect(
 			requestPathMap?.block?.find((e) => e.name === "default")?.args,
-		).toEqual(["$request_uri"]);
+		).toEqual(["$request_path_raw"]);
 		expect(pathMap?.block?.find((e) => e.name === "default")?.args).toEqual([
 			"$request_path",
 		]);
@@ -320,6 +354,11 @@ const URI_CASES: [string, string, string][] = [
 		"/api/v1/preview-session/:previewId/assets",
 	],
 	[
+		"miniatura firmada de un recurso no publicado (#512)",
+		`/api/v1/thumbnails/signed/${TOKEN}/${HASH}.jpg`,
+		`/api/v1/thumbnails/signed/:token/${HASH}.jpg`,
+	],
+	[
 		"verificación de correo de Better Auth (?token=)",
 		`/api/auth/verify-email?token=${VERIFY_JWT}&callbackURL=%2F`,
 		"/api/auth/verify-email?:query",
@@ -342,6 +381,7 @@ const UNCHANGED: [string, string][] = [
 	[`/api/v1/elpx/preview/${HASH}`, `/api/v1/elpx/preview/${HASH}`],
 	["/api/v1/preview-session", "/api/v1/preview-session"],
 	["/api/v1/previews/42", "/api/v1/previews/42"],
+	[`/api/v1/thumbnails/${HASH}.jpg`, `/api/v1/thumbnails/${HASH}.jpg`],
 	["/api/v1/search?q=token", "/api/v1/search?:query"],
 	["/api/v1/search?q=preview&sort=recent", "/api/v1/search?:query"],
 	["/api/v1/algo?access_token_hint=1", "/api/v1/algo?:query"],
@@ -363,6 +403,52 @@ const BYPASS_CASES: [string, string][] = [
 		`/api/v1/preview/${PREVIEW_ID}/index.html?token=${VERIFY_JWT}`,
 	],
 ];
+
+// nginx registra $request_uri en crudo, pero Hono enruta sobre la ruta
+// decodificada: estas llegan al handler con el permiso válido.
+const ENCODED_CASES: [string, string, string][] = [
+	[
+		"segmento del prefijo con %xx",
+		`/api/v1/elpx/previe%77/${HASH}/${TOKEN}/index.html`,
+		`/api/v1/elpx/preview/${HASH}/:token/index.html`,
+	],
+	[
+		"prefijo /api con %xx: la location de nginx también decodifica",
+		`/%61pi/v1/elpx/preview/${HASH}/${TOKEN}/index.html`,
+		`/api/v1/elpx/preview/${HASH}/:token/index.html`,
+	],
+	[
+		"miniatura firmada con %xx",
+		`/api/v1/thumbnails/%73igned/${TOKEN}/${HASH}.jpg?x=1`,
+		`/api/v1/thumbnails/signed/:token/${HASH}.jpg?:query`,
+	],
+	[
+		"instantánea del editor con %xx y barras repetidas",
+		`/api/v1//pr%65view/${PREVIEW_ID}/index.html`,
+		"/api/v1/preview/:previewId/index.html",
+	],
+];
+
+describe("una ruta con %xx no se salta la redacción (revisión #524)", () => {
+	for (const [label, input, expected] of ENCODED_CASES) {
+		it(`URI: ${label}`, () => {
+			expect(uriMap(input)).toBe(expected);
+		});
+
+		// El navegador manda el Referer tal cual lo pidió, sin decodificar.
+		it(`Referer: ${label}`, () => {
+			const out = refererMap(`https://procomun.example${input}`);
+			expect(out).not.toContain(TOKEN);
+			expect(out).not.toContain(PREVIEW_ID);
+		});
+	}
+
+	it("fuera de la API se registra la ruta pedida, no la del try_files", () => {
+		expect(uriMap("/recursos/fotos%C3%ADntesis")).toBe(
+			"/recursos/fotos%C3%ADntesis",
+		);
+	});
+});
 
 describe("ninguna variante deja un secreto en el log (revisión #524)", () => {
 	for (const [label, input] of BYPASS_CASES) {

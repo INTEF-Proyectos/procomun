@@ -3867,3 +3867,19 @@ tasks:
       un when posterior, y #488 conserva la suya. AGENTS.md: renumera el que se
       mezcla despues. Si #471 acabase entrando antes que #488, no hace falta
       tocar nada: el journal aplica por idx y 0018 va detras de todo.
+  T-2026-11-10-21011876:
+    date: 2026-11-10
+    agent: "seguridad-privacidad-legal"
+    task: "access_log de nginx: miniatura firmada y rutas con %xx"
+    status: Done
+    related: ["#524", "#512", "#536", "#317"]
+    notes: >
+      La miniatura firmada de #512 (/api/v1/thumbnails/signed/<token>/...)
+      pasa a :token en la ruta y en el Referer. El map casaba sobre
+      $request_uri en crudo y Hono enruta sobre la ruta decodificada, asi que
+      /api/v1/elpx/previe%77/<hash>/<token>/ (o /%61pi/...) llegaba al handler
+      y quedaba en claro. En la API se registra ahora $uri (decodificada y
+      normalizada, sin try_files en /api/); fuera, la ruta pedida. El Referer
+      falla cerrado: con % en la ruta queda origen + /:encoded. Tests rojo ->
+      verde en scripts/nginx-log-redaction.unit.test.ts y comprobado con
+      nginx:alpine real (nginx -t y peticiones con %xx).
