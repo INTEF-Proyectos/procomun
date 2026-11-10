@@ -28,7 +28,11 @@ permissions:
 
 jobs:
   e2e-chromium:
-    runs-on: ubuntu-latest
+    # Dónde corre lo decide la variable USE_SELFHOSTED_RUNNER del repositorio:
+    # `true` usa el runner propio (gordobot); `false` o sin definir, los de
+    # GitHub. Se cambia con `gh variable set USE_SELFHOSTED_RUNNER --body false`
+    # sin tocar ningún workflow.
+    runs-on: ${{ vars.USE_SELFHOSTED_RUNNER == 'true' && 'self-hosted' || 'ubuntu-latest' }}
     timeout-minutes: 30
 
     steps:
@@ -121,7 +125,7 @@ jobs:
   # hecho y no era cierto.
   e2e-cross-browser:
     if: github.event_name == 'workflow_dispatch'
-    runs-on: ubuntu-latest
+    runs-on: ${{ vars.USE_SELFHOSTED_RUNNER == 'true' && 'self-hosted' || 'ubuntu-latest' }}
     timeout-minutes: 45
     strategy:
       matrix:
