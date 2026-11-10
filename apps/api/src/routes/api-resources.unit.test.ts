@@ -75,7 +75,13 @@ describe("API Resources — con autenticación", () => {
 		const res = await app.request("/api/v1/publish/resources", {
 			method: "POST",
 			headers: { "Content-Type": "application/json" },
-			body: JSON.stringify({ ...validResource, editorialStatus: "review" }),
+			// #448: crear en revisión exige un área (sin ella, 400: ver
+			// knowledge-areas.unit.test.ts).
+			body: JSON.stringify({
+				...validResource,
+				editorialStatus: "review",
+				knowledgeAreaIds: ["matematicas"],
+			}),
 		});
 		expect(res.status).toBe(201);
 		const body = await res.json();

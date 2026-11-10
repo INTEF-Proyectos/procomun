@@ -13,11 +13,17 @@ updates:
     directory: "/"
     schedule:
       interval: "weekly"
+    groups:
+      actions:
+        patterns: ["*"]
 
   - package-ecosystem: "bun"
     directory: "/"
     schedule:
       interval: "weekly"
+    # Cada PR de Dependabot lanza CI + E2E (unos 9 minutos). Agrupar los
+    # minor y patch en una sola PR semanal evita pagar eso por cada paquete.
+    # Los major siguen yendo sueltos para poder revisarlos uno a uno.
     groups:
       react:
         patterns:
@@ -25,6 +31,9 @@ updates:
           - "react-dom"
           - "@types/react"
           - "@types/react-dom"
+      minor-patch:
+        patterns: ["*"]
+        update-types: ["minor", "patch"]
 
   - package-ecosystem: "npm"
     directory: "/"

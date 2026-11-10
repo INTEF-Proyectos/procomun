@@ -68,7 +68,35 @@ describe("listing history helpers", () => {
 			tag: "ia",
 			educationalCategory: "",
 			educationalOption: "",
+			knowledgeAreas: [],
+			professionalFamilies: [],
 		});
+	});
+
+	test("las áreas y las familias van como ids separados por comas (#448)", () => {
+		const state = readListingState(
+			"?educationalCategory=formacion-profesional&knowledgeAreas=ingles,quimica&professionalFamilies=sanidad",
+		);
+		expect(state.knowledgeAreas).toEqual(["ingles", "quimica"]);
+		expect(state.professionalFamilies).toEqual(["sanidad"]);
+
+		const url = buildListingUrl("/explorar", "?knowledgeAreas=musica", {
+			...state,
+			query: "",
+			page: 1,
+		});
+		expect(readListingState(url.slice(url.indexOf("?")))).toEqual(state);
+		expect(
+			buildListingUrl(
+				"/explorar",
+				"?knowledgeAreas=musica&professionalFamilies=agraria",
+				{
+					...state,
+					knowledgeAreas: [],
+					professionalFamilies: [],
+				},
+			),
+		).toBe("/explorar?educationalCategory=formacion-profesional");
 	});
 
 	test("uses pushState in push mode", () => {
