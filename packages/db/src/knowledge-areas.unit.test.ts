@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import {
+	educationalCategoryIdsOf,
 	KEYWORD_AREA_REVIEW_CANDIDATES,
 	KNOWLEDGE_AREA_BLOCKS,
 	KNOWLEDGE_AREA_MESSAGES,
@@ -7,8 +8,10 @@ import {
 	MAX_KNOWLEDGE_AREAS,
 	normalizeKnowledgeAreaKey,
 	PROFESSIONAL_FAMILIES,
+	parseCatalogIdList,
 	validateKnowledgeAreaInput,
 	validateKnowledgeAreaSelection,
+	validateProfessionalFamilyList,
 	validateProfessionalFamilySelection,
 } from "./knowledge-areas.ts";
 
@@ -159,5 +162,42 @@ describe("validación de áreas y selecciones (#448)", () => {
 				["formacion-profesional"],
 			),
 		).toEqual({ ok: false, message: KNOWLEDGE_AREA_MESSAGES.unknownFamily });
+	});
+
+	test("la lista de familias se valida sin la categorización (PR 2)", () => {
+		expect(validateProfessionalFamilyList(["sanidad"])).toEqual({
+			ok: true,
+			ids: ["sanidad"],
+		});
+		expect(validateProfessionalFamilyList(["sanidad", "sanidad"])).toEqual({
+			ok: false,
+			message: KNOWLEDGE_AREA_MESSAGES.duplicateFamily,
+		});
+		expect(validateProfessionalFamilyList("sanidad")).toEqual({
+			ok: false,
+			message: KNOWLEDGE_AREA_MESSAGES.invalidFamilyList,
+		});
+	});
+
+	test("las categorías se leen de una categorización sin validar", () => {
+		expect(
+			educationalCategoryIdsOf([
+				{ categoryId: "formacion-profesional", optionId: "grado-medio" },
+				{ optionId: "x" },
+				null,
+				"texto",
+			]),
+		).toEqual(["formacion-profesional"]);
+		expect(educationalCategoryIdsOf(undefined)).toEqual([]);
+	});
+
+	test("los filtros del buscador llegan como ids separados por comas", () => {
+		expect(parseCatalogIdList("quimica, fisica,,quimica")).toEqual([
+			"quimica",
+			"fisica",
+		]);
+		expect(parseCatalogIdList("")).toEqual([]);
+		expect(parseCatalogIdList(undefined)).toEqual([]);
+		expect(parseCatalogIdList(null)).toEqual([]);
 	});
 });

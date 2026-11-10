@@ -331,7 +331,7 @@ export async function seedWithClient(
 
 					// Create elpx project
 					await client.query(
-						`INSERT INTO "elpx_projects" (id, resource_id, hash, extract_path, original_filename, version, has_preview, elpx_metadata, created_at, updated_at) VALUES ($1, $2, $3, $4, $5, 3, $6, $7, $8, $9)`,
+						`INSERT INTO "elpx_projects" (id, resource_id, hash, extract_path, original_filename, version, has_preview, has_screenshot, elpx_metadata, created_at, updated_at) VALUES ($1, $2, $3, $4, $5, 3, $6, $7, $8, $9, $10)`,
 						[
 							elpxId,
 							r.id,
@@ -339,6 +339,7 @@ export async function seedWithClient(
 							result.extractPath,
 							elpxFilename,
 							result.hasPreview,
+							result.hasScreenshot,
 							JSON.stringify(result.metadata),
 							now,
 							now,

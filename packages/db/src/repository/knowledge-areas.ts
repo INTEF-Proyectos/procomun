@@ -2,9 +2,14 @@ import { and, asc, eq, inArray, isNull, sql } from "drizzle-orm";
 import {
 	KEYWORD_AREA_REVIEW_CANDIDATES,
 	KNOWLEDGE_AREA_BLOCKS,
+	KNOWLEDGE_AREA_FIELD,
 	KNOWLEDGE_AREA_MESSAGES,
 	type KnowledgeAreaInput,
 	normalizeKnowledgeAreaKey,
+	PROFESSIONAL_FAMILIES,
+	PROFESSIONAL_FAMILY_CATEGORY_ID,
+	PROFESSIONAL_FAMILY_FIELD,
+	type ProfessionalFamily,
 	validateKnowledgeAreaInput,
 	validateKnowledgeAreaSelection,
 	validateProfessionalFamilySelection,
@@ -45,8 +50,9 @@ const BLOCK_ORDER = new Map(
 	KNOWLEDGE_AREA_BLOCKS.map((block, index) => [block.id, index]),
 );
 
-function badRequest(message: string): Error {
-	return Object.assign(new Error(message), { status: 400 });
+/** Error que las rutas CRUD devuelven como 400 con el campo afectado. */
+function badRequest(message: string, field?: string): Error {
+	return Object.assign(new Error(message), { status: 400, field });
 }
 
 const usageCountSql = sql<number>`(select count(*)::int from resource_knowledge_areas rka where rka.area_id = ${knowledgeAreas.id})`;
@@ -239,6 +245,47 @@ export async function listResourceKnowledgeAreas(
 		.orderBy(asc(knowledgeAreas.label));
 }
 
+async function currentResourceAreaIds(
+	db: DrizzleDB,
+	resourceId: string | null,
+): Promise<string[]> {
+	if (!resourceId) return [];
+	return (await listResourceKnowledgeAreas(db, resourceId)).map(
+		(area) => area.id,
+	);
+}
+
+/**
+ * Valida una selección de áreas sin escribir nada: como máximo 3, del
+ * catálogo y activas, salvo las desactivadas que el recurso ya tenía (en un
+ * alta, `resourceId` es null y no vale ninguna). Lanza un Error con
+ * `status: 400` y `field`.
+ */
+export async function assertResourceKnowledgeAreaIds(
+	db: DrizzleDB,
+	resourceId: string | null,
+	areaIds: unknown,
+): Promise<string[]> {
+	const selection = validateKnowledgeAreaSelection(areaIds);
+	if (!selection.ok) throw badRequest(selection.message, KNOWLEDGE_AREA_FIELD);
+	if (selection.ids.length === 0) return [];
+	const current = await currentResourceAreaIds(db, resourceId);
+	const found = await db
+		.select({ id: knowledgeAreas.id, active: knowledgeAreas.active })
+		.from(knowledgeAreas)
+		.where(inArray(knowledgeAreas.id, selection.ids));
+	if (found.length !== selection.ids.length) {
+		throw badRequest(KNOWLEDGE_AREA_MESSAGES.unknownArea, KNOWLEDGE_AREA_FIELD);
+	}
+	if (found.some((area) => !area.active && !current.includes(area.id))) {
+		throw badRequest(
+			KNOWLEDGE_AREA_MESSAGES.inactiveArea,
+			KNOWLEDGE_AREA_FIELD,
+		);
+	}
+	return selection.ids;
+}
+
 /**
  * Sustituye las áreas del recurso (máximo 3). Un área desactivada solo se
  * acepta si el recurso ya la tenía. Lanza un Error con `status: 400`.
@@ -248,26 +295,19 @@ export async function setResourceKnowledgeAreas(
 	resourceId: string,
 	areaIds: unknown,
 ): Promise<void> {
-	const selection = validateKnowledgeAreaSelection(areaIds);
-	if (!selection.ok) throw badRequest(selection.message);
-	const current = (await listResourceKnowledgeAreas(db, resourceId)).map(
-		(area) => area.id,
-	);
-	if (selection.ids.length > 0) {
-		const found = await db
-			.select({ id: knowledgeAreas.id, active: knowledgeAreas.active })
-			.from(knowledgeAreas)
-			.where(inArray(knowledgeAreas.id, selection.ids));
-		if (found.length !== selection.ids.length) {
-			throw badRequest(KNOWLEDGE_AREA_MESSAGES.unknownArea);
-		}
-		if (found.some((area) => !area.active && !current.includes(area.id))) {
-			throw badRequest(KNOWLEDGE_AREA_MESSAGES.inactiveArea);
-		}
-	}
+	const ids = await assertResourceKnowledgeAreaIds(db, resourceId, areaIds);
+	await writeResourceKnowledgeAreas(db, resourceId, ids);
+}
 
-	const toRemove = current.filter((id) => !selection.ids.includes(id));
-	const toAdd = selection.ids.filter((id) => !current.includes(id));
+/** Escribe una selección ya validada con {@link assertResourceKnowledgeAreaIds}. */
+export async function writeResourceKnowledgeAreas(
+	db: DrizzleDB,
+	resourceId: string,
+	areaIds: readonly string[],
+): Promise<void> {
+	const current = await currentResourceAreaIds(db, resourceId);
+	const toRemove = current.filter((id) => !areaIds.includes(id));
+	const toAdd = areaIds.filter((id) => !current.includes(id));
 	if (toRemove.length > 0) {
 		await db
 			.delete(resourceKnowledgeAreas)
@@ -298,6 +338,56 @@ export async function listResourceProfessionalFamilies(
 	return rows.map((row) => row.familyId);
 }
 
+/** Familias del recurso con su denominación, en el orden de la lista oficial. */
+export async function listResourceProfessionalFamilyRecords(
+	db: DrizzleDB,
+	resourceId: string,
+): Promise<ProfessionalFamily[]> {
+	const ids = new Set(await listResourceProfessionalFamilies(db, resourceId));
+	return PROFESSIONAL_FAMILIES.filter((family) => ids.has(family.id)).map(
+		(family) => ({ ...family }),
+	);
+}
+
+async function storedCategoryIds(
+	db: DrizzleDB,
+	resourceId: string,
+): Promise<string[]> {
+	const rows = await db
+		.select({ categoryId: resourceEducationalAreas.categoryId })
+		.from(resourceEducationalAreas)
+		.where(eq(resourceEducationalAreas.resourceId, resourceId));
+	return rows.map((row) => row.categoryId);
+}
+
+/**
+ * Familias que hay que guardar en un alta o una edición, sin escribir nada.
+ * Se cruzan con FP usando la categorización nueva si llega en la misma
+ * petición (`categoryIds`) o, si no, con la guardada. Si la categorización
+ * nueva quita FP, devuelve `[]` aunque no lleguen familias: un recurso que ya
+ * no es de FP no conserva familias (#448). `undefined` = no se tocan.
+ */
+export async function resolveResourceProfessionalFamilies(
+	db: DrizzleDB,
+	resourceId: string | null,
+	familyIds: unknown,
+	categoryIds: readonly string[] | undefined,
+): Promise<string[] | undefined> {
+	if (familyIds === undefined) {
+		if (categoryIds === undefined) return undefined;
+		return categoryIds.includes(PROFESSIONAL_FAMILY_CATEGORY_ID)
+			? undefined
+			: [];
+	}
+	const categories =
+		categoryIds ?? (resourceId ? await storedCategoryIds(db, resourceId) : []);
+	const selection = validateProfessionalFamilySelection(familyIds, categories);
+	if (!selection.ok) {
+		throw badRequest(selection.message, PROFESSIONAL_FAMILY_FIELD);
+	}
+	return selection.ids;
+}
+
 /**
  * Sustituye las familias profesionales del recurso. Solo se admiten si el
  * recurso está clasificado en Formación Profesional (#380). Lanza un Error
@@ -308,23 +398,29 @@ export async function setResourceProfessionalFamilies(
 	resourceId: string,
 	familyIds: unknown,
 ): Promise<void> {
-	const categories = await db
-		.select({ categoryId: resourceEducationalAreas.categoryId })
-		.from(resourceEducationalAreas)
-		.where(eq(resourceEducationalAreas.resourceId, resourceId));
-	const selection = validateProfessionalFamilySelection(
-		familyIds,
-		categories.map((row) => row.categoryId),
+	// `null` en vez de `undefined`: aquí la lista es obligatoria.
+	const ids = await resolveResourceProfessionalFamilies(
+		db,
+		resourceId,
+		familyIds ?? null,
+		undefined,
 	);
-	if (!selection.ok) throw badRequest(selection.message);
+	await writeResourceProfessionalFamilies(db, resourceId, ids ?? []);
+}
 
+/** Escribe una selección ya resuelta con {@link resolveResourceProfessionalFamilies}. */
+export async function writeResourceProfessionalFamilies(
+	db: DrizzleDB,
+	resourceId: string,
+	familyIds: readonly string[],
+): Promise<void> {
 	await db
 		.delete(resourceProfessionalFamilies)
 		.where(eq(resourceProfessionalFamilies.resourceId, resourceId));
-	if (selection.ids.length > 0) {
+	if (familyIds.length > 0) {
 		await db
 			.insert(resourceProfessionalFamilies)
-			.values(selection.ids.map((familyId) => ({ resourceId, familyId })));
+			.values(familyIds.map((familyId) => ({ resourceId, familyId })));
 	}
 }
 

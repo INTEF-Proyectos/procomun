@@ -1,4 +1,4 @@
-import { access, mkdir, readFile, rm } from "node:fs/promises";
+import { access, lstat, mkdir, readFile, rm } from "node:fs/promises";
 import path from "node:path";
 import type { ElpxMetadata } from "@procomun/db/elpx-metadata";
 import { parseContentXml } from "@procomun/db/elpx-metadata";
@@ -14,6 +14,8 @@ export type ElpxProcessResult = {
 	hash: string;
 	extractPath: string;
 	hasPreview: boolean;
+	/** eXeLearning 4 guarda la miniatura del proyecto en la raíz (#409). */
+	hasScreenshot: boolean;
 	metadata: ElpxMetadata;
 };
 
@@ -21,6 +23,15 @@ async function fileExists(filePath: string): Promise<boolean> {
 	try {
 		await access(filePath);
 		return true;
+	} catch {
+		return false;
+	}
+}
+
+/** Solo la miniatura de la raíz: `theme/screenshot.png` es la del tema. */
+export async function hasRootScreenshot(extractPath: string): Promise<boolean> {
+	try {
+		return (await lstat(path.join(extractPath, "screenshot.png"))).isFile();
 	} catch {
 		return false;
 	}
@@ -115,8 +126,9 @@ export async function processElpxUpload(
 	await safeExtractElpx(filePath, extractPath);
 
 	const hasPreview = await fileExists(path.join(extractPath, "index.html"));
+	const hasScreenshot = await hasRootScreenshot(extractPath);
 
-	return { hash, extractPath, hasPreview, metadata };
+	return { hash, extractPath, hasPreview, hasScreenshot, metadata };
 }
 
 export async function removeElpxExtraction(extractPath: string): Promise<void> {

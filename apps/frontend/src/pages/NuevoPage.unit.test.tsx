@@ -110,4 +110,34 @@ describe("NuevoPage helpers", () => {
 				.otherAuthors,
 		).toBeUndefined();
 	});
+
+	test("buildCreateResourceBody envía las áreas y solo con FP las familias (#448)", () => {
+		const form = {
+			title: "Recurso",
+			description: "Descripción",
+			author: "Ana Pérez",
+			otherAuthors: "",
+			language: "es",
+			license: "cc-by",
+			resourceType: "documento",
+		};
+		const fp = [{ categoryId: "formacion-profesional", optionId: null }];
+		const body = buildCreateResourceBody(form, fp, [], {
+			knowledgeAreaIds: ["ingles"],
+			professionalFamilyIds: ["hosteleria-y-turismo"],
+		});
+		expect(body.knowledgeAreaIds).toEqual(["ingles"]);
+		expect(body.professionalFamilyIds).toEqual(["hosteleria-y-turismo"]);
+		expect(validateCreateResource(body).valid).toBe(true);
+
+		const withoutFp = buildCreateResourceBody(
+			form,
+			[{ categoryId: "bachillerato", optionId: null }],
+			[],
+			{ knowledgeAreaIds: [], professionalFamilyIds: ["sanidad"] },
+		);
+		expect(withoutFp.professionalFamilyIds).toEqual([]);
+		// Un borrador se puede guardar sin áreas.
+		expect(validateCreateResource(withoutFp).valid).toBe(true);
+	});
 });

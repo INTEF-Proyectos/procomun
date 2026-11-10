@@ -252,6 +252,10 @@ export const PROFESSIONAL_FAMILIES: readonly ProfessionalFamily[] = [
 /** Categoría de la categorización educativa (#380) que habilita las familias. */
 export const PROFESSIONAL_FAMILY_CATEGORY_ID = "formacion-profesional";
 
+/** Campos del alta y la edición del recurso (y de sus errores de validación). */
+export const KNOWLEDGE_AREA_FIELD = "knowledgeAreaIds";
+export const PROFESSIONAL_FAMILY_FIELD = "professionalFamilyIds";
+
 export const KNOWLEDGE_AREA_MESSAGES = {
 	labelRequired: "La denominación es obligatoria",
 	labelTooLong: `La denominación no puede superar ${KNOWLEDGE_AREA_LABEL_MAX} caracteres`,
@@ -271,6 +275,9 @@ export const KNOWLEDGE_AREA_MESSAGES = {
 	unknownFamily: "Alguna familia profesional no existe",
 	familyRequiresFp:
 		"Las familias profesionales solo se guardan en recursos de Formación Profesional",
+	required: "Selecciona al menos un área de conocimiento",
+	requiredWhilePublished:
+		"Un recurso en revisión o publicado necesita al menos un área de conocimiento",
 } as const;
 
 /** Clave para comparar denominaciones: sin mayúsculas, tildes ni espacios extra. */
@@ -360,13 +367,9 @@ export function validateKnowledgeAreaSelection(
 	return { ok: true, ids };
 }
 
-/**
- * Familias de la lista oficial, sin repetir, y solo si el recurso está
- * clasificado en Formación Profesional.
- */
-export function validateProfessionalFamilySelection(
+/** Familias de la lista oficial y sin repetir, sin mirar la categorización. */
+export function validateProfessionalFamilyList(
 	ids: unknown,
-	categoryIds: readonly string[],
 ): { ok: true; ids: string[] } | { ok: false; message: string } {
 	if (!Array.isArray(ids) || ids.some((id) => typeof id !== "string")) {
 		return { ok: false, message: KNOWLEDGE_AREA_MESSAGES.invalidFamilyList };
@@ -377,13 +380,51 @@ export function validateProfessionalFamilySelection(
 	if (!ids.every(isProfessionalFamily)) {
 		return { ok: false, message: KNOWLEDGE_AREA_MESSAGES.unknownFamily };
 	}
+	return { ok: true, ids };
+}
+
+/**
+ * Familias de la lista oficial, sin repetir, y solo si el recurso está
+ * clasificado en Formación Profesional.
+ */
+export function validateProfessionalFamilySelection(
+	ids: unknown,
+	categoryIds: readonly string[],
+): { ok: true; ids: string[] } | { ok: false; message: string } {
+	const list = validateProfessionalFamilyList(ids);
+	if (!list.ok) return list;
 	if (
-		ids.length > 0 &&
+		list.ids.length > 0 &&
 		!categoryIds.includes(PROFESSIONAL_FAMILY_CATEGORY_ID)
 	) {
 		return { ok: false, message: KNOWLEDGE_AREA_MESSAGES.familyRequiresFp };
 	}
-	return { ok: true, ids };
+	return list;
+}
+
+/** Ids de categoría de una categorización educativa sin validar. */
+export function educationalCategoryIdsOf(value: unknown): string[] {
+	if (!Array.isArray(value)) return [];
+	return value
+		.map((item) =>
+			item && typeof item === "object"
+				? (item as { categoryId?: unknown }).categoryId
+				: undefined,
+		)
+		.filter((id): id is string => typeof id === "string");
+}
+
+/**
+ * Lista de ids de un parámetro de búsqueda (`quimica,fisica`): sin vacíos ni
+ * repetidos. Los ids desconocidos no se descartan aquí: no dan resultados.
+ */
+export function parseCatalogIdList(raw: string | null | undefined): string[] {
+	if (!raw) return [];
+	const ids = raw
+		.split(",")
+		.map((id) => id.trim())
+		.filter(Boolean);
+	return [...new Set(ids)];
 }
 
 function sqlString(value: string): string {

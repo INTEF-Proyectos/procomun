@@ -334,6 +334,7 @@ describe("getRelatedResourcesBySlug", () => {
 		expect(cards.get(withElpx.id)?.elpxPreview).toEqual({
 			hash,
 			previewUrl: `/api/v1/elpx/${hash}/`,
+			screenshotUrl: null,
 		});
 		expect(cards.get(without.id)?.elpxPreview).toBeNull();
 	});
