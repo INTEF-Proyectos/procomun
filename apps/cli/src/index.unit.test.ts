@@ -40,3 +40,16 @@ describe("CLI dispatcher", () => {
 		}
 	});
 });
+
+test("la ayuda incluye cada comando registrado, incluidas las miniaturas", () => {
+	const lines: string[] = [];
+	printHelp({ log: (line) => lines.push(line) });
+	for (const command of CLI_COMMANDS) {
+		expect(
+			lines.some(
+				(line) =>
+					line.trim().startsWith(`${command} `) || line.trim() === command,
+			),
+		).toBe(true);
+	}
+});

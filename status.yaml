@@ -3195,6 +3195,21 @@ tasks:
       elpx-content.unit.test.ts (rojo → verde). Deuda: no se traducen las
       URL asset:// dentro de jsonProperties (solo {{context_path}}).
 
+  T-2026-10-26-08073293:
+    date: 2026-10-26
+    agent: "frontend-ux-accesibilidad"
+    task: "Miniatura screenshot.png de eXe 4 y marcador por tipo en los listados"
+    status: Done
+    related: ["#409", "#426", "#425"]
+    notes: >
+      Al subir o importar un .elpx se detecta screenshot.png en la raíz (no
+      theme/screenshot.png) y se guarda en elpx_projects.has_screenshot
+      (migración 0015; la 0014 la usa #448). Las versiones apuntan al
+      proyecto, así que restaurar conserva la miniatura. La API añade
+      elpxPreview.screenshotUrl. Orden de la tarjeta: screenshot.png, imagen
+      de metadatos (preview legacy), iframe como reserva para no deshacer
+      #426 y, sin nada, el marcador del tipo con aria-hidden. Comando
+      elpx:screenshots [--dry-run] para los paquetes ya subidos.
   T-2026-10-26-22335129:
     date: 2026-10-26
     agent: "ingestas-y-migraciones"
@@ -3433,6 +3448,99 @@ tasks:
       referencias en el CI. Validado reproduciendo el conflicto de #465 contra
       main: la union automatica da un status.yaml identico a la resolucion
       manual (diff vacio) y check-tracking lo acepta.
+  T-2026-11-03-10481219:
+    date: 2026-11-03
+    agent: "frontend-ux-accesibilidad"
+    task: "Áreas de conocimiento en los formularios, la ficha y el buscador (PR 2 de #448)"
+    status: Done
+    related: ["#448", "#416", "#408", "ADR-0045"]
+    notes: >
+      Alta y edición con «Áreas de conocimiento» (hasta 3, agrupadas por
+      bloque, solo activas; las desactivadas que ya tiene el recurso salen
+      marcadas) y «Familia profesional» con FP, con aviso al quitar FP de que
+      se borrarán al guardar. Componente CatalogMultiSelect (combobox APG,
+      fieldset/legend, chips con «Quitar»). API: knowledgeAreaIds y
+      professionalFamilyIds validados en validation.ts y en el repositorio
+      antes de escribir; GET /api/v1/knowledge-areas público. Hace falta un
+      área para pasar a revisión o publicar (validateResourceForStatus, #408)
+      y la API de publicación la pide al crear en revisión; un publicado con
+      áreas no se puede quedar sin ninguna. Ficha con áreas (enlazan al
+      filtro) y familias; sin áreas sigue mostrando las materias de origen
+      hasta el PR 3. Buscador con filtros knowledgeAreas y
+      professionalFamilies (cualquiera dentro de cada filtro, todos entre
+      filtros; familias solo con FP). Sin migración. Mensajes en Paraglide en
+      los cinco idiomas. Las versiones (#31) no guardan áreas ni familias.
+  T-2026-10-27-08211546:
+    date: 2026-10-27
+    agent: "evaluacion-tecnologica"
+    task: "ADR y diseño de las miniaturas generadas en el servidor"
+    status: In Progress
+    related: ["#470", "#409", "#471", "#472", "ADR-0046", "ADR-0026", "ADR-0027"]
+    notes: >
+      ADR-0046 en estado Propuesto, con requirements, design y tasks en
+      docs/epics/epic-003/features/feature-miniaturas-servidor/. Recomienda un
+      servicio thumbnailer con Playwright en un contenedor aparte, sin red ni
+      secretos, y la cola en elpx_projects. Gotenberg como alternativa. Sin
+      código hasta que se decidan las preguntas abiertas de la issue.
+  T-2026-11-03-10094727:
+    date: 2026-11-03
+    agent: "evaluacion-tecnologica"
+    task: "ADR-0046 aceptada con las decisiones de la issue #470"
+    status: Done
+    related: ["#470", "#481", "#471", "ADR-0046"]
+    notes: >
+      @juanda cerró las siete preguntas: Playwright en un contenedor propio,
+      cola con el estado en elpx_projects y bucle en la API, JPEG 640x400 solo
+      del contenido, relleno solo de lo que no tiene imagen propia, el iframe
+      sale de los listados al desplegar y Node si Playwright no va bien con Bun.
+      La implementación va en un PR aparte, apilado sobre #471.
+  T-2026-11-03-12334131:
+    date: 2026-11-03
+    agent: "seguridad-privacidad-legal"
+    task: "ADR-0046: acceso a las miniaturas de recursos no publicados (revisión de #481)"
+    status: Done
+    related: ["#470", "#481", "#512", "#466", "#483", "#472", "ADR-0046", "ADR-0026"]
+    notes: >
+      Atiende la revisión de @jacoboAlcantara con secciones fechadas, sin borrar
+      historia. Adenda de acceso: la URL estable /api/v1/thumbnails/<fichero>
+      solo sirve lo que pertenece a un recurso publicado, con public,
+      max-age=3600 en vez de immutable; lo no publicado va por un enlace firmado
+      (HMAC, 2 h, prefijo propio) con private, no-store; al despublicar da 404 en
+      la petición siguiente; las preview legacy siguen las mismas reglas.
+      Criterios CA-1 a CA-10 y pruebas en requirements y design. Contexto y
+      alternativa de Gotenberg al día con #483. requirements y design con la
+      ADR aceptada y el enlace a las decisiones del 2026-11-03. La
+      implementación va en #512.
+  T-2026-11-03-08435265:
+    date: 2026-11-03
+    agent: "backend-api-servicios"
+    task: "Resolver conflictos del PR de miniaturas con el acceso seguro a .elpx"
+    status: Done
+    related: ["#409", "#471", "#483"]
+    notes: >
+      Merge de main conservando hasScreenshot, screenshotUrl, estado editorial
+      y las tres funciones del repositorio de proyectos. La miniatura de un
+      recurso no publicado usa el mismo prefijo firmado que su vista previa.
+      Suite completa correcta: 1314 unitarias, 22 de integracion y 83 de interfaz.
+      Cobertura 91.62%; check-types, lint y check-tracking correctos.
+      Corregidos tambien el journal heredado (0014 y 0015 separados), la ayuda
+      del CLI y el fixture legacy publicado. Avisos previos de lint y tracking;
+      no se ejecutan e2e en esta resolucion.
+  T-2026-11-03-12011140:
+    date: 2026-11-03
+    agent: "backend-api-servicios"
+    task: "Revisión de #471: la miniatura screenshot.png no depende del visor HTML"
+    status: Done
+    related: ["#409", "#471", "#466", "#483"]
+    notes: >
+      buildElpxPreview devolvía null sin index.html aunque hubiera
+      screenshot.png, y la tarjeta caía al marcador. Ahora elpxPreview existe
+      si hay visor o miniatura y previewUrl es string | null en la API y en el
+      frontend: el iframe, «Ver en línea» y «Ponlo en tu web» dependen de
+      previewUrl, no de que haya elpxPreview. La miniatura de un recurso no
+      publicado sigue firmada. Pruebas nuevas de buildElpxPreview, de la API
+      (ficha, listado, borrador firmado), de la tarjeta y de la ficha.
+      Detalle en docs/hotfixes/pr-471-conflictos/validation.md.
   T-2026-11-03-12314847:
     date: 2026-11-03
     agent: "backend-api-servicios"
@@ -3620,6 +3728,31 @@ tasks:
       que no sea color, asi que llevan subrayado siempre y el hover pasa a
       cambiar el color. Preexistia; el test no lo veia.
       Queda fuera servir Material Symbols desde la plataforma.
+  T-2026-11-04-15511098:
+    date: 2026-11-04
+    agent: "ingestas-y-migraciones + qa-validacion"
+    task: "Atender la revision de #471: el relleno de miniaturas no persiste false a ciegas"
+    status: Done
+    related: ["#471", "#409", "ADR-0011"]
+    notes: >
+      Hallazgo de jacoboAlcantara: elpx:screenshots pasaba project.extractPath
+      tal cual a hasRootScreenshot. Con UPLOAD_STORAGE_DIR relativo (admitido
+      en ADR-0011), la ruta que guardo la API ejecutandose desde apps/api
+      apunta a otro directorio al lanzar el CLI desde la raiz: el escaneo no
+      encontraba nada y el comando persistia has_screenshot=false sobre una
+      captura que sigue en disco, asi que la tarjeta dejaba de usarla. Ahora el
+      dep es inspectExtraction y devuelve screenshot, no-screenshot o
+      unreachable: solo se escribe con las dos primeras. Con unreachable se
+      avisa por consola con la ruta y se deja el estado como estaba, y se
+      cuenta en report.unreachable (sale en la linea de resumen como
+      sin_localizar). resolveExtractionDir prueba la ruta guardada y, si no
+      esta, <almacen>/elpx/<hash>, que es como la construye buildElpxPath: asi
+      se recupera el caso del almacen relativo en vez de solo saltarlo. El
+      primer punto de la revision (buildElpxPreview devolvia null con
+      hasScreenshot true y hasPreview false) ya estaba corregido antes, con
+      tests que cubren tambien la URL firmada de la miniatura en recursos no
+      publicados. Tests ajustados: los dos toEqual del informe incluyen la
+      clave nueva unreachable y el helper del test usa el dep nuevo.
   T-2026-11-04-15363556:
     date: 2026-11-04
     agent: "ingestas-y-migraciones + qa-validacion"
@@ -3646,3 +3779,60 @@ tasks:
       antes: guarda en PublicCollectionsIsland, tipo string | null en
       api-client y test de regresion. Test ajustado: el toEqual de totals en
       el caso en seco incluye la clave nueva reindexFailed.
+  T-2026-11-04-16594050:
+    date: 2026-11-04
+    agent: "arquitectura-solucion + seguridad-privacidad-legal"
+    task: "Atender la revision de #481: aislamiento del thumbnailer y estado de los documentos"
+    status: Done
+    related: ["#481", "#470", "ADR-0046", "ADR-0026"]
+    notes: >
+      De los cuatro puntos de jacoboAlcantara, dos ya estaban resueltos en
+      adendas del 2026-11-03 (el acceso a las miniaturas segun el estado
+      editorial y el contexto de acceso al contenido desde #483). Los dos que
+      quedaban: 1) P2 de aislamiento, aceptado tal cual lo proponia. El diseño
+      bloqueaba las peticiones con page.route, que segun la documentacion de
+      Playwright no intercepta la primera peticion de una ventana emergente, y
+      ELPX_HTML_CSP permite abrirlas con allow-popups; la red Docker internal
+      no lo tapa porque thumbnailer comparte red con app. Pasa a
+      browserContext.route registrado antes de crear o navegar ninguna pagina,
+      y a una CSP propia de la captura sin allow-popups ni
+      allow-popups-to-escape-sandbox, manteniendo el origen opaco y
+      serviceWorkers block. Se añade como criterio de aceptacion una prueba de
+      integracion con un paquete que intente abrir una ventana hacia un
+      servidor que simule la API y reciba cero peticiones. No se reutiliza
+      ELPX_HTML_CSP porque alli esos permisos existen para el visor real, donde
+      el usuario si puede querer abrir un enlace. 2) requirements.md y
+      design.md decian ADR-0046 (Propuesto) con la ADR ya aceptada: se añade
+      actualizacion fechada en los dos, conservando el texto anterior
+      (AGENTS.md regla 12).
+  T-2026-11-04-16102520:
+    date: 2026-11-04
+    agent: "ingestas-y-migraciones"
+    task: "Renumerar la migracion de #471 a 0017 al entrar antes la 0016"
+    status: Done
+    related: ["#471", "#473", "#475"]
+    notes: >
+      #475 se mezclo primero y dejo la 0016_resource_language_nullable en main,
+      asi que la 0015_elpx_has_screenshot de #471 pasa a
+      0017_elpx_has_screenshot, con su propio idx y un when posterior, como
+      manda AGENTS.md (el que se mezcla despues renumera). El test del journal
+      ya no exige que sea la inmediatamente siguiente a 0014: comprueba que va
+      despues, con idx y when propios, y que es la ultima entrada para que se
+      aplique al final. Tambien se resolvio el conflicto de
+      PublicCollectionsIsland.tsx: #475 extrajo el detalle a
+      CollectionDetailContent, asi que el marcador por tipo de #409 se ha
+      llevado dentro de ese componente conservando la guarda de idioma de #473.
+  T-2026-11-04-16581883:
+    date: 2026-11-04
+    agent: "ingestas-y-migraciones"
+    task: "La migracion de #471 pasa de 0017 a 0018"
+    status: Done
+    related: ["#471", "#488", "#473"]
+    notes: >
+      Corrige la decision de la entrada T-2026-11-04-15511098, que la movio de
+      0015 a 0017 cuando main solo tenia hasta la 0016. #488 reclamo la 0017
+      para user_profile antes (lo dice su descripcion: 0012-0016 estaban en PR
+      abiertos), asi que la de miniaturas pasa a 0018_elpx_has_screenshot con
+      un when posterior, y #488 conserva la suya. AGENTS.md: renumera el que se
+      mezcla despues. Si #471 acabase entrando antes que #488, no hace falta
+      tocar nada: el journal aplica por idx y 0018 va detras de todo.
