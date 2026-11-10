@@ -10,16 +10,22 @@ import type { DrizzleDB } from "./shared.ts";
  * (#456), sin distinguir mayúsculas ni espacios. Nunca devuelve el usuario de
  * sistema del importador. Las cuentas bloqueadas cuentan (el equipo del
  * Procomún antiguo quiere sus recursos asociados); las dadas de baja se
- * devuelven marcadas para que el llamante no les asigne nada.
+ * devuelven marcadas para que el llamante no les asigne nada. Igual las que no
+ * han verificado el correo: con la verificación desactivada cualquiera puede
+ * registrarse con el correo de un autor antiguo y quedarse con sus recursos.
  */
 export async function findLegacyAuthorAccount(
 	db: DrizzleDB,
 	email: string,
-): Promise<{ id: string; deleted: boolean } | null> {
+): Promise<{ id: string; deleted: boolean; emailVerified: boolean } | null> {
 	const normalized = normalizeLegacyPublicatorEmail(email);
 	if (!normalized) return null;
 	const [row] = await db
-		.select({ id: user.id, deletedAt: user.deletedAt })
+		.select({
+			id: user.id,
+			deletedAt: user.deletedAt,
+			emailVerified: user.emailVerified,
+		})
 		.from(user)
 		.where(
 			and(
@@ -28,7 +34,13 @@ export async function findLegacyAuthorAccount(
 			),
 		)
 		.limit(1);
-	return row ? { id: row.id, deleted: row.deletedAt !== null } : null;
+	return row
+		? {
+				id: row.id,
+				deleted: row.deletedAt !== null,
+				emailVerified: row.emailVerified,
+			}
+		: null;
 }
 
 export type LinkLegacyAuthorResult =
