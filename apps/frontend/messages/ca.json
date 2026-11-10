@@ -298,6 +298,7 @@
 	"auth_forgot_submit": "Enviar l'enllaç",
 	"auth_forgot_sent": "Si aquest correu té un compte a Procomún, li hem enviat un enllaç per canviar la contrasenya. Revisa també la carpeta de correu no desitjat.",
 	"auth_forgot_back": "Tornar a l'accés",
+	"auth_forgot_failed": "No s'ha pogut enviar l'enllaç. Torna-ho a provar més tard.",
 	"auth_reset_title": "Triar una contrasenya nova",
 	"auth_reset_subtitle": "L'enllaç només val una vegada. Tria una contrasenya de com a mínim 8 caràcters.",
 	"auth_reset_password": "Contrasenya nova",

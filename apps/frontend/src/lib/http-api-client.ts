@@ -28,6 +28,7 @@ import type {
 	UploadSessionRecord,
 	UserRecord,
 } from "./api-client.ts";
+import { url } from "./paths.ts";
 
 /**
  * Cliente HTTP que llama al servidor API real.
@@ -245,26 +246,24 @@ export class HttpApiClient implements ApiClient {
 	}
 
 	/**
-	 * Pide el correo de recuperación (#531). **Siempre responde ok** salvo
-	 * fallo de red: un error del servidor aquí solo puede delatar que esa
-	 * cuenta no existe, y eso convertiría la pantalla en un comprobador de
-	 * correos registrados. Un fallo de red sí se distingue, porque ahí no se ha
-	 * enviado nada y el usuario tiene que reintentar.
+	 * Pide el correo de recuperación (#531). better-auth responde lo mismo
+	 * exista o no la cuenta y no espera al envío (#551), así que un error aquí
+	 * no delata nada: es la recuperación apagada (sin SMTP) o el límite de
+	 * peticiones, y la interfaz no debe decir «enviado». Sin `error`: el
+	 * mensaje lo pone la isla, traducido.
 	 */
 	async requestPasswordReset(email: string): Promise<SignInResult> {
 		try {
-			await fetch("/api/auth/request-password-reset", {
+			const res = await fetch("/api/auth/request-password-reset", {
 				method: "POST",
 				headers: { "Content-Type": "application/json" },
 				credentials: "include",
-				body: JSON.stringify({ email, redirectTo: "/restablecer" }),
+				// url(): respeta la ruta base y el prefijo de idioma (#551).
+				body: JSON.stringify({ email, redirectTo: url("restablecer") }),
 			});
-			return { ok: true };
+			return res.ok ? { ok: true } : { ok: false };
 		} catch {
-			return {
-				ok: false,
-				error: "No se ha podido conectar. Inténtalo de nuevo.",
-			};
+			return { ok: false };
 		}
 	}
 
@@ -273,12 +272,18 @@ export class HttpApiClient implements ApiClient {
 		token: string,
 		newPassword: string,
 	): Promise<SignInResult> {
-		const res = await fetch("/api/auth/reset-password", {
-			method: "POST",
-			headers: { "Content-Type": "application/json" },
-			credentials: "include",
-			body: JSON.stringify({ token, newPassword }),
-		});
+		let res: Response;
+		try {
+			res = await fetch("/api/auth/reset-password", {
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				credentials: "include",
+				body: JSON.stringify({ token, newPassword }),
+			});
+		} catch {
+			// Fallo de red (#551): la isla enseña el error de conexión.
+			return { ok: false };
+		}
 		if (res.ok) return { ok: true };
 		const data = await res.json().catch(() => null);
 		return {

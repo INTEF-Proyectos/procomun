@@ -298,6 +298,7 @@
 	"auth_forgot_submit": "Enviar el enlace",
 	"auth_forgot_sent": "Si ese correo tiene una cuenta en Procomún, le hemos enviado un enlace para cambiar la contraseña. Revisa también la carpeta de correo no deseado.",
 	"auth_forgot_back": "Volver al acceso",
+	"auth_forgot_failed": "No se ha podido enviar el enlace. Inténtalo de nuevo más tarde.",
 	"auth_reset_title": "Elegir una contraseña nueva",
 	"auth_reset_subtitle": "El enlace vale una sola vez. Elige una contraseña de al menos 8 caracteres.",
 	"auth_reset_password": "Contraseña nueva",

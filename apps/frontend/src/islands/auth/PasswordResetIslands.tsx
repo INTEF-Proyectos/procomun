@@ -54,10 +54,12 @@ export function ForgotPasswordIsland() {
 		try {
 			const api = await getApiClient();
 			const result = await api.requestPasswordReset(email);
-			// Solo un fallo de red da ok: false. Cualquier otra cosa enseña el
-			// mismo mensaje, exista o no la cuenta.
+			// El servidor responde igual exista o no la cuenta; ok: false es red,
+			// recuperación apagada o límite de peticiones (#551).
 			if (result.ok) setSent(true);
-			else setError(result.error ?? "");
+			else setError(result.error ?? m.auth_forgot_failed());
+		} catch {
+			setError(m.auth_connection_error());
 		} finally {
 			setSubmitting(false);
 		}
@@ -141,7 +143,10 @@ export function ResetPasswordIsland({
 			const api = await getApiClient();
 			const result = await api.resetPassword(token, password);
 			if (result.ok) setDone(true);
-			else setError(result.error ?? "");
+			else setError(result.error ?? m.auth_connection_error());
+		} catch {
+			// #551: sin esto un fallo de red no enseñaba nada.
+			setError(m.auth_connection_error());
 		} finally {
 			setSubmitting(false);
 		}

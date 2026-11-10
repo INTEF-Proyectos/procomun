@@ -298,6 +298,7 @@
 	"auth_forgot_submit": "Enviar a ligazón",
 	"auth_forgot_sent": "Se ese correo ten unha conta en Procomún, enviámoslle unha ligazón para cambiar o contrasinal. Revisa tamén o cartafol de correo non desexado.",
 	"auth_forgot_back": "Volver ao acceso",
+	"auth_forgot_failed": "Non se puido enviar a ligazón. Téntao de novo máis tarde.",
 	"auth_reset_title": "Escoller un contrasinal novo",
 	"auth_reset_subtitle": "A ligazón vale unha soa vez. Escolle un contrasinal de polo menos 8 caracteres.",
 	"auth_reset_password": "Contrasinal novo",

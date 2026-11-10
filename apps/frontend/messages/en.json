@@ -298,6 +298,7 @@
 	"auth_forgot_submit": "Send the link",
 	"auth_forgot_sent": "If that email has a Procomún account, we have sent it a link to change the password. Check your spam folder too.",
 	"auth_forgot_back": "Back to sign in",
+	"auth_forgot_failed": "The link could not be sent. Please try again later.",
 	"auth_reset_title": "Choose a new password",
 	"auth_reset_subtitle": "The link works only once. Choose a password of at least 8 characters.",
 	"auth_reset_password": "New password",

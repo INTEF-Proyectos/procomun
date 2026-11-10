@@ -46,16 +46,20 @@ describe("requestPasswordReset (#531)", () => {
 		});
 	});
 
-	test("responde ok aunque el servidor falle: no se revela si el correo existe", async () => {
-		// Un 400 aquí solo puede delatar que la cuenta no está. La interfaz
-		// enseña siempre el mismo mensaje.
+	// #551: el servidor responde igual exista o no la cuenta (el envío ya no se
+	// espera), así que un error solo puede ser que la recuperación está apagada
+	// (sin SMTP) o el límite de peticiones. Decir «enviado» ahí es mentir.
+	test("un error del servidor se cuenta: no se ha enviado nada", async () => {
 		const { client } = withFetch(
-			() => new Response('{"message":"User not found"}', { status: 400 }),
+			() =>
+				new Response('{"message":"Reset password isn\'t enabled"}', {
+					status: 400,
+				}),
 		);
 
-		expect(await client.requestPasswordReset("no-existe@ejemplo.test")).toEqual(
-			{ ok: true },
-		);
+		expect(await client.requestPasswordReset("a@b.test")).toEqual({
+			ok: false,
+		});
 	});
 
 	test("un fallo de red sí se cuenta, que no es lo mismo", async () => {
@@ -65,7 +69,21 @@ describe("requestPasswordReset (#531)", () => {
 
 		const result = await new HttpApiClient().requestPasswordReset("a@b.test");
 		expect(result.ok).toBe(false);
-		expect(result.error).toBeTruthy();
+	});
+
+	// #551: con /restablecer fijo, quien pide el enlace en inglés o con la app
+	// bajo un subdirectorio volvía a una ruta que no es la suya.
+	test("la URL de retorno respeta el idioma y la ruta base", async () => {
+		const g = globalThis as { document?: unknown };
+		const originalDocument = g.document;
+		g.document = { documentElement: { lang: "en" } };
+		try {
+			const { client, calls } = withFetch(ok);
+			await client.requestPasswordReset("a@b.test");
+			expect(calls[0]?.body).toMatchObject({ redirectTo: "/en/restablecer" });
+		} finally {
+			g.document = originalDocument;
+		}
 	});
 });
 
@@ -91,5 +109,15 @@ describe("resetPassword (#531)", () => {
 		const result = await client.resetPassword("caducado", "otra-contrasena");
 		expect(result.ok).toBe(false);
 		expect(result.error).toContain("invalid token");
+	});
+
+	// #551: un fallo de red se quedaba en una promesa rechazada sin mensaje.
+	test("un fallo de red devuelve ok: false en vez de lanzar", async () => {
+		globalThis.fetch = (async () => {
+			throw new TypeError("Failed to fetch");
+		}) as unknown as typeof fetch;
+
+		const result = await new HttpApiClient().resetPassword("t", "contrasena-1");
+		expect(result).toEqual({ ok: false });
 	});
 });

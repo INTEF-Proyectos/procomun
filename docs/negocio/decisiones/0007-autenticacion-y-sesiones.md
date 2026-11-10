@@ -139,3 +139,10 @@ Justificación principal:
 **El correo no repite el destinatario en el cuerpo.** Ya va en el `to`, y así un reenvío no lo reparte otra vez.
 
 **Validación.** `apps/api/src/email/transport.unit.test.ts` (contenido del correo, caducidad en minutos u horas, límites de la variable) y `apps/api/src/auth/password-reset.integration.test.ts`, contra la instancia real de Better Auth: la capa de correo recibe el enlace, la respuesta es la misma exista o no la cuenta, `sendResetPassword` está configurado y la contraseña de siempre sigue valiendo si no se usa el enlace.
+
+## Adenda 2026-11-10 — revisión de la recuperación (#551)
+
+* **El envío no se espera.** Better Auth solo llama a `sendResetPassword` si la cuenta existe; esperar al SMTP hacía que el tiempo de respuesta delatara qué correos están registrados. Se lanza sin `await` y un fallo se registra en el log. Con eso la respuesta es la misma exista o no la cuenta, y el cliente ya puede contar un error del servidor como fallo (antes devolvía `ok` y la pantalla decía «enviado» aunque no se mandara nada).
+* **Restablecer cierra todas las sesiones** (`revokeSessionsOnPasswordReset: true`): quien lo hace suele temer que otro tenga la contraseña vieja.
+* **Sin transporte de correo no hay recuperación.** En producción sin `SMTP_HOST` no se configura `sendResetPassword`, `/api/v1/config` devuelve `emailDeliveryEnabled: false` y el acceso esconde el enlace. Se descarta exigir SMTP al arrancar: la imagen corre con `NODE_ENV=production` y el `docker-compose.yml` no trae SMTP, así que tumbaría despliegues que hoy funcionan.
+* La URL de retorno se construye con `url()`: respeta la ruta base y el prefijo de idioma.

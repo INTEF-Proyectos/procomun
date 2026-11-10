@@ -3759,6 +3759,28 @@ tasks:
       antes: guarda en PublicCollectionsIsland, tipo string | null en
       api-client y test de regresion. Test ajustado: el toEqual de totals en
       el caso en seco incluye la clave nueva reindexFailed.
+  T-2026-11-10-20595617:
+    date: 2026-11-10
+    agent: "seguridad-privacidad-legal + backend-api-servicios + frontend-ux-accesibilidad"
+    task: "Revision de #551: recuperacion de contrasena"
+    status: Done
+    related: ["#531", "#551", "ADR-0007", "ADR-0031"]
+    notes: >
+      sendResetPassword ya no espera al SMTP: better-auth solo lo llama si la
+      cuenta existe, asi que el tiempo de respuesta (o un 500 sin transporte)
+      delataba que correos estan registrados. El envio se lanza con void y un
+      fallo se registra con console.error. revokeSessionsOnPasswordReset: true
+      para que restablecer cierre las sesiones abiertas. Sin transporte de
+      correo (produccion sin SMTP_HOST) no se configura sendResetPassword, el
+      /api/v1/config expone emailDeliveryEnabled y el acceso esconde el enlace;
+      se elige apagar el flujo en vez de exigir SMTP al arrancar porque la
+      imagen va con NODE_ENV=production y el docker-compose no trae SMTP: el
+      arranque obligatorio tumbaria despliegues que hoy funcionan. Como la
+      respuesta ya es la misma exista o no la cuenta, el cliente cuenta un
+      error del servidor como fallo (antes devolvia ok y la pantalla decia
+      enviado). redirectTo usa url() para respetar ruta base e idioma. Los
+      fallos de red de resetPassword dan un mensaje traducido en vez de una
+      promesa rechazada sin aviso.
   T-2026-11-04-17363145:
     date: 2026-11-04
     agent: "backend-api-servicios + frontend-ux-accesibilidad + seguridad-privacidad-legal"
