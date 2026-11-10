@@ -5,6 +5,16 @@ on:
     branches: [ "main", "develop" ]
   pull_request:
     branches: [ "main", "develop" ]
+    # Un PR que solo toca documentación no ejecuta nada que compile ni pruebe:
+    # se salta el run y no gasta minutos. Se excluyen de la regla DESIGN.md y
+    # decision-log.yaml porque los validan design-lint y check-tracking. Los
+    # patrones se evalúan en orden y el último que coincide manda.
+    paths:
+      - "**"
+      - "!docs/**"
+      - "!**/*.md"
+      - "DESIGN.md"
+      - "docs/negocio/decisiones/decision-log.yaml"
 
 # Un push nuevo cancela el run anterior de la misma rama. En main NO se cancela:
 # cada commit de main publica imagen y no queremos abortar una publicación a
