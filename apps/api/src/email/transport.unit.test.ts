@@ -7,6 +7,7 @@ import {
 	buildVerificationEmail,
 	type EmailMessage,
 	getEmailTransport,
+	hasEmailTransport,
 	LogEmailTransport,
 	resolveEmailVerificationConfig,
 	resolveSmtpConfig,
@@ -415,7 +416,7 @@ describe("buildChangeEmailConfirmationEmail (#532)", () => {
 describe("buildChangeEmailOptions (#532)", () => {
 	test("activa el cambio de correo con confirmacion al correo antiguo", async () => {
 		const sent: EmailMessage[] = [];
-		const options = buildChangeEmailOptions({}, () => ({
+		const options = buildChangeEmailOptions({ NODE_ENV: "test" }, () => ({
 			sendEmail: async (message: EmailMessage) => {
 				sent.push(message);
 			},
@@ -436,6 +437,31 @@ describe("buildChangeEmailOptions (#532)", () => {
 		// Con updateEmailWithoutVerification una cuenta sin verificar podria
 		// pasar a otro correo sin demostrar que lo controla.
 		expect(buildChangeEmailOptions({}).updateEmailWithoutVerification).toBe(
+			false,
+		);
+	});
+});
+
+// Revisión de #552: sin SMTP fuera de desarrollo, getEmailTransport lanza y el
+// cambio de correo daba «enviado» con un 500 detrás. Se apaga el flujo.
+describe("hasEmailTransport (#552)", () => {
+	test("hay transporte con SMTP_HOST o en desarrollo/test/CI", () => {
+		expect(
+			hasEmailTransport({
+				NODE_ENV: "production",
+				SMTP_HOST: "smtp.test",
+				MAIL_FROM: "a@b.test",
+			}),
+		).toBe(true);
+		expect(hasEmailTransport({ NODE_ENV: "development" })).toBe(true);
+	});
+
+	test("no hay transporte en producción sin SMTP_HOST", () => {
+		expect(hasEmailTransport({ NODE_ENV: "production" })).toBe(false);
+	});
+
+	test("sin transporte, el cambio de correo queda apagado", () => {
+		expect(buildChangeEmailOptions({ NODE_ENV: "production" }).enabled).toBe(
 			false,
 		);
 	});

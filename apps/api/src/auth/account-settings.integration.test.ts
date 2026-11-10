@@ -2,7 +2,7 @@ import { afterEach, describe, expect, spyOn, test } from "bun:test";
 import { user } from "@procomun/db/schema";
 import { eq } from "drizzle-orm";
 import { getDb } from "../db.ts";
-import { auth } from "./config.ts";
+import { auth, createAuth } from "./config.ts";
 import { getAuthBaseUrl, getFrontendUrl } from "./urls.ts";
 
 /**
@@ -219,5 +219,22 @@ describe("cambiar el correo (#532)", () => {
 		// Mismo código y mismo cuerpo: no sirve para saber qué correos hay.
 		expect(aOcupado.status).toBe(aLibre.status);
 		expect(await aOcupado.text()).toBe(await aLibre.text());
+	});
+});
+
+// Revisión de #552: sin transporte de correo no se puede verificar la
+// dirección nueva; mejor no ofrecer el cambio que decir «enviado» y fallar.
+describe("sin transporte de correo no hay cambio de correo (#552)", () => {
+	test("en producción sin SMTP el cambio de correo está apagado", () => {
+		const prodAuth = createAuth({
+			...process.env,
+			NODE_ENV: "production",
+			CI: "",
+			SMTP_HOST: "",
+		});
+		const changeEmail = (
+			prodAuth.options.user as { changeEmail?: { enabled?: boolean } }
+		)?.changeEmail;
+		expect(changeEmail?.enabled).toBe(false);
 	});
 });

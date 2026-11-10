@@ -181,6 +181,15 @@ export function resolveEmailVerificationConfig(
 	return { enabled, expiresIn };
 }
 
+/**
+ * ¿Se puede mandar correo? Sin SMTP fuera de desarrollo/test/CI,
+ * getEmailTransport lanza: los flujos que dependen del correo (recuperar la
+ * contraseña) se apagan en lugar de prometer un envío que acaba en 500.
+ */
+export function hasEmailTransport(env: RuntimeEnv = process.env): boolean {
+	return resolveSmtpConfig(env) !== null || allowsLogEmailTransport(env);
+}
+
 export function getEmailTransport(env: RuntimeEnv = process.env): EmailPort {
 	const smtp = resolveSmtpConfig(env);
 	if (smtp) return new SmtpEmailTransport(smtp);
@@ -274,7 +283,9 @@ export function buildChangeEmailOptions(
 	transport: (env: RuntimeEnv) => EmailPort = getEmailTransport,
 ) {
 	return {
-		enabled: true,
+		// Sin transporte no se puede verificar el correo nuevo (#552): apagado,
+		// y la pestaña Cuenta esconde el formulario.
+		enabled: hasEmailTransport(env),
 		// Nunca: una cuenta sin verificar podría pasar a otro correo sin
 		// demostrar que lo controla.
 		updateEmailWithoutVerification: false,
