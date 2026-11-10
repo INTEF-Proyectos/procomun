@@ -8,6 +8,7 @@ import { getDb } from "../db.ts";
 import {
 	buildEmailVerificationOptions,
 	buildPasswordResetOptions,
+	hasEmailTransport,
 	resolveEmailVerificationConfig,
 	resolvePasswordResetConfig,
 } from "../email/transport.ts";
@@ -87,7 +88,13 @@ export function createAuth(env: NodeJS.ProcessEnv = process.env) {
 			// #531: ADR-0007 daba la recuperación por disponible, pero
 			// sendResetPassword no estaba puesto y no se enviaba nada. Es la
 			// única vía de entrada de los importados sin contraseña traída (#488).
-			...buildPasswordResetOptions(passwordResetConfig, env),
+			// #551: sin transporte de correo no se ofrece (la interfaz lo sabe
+			// por /api/v1/config). Restablecer cierra todas las sesiones: quien
+			// lo hace suele temer que otro tenga la contraseña vieja.
+			...(hasEmailTransport(env)
+				? buildPasswordResetOptions(passwordResetConfig, env)
+				: {}),
+			revokeSessionsOnPasswordReset: true,
 		},
 		session: {
 			expiresIn: 60 * 60 * 24 * 7,

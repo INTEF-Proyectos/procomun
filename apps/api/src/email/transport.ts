@@ -181,6 +181,15 @@ export function resolveEmailVerificationConfig(
 	return { enabled, expiresIn };
 }
 
+/**
+ * ¿Se puede mandar correo? Sin SMTP fuera de desarrollo/test/CI,
+ * getEmailTransport lanza: los flujos que dependen del correo (recuperar la
+ * contraseña) se apagan en lugar de prometer un envío que acaba en 500.
+ */
+export function hasEmailTransport(env: RuntimeEnv = process.env): boolean {
+	return resolveSmtpConfig(env) !== null || allowsLogEmailTransport(env);
+}
+
 export function getEmailTransport(env: RuntimeEnv = process.env): EmailPort {
 	const smtp = resolveSmtpConfig(env);
 	if (smtp) return new SmtpEmailTransport(smtp);
@@ -306,13 +315,22 @@ export function buildPasswordResetOptions(
 			user: { email: string };
 			url: string;
 		}): Promise<void> => {
-			await transport(env).sendEmail(
-				buildPasswordResetEmail({
-					email: user.email,
-					url,
-					expiresIn: config.expiresIn,
-				}),
-			);
+			// Sin await (#551): better-auth solo llama aquí si la cuenta existe,
+			// así que esperar al SMTP delataba por el tiempo de respuesta qué
+			// correos están registrados. Un fallo se registra y no se propaga.
+			void Promise.resolve()
+				.then(() =>
+					transport(env).sendEmail(
+						buildPasswordResetEmail({
+							email: user.email,
+							url,
+							expiresIn: config.expiresIn,
+						}),
+					),
+				)
+				.catch((error: unknown) => {
+					console.error("[email] no se ha enviado el restablecimiento", error);
+				});
 		},
 		resetPasswordTokenExpiresIn: config.expiresIn,
 	};

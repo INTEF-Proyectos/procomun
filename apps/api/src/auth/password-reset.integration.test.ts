@@ -90,3 +90,52 @@ describe("recuperar la contraseña olvidada (#531)", () => {
 		expect(getDb().db).toBeDefined();
 	});
 });
+
+// Revisión de #551: quien restablece la contraseña suele hacerlo porque teme
+// que otro la tenga; las sesiones abiertas con la vieja tienen que caer.
+describe("restablecer cierra las sesiones abiertas (#551)", () => {
+	test("la sesión anterior deja de valer tras el restablecimiento", async () => {
+		const auth = createAuth(process.env);
+		const email = `revocar-${crypto.randomUUID()}@issue531.test`;
+		const signUp = await auth.api.signUpEmail({
+			body: { email, password: "contrasena-vieja-551", name: "Revocar" },
+			asResponse: true,
+		});
+		const cookie = signUp.headers.get("set-cookie") ?? "";
+		const headers = new Headers({ cookie });
+		const before = await auth.api.getSession({ headers });
+		expect(before?.user.email).toBe(email);
+
+		const ctx = await auth.$context;
+		const token = `t-${crypto.randomUUID()}`;
+		await ctx.internalAdapter.createVerificationValue({
+			value: before?.user.id ?? "",
+			identifier: `reset-password:${token}`,
+			expiresAt: new Date(Date.now() + 60_000),
+		});
+		const res = await auth.api.resetPassword({
+			body: { token, newPassword: "contrasena-nueva-551" },
+			asResponse: true,
+		});
+		expect(res.status).toBe(200);
+
+		expect(await auth.api.getSession({ headers })).toBeNull();
+	});
+});
+
+// Revisión de #551: sin transporte de correo el servidor no puede mandar el
+// enlace; mejor no ofrecer la recuperación que decir «enviado» y fallar.
+describe("sin transporte de correo no hay recuperación (#551)", () => {
+	test("en producción sin SMTP no se configura sendResetPassword", () => {
+		const auth = createAuth({
+			...process.env,
+			NODE_ENV: "production",
+			CI: "",
+			SMTP_HOST: "",
+		});
+		const options = auth.options.emailAndPassword as
+			| { sendResetPassword?: unknown }
+			| undefined;
+		expect(options?.sendResetPassword).toBeUndefined();
+	});
+});

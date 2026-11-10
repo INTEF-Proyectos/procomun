@@ -7,6 +7,7 @@ import {
 	buildVerificationEmail,
 	type EmailMessage,
 	getEmailTransport,
+	hasEmailTransport,
 	LogEmailTransport,
 	resolveEmailVerificationConfig,
 	resolvePasswordResetConfig,
@@ -467,5 +468,63 @@ describe("buildPasswordResetOptions (#531)", () => {
 			buildPasswordResetOptions({ expiresIn: 900 }, {})
 				.resetPasswordTokenExpiresIn,
 		).toBe(900);
+	});
+});
+
+// Revisión de #551: esperar al SMTP solo cuando la cuenta existe hacía que el
+// tiempo de respuesta (o un 500 sin transporte) delatara qué correos están
+// registrados. El envío se lanza y no se espera.
+describe("buildPasswordResetOptions no espera al envío (#551)", () => {
+	test("responde sin esperar a que el SMTP termine", async () => {
+		const options = buildPasswordResetOptions({ expiresIn: 3600 }, {}, () => ({
+			sendEmail: () => new Promise<void>(() => {}),
+		}));
+
+		const result = await Promise.race([
+			options
+				.sendResetPassword({ user: { email: "a@b.test" }, url: "u" })
+				.then(() => "respondido"),
+			new Promise((resolve) => setTimeout(() => resolve("bloqueado"), 50)),
+		]);
+
+		expect(result).toBe("respondido");
+	});
+
+	test("un fallo del transporte no llega a la respuesta", async () => {
+		const errors: unknown[] = [];
+		const originalError = console.error;
+		console.error = (...args: unknown[]) => errors.push(args);
+		try {
+			const options = buildPasswordResetOptions({ expiresIn: 3600 }, {}, () => {
+				throw new Error("sin transporte");
+			});
+			await options.sendResetPassword({
+				user: { email: "a@b.test" },
+				url: "u",
+			});
+			await new Promise((resolve) => setTimeout(resolve, 0));
+		} finally {
+			console.error = originalError;
+		}
+		expect(errors).toHaveLength(1);
+	});
+});
+
+// Revisión de #551: sin SMTP fuera de desarrollo, getEmailTransport lanza y la
+// recuperación daba «enviado» con un 500 detrás. Se apaga el flujo entero.
+describe("hasEmailTransport (#551)", () => {
+	test("hay transporte con SMTP_HOST o en desarrollo/test/CI", () => {
+		expect(
+			hasEmailTransport({
+				NODE_ENV: "production",
+				SMTP_HOST: "smtp.test",
+				MAIL_FROM: "a@b.test",
+			}),
+		).toBe(true);
+		expect(hasEmailTransport({ NODE_ENV: "development" })).toBe(true);
+	});
+
+	test("no hay transporte en producción sin SMTP_HOST", () => {
+		expect(hasEmailTransport({ NODE_ENV: "production" })).toBe(false);
 	});
 });
