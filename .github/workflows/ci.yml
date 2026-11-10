@@ -20,7 +20,11 @@ permissions:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    # Dónde corre lo decide la variable USE_SELFHOSTED_RUNNER del repositorio:
+    # `true` usa el runner propio (gordobot); `false` o sin definir, los de
+    # GitHub. Se cambia con `gh variable set USE_SELFHOSTED_RUNNER --body false`
+    # sin tocar ningún workflow.
+    runs-on: ${{ vars.USE_SELFHOSTED_RUNNER == 'true' && 'self-hosted' || 'ubuntu-latest' }}
 
     steps:
     - name: Checkout repository
@@ -90,7 +94,7 @@ jobs:
   docker:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     needs: [build, e2e]
-    runs-on: ubuntu-latest
+    runs-on: ${{ vars.USE_SELFHOSTED_RUNNER == 'true' && 'self-hosted' || 'ubuntu-latest' }}
 
     # Solo este job publica en el registro.
     permissions:
