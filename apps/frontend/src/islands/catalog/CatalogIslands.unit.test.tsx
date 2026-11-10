@@ -5,6 +5,7 @@ import { url } from "../../lib/paths.ts";
 import { ResourceCard } from "../../ui/ResourceCard.tsx";
 import { CatalogIsland, CatalogResourceCard } from "./CatalogIsland.tsx";
 import { CatalogSearchIsland } from "./CatalogSearchIsland.tsx";
+import { KnowledgeAreaSearchFilters } from "./KnowledgeAreaSearchFilters.tsx";
 import {
 	ResourceDetailContent,
 	ResourceDetailIsland,
@@ -290,6 +291,25 @@ describe("Catalog islands", () => {
 		}
 	});
 
+	// Revisión de #471: un paquete con screenshot.png y sin index.html tiene
+	// miniatura para las tarjetas, pero la ficha no ofrece un visor inexistente.
+	test("la ficha de un paquete sin visor no ofrece vista previa ni «Ponlo en tu web»", () => {
+		const html = renderDetail(
+			{
+				elpxPreview: {
+					hash: "abc",
+					previewUrl: null,
+					screenshotUrl: "/api/v1/elpx/abc/screenshot.png",
+				},
+			},
+			"reader",
+		);
+		expect(html).not.toContain("elpx-preview-section");
+		expect(html).not.toContain("embed-section");
+		expect(html).not.toContain("<iframe");
+		expect(html).not.toContain("detail-action-primary");
+	});
+
 	test("la tarjeta de un recurso no publicado no muestra su valoración (#461)", () => {
 		const card = (editorialStatus: string) =>
 			renderToStaticMarkup(
@@ -426,6 +446,104 @@ describe("Catalog islands", () => {
 		expect(html).toContain(
 			`${search("Primer ciclo (0-3 años)")}>Primer ciclo (0-3 años)</a>`,
 		);
+	});
+
+	// #448: la ficha muestra las áreas del catálogo y, en FP, las familias.
+	test("las áreas sustituyen a las materias de origen y filtran el buscador", () => {
+		const html = renderDetail(
+			{
+				subjects: ["Ciencias Químicas"],
+				knowledgeAreas: [
+					{
+						id: "quimica",
+						label: "Química",
+						blockId: "ciencias",
+						active: true,
+					},
+					// Desactivada: se sigue mostrando con su denominación vigente.
+					{
+						id: "ajedrez",
+						label: "Ajedrez",
+						blockId: "transversales",
+						active: false,
+					},
+				],
+			},
+			"viewer",
+		);
+		expect(html).toContain("Áreas de conocimiento");
+		expect(html).toContain(
+			`href="${url("explorar?knowledgeAreas=quimica")}">Química</a>`,
+		);
+		expect(html).toContain(
+			`href="${url("explorar?knowledgeAreas=ajedrez")}">Ajedrez</a>`,
+		);
+		expect(html).not.toContain("inactiva");
+		expect(html).not.toContain("Materias");
+		expect(html).not.toContain("Ciencias Químicas");
+	});
+
+	test("las familias profesionales salen en la ficha de un recurso de FP", () => {
+		const html = renderDetail(
+			{
+				educationalAreas: [
+					{ categoryId: "formacion-profesional", optionId: null },
+				],
+				professionalFamilies: [
+					{ id: "hosteleria-y-turismo", label: "Hostelería y Turismo" },
+				],
+			},
+			"viewer",
+		);
+		expect(html).toContain("Familias profesionales");
+		// En el atributo, el & va escapado.
+		expect(html).toContain(
+			`href="${url("explorar?educationalCategory=formacion-profesional&professionalFamilies=hosteleria-y-turismo").replace("&", "&amp;")}">Hostelería y Turismo</a>`,
+		);
+		expect(renderDetail({}, "viewer")).not.toContain("Familias profesionales");
+	});
+
+	test("el buscador filtra por áreas y, solo con FP, por familias (#448)", () => {
+		const catalog = {
+			blocks: [{ id: "lenguas-extranjeras", label: "Lenguas extranjeras" }],
+			areas: [
+				{
+					id: "ingles",
+					label: "Inglés",
+					blockId: "lenguas-extranjeras",
+					active: true,
+				},
+			],
+			professionalFamilies: [
+				{ id: "hosteleria-y-turismo", label: "Hostelería y Turismo" },
+			],
+		};
+		const withoutFp = renderToStaticMarkup(
+			<KnowledgeAreaSearchFilters
+				catalog={catalog}
+				educationalCategory="bachillerato"
+				knowledgeAreas={["ingles"]}
+				professionalFamilies={["hosteleria-y-turismo"]}
+				onChange={() => {}}
+			/>,
+		);
+		expect(withoutFp).toContain("<legend>Áreas de conocimiento</legend>");
+		expect(withoutFp).toContain('id="filter-knowledgeAreas"');
+		// El filtro activo se ve y se quita por separado.
+		expect(withoutFp).toContain('aria-label="Quitar Inglés"');
+		expect(withoutFp).not.toContain("Familia profesional");
+
+		const withFp = renderToStaticMarkup(
+			<KnowledgeAreaSearchFilters
+				catalog={catalog}
+				educationalCategory="formacion-profesional"
+				knowledgeAreas={[]}
+				professionalFamilies={["hosteleria-y-turismo"]}
+				onChange={() => {}}
+			/>,
+		);
+		expect(withFp).toContain("<legend>Familia profesional</legend>");
+		expect(withFp).toContain('aria-label="Quitar Hostelería y Turismo"');
 	});
 
 	test("la fecha de publicación sigue siendo texto", () => {
