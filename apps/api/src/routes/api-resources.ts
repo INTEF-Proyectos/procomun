@@ -1,9 +1,9 @@
 import * as repo from "@procomun/db/repository";
 import {
-	transitionExclusionError,
 	validateCreateResource,
 	validateResourceForStatus,
 	validateResourceUpdateForStatus,
+	validateTransition,
 	validateUpdateResource,
 } from "@procomun/db/validation";
 import { Hono } from "hono";
@@ -65,17 +65,21 @@ apiResourceRoutes.post("/", async (c) => {
 		);
 	}
 
-	// #506: crear en revisión es enviar a revisión, y el editor no puede; lo
-	// rechaza la misma regla que PATCH /api/admin/resources/:id/status.
-	const excluded =
-		(body as Record<string, unknown>).editorialStatus === "review"
-			? transitionExclusionError("draft", "review", user.role ?? "reader")
-			: null;
-	if (excluded) {
-		return c.json(
-			{ error: "Transición no permitida", details: [excluded] },
-			403,
+	// #506: crear en revisión es enviar a revisión. Se aplica la transición
+	// draft → review entera, como PATCH /api/admin/resources/:id/status: su rol
+	// mínimo (author) y la exclusión del editor.
+	if ((body as Record<string, unknown>).editorialStatus === "review") {
+		const transition = validateTransition(
+			"draft",
+			"review",
+			user.role ?? "reader",
 		);
+		if (!transition.valid) {
+			return c.json(
+				{ error: "Transición no permitida", details: transition.errors },
+				403,
+			);
+		}
 	}
 
 	const data = body as Record<string, unknown>;
