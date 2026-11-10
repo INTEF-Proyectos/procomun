@@ -206,8 +206,11 @@ export interface AuthorWithoutAccount {
 	externalId: string;
 	/** Correo normalizado; null si el JSON no lo trae. */
 	email: string | null;
-	/** Sin correo, sin cuenta con ese correo, o con una cuenta dada de baja. */
-	reason: "no_email" | "no_account" | "deleted_account";
+	/**
+	 * Sin correo, sin cuenta con ese correo, con una cuenta dada de baja o con
+	 * una cuenta que no ha verificado el correo.
+	 */
+	reason: "no_email" | "no_account" | "deleted_account" | "unverified_account";
 }
 
 /**
@@ -957,7 +960,9 @@ function createLegacyAuthorResolver(
 			? { userId: null, reason: "no_account" }
 			: account.deleted
 				? { userId: null, reason: "deleted_account" }
-				: { userId: account.id };
+				: !account.emailVerified
+					? { userId: null, reason: "unverified_account" }
+					: { userId: account.id };
 		cache.set(email, author);
 		return author;
 	};

@@ -1251,7 +1251,7 @@ describe("runImportLegacyProcomun — autoría (issue #456)", () => {
 			mapLegacyRecord: mapWithEmail("autora@ejemplo.test"),
 			findLegacyAuthorAccount: async (_db, email) => {
 				lookups.push(email);
-				return { id: "autora-1", deleted: false };
+				return { id: "autora-1", deleted: false, emailVerified: true };
 			},
 			repo,
 		});
@@ -1318,7 +1318,7 @@ describe("runImportLegacyProcomun — autoría (issue #456)", () => {
 						}) as Deps["mapLegacyRecord"],
 			findLegacyAuthorAccount: async (_db, email) => {
 				lookups.push(email);
-				return { id: "autora-baja", deleted: true };
+				return { id: "autora-baja", deleted: true, emailVerified: true };
 			},
 			repo: { ...base.repo },
 		});
@@ -1339,6 +1339,35 @@ describe("runImportLegacyProcomun — autoría (issue #456)", () => {
 		]);
 	});
 
+	test("una cuenta sin el correo verificado no recibe el recurso", async () => {
+		// Si no, quien se registre con el correo de un autor antiguo antes de
+		// la importación se queda con sus recursos.
+		const { calls, repo } = captureImports();
+		const deps = buildMockDeps(storageDir, {
+			mapLegacyRecord: mapWithEmail("autora@ejemplo.test"),
+			findLegacyAuthorAccount: async () => ({
+				id: "impostora",
+				deleted: false,
+				emailVerified: false,
+			}),
+			repo,
+		});
+
+		const report = await runImportLegacyProcomun(
+			{ sourceDir: dir, dryRun: false },
+			deps,
+		);
+
+		expect(calls[0]?.resource.createdBy).toBeNull();
+		expect(report.authorsWithoutAccount).toEqual([
+			{
+				externalId: "es_mock",
+				email: "autora@ejemplo.test",
+				reason: "unverified_account",
+			},
+		]);
+	});
+
 	test("la misma cuenta se busca una sola vez por ejecución", async () => {
 		await writeFile(path.join(dir, "es_otro.json"), "{}");
 		await writeFile(path.join(dir, "es_otro.elpx"), "otros-bytes");
@@ -1347,7 +1376,7 @@ describe("runImportLegacyProcomun — autoría (issue #456)", () => {
 			mapLegacyRecord: mapWithEmail("autora@ejemplo.test"),
 			findLegacyAuthorAccount: async () => {
 				lookups++;
-				return { id: "autora-1", deleted: false };
+				return { id: "autora-1", deleted: false, emailVerified: true };
 			},
 		});
 
@@ -1364,7 +1393,11 @@ describe("runImportLegacyProcomun — autoría (issue #456)", () => {
 		const { calls, repo } = captureImports();
 		const deps = buildMockDeps(storageDir, {
 			mapLegacyRecord: mapWithEmail("autora@ejemplo.test"),
-			findLegacyAuthorAccount: async () => ({ id: "autora-1", deleted: false }),
+			findLegacyAuthorAccount: async () => ({
+				id: "autora-1",
+				deleted: false,
+				emailVerified: true,
+			}),
 			repo,
 		});
 
@@ -1392,6 +1425,7 @@ describe("runImportLegacyProcomun — autoría (issue #456)", () => {
 				findLegacyAuthorAccount: async () => ({
 					id: "autora-1",
 					deleted: false,
+					emailVerified: true,
 				}),
 				linkLegacyResourceAuthor: async (_db, resourceId, userId, opts) => {
 					links.push([resourceId, userId, opts.dryRun]);
@@ -1786,7 +1820,7 @@ describe("runLinkLegacyAuthors", () => {
 		return buildMockDeps("/tmp/no-se-usa", {
 			findLegacyAuthorAccount: async (_db, email) =>
 				email === "autora@ejemplo.test"
-					? { id: "autora-1", deleted: false }
+					? { id: "autora-1", deleted: false, emailVerified: true }
 					: null,
 			linkLegacyResourceAuthor: async (_db, resourceId, userId, opts) => {
 				links.push([resourceId, userId, opts.dryRun]);

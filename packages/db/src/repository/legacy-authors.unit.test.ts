@@ -35,11 +35,11 @@ describe("autoría de los recursos legacy (issue #456)", () => {
 	});
 
 	/** Inserta tal cual, sin pasar por ensureUser (que normaliza el correo). */
-	async function insertUser(id: string, email: string) {
+	async function insertUser(id: string, email: string, emailVerified = true) {
 		await db.insert(schema.user).values({
 			id,
 			email,
-			emailVerified: true,
+			emailVerified,
 			role: "author",
 			createdAt: new Date(),
 			updatedAt: new Date(),
@@ -106,7 +106,7 @@ describe("autoría de los recursos legacy (issue #456)", () => {
 
 			expect(
 				await findLegacyAuthorAccount(db, "  AUTORA.uno@ejemplo.TEST "),
-			).toEqual({ id: "autora-1", deleted: false });
+			).toEqual({ id: "autora-1", deleted: false, emailVerified: true });
 		});
 
 		test("devuelve null si ninguna cuenta tiene ese correo", async () => {
@@ -123,6 +123,19 @@ describe("autoría de los recursos legacy (issue #456)", () => {
 			expect(await findLegacyAuthorAccount(db, "baja@ejemplo.test")).toEqual({
 				id: "autora-baja",
 				deleted: true,
+				emailVerified: true,
+			});
+		});
+
+		test("marca las cuentas sin el correo verificado", async () => {
+			// Con AUTH_REQUIRE_EMAIL_VERIFICATION=false cualquiera puede darse de
+			// alta con el correo de un autor antiguo: no basta con que coincida.
+			await insertUser("sin-verificar", "autora@ejemplo.test", false);
+
+			expect(await findLegacyAuthorAccount(db, "autora@ejemplo.test")).toEqual({
+				id: "sin-verificar",
+				deleted: false,
+				emailVerified: false,
 			});
 		});
 
