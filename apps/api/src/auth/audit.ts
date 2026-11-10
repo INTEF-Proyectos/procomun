@@ -7,24 +7,38 @@ import type { AuthEnv } from "./middleware.ts";
 /**
  * Ruta tal y como se guarda en `api_access_logs` (issue #536).
  *
- * En el enlace firmado de un recurso no publicado (#466) el permiso va en la
- * propia URL: `/api/v1/elpx/preview/<hash>/<token>/…`. Guardar la ruta entera
- * dejaba el token en la tabla, así que quien pudiera leerla podía abrir el
- * contenido no publicado mientras el enlace no caducase (2 h). Se tapa el
- * token y se conserva el hash, que es lo que dice qué recurso se vio. El
- * marcador es el mismo que usa el `access_log` de nginx (#524).
+ * Varias rutas sin sesión llevan el permiso en la propia URL, y guardar la
+ * ruta entera lo dejaba en la tabla: quien pudiera leerla podía reutilizarlo
+ * mientras no caducase. Se tapa el secreto y se conserva lo que dice qué se
+ * vio. Los marcadores son los mismos que usa el `access_log` de nginx (#524).
  *
- * `c.req.path` no trae la query, así que el `?token=` de la verificación de
- * correo no llega aquí. La instantánea de la vista previa del editor (#317,
- * `/api/v1/preview/<id>/…` y `/api/v1/preview-session/<id>`) tendrá que añadir
- * su propio marcador `:previewId` cuando esas rutas existan.
+ * - Enlace firmado de un recurso no publicado (#466):
+ *   `/api/v1/elpx/preview/<hash>/<token>/…`. El token pasa a `:token`.
+ * - Miniatura firmada de un recurso no publicado (#512):
+ *   `/api/v1/thumbnails/signed/<token>/<fichero>`. El token pasa a `:token`.
+ * - Instantánea de la vista previa del editor (#317): `/api/v1/preview/<id>/…`
+ *   y `/api/v1/preview-session/<id>/…`. El UUID pasa a `:previewId`.
+ *
+ * Se tapa cualquier segmento en la posición del token, válido o no, porque la
+ * auditoría no sabe si se verificó. Sin distinguir mayúsculas, como #317.
+ * `c.req.path` llega ya decodificado (Hono), así que `previe%77` no se cuela,
+ * y no trae la query, así que el `?token=` de la verificación de correo
+ * tampoco llega aquí.
  */
-const SIGNED_PREVIEW_RE = new RegExp(
-	`^(${ELPX_PREVIEW_PREFIX}/[^/]+/)[^/]+(.*)$`,
-);
+const CAPABILITY_PATHS: ReadonlyArray<readonly [RegExp, string]> = [
+	[new RegExp(`^(${ELPX_PREVIEW_PREFIX}/[^/]+/)[^/]+`, "i"), "$1:token"],
+	[/^(\/api\/v1\/thumbnails\/signed\/)[^/]+/i, "$1:token"],
+	[
+		/^(\/api\/v1\/preview(?:-session)?\/)[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i,
+		"$1:previewId",
+	],
+];
 
 export function redactAuditPath(path: string): string {
-	return path.replace(SIGNED_PREVIEW_RE, "$1:token$2");
+	return CAPABILITY_PATHS.reduce(
+		(acc, [re, marker]) => acc.replace(re, marker),
+		path,
+	);
 }
 
 /**

@@ -79,6 +79,6 @@ bun run --filter '@procomun/cli' cli -- user-create --email admin@midominio.com 
 
 `redactAuditPath` (`apps/api/src/auth/audit.ts`) cambia el token por `:token` antes de escribir. El hash se conserva, que es lo que dice qué recurso se vio. El marcador es el mismo que usa el `access_log` de nginx (#524), para que las dos fuentes se lean igual.
 
-`c.req.path` no trae la query, así que el `?token=` de la verificación de correo nunca llegó a esta tabla. La instantánea de la vista previa del editor (#317, `/api/v1/preview/<id>/…` y `/api/v1/preview-session/<id>`) tendrá que añadir su marcador `:previewId` cuando esas rutas existan.
+`c.req.path` no trae la query, así que el `?token=` de la verificación de correo nunca llegó a esta tabla. El mismo helper tapa el resto de URL con permiso en la ruta: la miniatura firmada de un recurso no publicado (#512, `/api/v1/thumbnails/signed/<token>/<fichero>` → `:token`) y la instantánea de la vista previa del editor (#317, `/api/v1/preview/<id>/…` y `/api/v1/preview-session/<id>/…` → `:previewId`, solo si el segmento tiene forma de UUID). No distingue mayúsculas, y como Hono entrega `c.req.path` ya decodificado, una ruta con escapes (`previe%77`) se registra tapada igual. Cuando #317 se rebase, debe quedarse con esta versión de `redactAuditPath` en lugar de la suya.
 
 **Filas anteriores al arreglo.** Las que ya estén guardadas conservan el token. Los tokens caducan a las 2 h, así que las antiguas no sirven para abrir nada, pero conviene no exportar esa columna en crudo.

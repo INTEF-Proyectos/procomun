@@ -141,3 +141,97 @@ describe("auditMiddleware escribe la ruta sin el token (#536)", () => {
 		expect(inserted[0]?.path).not.toContain(token);
 	});
 });
+
+// El resto de URL con permiso en la ruta: la miniatura firmada de un recurso
+// no publicado (#512) y la instantanea de la vista previa del editor (#317).
+// Un solo helper para todas, para que #317 tome esta version al rebasar.
+describe("redactAuditPath: otras URL con permiso en la ruta", () => {
+	const id = "756f4e31-18e6-4f16-b868-516c5b945d8b";
+	const token = "1762255200.c0ffee1234567890abcdef";
+	const file = `${"b".repeat(64)}.jpg`;
+
+	test("tapa el token de la miniatura firmada y conserva el fichero (#512)", () => {
+		expect(redactAuditPath(`/api/v1/thumbnails/signed/${token}/${file}`)).toBe(
+			`/api/v1/thumbnails/signed/:token/${file}`,
+		);
+		expect(redactAuditPath(`/api/v1/thumbnails/${file}`)).toBe(
+			`/api/v1/thumbnails/${file}`,
+		);
+	});
+
+	test("tapa el previewId de la vista previa y de su gestion (#317)", () => {
+		expect(redactAuditPath(`/api/v1/preview/${id}/index.html`)).toBe(
+			"/api/v1/preview/:previewId/index.html",
+		);
+		expect(redactAuditPath(`/api/v1/preview/${id}`)).toBe(
+			"/api/v1/preview/:previewId",
+		);
+		expect(redactAuditPath(`/api/v1/preview-session/${id}/revisions`)).toBe(
+			"/api/v1/preview-session/:previewId/revisions",
+		);
+		expect(redactAuditPath(`/api/v1/preview/${id.toUpperCase()}/x`)).toBe(
+			"/api/v1/preview/:previewId/x",
+		);
+	});
+
+	test("deja igual lo que no es un previewId (#317)", () => {
+		for (const path of [
+			"/api/v1/preview-session",
+			"/api/v1/preview/not-a-uuid/x",
+			`/api/v1/previewx/${id}`,
+			`/x/api/v1/preview/${id}`,
+		]) {
+			expect(redactAuditPath(path)).toBe(path);
+		}
+	});
+
+	test("no distingue mayusculas en el prefijo", () => {
+		expect(
+			redactAuditPath(`/API/V1/ELPX/PREVIEW/${"a".repeat(64)}/${token}/x`),
+		).toBe(`/API/V1/ELPX/PREVIEW/${"a".repeat(64)}/:token/x`);
+		expect(redactAuditPath(`/Api/v1/Thumbnails/Signed/${token}/${file}`)).toBe(
+			`/Api/v1/Thumbnails/Signed/:token/${file}`,
+		);
+	});
+
+	test("una ruta con escapes %xx llega ya decodificada al middleware", async () => {
+		// nginx registra $request_uri en crudo, pero Hono decodifica c.req.path:
+		// /api/v1/elpx/previe%77/... llega al registro como .../preview/...
+		const hash = "a".repeat(64);
+		const db = getDb().db;
+		const inserted: Array<{ path?: string }> = [];
+		const insertSpy = spyOn(db, "insert").mockImplementation(
+			() =>
+				({
+					values: (row: { path?: string }) => {
+						inserted.push(row);
+						return Promise.resolve();
+					},
+				}) as never,
+		);
+		try {
+			const app = new Hono<AuthEnv>();
+			app.use("*", async (c, next) => {
+				c.set("user", null);
+				c.set("session", null);
+				await next();
+			});
+			app.use("/api/*", auditMiddleware);
+			app.get("/api/*", (c) => c.text("ok"));
+			await app.request(`/api/v1/elpx/previe%77/${hash}/${token}/index.html`);
+			await app.request(`/api/v1/thumbnails/%73igned/${token}/${file}`);
+			await app.request(`/api/v1/preview/${id}/index.html`);
+		} finally {
+			insertSpy.mockRestore();
+		}
+		expect(inserted.map((r) => r.path)).toEqual([
+			`/api/v1/elpx/preview/${hash}/:token/index.html`,
+			`/api/v1/thumbnails/signed/:token/${file}`,
+			"/api/v1/preview/:previewId/index.html",
+		]);
+		for (const { path } of inserted) {
+			expect(path).not.toContain(token);
+			expect(path).not.toContain(id);
+		}
+	});
+});
