@@ -55,3 +55,20 @@ Tabla propia `knowledge_areas` (id estable, denominación, descripción, bloque,
 * Panel «Áreas de conocimiento» en Administrar (curator+).
 * PR 2: campo con búsqueda y autocompletado agrupado por bloques, familia profesional al elegir FP (limpiando las familias si se quita FP), ficha, filtros y obligatoriedad de al menos un área para salir de borrador.
 * PR 3: tabla de correspondencias de `knowledgeArea`, informe, listado de curación y registro de quién resuelve.
+
+## Actualización 2026-11-03 — PR 2: formularios, ficha y buscador
+
+Sin migración: usa las tablas de la `0014`.
+
+* **Catálogo público:** `GET /api/v1/knowledge-areas`, sin sesión, con los bloques, las áreas (`id`, `label`, `blockId`, `active`) y las familias. Incluye las desactivadas para que el buscador siga encontrando sus recursos; no expone recuentos ni descripciones, que siguen en `/api/admin/knowledge-areas`.
+* **Alta y edición** (`/api/admin/resources` y `/api/v1/publish/resources`): campos `knowledgeAreaIds` y `professionalFamilyIds`.
+  * `validation.ts` comprueba la forma: lista sin repetir, como máximo 3 áreas y familias de la lista oficial. Las familias se cruzan con FP si el cuerpo trae la categorización; en un alta sin ella, no se admiten.
+  * El repositorio comprueba, antes de escribir nada, que las áreas existan y estén activas (las desactivadas solo si el recurso ya las tenía) y que las familias vayan con FP, usando la categorización nueva o la guardada. Si la categorización nueva quita FP, borra las familias aunque no lleguen en el cuerpo.
+  * Los errores del repositorio llevan `field` y las rutas CRUD los devuelven en `details`, como los de la validación, para marcar el campo en el formulario.
+* **Al menos un área para salir de borrador:** `validateResourceForStatus` (#408) la exige al pasar a `review` o `published`. La API de publicación la exige también al crear en `review`. Lo importado no pasa por aquí mientras no cambie de estado.
+* **No se puede vaciar en un publicado:** al editar un recurso en revisión o publicado que tiene áreas, no se pueden quitar todas (`validateResourceUpdateForStatus`, con un gancho `validateUpdateWith` en `crud-builder`). Un publicado sin áreas (importado) se sigue editando sin elegirlas.
+* **Formularios:** el alta (`NuevoPage`) y la edición (`EditarPageBase`, que también abre «Crear recurso manualmente») tienen «Áreas de conocimiento» y, con FP, «Familia profesional». Componente `CatalogMultiSelect`: combobox con lista agrupada por bloques (patrón APG), búsqueda sin mayúsculas ni tildes, chips con «Quitar», y `fieldset`/`legend`. Las desactivadas que ya tiene el recurso salen marcadas como inactivas. Si se quita FP con familias elegidas, el campo se sustituye por un aviso de que se borrarán al guardar.
+* **Ficha:** «Áreas de conocimiento» con enlace al buscador filtrado por cada área, y «Familias profesionales» en FP. Como con las palabras clave (ADR-0042), si el recurso no tiene áreas se siguen mostrando las materias de origen: así el fondo importado no pierde la fila hasta el PR 3.
+* **Buscador:** parámetros `knowledgeAreas` y `professionalFamilies` (ids separados por comas). Dentro de cada filtro, cualquiera de los valores; entre etapa, área y familia, todos. El filtro de familias solo aparece con la etapa FP y se limpia al quitarla.
+* **Mensajes:** los textos nuevos de la interfaz van en Paraglide en los cinco idiomas. Las denominaciones de las áreas y familias siguen solo en castellano.
+* **Fuera de este PR:** las versiones del recurso (#31) no guardan áreas ni familias en su copia, igual que las palabras clave del catálogo; la búsqueda de texto no las indexa.

@@ -278,6 +278,7 @@ export const SCHEMA_STATEMENTS = [
 		upload_session_id TEXT,
 		version INTEGER NOT NULL DEFAULT 3,
 		has_preview BOOLEAN NOT NULL DEFAULT false,
+		has_screenshot BOOLEAN NOT NULL DEFAULT false,
 		elpx_metadata JSONB,
 		created_at TIMESTAMP NOT NULL DEFAULT NOW(),
 		updated_at TIMESTAMP NOT NULL DEFAULT NOW()
@@ -548,6 +549,10 @@ export const SCHEMA_STATEMENTS = [
 	`ALTER TABLE "resources" ALTER COLUMN language DROP NOT NULL`,
 	`DO $$ BEGIN
 		ALTER TABLE "resources" ADD COLUMN other_authors TEXT;
+	EXCEPTION WHEN duplicate_column THEN NULL;
+	END $$`,
+	`DO $$ BEGIN
+		ALTER TABLE "elpx_projects" ADD COLUMN has_screenshot BOOLEAN NOT NULL DEFAULT false;
 	EXCEPTION WHEN duplicate_column THEN NULL;
 	END $$`,
 	`DO $$ BEGIN
