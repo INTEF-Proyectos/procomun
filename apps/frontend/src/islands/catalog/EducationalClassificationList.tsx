@@ -22,6 +22,27 @@ export function SearchValueList({ values }: { values: string[] }) {
 	));
 }
 
+/**
+ * Valores de un catálogo cerrado (áreas, familias, #448): cada uno lleva al
+ * buscador filtrado por él, no a una búsqueda de texto.
+ */
+export function CatalogValueList({
+	values,
+	href,
+}: {
+	values: Array<{ id: string; label: string }>;
+	href: (id: string) => string;
+}) {
+	return values.map((value, index) => (
+		<span key={value.id}>
+			{index > 0 ? ", " : null}
+			<a className="meta-value-link" href={href(value.id)}>
+				{value.label}
+			</a>
+		</span>
+	));
+}
+
 export function EducationalClassificationList({
 	areas,
 }: {
