@@ -62,6 +62,7 @@ function buildMockDeps(
 				hash,
 				extractPath,
 				hasPreview: true,
+				hasScreenshot: false,
 				metadata: {
 					title: "t",
 					description: "d",
@@ -537,6 +538,39 @@ describe("runImportLegacyProcomun (deps mockeadas)", () => {
 			outcome: "imported",
 			resourceId: "mock-resource-id",
 		});
+	});
+
+	// #409: la miniatura screenshot.png del paquete se guarda en el proyecto.
+	test("guarda hasScreenshot del paquete procesado", async () => {
+		const base = buildMockDeps(storageDir);
+		let hasScreenshot: boolean | undefined;
+		const deps = buildMockDeps(storageDir, {
+			processElpxUpload: (async (
+				...args: Parameters<Deps["processElpxUpload"]>
+			) => ({
+				...(await base.processElpxUpload(...args)),
+				hasScreenshot: true,
+			})) as Deps["processElpxUpload"],
+			repo: {
+				...base.repo,
+				importLegacyResourceWithElpx: async (
+					_db: Parameters<Deps["repo"]["importLegacyResourceWithElpx"]>[0],
+					input: Parameters<Deps["repo"]["importLegacyResourceWithElpx"]>[1],
+				) => {
+					hasScreenshot = input.elpx.hasScreenshot;
+					return {
+						resourceId: "mock-resource-id",
+						slug: "mock-slug",
+						mediaItemId: "mock-media-id",
+						elpxProjectId: "mock-elpx-id",
+					};
+				},
+			},
+		});
+
+		await runImportLegacyProcomun({ sourceDir: dir, dryRun: false }, deps);
+
+		expect(hasScreenshot).toBe(true);
 	});
 
 	// #409: la imagen preview legacy se copia y no se enlaza en caliente.

@@ -8,10 +8,10 @@
 		"test": "bun test"
 	},
 	"dependencies": {
-		"@electric-sql/pglite": "0.5.10",
+		"@electric-sql/pglite": "0.5.15",
 		"@procomun/db": "workspace:*",
-		"better-auth": "1.7.12",
-		"hono": "4.13.14",
-		"postgres": "4.0.0"
+		"better-auth": "1.7.18",
+		"hono": "4.13.17",
+		"postgres": "4.1.0"
 	}
 }

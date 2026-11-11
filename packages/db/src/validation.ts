@@ -1,4 +1,13 @@
 import { validateEducationalAssignments } from "./educational-areas.ts";
+import {
+	educationalCategoryIdsOf,
+	KNOWLEDGE_AREA_FIELD,
+	KNOWLEDGE_AREA_MESSAGES,
+	PROFESSIONAL_FAMILY_FIELD,
+	validateKnowledgeAreaSelection,
+	validateProfessionalFamilyList,
+	validateProfessionalFamilySelection,
+} from "./knowledge-areas.ts";
 
 export const VALID_TAXONOMY_TYPES = [
 	"category",
@@ -86,6 +95,41 @@ function validateOtherAuthors(value: unknown): ValidationError[] {
 		];
 	}
 	return [];
+}
+
+/**
+ * Áreas de conocimiento y familias profesionales (issue #448): la forma de la
+ * selección. Que existan y estén activas lo comprueba el repositorio. En la
+ * edición, si el cuerpo no trae la categorización, el cruce de las familias
+ * con FP también lo hace el repositorio con la guardada.
+ */
+function validateKnowledgeClassification(
+	b: Record<string, unknown>,
+	creating: boolean,
+): ValidationError[] {
+	const errors: ValidationError[] = [];
+	if (b.knowledgeAreaIds !== undefined) {
+		const areas = validateKnowledgeAreaSelection(b.knowledgeAreaIds);
+		if (!areas.ok) {
+			errors.push({ field: KNOWLEDGE_AREA_FIELD, message: areas.message });
+		}
+	}
+	if (b.professionalFamilyIds !== undefined) {
+		const families =
+			b.educationalAreas === undefined && !creating
+				? validateProfessionalFamilyList(b.professionalFamilyIds)
+				: validateProfessionalFamilySelection(
+						b.professionalFamilyIds,
+						educationalCategoryIdsOf(b.educationalAreas),
+					);
+		if (!families.ok) {
+			errors.push({
+				field: PROFESSIONAL_FAMILY_FIELD,
+				message: families.message,
+			});
+		}
+	}
+	return errors;
 }
 
 export function validateCreateResource(body: unknown): ValidationResult {
@@ -197,6 +241,8 @@ export function validateCreateResource(body: unknown): ValidationResult {
 		errors.push(...validateEducationalAssignments(b.educationalAreas));
 	}
 
+	errors.push(...validateKnowledgeClassification(b, true));
+
 	return { valid: errors.length === 0, errors };
 }
 
@@ -218,12 +264,14 @@ const REQUIRED_RESOURCE_FIELDS = [
 
 /**
  * Comprueba un recurso guardado antes de pasarlo a `status` (issue #408).
- * `review` y `published` exigen lo mismo que el alta; `draft` y `archived`,
- * nada. Las reglas propias de la publicación (p. ej. el área obligatoria
- * acordada en #448) se añaden aquí, a continuación de las del alta.
+ * `review` y `published` exigen lo mismo que el alta y, además, al menos un
+ * área de conocimiento (#448); `draft` y `archived`, nada. Lo importado no
+ * pasa por aquí mientras no cambie de estado.
  */
 export function validateResourceForStatus(
-	resource: Partial<Record<(typeof REQUIRED_RESOURCE_FIELDS)[number], unknown>>,
+	resource: Partial<
+		Record<(typeof REQUIRED_RESOURCE_FIELDS)[number], unknown>
+	> & { knowledgeAreas?: readonly unknown[] },
 	status: string,
 ): ValidationResult {
 	if (!STATUSES_REQUIRING_COMPLETE_RESOURCE.includes(status)) {
@@ -233,7 +281,49 @@ export function validateResourceForStatus(
 	for (const field of REQUIRED_RESOURCE_FIELDS) {
 		payload[field] = resource[field] ?? undefined;
 	}
-	return validateCreateResource(payload);
+	const { errors } = validateCreateResource(payload);
+	if (!resource.knowledgeAreas?.length) {
+		errors.push({
+			field: KNOWLEDGE_AREA_FIELD,
+			message: KNOWLEDGE_AREA_MESSAGES.required,
+		});
+	}
+	return { valid: errors.length === 0, errors };
+}
+
+/**
+ * Al editar un recurso en revisión o publicado que ya tiene áreas, no se
+ * puede dejar sin ninguna (#448): sería otra forma de saltarse la regla de
+ * {@link validateResourceForStatus}. Un borrador sí puede vaciarlas, y un
+ * publicado que nunca las tuvo (importado) se sigue editando sin elegirlas.
+ */
+export function validateResourceUpdateForStatus(
+	current: {
+		editorialStatus?: string | null;
+		knowledgeAreas?: readonly unknown[];
+	},
+	body: Record<string, unknown>,
+): ValidationResult {
+	const clearsAreas =
+		Array.isArray(body.knowledgeAreaIds) && body.knowledgeAreaIds.length === 0;
+	if (
+		clearsAreas &&
+		STATUSES_REQUIRING_COMPLETE_RESOURCE.includes(
+			current.editorialStatus ?? "",
+		) &&
+		(current.knowledgeAreas?.length ?? 0) > 0
+	) {
+		return {
+			valid: false,
+			errors: [
+				{
+					field: KNOWLEDGE_AREA_FIELD,
+					message: KNOWLEDGE_AREA_MESSAGES.requiredWhilePublished,
+				},
+			],
+		};
+	}
+	return { valid: true, errors: [] };
 }
 
 export function validateUpdateResource(body: unknown): ValidationResult {
@@ -259,6 +349,8 @@ export function validateUpdateResource(body: unknown): ValidationResult {
 		"publisher",
 		"keywordIds",
 		"educationalAreas",
+		KNOWLEDGE_AREA_FIELD,
+		PROFESSIONAL_FAMILY_FIELD,
 	];
 	const hasAtLeastOne = updatableFields.some((f) => b[f] !== undefined);
 	if (!hasAtLeastOne) {
@@ -361,6 +453,8 @@ export function validateUpdateResource(body: unknown): ValidationResult {
 	if (b.educationalAreas !== undefined) {
 		errors.push(...validateEducationalAssignments(b.educationalAreas));
 	}
+
+	errors.push(...validateKnowledgeClassification(b, false));
 
 	return { valid: errors.length === 0, errors };
 }

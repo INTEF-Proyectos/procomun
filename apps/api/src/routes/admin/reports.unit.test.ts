@@ -26,6 +26,8 @@ const validResource = {
 	license: "cc-by",
 	resourceType: "documento",
 	author: "Autora de prueba",
+	// #448: hace falta un área para enviar a revisión o publicar.
+	knowledgeAreaIds: ["matematicas"],
 };
 
 async function createPublishedResource(app: ReturnType<typeof createApp>) {
