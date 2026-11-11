@@ -1,0 +1,183 @@
+/* Selección múltiple con búsqueda (áreas de conocimiento y familias, #448). */
+.catalog-multiselect {
+	position: relative;
+	display: flex;
+	flex-direction: column;
+	gap: var(--space-2);
+	min-width: 0;
+	margin: 0;
+	padding: 0;
+	border: none;
+}
+
+.catalog-multiselect > legend {
+	margin-bottom: var(--space-2);
+	padding: 0;
+	font-size: var(--text-label-lg);
+	font-weight: var(--weight-semibold);
+	color: var(--color-on-surface);
+}
+
+/* En el buscador, el título se parece al resto de filtros de la barra. */
+.catalog-multiselect-filter > legend {
+	font-size: 0.75rem;
+	font-weight: 900;
+	text-transform: uppercase;
+	letter-spacing: var(--tracking-widest);
+	color: var(--color-outline);
+}
+
+.catalog-multiselect-help,
+.catalog-multiselect-notice {
+	margin: 0;
+	font-size: var(--text-body-sm);
+	color: var(--color-on-surface-variant);
+}
+
+/* Como los errores de los demás campos del alta y la edición. */
+.catalog-multiselect-error {
+	font-size: 0.75rem;
+	font-weight: 500;
+	color: var(--color-error);
+}
+
+.catalog-multiselect-search-label {
+	font-size: var(--text-body-sm);
+	font-weight: var(--weight-semibold);
+	color: var(--color-on-surface);
+}
+
+.catalog-multiselect input {
+	width: 100%;
+	box-sizing: border-box;
+	padding: var(--space-3) var(--space-4);
+	border: none;
+	border-radius: var(--radius-lg);
+	background: var(--color-surface-container-highest);
+	font-family: var(--font-body);
+	font-size: var(--text-body-lg);
+	color: var(--color-on-surface);
+}
+
+.catalog-multiselect-filter input {
+	padding: var(--space-2) var(--space-3);
+	border-radius: var(--radius-md);
+	font-size: var(--text-body-md);
+}
+
+.catalog-multiselect input:focus-visible {
+	outline: 2px solid var(--color-primary);
+	outline-offset: 2px;
+}
+
+.catalog-multiselect input[aria-invalid="true"] {
+	box-shadow: 0 0 0 2px var(--color-error);
+}
+
+.catalog-multiselect-chips {
+	display: flex;
+	flex-wrap: wrap;
+	gap: var(--space-2);
+	margin: 0;
+	padding: 0;
+	list-style: none;
+}
+
+.catalog-multiselect-chips li {
+	display: inline-flex;
+	align-items: center;
+	gap: var(--space-2);
+	padding: var(--space-1) var(--space-1) var(--space-1) var(--space-3);
+	border: 1px solid var(--color-outline);
+	border-radius: 999px;
+	color: var(--color-on-surface);
+}
+
+.catalog-multiselect-chips button {
+	padding: var(--space-1) var(--space-2);
+	border: none;
+	border-radius: 999px;
+	background: var(--color-surface-container-high);
+	font: inherit;
+	font-size: var(--text-body-sm);
+	color: var(--color-on-surface);
+	cursor: pointer;
+}
+
+.catalog-multiselect-chips button:focus-visible {
+	outline: 2px solid var(--color-primary);
+	outline-offset: 2px;
+}
+
+.catalog-multiselect-list {
+	display: flex;
+	flex-direction: column;
+	max-height: 18rem;
+	overflow-y: auto;
+	border: 1px solid var(--color-outline);
+	border-radius: var(--radius-md);
+	background: var(--color-surface-container-lowest);
+}
+
+.catalog-multiselect-group {
+	display: flex;
+	flex-direction: column;
+	min-width: 0;
+	margin: 0;
+	padding: 0;
+	border: none;
+}
+
+.catalog-multiselect-group-label {
+	padding: var(--space-2) var(--space-3) var(--space-1);
+	font-size: var(--text-body-sm);
+	font-weight: var(--weight-bold);
+	color: var(--color-on-surface-variant);
+}
+
+.catalog-multiselect-option {
+	width: 100%;
+	padding: var(--space-2) var(--space-3) var(--space-2) var(--space-5);
+	border: none;
+	background: transparent;
+	font: inherit;
+	text-align: start;
+	color: var(--color-on-surface);
+	cursor: pointer;
+}
+
+.catalog-multiselect-filter .catalog-multiselect-option {
+	padding-inline-start: var(--space-4);
+}
+
+/* En la barra del buscador, el texto va al tamaño de los otros filtros. */
+.catalog-multiselect-filter .catalog-multiselect-option,
+.catalog-multiselect-filter .catalog-multiselect-chips li {
+	font-size: var(--text-body-md);
+}
+
+.catalog-multiselect-option:hover {
+	background: var(--color-surface-container-high);
+}
+
+/* La opción resaltada con las flechas: el foco sigue en el buscador. */
+.catalog-multiselect-option.is-active {
+	outline: 2px solid var(--color-primary);
+	outline-offset: -2px;
+	background: var(--color-surface-container-high);
+}
+
+.catalog-multiselect-warning {
+	margin: 0;
+	padding: var(--space-3) var(--space-4);
+	border-radius: var(--radius-lg);
+	background: var(--color-surface-container-low);
+	font-size: var(--text-body-sm);
+	color: var(--color-on-surface);
+}
+
+/* Vacía no ocupa sitio, pero sigue en el árbol de accesibilidad para que el
+   aviso se anuncie cuando aparezca. */
+.catalog-multiselect-warning:empty {
+	padding: 0;
+}

@@ -7,16 +7,24 @@ import { useNavigate } from "react-router-dom";
 import { EducationalClassificationEditor } from "../islands/resources/EducationalClassificationFields.tsx";
 import { KeywordCatalogField } from "../islands/resources/KeywordCatalogField.tsx";
 import {
+	KnowledgeAreaField,
+	ProfessionalFamilyField,
+} from "../islands/resources/KnowledgeClassificationFields.tsx";
+import {
 	LANGUAGE_OPTIONS,
 	LICENSE_OPTIONS,
 	RESOURCE_TYPE_OPTIONS,
 } from "../islands/resources/resource-form-options.ts";
-import type { CatalogKeyword } from "../lib/api-client.ts";
+import type {
+	CatalogKeyword,
+	PublicKnowledgeAreaCatalog,
+} from "../lib/api-client.ts";
 import {
 	type EducationalSelection,
 	selectionsToAssignments,
 } from "../lib/educational-classification.ts";
 import { getApiClient } from "../lib/get-api-client.ts";
+import { familiesToSave } from "../lib/knowledge-area-field.ts";
 import { url } from "../lib/paths.ts";
 import { hasMinRole } from "../lib/shared-utils.ts";
 import "../styles/nuevo.css";
@@ -81,6 +89,10 @@ export function buildCreateResourceBody(
 	form: ResourceFormState,
 	educationalAreas: ReturnType<typeof selectionsToAssignments>,
 	keywordIds: string[] = [],
+	knowledge: { knowledgeAreaIds: string[]; professionalFamilyIds: string[] } = {
+		knowledgeAreaIds: [],
+		professionalFamilyIds: [],
+	},
 ) {
 	return {
 		title: form.title,
@@ -93,6 +105,12 @@ export function buildCreateResourceBody(
 		otherAuthors: form.otherAuthors.trim() || undefined,
 		keywordIds,
 		educationalAreas,
+		// #448: un borrador puede no tener áreas; las familias, solo con FP.
+		knowledgeAreaIds: knowledge.knowledgeAreaIds,
+		professionalFamilyIds: familiesToSave(
+			educationalAreas.map((area) => area.categoryId),
+			knowledge.professionalFamilyIds,
+		),
 	};
 }
 
@@ -120,6 +138,12 @@ export default function NuevoPage() {
 	const [educationalSelections, setEducationalSelections] = useState<
 		EducationalSelection[]
 	>([]);
+	const [areaCatalog, setAreaCatalog] =
+		useState<PublicKnowledgeAreaCatalog | null>(null);
+	const [knowledgeAreaIds, setKnowledgeAreaIds] = useState<string[]>([]);
+	const [professionalFamilyIds, setProfessionalFamilyIds] = useState<string[]>(
+		[],
+	);
 
 	const fileInputRef = useRef<HTMLInputElement>(null);
 	const storedElpxFileRef = useRef<File | null>(null);
@@ -145,6 +169,11 @@ export default function NuevoPage() {
 					author: current.author || session.user.name || "",
 				}));
 				setShowElpxDrawer(true);
+				// Catálogo de áreas y familias (#448); sin él, los campos salen vacíos.
+				api
+					.getKnowledgeAreaCatalog()
+					.then(setAreaCatalog)
+					.catch(() => {});
 			} catch {
 				setShowAuthCheck(true);
 			}
@@ -168,14 +197,18 @@ export default function NuevoPage() {
 		setInvalidFields(invalid);
 	}
 
-	function setFieldValue(field: keyof ResourceFormState, value: string) {
-		setForm((current) => ({ ...current, [field]: value }));
+	function clearFieldError(field: string) {
 		setFieldErrors((current) => ({ ...current, [field]: "" }));
 		setInvalidFields((current) => {
 			const next = new Set(current);
 			next.delete(field);
 			return next;
 		});
+	}
+
+	function setFieldValue(field: keyof ResourceFormState, value: string) {
+		setForm((current) => ({ ...current, [field]: value }));
+		clearFieldError(field);
 	}
 
 	async function handleSkipElpx() {
@@ -257,6 +290,7 @@ export default function NuevoPage() {
 			form,
 			selectionsToAssignments(educationalSelections),
 			catalogKeywords.map((keyword) => keyword.id),
+			{ knowledgeAreaIds, professionalFamilyIds },
 		);
 
 		const validation = validateCreateResource(body);
@@ -548,6 +582,31 @@ export default function NuevoPage() {
 						idPrefix="new-educational"
 						selections={educationalSelections}
 						onChange={setEducationalSelections}
+					/>
+
+					<ProfessionalFamilyField
+						idPrefix="new"
+						catalog={areaCatalog}
+						categoryIds={educationalSelections.map(
+							(selection) => selection.categoryId,
+						)}
+						selectedIds={professionalFamilyIds}
+						onChange={(ids) => {
+							setProfessionalFamilyIds(ids);
+							clearFieldError("professionalFamilyIds");
+						}}
+						error={fieldErrors.professionalFamilyIds}
+					/>
+
+					<KnowledgeAreaField
+						idPrefix="new"
+						catalog={areaCatalog}
+						selectedIds={knowledgeAreaIds}
+						onChange={(ids) => {
+							setKnowledgeAreaIds(ids);
+							clearFieldError("knowledgeAreaIds");
+						}}
+						error={fieldErrors.knowledgeAreaIds}
 					/>
 
 					<div className="form-field">

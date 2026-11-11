@@ -24,7 +24,11 @@ permissions:
 jobs:
   sync-lockfile:
     if: github.actor == 'dependabot[bot]'
-    runs-on: ubuntu-latest
+    # Dónde corre lo decide la variable USE_SELFHOSTED_RUNNER del repositorio:
+    # `true` usa el runner propio (gordobot); `false` o sin definir, los de
+    # GitHub. Se cambia con `gh variable set USE_SELFHOSTED_RUNNER --body false`
+    # sin tocar ningún workflow.
+    runs-on: ${{ vars.USE_SELFHOSTED_RUNNER == 'true' && 'self-hosted' || 'ubuntu-latest' }}
     steps:
       - name: Checkout PR branch
         uses: actions/checkout@v7

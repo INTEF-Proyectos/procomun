@@ -55,4 +55,37 @@ describe("HttpApiClient: áreas de conocimiento (#448)", () => {
 		expect(calls[0]?.url).toBe("/api/admin/knowledge-areas/musica");
 		expect(calls[0]?.init?.method).toBe("PATCH");
 	});
+
+	test("lee el catálogo público sin sesión (PR 2)", async () => {
+		const catalog = { blocks: [], areas: [], professionalFamilies: [] };
+		const calls = capture(new Response(JSON.stringify(catalog)));
+		expect(await new HttpApiClient().getKnowledgeAreaCatalog()).toEqual(
+			catalog,
+		);
+		expect(calls[0]?.url).toBe("/api/v1/knowledge-areas");
+	});
+
+	test("el buscador envía áreas y familias separadas por comas (PR 2)", async () => {
+		const calls: string[] = [];
+		globalThis.fetch = mock(async (url: string | URL | Request) => {
+			calls.push(String(url));
+			return new Response(
+				JSON.stringify({ data: [], total: 0, limit: 20, offset: 0 }),
+			);
+		}) as unknown as typeof fetch;
+		await new HttpApiClient().listResources({
+			educationalCategory: "formacion-profesional",
+			knowledgeAreas: ["ingles", "quimica"],
+			professionalFamilies: ["hosteleria-y-turismo"],
+		});
+		const url = new URL(String(calls[0]), "http://localhost");
+		expect(url.pathname).toBe("/api/v1/resources");
+		expect(url.searchParams.get("knowledgeAreas")).toBe("ingles,quimica");
+		expect(url.searchParams.get("professionalFamilies")).toBe(
+			"hosteleria-y-turismo",
+		);
+
+		await new HttpApiClient().listResources({ knowledgeAreas: [] });
+		expect(calls[1]).toBe("/api/v1/resources");
+	});
 });

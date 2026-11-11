@@ -1,8 +1,14 @@
 import { describe, expect, test } from "bun:test";
 import {
+	KNOWLEDGE_AREA_FIELD,
+	KNOWLEDGE_AREA_MESSAGES,
+	PROFESSIONAL_FAMILY_FIELD,
+} from "@procomun/db/knowledge-areas";
+import {
 	validateCollection,
 	validateCreateResource,
 	validateResourceForStatus,
+	validateResourceUpdateForStatus,
 	validateStatus,
 	validateTaxonomy,
 	validateTransition,
@@ -498,6 +504,8 @@ describe("validateResourceForStatus", () => {
 		...validPayload,
 		keywords: null,
 		publisher: null,
+		// #448: también hace falta un área (se prueba en su propio bloque).
+		knowledgeAreas: [{ id: "quimica" }],
 	};
 
 	test("review y published exigen los campos obligatorios del alta", () => {
@@ -563,5 +571,174 @@ describe("otherAuthors (issue #417)", () => {
 		expect(
 			validateUpdateResource({ otherAuthors: "x".repeat(1001) }).valid,
 		).toBe(false);
+	});
+});
+
+// Issue #448: áreas de conocimiento y familias profesionales en el recurso.
+describe("áreas de conocimiento y familias profesionales (#448)", () => {
+	const fp = [{ categoryId: "formacion-profesional", optionId: null }];
+
+	test("el alta admite hasta 3 áreas sin repetir", () => {
+		expect(
+			validateCreateResource({
+				...validPayload,
+				knowledgeAreaIds: ["quimica", "fisica", "ingles"],
+			}).valid,
+		).toBe(true);
+		const tooMany = validateCreateResource({
+			...validPayload,
+			knowledgeAreaIds: ["quimica", "fisica", "ingles", "musica"],
+		});
+		expect(tooMany.errors).toEqual([
+			{ field: KNOWLEDGE_AREA_FIELD, message: KNOWLEDGE_AREA_MESSAGES.max },
+		]);
+		expect(
+			validateCreateResource({
+				...validPayload,
+				knowledgeAreaIds: ["quimica", "quimica"],
+			}).errors[0]?.message,
+		).toBe(KNOWLEDGE_AREA_MESSAGES.duplicateSelection);
+		expect(
+			validateCreateResource({ ...validPayload, knowledgeAreaIds: "quimica" })
+				.errors[0]?.field,
+		).toBe(KNOWLEDGE_AREA_FIELD);
+	});
+
+	test("guardar un borrador sin áreas es válido", () => {
+		expect(
+			validateCreateResource({ ...validPayload, knowledgeAreaIds: [] }).valid,
+		).toBe(true);
+	});
+
+	test("las familias son de la lista oficial y solo con FP", () => {
+		expect(
+			validateCreateResource({
+				...validPayload,
+				educationalAreas: fp,
+				professionalFamilyIds: ["hosteleria-y-turismo"],
+			}).valid,
+		).toBe(true);
+		expect(
+			validateCreateResource({
+				...validPayload,
+				educationalAreas: fp,
+				professionalFamilyIds: ["inventada"],
+			}).errors,
+		).toEqual([
+			{
+				field: PROFESSIONAL_FAMILY_FIELD,
+				message: KNOWLEDGE_AREA_MESSAGES.unknownFamily,
+			},
+		]);
+		expect(
+			validateCreateResource({
+				...validPayload,
+				educationalAreas: [
+					{ categoryId: "educacion-primaria", optionId: null },
+				],
+				professionalFamilyIds: ["sanidad"],
+			}).errors[0]?.message,
+		).toBe(KNOWLEDGE_AREA_MESSAGES.familyRequiresFp);
+		expect(
+			validateCreateResource({
+				...validPayload,
+				professionalFamilyIds: ["sanidad"],
+			}).errors[0]?.message,
+		).toBe(KNOWLEDGE_AREA_MESSAGES.familyRequiresFp);
+	});
+
+	test("la edición acepta solo áreas o solo familias", () => {
+		expect(
+			validateUpdateResource({ knowledgeAreaIds: ["quimica"] }).valid,
+		).toBe(true);
+		expect(validateUpdateResource({ knowledgeAreaIds: [] }).valid).toBe(true);
+		// Sin categorización en el cuerpo, la de FP la comprueba el repositorio.
+		expect(
+			validateUpdateResource({ professionalFamilyIds: ["sanidad"] }).valid,
+		).toBe(true);
+		expect(
+			validateUpdateResource({ knowledgeAreaIds: ["a", "b", "c", "d"] })
+				.errors[0]?.field,
+		).toBe(KNOWLEDGE_AREA_FIELD);
+		expect(
+			validateUpdateResource({
+				educationalAreas: [],
+				professionalFamilyIds: ["sanidad"],
+			}).errors[0]?.message,
+		).toBe(KNOWLEDGE_AREA_MESSAGES.familyRequiresFp);
+		expect(
+			validateUpdateResource({ professionalFamilyIds: ["inventada"] }).errors[0]
+				?.message,
+		).toBe(KNOWLEDGE_AREA_MESSAGES.unknownFamily);
+	});
+
+	test("enviar a revisión o publicar exige al menos un área", () => {
+		const stored = { ...validPayload, keywords: null, publisher: null };
+		for (const status of ["review", "published"]) {
+			for (const knowledgeAreas of [undefined, []]) {
+				const result = validateResourceForStatus(
+					{ ...stored, knowledgeAreas },
+					status,
+				);
+				expect(result.errors).toEqual([
+					{
+						field: KNOWLEDGE_AREA_FIELD,
+						message: KNOWLEDGE_AREA_MESSAGES.required,
+					},
+				]);
+			}
+			expect(
+				validateResourceForStatus(
+					{ ...stored, knowledgeAreas: [{ id: "quimica" }] },
+					status,
+				).valid,
+			).toBe(true);
+		}
+		expect(validateResourceForStatus(stored, "draft").valid).toBe(true);
+		expect(validateResourceForStatus(stored, "archived").valid).toBe(true);
+	});
+
+	test("un recurso publicado con áreas no puede quedarse sin ninguna", () => {
+		const published = {
+			editorialStatus: "published",
+			knowledgeAreas: [{ id: "quimica" }],
+		};
+		expect(
+			validateResourceUpdateForStatus(published, { knowledgeAreaIds: [] })
+				.errors,
+		).toEqual([
+			{
+				field: KNOWLEDGE_AREA_FIELD,
+				message: KNOWLEDGE_AREA_MESSAGES.requiredWhilePublished,
+			},
+		]);
+		expect(
+			validateResourceUpdateForStatus(
+				{ ...published, editorialStatus: "review" },
+				{ knowledgeAreaIds: [] },
+			).valid,
+		).toBe(false);
+		expect(
+			validateResourceUpdateForStatus(published, {
+				knowledgeAreaIds: ["fisica"],
+			}).valid,
+		).toBe(true);
+		expect(
+			validateResourceUpdateForStatus(published, { title: "Otro" }).valid,
+		).toBe(true);
+		// Un borrador sí puede vaciarlas, y un importado sin áreas se sigue
+		// editando sin elegirlas (su clasificación llega con el PR 3).
+		expect(
+			validateResourceUpdateForStatus(
+				{ ...published, editorialStatus: "draft" },
+				{ knowledgeAreaIds: [] },
+			).valid,
+		).toBe(true);
+		expect(
+			validateResourceUpdateForStatus(
+				{ editorialStatus: "published", knowledgeAreas: [] },
+				{ knowledgeAreaIds: [] },
+			).valid,
+		).toBe(true);
 	});
 });

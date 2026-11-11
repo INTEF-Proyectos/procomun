@@ -32,7 +32,7 @@ function renderCard(r: Resource): string {
 				title="Vista previa"></iframe>
 			<div class="card-preview-overlay"></div>
 		</div>`
-				: `<div class="card-icon">${icon}</div>`;
+				: `<div class="card-icon" aria-hidden="true">${icon}</div>`;
 
 	return `
 		<a href="${url(`recurso?slug=${r.slug}`)}" class="resource-card${media.kind === "empty" ? "" : " has-preview"}">
