@@ -1,3 +1,5 @@
+import { parseCatalogIdList } from "@procomun/db/knowledge-areas";
+
 export type HistoryUpdateMode = "push" | "replace";
 
 export interface ListingState {
@@ -12,6 +14,18 @@ export interface ListingState {
 	educationalCategory?: string;
 	/** Opción secundaria de esa categoría. Vacía si no se concreta. */
 	educationalOption?: string;
+	/** Áreas de conocimiento (#448): recursos con cualquiera de ellas. */
+	knowledgeAreas?: string[];
+	/** Familias profesionales (#448): solo junto a Formación Profesional. */
+	professionalFamilies?: string[];
+}
+
+function setOrDelete(params: URLSearchParams, name: string, value: string) {
+	if (value) {
+		params.set(name, value);
+	} else {
+		params.delete(name);
+	}
 }
 
 interface HistoryLike {
@@ -31,6 +45,10 @@ export function readListingState(search: string): ListingState {
 		tag: params.get("tag") ?? "",
 		educationalCategory: params.get("educationalCategory") ?? "",
 		educationalOption: params.get("educationalOption") ?? "",
+		knowledgeAreas: parseCatalogIdList(params.get("knowledgeAreas")),
+		professionalFamilies: parseCatalogIdList(
+			params.get("professionalFamilies"),
+		),
 	};
 }
 
@@ -87,6 +105,13 @@ export function buildListingUrl(
 	} else {
 		params.delete("educationalOption");
 	}
+
+	setOrDelete(params, "knowledgeAreas", (state.knowledgeAreas ?? []).join(","));
+	setOrDelete(
+		params,
+		"professionalFamilies",
+		(state.professionalFamilies ?? []).join(","),
+	);
 
 	const queryString = params.toString();
 	return queryString ? `${pathname}?${queryString}` : pathname;
