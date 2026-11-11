@@ -3937,3 +3937,20 @@ tasks:
       elpx-versioning) recibian una BD sin los usuarios del preload y fallaban
       con resources_created_by_fkey. En las VMs del runner propio el orden de
       los ficheros los dejaba detras; en GitHub no. Ahora usa la BD compartida.
+  T-2026-11-11-04511329:
+    date: 2026-11-11
+    agent: "documentacion-y-roadmap"
+    task: "Poner al dia #488 con main: la migracion de perfil pasa de 0017 a 0019"
+    status: Done
+    related: ["#488", "#471", "#456"]
+    notes: >
+      El merge con main no daba conflictos de texto, pero el journal quedaba
+      mal: git mezclo la entrada 0017_user_profile de este PR con la
+      0018_elpx_has_screenshot de main en un solo objeto con claves repetidas.
+      La 0018 de #471 ya esta en main y puede estar aplicada en alguna base;
+      el migrador de drizzle solo aplica lo que tiene un when mayor que la
+      ultima aplicada, asi que la de perfil no puede ir antes. Pasa a
+      0019_user_profile, con idx 15 y when 1793300000000, detras de la 0018.
+      Se actualizan los tests de migraciones (la 0019 es ahora la ultima) y el
+      comentario de setup.ts. #512 tambien usa 0018 y 0019: el que se mezcle
+      despues renumera.

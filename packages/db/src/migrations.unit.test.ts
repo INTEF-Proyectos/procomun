@@ -548,26 +548,26 @@ describe("migración 0016_resource_language_nullable", () => {
 	});
 });
 
-// Issue #456: perfil migrado del Procomún anterior. Los PR abiertos usan
-// 0012–0016 con `when` hasta 1792900000000; 0017 va detrás de todos.
-describe("migración 0017_user_profile", () => {
+// Issue #456: perfil migrado del Procomún anterior. Era la 0017, pero la 0018
+// de #471 llegó antes a main: pasa a 0019 para ir detrás con un `when` mayor.
+describe("migración 0019_user_profile", () => {
 	test("va la última en el journal y detrás de las 0012–0016 en curso", async () => {
 		const journal = JSON.parse(
 			await readFile(path.join(migrationsDir, "meta/_journal.json"), "utf8"),
 		) as { entries: Array<{ tag: string; when: number }> };
 		const entry = journal.entries.find(
-			(item) => item.tag === "0017_user_profile",
+			(item) => item.tag === "0019_user_profile",
 		);
 		expect(entry).toBeDefined();
 		expect(entry?.when).toBe(
 			Math.max(...journal.entries.map((item) => item.when)),
 		);
-		expect(entry?.when ?? 0).toBeGreaterThan(1792900000000);
+		expect(entry?.when ?? 0).toBeGreaterThan(1793200000000);
 	});
 
 	test("es idempotente y el perfil se borra con el usuario", async () => {
 		const migration = (
-			await readFile(path.join(migrationsDir, "0017_user_profile.sql"), "utf8")
+			await readFile(path.join(migrationsDir, "0019_user_profile.sql"), "utf8")
 		).replaceAll("--> statement-breakpoint", "");
 		const db = new PGlite();
 		try {
@@ -584,6 +584,9 @@ describe("migración 0017_user_profile", () => {
 		} finally {
 			await db.close();
 		}
+	});
+});
+
 // Renumerada a 0018: la 0016 de #473 ya esta en main y #488 reclamo la 0017
 // para user_profile, asi que esta va detras (AGENTS.md: renumera el ultimo).
 describe("journal combinado de areas y miniaturas (#471)", () => {
@@ -604,7 +607,7 @@ describe("journal combinado de areas y miniaturas (#471)", () => {
 		// propio idx y su propio when, y que 0014 se conserva.
 		expect(screenshots?.idx ?? -1).toBeGreaterThan(areas?.idx ?? 0);
 		expect(screenshots?.when ?? 0).toBeGreaterThan(areas?.when ?? 0);
-		// Y que es la ultima del journal, para que se aplique al final.
-		expect(journal.entries.at(-1)?.tag).toBe("0018_elpx_has_screenshot");
+		// Detras solo va la 0019_user_profile de #488, que se mezclo despues.
+		expect(journal.entries.at(-1)?.tag).toBe("0019_user_profile");
 	});
 });

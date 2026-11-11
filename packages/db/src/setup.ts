@@ -547,7 +547,7 @@ export const SCHEMA_STATEMENTS = [
 	END $$`,
 	// #473: sin idioma en origen no se asume "es" (migración 0016).
 	`ALTER TABLE "resources" ALTER COLUMN language DROP NOT NULL`,
-	// Perfil migrado del Procomún anterior (issue #456, migración 0017)
+	// Perfil migrado del Procomún anterior (issue #456, migración 0019)
 	`CREATE TABLE IF NOT EXISTS "user_profile" (
 		user_id TEXT PRIMARY KEY REFERENCES "user"(id) ON DELETE CASCADE,
 		country_code VARCHAR(2),

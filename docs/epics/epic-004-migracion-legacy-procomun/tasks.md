@@ -151,3 +151,7 @@ Los JSON/`.elpx` de `ode-export/` contienen datos personales reales (nombres y e
 - [x] `import:legacy-procomun` y `--fix-published`: lo mismo para el registro de error y el aviso de `search_vector`. Se conservan los mensajes propios del procesado del `.elpx`.
 - [x] Los errores que salen de los bucles de ambos comandos llegan al manejador del CLI sin la consulta.
 - [x] Tests con fallos reales en PGlite: una restricción CHECK y un trigger que rechazan la credencial (con un hash sintético), un trigger en `--fix-roles` y un error de Drizzle con un correo como parámetro en el importador de recursos. Se comprueba que ni el informe ni la consola llevan el valor.
+
+## Migración de perfil renumerada — 2026-11-11 (puesta al día de #488 con main)
+
+- [x] `0017_user_profile` pasa a `0019_user_profile` (idx 15), detrás de la `0018_elpx_has_screenshot` de #471, que llegó antes a main. Donde arriba dice «migración 0017», ahora es la 0019.
