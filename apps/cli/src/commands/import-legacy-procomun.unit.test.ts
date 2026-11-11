@@ -1572,7 +1572,10 @@ describe("runImportLegacyProcomun — artículos (issue #446)", () => {
 
 	/** Deps con el mapeo y la conversión a texto reales, que registran lo que se persiste. */
 	function articleDeps(
-		accounts: Record<string, { id: string; deleted: boolean }>,
+		accounts: Record<
+			string,
+			{ id: string; deleted: boolean; emailVerified: boolean }
+		>,
 		overrides: Partial<Deps> = {},
 	) {
 		const calls: Parameters<Deps["repo"]["importLegacyResourceWithElpx"]>[1][] =
@@ -1650,7 +1653,11 @@ describe("runImportLegacyProcomun — artículos (issue #446)", () => {
 			}),
 		);
 		const { deps, calls } = articleDeps({
-			"articulista.uno@ejemplo.test": { id: "baja", deleted: true },
+			"articulista.uno@ejemplo.test": {
+				id: "baja",
+				deleted: true,
+				emailVerified: true,
+			},
 		});
 
 		const report = await runImportLegacyProcomun(
@@ -1673,7 +1680,11 @@ describe("runImportLegacyProcomun — artículos (issue #446)", () => {
 
 	test("--dry-run aplica la misma regla: sin cuenta no figura como importable", async () => {
 		const { deps, calls } = articleDeps({
-			"articulista.uno@ejemplo.test": { id: "autora-1", deleted: false },
+			"articulista.uno@ejemplo.test": {
+				id: "autora-1",
+				deleted: false,
+				emailVerified: true,
+			},
 		});
 
 		const report = await runImportLegacyProcomun(
@@ -1712,8 +1723,16 @@ describe("runImportLegacyProcomun — artículos (issue #446)", () => {
 
 	test("con cuenta se importa a su nombre como «Artículo», con la licencia por defecto y su texto para la búsqueda", async () => {
 		const { deps, calls } = articleDeps({
-			"articulista.uno@ejemplo.test": { id: "autora-1", deleted: false },
-			"articulista.dos@ejemplo.test": { id: "autora-2", deleted: false },
+			"articulista.uno@ejemplo.test": {
+				id: "autora-1",
+				deleted: false,
+				emailVerified: true,
+			},
+			"articulista.dos@ejemplo.test": {
+				id: "autora-2",
+				deleted: false,
+				emailVerified: true,
+			},
 		});
 
 		const report = await runImportLegacyProcomun(
@@ -1766,7 +1785,13 @@ describe("runImportLegacyProcomun — artículos (issue #446)", () => {
 		const links: string[] = [];
 		const base = buildMockDeps(storageDir);
 		const { deps, calls } = articleDeps(
-			{ "articulista.uno@ejemplo.test": { id: "autora-1", deleted: false } },
+			{
+				"articulista.uno@ejemplo.test": {
+					id: "autora-1",
+					deleted: false,
+					emailVerified: true,
+				},
+			},
 			{
 				linkLegacyResourceAuthor: async (_db, resourceId, userId) => {
 					links.push(`${resourceId}->${userId}`);
