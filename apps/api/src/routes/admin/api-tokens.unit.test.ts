@@ -1,26 +1,17 @@
-import { beforeEach, describe, expect, mock, test } from "bun:test";
-import { PGlite } from "@electric-sql/pglite";
-import * as pgSchema from "@procomun/db/schema";
-import { createTables } from "@procomun/db/setup";
-import { drizzle } from "drizzle-orm/pglite";
+import { beforeEach, describe, expect, test } from "bun:test";
+// Sin mock.module de ../../db.ts: en Bun ese mock vale para todo el proceso y
+// no se deshace al acabar el fichero. Los ficheros que corrían después recibían
+// esta BD sin los usuarios del preload ("1", "system") y fallaban con
+// resources_created_by_fkey, según el orden en que se ejecutaran.
+import { getDb } from "../../db.ts";
 
-const pglite = new PGlite("memory://");
-await createTables(pglite);
-const isolatedDb = drizzle(pglite, { schema: pgSchema });
-
-mock.module("../../db.ts", () => {
-	return {
-		getDb: () => ({ db: isolatedDb, provider: "pg" }),
-		waitForDb: () => Promise.resolve(),
-	};
-});
+const { db: isolatedDb } = getDb();
 
 import {
 	createApiToken,
 	ensureUser,
 	listAllApiTokens,
 } from "@procomun/db/repository";
-// Import Hono and routes after mocking
 import { Hono } from "hono";
 import type { AuthEnv } from "../../auth/middleware.ts";
 import { adminApiTokensRoutes } from "./api-tokens.ts";

@@ -1,3 +1,4 @@
+import { parseCatalogIdList } from "@procomun/db/knowledge-areas";
 import * as repo from "@procomun/db/repository";
 import { user } from "@procomun/db/schema";
 import { sql } from "drizzle-orm";
@@ -26,6 +27,11 @@ publicRoutes.get("/resources", async (c) => {
 	const tag = c.req.query("tag") ?? undefined;
 	const educationalCategory = c.req.query("educationalCategory") ?? undefined;
 	const educationalOption = c.req.query("educationalOption") ?? undefined;
+	// #448: ids separados por comas; dentro de cada filtro vale cualquiera.
+	const knowledgeAreas = parseCatalogIdList(c.req.query("knowledgeAreas"));
+	const professionalFamilies = parseCatalogIdList(
+		c.req.query("professionalFamilies"),
+	);
 	return c.json(
 		await listPublishedResources({
 			limit,
@@ -37,6 +43,8 @@ publicRoutes.get("/resources", async (c) => {
 			tag,
 			educationalCategory,
 			educationalOption,
+			knowledgeAreas,
+			professionalFamilies,
 		}),
 	);
 });

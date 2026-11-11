@@ -3519,6 +3519,28 @@ tasks:
       con fallos reales en PGlite (CHECK y trigger sobre la credencial con un
       hash sintético, trigger en --fix-roles, error de Drizzle con un correo
       en el importador de recursos).
+  T-2026-11-03-10481219:
+    date: 2026-11-03
+    agent: "frontend-ux-accesibilidad"
+    task: "Áreas de conocimiento en los formularios, la ficha y el buscador (PR 2 de #448)"
+    status: Done
+    related: ["#448", "#416", "#408", "ADR-0045"]
+    notes: >
+      Alta y edición con «Áreas de conocimiento» (hasta 3, agrupadas por
+      bloque, solo activas; las desactivadas que ya tiene el recurso salen
+      marcadas) y «Familia profesional» con FP, con aviso al quitar FP de que
+      se borrarán al guardar. Componente CatalogMultiSelect (combobox APG,
+      fieldset/legend, chips con «Quitar»). API: knowledgeAreaIds y
+      professionalFamilyIds validados en validation.ts y en el repositorio
+      antes de escribir; GET /api/v1/knowledge-areas público. Hace falta un
+      área para pasar a revisión o publicar (validateResourceForStatus, #408)
+      y la API de publicación la pide al crear en revisión; un publicado con
+      áreas no se puede quedar sin ninguna. Ficha con áreas (enlazan al
+      filtro) y familias; sin áreas sigue mostrando las materias de origen
+      hasta el PR 3. Buscador con filtros knowledgeAreas y
+      professionalFamilies (cualquiera dentro de cada filtro, todos entre
+      filtros; familias solo con FP). Sin migración. Mensajes en Paraglide en
+      los cinco idiomas. Las versiones (#31) no guardan áreas ni familias.
   T-2026-10-27-08211546:
     date: 2026-10-27
     agent: "evaluacion-tecnologica"
@@ -3890,3 +3912,28 @@ tasks:
       un when posterior, y #488 conserva la suya. AGENTS.md: renumera el que se
       mezcla despues. Si #471 acabase entrando antes que #488, no hace falta
       tocar nada: el journal aplica por idx y 0018 va detras de todo.
+  T-2026-11-11-04241251:
+    date: 2026-11-11
+    agent: "ci"
+    task: "bun test con límite de 30 s por test para el runner propio"
+    status: Done
+    related: ["#559", "#490"]
+    notes: >
+      El CI corre en dos VMs de gordobot (2 vCPU cada una, i5-8250U). Ahí la
+      suite tarda unos 740 s frente a 170-250 s en GitHub, y los tests de
+      migraciones con PGlite pasaban del límite por defecto de 5 s; los que
+      dependían de sus datos fallaban después con violaciones de clave ajena
+      (#524, #526, #528). buildBunTestArgs pasa --timeout 30000, que usan
+      check-coverage y run-bun-suite. bunfig.toml no admite ese ajuste.
+  T-2026-11-11-04425628:
+    date: 2026-11-11
+    agent: "ci"
+    task: "api-tokens.unit.test.ts deja de sustituir db.ts para todo el proceso"
+    status: Done
+    related: ["#561"]
+    notes: >
+      mock.module de ../../db.ts en Bun afecta a todo el proceso y no se deshace
+      al acabar el fichero. Los tests que corrian despues (versions,
+      elpx-versioning) recibian una BD sin los usuarios del preload y fallaban
+      con resources_created_by_fkey. En las VMs del runner propio el orden de
+      los ficheros los dejaba detras; en GitHub no. Ahora usa la BD compartida.

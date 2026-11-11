@@ -8,6 +8,10 @@ import type {
 	SessionData,
 } from "../../lib/api-client.ts";
 import { getApiClient } from "../../lib/get-api-client.ts";
+import {
+	knowledgeAreaHref,
+	professionalFamilyHref,
+} from "../../lib/knowledge-area-field.ts";
 import { url } from "../../lib/paths.ts";
 import {
 	FILE_ICONS,
@@ -31,6 +35,7 @@ import { FavoriteIsland } from "../social/FavoriteIsland.tsx";
 import { RatingIsland } from "../social/RatingIsland.tsx";
 import { ReportButton } from "../social/ReportButton.tsx";
 import {
+	CatalogValueList,
 	EducationalClassificationList,
 	SearchValue,
 	SearchValueList,
@@ -210,6 +215,10 @@ export function ResourceDetailContent({
 	onPreviewOpened?: () => void;
 }) {
 	const status = statusLabelOf(resource.editorialStatus);
+	// #448: igual que con las palabras clave, las áreas del catálogo mandan y
+	// las materias en texto libre de origen solo salen si no hay ninguna.
+	const knowledgeAreas = resource.knowledgeAreas ?? [];
+	const professionalFamilies = resource.professionalFamilies ?? [];
 	// ADR-0042: el catálogo manda; sin él se muestran las etiquetas de origen.
 	const catalogKeywords = resource.catalogKeywords ?? [];
 	const keywords =
@@ -660,7 +669,26 @@ export function ResourceDetailContent({
 									</div>
 								) : null}
 
-								{resource.subjects?.length ? (
+								{knowledgeAreas.length > 0 ? (
+									<div className="meta-row">
+										<div className="meta-row-icon">
+											<span className="material-symbols-outlined">
+												architecture
+											</span>
+										</div>
+										<div>
+											<p className="meta-row-label">
+												{m.knowledge_areas_label()}
+											</p>
+											<p className="meta-row-value">
+												<CatalogValueList
+													values={knowledgeAreas}
+													href={knowledgeAreaHref}
+												/>
+											</p>
+										</div>
+									</div>
+								) : resource.subjects?.length ? (
 									<div className="meta-row">
 										<div className="meta-row-icon">
 											<span className="material-symbols-outlined">
@@ -671,6 +699,25 @@ export function ResourceDetailContent({
 											<p className="meta-row-label">{m.detail_subjects()}</p>
 											<p className="meta-row-value">
 												<SearchValueList values={resource.subjects} />
+											</p>
+										</div>
+									</div>
+								) : null}
+
+								{professionalFamilies.length > 0 ? (
+									<div className="meta-row">
+										<div className="meta-row-icon">
+											<span className="material-symbols-outlined">work</span>
+										</div>
+										<div>
+											<p className="meta-row-label">
+												{m.detail_professional_families()}
+											</p>
+											<p className="meta-row-value">
+												<CatalogValueList
+													values={professionalFamilies}
+													href={professionalFamilyHref}
+												/>
 											</p>
 										</div>
 									</div>

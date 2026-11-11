@@ -42,6 +42,10 @@ export interface Resource {
 	subjects?: string[];
 	levels?: string[];
 	educationalAreas?: { categoryId: string; optionId: string | null }[];
+	/** Áreas de conocimiento (#448), también las desactivadas que conserva. */
+	knowledgeAreas?: ResourceKnowledgeArea[];
+	/** Familias profesionales (#448); solo en recursos de FP. */
+	professionalFamilies?: { id: string; label: string }[];
 	mediaItems?: MediaItemRecord[];
 	elpxPreview?: ElpxCardPreview | null;
 	elpxFileUrl?: string | null;
@@ -180,6 +184,24 @@ export interface KnowledgeAreaInput {
 	description?: string | null;
 	blockId?: string;
 	active?: boolean;
+}
+
+/** Área asociada a un recurso. `active: false` = desactivada en el catálogo. */
+export interface ResourceKnowledgeArea {
+	id: string;
+	label: string;
+	blockId: string;
+	active: boolean;
+}
+
+/**
+ * Catálogo público (`GET /api/v1/knowledge-areas`) para los formularios y el
+ * buscador: incluye las áreas desactivadas, marcadas con `active: false`.
+ */
+export interface PublicKnowledgeAreaCatalog {
+	blocks: Array<{ id: string; label: string }>;
+	areas: ResourceKnowledgeArea[];
+	professionalFamilies: Array<{ id: string; label: string }>;
 }
 
 /** Atomized educational tag (ADR-0034 / #76 / #310). */
@@ -354,6 +376,10 @@ export interface CreateResourceInput {
 	/** Ids del catálogo; van en el mismo alta o edición (guardado atómico). */
 	keywordIds?: string[];
 	educationalAreas?: { categoryId: string; optionId: string | null }[];
+	/** Áreas de conocimiento (#448): como máximo 3. */
+	knowledgeAreaIds?: string[];
+	/** Familias profesionales (#448): solo con Formación Profesional. */
+	professionalFamilyIds?: string[];
 }
 
 export type UpdateResourceInput = Partial<CreateResourceInput>;
@@ -370,7 +396,10 @@ export interface ApiClient {
 		tag?: string;
 		educationalCategory?: string;
 		educationalOption?: string;
+		knowledgeAreas?: string[];
+		professionalFamilies?: string[];
 	}): Promise<ResourceListResult>;
+	getKnowledgeAreaCatalog(): Promise<PublicKnowledgeAreaCatalog>;
 	getResourceBySlug(slug: string): Promise<Resource | null>;
 	getRelatedResources(
 		slug: string,
