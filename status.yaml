@@ -3862,3 +3862,15 @@ tasks:
       dependían de sus datos fallaban después con violaciones de clave ajena
       (#524, #526, #528). buildBunTestArgs pasa --timeout 30000, que usan
       check-coverage y run-bun-suite. bunfig.toml no admite ese ajuste.
+  T-2026-11-11-04425628:
+    date: 2026-11-11
+    agent: "ci"
+    task: "api-tokens.unit.test.ts deja de sustituir db.ts para todo el proceso"
+    status: Done
+    related: ["#561"]
+    notes: >
+      mock.module de ../../db.ts en Bun afecta a todo el proceso y no se deshace
+      al acabar el fichero. Los tests que corrian despues (versions,
+      elpx-versioning) recibian una BD sin los usuarios del preload y fallaban
+      con resources_created_by_fkey. En las VMs del runner propio el orden de
+      los ficheros los dejaba detras; en GitHub no. Ahora usa la BD compartida.
