@@ -14,6 +14,10 @@ export async function listPublishedResources(opts: {
 	tag?: string;
 	educationalCategory?: string;
 	educationalOption?: string;
+	/** Áreas de conocimiento (#448): cualquiera de ellas. */
+	knowledgeAreas?: string[];
+	/** Familias profesionales (#448): cualquiera de ellas. */
+	professionalFamilies?: string[];
 }) {
 	const db = getDb().db;
 	const result = await repo.listResources(db, {
@@ -26,6 +30,8 @@ export async function listPublishedResources(opts: {
 		tagSlug: opts.tag,
 		educationalCategory: opts.educationalCategory,
 		educationalOption: opts.educationalOption,
+		knowledgeAreaIds: opts.knowledgeAreas,
+		professionalFamilyIds: opts.professionalFamilies,
 		status: "published",
 	});
 

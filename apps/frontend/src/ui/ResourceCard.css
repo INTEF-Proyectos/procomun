@@ -60,7 +60,7 @@
 	justify-content: center;
 	background: var(--color-surface-container-highest);
 }
-.rc-image-placeholder .material-symbols-outlined {
+.rc-image-placeholder .card-type-marker {
 	font-size: 3rem;
 	color: var(--color-outline);
 }
