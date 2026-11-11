@@ -3886,3 +3886,15 @@ tasks:
       elpx-versioning) recibian una BD sin los usuarios del preload y fallaban
       con resources_created_by_fkey. En las VMs del runner propio el orden de
       los ficheros los dejaba detras; en GitHub no. Ahora usa la BD compartida.
+  T-2026-11-11-04585652:
+    date: 2026-11-11
+    agent: "ingestas-y-migraciones"
+    task: "Las cuentas del importador de usuarios reciben sus recursos aunque no estén verificadas"
+    status: Done
+    related: ["#508", "#488", "#456"]
+    notes: >
+      #488 crea las cuentas con emailVerified false y #508 no enlazaba recursos
+      a cuentas sin verificar, asi que juntos los recursos quedaban a nombre del
+      sistema. Se acepta la cuenta sin verificar si su id empieza por
+      legacy-procomun:user: (LEGACY_USER_ID_PREFIX), que nadie puede elegir al
+      registrarse. El resto de cuentas sin verificar siguen sin recibir nada.

@@ -1388,6 +1388,29 @@ describe("runImportLegacyProcomun — autoría (issue #456)", () => {
 		]);
 	});
 
+	test("una cuenta creada por el importador de usuarios recibe el recurso aunque no esté verificada", async () => {
+		// El importador de usuarios (#488) crea las cuentas sin verificar; su id
+		// legacy-procomun:user:<uid> no lo puede elegir quien se registra.
+		const { calls, repo } = captureImports();
+		const deps = buildMockDeps(storageDir, {
+			mapLegacyRecord: mapWithEmail("autora@ejemplo.test"),
+			findLegacyAuthorAccount: async () => ({
+				id: "legacy-procomun:user:42",
+				deleted: false,
+				emailVerified: false,
+			}),
+			repo,
+		});
+
+		const report = await runImportLegacyProcomun(
+			{ sourceDir: dir, dryRun: false },
+			deps,
+		);
+
+		expect(calls[0]?.resource.createdBy).toBe("legacy-procomun:user:42");
+		expect(report.authorsWithoutAccount).toEqual([]);
+	});
+
 	test("la misma cuenta se busca una sola vez por ejecución", async () => {
 		await writeFile(path.join(dir, "es_otro.json"), "{}");
 		await writeFile(path.join(dir, "es_otro.elpx"), "otros-bytes");
