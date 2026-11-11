@@ -2,6 +2,7 @@ import * as repo from "@procomun/db/repository";
 import {
 	validateCreateResource,
 	validateResourceForStatus,
+	validateResourceUpdateForStatus,
 	validateStatus,
 	validateTransition,
 	validateUpdateResource,
@@ -141,9 +142,19 @@ const resourceRoutes = buildCrudRoutes({
 			educationalAreas: Array.isArray(body.educationalAreas)
 				? body.educationalAreas
 				: undefined,
+			// #448: el repositorio comprueba que existan, estén activas y, las
+			// familias, que el recurso sea de FP.
+			knowledgeAreaIds: body.knowledgeAreaIds,
+			professionalFamilyIds: body.professionalFamilyIds,
 			createdBy: user.id,
 		};
 	},
+	// #448: un recurso en revisión o publicado no se queda sin áreas.
+	validateUpdateWith: (entity, body) =>
+		validateResourceUpdateForStatus(
+			entity as Parameters<typeof validateResourceUpdateForStatus>[0],
+			body,
+		),
 	afterCreate: async (user, result, data) => {
 		const r = result as { id: string; slug: string };
 		await logActivity({
@@ -338,7 +349,8 @@ resourceRoutes.patch("/:id/status", async (c) => {
 			403,
 		);
 
-	// Issue #408: revisión y publicación exigen los mismos campos que el alta.
+	// Issue #408: revisión y publicación exigen los mismos campos que el alta
+	// y, desde #448, al menos un área de conocimiento.
 	const completeness = validateResourceForStatus(existing, status);
 	if (!completeness.valid)
 		return c.json(

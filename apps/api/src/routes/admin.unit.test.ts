@@ -28,6 +28,8 @@ const validResource = {
 	license: "cc-by",
 	resourceType: "documento",
 	author: "Autora de prueba",
+	// #448: hace falta un área para enviar a revisión o publicar.
+	knowledgeAreaIds: ["matematicas"],
 };
 
 describe("Rutas admin — con sesión de admin", () => {
@@ -1921,6 +1923,8 @@ describe("Seguridad — mass assignment / bypass del flujo editorial (recursos)"
 		license: "cc-by",
 		resourceType: "documento",
 		author: "Autora de prueba",
+		// #448: hace falta un área para enviar a revisión o publicar.
+		knowledgeAreaIds: ["matematicas"],
 	};
 
 	test("POST /api/admin/resources ignora editorialStatus/featuredAt del cuerpo (un author no autopublica)", async () => {

@@ -203,11 +203,11 @@ describe("migración elpx_projects.has_screenshot (issue #409)", () => {
 			await readFile(path.join(migrationsDir, "meta/_journal.json"), "utf8"),
 		) as { entries: Array<{ tag: string }> };
 		expect(journal.entries.map((entry) => entry.tag)).toContain(
-			"0017_elpx_has_screenshot",
+			"0018_elpx_has_screenshot",
 		);
 
 		const migration = await readFile(
-			path.join(migrationsDir, "0017_elpx_has_screenshot.sql"),
+			path.join(migrationsDir, "0018_elpx_has_screenshot.sql"),
 			"utf8",
 		);
 		const db = new PGlite();
@@ -548,7 +548,8 @@ describe("migración 0016_resource_language_nullable", () => {
 	});
 });
 
-// Renumerada a 0017 al mezclarse despues que la 0016 de #473 (AGENTS.md).
+// Renumerada a 0018: la 0016 de #473 ya esta en main y #488 reclamo la 0017
+// para user_profile, asi que esta va detras (AGENTS.md: renumera el ultimo).
 describe("journal combinado de areas y miniaturas (#471)", () => {
 	test("conserva 0014 y aplica la de miniaturas despues, con otro idx y when", async () => {
 		const journal = JSON.parse(
@@ -558,7 +559,7 @@ describe("journal combinado de areas y miniaturas (#471)", () => {
 			(entry) => entry.tag === "0014_knowledge_areas",
 		);
 		const screenshots = journal.entries.find(
-			(entry) => entry.tag === "0017_elpx_has_screenshot",
+			(entry) => entry.tag === "0018_elpx_has_screenshot",
 		);
 		expect(areas).toBeDefined();
 		expect(screenshots).toBeDefined();
@@ -567,35 +568,34 @@ describe("journal combinado de areas y miniaturas (#471)", () => {
 		// propio idx y su propio when, y que 0014 se conserva.
 		expect(screenshots?.idx ?? -1).toBeGreaterThan(areas?.idx ?? 0);
 		expect(screenshots?.when ?? 0).toBeGreaterThan(areas?.when ?? 0);
-		// Y que es la ultima del journal, para que se aplique al final.
-		expect(journal.entries.at(-1)?.tag).toBe("0017_elpx_has_screenshot");
+		// Ya no es la ultima: detras van las de la cola de miniaturas de #470.
 	});
 });
 
 // #470 (ADR-0046): cola de miniaturas generadas en el servidor.
-describe("migración 0018_elpx_thumbnail_queue", () => {
+describe("migración 0019_elpx_thumbnail_queue", () => {
 	const COLUMNS_QUERY = `SELECT column_name FROM information_schema.columns
 		WHERE table_name = 'elpx_projects' AND column_name LIKE 'thumbnail_%'
 		ORDER BY column_name`;
 
-	test("va detrás de 0015 en el journal con el when reservado", async () => {
+	test("va detrás de 0018 en el journal con el when reservado", async () => {
 		const journal = JSON.parse(
 			await readFile(path.join(migrationsDir, "meta/_journal.json"), "utf8"),
 		) as { entries: Array<{ idx: number; tag: string; when: number }> };
 		const screenshots = journal.entries.find(
-			(entry) => entry.tag === "0015_elpx_has_screenshot",
+			(entry) => entry.tag === "0018_elpx_has_screenshot",
 		);
 		const queue = journal.entries.find(
-			(entry) => entry.tag === "0018_elpx_thumbnail_queue",
+			(entry) => entry.tag === "0019_elpx_thumbnail_queue",
 		);
 		expect(queue?.idx).toBe((screenshots?.idx ?? -2) + 1);
-		expect(queue?.when).toBe(1793200000000);
+		expect(queue?.when).toBe(1793300000000);
 		expect(queue?.when ?? 0).toBeGreaterThan(screenshots?.when ?? 0);
 	});
 
 	test("coincide con setup.ts, se aplica dos veces y deja nulo el estado de los previos", async () => {
 		const migration = await readFile(
-			path.join(migrationsDir, "0018_elpx_thumbnail_queue.sql"),
+			path.join(migrationsDir, "0019_elpx_thumbnail_queue.sql"),
 			"utf8",
 		);
 		const { ELPX_THUMBNAIL_QUEUE_SCHEMA, SCHEMA_STATEMENTS } = await import(
@@ -648,16 +648,16 @@ describe("migración 0018_elpx_thumbnail_queue", () => {
 
 // Revisión de #481 (adenda 2026-11-03 de ADR-0046): la ruta de miniaturas
 // busca el dueño del fichero en cada petición.
-describe("migración 0019_thumbnail_owner_indexes", () => {
-	test("va detrás de 0018 en el journal", async () => {
+describe("migración 0020_thumbnail_owner_indexes", () => {
+	test("va detrás de 0019 en el journal", async () => {
 		const journal = JSON.parse(
 			await readFile(path.join(migrationsDir, "meta/_journal.json"), "utf8"),
 		) as { entries: Array<{ idx: number; tag: string; when: number }> };
 		const queue = journal.entries.find(
-			(entry) => entry.tag === "0018_elpx_thumbnail_queue",
+			(entry) => entry.tag === "0019_elpx_thumbnail_queue",
 		);
 		const owners = journal.entries.find(
-			(entry) => entry.tag === "0019_thumbnail_owner_indexes",
+			(entry) => entry.tag === "0020_thumbnail_owner_indexes",
 		);
 		expect(owners?.idx).toBe((queue?.idx ?? -2) + 1);
 		expect(owners?.when ?? 0).toBeGreaterThan(queue?.when ?? 0);
@@ -665,7 +665,7 @@ describe("migración 0019_thumbnail_owner_indexes", () => {
 
 	test("coincide con setup.ts, se aplica dos veces y crea los dos índices", async () => {
 		const migration = await readFile(
-			path.join(migrationsDir, "0019_thumbnail_owner_indexes.sql"),
+			path.join(migrationsDir, "0020_thumbnail_owner_indexes.sql"),
 			"utf8",
 		);
 		const { THUMBNAIL_OWNER_INDEXES_SCHEMA, SCHEMA_STATEMENTS } = await import(

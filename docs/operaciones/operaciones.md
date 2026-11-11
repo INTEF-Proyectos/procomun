@@ -124,7 +124,7 @@ Las miniaturas del almacén (`storageDir/thumbnails/`: la `preview` legacy y la 
 - `/api/v1/thumbnails/<fichero>` solo responde 200 si el fichero pertenece al menos a un recurso publicado y no borrado. Si no, 404. Cabecera `Cache-Control: public, max-age=3600` (antes, un año e `immutable`).
 - Lo no publicado se sirve por `/api/v1/thumbnails/signed/<caducidad>.<firma>/<fichero>`, firmado con `BETTER_AUTH_SECRET` y válido 2 horas, con `Cache-Control: private, no-store`. Cambiar el secreto invalida los enlaces emitidos, igual que los de la vista previa del paquete.
 - Al archivar un recurso, su miniatura da 404 desde la petición siguiente. Un navegador o un proxy pueden conservar la copia hasta 1 hora.
-- La migración `0019_thumbnail_owner_indexes` añade los índices parciales sobre `resources.thumbnail_url` y `elpx_projects.thumbnail_file` que usa la comprobación.
+- La migración `0020_thumbnail_owner_indexes` añade los índices parciales sobre `resources.thumbnail_url` y `elpx_projects.thumbnail_file` que usa la comprobación.
 - Si se despliega con la etapa `frontend` (nginx), `nginx.conf` necesita `location ^~ /api/v1/thumbnails/`: sin ella, la regex de estáticos se queda con los `.jpg` y las miniaturas no llegan a la API.
 
 Para saber por qué una miniatura da 404:

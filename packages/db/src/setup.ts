@@ -27,7 +27,7 @@ export const RESOURCE_VIEWS_SCHEMA = [
 
 /**
  * Cola de miniaturas generadas en el servidor (#470, ADR-0046). La migración
- * 0018_elpx_thumbnail_queue contiene estas mismas sentencias; un test
+ * 0019_elpx_thumbnail_queue contiene estas mismas sentencias; un test
  * comprueba que coinciden.
  */
 export const ELPX_THUMBNAIL_QUEUE_SCHEMA = [
@@ -48,7 +48,7 @@ export const ELPX_THUMBNAIL_QUEUE_SCHEMA = [
 /**
  * Índices para buscar el dueño de una miniatura en cada petición (revisión de
  * #481, adenda 2026-11-03 de ADR-0046). Mismas sentencias que la migración
- * 0019_thumbnail_owner_indexes; un test comprueba que coinciden.
+ * 0020_thumbnail_owner_indexes; un test comprueba que coinciden.
  */
 export const THUMBNAIL_OWNER_INDEXES_SCHEMA = [
 	`CREATE INDEX IF NOT EXISTS "idx_resources_thumbnail_url" ON "resources" ("thumbnail_url") WHERE thumbnail_url IS NOT NULL`,

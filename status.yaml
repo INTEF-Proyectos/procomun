@@ -3448,6 +3448,69 @@ tasks:
       referencias en el CI. Validado reproduciendo el conflicto de #465 contra
       main: la union automatica da un status.yaml identico a la resolucion
       manual (diff vacio) y check-tracking lo acepta.
+  T-2026-11-03-10481219:
+    date: 2026-11-03
+    agent: "frontend-ux-accesibilidad"
+    task: "Áreas de conocimiento en los formularios, la ficha y el buscador (PR 2 de #448)"
+    status: Done
+    related: ["#448", "#416", "#408", "ADR-0045"]
+    notes: >
+      Alta y edición con «Áreas de conocimiento» (hasta 3, agrupadas por
+      bloque, solo activas; las desactivadas que ya tiene el recurso salen
+      marcadas) y «Familia profesional» con FP, con aviso al quitar FP de que
+      se borrarán al guardar. Componente CatalogMultiSelect (combobox APG,
+      fieldset/legend, chips con «Quitar»). API: knowledgeAreaIds y
+      professionalFamilyIds validados en validation.ts y en el repositorio
+      antes de escribir; GET /api/v1/knowledge-areas público. Hace falta un
+      área para pasar a revisión o publicar (validateResourceForStatus, #408)
+      y la API de publicación la pide al crear en revisión; un publicado con
+      áreas no se puede quedar sin ninguna. Ficha con áreas (enlazan al
+      filtro) y familias; sin áreas sigue mostrando las materias de origen
+      hasta el PR 3. Buscador con filtros knowledgeAreas y
+      professionalFamilies (cualquiera dentro de cada filtro, todos entre
+      filtros; familias solo con FP). Sin migración. Mensajes en Paraglide en
+      los cinco idiomas. Las versiones (#31) no guardan áreas ni familias.
+  T-2026-10-27-08211546:
+    date: 2026-10-27
+    agent: "evaluacion-tecnologica"
+    task: "ADR y diseño de las miniaturas generadas en el servidor"
+    status: In Progress
+    related: ["#470", "#409", "#471", "#472", "ADR-0046", "ADR-0026", "ADR-0027"]
+    notes: >
+      ADR-0046 en estado Propuesto, con requirements, design y tasks en
+      docs/epics/epic-003/features/feature-miniaturas-servidor/. Recomienda un
+      servicio thumbnailer con Playwright en un contenedor aparte, sin red ni
+      secretos, y la cola en elpx_projects. Gotenberg como alternativa. Sin
+      código hasta que se decidan las preguntas abiertas de la issue.
+  T-2026-11-03-10094727:
+    date: 2026-11-03
+    agent: "evaluacion-tecnologica"
+    task: "ADR-0046 aceptada con las decisiones de la issue #470"
+    status: Done
+    related: ["#470", "#481", "#471", "ADR-0046"]
+    notes: >
+      @juanda cerró las siete preguntas: Playwright en un contenedor propio,
+      cola con el estado en elpx_projects y bucle en la API, JPEG 640x400 solo
+      del contenido, relleno solo de lo que no tiene imagen propia, el iframe
+      sale de los listados al desplegar y Node si Playwright no va bien con Bun.
+      La implementación va en un PR aparte, apilado sobre #471.
+  T-2026-11-03-12334131:
+    date: 2026-11-03
+    agent: "seguridad-privacidad-legal"
+    task: "ADR-0046: acceso a las miniaturas de recursos no publicados (revisión de #481)"
+    status: Done
+    related: ["#470", "#481", "#512", "#466", "#483", "#472", "ADR-0046", "ADR-0026"]
+    notes: >
+      Atiende la revisión de @jacoboAlcantara con secciones fechadas, sin borrar
+      historia. Adenda de acceso: la URL estable /api/v1/thumbnails/<fichero>
+      solo sirve lo que pertenece a un recurso publicado, con public,
+      max-age=3600 en vez de immutable; lo no publicado va por un enlace firmado
+      (HMAC, 2 h, prefijo propio) con private, no-store; al despublicar da 404 en
+      la petición siguiente; las preview legacy siguen las mismas reglas.
+      Criterios CA-1 a CA-10 y pruebas en requirements y design. Contexto y
+      alternativa de Gotenberg al día con #483. requirements y design con la
+      ADR aceptada y el enlace a las decisiones del 2026-11-03. La
+      implementación va en #512.
   T-2026-11-03-08435265:
     date: 2026-11-03
     agent: "backend-api-servicios"
@@ -3750,6 +3813,32 @@ tasks:
       antes: guarda en PublicCollectionsIsland, tipo string | null en
       api-client y test de regresion. Test ajustado: el toEqual de totals en
       el caso en seco incluye la clave nueva reindexFailed.
+  T-2026-11-04-16594050:
+    date: 2026-11-04
+    agent: "arquitectura-solucion + seguridad-privacidad-legal"
+    task: "Atender la revision de #481: aislamiento del thumbnailer y estado de los documentos"
+    status: Done
+    related: ["#481", "#470", "ADR-0046", "ADR-0026"]
+    notes: >
+      De los cuatro puntos de jacoboAlcantara, dos ya estaban resueltos en
+      adendas del 2026-11-03 (el acceso a las miniaturas segun el estado
+      editorial y el contexto de acceso al contenido desde #483). Los dos que
+      quedaban: 1) P2 de aislamiento, aceptado tal cual lo proponia. El diseño
+      bloqueaba las peticiones con page.route, que segun la documentacion de
+      Playwright no intercepta la primera peticion de una ventana emergente, y
+      ELPX_HTML_CSP permite abrirlas con allow-popups; la red Docker internal
+      no lo tapa porque thumbnailer comparte red con app. Pasa a
+      browserContext.route registrado antes de crear o navegar ninguna pagina,
+      y a una CSP propia de la captura sin allow-popups ni
+      allow-popups-to-escape-sandbox, manteniendo el origen opaco y
+      serviceWorkers block. Se añade como criterio de aceptacion una prueba de
+      integracion con un paquete que intente abrir una ventana hacia un
+      servidor que simule la API y reciba cero peticiones. No se reutiliza
+      ELPX_HTML_CSP porque alli esos permisos existen para el visor real, donde
+      el usuario si puede querer abrir un enlace. 2) requirements.md y
+      design.md decian ADR-0046 (Propuesto) con la ADR ya aceptada: se añade
+      actualizacion fechada en los dos, conservando el texto anterior
+      (AGENTS.md regla 12).
   T-2026-11-04-16102520:
     date: 2026-11-04
     agent: "ingestas-y-migraciones"
@@ -3767,3 +3856,54 @@ tasks:
       PublicCollectionsIsland.tsx: #475 extrajo el detalle a
       CollectionDetailContent, asi que el marcador por tipo de #409 se ha
       llevado dentro de ese componente conservando la guarda de idioma de #473.
+  T-2026-11-04-16581883:
+    date: 2026-11-04
+    agent: "ingestas-y-migraciones"
+    task: "La migracion de #471 pasa de 0017 a 0018"
+    status: Done
+    related: ["#471", "#488", "#473"]
+    notes: >
+      Corrige la decision de la entrada T-2026-11-04-15511098, que la movio de
+      0015 a 0017 cuando main solo tenia hasta la 0016. #488 reclamo la 0017
+      para user_profile antes (lo dice su descripcion: 0012-0016 estaban en PR
+      abiertos), asi que la de miniaturas pasa a 0018_elpx_has_screenshot con
+      un when posterior, y #488 conserva la suya. AGENTS.md: renumera el que se
+      mezcla despues. Si #471 acabase entrando antes que #488, no hace falta
+      tocar nada: el journal aplica por idx y 0018 va detras de todo.
+  T-2026-11-11-04241251:
+    date: 2026-11-11
+    agent: "ci"
+    task: "bun test con límite de 30 s por test para el runner propio"
+    status: Done
+    related: ["#559", "#490"]
+    notes: >
+      El CI corre en dos VMs de gordobot (2 vCPU cada una, i5-8250U). Ahí la
+      suite tarda unos 740 s frente a 170-250 s en GitHub, y los tests de
+      migraciones con PGlite pasaban del límite por defecto de 5 s; los que
+      dependían de sus datos fallaban después con violaciones de clave ajena
+      (#524, #526, #528). buildBunTestArgs pasa --timeout 30000, que usan
+      check-coverage y run-bun-suite. bunfig.toml no admite ese ajuste.
+  T-2026-11-11-04425628:
+    date: 2026-11-11
+    agent: "ci"
+    task: "api-tokens.unit.test.ts deja de sustituir db.ts para todo el proceso"
+    status: Done
+    related: ["#561"]
+    notes: >
+      mock.module de ../../db.ts en Bun afecta a todo el proceso y no se deshace
+      al acabar el fichero. Los tests que corrian despues (versions,
+      elpx-versioning) recibian una BD sin los usuarios del preload y fallaban
+      con resources_created_by_fkey. En las VMs del runner propio el orden de
+      los ficheros los dejaba detras; en GitHub no. Ahora usa la BD compartida.
+  T-2026-11-11-04505124:
+    date: 2026-11-11
+    agent: "ingestas-y-migraciones"
+    task: "Las migraciones de #470 pasan a 0019 y 0020 al mezclar main"
+    status: Done
+    related: ["#470", "#512", "#471"]
+    notes: >
+      main ya tiene 0018_elpx_has_screenshot (#471), así que la cola de
+      miniaturas pasa a 0019_elpx_thumbnail_queue (idx 15) y los índices de
+      dueño a 0020_thumbnail_owner_indexes (idx 16), con when posteriores.
+      AGENTS.md: renumera el que se mezcla después. El test de #471 ya no
+      exige que su migración sea la última del journal.
