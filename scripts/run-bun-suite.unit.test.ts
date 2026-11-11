@@ -18,7 +18,22 @@ describe("run-bun-suite helpers", () => {
 	test("buildBunTestArgs places coverage before file paths", () => {
 		expect(
 			buildBunTestArgs(["apps/api/src/index.unit.test.ts"], { coverage: true }),
-		).toEqual(["test", "--coverage", "apps/api/src/index.unit.test.ts"]);
+		).toEqual([
+			"test",
+			"--timeout",
+			"30000",
+			"--coverage",
+			"apps/api/src/index.unit.test.ts",
+		]);
+	});
+
+	test("buildBunTestArgs sube el límite por test a 30 s (runner propio lento)", () => {
+		expect(buildBunTestArgs(["a.unit.test.ts"])).toEqual([
+			"test",
+			"--timeout",
+			"30000",
+			"a.unit.test.ts",
+		]);
 	});
 
 	test("findSuiteFiles returns sorted matches from configured roots", async () => {

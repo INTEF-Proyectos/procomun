@@ -3816,3 +3816,16 @@ tasks:
       un when posterior, y #488 conserva la suya. AGENTS.md: renumera el que se
       mezcla despues. Si #471 acabase entrando antes que #488, no hace falta
       tocar nada: el journal aplica por idx y 0018 va detras de todo.
+  T-2026-11-11-04241251:
+    date: 2026-11-11
+    agent: "ci"
+    task: "bun test con límite de 30 s por test para el runner propio"
+    status: Done
+    related: ["#559", "#490"]
+    notes: >
+      El CI corre en dos VMs de gordobot (2 vCPU cada una, i5-8250U). Ahí la
+      suite tarda unos 740 s frente a 170-250 s en GitHub, y los tests de
+      migraciones con PGlite pasaban del límite por defecto de 5 s; los que
+      dependían de sus datos fallaban después con violaciones de clave ajena
+      (#524, #526, #528). buildBunTestArgs pasa --timeout 30000, que usan
+      check-coverage y run-bun-suite. bunfig.toml no admite ese ajuste.
