@@ -6,7 +6,11 @@ import {
 	useState,
 } from "react";
 import { useIframeScale } from "../../hooks/use-iframe-scale.ts";
-import type { BadgeConfig, Resource } from "../../lib/api-client.ts";
+import type {
+	BadgeConfig,
+	PublicKnowledgeAreaCatalog,
+	Resource,
+} from "../../lib/api-client.ts";
 import {
 	CATALOG_QUERY_CHANGE_EVENT,
 	type CatalogQueryDetail,
@@ -14,6 +18,7 @@ import {
 } from "../../lib/catalog-events.ts";
 import { sanitizeEducationalFilter } from "../../lib/educational-classification.ts";
 import { getApiClient } from "../../lib/get-api-client.ts";
+import { familyFilterFor } from "../../lib/knowledge-area-field.ts";
 import {
 	buildListingUrl,
 	type ListingState,
@@ -38,6 +43,7 @@ import {
 import { ResourceByline } from "../../ui/AuthorLinks.tsx";
 import { KeywordCatalogField } from "../resources/KeywordCatalogField.tsx";
 import { EducationalSearchFilters } from "./EducationalSearchFilters.tsx";
+import { KnowledgeAreaSearchFilters } from "./KnowledgeAreaSearchFilters.tsx";
 import "../../lib/paraglide-client.ts";
 import * as m from "../../paraglide/messages.js";
 
@@ -54,6 +60,8 @@ const DEFAULT_LISTING_STATE: ListingState = {
 	tag: "",
 	educationalCategory: "",
 	educationalOption: "",
+	knowledgeAreas: [],
+	professionalFamilies: [],
 };
 
 function readCatalogListingState(search: string): ListingState {
@@ -66,6 +74,11 @@ function readCatalogListingState(search: string): ListingState {
 		...state,
 		educationalCategory: educational.categoryId,
 		educationalOption: educational.optionId,
+		// #448: las familias solo con la etapa FP.
+		professionalFamilies: familyFilterFor(
+			educational.categoryId,
+			state.professionalFamilies,
+		),
 	};
 }
 
@@ -325,6 +338,8 @@ export function CatalogIsland() {
 	const [isLoggedIn, setIsLoggedIn] = useState(false);
 	const [badgeConfig, setBadgeConfig] =
 		useState<BadgeConfig>(DEFAULT_BADGE_CONFIG);
+	const [areaCatalog, setAreaCatalog] =
+		useState<PublicKnowledgeAreaCatalog | null>(null);
 	const requestIdRef = useRef(0);
 	const listingStateRef = useRef<ListingState>(DEFAULT_LISTING_STATE);
 
@@ -372,6 +387,11 @@ export function CatalogIsland() {
 					tag: nextState.tag || undefined,
 					educationalCategory: educational.categoryId || undefined,
 					educationalOption: educational.optionId || undefined,
+					knowledgeAreas: nextState.knowledgeAreas,
+					professionalFamilies: familyFilterFor(
+						educational.categoryId,
+						nextState.professionalFamilies,
+					),
 				});
 
 				if (requestId !== requestIdRef.current) return;
@@ -473,6 +493,12 @@ export function CatalogIsland() {
 
 		void loadResources(nextState);
 
+		// Catálogo de áreas y familias para sus filtros (#448).
+		void getApiClient()
+			.then((api) => api.getKnowledgeAreaCatalog())
+			.then(setAreaCatalog)
+			.catch(() => {});
+
 		// Load user session + favorites + badge config
 		void (async () => {
 			try {
@@ -567,8 +593,26 @@ export function CatalogIsland() {
 								...listingState,
 								educationalCategory: next.categoryId,
 								educationalOption: next.optionId,
+								// Al quitar FP se limpia el filtro de familias (#448).
+								professionalFamilies: familyFilterFor(
+									next.categoryId,
+									listingState.professionalFamilies,
+								),
 								page: 1,
 							},
+							"replace",
+						);
+					}}
+				/>
+
+				<KnowledgeAreaSearchFilters
+					catalog={areaCatalog}
+					educationalCategory={listingState.educationalCategory ?? ""}
+					knowledgeAreas={listingState.knowledgeAreas ?? []}
+					professionalFamilies={listingState.professionalFamilies ?? []}
+					onChange={(next) => {
+						void applyListingState(
+							{ ...listingState, ...next, page: 1 },
 							"replace",
 						);
 					}}

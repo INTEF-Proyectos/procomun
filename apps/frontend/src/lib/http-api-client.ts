@@ -15,6 +15,7 @@ import type {
 	MediaItemRecord,
 	PaginatedResult,
 	PublicAuthor,
+	PublicKnowledgeAreaCatalog,
 	RelatedResourcesResult,
 	ReportRecord,
 	Resource,
@@ -44,6 +45,8 @@ export class HttpApiClient implements ApiClient {
 		tag?: string;
 		educationalCategory?: string;
 		educationalOption?: string;
+		knowledgeAreas?: string[];
+		professionalFamilies?: string[];
 	}): Promise<ResourceListResult> {
 		const params = new URLSearchParams();
 		if (opts?.q) params.set("q", opts.q);
@@ -59,8 +62,20 @@ export class HttpApiClient implements ApiClient {
 		if (opts?.educationalOption) {
 			params.set("educationalOption", opts.educationalOption);
 		}
+		if (opts?.knowledgeAreas?.length) {
+			params.set("knowledgeAreas", opts.knowledgeAreas.join(","));
+		}
+		if (opts?.professionalFamilies?.length) {
+			params.set("professionalFamilies", opts.professionalFamilies.join(","));
+		}
 		const qs = params.toString();
 		const res = await fetch(`/api/v1/resources${qs ? `?${qs}` : ""}`);
+		return res.json();
+	}
+
+	async getKnowledgeAreaCatalog(): Promise<PublicKnowledgeAreaCatalog> {
+		const res = await fetch("/api/v1/knowledge-areas");
+		if (!res.ok) throw await res.json().catch(() => ({}));
 		return res.json();
 	}
 
