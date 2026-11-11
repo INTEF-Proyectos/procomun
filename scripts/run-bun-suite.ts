@@ -105,11 +105,24 @@ export async function findStandardTestFiles(
 	return [...new Set(files.flat())].sort();
 }
 
+// Límite por test de bun test (por defecto 5 s). En el runner propio (VMs con
+// 2 vCPU en un i5 de portátil) la suite tarda unas 3 veces más que en GitHub y
+// los tests de migraciones con PGlite pasaban de 5 s; al cortarse, los que
+// dependían de sus datos fallaban después en cadena con errores de clave ajena.
+// bunfig.toml no admite este ajuste, por eso va como argumento.
+const BUN_TEST_TIMEOUT_MS = "30000";
+
 export function buildBunTestArgs(
 	files: string[],
 	options: { coverage?: boolean } = {},
 ): string[] {
-	return ["test", ...(options.coverage ? ["--coverage"] : []), ...files];
+	return [
+		"test",
+		"--timeout",
+		BUN_TEST_TIMEOUT_MS,
+		...(options.coverage ? ["--coverage"] : []),
+		...files,
+	];
 }
 
 export function hasPassingBunSummary(output: string) {
