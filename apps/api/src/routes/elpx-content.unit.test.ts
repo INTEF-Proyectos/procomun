@@ -333,6 +333,12 @@ describe("iDevice JSON de eXe (issue #431)", () => {
 // content.xml (jsonProperties), así que se recuperan de ahí al servir (#431).
 describe("iDevice JSON de un .elpx legacy sin datos en el HTML (issue #431)", () => {
 	const LEGACY_HASH = "fedcba9876543210fedcba9876543210fedcba98";
+	beforeAll(async () => {
+		await seedPublishedElpxHash(
+			LEGACY_HASH,
+			path.join(tmpRoot, "elpx", LEGACY_HASH),
+		);
+	});
 	const formData = {
 		eXeFormInstructions: '<p>Lee el párrafo y completa "las palabras".</p>',
 		questionsData: [

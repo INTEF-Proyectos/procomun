@@ -3,6 +3,16 @@ name: E2E Tests
 on:
   pull_request:
     branches: [ "main", "develop" ]
+    # Un PR que solo toca documentación no ejecuta nada que compile ni pruebe:
+    # se salta el run y no gasta minutos. Se excluyen de la regla DESIGN.md y
+    # decision-log.yaml porque los validan design-lint y check-tracking. Los
+    # patrones se evalúan en orden y el último que coincide manda.
+    paths:
+      - "**"
+      - "!docs/**"
+      - "!**/*.md"
+      - "DESIGN.md"
+      - "docs/negocio/decisiones/decision-log.yaml"
   workflow_dispatch:
   # Invocable desde ci.yml para exigir E2E sobre el merge antes de publicar
   # imagen. Antes solo corrían en pull_request, nunca sobre el resultado ya
@@ -18,7 +28,11 @@ permissions:
 
 jobs:
   e2e-chromium:
-    runs-on: ubuntu-latest
+    # Dónde corre lo decide la variable USE_SELFHOSTED_RUNNER del repositorio:
+    # `true` usa el runner propio (gordobot); `false` o sin definir, los de
+    # GitHub. Se cambia con `gh variable set USE_SELFHOSTED_RUNNER --body false`
+    # sin tocar ningún workflow.
+    runs-on: ${{ vars.USE_SELFHOSTED_RUNNER == 'true' && 'self-hosted' || 'ubuntu-latest' }}
     timeout-minutes: 30
 
     steps:
@@ -111,7 +125,7 @@ jobs:
   # hecho y no era cierto.
   e2e-cross-browser:
     if: github.event_name == 'workflow_dispatch'
-    runs-on: ubuntu-latest
+    runs-on: ${{ vars.USE_SELFHOSTED_RUNNER == 'true' && 'self-hosted' || 'ubuntu-latest' }}
     timeout-minutes: 45
     strategy:
       matrix:

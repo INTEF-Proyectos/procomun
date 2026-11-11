@@ -7,6 +7,10 @@ import type {
 	SessionData,
 } from "../../lib/api-client.ts";
 import { getApiClient } from "../../lib/get-api-client.ts";
+import {
+	knowledgeAreaHref,
+	professionalFamilyHref,
+} from "../../lib/knowledge-area-field.ts";
 import { getBaseUrl, url } from "../../lib/paths.ts";
 import {
 	FILE_ICONS,
@@ -30,6 +34,7 @@ import { FavoriteIsland } from "../social/FavoriteIsland.tsx";
 import { RatingIsland } from "../social/RatingIsland.tsx";
 import { ReportButton } from "../social/ReportButton.tsx";
 import {
+	CatalogValueList,
 	EducationalClassificationList,
 	SearchValue,
 	SearchValueList,
@@ -302,6 +307,10 @@ export function ResourceDetailContent({
 	onPreviewOpened?: () => void;
 }) {
 	const status = statusLabelOf(resource.editorialStatus);
+	// #448: igual que con las palabras clave, las áreas del catálogo mandan y
+	// las materias en texto libre de origen solo salen si no hay ninguna.
+	const knowledgeAreas = resource.knowledgeAreas ?? [];
+	const professionalFamilies = resource.professionalFamilies ?? [];
 	// ADR-0042: el catálogo manda; sin él se muestran las etiquetas de origen.
 	const catalogKeywords = resource.catalogKeywords ?? [];
 	const keywords =
@@ -326,8 +335,10 @@ export function ResourceDetailContent({
 	// Se derivan los valores, no solo los booleanos: un `hasPreview: boolean` no
 	// permite a TypeScript estrechar `resource.elpxPreview` en los usos, y menos
 	// dentro de un closure. Con el valor ya extraído, el narrowing es real.
-	// (previewUrl se declara más abajo, junto al ref del preview, que ya lo traía
-	// esta rama.)
+	// El visor sale de `previewUrl`, no de que haya `elpxPreview`: un paquete
+	// con screenshot.png y sin index.html tiene miniatura, pero no visor (#471).
+	const previewUrl = resource.elpxPreview?.previewUrl ?? undefined;
+	const hasPreview = !!previewUrl;
 	const mediaItems = resource.mediaItems ?? [];
 	const hasFiles = mediaItems.length > 0;
 	const firstFileUrl = mediaItems[0]?.url;
@@ -341,8 +352,6 @@ export function ResourceDetailContent({
 	// los players de vídeo/PDF cross-origin sobre el contenido de origen opaco y
 	// puentea el iDevice de vídeo interactivo. Paridad con mod_exelearning/wp/omeka.
 	const previewIframeRef = useRef<HTMLIFrameElement | null>(null);
-	const previewUrl = resource.elpxPreview?.previewUrl;
-	const hasPreview = !!previewUrl;
 	const [exportReady, setExportReady] = useState(false);
 	const [exportingFormat, setExportingFormat] =
 		useState<ResourceExportKind | null>(null);
@@ -784,7 +793,26 @@ export function ResourceDetailContent({
 									</div>
 								) : null}
 
-								{resource.subjects?.length ? (
+								{knowledgeAreas.length > 0 ? (
+									<div className="meta-row">
+										<div className="meta-row-icon">
+											<span className="material-symbols-outlined">
+												architecture
+											</span>
+										</div>
+										<div>
+											<p className="meta-row-label">
+												{m.knowledge_areas_label()}
+											</p>
+											<p className="meta-row-value">
+												<CatalogValueList
+													values={knowledgeAreas}
+													href={knowledgeAreaHref}
+												/>
+											</p>
+										</div>
+									</div>
+								) : resource.subjects?.length ? (
 									<div className="meta-row">
 										<div className="meta-row-icon">
 											<span className="material-symbols-outlined">
@@ -795,6 +823,25 @@ export function ResourceDetailContent({
 											<p className="meta-row-label">{m.detail_subjects()}</p>
 											<p className="meta-row-value">
 												<SearchValueList values={resource.subjects} />
+											</p>
+										</div>
+									</div>
+								) : null}
+
+								{professionalFamilies.length > 0 ? (
+									<div className="meta-row">
+										<div className="meta-row-icon">
+											<span className="material-symbols-outlined">work</span>
+										</div>
+										<div>
+											<p className="meta-row-label">
+												{m.detail_professional_families()}
+											</p>
+											<p className="meta-row-value">
+												<CatalogValueList
+													values={professionalFamilies}
+													href={professionalFamilyHref}
+												/>
 											</p>
 										</div>
 									</div>

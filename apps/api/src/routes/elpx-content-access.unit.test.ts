@@ -6,6 +6,7 @@ import * as repo from "@procomun/db/repository";
 import { Hono } from "hono";
 import type { AuthEnv } from "../auth/middleware.ts";
 import { getDb } from "../db.ts";
+import { buildElpxPreview } from "../elpx/preview.ts";
 import { app } from "../index.ts";
 import { adminRoutes } from "./admin/index.ts";
 import { CONTENT_HTML_CSP } from "./elpx-content.ts";
@@ -255,5 +256,129 @@ describe("vista previa firmada con el origen opaco de #317", () => {
 		expect(shim).toBeGreaterThan(-1);
 		expect(facade).toBeGreaterThan(shim);
 		expect(facade).toBeLessThan(html.indexOf("</head>"));
+	});
+});
+
+// Revisión de #471: un paquete con screenshot.png en la raíz y sin index.html
+// tiene miniatura, pero no visor. La API da la miniatura y no inventa un iframe.
+describe("miniatura de un paquete sin index.html (#471)", () => {
+	const WORD = "capturasinvisor471";
+	const shotOnly: Record<"published" | "draft", Seeded> = {
+		published: { resourceId: "", hash: "", slug: "" },
+		draft: { resourceId: "", hash: "", slug: "" },
+	};
+
+	async function seedScreenshotOnly(
+		status: keyof typeof shotOnly,
+	): Promise<Seeded> {
+		const resource = await repo.createResource(getDb().db, {
+			title: `Recurso ${WORD} ${status}`,
+			description: "Paquete con screenshot.png y sin index.html",
+			language: "es",
+			license: "cc-by",
+			resourceType: "proyecto",
+			createdBy: AUTHOR_ID,
+		});
+		if (status === "published") {
+			await repo.updateEditorialStatus(
+				getDb().db,
+				resource.id,
+				"published",
+				"system",
+			);
+		}
+		const hash = crypto.randomUUID().replaceAll("-", "").padEnd(40, "1");
+		const dir = path.join(tmpRoot, "elpx", hash);
+		await mkdir(dir, { recursive: true });
+		await writeFile(path.join(dir, "content.xml"), "<ode></ode>");
+		await writeFile(path.join(dir, "screenshot.png"), "png");
+		const project = await repo.createElpxProject(getDb().db, {
+			resourceId: resource.id,
+			hash,
+			extractPath: dir,
+			originalFilename: `${status}-sin-index.elpx`,
+			hasPreview: false,
+			hasScreenshot: true,
+		});
+		await repo.publishResourceVersion(getDb().db, {
+			resourceId: resource.id,
+			elpxProjectId: project.id,
+			createdBy: AUTHOR_ID,
+		});
+		return { resourceId: resource.id, hash, slug: resource.slug as string };
+	}
+
+	beforeAll(async () => {
+		shotOnly.published = await seedScreenshotOnly("published");
+		shotOnly.draft = await seedScreenshotOnly("draft");
+	});
+
+	test("la ficha expone la miniatura y no ofrece visor", async () => {
+		const { hash, slug } = shotOnly.published;
+		const res = await app.request(`/api/v1/resources/${slug}`);
+		expect(res.status).toBe(200);
+		const body = (await res.json()) as { elpxPreview: unknown };
+		expect(body.elpxPreview).toEqual({
+			hash,
+			previewUrl: null,
+			screenshotUrl: `/api/v1/elpx/${hash}/screenshot.png`,
+		});
+	});
+
+	test("el listado público expone la miniatura sin visor", async () => {
+		const { hash, slug } = shotOnly.published;
+		const res = await app.request(`/api/v1/resources?q=${WORD}`);
+		expect(res.status).toBe(200);
+		const body = (await res.json()) as {
+			data: Array<{ slug: string; elpxPreview: unknown }>;
+		};
+		const card = body.data.find((item) => item.slug === slug);
+		expect(card?.elpxPreview).toEqual({
+			hash,
+			previewUrl: null,
+			screenshotUrl: `/api/v1/elpx/${hash}/screenshot.png`,
+		});
+	});
+
+	test("la miniatura publicada se sirve y no hay visor detrás", async () => {
+		const { hash } = shotOnly.published;
+		const shot = await app.request(`/api/v1/elpx/${hash}/screenshot.png`);
+		expect(shot.status).toBe(200);
+		expect(shot.headers.get("content-type")).toBe("image/png");
+		expect((await app.request(`/api/v1/elpx/${hash}/`)).status).toBe(404);
+	});
+
+	test("la miniatura de un borrador usa el enlace firmado y se sirve sin cookies", async () => {
+		const { hash, resourceId } = shotOnly.draft;
+		const project = await repo.getCurrentElpxProjectByResourceId(
+			getDb().db,
+			resourceId,
+		);
+		const preview = buildElpxPreview(project, "draft");
+		expect(preview?.previewUrl).toBeNull();
+		const screenshotUrl = preview?.screenshotUrl ?? "";
+		expect(screenshotUrl).toMatch(
+			new RegExp(`^/api/v1/elpx/preview/${hash}/[^/]+/screenshot\\.png$`),
+		);
+		const shot = await app.request(screenshotUrl);
+		expect(shot.status).toBe(200);
+		expect(shot.headers.get("content-type")).toBe("image/png");
+		// Por la URL estable, el borrador sigue sin servirse (#466).
+		expect(
+			(await app.request(`/api/v1/elpx/${hash}/screenshot.png`)).status,
+		).toBe(404);
+	});
+
+	test("la edición tampoco ofrece un visor que no existe", async () => {
+		const res = await authorApp.request(
+			`/api/admin/resources/${shotOnly.draft.resourceId}/elpx`,
+		);
+		expect(res.status).toBe(200);
+		const body = (await res.json()) as {
+			hasPreview: boolean;
+			previewUrl: string | null;
+		};
+		expect(body.hasPreview).toBe(false);
+		expect(body.previewUrl).toBeNull();
 	});
 });
