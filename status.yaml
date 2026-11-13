@@ -3841,3 +3841,14 @@ tasks:
       elpx-versioning) recibian una BD sin los usuarios del preload y fallaban
       con resources_created_by_fkey. En las VMs del runner propio el orden de
       los ficheros los dejaba detras; en GitHub no. Ahora usa la BD compartida.
+  T-2026-11-13-09112566:
+    date: 2026-11-13
+    agent: "ci"
+    task: "api-tokens.unit.test.ts usa emails propios"
+    status: Done
+    related: ["#566", "#562"]
+    notes: >
+      Con la BD compartida (#562), uploads.unit.test.ts ya habia creado
+      author@example.com con otro id. ensureUser hace onConflictDoNothing, asi
+      que user-2 no se creaba y createApiToken fallaba con
+      api_tokens_user_id_fkey. El test usa ahora api-tokens-*@example.com.
