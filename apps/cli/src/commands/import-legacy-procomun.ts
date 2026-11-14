@@ -20,6 +20,7 @@ import {
 	type EducationalImportResourceNote,
 	IMPORT_SOURCE,
 	LEGACY_IMPORT_SYSTEM_USER_ID,
+	LEGACY_USER_ID_PREFIX,
 	type LegacyOdeJson,
 	normalizeLegacyPublicatorEmail,
 	summarizeLegacyEducationalImport,
@@ -960,7 +961,12 @@ function createLegacyAuthorResolver(
 			? { userId: null, reason: "no_account" }
 			: account.deleted
 				? { userId: null, reason: "deleted_account" }
-				: !account.emailVerified
+				: // Una cuenta sin verificar no recibe recursos: si no, quien se
+					// registre con el correo de un autor antiguo se queda con ellos.
+					// Las que crea el importador de usuarios (#488) sí, aunque no
+					// estén verificadas: su id no lo puede elegir nadie.
+					!account.emailVerified &&
+						!account.id.startsWith(LEGACY_USER_ID_PREFIX)
 					? { userId: null, reason: "unverified_account" }
 					: { userId: account.id };
 		cache.set(email, author);

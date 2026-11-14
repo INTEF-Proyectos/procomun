@@ -3904,3 +3904,38 @@ tasks:
       elpx-versioning) recibian una BD sin los usuarios del preload y fallaban
       con resources_created_by_fkey. En las VMs del runner propio el orden de
       los ficheros los dejaba detras; en GitHub no. Ahora usa la BD compartida.
+  T-2026-11-11-04585652:
+    date: 2026-11-11
+    agent: "ingestas-y-migraciones"
+    task: "Las cuentas del importador de usuarios reciben sus recursos aunque no estén verificadas"
+    status: Done
+    related: ["#508", "#488", "#456"]
+    notes: >
+      #488 crea las cuentas con emailVerified false y #508 no enlazaba recursos
+      a cuentas sin verificar, asi que juntos los recursos quedaban a nombre del
+      sistema. Se acepta la cuenta sin verificar si su id empieza por
+      legacy-procomun:user: (LEGACY_USER_ID_PREFIX), que nadie puede elegir al
+      registrarse. El resto de cuentas sin verificar siguen sin recibir nada.
+  T-2026-11-13-06473561:
+    date: 2026-11-13
+    agent: "ci"
+    task: "El runner de Playwright corre bajo Bun (bunx --bun playwright test)"
+    status: Done
+    related: ["#564"]
+    notes: >
+      Playwright 1.65 ejecuta el runner bajo Bun solo con --bun; sin el, el
+      shebang del CLI lo lanza en Node. Cambiados los scripts test:e2e*, los
+      pasos de e2e.yml y e2e/README.md. test:e2e:ui sigue en Node porque bajo
+      Bun la UI no relanza los tests al cambiar un fichero.
+      scripts/check-playwright-bun.unit.test.ts lo comprueba.
+  T-2026-11-13-09112566:
+    date: 2026-11-13
+    agent: "ci"
+    task: "api-tokens.unit.test.ts usa emails propios"
+    status: Done
+    related: ["#566", "#562"]
+    notes: >
+      Con la BD compartida (#562), uploads.unit.test.ts ya habia creado
+      author@example.com con otro id. ensureUser hace onConflictDoNothing, asi
+      que user-2 no se creaba y createApiToken fallaba con
+      api_tokens_user_id_fkey. El test usa ahora api-tokens-*@example.com.
