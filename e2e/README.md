@@ -142,8 +142,8 @@ bun run test:e2e:report
 ### Ejecutar un test específico
 
 ```bash
-bunx playwright test --grep "login"
-bunx playwright test tests/public/home-and-search.e2e.ts
+bunx --bun playwright test --grep "login"
+bunx --bun playwright test tests/public/home-and-search.e2e.ts
 ```
 
 ## Capturas visuales en pull requests
@@ -172,7 +172,7 @@ Ejecución local, con la aplicación y el seed ya iniciados:
 ```bash
 CAPTURE_VISUAL_PREVIEWS=true \
 VISUAL_PREVIEW_DIR=visual-previews \
-bunx playwright test e2e/visual-preview.e2e.ts --project=chromium --workers=1
+bunx --bun playwright test e2e/visual-preview.e2e.ts --project=chromium --workers=1
 ```
 
 ## CI/CD
