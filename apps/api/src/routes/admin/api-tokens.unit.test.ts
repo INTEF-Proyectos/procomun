@@ -34,16 +34,19 @@ function createAdminApiTokensApp(
 
 describe("Admin API Tokens routes", () => {
 	beforeEach(async () => {
-		// Create mock users in the isolated database
+		// Emails propios de este fichero: la BD es compartida y ensureUser hace
+		// onConflictDoNothing. Si otro test ya creó author@example.com con otro
+		// id (uploads.unit.test.ts usa "upload-author"), user-2 no se crea y
+		// createApiToken falla con api_tokens_user_id_fkey.
 		await ensureUser(isolatedDb, {
 			id: "admin-1",
-			email: "admin@example.com",
+			email: "api-tokens-admin@example.com",
 			name: "Admin User",
 			role: "admin",
 		});
 		await ensureUser(isolatedDb, {
 			id: "user-2",
-			email: "author@example.com",
+			email: "api-tokens-author@example.com",
 			name: "Author User",
 			role: "author",
 		});
