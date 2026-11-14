@@ -70,8 +70,8 @@ jobs:
         # Dos copias vendorizadas, una por app: el frontend la sirve por URL pública y el
         # API lee sus bytes en runtime para inyectar el lado hijo en cada HTML del .elpx.
         # Ambas se verifican contra el MISMO buildHash, así que no pueden derivar entre sí.
-        node apps/frontend/public/elpx/exe_external_media/verify.mjs apps/frontend/public/elpx/exe_external_media --build-hash "43c776daa551fd770b6dade520629362e5a8ca8745e4245c359447c4689b34d6"
-        node apps/api/static/elpx/exe_external_media/verify.mjs apps/api/static/elpx/exe_external_media --build-hash "43c776daa551fd770b6dade520629362e5a8ca8745e4245c359447c4689b34d6"
+        bun apps/frontend/public/elpx/exe_external_media/verify.mjs apps/frontend/public/elpx/exe_external_media --build-hash "43c776daa551fd770b6dade520629362e5a8ca8745e4245c359447c4689b34d6"
+        bun apps/api/static/elpx/exe_external_media/verify.mjs apps/api/static/elpx/exe_external_media --build-hash "43c776daa551fd770b6dade520629362e5a8ca8745e4245c359447c4689b34d6"
 
     - name: Biome Check
       run: make lint
