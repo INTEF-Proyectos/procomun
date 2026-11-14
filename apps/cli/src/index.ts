@@ -79,6 +79,8 @@ export function printHelp(log: Pick<typeof console, "log"> = console) {
 	);
 	log.log(
 		"                    Pasa a editor las cuentas legacy importadas como author (#507)",
+	);
+	log.log(
 		"  elpx:screenshots [--dry-run]  Detecta screenshot.png en los paquetes ya subidos (#409)",
 	);
 	log.log(
