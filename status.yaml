@@ -3394,6 +3394,26 @@ tasks:
       0012 reservadas para #397 y #457). Tests rojo → verde en API, servicio,
       repositorio, cliente HTTP, helper de sesión y ficha.
 
+  T-2026-10-27-10333906:
+    date: 2026-10-27
+    agent: "frontend-ux-accesibilidad"
+    task: "Nombres de autor pulsables y ficha pública de quien publica"
+    status: Done
+    related: ["#458"]
+    notes: >
+      Nueva ficha pública /autor/<id> (GET /api/v1/authors/:id): nombre, foto
+      opcional, contador de recursos publicados (sin borradores ni eliminados,
+      total independiente de la paginación) y listado del más reciente al más
+      antiguo, paginado. Sin correo ni rol. Solo existe para cuentas sin baja que
+      hayan creado algún recurso, para no exponer por id a quien nunca publicó.
+      El nombre de la cuenta que publica enlaza a esa ficha en la ficha del
+      recurso y en las tarjetas (común, catálogo y colecciones); cada nombre del
+      campo libre author (separado por comas, sin coletillas «… para X») enlaza
+      a explorar?q=<nombre>. Las tarjetas pasan de <a> a <article> con el enlace
+      del título estirado (no se anidan enlaces). Importados sin cuenta: solo
+      enlaces de búsqueda. Colecciones y comunidades quedan para otra issue.
+      Validación: tests de repositorio, API, cliente, componentes y e2e nuevos
+      (rojo → verde); bun run test, check-types y biome en verde.
   T-2026-10-27-08403687:
     date: 2026-10-27
     agent: "seguridad-privacidad-legal"
@@ -3467,6 +3487,25 @@ tasks:
       ayuda describe la publicación directa del editor. Tests:
       editorial-transitions-by-role.unit.test.ts (API por rol) y
       EditorialActions.unit.test.tsx (acciones visibles por rol y estado).
+  T-2026-11-03-13523856:
+    date: 2026-11-03
+    agent: "seguridad-privacidad-legal"
+    task: "Ficha pública de autor: solo con algún recurso publicado (revisión de #487)"
+    status: Done
+    related: ["#458", "#487"]
+    notes: >
+      Corrige la regla de T-2026-10-27-10333906. El exists de getPublicAuthor
+      abría la ficha si la cuenta había creado cualquier recurso, así que una
+      cuenta con solo borradores o solo recursos eliminados daba 200 con nombre
+      y foto (total 0). Ahora exige al menos un recurso publicado y no
+      eliminado; si no, 404 igual que un id desconocido. En la ficha de un
+      recurso sin publicar (vista previa de quien lo creó o del equipo
+      editorial) el nombre de la cuenta ya no enlaza, porque la ficha podría
+      no existir. Las tarjetas públicas solo muestran recursos publicados, así
+      que su enlace siempre lleva a una ficha que existe. Tests rojo → verde de
+      repositorio y API (solo borradores, solo eliminados, solo en revisión o
+      archivados, un publicado con borradores que cuenta solo el publicado) y
+      de la ficha del recurso.
   T-2026-11-03-10481219:
     date: 2026-11-03
     agent: "frontend-ux-accesibilidad"
