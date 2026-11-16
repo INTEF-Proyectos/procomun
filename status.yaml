@@ -3359,6 +3359,38 @@ tasks:
       #461): la migración de «Otros autores» pasa a 0012 detrás de
       0011_keyword_catalog, y alta/edición envían otherAuthors junto a
       keywordIds.
+  T-2026-10-27-10251845:
+    date: 2026-10-27
+    agent: "ingestas-y-migraciones"
+    task: "Importador de usuarios del Procomún anterior: roles, bloqueo, contraseñas y perfil"
+    status: Done
+    related: ["#456", "#309", "ADR-0037"]
+    notes: >
+      import:legacy-users aplica la tabla de roles de la issue (varios separados
+      por coma: gana admin > editor > author; desconocidos como author y en el
+      informe), descarta los status 0 (no se crean y se cuentan en el
+      informe), usa nombre y apellidos como nombre visible y guarda país, localidad,
+      centro y su web, «sobre mí», web y redes en user_profile (migración
+      0017). Guarda el hash antiguo ($2y$ y $S$ de Drupal 7), lo verifica en
+      el login y lo cambia a scrypt tras entrar. Reimportar no pisa cambios.
+      Tests: mapeo, repositorio, migración, CLI e integración de login real
+      con better-auth. Pendiente: propietario de ODE/artículos e itinerarios
+      (por correo, publicatorEmailStr) y fotos.
+
+  T-2026-10-27-11285588:
+    date: 2026-10-27
+    agent: "backend-api-servicios"
+    task: "Estado «bloqueado» de las cuentas e importación de bloqueados"
+    status: Done
+    related: ["#456", "#488", "ADR-0037"]
+    notes: >
+      Cambio de requisito: los status 0 se importan bloqueados y reimportar
+      no cambia el estado. «Bloqueado» pasa a ser un solo estado
+      (is_active = false + banned, setUserBlocked): al bloquear se cierran
+      las sesiones, se rechazan login (403 BANNED_USER) y tokens, y los
+      recursos publicados siguen visibles. La administración muestra
+      «Bloquear/Desbloquear» y no deja bloquear la propia cuenta. Tests de
+      repositorio, integración con better-auth y cliente HTTP.
 
   T-2026-10-26-22242628:
     date: 2026-10-26
@@ -3394,6 +3426,26 @@ tasks:
       0012 reservadas para #397 y #457). Tests rojo → verde en API, servicio,
       repositorio, cliente HTTP, helper de sesión y ficha.
 
+  T-2026-10-27-10333906:
+    date: 2026-10-27
+    agent: "frontend-ux-accesibilidad"
+    task: "Nombres de autor pulsables y ficha pública de quien publica"
+    status: Done
+    related: ["#458"]
+    notes: >
+      Nueva ficha pública /autor/<id> (GET /api/v1/authors/:id): nombre, foto
+      opcional, contador de recursos publicados (sin borradores ni eliminados,
+      total independiente de la paginación) y listado del más reciente al más
+      antiguo, paginado. Sin correo ni rol. Solo existe para cuentas sin baja que
+      hayan creado algún recurso, para no exponer por id a quien nunca publicó.
+      El nombre de la cuenta que publica enlaza a esa ficha en la ficha del
+      recurso y en las tarjetas (común, catálogo y colecciones); cada nombre del
+      campo libre author (separado por comas, sin coletillas «… para X») enlaza
+      a explorar?q=<nombre>. Las tarjetas pasan de <a> a <article> con el enlace
+      del título estirado (no se anidan enlaces). Importados sin cuenta: solo
+      enlaces de búsqueda. Colecciones y comunidades quedan para otra issue.
+      Validación: tests de repositorio, API, cliente, componentes y e2e nuevos
+      (rojo → verde); bun run test, check-types y biome en verde.
   T-2026-10-27-08403687:
     date: 2026-10-27
     agent: "seguridad-privacidad-legal"
@@ -3448,6 +3500,140 @@ tasks:
       referencias en el CI. Validado reproduciendo el conflicto de #465 contra
       main: la union automatica da un status.yaml identico a la resolucion
       manual (diff vacio) y check-tracking lo acepta.
+  T-2026-11-03-13121620:
+    date: 2026-11-03
+    agent: "devops-sre"
+    task: "Vite deja de recargar la página al primer acceso en los e2e"
+    status: Done
+    related: ["#492", "#489"]
+    notes: >
+      La primera vez que el SDK de inlang abre project.inlang/ en una copia
+      limpia escribe settings.json, .lix/README.md, .meta.json, README.md y
+      .gitignore. El plugin de Paraglide lee esos ficheros como entrada y el
+      watcher de Vite ya funciona durante buildStart, así que el plugin se
+      enteraba de esas escrituras en mitad de su primera compilación. Lanzaba
+      otra compilación sin los hashes de la primera, que reescribía los 13
+      ficheros de src/paraglide con Vite ya escuchando, y luego cinco más, una
+      por fichero. Vite no emite el HMR hasta que acaba watchChange, así que el
+      `page reload src/paraglide/runtime.js` llegaba durante los primeros tests.
+      Mientras tanto, el proceso de Vite, que también hace de proxy de la API,
+      estaba ocupado y la portada seguía en «Cargando…» cuando axe la
+      analizaba. No depende del SO. En macOS pasa igual con un project.inlang
+      recién clonado; en local no se veía porque esos ficheros ya existen.
+      Tampoco depende de urlPatterns: el plugin reescribe la salida del CLI
+      antes de escuchar. Se excluye project.inlang/ del watcher de Vite
+      (server.watch.ignored); messages/*.json sigue vigilado y un cambio en
+      settings.json exige reiniciar Vite, como ya pasaba con urlPatterns.
+      vite.config.integration.test.ts usa el watcher real de Vite: falla sin
+      el cambio y pasa con él. Docker (Linux, Bun 1.4.4, pasos de e2e.yml),
+      wcag.e2e.ts: en main, 6 recompilaciones, recarga y 4 fallos de 10; con
+      el cambio, una compilación, ninguna escritura en src/paraglide después de
+      arrancar, sin recarga y 2 fallos de 10. Esos 2 fallos (portada y login)
+      se repiten en los 3 intentos y no tienen que ver con Vite. Axe analiza
+      la portada antes de que lleguen los datos, «Cargando…» tiene un
+      contraste de 4,28:1, el pie de página uno de 2,45:1 y Material Symbols
+      se descarga de Google Fonts. Queda pendiente aparte.
+  T-2026-11-03-12551668:
+    date: 2026-11-03
+    agent: "devops-sre"
+    task: "El access_log de nginx no guarda URL de capacidad"
+    status: Done
+    related: ["#466", "#317", "ADR-0021", "ADR-0026"]
+    notes: >
+      nginx.conf no declaraba access_log y se usaba el formato main de
+      nginx:alpine, que guarda $request y $http_referer enteros: el enlace
+      firmado /api/v1/elpx/preview/<hash>/<token>/ de #466, la instantánea
+      /api/v1/preview/<id>/ y /api/v1/preview-session/<id> de #317 y el
+      ?token= de la verificación de correo. El Referer también, porque el HTML
+      del .elpx sale con Referrer-Policy: same-origin. Ahora el access_log usa
+      main_redacted, el formato main con $redacted_uri y $redacted_referer: dos
+      map tapan el token (:token) y el id (:previewId), y el hash se conserva.
+      Sin cambios de rutas, cabeceras ni caché. Test:
+      scripts/nginx-log-redaction.unit.test.ts lee nginx.conf y ejecuta las
+      regex de los map contra URL de ejemplo y contra el enlace firmado real
+      (rojo → verde). Con nginx:alpine en Docker, nginx -t pasa con el host
+      api resoluble y el log de peticiones reales no lleva ningún secreto.
+      Queda abierto: el error_log no admite formato y un 502 escribe la
+      petición entera; un proxy inverso delante de producción tiene que
+      redactar igual (docs/operaciones/operaciones.md); api_access_logs guarda
+      la ruta de #466 entera hasta que entre redactAuditPath con #317.
+  T-2026-11-03-13053388:
+    date: 2026-11-03
+    agent: "backend-api-servicios"
+    task: "El editor publica directamente y no envía a revisión (#506)"
+    status: Done
+    related: ["#506", "#515", "ADR-0008", "ADR-0016", "ADR-0024"]
+    notes: >
+      TRANSITION_RULES marca draft → review con excludedRoles: ["editor"] y
+      validateTransition lo aplica además del rol mínimo; canTransition y
+      transitionExclusionError salen de la misma regla. La API devuelve 403
+      sin cambiar el estado en PATCH /api/admin/resources/:id/status y en el
+      alta en revisión de POST /api/v1/publish/resources. Author, curator y
+      admin conservan todas sus transiciones (matriz por rol en
+      validation-transitions.unit.test.ts). En la interfaz, /editar pinta los
+      botones con EditorialActions, que filtra con canTransition, y
+      ResourceEditorIsland usa las reglas compartidas en vez de su copia. La
+      ayuda describe la publicación directa del editor. Tests:
+      editorial-transitions-by-role.unit.test.ts (API por rol) y
+      EditorialActions.unit.test.tsx (acciones visibles por rol y estado).
+  T-2026-11-03-12341998:
+    date: 2026-11-03
+    agent: "ingestas-y-migraciones"
+    task: "Usuarios del Procomún anterior como editor y corrección de los importados como author"
+    status: Done
+    related: ["#507", "#456", "#488", "ADR-0037"]
+    notes: >
+      Corrige el requisito de #456: sin rol, «-», bm_documentalista,
+      gestor_de_odes y los roles desconocidos (Organization…) entran como
+      editor; los desconocidos siguen en unknownRoles. administrator y
+      administrador siguen en admin y ganan a editor con varios roles; nunca
+      curator. import:legacy-users --fix-roles --source-file <usuarios.json>
+      [--dry-run] relee el JSON y pasa de author a editor solo las cuentas
+      legacy-procomun:user:<uid> cuyo mapeo da editor, sin tocar admin,
+      curator, otros roles ni cuentas nativas, y conservando bloqueo,
+      credenciales, perfil y recursos. Se puede repetir y deja informe.
+      Tests de mapeo, repositorio (PGlite) y CLI. Pendiente: lanzar la
+      corrección en las bases ya cargadas con #488.
+  T-2026-11-03-14021773:
+    date: 2026-11-03
+    agent: "ingestas-y-migraciones"
+    task: "Errores de los importadores legacy sin datos de la base de datos en el informe ni en la consola"
+    status: Done
+    related: ["#488", "#456", "ADR-0037"]
+    notes: >
+      Revisión del PR #488: el catch de import:legacy-users guardaba
+      error.message en el informe y lo escribía en consola, y el mensaje de
+      Drizzle lleva la consulta y sus parámetros (el hash y el correo).
+      apps/cli/src/import-errors.ts resume el error en un código
+      (duplicate_email, constraint_violation con el nombre de la
+      restricción, db_error, unexpected_error, invalid_record, import_error)
+      con el SQLSTATE, sin message, detail, query ni params. Aplicado en
+      import:legacy-users, --fix-roles, import:legacy-procomun (registro de
+      error y aviso de search_vector) y --fix-published. Los errores que
+      salen de los bucles llegan al manejador del CLI sin la consulta. El
+      registro de error de usuarios lleva legacyUid para reintentarlo. Tests
+      con fallos reales en PGlite (CHECK y trigger sobre la credencial con un
+      hash sintético, trigger en --fix-roles, error de Drizzle con un correo
+      en el importador de recursos).
+  T-2026-11-03-13523856:
+    date: 2026-11-03
+    agent: "seguridad-privacidad-legal"
+    task: "Ficha pública de autor: solo con algún recurso publicado (revisión de #487)"
+    status: Done
+    related: ["#458", "#487"]
+    notes: >
+      Corrige la regla de T-2026-10-27-10333906. El exists de getPublicAuthor
+      abría la ficha si la cuenta había creado cualquier recurso, así que una
+      cuenta con solo borradores o solo recursos eliminados daba 200 con nombre
+      y foto (total 0). Ahora exige al menos un recurso publicado y no
+      eliminado; si no, 404 igual que un id desconocido. En la ficha de un
+      recurso sin publicar (vista previa de quien lo creó o del equipo
+      editorial) el nombre de la cuenta ya no enlaza, porque la ficha podría
+      no existir. Las tarjetas públicas solo muestran recursos publicados, así
+      que su enlace siempre lleva a una ficha que existe. Tests rojo → verde de
+      repositorio y API (solo borradores, solo eliminados, solo en revisión o
+      archivados, un publicado con borradores que cuenta solo el publicado) y
+      de la ficha del recurso.
   T-2026-11-03-10481219:
     date: 2026-11-03
     agent: "frontend-ux-accesibilidad"
@@ -3802,6 +3988,58 @@ tasks:
       prueba. Sin el arreglo fallan los dos tests de integracion que prueban la
       funcionalidad, por CHANGE_EMAIL_DISABLED. Los tests del cliente
       restauran globalThis.fetch desde el principio (leccion de #531).
+  T-2026-11-04-16381948:
+    date: 2026-11-04
+    agent: "devops-sre + seguridad-privacidad-legal"
+    task: "Atender la revision de #524: el access_log no registra la query"
+    status: Done
+    related: ["#524", "#466", "#536", "#317"]
+    notes: >
+      Dos hallazgos P2 de jacoboAlcantara, los dos reales. Tapar los secretos
+      por nombre de parametro no funcionaba: ?token=A&token=B dejaba el primero
+      porque la regex era codiciosa, ?t%6fken=A no casaba con token= aunque
+      Better Auth lo decodifique igual, y al casar primero una ruta sensible el
+      map devolvia su resultado sin aplicar la redaccion de la query. En vez de
+      perseguir variantes se deja de registrar la query: dos maps encadenados,
+      el primero la quita y deja el marcador ?:query y el segundo redacta la
+      ruta (token del enlace firmado a :token conservando el hash, e id de la
+      vista previa a :previewId). El Referer pasa por la misma pareja de maps,
+      quitando tambien el fragmento. Importante: los maps parten de
+      $request_uri y no de $uri. Con $uri el primer intento registraba
+      /index.html para cualquier ruta del SPA, porque $uri es la ruta despues
+      del try_files; se detecto probando con nginx real. Verificado con
+      nginx:alpine en Docker: nginx -t pasa con los maps encadenados y, con
+      peticiones reales de los tres bypass mas el Referer, el access_log sale
+      con ?:query, :token y :previewId y grep del secreto da 0; /recursos/
+      foto?page=2 y /explorar?q=... conservan su ruta. Contrapartida
+      documentada en operaciones.md: el log pierde los parametros de busqueda y
+      paginacion, y si hacen falta se añaden a una lista permitida uno a uno.
+      Los 6 casos de la revision estan en el test, rojo a verde.
+  T-2026-11-04-16555820:
+    date: 2026-11-04
+    agent: "ingestas-y-migraciones + seguridad-privacidad-legal"
+    task: "Poner #488 al dia con main: el bloqueo de cuentas dentro de createAuth"
+    status: Done
+    related: ["#488", "#456", "#507", "#515", "#525"]
+    notes: >
+      7 conflictos tras entrar #475, #523 y #525 en main. El serio era
+      apps/api/src/auth/config.ts: main ya tiene createAuth(env) con
+      resolveNewUserRole y defaultRole REGISTRATION_ROLE (de #515/#525), y
+      este PR traia el betterAuth suelto con el bloqueo de cuentas. Se parte
+      de la estructura de main y se injertan las cuatro aportaciones de #488:
+      la constante BLOCKED_USER_MESSAGE fuera de la funcion, el hook
+      session.create.before que impide iniciar sesion a una cuenta con
+      is_active false, la actualizacion del hash heredado en el hook after de
+      /sign-in/email, y password: legacyAwarePasswordOptions con
+      bannedUserMessage en el plugin admin. El defaultRole se queda en
+      REGISTRATION_ROLE, que ya es editor: coincide con lo que pedia #507 y
+      deja de ser author. En el journal este PR conserva la 0017_user_profile,
+      que reclamo primero, y la de #471 pasa a 0018. Los demas conflictos eran
+      aniadidos de los dos lados (setup.ts, los dos docs de la epica y los dos
+      ficheros de test, estos ultimos con la cola compartida que hay que cerrar
+      a mano). Los dos hallazgos de la revision ya estaban corregidos antes de
+      este merge: el mapeo de roles en 4b689721 y el saneado de errores en
+      694e4c9e.
   T-2026-11-04-16594050:
     date: 2026-11-04
     agent: "arquitectura-solucion + seguridad-privacidad-legal"
@@ -3859,6 +4097,22 @@ tasks:
       un when posterior, y #488 conserva la suya. AGENTS.md: renumera el que se
       mezcla despues. Si #471 acabase entrando antes que #488, no hace falta
       tocar nada: el journal aplica por idx y 0018 va detras de todo.
+  T-2026-11-10-21011876:
+    date: 2026-11-10
+    agent: "seguridad-privacidad-legal"
+    task: "access_log de nginx: miniatura firmada y rutas con %xx"
+    status: Done
+    related: ["#524", "#512", "#536", "#317"]
+    notes: >
+      La miniatura firmada de #512 (/api/v1/thumbnails/signed/<token>/...)
+      pasa a :token en la ruta y en el Referer. El map casaba sobre
+      $request_uri en crudo y Hono enruta sobre la ruta decodificada, asi que
+      /api/v1/elpx/previe%77/<hash>/<token>/ (o /%61pi/...) llegaba al handler
+      y quedaba en claro. En la API se registra ahora $uri (decodificada y
+      normalizada, sin try_files en /api/); fuera, la ruta pedida. El Referer
+      falla cerrado: con % en la ruta queda origen + /:encoded. Tests rojo ->
+      verde en scripts/nginx-log-redaction.unit.test.ts y comprobado con
+      nginx:alpine real (nginx -t y peticiones con %xx).
   T-2026-11-11-04241251:
     date: 2026-11-11
     agent: "ci"
@@ -3884,6 +4138,23 @@ tasks:
       elpx-versioning) recibian una BD sin los usuarios del preload y fallaban
       con resources_created_by_fkey. En las VMs del runner propio el orden de
       los ficheros los dejaba detras; en GitHub no. Ahora usa la BD compartida.
+  T-2026-11-11-04511329:
+    date: 2026-11-11
+    agent: "documentacion-y-roadmap"
+    task: "Poner al dia #488 con main: la migracion de perfil pasa de 0017 a 0019"
+    status: Done
+    related: ["#488", "#471", "#456"]
+    notes: >
+      El merge con main no daba conflictos de texto, pero el journal quedaba
+      mal: git mezclo la entrada 0017_user_profile de este PR con la
+      0018_elpx_has_screenshot de main en un solo objeto con claves repetidas.
+      La 0018 de #471 ya esta en main y puede estar aplicada en alguna base;
+      el migrador de drizzle solo aplica lo que tiene un when mayor que la
+      ultima aplicada, asi que la de perfil no puede ir antes. Pasa a
+      0019_user_profile, con idx 15 y when 1793300000000, detras de la 0018.
+      Se actualizan los tests de migraciones (la 0019 es ahora la ultima) y el
+      comentario de setup.ts. #512 tambien usa 0018 y 0019: el que se mezcle
+      despues renumera.
   T-2026-11-13-06473561:
     date: 2026-11-13
     agent: "ci"
@@ -3907,3 +4178,39 @@ tasks:
       author@example.com con otro id. ensureUser hace onConflictDoNothing, asi
       que user-2 no se creaba y createApiToken fallaba con
       api_tokens_user_id_fkey. El test usa ahora api-tokens-*@example.com.
+  T-2026-11-16-08024722:
+    date: 2026-11-16
+    agent: "devops-sre + seguridad-privacidad-legal"
+    task: "Segunda revision de #524: rutas no canonicas en el access_log"
+    status: Done
+    related: ["#524", "#466", "#317", "#512"]
+    notes: >
+      Hallazgo P2 de jacoboAlcantara: /ignored/../api/v1/elpx/preview/<hash>/<token>/
+      con curl --path-as-is llega a la API y el log guardaba el token. El caso
+      de la URI ya lo cubria el commit que registra $uri en /api/ (nginx
+      resuelve .. y %2e%2e), pero con nginx:alpine real quedaban seis fugas:
+      la barra invertida en la URI (nginx no la trata como separador y Bun la
+      convierte en /) y el Referer con .., ., // o \. Se falla cerrado: fuera
+      de la API una ruta pedida con .., ., //, \, %2e, %2f o %5c se registra
+      como /:noncanonical; en la API, $uri con \ tambien; el Referer queda en
+      origen + /:noncanonical. Test: scripts/nginx-log-redaction.unit.test.ts,
+      el simulador de $uri resuelve ahora los segmentos como nginx; 15 casos
+      nuevos fallaban y pasan (98 en verde). Verificado con nginx:alpine y una
+      API falsa en Bun: nginx -t pasa y 29 peticiones con --path-as-is dejan 0
+      secretos en el log (6 antes del cambio). Documentado en
+      docs/operaciones/operaciones.md.
+  T-2026-11-16-08020377:
+    date: 2026-11-16
+    agent: "backend-api-servicios"
+    task: "Atender la revision de #488 del 16-nov: hash heredado condicional y logs sin datos"
+    status: Done
+    related: ["#488", "#456"]
+    notes: >
+      upgradeLegacyPasswordHash escribe con un UPDATE condicional
+      (id y hash verificado) en replaceLegacyPasswordHash: un
+      restablecimiento intercalado ya no se pisa. El catch del hook de
+      inicio de sesion registra solo un codigo y el SQLSTATE. El saneamiento
+      de errores de BD de los importadores pasa a @procomun/db/db-errors.
+      La revision del 08-nov ya estaba resuelta en 733e4fe0; se ha
+      verificado el journal y el migrador real de Drizzle sobre una base en
+      main.

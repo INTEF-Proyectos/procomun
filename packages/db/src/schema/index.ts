@@ -10,4 +10,5 @@ export * from "./social.ts";
 export * from "./tags.ts";
 export * from "./taxonomies.ts";
 export * from "./uploads.ts";
+export * from "./user-profile.ts";
 export * from "./versions.ts";

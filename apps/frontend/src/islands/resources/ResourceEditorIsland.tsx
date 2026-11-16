@@ -1,8 +1,9 @@
+import { canTransition, TRANSITION_RULES } from "@procomun/db/validation";
 import { type FormEvent, Fragment, useEffect, useRef, useState } from "react";
 import type { Resource, UpdateResourceInput } from "../../lib/api-client.ts";
 import { getApiClient } from "../../lib/get-api-client.ts";
 import { url } from "../../lib/paths.ts";
-import { hasMinRole, roleLevelOf } from "../../lib/shared-utils.ts";
+import { hasMinRole } from "../../lib/shared-utils.ts";
 import { statusChangeFeedback } from "../../lib/status-change-errors.ts";
 import { AccessibleFeedback } from "../shared/AccessibleFeedback.tsx";
 import {
@@ -36,18 +37,6 @@ const STEP_LABELS: Record<string, string> = {
 	draft: "Borrador",
 	review: "En revisión",
 	published: "Aprobado",
-};
-const TRANSITION_RULES: Record<string, { to: string; minRole: string }[]> = {
-	draft: [
-		{ to: "review", minRole: "author" },
-		{ to: "published", minRole: "editor" },
-	],
-	review: [
-		{ to: "draft", minRole: "curator" },
-		{ to: "published", minRole: "curator" },
-	],
-	published: [{ to: "archived", minRole: "curator" }],
-	archived: [{ to: "draft", minRole: "curator" }],
 };
 const TRANSITION_LABELS: Record<string, string> = {
 	"draft→review": "Enviar a revisión",
@@ -286,11 +275,9 @@ export function ResourceEditorIsland() {
 		resourceMetaParts.push(`Fecha: ${date.toLocaleDateString("es-ES")}`);
 	}
 
+	// Las mismas reglas que la API (#506): el editor no envía a revisión.
 	const allowedTransitions = (TRANSITION_RULES[currentStatus] ?? []).filter(
-		(rule) => {
-			const userLevel = roleLevelOf(userRole);
-			return userLevel >= roleLevelOf(rule.minRole, 99);
-		},
+		(rule) => canTransition(currentStatus, rule.to, userRole),
 	);
 	const resourceTypeOptions = getResourceTypeOptions(form.resourceType);
 
