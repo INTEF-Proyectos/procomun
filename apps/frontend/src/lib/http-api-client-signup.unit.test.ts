@@ -271,9 +271,11 @@ describe("HttpApiClient", () => {
 			email: "user@example.com",
 			password: "secret",
 		});
-		expect(getCall(calls, 5).url).toBe("/api/auth/sign-in/oauth2");
+		// El flujo completo contra Better Auth está en
+		// apps/api/src/auth/oidc-sign-in.integration.test.ts (#527).
+		expect(getCall(calls, 5).url).toBe("/api/auth/sign-in/social");
 		expect(bodyAsJson(getCall(calls, 5))).toEqual({
-			providerId: "oidc",
+			provider: "oidc",
 			callbackURL: "/admin",
 		});
 		expect(getCall(calls, 8)).toMatchObject({
