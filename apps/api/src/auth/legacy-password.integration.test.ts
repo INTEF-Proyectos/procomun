@@ -1,7 +1,7 @@
-import { beforeAll, describe, expect, test } from "bun:test";
+import { afterEach, beforeAll, describe, expect, spyOn, test } from "bun:test";
 import { account, user } from "@procomun/db/schema";
 import { hashPassword } from "better-auth/crypto";
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import { getDb, waitForDb } from "../db.ts";
 import { auth, legacyPasswordAdapter } from "./config.ts";
 import {
@@ -138,5 +138,63 @@ describe("restablecimiento intercalado con la actualización del hash (#488)", (
 		expect(upgraded).toBeFalse();
 		expect((await signIn(legacy.email, NEW_PASSWORD)).status).toBe(200);
 		expect((await signIn(legacy.email, PASSWORD)).status).toBe(401);
+	});
+});
+
+describe("fallo al sustituir el hash heredado (#488)", () => {
+	const MARKER = "marcador-sensible-488";
+	const spies = (["error", "warn", "log", "info", "debug"] as const).map(
+		(level) => spyOn(console, level),
+	);
+
+	beforeAll(async () => {
+		await waitForDb();
+	});
+
+	afterEach(async () => {
+		for (const spy of spies) spy.mockRestore();
+		const { db } = getDb();
+		await db.execute(
+			sql.raw("DROP TRIGGER IF EXISTS legacy_upgrade_falla ON account"),
+		);
+		await db.execute(sql.raw("DROP FUNCTION IF EXISTS legacy_upgrade_falla()"));
+	});
+
+	test("el inicio de sesión sigue siendo válido y el log no lleva datos del error", async () => {
+		const legacy = await seedLegacyUser(9005, BCRYPT_2Y);
+		// El UPDATE falla con el marcador y el hash nuevo en el mensaje; el
+		// error de Drizzle lleva además la consulta y sus parámetros (hashes).
+		const { db } = getDb();
+		await db.execute(
+			sql.raw(`
+				CREATE FUNCTION legacy_upgrade_falla() RETURNS trigger AS $$
+				BEGIN
+					RAISE EXCEPTION '${MARKER} %', NEW.password;
+				END $$ LANGUAGE plpgsql
+			`),
+		);
+		await db.execute(
+			sql.raw(`
+				CREATE TRIGGER legacy_upgrade_falla BEFORE UPDATE ON account
+					FOR EACH ROW WHEN (OLD.user_id = '${legacy.id}')
+					EXECUTE FUNCTION legacy_upgrade_falla()
+			`),
+		);
+		for (const spy of spies) spy.mockClear();
+
+		const res = await signIn(legacy.email, PASSWORD);
+
+		expect(res.status).toBe(200);
+		expect(await storedHash(legacy.id)).toBe(BCRYPT_2Y);
+		const logged = spies
+			.flatMap((spy) => spy.mock.calls)
+			.map((args) => Bun.inspect(args, { depth: 20 }))
+			.join("\n");
+		expect(logged).toContain(
+			"No se pudo actualizar el hash de una contraseña heredada",
+		);
+		expect(logged).not.toContain(MARKER);
+		expect(logged).not.toContain(BCRYPT_2Y);
+		expect(logged).not.toContain('update "account"');
 	});
 });

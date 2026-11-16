@@ -1,3 +1,4 @@
+import { summarizeDbStepError } from "@procomun/db/db-errors";
 import * as pgSchema from "@procomun/db/schema";
 import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
@@ -119,9 +120,12 @@ export function createAuth(env: NodeJS.ProcessEnv = process.env) {
 							);
 						} catch (error) {
 							// El inicio de sesión ya es válido; se reintenta en el siguiente.
+							// Nunca el error entero: el de Drizzle lleva la consulta y sus
+							// parámetros, es decir, los hashes (#488).
+							const { code, sqlState } = summarizeDbStepError(error);
 							ctx.context.logger.error(
 								"No se pudo actualizar el hash de una contraseña heredada",
-								error,
+								{ code, ...(sqlState ? { sqlState } : {}) },
 							);
 						}
 					}
