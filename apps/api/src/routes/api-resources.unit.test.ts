@@ -88,6 +88,30 @@ describe("API Resources — con autenticación", () => {
 		expect(body.editorialStatus).toBe("review");
 	});
 
+	// #526: crear en revisión es la transición draft → review entera, con su
+	// rol mínimo (author), no solo la exclusión del editor.
+	test("POST /api/v1/publish/resources → 403 en revisión con rol reader", async () => {
+		const readerApp = createApiApp({
+			id: "reader-526",
+			role: "reader",
+			email: "reader526@example.com",
+			name: "Lectora",
+		});
+		const res = await readerApp.request("/api/v1/publish/resources", {
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({
+				...validResource,
+				editorialStatus: "review",
+				knowledgeAreaIds: ["matematicas"],
+			}),
+		});
+		expect(res.status).toBe(403);
+		const body = await res.json();
+		expect(body.error).toBe("Transición no permitida");
+		expect(body.details[0].field).toBe("status");
+	});
+
 	test("POST /api/v1/publish/resources → 400 sin campos obligatorios", async () => {
 		const res = await app.request("/api/v1/publish/resources", {
 			method: "POST",

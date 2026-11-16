@@ -86,3 +86,9 @@ La política anterior se corrige: los registros con `roles: "administrator"` se 
 ### Decisión de activación de cuentas migradas (2026-08-12)
 
 Por decisión funcional confirmada en la revisión del PR #309, toda cuenta legacy que supere la validación del importador se crea activa (`user.is_active = true`) aunque el origen tenga `status = 0`, otro valor o no incluya el campo. El objetivo es que las personas migradas puedan recuperar la contraseña mediante su correo y continuar usando la cuenta. El hash `pass` de Drupal no se migra y `email_verified` permanece en `false`; la recuperación/establecimiento de credenciales se resolverá mediante el flujo habitual de contraseña olvidada o el proveedor de identidad que corresponda.
+
+### Corrección de requisito: usuarios como `editor` (2026-11-03, issue #507)
+
+Sustituye la correspondencia de roles acordada en #456. Los usuarios importados entran como `editor`. Eso incluye a los usuarios autenticados, los que no tienen rol, los documentalistas (`bm_documentalista`) y los gestores de ODEs (`gestor_de_odes`). De momento también `Organization` u otro rol desconocido, que sigue apareciendo en el informe. `administrator`/`administrador` sigue dando `admin`, con la misma precedencia cuando hay varios roles, y ningún rol da `curator`.
+
+Las cuentas ya importadas como `author` se tienen que poder corregir de forma repetible. La corrección se limita a cuentas de origen legacy y no toca `admin` ni `curator`. Conserva el bloqueo, las credenciales, el identificador de origen, el perfil y las relaciones con recursos. El objetivo es que estas personas publiquen sus recursos con los permisos de editor (relacionado con #506).
