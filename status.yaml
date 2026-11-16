@@ -3517,6 +3517,27 @@ tasks:
       lee los .json. La sesión de subida del paquete sigue a nombre del
       sistema para no gastar la cuota del autor. Sin migración. ADR-0029,
       actualización 2026-11-03.
+  T-2026-11-03-13524606:
+    date: 2026-11-03
+    agent: "backend-api-servicios"
+    task: "El acceso institucional (OIDC) daba 404 con Better Auth 1.7 (#527)"
+    status: Done
+    related: ["#527", "#525", "#362", "ADR-0007"]
+    notes: >
+      Desde Better Auth 1.7 (#362) el plugin genericOAuth usa el flujo social y
+      no registra rutas propias: /sign-in/oauth2 y /oauth2/callback/:id dan
+      404. signInOidc (apps/frontend/src/lib/http-api-client.ts) pasa a POST
+      /api/auth/sign-in/social con { provider: "oidc" }; la vuelta llega a
+      /api/auth/callback/oidc. config.ts exporta createAuth(env), igual que en
+      #525. oidc-sign-in.integration.test.ts recorre el flujo completo con el
+      cliente real del frontend y un proveedor OIDC de prueba (Bun.serve) que
+      solo acepta la URL de retorno registrada, exige PKCE y firma el id_token
+      con nonce: rojo con la ruta antigua, verde con la nueva. ADR-0007,
+      .env.example y docs/operaciones/instalacion.md indican la URL de retorno
+      que hay que dar de alta, {BETTER_AUTH_URL}/api/auth/callback/oidc; un
+      despliegue registrado con /api/auth/oauth2/callback/oidc tiene que
+      cambiarla en el proveedor. Queda abierto: oidcEndSessionUrl de
+      apps/api/src/app/routes.ts sigue fijo a /connect/endsession (Duende).
   T-2026-11-03-13121620:
     date: 2026-11-03
     agent: "devops-sre"
