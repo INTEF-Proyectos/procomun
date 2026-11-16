@@ -1,5 +1,6 @@
 import * as repo from "@procomun/db/repository";
 import {
+	DEFAULT_LICENSE,
 	validateCreateResource,
 	validateResourceForStatus,
 	validateResourceUpdateForStatus,
@@ -177,7 +178,7 @@ resourceRoutes.post("/draft", requireRole("author"), async (c) => {
 		title: "Nuevo recurso",
 		description: " ",
 		language: "es",
-		license: "cc-by",
+		license: DEFAULT_LICENSE,
 		resourceType: "actividad-interactiva",
 		editorialStatus: "draft",
 		createdBy: user.id,
