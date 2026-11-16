@@ -329,3 +329,15 @@ El informe de la ingesta y el de `--link-authors` listaban el correo de origen e
 ### Consecuencias
 * El informe restringido contiene datos personales para resolver las incidencias de la migración: hay que guardarlo donde solo acceda quien las resuelve y borrarlo al terminar. Falta decidir esa ubicación en la migración real.
 * Tests: `apps/cli/src/restricted-report.unit.test.ts` e `import-legacy-procomun.unit.test.ts` («informes sin correos e informe restringido (#543)»).
+
+## Actualización 2026-11-16 (2) — artículos sin autor sin correo en el informe (issues #446 y #543)
+
+### Contexto
+La importación de artículos (2026-11-03 (2)) listaba el correo en los registros `skipped_without_author`. La decisión de #543 (2026-11-16) también los cubre.
+
+### Decisión
+* `skipped_without_author` lleva `externalId`, `kind` y `reason`, sin `email`. El correo solo va al informe restringido (`--restricted-report`), con `list: "skipped_without_author"`.
+* Los errores al guardar un artículo pasan por la utilidad saneada (`summarizeImportError`), así que el texto del artículo, que va en los parámetros del INSERT, no llega al informe ni a la consola.
+
+### Consecuencias
+* Para saber a qué correo pertenece un artículo sin importar hay que pedir el informe restringido o mirar el JSON de origen.

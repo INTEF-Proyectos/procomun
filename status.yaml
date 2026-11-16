@@ -4262,3 +4262,15 @@ tasks:
       el informe general; --restricted-report <ruta> escribe aparte el correo,
       con permisos 0600, fuera de --report-dir y sin pisar otro fichero.
       Falta decidir donde se guarda en la migracion real y quien accede.
+  T-2026-11-16-12342641:
+    date: 2026-11-16
+    agent: "backend-api-servicios"
+    task: "Poner #517 al dia con #508 y aplicar la decision de #543 a los articulos"
+    status: Done
+    related: ["#517", "#446", "#508", "#543"]
+    notes: >
+      Merge de la rama de #508 actualizada (main con #488 y la decision de
+      #543). skipped_without_author ya no lleva el correo en el informe
+      general; con --restricted-report va al informe restringido. Test con un
+      error real de Drizzle cuyos parametros llevan el texto del articulo y el
+      correo: el informe y la consola quedan con db_error y sin esos datos.

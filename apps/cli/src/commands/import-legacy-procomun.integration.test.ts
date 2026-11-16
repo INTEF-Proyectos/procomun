@@ -1244,9 +1244,10 @@ describe("import:legacy-procomun — artículos (issue #446)", () => {
 			outcome: "skipped_without_author",
 			externalId: DRAFT,
 			kind: "article",
-			email: "articulista.dos@ejemplo.test",
 			reason: "no_account",
 		});
+		// #543: el informe general no lleva el correo.
+		expect(JSON.stringify(report)).not.toContain("articulista.dos");
 		expect(await rowOf(DRAFT)).toBeNull();
 
 		expect(await rowOf(PUBLISHED)).toMatchObject({

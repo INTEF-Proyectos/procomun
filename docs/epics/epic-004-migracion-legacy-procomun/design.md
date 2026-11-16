@@ -325,3 +325,9 @@ Condiciones del informe restringido (`apps/cli/src/restricted-report.ts`):
 - Sin la opción, el correo no se guarda en ningún sitio: los run (`runImportLegacyProcomun`, `runLinkLegacyAuthors`) solo lo copian si reciben `restrictedEntries`.
 
 Errores de los pasos de autoría (#543, punto 1): `resolveAuthor`, `linkExistingResourceAuthor` y el `catch` de `--link-authors` solo usan la base de datos y su consulta lleva el correo como parámetro. Pasan por `summarizeDbStepError` y dejan `{ outcome: "error", externalId, code, message, sqlState? }`, como el resto (ver «Errores sin datos de la base de datos» arriba). Desaparece `summarizeStepError`, la utilidad propia de #508: `summarizeReindexError` también usa `summarizeDbStepError` y da `fallo al reindexar: <code> [SQLSTATE …]: <mensaje fijo>`.
+
+## Artículos sin autor e informe restringido — 2026-11-16 (issues #446 y #543)
+
+Sustituye, para el informe, la fila «Sin cuenta, sin correo o con la cuenta dada de baja» de «Artículos» (2026-11-03): el registro `skipped_without_author` queda `{ outcome, externalId, kind: "article", reason }`, sin `email`. Con `--restricted-report <ruta>` el correo va al informe restringido con `list: "skipped_without_author"`, en las mismas condiciones que el resto (ver «Informes sin correos e informe restringido»).
+
+Un fallo de la base de datos al guardar el artículo pasa por `summarizeImportError`: los parámetros del INSERT llevan el texto extraído del artículo y el registro de error solo deja `code`, `message` fijo y `sqlState`.

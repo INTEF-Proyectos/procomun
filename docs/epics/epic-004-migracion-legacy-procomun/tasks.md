@@ -194,3 +194,9 @@ Los JSON/`.elpx` de `ode-export/` contienen datos personales reales (nombres y e
 - [x] Tests: informe general serializado sin correos, informe restringido con su contenido y sus permisos, errores reales de Drizzle con el correo como parámetro.
 - [x] README, diseño y ADR-0029 con la garantía: el informe general no lleva datos personales; el restringido sí y hay que borrarlo al terminar.
 - [ ] Decidir dónde se guarda el informe restringido en la migración real, quién accede y cuándo se borra (#543).
+
+## Artículos sin autor e informe restringido — 2026-11-16 (issues #446 y #543)
+
+- [x] `skipped_without_author` sin `email` en el informe general; el correo va a la lista restringida con `list: "skipped_without_author"`.
+- [x] Test con un error real de Drizzle cuyos parámetros llevan el texto del artículo y el correo: el informe y la consola no los llevan.
+- [x] README y diseño actualizados.
