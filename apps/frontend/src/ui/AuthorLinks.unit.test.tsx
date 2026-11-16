@@ -43,6 +43,23 @@ describe("AuthorLinks (#458)", () => {
 		expect(html).not.toContain("Otra");
 	});
 
+	test("una cuenta dada de baja muestra su nombre sin enlace (#541)", () => {
+		const html = renderToStaticMarkup(
+			<ResourceByline
+				resource={{
+					createdBy: "u1",
+					createdByName: "Ana",
+					createdByActive: false,
+					author: "Otra",
+				}}
+			/>,
+		);
+		expect(html).not.toContain("/autor/");
+		expect(html).not.toContain("<a");
+		expect(html).toContain("Ana");
+		expect(html).not.toContain("Otra");
+	});
+
 	test("los importados sin cuenta enlazan el autor a la búsqueda", () => {
 		const html = renderToStaticMarkup(
 			<ResourceByline

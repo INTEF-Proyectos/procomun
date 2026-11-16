@@ -1,4 +1,8 @@
-import { authorProfileHref, splitAuthorNames } from "../lib/author-links.ts";
+import {
+	authorProfileHref,
+	publisherProfileId,
+	splitAuthorNames,
+} from "../lib/author-links.ts";
 import { searchHref } from "../lib/resource-display.ts";
 import "../lib/paraglide-client.ts";
 import * as m from "../paraglide/messages.js";
@@ -32,17 +36,23 @@ export function AuthorSearchLinks({
 export type BylineResource = {
 	createdBy?: string | null;
 	createdByName?: string | null;
+	/** `false` si la cuenta está dada de baja: su nombre va sin enlace (#541). */
+	createdByActive?: boolean | null;
 	author?: string | null;
 };
 
 /**
- * Autoría breve para tarjetas: la cuenta que publica si la hay; si no (recursos
+ * Autoría breve para tarjetas: la cuenta que publica si la hay (sin enlace si
+ * está dada de baja, #541); si no (recursos
  * importados sin cuenta), los autores del texto libre; si tampoco, «Anónimo».
  */
 export function ResourceByline({ resource }: { resource: BylineResource }) {
 	if (resource.createdBy && resource.createdByName) {
-		return (
-			<PublisherLink id={resource.createdBy} name={resource.createdByName} />
+		const profileId = publisherProfileId(resource);
+		return profileId ? (
+			<PublisherLink id={profileId} name={resource.createdByName} />
+		) : (
+			resource.createdByName
 		);
 	}
 	if (splitAuthorNames(resource.author).length > 0) {

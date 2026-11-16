@@ -1,5 +1,9 @@
 import { describe, expect, test } from "bun:test";
-import { authorProfileHref, splitAuthorNames } from "./author-links.ts";
+import {
+	authorProfileHref,
+	publisherProfileId,
+	splitAuthorNames,
+} from "./author-links.ts";
 import { searchHref } from "./resource-display.ts";
 
 describe("splitAuthorNames (#458)", () => {
@@ -44,6 +48,43 @@ describe("enlaces de autor (#458)", () => {
 	test("cada nombre de autor lanza una búsqueda con el nombre completo", () => {
 		expect(searchHref("Mª del Mar Pérez")).toBe(
 			"/explorar?q=M%C2%AA%20del%20Mar%20P%C3%A9rez",
+		);
+	});
+});
+
+describe("publisherProfileId (#541)", () => {
+	test("con cuenta activa devuelve su id", () => {
+		expect(
+			publisherProfileId({
+				createdBy: "u1",
+				createdByName: "Ana",
+				createdByActive: true,
+			}),
+		).toBe("u1");
+	});
+
+	test("una cuenta dada de baja no tiene ficha que enlazar", () => {
+		expect(
+			publisherProfileId({
+				createdBy: "u1",
+				createdByName: "Ana",
+				createdByActive: false,
+			}),
+		).toBeNull();
+	});
+
+	test("sin cuenta o sin nombre tampoco", () => {
+		expect(
+			publisherProfileId({ createdBy: null, createdByName: "Ana" }),
+		).toBeNull();
+		expect(
+			publisherProfileId({ createdBy: "u1", createdByName: null }),
+		).toBeNull();
+	});
+
+	test("si la respuesta no trae el dato se mantiene el enlace", () => {
+		expect(publisherProfileId({ createdBy: "u1", createdByName: "Ana" })).toBe(
+			"u1",
 		);
 	});
 });

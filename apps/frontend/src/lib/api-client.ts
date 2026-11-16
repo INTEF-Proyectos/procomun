@@ -35,6 +35,8 @@ export interface Resource {
 	editorialStatus: string;
 	createdBy: string | null;
 	createdByName: string | null;
+	/** La cuenta creadora existe y no está dada de baja (#541). */
+	createdByActive?: boolean;
 	assignedCuratorId?: string | null;
 	createdAt: string | number | Date | null;
 	updatedAt: string | number | Date | null;
@@ -131,6 +133,8 @@ export interface CollectionResourceRecord {
 	author: string | null;
 	createdBy?: string | null;
 	createdByName?: string | null;
+	/** La cuenta creadora existe y no está dada de baja (#541). */
+	createdByActive?: boolean;
 	editorialStatus: string;
 	thumbnailUrl?: string | null;
 	elpxPreview?: ElpxCardPreview | null;

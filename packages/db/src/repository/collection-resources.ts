@@ -84,6 +84,8 @@ export async function listCollectionResources(
 			thumbnailUrl: resources.thumbnailUrl,
 			createdBy: resources.createdBy,
 			createdByName: user.name,
+			// Sin cuenta activa no hay ficha de autor que enlazar (#541).
+			createdByActive: sql<boolean>`(${user.id} is not null and ${user.deletedAt} is null)`,
 			editorialStatus: resources.editorialStatus,
 		})
 		.from(collectionResources)
