@@ -1,3 +1,8 @@
+import {
+	EMPTY_PROFILE_DETAILS,
+	PROFILE_LIMITS,
+	type ProfileDetails,
+} from "@procomun/db/user-profile";
 import { useCallback, useEffect, useState } from "react";
 import type { Resource, SessionUser } from "../../lib/api-client.ts";
 import { getApiClient } from "../../lib/get-api-client.ts";
@@ -20,6 +25,13 @@ import { Skeleton } from "../../ui/Skeleton.tsx";
 import { Tabs } from "../../ui/Tabs.tsx";
 import { UserAvatar } from "../../ui/UserAvatar.tsx";
 import { ApiKeysTab } from "./ApiKeysTab.tsx";
+import {
+	errorsByField,
+	FieldError,
+	ProfileDetailsFields,
+	ProfileDetailsView,
+	type ProfileFormErrors,
+} from "./ProfileDetails.tsx";
 import "./PublicDashboardIsland.css";
 import "../../lib/paraglide-client.ts";
 import * as m from "../../paraglide/messages.js";
@@ -352,6 +364,8 @@ function ActivityTab() {
 interface ProfileEditState {
 	name: string;
 	bio: string;
+	/** Centro, localidad y redes (#533). */
+	details: ProfileDetails;
 }
 
 export function PublicDashboardIsland() {
@@ -364,7 +378,12 @@ export function PublicDashboardIsland() {
 	const [editForm, setEditForm] = useState<ProfileEditState>({
 		name: "",
 		bio: "",
+		details: EMPTY_PROFILE_DETAILS,
 	});
+	const [profileDetails, setProfileDetails] = useState<ProfileDetails>(
+		EMPTY_PROFILE_DETAILS,
+	);
+	const [fieldErrors, setFieldErrors] = useState<ProfileFormErrors>({});
 	const [saving, setSaving] = useState(false);
 	const [saveMessage, setSaveMessage] = useState("");
 	const [emailVerificationSuccess, setEmailVerificationSuccess] =
@@ -408,6 +427,7 @@ export function PublicDashboardIsland() {
 				profileAvatarUrl(user),
 			]);
 			if (config) setBadgeConfig(config);
+			setProfileDetails(profile?.profile ?? EMPTY_PROFILE_DETAILS);
 
 			const nextFavoriteCount = dashData.favoriteCount ?? 0;
 			setDashboard({
@@ -505,14 +525,17 @@ export function PublicDashboardIsland() {
 		setEditForm({
 			name: dashboard.user.name || "",
 			bio: dashboard.user.bio || "",
+			details: profileDetails,
 		});
 		setEditing(true);
 		setSaveMessage("");
+		setFieldErrors({});
 	}
 
 	function cancelEditing() {
 		setEditing(false);
 		setSaveMessage("");
+		setFieldErrors({});
 	}
 
 	async function handleSave() {
@@ -525,19 +548,30 @@ export function PublicDashboardIsland() {
 			const result = await api.updateMyProfile({
 				name: editForm.name,
 				bio: editForm.bio,
+				profile: editForm.details,
 			});
+			if (!result.ok && result.fieldErrors?.length) {
+				// #533: la API valida; se señalan los campos sin salir de la edición.
+				setFieldErrors(errorsByField(result.fieldErrors));
+				setSaveMessage(m.profile_save_invalid());
+				return;
+			}
 			if (!result.ok) {
 				throw new Error(result.error ?? "Error al actualizar perfil");
 			}
 
+			// Lo guardado sale normalizado (espacios, https://, país en mayúsculas).
+			const saved = await api.getMyProfile().catch(() => null);
 			setDashboard({
 				...dashboard,
 				user: {
 					...dashboard.user,
-					name: editForm.name,
-					bio: editForm.bio,
+					name: saved?.name || editForm.name.trim(),
+					bio: saved ? saved.bio : editForm.bio,
 				},
 			});
+			setProfileDetails(saved?.profile ?? editForm.details);
+			setFieldErrors({});
 			setEditing(false);
 			setSaveMessage(m.profile_saved_ok());
 			setTimeout(() => setSaveMessage(""), 3000);
@@ -745,6 +779,7 @@ export function PublicDashboardIsland() {
 											{m.profile_no_bio()}
 										</p>
 									)}
+									<ProfileDetailsView details={profileDetails} />
 								</div>
 								<button
 									className="dashboard-edit-btn"
@@ -799,7 +834,15 @@ export function PublicDashboardIsland() {
 									}
 									placeholder={m.profile_name_placeholder()}
 									disabled={saving}
+									required
+									maxLength={PROFILE_LIMITS.name}
+									autoComplete="name"
+									aria-invalid={fieldErrors.name ? true : undefined}
+									aria-describedby={
+										fieldErrors.name ? "profile-name-error" : undefined
+									}
 								/>
+								<FieldError id="profile-name-error" code={fieldErrors.name} />
 							</div>
 							<div className="dashboard-edit-field">
 								<label htmlFor="profile-bio">{m.profile_bio_label()}</label>
@@ -812,8 +855,34 @@ export function PublicDashboardIsland() {
 									placeholder={m.profile_bio_placeholder()}
 									rows={3}
 									disabled={saving}
+									maxLength={PROFILE_LIMITS.bio}
+									aria-invalid={fieldErrors.bio ? true : undefined}
+									aria-describedby={
+										fieldErrors.bio ? "profile-bio-error" : undefined
+									}
 								/>
+								<FieldError id="profile-bio-error" code={fieldErrors.bio} />
 							</div>
+							<ProfileDetailsFields
+								value={editForm.details}
+								onChange={(details) => setEditForm({ ...editForm, details })}
+								errors={fieldErrors}
+								disabled={saving}
+							/>
+							{saveMessage && (
+								<div
+									className="dashboard-save-message dashboard-save-message--error"
+									role="alert"
+								>
+									<span
+										className="material-symbols-outlined"
+										aria-hidden="true"
+									>
+										error
+									</span>
+									{saveMessage}
+								</div>
+							)}
 							<div className="dashboard-edit-actions">
 								<button
 									className="dashboard-edit-cancel"
