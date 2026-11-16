@@ -156,3 +156,11 @@ Detalle técnico y validación en la adenda 2026-10-27 de la [ADR-0026](0026-ape
 ## Adenda 2026-11-03 — vista previa de versiones históricas (#482)
 
 La vista previa de una versión histórica sigue la regla de la adenda anterior. `requireManageableResource` comprueba el acceso en la ruta de administración, que redirige al enlace firmado del hash de esa versión. Quien no gestiona el recurso recibe 403 y no obtiene enlace. Detalle en la adenda 2026-11-03 de la [ADR-0026](0026-apertura-segura-elpx.md).
+
+## Actualización 2026-11-03 — el editor publica directamente y no envía a revisión (#506)
+
+* El editor ya no puede pasar un borrador a revisión (`draft → review`). Publica directamente (`draft → published`) cuando el recurso cumple las validaciones de publicación (#408). Precisa lo que decía [ADR-0016](0016-rol-editor-publicacion-directa.md): el editor hereda las capacidades del author salvo esta transición.
+* Author, curator y admin conservan sus transiciones: el author envía a revisión y no publica; curator y admin envían a revisión, publican, devuelven a borrador, archivan y restauran.
+* La regla vive en `TRANSITION_RULES` (`packages/db/src/validation.ts`): la transición `draft → review` lleva `excludedRoles: ["editor"]`. `validateTransition` la aplica además del rol mínimo; `canTransition` y `transitionExclusionError` se apoyan en la misma regla.
+* La API rechaza con 403 la petición directa del editor sin cambiar el estado: `PATCH /api/admin/resources/:id/status` y el alta en revisión de `POST /api/v1/publish/resources` (ADR-0024), donde el editor sigue creando borradores.
+* La interfaz filtra los botones con `canTransition`, la misma función que usa la API: la edición del recurso (`EditorialActions`, `/editar`) y `ResourceEditorIsland` ya no repiten la tabla de transiciones por rol.

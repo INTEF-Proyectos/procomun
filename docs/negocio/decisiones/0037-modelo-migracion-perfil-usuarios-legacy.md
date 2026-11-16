@@ -119,3 +119,110 @@ La política inicial es de alta única y no sobrescritura:
 4. Una actualización desde el origen solo podrá existir en una feature posterior, con consentimiento/base jurídica revisados, comparación por campo y una regla explícita limitada a valores que sigan teniendo procedencia de migración.
 
 Así el piloto implementará estas reglas cerradas, en lugar de decidirlas durante la ejecución. Cualquier política de sincronización posterior requerirá revisión de Producto, Seguridad/Privacidad y una nueva adenda o ADR.
+
+## Adenda de implementación — 2026-10-27 (issue #456)
+
+Con el JSON de prueba del exportador y la tabla de roles de la issue #456, Producto (INTEF) acordó qué se importa. Esta adenda recoge esas decisiones y lo que cambia respecto a la propuesta inicial; lo que no se menciona sigue como estaba.
+
+### Roles y estado
+
+| Rol de origen (`roles`) | Rol nuevo |
+|---|---|
+| `administrator`, `administrador` | `admin` |
+| `publicador_certificado` | `editor` |
+| `-`, vacío o sin rol, `bm_documentalista`, `gestor_de_odes` | `author` |
+| Cualquier otro (p. ej. `Organization`) | `author`, listado en el informe (`unknownRoles`) hasta que se defina |
+
+`roles` puede traer varios separados por coma; se queda el de más permisos (admin > editor > author). Ningún rol antiguo da `curator`. Los usuarios no registrados no tienen cuenta que importar.
+
+Los usuarios bloqueados (`status: 0`) no se exportan ni se importan. Si llega alguno, el importador lo descarta sin crear nada (tampoco al reimportar) y lo cuenta en el informe (`discardedBlocked`). En la issue se planteó primero importarlos bloqueados; Producto lo cambió el 27 de octubre.
+
+### Contraseñas
+
+Cambia la decisión inicial de no importar contraseñas. Se guarda el hash antiguo en la cuenta de credenciales (`account.password`) y se verifica en el inicio de sesión: bcrypt de PHP (`$2y$`, truncando a 72 bytes como PHP) y el formato de Drupal 7 (`$S$`, SHA-512 iterado). Tras un inicio de sesión correcto, el hash se sustituye por el formato de better-auth (scrypt). Así nadie tiene que recuperar la contraseña y los hashes antiguos desaparecen con el uso. Un hash en otro formato no se importa y la persona tendrá que recuperar la contraseña; el informe lo cuenta (`withoutPassword`). El hash nunca aparece en el informe ni en los avisos.
+
+### Datos que se importan
+
+- Nombre visible: `field_name_value` + `field_surname_value` + `field_surname_2_value`. Se guarda en `user.name`, como el nombre de cualquier otra cuenta. `name` suele ser el correo y no se usa (solo como respaldo si no lo es).
+- Perfil, en la tabla nueva `user_profile` (migración 0017), uno a uno con `user` y borrado en cascada: país (ISO 3166-1 alfa-2), localidad, centro educativo y su web, «sobre mí», web y redes (Facebook, LinkedIn, Twitter). Las URL se normalizan a http/https y las demás se descartan con aviso.
+- No se importan, por minimización: DNI, fecha de nacimiento, sexo, nivel de estudios, otros estudios, ocupación, zona horaria, provincia (`field_country_administrative_area`) ni descripción de organización.
+- La foto (`user_picture`) queda pendiente de que el exportador entregue los ficheros.
+
+`user_profile` no tiene todavía visibilidad por campo: ningún endpoint lo expone, así que es privado. El «sobre mí» antiguo va a `user_profile.about` y no a `user.bio`, que sí se muestra en el perfil público. Cuando haya una pantalla de perfil que publique estos datos, tendrá que añadir la visibilidad por campo que propone esta ADR.
+
+### Reimportación
+
+Se mantiene la política de alta única y no sobrescritura, con el ID `legacy-procomun:user:<uid>`. Reimportar no cambia nombre, rol, estado, contraseña ni perfil de una cuenta existente. Solo añade lo que falte: la cuenta de credenciales si no hay ninguna (no sustituye una contraseña recuperada) y el perfil si no existe. Esto completa las cuentas creadas por la primera versión del importador (#309). Una cuenta nativa con el mismo correo no se toca.
+
+### Pendiente
+
+- El identificador real de una persona en el Procomún anterior es su correo. Los ODE ya traen `publicatorEmailStr`, así que el enlace recurso ↔ propietario irá por correo en otra entrega; el ID `legacy-procomun:user:<uid>` se mantiene.
+- Las fotos llegarán como rutas `sites/default/files/...` que se descargarán de `https://procomun.intef.es/`.
+
+- Procedencia por campo y reversión por `migration_batch_id`: no se implementan en esta entrega. El informe por lote sigue sin datos personales.
+- Enlazar ODE, artículos e itinerarios con su propietario y descargar las fotos de perfil.
+- Si alguna base ya se cargó con la versión anterior del importador, los usuarios que entraron como `editor` sin serlo no se corrigen al reimportar; hay que revisarlos a mano.
+
+## Adenda — 2026-10-27: estado «bloqueado» (issue #456)
+
+Sustituye lo dicho sobre los bloqueados en la adenda anterior. Producto (Jacobo, a indicación de Juanda) decide que los usuarios bloqueados **sí** se exportan e importan, para poder asociarles sus recursos antiguos, y que el nuevo Procomún tenga el estado «bloqueado» para cualquier cuenta.
+
+### Importación
+
+`status: 0` crea la cuenta bloqueada y `status: 1` la crea activa. Se importan también su contraseña y su perfil. Reimportar no cambia el estado de una cuenta que ya existe: lo decide la administración. El informe cuenta las cuentas nuevas bloqueadas (`importedBlocked`) y marca cada registro con `blocked`.
+
+### Un solo estado en la plataforma
+
+Antes había dos campos que no decían lo mismo:
+
+- `user.is_active`: lo cambiaba el botón «Desactivar/Activar» de la administración. Solo lo comprobaban los tokens de API. Una cuenta desactivada seguía pudiendo iniciar sesión y conservaba sus sesiones.
+- `user.banned` (plugin admin de better-auth): impide iniciar sesión, pero no cierra las sesiones abiertas ni lo miran los tokens. Solo lo usaba la baja lógica.
+
+Ahora «bloqueado» es un único estado, `is_active = false`, y siempre se escribe junto con `banned = true` (sin caducidad, motivo en `ban_reason`):
+
+- Lo pone y lo quita la administración con «Bloquear/Desbloquear» (el mismo `PATCH /api/admin/users/:id` con `isActive`). Una cuenta no puede bloquearse a sí misma. Una cuenta dada de baja no se desbloquea.
+- Al bloquear se cierran todas sus sesiones.
+- No puede iniciar sesión. Responde 403 con el código `BANNED_USER` y el mensaje «Tu cuenta está bloqueada…», que la pantalla de acceso muestra en todos los idiomas. Una comprobación en la creación de sesión cubre también las cuentas que solo tienen `is_active = false` (desactivadas antes de este cambio).
+- Sus tokens de API se rechazan (403).
+- Sus recursos publicados siguen visibles y con su autoría: ningún listado filtra por el estado de la cuenta.
+
+La administración de usuarios no usa Paraglide (sus textos están en español en el código); «Bloquear», «Desbloquear» y «Bloqueado» siguen esa convención.
+
+## Adenda — 2026-11-03: los usuarios importados entran como `editor` (issue #507)
+
+Sustituye la tabla de roles de la adenda de implementación del 2026-10-27 (issue #456); lo demás sigue como estaba. En #507, Producto corrige el requisito: los perfiles que se importaban como `author` deben ser `editor`, para que publiquen sus recursos con los permisos de editor (relacionado con #506, que quita a los editores la opción de enviar a revisión). Las reglas de `admin` y `curator` no cambian.
+
+| Rol de origen (`roles`) | Antes (#456) | Ahora (#507) |
+|---|---|---|
+| `administrator`, `administrador` | `admin` | `admin` |
+| `publicador_certificado` | `editor` | `editor` |
+| `-` (usuario autenticado), vacío o sin rol | `author` | `editor` |
+| `bm_documentalista` | `author` | `editor` |
+| `gestor_de_odes` | `author` | `editor` |
+| Cualquier otro (p. ej. `Organization`) | `author`, en `unknownRoles` | `editor`, en `unknownRoles` hasta que se defina |
+
+- Con varios roles separados por coma se queda el de más permisos: `admin` gana a `editor`. Como ya ningún rol da `author`, la precedencia queda en admin > editor.
+- Ningún rol antiguo da `curator`. Los usuarios no registrados siguen sin cuenta que importar.
+- Los roles desconocidos siguen en el informe (`unknownRoles`, con sus uid) y en el aviso del registro, que ahora dice «entra como editor».
+
+### Corrección de lo ya importado
+
+Reimportar sigue sin cambiar el rol de una cuenta existente, porque lo decide la administración. Por eso lo que entró como `author` con la versión anterior no se corrige solo. Para eso hay una pasada aparte, como `--fix-published` y `--fix-language` del importador de recursos:
+
+`import:legacy-users --fix-roles --source-file <usuarios.json> [--dry-run] [--limit <n>] [--report-dir <ruta>]`
+
+- Relee el JSON y aplica a cada registro el mapeo vigente.
+- Solo cambia `author` → `editor`, y solo si el mapeo da `editor`. Un `admin` del origen que hoy esté en `author` no se toca.
+- Busca la cuenta por el ID `legacy-procomun:user:<uid>`, nunca por correo. Una cuenta nativa no se toca aunque comparta correo.
+- No toca cuentas `admin` ni `curator`, ni otro rol puesto a mano (`reader`…). Salen como `kept` en el informe, con el rol actual y el del mapeo.
+- Solo escribe `user.role` y `user.updated_at`. Conserva el bloqueo (`is_active`, `banned`, `ban_reason`), las credenciales, el ID, el perfil y los recursos.
+- Se puede repetir: una cuenta ya corregida cuenta como `unchanged`. La escritura lleva la condición `role = 'author'`, así que no pisa un cambio hecho a la vez desde la administración.
+- `--dry-run` no escribe y da las mismas cifras.
+- Escribe `informe_usuarios-correccion-roles-<runId>.json` (o `informe_usuarios-correccion-roles-dryrun-<runId>.json`). Lleva los totales (`fixed`, `unchanged`, `kept`, `notFound`, `errored`), los registros cambiados (o que cambiarían), los respetados y `unknownRoles`. Sin correos.
+
+El rol se lee de la base de datos en cada petición (no hay caché de sesión en cookie), así que vale desde la siguiente petición, sin cerrar sesiones.
+
+Límites:
+
+- Una cuenta legacy que la administración haya puesto en `author` a propósito también pasaría a `editor`: no se distingue de una importada así. Antes de corregir hay que revisar la lista de `--dry-run`.
+- La nota de la adenda del 2026-10-27 sobre las cuentas que entraron como `editor` con la versión de #309 deja de aplicar: `editor` es ahora el rol correcto. La excepción son las cuentas cargadas con #309 cuyo origen era `administrador` o una lista de roles con `administrator`: esa versión solo reconocía `administrator` como valor único, así que quedaron en `editor`. La corrección no las sube a `admin`. Salen como `kept` con `role: editor` y `mappedRole: admin`, y hay que revisarlas a mano.
