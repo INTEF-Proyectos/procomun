@@ -195,16 +195,30 @@ const refererRedactMap = findMap("$referer_path", "$redacted_referer");
 
 /**
  * `$uri` de nginx para una petición a la API: la ruta sin query, con los %xx
- * decodificados y las barras repetidas unidas. Fuera de `/api/` el try_files
- * del SPA la cambia, pero ahí el map no la usa.
+ * decodificados (también `%2e` y `%2f`), las barras repetidas unidas y los
+ * segmentos `.` y `..` resueltos. La barra invertida no es separador para
+ * nginx y se queda. Fuera de `/api/` el try_files del SPA la cambia, pero ahí
+ * el map no la usa.
  */
 function nginxUri(requestUri: string): string {
-	const path = requestUri.split("?")[0] as string;
+	const raw = requestUri.split("?")[0] as string;
+	let decoded: string;
 	try {
-		return decodeURIComponent(path).replace(/\/{2,}/g, "/");
+		decoded = decodeURIComponent(raw);
 	} catch {
-		return path;
+		return raw;
 	}
+	const segments = decoded.split("/").slice(1);
+	const out: string[] = [];
+	segments.forEach((segment, i) => {
+		const last = i === segments.length - 1;
+		if (segment === "..") out.pop();
+		else if (segment !== "." && segment !== "") out.push(segment);
+		if (last && (segment === "" || segment === "." || segment === "..")) {
+			out.push("");
+		}
+	});
+	return `/${out.join("/")}`.replace(/\/{2,}/g, "/");
 }
 
 /**
@@ -446,6 +460,129 @@ describe("una ruta con %xx no se salta la redacción (revisión #524)", () => {
 	it("fuera de la API se registra la ruta pedida, no la del try_files", () => {
 		expect(uriMap("/recursos/fotos%C3%ADntesis")).toBe(
 			"/recursos/fotos%C3%ADntesis",
+		);
+	});
+});
+
+// Segunda revisión de #524: rutas no canónicas. nginx y la API resuelven `..`,
+// `.`, `%2e%2e` y `//`, y Bun convierte `\` en `/`, así que todas llegan al
+// handler con el permiso válido (comprobado con nginx:alpine y Bun reales).
+const SIGNED = `/api/v1/elpx/preview/${HASH}/${TOKEN}/index.html`;
+const SIGNED_REDACTED = `/api/v1/elpx/preview/${HASH}/:token/index.html`;
+
+// En la API se registra `$uri`, que nginx ya ha normalizado: se redacta.
+const DOT_SEGMENT_CASES: [string, string, string][] = [
+	[
+		"segmento `..` (curl --path-as-is)",
+		`/ignored/..${SIGNED}`,
+		SIGNED_REDACTED,
+	],
+	["`..` codificado como %2e%2e", `/ignored/%2e%2e${SIGNED}`, SIGNED_REDACTED],
+	[
+		"`..` codificado en mayúsculas",
+		`/ignored/%2E%2E${SIGNED}`,
+		SIGNED_REDACTED,
+	],
+	["segmento `.`", `/.${SIGNED}`, SIGNED_REDACTED],
+	["segmento `.` codificado", `/%2e${SIGNED}`, SIGNED_REDACTED],
+	[
+		"barras repetidas",
+		`//api/v1//elpx/preview/${HASH}/${TOKEN}/index.html`,
+		SIGNED_REDACTED,
+	],
+	[
+		"`..` dentro de /api/ hacia la instantánea del editor",
+		`/api/v1/x/../preview/${PREVIEW_ID}/index.html`,
+		"/api/v1/preview/:previewId/index.html",
+	],
+];
+
+// Lo que no se puede normalizar con garantías se omite: queda el marcador.
+const NONCANONICAL_URI_CASES: [string, string, string][] = [
+	[
+		"barra invertida: nginx la deja, Bun la convierte en /",
+		`/api/v1\\elpx\\preview\\${HASH}\\${TOKEN}\\index.html`,
+		"/:noncanonical",
+	],
+	[
+		"barra invertida codificada (%5c)",
+		`/api/v1/elpx%5cpreview/${HASH}/${TOKEN}/index.html?v=1`,
+		"/:noncanonical?:query",
+	],
+	[
+		"fuera de la API con `..`: la ruta pedida no es la servida",
+		`/api/v1/elpx/preview/${HASH}/${TOKEN}/../../../../../../recursos`,
+		"/:noncanonical",
+	],
+	[
+		"fuera de la API con `..` y query",
+		`/recursos/${TOKEN}/../explorar?x=1`,
+		"/:noncanonical?:query",
+	],
+];
+
+// El Referer no pasa por nginx: no hay versión normalizada. Se falla cerrado y
+// queda solo el origen.
+const NONCANONICAL_REFERER_CASES: [string, string][] = [
+	["segmento `..`", `https://procomun.example/ignored/..${SIGNED}`],
+	["segmento `.`", `https://procomun.example/.${SIGNED}`],
+	["`..` al final", `https://procomun.example${SIGNED}/..`],
+	[
+		"barras repetidas",
+		`https://procomun.example//api/v1/elpx/preview/${HASH}/${TOKEN}/x`,
+	],
+	[
+		"barra invertida",
+		`https://procomun.example/api/v1\\elpx\\preview\\${HASH}\\${TOKEN}\\x`,
+	],
+	["`..` con query", `https://procomun.example/x/..${SIGNED}?a=1`],
+];
+
+describe("una ruta no canónica no se salta la redacción (segunda revisión #524)", () => {
+	for (const [label, input, expected] of DOT_SEGMENT_CASES) {
+		it(`URI: ${label}`, () => {
+			expect(uriMap(input)).toBe(expected);
+		});
+
+		it(`Referer: ${label}`, () => {
+			const out = refererMap(`https://procomun.example${input}`);
+			expect(out).not.toContain(TOKEN);
+			expect(out).not.toContain(PREVIEW_ID);
+		});
+	}
+
+	for (const [label, input, expected] of NONCANONICAL_URI_CASES) {
+		it(`URI: ${label}`, () => {
+			expect(uriMap(input)).toBe(expected);
+		});
+	}
+
+	for (const [label, input] of NONCANONICAL_REFERER_CASES) {
+		it(`Referer: ${label}`, () => {
+			expect(refererMap(input)).toBe("https://procomun.example/:noncanonical");
+		});
+	}
+
+	it("Referer relativo con `..`: se omite la ruta entera", () => {
+		expect(refererMap(`/x/..${SIGNED}`)).toBe("/:noncanonical");
+	});
+
+	// `//` de `https://` no es una ruta no canónica.
+	it("no confunde las barras del esquema con barras repetidas", () => {
+		expect(refererMap("https://procomun.example/explorar")).toBe(
+			"https://procomun.example/explorar",
+		);
+		expect(refererMap("https://procomun.example/")).toBe(
+			"https://procomun.example/",
+		);
+	});
+
+	it("una ruta con puntos que no son segmentos se conserva", () => {
+		expect(uriMap("/recursos/v1.0/..algo/.oculto")).toBe(
+			"/recursos/v1.0/..algo/.oculto",
+		);
+		expect(refererMap("https://procomun.example/recursos/v1.0/..algo")).toBe(
+			"https://procomun.example/recursos/v1.0/..algo",
 		);
 	});
 });

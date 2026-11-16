@@ -3970,3 +3970,24 @@ tasks:
       author@example.com con otro id. ensureUser hace onConflictDoNothing, asi
       que user-2 no se creaba y createApiToken fallaba con
       api_tokens_user_id_fkey. El test usa ahora api-tokens-*@example.com.
+  T-2026-11-16-08024722:
+    date: 2026-11-16
+    agent: "devops-sre + seguridad-privacidad-legal"
+    task: "Segunda revision de #524: rutas no canonicas en el access_log"
+    status: Done
+    related: ["#524", "#466", "#317", "#512"]
+    notes: >
+      Hallazgo P2 de jacoboAlcantara: /ignored/../api/v1/elpx/preview/<hash>/<token>/
+      con curl --path-as-is llega a la API y el log guardaba el token. El caso
+      de la URI ya lo cubria el commit que registra $uri en /api/ (nginx
+      resuelve .. y %2e%2e), pero con nginx:alpine real quedaban seis fugas:
+      la barra invertida en la URI (nginx no la trata como separador y Bun la
+      convierte en /) y el Referer con .., ., // o \. Se falla cerrado: fuera
+      de la API una ruta pedida con .., ., //, \, %2e, %2f o %5c se registra
+      como /:noncanonical; en la API, $uri con \ tambien; el Referer queda en
+      origen + /:noncanonical. Test: scripts/nginx-log-redaction.unit.test.ts,
+      el simulador de $uri resuelve ahora los segmentos como nginx; 15 casos
+      nuevos fallaban y pasan (98 en verde). Verificado con nginx:alpine y una
+      API falsa en Bun: nginx -t pasa y 29 peticiones con --path-as-is dejan 0
+      secretos en el log (6 antes del cambio). Documentado en
+      docs/operaciones/operaciones.md.
