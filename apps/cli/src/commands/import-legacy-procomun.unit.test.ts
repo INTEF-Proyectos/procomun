@@ -1,7 +1,18 @@
-import { afterEach, beforeEach, describe, expect, test } from "bun:test";
+import {
+	afterAll,
+	afterEach,
+	beforeAll,
+	beforeEach,
+	describe,
+	expect,
+	spyOn,
+	test,
+} from "bun:test";
 import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
+import { PGlite } from "@electric-sql/pglite";
+import type { LegacyOdeJson } from "@procomun/db/legacy-import";
 import {
 	LEGACY_IMPORT_SYSTEM_USER_ID,
 	type LegacyOdeJson,
@@ -9,20 +20,45 @@ import {
 	resolveLegacyExternalId,
 	resolveLegacyPublicationStatus,
 } from "@procomun/db/legacy-import";
+import { sql } from "drizzle-orm";
+import { drizzle } from "drizzle-orm/pglite";
 import { isAllowedPreviewImageUrl } from "../../../api/src/services/legacy-preview-image.ts";
 import {
 	findLegacyJsonFiles,
 	findLegacySourcePairs,
+	importLegacyProcomun,
 	iterateResolvedPairs,
 	type loadImportLegacyProcomunDependencies,
 	runBackfillLegacyEducationalAreas,
 	runCopyLegacyPreviews,
+	runFixLegacyPublished,
 	runImportLegacyProcomun,
 	runLinkLegacyAuthors,
 	summarizeReindexError,
 } from "./import-legacy-procomun.ts";
 
 type Deps = Awaited<ReturnType<typeof loadImportLegacyProcomunDependencies>>;
+
+/** Recoge todo lo que se escribe en la consola durante el test. */
+function captureConsole() {
+	const lines: string[] = [];
+	const spies = (["log", "error", "warn", "info", "debug"] as const).map(
+		(method) =>
+			spyOn(console, method).mockImplementation((...args: unknown[]) => {
+				lines.push(
+					args
+						.map((arg) => (typeof arg === "string" ? arg : Bun.inspect(arg)))
+						.join(" "),
+				);
+			}),
+	);
+	return {
+		text: () => lines.join("\n"),
+		restore: () => {
+			for (const spy of spies) spy.mockRestore();
+		},
+	};
+}
 
 async function collect<T>(iter: AsyncGenerator<T>): Promise<T[]> {
 	const out: T[] = [];
@@ -1106,6 +1142,47 @@ describe("runImportLegacyProcomun — autoría (issue #456)", () => {
 	});
 
 	afterEach(async () => {
+describe("errores de la base de datos sin datos del recurso (#488)", () => {
+	/** Dato sintético del recurso (los autores pueden llevar el correo). */
+	const AUTHOR_EMAIL = "autora-sintetica@example.test";
+	let pglite: PGlite;
+	/** Error real de Drizzle sobre PGlite con el correo como parámetro. */
+	let dbError: unknown;
+	let dir: string;
+	let storageDir: string;
+	let output: ReturnType<typeof captureConsole>;
+
+	beforeAll(async () => {
+		pglite = new PGlite();
+		try {
+			await drizzle(pglite).execute(sql`select ${AUTHOR_EMAIL}::int`);
+		} catch (error) {
+			dbError = error;
+		}
+		// Drizzle pone el parámetro en su mensaje y Postgres, el valor en el suyo.
+		expect(String((dbError as Error).message)).toContain(AUTHOR_EMAIL);
+		expect(String(((dbError as Error).cause as Error).message)).toContain(
+			AUTHOR_EMAIL,
+		);
+	});
+
+	afterAll(async () => {
+		await pglite.close();
+	});
+
+	beforeEach(async () => {
+		dir = await mkdtemp(path.join(tmpdir(), "legacy-db-errors-"));
+		storageDir = await mkdtemp(path.join(tmpdir(), "legacy-db-errors-st-"));
+		await writeFile(
+			path.join(dir, "es_mock.json"),
+			JSON.stringify({ idODE: "es_mock", published: 0 }),
+		);
+		await writeFile(path.join(dir, "es_mock.elpx"), "fake-zip-bytes");
+		output = captureConsole();
+	});
+
+	afterEach(async () => {
+		output.restore();
 		await rm(dir, { recursive: true, force: true });
 		await rm(storageDir, { recursive: true, force: true });
 	});
@@ -1688,5 +1765,147 @@ describe("runLinkLegacyAuthors", () => {
 			resourceId: "r-es_enlazar",
 			userId: "autora-1",
 		});
+	});
+	function expectNoResourceData(text: string) {
+		expect(text.toLowerCase()).not.toContain(AUTHOR_EMAIL);
+		expect(text.toLowerCase()).not.toContain("select ");
+		expect(text).not.toContain("params:");
+		expect(text).not.toContain("invalid input syntax");
+	}
+
+	function repoWith(overrides: Partial<Deps["repo"]>): Deps["repo"] {
+		return { ...buildMockDeps(storageDir).repo, ...overrides };
+	}
+
+	test("un fallo al guardar el recurso queda como db_error, sin el correo", async () => {
+		const report = await runImportLegacyProcomun(
+			{ sourceDir: dir, dryRun: false },
+			buildMockDeps(storageDir, {
+				repo: repoWith({
+					importLegacyResourceWithElpx: async () => {
+						throw dbError;
+					},
+				}),
+			}),
+		);
+
+		expectNoResourceData(JSON.stringify(report));
+		expectNoResourceData(output.text());
+		expect(report.totals).toMatchObject({ imported: 0, errored: 1 });
+		expect(report.records).toEqual([
+			{
+				outcome: "error",
+				externalId: "es_mock",
+				code: "db_error",
+				message: "error de la base de datos",
+				sqlState: "22P02",
+			},
+		]);
+		expect(output.text()).toContain(
+			"[error] es_mock: db_error [SQLSTATE 22P02]: error de la base de datos",
+		);
+	});
+
+	test("un fallo al indexar deja un aviso sin el error de la base de datos", async () => {
+		const report = await runImportLegacyProcomun(
+			{ sourceDir: dir, dryRun: false },
+			buildMockDeps(storageDir, {
+				updateSearchVector: (async () => {
+					throw dbError;
+				}) as Deps["updateSearchVector"],
+			}),
+		);
+
+		expectNoResourceData(JSON.stringify(report));
+		expectNoResourceData(output.text());
+		expect(report.records).toEqual([
+			expect.objectContaining({
+				outcome: "imported",
+				warnings: [
+					"search_vector: no se pudo indexar para búsqueda (db_error [SQLSTATE 22P02]: error de la base de datos); ejecutar fts:reindex manualmente",
+				],
+			}),
+		]);
+	});
+
+	test("--fix-published tampoco copia el error de la base de datos", async () => {
+		const report = await runFixLegacyPublished(
+			{ sourceDir: dir, dryRun: false },
+			buildMockDeps(storageDir, {
+				repo: repoWith({
+					unpublishUnreviewedLegacyResource: async () => {
+						throw dbError;
+					},
+				}),
+			}),
+		);
+
+		expectNoResourceData(JSON.stringify(report));
+		expectNoResourceData(output.text());
+		expect(report.records).toEqual([
+			{
+				externalId: "es_mock",
+				sourcePublished: 0,
+				outcome: "error",
+				code: "db_error",
+				message: "error de la base de datos",
+				sqlState: "22P02",
+			},
+		]);
+	});
+
+	test("un fallo de la base de datos fuera de los registros tampoco llega entero al CLI", async () => {
+		// Si el comando llegara a salir, que falle el test y no el proceso.
+		const exit = spyOn(process, "exit").mockImplementation(((code?: number) => {
+			throw new Error(`process.exit(${code})`);
+		}) as typeof process.exit);
+		try {
+			const run = importLegacyProcomun(
+				["--source-dir", dir, "--dry-run"],
+				async () =>
+					buildMockDeps(storageDir, {
+						waitForDb: async () => {
+							throw dbError;
+						},
+					}),
+			);
+			await expect(run).rejects.toThrow(
+				"db_error [SQLSTATE 22P02]: error de la base de datos",
+			);
+			await run.catch((error: unknown) => {
+				expectNoResourceData(Bun.inspect(error));
+			});
+		} finally {
+			exit.mockRestore();
+		}
+	});
+
+	test("los errores propios del procesado conservan su mensaje con un código", async () => {
+		await writeFile(path.join(dir, "roto.json"), "{ no es JSON");
+		await writeFile(path.join(dir, "roto.elpx"), "fake-zip-bytes");
+		const report = await runImportLegacyProcomun(
+			{ sourceDir: dir, dryRun: false },
+			buildMockDeps(storageDir, {
+				repo: repoWith({
+					importLegacyResourceWithElpx: async () => {
+						throw new Error("El archivo no es un ZIP válido");
+					},
+				}),
+			}),
+		);
+
+		expect(report.records).toEqual([
+			{
+				outcome: "error",
+				externalId: "es_mock",
+				code: "import_error",
+				message: "El archivo no es un ZIP válido",
+			},
+			expect.objectContaining({
+				outcome: "error",
+				externalId: "roto",
+				code: "invalid_record",
+			}),
+		]);
 	});
 });

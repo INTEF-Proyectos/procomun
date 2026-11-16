@@ -227,3 +227,61 @@ En el Procomún antiguo el correo identifica la cuenta. El importador busca la c
 | Ya importado con otro creador real | no se toca | `authorLink: "kept_creator"` |
 
 La sesión de subida del paquete sigue a nombre del usuario de sistema, para no gastar la cuota de subida del autor. `import:legacy-procomun --link-authors --source-dir <ruta> [--dry-run]` enlaza lo ya importado leyendo solo los `.json`. Detalle en ADR-0029, actualización 2026-11-03.
+## Roles de usuarios legacy: `editor` en lugar de `author` — 2026-11-03 (issue #507)
+
+Sustituye, para `roles`, las filas de las tablas de mapeo anteriores y la tabla de la adenda de ADR-0037 del 2026-10-27 (#456).
+
+| `roles` | `user.role` |
+|---|---|
+| `administrator`, `administrador` | `admin` |
+| `publicador_certificado`, `-`, vacío o sin rol, `bm_documentalista`, `gestor_de_odes` | `editor` |
+| Cualquier otro (`Organization`…) | `editor`, listado en `unknownRoles` |
+
+Con varios roles separados por coma, `admin` gana a `editor`. Nunca `curator`. El mapeo está en `mapLegacyRoles()` (`packages/db/src/legacy-import/users.ts`). `LEGACY_DEFAULT_ROLE` es el rol de quien no trae rol o solo trae roles desconocidos.
+
+### Corrección de lo ya importado (`--fix-roles`)
+
+```
+usuarios.json
+  └─ import:legacy-users --fix-roles [--dry-run]   (runFixLegacyUserRoles)
+       ├─ mapLegacyUser()                          (mapeo vigente del registro)
+       └─ fixLegacyUserRole()                      (packages/db/src/repository/legacy-users-import.ts)
+            └─ UPDATE user SET role = 'editor', updated_at = now()
+               WHERE id = 'legacy-procomun:user:<uid>' AND role = 'author'
+```
+
+| Rol actual | Rol del mapeo | Resultado |
+|---|---|---|
+| `author` | `editor` | `fixed` (en dry-run, `would_fix`) |
+| el del mapeo | — | `unchanged` (solo se cuenta) |
+| `admin`, `curator`, `reader` u otro | — | `kept`, con el rol actual y el del mapeo |
+| `author` | `admin` | `kept`: solo se corrige author → editor |
+| sin cuenta con ese ID | — | `not_found` |
+
+Detalle y límites en la adenda de ADR-0037 del 2026-11-03.
+
+## Errores sin datos de la base de datos en informes y consola — 2026-11-03 (revisión del PR #488)
+
+Hasta ahora, los importadores copiaban `error.message` en el informe y en `console.error`. Si el error venía de la base de datos, ese texto llevaba la consulta SQL y sus parámetros (Drizzle: `Failed query: … params: …`). Postgres además puede poner la fila rechazada en `detail` o el propio valor en su mensaje. Al importar usuarios, eso era el correo y el hash de la contraseña. Al importar recursos, los autores, que a veces llevan el correo. Así se incumplía lo que dice ADR-0037: «el hash nunca aparece en el informe ni en los avisos».
+
+`apps/cli/src/import-errors.ts` resume cada error en un código controlado y nunca copia `message`, `detail`, `query` ni `params` de un error de la base de datos:
+
+| `code` | Cuándo | Qué más lleva |
+|---|---|---|
+| `duplicate_email` | SQLSTATE 23505 en una restricción con `email` en el nombre | `sqlState`, `constraint` |
+| `constraint_violation` | Cualquier otro SQLSTATE 23xxx | `sqlState`, `constraint` (solo si es un identificador) |
+| `db_error` | Cualquier otro error de la base de datos | `sqlState`, si lo hay |
+| `unexpected_error` | Un error que no es de la base de datos en un paso que solo la usa | La clase (`TypeError`…), nunca el mensaje |
+| `invalid_record` | El registro de origen no es válido (mapeo o JSON ilegible) | El mensaje propio del importador |
+| `import_error` | Fallo del procesado del `.elpx` o del almacenamiento (ZIP no válido, hash repetido) | El mensaje propio del importador |
+
+El error se reconoce como de la base de datos si en algún punto de su cadena de causas (`cause`) lleva `query` y `params` (Drizzle) o un SQLSTATE con `severity` (pg, PGlite, postgres.js; en Bun.SQL el SQLSTATE está en `errno`). El nombre de la restricción sale de `constraint` o `constraint_name`.
+
+En el informe, el registro de error queda así:
+
+- `import:legacy-users` y `--fix-roles`: `{ outcome: "error", index, legacyUid, code, message, sqlState?, constraint? }`. El `legacyUid` permite reintentar el registro. Si falla el mapeo, el mensaje es el del mapeo (`mail ausente o inválido`). Si falla un paso posterior, que solo usa la base de datos, nunca se copia el mensaje.
+- `import:legacy-procomun` y `--fix-published`: `{ outcome: "error", externalId, code, message, sqlState?, constraint? }`. Los mensajes propios del procesado se conservan porque sirven para diagnosticar y no salen de la base de datos. El aviso de `search_vector` solo lleva el resumen.
+
+En consola: `[error] registro <n> (uid <uid>): <code> (<restricción>) [SQLSTATE <estado>]: <mensaje>`.
+
+Los dos comandos pasan también por `withoutDbDetails()` los errores que salen de los bucles (por ejemplo, si falla `waitForDb`). Así el manejador general del CLI (`Error: <message>`) tampoco escribe la consulta.

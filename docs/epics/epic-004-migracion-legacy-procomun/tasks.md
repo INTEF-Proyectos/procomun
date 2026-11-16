@@ -124,3 +124,50 @@ Los JSON/`.elpx` de `ode-export/` contienen datos personales reales (nombres y e
 - [x] Tests de mapeo, repositorio, comando e integración; ADR-0029, diseño y README actualizados.
 - [ ] Tras importar los usuarios (#488), ejecutar `--link-authors --dry-run` sobre la exportación real y revisar `authorsWithoutAccount` con el equipo del Procomún antiguo.
 - [ ] Reutilizar la búsqueda por correo en los importadores de artículos (#446) e itinerarios (#432).
+## Importador de usuarios — 2026-10-27 (issue #456)
+
+- [x] Roles según la tabla de la issue (varios separados por coma: gana el de más permisos; desconocidos como `author` y listados en `unknownRoles` del informe). Nunca `curator`.
+- [x] Los bloqueados (`status: 0`) se descartan sin crearlos y se cuentan en el informe (`discardedBlocked`).
+- [x] Nombre visible con nombre y apellidos; `name` (correo) no se muestra.
+- [x] Perfil en `user_profile` (migración 0017): país, localidad, centro y su web, «sobre mí», web y redes. Sin DNI, nacimiento, sexo, estudios ni ocupación.
+- [x] Hash antiguo (`$2y$`, `$S$`) verificado en el login y sustituido por scrypt tras entrar. Tests con vectores generados con PHP e integración con better-auth.
+- [x] Reimportación sin sobrescritura; completa contraseña y perfil de cuentas creadas por la primera versión (#309).
+- [x] Adenda de ADR-0037.
+- [ ] Enlazar ODE, artículos e itinerarios con su propietario por correo (`publicatorEmailStr` en los ODE).
+- [ ] Fotos de perfil (`sites/default/files/...`, descargadas de https://procomun.intef.es/).
+- [ ] Visibilidad por campo de `user_profile` cuando haya una pantalla que lo publique.
+
+### Estado «bloqueado» — 2026-10-27 (issue #456, cambio de requisito)
+
+- [x] Los status 0 se importan bloqueados (sustituye al descarte); reimportar no cambia el estado.
+- [x] «Bloqueado» único: `is_active = false` + `banned`; cierra sesiones, rechaza tokens y el inicio de sesión (403 `BANNED_USER`).
+- [x] «Bloquear/Desbloquear» en la administración; no se puede bloquear la propia cuenta.
+- [x] Mensaje de cuenta bloqueada en la pantalla de acceso en los cinco idiomas.
+
+## Usuarios como `editor` — 2026-11-03 (issue #507, corrige #456)
+
+- [x] Lo que daba `author` (sin rol, `-`, `bm_documentalista`, `gestor_de_odes`) da `editor`. Los roles desconocidos (`Organization`…) también, y siguen en `unknownRoles`.
+- [x] `admin` sin cambios y por encima de `editor` con varios roles. Nunca `curator`.
+- [x] `import:legacy-users --fix-roles --source-file <usuarios.json> [--dry-run]`: author → editor solo en cuentas `legacy-procomun:user:<uid>`, sin tocar admin, curator ni otros roles. Conserva bloqueo, credenciales, perfil y recursos. Se puede repetir y deja informe (`informe_usuarios-correccion-roles-*.json`).
+- [x] Tests de la tabla, los desconocidos, la precedencia con varios roles y la corrección (repetible, solo legacy, admin/curator intactos, bloqueo conservado).
+- [x] Adenda de ADR-0037 del 2026-11-03.
+- [ ] Lanzar `--fix-roles --dry-run` en cada base ya cargada con #488, revisar los `kept` y aplicar la corrección.
+
+## Errores sin datos de la base de datos — 2026-11-03 (revisión del PR #488)
+
+- [x] `apps/cli/src/import-errors.ts`: códigos `duplicate_email`, `constraint_violation` (con el nombre de la restricción), `db_error`, `unexpected_error`, `invalid_record` e `import_error`, con el SQLSTATE. Nunca copia `message`, `detail`, `query` ni `params` de un error de la base de datos.
+- [x] `import:legacy-users` y `--fix-roles`: el registro de error lleva `legacyUid`, código y mensaje controlado. Lo mismo en la consola.
+- [x] `import:legacy-procomun` y `--fix-published`: lo mismo para el registro de error y el aviso de `search_vector`. Se conservan los mensajes propios del procesado del `.elpx`.
+- [x] Los errores que salen de los bucles de ambos comandos llegan al manejador del CLI sin la consulta.
+- [x] Tests con fallos reales en PGlite: una restricción CHECK y un trigger que rechazan la credencial (con un hash sintético), un trigger en `--fix-roles` y un error de Drizzle con un correo como parámetro en el importador de recursos. Se comprueba que ni el informe ni la consola llevan el valor.
+
+## Migración de perfil renumerada — 2026-11-11 (puesta al día de #488 con main)
+
+- [x] `0017_user_profile` pasa a `0019_user_profile` (idx 15), detrás de la `0018_elpx_has_screenshot` de #471, que llegó antes a main. Donde arriba dice «migración 0017», ahora es la 0019.
+
+## Revisión de #488 — 2026-11-16 (hash heredado y logs)
+
+- [x] La sustitución del hash heredado tras el inicio de sesión es un UPDATE condicional y atómico de la cuenta de credenciales (`WHERE id = ? AND password = <hash verificado>`, `replaceLegacyPasswordHash`). Un restablecimiento intercalado entre la lectura y la escritura ya no se pisa con el hash de la contraseña antigua. Regresión de integración con better-auth y unitaria sobre PGlite.
+- [x] Si la sustitución falla, el log lleva un mensaje fijo con un código controlado y el SQLSTATE; nunca el error, su mensaje, la consulta, los parámetros ni las causas. El inicio de sesión sigue siendo válido. Regresión con un trigger que falla con un marcador y el hash en el mensaje.
+- [x] `describeDbError` y `summarizeDbStepError` pasan a `@procomun/db/db-errors`, compartidas por la API y los importadores; `apps/cli/src/import-errors.ts` las reexporta.
+- [x] Revisión del 2026-11-08 (journal con la 0017 y la 0018 fundidas, test de migraciones sin cerrar): resuelta en 733e4fe0. Verificado en la punta: el journal no tiene claves repetidas, los idx son únicos y la 0019 tiene el `when` mayor, y el migrador de Drizzle aplica solo la 0019 sobre una base con las 15 migraciones de main registradas.

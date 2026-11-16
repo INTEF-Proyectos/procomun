@@ -13,6 +13,7 @@ export * from "./repository/knowledge-areas.ts";
 export * from "./repository/legacy-authors.ts";
 export * from "./repository/legacy-import.ts";
 export * from "./repository/legacy-users-import.ts";
+export * from "./repository/public-authors.ts";
 export * from "./repository/reports.ts";
 export * from "./repository/resource-versions.ts";
 export * from "./repository/resources.ts";

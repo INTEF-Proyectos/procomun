@@ -116,3 +116,36 @@ Resultados:
 - `bun run check-types` → 0 errores. `bun run lint` (sin excluir `.claude/`) → 0 errores; quedan 3 avisos que ya estaban en `main`.
 - `bun run check-test-files` y `bun run check-tracking` → OK.
 - Pendiente: `--link-authors --dry-run` sobre la exportación real cuando estén importados los usuarios (#488).
+## Usuarios como `editor` y `--fix-roles` — 2026-11-03 (issue #507)
+
+Rojo antes del cambio:
+
+- `packages/db/src/legacy-import/users.unit.test.ts`: 6 fallos (tabla, ningún `author`, precedencia con varios roles, desconocidos como `editor`, nunca `curator`, aviso «entra como editor»).
+- `packages/db/src/repository/legacy-users-import.unit.test.ts` y `apps/cli/src/commands/import-legacy-users.unit.test.ts`: no cargaban (`fixLegacyUserRole` y `runFixLegacyUserRoles` no existían).
+
+Verde:
+
+- `bun test packages/db/src/legacy-import/users.unit.test.ts packages/db/src/repository/legacy-users-import.unit.test.ts apps/cli/src/commands/import-legacy-users.unit.test.ts apps/cli/src/index.unit.test.ts` → **52 pass, 0 fail**.
+- Mapeo: tabla completa, `admin` gana a `editor` con varios roles (también junto a desconocidos), desconocidos como `editor` y listados, nunca `curator` ni `author`.
+- Corrección (PGlite): author → editor, repetible (la segunda pasada da `unchanged` y no duplica cuentas, credenciales ni perfiles), `--dry-run` sin escritura, `admin`/`curator`/`reader` intactos (`kept`), un `admin` del origen en `author` no cambia, un `administrador` de #309 en `editor` no sube a `admin`, cuenta nativa con el mismo correo intacta, y bloqueo, credenciales, perfil y recurso conservados.
+- Comando: totales y registros con dry-run, real y repetición sobre la misma base; `--limit`; nombre del informe; sin correos en el informe; `--fix-roles` exige `--source-file`.
+- `bun run check-types` ✅ (0 errores). `bun run lint` ✅ (sale 0; los 3 avisos son de ficheros que no toca este cambio).
+- `bun run test`: unit 1338 pass y 4 fail. Son los 3 de #431 en `apps/api/src/routes/elpx-content.unit.test.ts` (los arregla #505) y un timeout de 5 s en `apps/api/src/index.unit.test.ts` con la máquina cargada, que pasa solo (23 pass). Integración 30 pass, 0 fail. UI 79 pass, 0 fail. Cobertura de líneas 90,97 % (≥ 90 %). En la pasada con cobertura fallan además los 4 de `catalog-area-keywords.unit.test.ts` por timeout del `beforeEach` (crear PGlite); pasan solos con `--timeout 60000` (4 pass).
+
+## Errores sin datos de la base de datos — 2026-11-03 (revisión del PR #488)
+
+Rojo antes del cambio (el informe llevaba `Failed query: insert into "account" … params: …,<hash sintético>,…`):
+
+- `apps/cli/src/import-errors.unit.test.ts`: no cargaba (`import-errors.ts` no existía).
+- `apps/cli/src/commands/import-legacy-users.unit.test.ts`: 6 fallos. La CHECK y el trigger sobre la credencial, el trigger de `--fix-roles`, el error inesperado al persistir, el error fuera del bucle y el registro de error de `--fix-roles` sin `code` ni `legacyUid`.
+- `apps/cli/src/commands/import-legacy-procomun.unit.test.ts`: 3 fallos (guardar el recurso, aviso de `search_vector`, `--fix-published`). El test del error fuera de los bucles llegaba a `process.exit(0)` y cortaba la ejecución sin informar. Ahora el test intercepta `process.exit`.
+
+Verde:
+
+- `bun test apps/cli/src/import-errors.unit.test.ts apps/cli/src/commands/import-legacy-users.unit.test.ts apps/cli/src/commands/import-legacy-procomun.unit.test.ts apps/cli/src/commands/import-legacy-procomun.integration.test.ts` → **67 pass, 0 fail**.
+- Usuarios (PGlite real, hash bcrypt sintético): con una restricción CHECK que rechaza la credencial, el informe escrito por el comando y la consola no llevan el hash, el correo, la consulta, los parámetros ni la fila (`Failing row`). El registro queda `{ outcome: "error", index: 0, legacyUid: "41", code: "constraint_violation", constraint: "test_rechaza_credencial", sqlState: "23514" }`. Con un trigger que pone el hash en el propio mensaje de Postgres, sale `db_error` (`P0001`). La transacción no deja la cuenta a medias y, al quitar el trigger, se reintenta y se importa con su hash.
+- `--fix-roles` con un trigger que pone el correo en el error del UPDATE: informe y consola sin el correo.
+- Recursos, con un error real de Drizzle sobre PGlite cuyo parámetro (y el mensaje de Postgres) es un correo: registro de error, aviso de `search_vector`, `--fix-published` y error fuera de los bucles sin el correo. Los mensajes propios del procesado se conservan (`import_error`, `invalid_record`). En la integración, la carrera real entre dos ejecuciones da `constraint_violation (elpx_projects_hash_key) [SQLSTATE 23505]`.
+- `describeDbError`: Bun.SQL (SQLSTATE en `errno`), postgres.js (`constraint_name`), restricción que no es un identificador (no se copia), `EPERM` de Node (no es de la base de datos) y causas en ciclo.
+- `bun run check-types` ✅ (0 errores). `bun run lint` (sin la exclusión de `.claude` en `biome.json`, restaurada después) ✅: 0 errores, los 3 avisos de siempre en ficheros que no toca este cambio.
+- `bun run test`: unit 1363 pass y 3 fail, los 3 de #431 en `apps/api/src/routes/elpx-content.unit.test.ts` (los arregla #505). Integración 30 pass, 0 fail. UI 79 pass, 0 fail. `check-coverage`: 1393 pass y los mismos 3 fail; líneas 91,47 % (≥ 90 %), `apps/cli/src/import-errors.ts` al 100 %.
