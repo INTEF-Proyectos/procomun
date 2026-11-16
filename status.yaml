@@ -3500,6 +3500,39 @@ tasks:
       referencias en el CI. Validado reproduciendo el conflicto de #465 contra
       main: la union automatica da un status.yaml identico a la resolucion
       manual (diff vacio) y check-tracking lo acepta.
+  T-2026-11-03-13121620:
+    date: 2026-11-03
+    agent: "devops-sre"
+    task: "Vite deja de recargar la página al primer acceso en los e2e"
+    status: Done
+    related: ["#492", "#489"]
+    notes: >
+      La primera vez que el SDK de inlang abre project.inlang/ en una copia
+      limpia escribe settings.json, .lix/README.md, .meta.json, README.md y
+      .gitignore. El plugin de Paraglide lee esos ficheros como entrada y el
+      watcher de Vite ya funciona durante buildStart, así que el plugin se
+      enteraba de esas escrituras en mitad de su primera compilación. Lanzaba
+      otra compilación sin los hashes de la primera, que reescribía los 13
+      ficheros de src/paraglide con Vite ya escuchando, y luego cinco más, una
+      por fichero. Vite no emite el HMR hasta que acaba watchChange, así que el
+      `page reload src/paraglide/runtime.js` llegaba durante los primeros tests.
+      Mientras tanto, el proceso de Vite, que también hace de proxy de la API,
+      estaba ocupado y la portada seguía en «Cargando…» cuando axe la
+      analizaba. No depende del SO. En macOS pasa igual con un project.inlang
+      recién clonado; en local no se veía porque esos ficheros ya existen.
+      Tampoco depende de urlPatterns: el plugin reescribe la salida del CLI
+      antes de escuchar. Se excluye project.inlang/ del watcher de Vite
+      (server.watch.ignored); messages/*.json sigue vigilado y un cambio en
+      settings.json exige reiniciar Vite, como ya pasaba con urlPatterns.
+      vite.config.integration.test.ts usa el watcher real de Vite: falla sin
+      el cambio y pasa con él. Docker (Linux, Bun 1.4.4, pasos de e2e.yml),
+      wcag.e2e.ts: en main, 6 recompilaciones, recarga y 4 fallos de 10; con
+      el cambio, una compilación, ninguna escritura en src/paraglide después de
+      arrancar, sin recarga y 2 fallos de 10. Esos 2 fallos (portada y login)
+      se repiten en los 3 intentos y no tienen que ver con Vite. Axe analiza
+      la portada antes de que lleguen los datos, «Cargando…» tiene un
+      contraste de 4,28:1, el pie de página uno de 2,45:1 y Material Symbols
+      se descarga de Google Fonts. Queda pendiente aparte.
   T-2026-11-03-12551668:
     date: 2026-11-03
     agent: "devops-sre"
