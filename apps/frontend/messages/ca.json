@@ -242,6 +242,7 @@
 	"auth_submit": "Entrar",
 	"auth_submitting": "Entrant...",
 	"auth_bad_credentials": "Credencials incorrectes",
+	"auth_account_blocked": "El teu compte està bloquejat. Si creus que és un error, contacta amb l’administració de Procomún.",
 	"auth_connection_error": "Error de connexió amb el servidor",
 	"auth_separator": "o",
 	"auth_oidc": "Accedir amb compte institucional",

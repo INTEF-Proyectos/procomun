@@ -3359,6 +3359,38 @@ tasks:
       #461): la migración de «Otros autores» pasa a 0012 detrás de
       0011_keyword_catalog, y alta/edición envían otherAuthors junto a
       keywordIds.
+  T-2026-10-27-10251845:
+    date: 2026-10-27
+    agent: "ingestas-y-migraciones"
+    task: "Importador de usuarios del Procomún anterior: roles, bloqueo, contraseñas y perfil"
+    status: Done
+    related: ["#456", "#309", "ADR-0037"]
+    notes: >
+      import:legacy-users aplica la tabla de roles de la issue (varios separados
+      por coma: gana admin > editor > author; desconocidos como author y en el
+      informe), descarta los status 0 (no se crean y se cuentan en el
+      informe), usa nombre y apellidos como nombre visible y guarda país, localidad,
+      centro y su web, «sobre mí», web y redes en user_profile (migración
+      0017). Guarda el hash antiguo ($2y$ y $S$ de Drupal 7), lo verifica en
+      el login y lo cambia a scrypt tras entrar. Reimportar no pisa cambios.
+      Tests: mapeo, repositorio, migración, CLI e integración de login real
+      con better-auth. Pendiente: propietario de ODE/artículos e itinerarios
+      (por correo, publicatorEmailStr) y fotos.
+
+  T-2026-10-27-11285588:
+    date: 2026-10-27
+    agent: "backend-api-servicios"
+    task: "Estado «bloqueado» de las cuentas e importación de bloqueados"
+    status: Done
+    related: ["#456", "#488", "ADR-0037"]
+    notes: >
+      Cambio de requisito: los status 0 se importan bloqueados y reimportar
+      no cambia el estado. «Bloqueado» pasa a ser un solo estado
+      (is_active = false + banned, setUserBlocked): al bloquear se cierran
+      las sesiones, se rechazan login (403 BANNED_USER) y tokens, y los
+      recursos publicados siguen visibles. La administración muestra
+      «Bloquear/Desbloquear» y no deja bloquear la propia cuenta. Tests de
+      repositorio, integración con better-auth y cliente HTTP.
 
   T-2026-10-26-22242628:
     date: 2026-10-26
@@ -3489,6 +3521,45 @@ tasks:
       despliegue registrado con /api/auth/oauth2/callback/oidc tiene que
       cambiarla en el proveedor. Queda abierto: oidcEndSessionUrl de
       apps/api/src/app/routes.ts sigue fijo a /connect/endsession (Duende).
+  T-2026-11-03-12341998:
+    date: 2026-11-03
+    agent: "ingestas-y-migraciones"
+    task: "Usuarios del Procomún anterior como editor y corrección de los importados como author"
+    status: Done
+    related: ["#507", "#456", "#488", "ADR-0037"]
+    notes: >
+      Corrige el requisito de #456: sin rol, «-», bm_documentalista,
+      gestor_de_odes y los roles desconocidos (Organization…) entran como
+      editor; los desconocidos siguen en unknownRoles. administrator y
+      administrador siguen en admin y ganan a editor con varios roles; nunca
+      curator. import:legacy-users --fix-roles --source-file <usuarios.json>
+      [--dry-run] relee el JSON y pasa de author a editor solo las cuentas
+      legacy-procomun:user:<uid> cuyo mapeo da editor, sin tocar admin,
+      curator, otros roles ni cuentas nativas, y conservando bloqueo,
+      credenciales, perfil y recursos. Se puede repetir y deja informe.
+      Tests de mapeo, repositorio (PGlite) y CLI. Pendiente: lanzar la
+      corrección en las bases ya cargadas con #488.
+  T-2026-11-03-14021773:
+    date: 2026-11-03
+    agent: "ingestas-y-migraciones"
+    task: "Errores de los importadores legacy sin datos de la base de datos en el informe ni en la consola"
+    status: Done
+    related: ["#488", "#456", "ADR-0037"]
+    notes: >
+      Revisión del PR #488: el catch de import:legacy-users guardaba
+      error.message en el informe y lo escribía en consola, y el mensaje de
+      Drizzle lleva la consulta y sus parámetros (el hash y el correo).
+      apps/cli/src/import-errors.ts resume el error en un código
+      (duplicate_email, constraint_violation con el nombre de la
+      restricción, db_error, unexpected_error, invalid_record, import_error)
+      con el SQLSTATE, sin message, detail, query ni params. Aplicado en
+      import:legacy-users, --fix-roles, import:legacy-procomun (registro de
+      error y aviso de search_vector) y --fix-published. Los errores que
+      salen de los bucles llegan al manejador del CLI sin la consulta. El
+      registro de error de usuarios lleva legacyUid para reintentarlo. Tests
+      con fallos reales en PGlite (CHECK y trigger sobre la credencial con un
+      hash sintético, trigger en --fix-roles, error de Drizzle con un correo
+      en el importador de recursos).
   T-2026-11-03-13523856:
     date: 2026-11-03
     agent: "seguridad-privacidad-legal"
@@ -3819,6 +3890,31 @@ tasks:
       antes: guarda en PublicCollectionsIsland, tipo string | null en
       api-client y test de regresion. Test ajustado: el toEqual de totals en
       el caso en seco incluye la clave nueva reindexFailed.
+  T-2026-11-04-16555820:
+    date: 2026-11-04
+    agent: "ingestas-y-migraciones + seguridad-privacidad-legal"
+    task: "Poner #488 al dia con main: el bloqueo de cuentas dentro de createAuth"
+    status: Done
+    related: ["#488", "#456", "#507", "#515", "#525"]
+    notes: >
+      7 conflictos tras entrar #475, #523 y #525 en main. El serio era
+      apps/api/src/auth/config.ts: main ya tiene createAuth(env) con
+      resolveNewUserRole y defaultRole REGISTRATION_ROLE (de #515/#525), y
+      este PR traia el betterAuth suelto con el bloqueo de cuentas. Se parte
+      de la estructura de main y se injertan las cuatro aportaciones de #488:
+      la constante BLOCKED_USER_MESSAGE fuera de la funcion, el hook
+      session.create.before que impide iniciar sesion a una cuenta con
+      is_active false, la actualizacion del hash heredado en el hook after de
+      /sign-in/email, y password: legacyAwarePasswordOptions con
+      bannedUserMessage en el plugin admin. El defaultRole se queda en
+      REGISTRATION_ROLE, que ya es editor: coincide con lo que pedia #507 y
+      deja de ser author. En el journal este PR conserva la 0017_user_profile,
+      que reclamo primero, y la de #471 pasa a 0018. Los demas conflictos eran
+      aniadidos de los dos lados (setup.ts, los dos docs de la epica y los dos
+      ficheros de test, estos ultimos con la cola compartida que hay que cerrar
+      a mano). Los dos hallazgos de la revision ya estaban corregidos antes de
+      este merge: el mapeo de roles en 4b689721 y el saneado de errores en
+      694e4c9e.
   T-2026-11-04-16594050:
     date: 2026-11-04
     agent: "arquitectura-solucion + seguridad-privacidad-legal"
@@ -3901,6 +3997,23 @@ tasks:
       elpx-versioning) recibian una BD sin los usuarios del preload y fallaban
       con resources_created_by_fkey. En las VMs del runner propio el orden de
       los ficheros los dejaba detras; en GitHub no. Ahora usa la BD compartida.
+  T-2026-11-11-04511329:
+    date: 2026-11-11
+    agent: "documentacion-y-roadmap"
+    task: "Poner al dia #488 con main: la migracion de perfil pasa de 0017 a 0019"
+    status: Done
+    related: ["#488", "#471", "#456"]
+    notes: >
+      El merge con main no daba conflictos de texto, pero el journal quedaba
+      mal: git mezclo la entrada 0017_user_profile de este PR con la
+      0018_elpx_has_screenshot de main en un solo objeto con claves repetidas.
+      La 0018 de #471 ya esta en main y puede estar aplicada en alguna base;
+      el migrador de drizzle solo aplica lo que tiene un when mayor que la
+      ultima aplicada, asi que la de perfil no puede ir antes. Pasa a
+      0019_user_profile, con idx 15 y when 1793300000000, detras de la 0018.
+      Se actualizan los tests de migraciones (la 0019 es ahora la ultima) y el
+      comentario de setup.ts. #512 tambien usa 0018 y 0019: el que se mezcle
+      despues renumera.
   T-2026-11-13-06473561:
     date: 2026-11-13
     agent: "ci"
@@ -3924,3 +4037,18 @@ tasks:
       author@example.com con otro id. ensureUser hace onConflictDoNothing, asi
       que user-2 no se creaba y createApiToken fallaba con
       api_tokens_user_id_fkey. El test usa ahora api-tokens-*@example.com.
+  T-2026-11-16-08020377:
+    date: 2026-11-16
+    agent: "backend-api-servicios"
+    task: "Atender la revision de #488 del 16-nov: hash heredado condicional y logs sin datos"
+    status: Done
+    related: ["#488", "#456"]
+    notes: >
+      upgradeLegacyPasswordHash escribe con un UPDATE condicional
+      (id y hash verificado) en replaceLegacyPasswordHash: un
+      restablecimiento intercalado ya no se pisa. El catch del hook de
+      inicio de sesion registra solo un codigo y el SQLSTATE. El saneamiento
+      de errores de BD de los importadores pasa a @procomun/db/db-errors.
+      La revision del 08-nov ya estaba resuelta en 733e4fe0; se ha
+      verificado el journal y el migrador real de Drizzle sobre una base en
+      main.
