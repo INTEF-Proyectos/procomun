@@ -16,6 +16,19 @@ export {
 	mapLegacyRecord,
 	resolveLegacyExternalId,
 } from "./field-mapper.ts";
+export type {
+	LegacyItineraryDiscardedField,
+	LegacyItineraryJson,
+	LegacyItineraryMappingResult,
+	LegacyItineraryResourceRef,
+	MappedLegacyItinerary,
+} from "./itinerary.ts";
+export {
+	cleanLegacyItineraryDescription,
+	LEGACY_ITINERARY_DISCARDED_FIELDS,
+	mapLegacyItinerary,
+	resolveLegacyItineraryId,
+} from "./itinerary.ts";
 export { normalizeLanguage } from "./normalize-language.ts";
 export type {
 	LicenseCode,
