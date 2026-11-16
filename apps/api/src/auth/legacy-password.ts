@@ -14,7 +14,10 @@
  *   includes/password.inc (`_password_crypt`).
  */
 import { createHash, timingSafeEqual } from "node:crypto";
+import type { DrizzleDB } from "@procomun/db/repository";
+import { account } from "@procomun/db/schema";
 import { hashPassword, verifyPassword } from "better-auth/crypto";
+import { and, eq } from "drizzle-orm";
 
 const ITOA64 =
 	"./0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
@@ -110,22 +113,55 @@ export async function verifyPasswordWithLegacy(data: {
 	return verifyPassword(data);
 }
 
-/** Lo mínimo del adaptador interno de better-auth que hace falta aquí. */
+/** Lo que necesita la sustitución del hash heredado. */
 export interface LegacyPasswordAdapter {
 	findAccounts: (userId: string) => Promise<
 		Array<{
+			id: string;
 			accountId: string;
 			providerId: string;
 			password?: string | null;
 		}>
 	>;
-	updatePassword: (userId: string, hash: string) => Promise<unknown>;
+	/**
+	 * Escribe `newHash` en la cuenta `credentialId` solo si su hash sigue siendo
+	 * `expectedHash`, en una única operación. Devuelve si lo ha cambiado.
+	 */
+	replacePasswordHash: (input: {
+		credentialId: string;
+		expectedHash: string;
+		newHash: string;
+	}) => Promise<boolean>;
+}
+
+/**
+ * UPDATE condicional y atómico de la cuenta de credenciales: si entre la
+ * lectura y la escritura alguien ha cambiado la contraseña (un
+ * restablecimiento, por ejemplo), no coincide el hash y no se toca nada.
+ */
+export async function replaceLegacyPasswordHash(
+	db: DrizzleDB,
+	input: { credentialId: string; expectedHash: string; newHash: string },
+): Promise<boolean> {
+	const rows = await db
+		.update(account)
+		.set({ password: input.newHash, updatedAt: new Date() })
+		.where(
+			and(
+				eq(account.id, input.credentialId),
+				eq(account.providerId, "credential"),
+				eq(account.password, input.expectedHash),
+			),
+		)
+		.returning({ id: account.id });
+	return rows.length > 0;
 }
 
 /**
  * Tras un inicio de sesión correcto, cambia el hash antiguo por uno de
  * better-auth. Vuelve a verificar la contraseña antes de escribir, así que
- * nunca reemplaza el hash con una contraseña que no le corresponde.
+ * nunca reemplaza el hash con una contraseña que no le corresponde, y solo
+ * escribe si el hash almacenado sigue siendo el que se ha verificado.
  * Devuelve `true` si ha sustituido el hash.
  */
 export async function upgradeLegacyPasswordHash(
@@ -138,13 +174,13 @@ export async function upgradeLegacyPasswordHash(
 			account.providerId === "credential" && account.accountId === input.userId,
 	);
 	const stored = credential?.password;
-	if (!stored || !isLegacyPasswordHash(stored)) return false;
+	if (!credential || !stored || !isLegacyPasswordHash(stored)) return false;
 	if (!(await verifyLegacyHash(stored, input.password))) return false;
-	await adapter.updatePassword(
-		input.userId,
-		await hashPassword(input.password),
-	);
-	return true;
+	return adapter.replacePasswordHash({
+		credentialId: credential.id,
+		expectedHash: stored,
+		newHash: await hashPassword(input.password),
+	});
 }
 
 /** Opciones `emailAndPassword.password` para better-auth. */

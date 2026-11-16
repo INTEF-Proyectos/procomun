@@ -1,7 +1,13 @@
-import { describe, expect, test } from "bun:test";
+import { afterAll, beforeAll, describe, expect, test } from "bun:test";
+import { PGlite } from "@electric-sql/pglite";
+import * as schema from "@procomun/db/schema";
+import { createTables } from "@procomun/db/setup";
 import { hashPassword } from "better-auth/crypto";
+import { eq } from "drizzle-orm";
+import { drizzle } from "drizzle-orm/pglite";
 import {
 	isLegacyPasswordHash,
+	replaceLegacyPasswordHash,
 	upgradeLegacyPasswordHash,
 	verifyPasswordWithLegacy,
 } from "./legacy-password.ts";
@@ -137,16 +143,35 @@ describe("verifyPasswordWithLegacy", () => {
 });
 
 describe("upgradeLegacyPasswordHash", () => {
+	// Imita el UPDATE condicional: solo escribe si el hash sigue siendo el leído.
 	function fakeAdapter(password: string | null, providerId = "credential") {
-		const updates: Array<{ userId: string; hash: string }> = [];
+		const store = { password };
+		const updates: Array<{ credentialId: string; hash: string }> = [];
 		return {
+			store,
 			updates,
 			adapter: {
 				findAccounts: async (userId: string) => [
-					{ userId, accountId: userId, providerId, password },
+					{
+						id: `cuenta-${userId}`,
+						userId,
+						accountId: userId,
+						providerId,
+						password: store.password,
+					},
 				],
-				updatePassword: async (userId: string, hash: string) => {
-					updates.push({ userId, hash });
+				replacePasswordHash: async (input: {
+					credentialId: string;
+					expectedHash: string;
+					newHash: string;
+				}) => {
+					if (store.password !== input.expectedHash) return false;
+					store.password = input.newHash;
+					updates.push({
+						credentialId: input.credentialId,
+						hash: input.newHash,
+					});
+					return true;
 				},
 			},
 		};
@@ -168,6 +193,25 @@ describe("upgradeLegacyPasswordHash", () => {
 				password: "Procomun-2026!",
 			}),
 		).toBeTrue();
+	});
+
+	test("pide el cambio solo si el hash sigue siendo el legacy verificado", async () => {
+		const { adapter, store, updates } = fakeAdapter(BCRYPT_2Y);
+		const reset = await hashPassword("Restablecida-2026!");
+		const upgraded = await upgradeLegacyPasswordHash(
+			{
+				...adapter,
+				findAccounts: async (userId) => {
+					const accounts = await adapter.findAccounts(userId);
+					store.password = reset; // restablecimiento intercalado
+					return accounts;
+				},
+			},
+			{ userId: "u1", password: "Procomun-2026!" },
+		);
+		expect(upgraded).toBeFalse();
+		expect(updates).toHaveLength(0);
+		expect(store.password).toBe(reset);
 	});
 
 	test("no toca hashes que ya están en el formato nuevo", async () => {
@@ -201,5 +245,86 @@ describe("upgradeLegacyPasswordHash", () => {
 			}),
 		).toBeFalse();
 		expect(updates).toHaveLength(0);
+	});
+});
+
+describe("replaceLegacyPasswordHash sobre PGlite", () => {
+	let pglite: PGlite;
+	let db: ReturnType<typeof drizzle<typeof schema>>;
+
+	beforeAll(async () => {
+		pglite = new PGlite();
+		db = drizzle(pglite, { schema });
+		await createTables(pglite);
+		const now = new Date();
+		await db.insert(schema.user).values({
+			id: "u1",
+			email: "u1@example.test",
+			emailVerified: false,
+			name: "U1",
+			createdAt: now,
+			updatedAt: now,
+		});
+	});
+
+	afterAll(async () => {
+		await pglite.close();
+	});
+
+	async function seedCredential(id: string, password: string) {
+		const now = new Date();
+		await db.insert(schema.account).values({
+			id,
+			userId: "u1",
+			accountId: "u1",
+			providerId: id.startsWith("oidc") ? "oidc" : "credential",
+			password,
+			createdAt: now,
+			updatedAt: now,
+		});
+	}
+
+	async function stored(id: string) {
+		const rows = await db
+			.select({ password: schema.account.password })
+			.from(schema.account)
+			.where(eq(schema.account.id, id));
+		return rows[0]?.password;
+	}
+
+	test("escribe el hash nuevo si el almacenado es el esperado", async () => {
+		await seedCredential("c1", BCRYPT_2Y);
+		expect(
+			await replaceLegacyPasswordHash(db, {
+				credentialId: "c1",
+				expectedHash: BCRYPT_2Y,
+				newHash: "nuevo",
+			}),
+		).toBeTrue();
+		expect(await stored("c1")).toBe("nuevo");
+	});
+
+	test("no escribe si el hash ha cambiado desde la lectura", async () => {
+		await seedCredential("c2", "restablecido");
+		expect(
+			await replaceLegacyPasswordHash(db, {
+				credentialId: "c2",
+				expectedHash: BCRYPT_2Y,
+				newHash: "nuevo",
+			}),
+		).toBeFalse();
+		expect(await stored("c2")).toBe("restablecido");
+	});
+
+	test("no escribe en una cuenta que no es de credenciales", async () => {
+		await seedCredential("oidc-c3", BCRYPT_2Y);
+		expect(
+			await replaceLegacyPasswordHash(db, {
+				credentialId: "oidc-c3",
+				expectedHash: BCRYPT_2Y,
+				newHash: "nuevo",
+			}),
+		).toBeFalse();
+		expect(await stored("oidc-c3")).toBe(BCRYPT_2Y);
 	});
 });

@@ -12,7 +12,9 @@ import {
 } from "../email/transport.ts";
 import { AUTH_DEFAULT_COOKIE_ATTRIBUTES } from "./cookie-config.ts";
 import {
+	type LegacyPasswordAdapter,
 	legacyAwarePasswordOptions,
+	replaceLegacyPasswordHash,
 	upgradeLegacyPasswordHash,
 } from "./legacy-password.ts";
 import { ac, admin, author, curator, editor, reader } from "./permissions.ts";
@@ -22,6 +24,21 @@ import { getAuthBaseUrl, getFrontendUrl } from "./urls.ts";
 /** Mensaje al intentar entrar con una cuenta bloqueada (#456). */
 export const BLOCKED_USER_MESSAGE =
 	"Tu cuenta está bloqueada. Si crees que es un error, contacta con la administración de Procomún.";
+
+/**
+ * Operaciones de base de datos que usa la actualización de hashes heredados:
+ * la lectura, con el adaptador de better-auth; la escritura, condicional
+ * (#488), porque el adaptador solo sabe escribir sin condiciones.
+ */
+export function legacyPasswordAdapter(
+	internalAdapter: Pick<LegacyPasswordAdapter, "findAccounts">,
+): LegacyPasswordAdapter {
+	return {
+		findAccounts: (userId) => internalAdapter.findAccounts(userId),
+		replacePasswordHash: (input) =>
+			replaceLegacyPasswordHash(getDb().db, input),
+	};
+}
 
 // Recibe el entorno para que los tests monten una instancia con su propio
 // proveedor OIDC (#515, #527); la aplicación usa `auth`, creada con process.env.
@@ -93,10 +110,13 @@ export function createAuth(env: NodeJS.ProcessEnv = process.env) {
 						?.password;
 					if (typeof password === "string") {
 						try {
-							await upgradeLegacyPasswordHash(ctx.context.internalAdapter, {
-								userId: newSession.user.id,
-								password,
-							});
+							await upgradeLegacyPasswordHash(
+								legacyPasswordAdapter(ctx.context.internalAdapter),
+								{
+									userId: newSession.user.id,
+									password,
+								},
+							);
 						} catch (error) {
 							// El inicio de sesión ya es válido; se reintenta en el siguiente.
 							ctx.context.logger.error(

@@ -1,9 +1,13 @@
 import { beforeAll, describe, expect, test } from "bun:test";
 import { account, user } from "@procomun/db/schema";
+import { hashPassword } from "better-auth/crypto";
 import { eq } from "drizzle-orm";
 import { getDb, waitForDb } from "../db.ts";
-import { auth } from "./config.ts";
-import { isLegacyPasswordHash } from "./legacy-password.ts";
+import { auth, legacyPasswordAdapter } from "./config.ts";
+import {
+	isLegacyPasswordHash,
+	upgradeLegacyPasswordHash,
+} from "./legacy-password.ts";
 
 /*
  * Inicio de sesión real contra la configuración de better-auth de la API con
@@ -100,5 +104,39 @@ describe("inicio de sesión con contraseñas del Procomún anterior", () => {
 		const res = await signIn(legacy.email, "Procomun-2025!");
 		expect(res.status).toBe(401);
 		expect(await storedHash(legacy.id)).toBe(DRUPAL7);
+	});
+});
+
+describe("restablecimiento intercalado con la actualización del hash (#488)", () => {
+	beforeAll(async () => {
+		await waitForDb();
+	});
+
+	test("no pisa la contraseña nueva con el hash de la antigua", async () => {
+		const legacy = await seedLegacyUser(9004, BCRYPT_2Y);
+		const NEW_PASSWORD = "Restablecida-2026!";
+		const { internalAdapter } = await auth.$context;
+		const adapter = legacyPasswordAdapter(internalAdapter);
+
+		// Entre la lectura del hash legacy y su sustitución, la persona
+		// restablece la contraseña (lo mismo que hace /reset-password).
+		const upgraded = await upgradeLegacyPasswordHash(
+			{
+				...adapter,
+				findAccounts: async (userId) => {
+					const accounts = await adapter.findAccounts(userId);
+					await internalAdapter.updatePassword(
+						userId,
+						await hashPassword(NEW_PASSWORD),
+					);
+					return accounts;
+				},
+			},
+			{ userId: legacy.id, password: PASSWORD },
+		);
+
+		expect(upgraded).toBeFalse();
+		expect((await signIn(legacy.email, NEW_PASSWORD)).status).toBe(200);
+		expect((await signIn(legacy.email, PASSWORD)).status).toBe(401);
 	});
 });
