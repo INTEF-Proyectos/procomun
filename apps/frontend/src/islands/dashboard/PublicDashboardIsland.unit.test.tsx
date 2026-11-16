@@ -91,6 +91,21 @@ describe("roleLabel (#534)", () => {
 		expect(roleLabel(null)).toBe(reader);
 	});
 
+	test("las claves heredadas del prototipo caen en lector sin lanzar", () => {
+		// `ROLE_LABELS` es un objeto literal: `__proto__` o `toString` no son
+		// roles, pero se resuelven por el prototipo y no son traductores.
+		const reader = roleLabel("reader");
+		for (const key of [
+			"__proto__",
+			"constructor",
+			"toString",
+			"hasOwnProperty",
+		]) {
+			expect(() => roleLabel(key)).not.toThrow();
+			expect(roleLabel(key)).toBe(reader);
+		}
+	});
+
 	test("ninguna etiqueta es la clave en mayusculas, que era el defecto", () => {
 		for (const role of ["reader", "author", "curator", "admin"]) {
 			expect(roleLabel(role)).not.toBe(role.toUpperCase());

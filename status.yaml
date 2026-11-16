@@ -4224,3 +4224,20 @@ tasks:
       La revision del 08-nov ya estaba resuelta en 733e4fe0; se ha
       verificado el journal y el migrador real de Drizzle sobre una base en
       main.
+  T-2026-11-16-13145950:
+    date: 2026-11-16
+    agent: "frontend-ux-accesibilidad + qa-validacion"
+    task: "Revision de #545: roleLabel con claves heredadas del prototipo"
+    status: Done
+    related: ["#545", "#534"]
+    notes: >
+      Revision de jacoboAlcantara del 16-nov (P2). roleLabel indexaba
+      ROLE_LABELS, un objeto literal, con el rol tal cual: claves como
+      __proto__ se resolvian por el prototipo, no eran un traductor y el
+      render del perfil lanzaba un TypeError en vez de mostrar «Lector».
+      Ahora solo se usa la entrada si Object.hasOwn(ROLE_LABELS, role); si
+      no, m.role_reader. Test rojo → verde en
+      PublicDashboardIsland.unit.test.tsx con __proto__, constructor,
+      toString y hasOwnProperty. Los demas mapas *_LABELS[...] del frontend
+      (HeroIsland, ResourceEditorIsland, AdminReportsSection, los CRUD y
+      EditarPageBase) quedan fuera del alcance de este PR.

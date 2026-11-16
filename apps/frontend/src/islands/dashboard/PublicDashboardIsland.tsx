@@ -78,7 +78,11 @@ const ROLE_LABELS: Record<string, () => string> = {
 };
 
 export function roleLabel(role: string | null | undefined): string {
-	return (ROLE_LABELS[role ?? "reader"] ?? m.role_reader)();
+	// `Object.hasOwn` y no `ROLE_LABELS[role] ?? ...`: claves como `__proto__`
+	// o `toString` se resuelven por el prototipo y no son traductores.
+	const translate =
+		role && Object.hasOwn(ROLE_LABELS, role) ? ROLE_LABELS[role] : undefined;
+	return (translate ?? m.role_reader)();
 }
 
 function FavoritesTab({
