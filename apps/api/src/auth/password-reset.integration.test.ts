@@ -1,10 +1,13 @@
 import { beforeAll, describe, expect, test } from "bun:test";
-import { getDb } from "../db.ts";
+import { account, user } from "@procomun/db/schema";
+import { eq } from "drizzle-orm";
+import { getDb, waitForDb } from "../db.ts";
 import {
 	buildPasswordResetOptions,
 	type EmailMessage,
 } from "../email/transport.ts";
 import { createAuth } from "./config.ts";
+import { isLegacyPasswordHash } from "./legacy-password.ts";
 
 /**
  * #531: no habia forma de recuperar una contraseña olvidada. Aqui se usa la
@@ -137,5 +140,73 @@ describe("sin transporte de correo no hay recuperación (#551)", () => {
 			| { sendResetPassword?: unknown }
 			| undefined;
 		expect(options?.sendResetPassword).toBeUndefined();
+	});
+});
+
+// Al poner al día #551 con #488: los importados entran con su hash heredado
+// hasta que restablecen. Tras el restablecimiento la contraseña antigua no
+// puede volver a valer.
+describe("restablecer deja inservible el hash heredado (#551, #488)", () => {
+	const BCRYPT_2Y =
+		"$2y$10$NtYFUMRmtbKJyE.veX1nmuA5DC9GdFsrZVaUp6y6hIbFd5VDp//xi";
+	const OLD_PASSWORD = "Procomun-2026!";
+	const NEW_PASSWORD = "restablecida-551-488";
+
+	test("la contraseña heredada deja de valer y el hash pasa a better-auth", async () => {
+		await waitForDb();
+		const auth = createAuth(process.env);
+		const { db } = getDb();
+		const id = `legacy-procomun:user:${crypto.randomUUID()}`;
+		const email = `heredado-${crypto.randomUUID()}@issue531.test`;
+		const now = new Date();
+		await db.insert(user).values({
+			id,
+			email,
+			emailVerified: false,
+			name: "Heredado",
+			role: "author",
+			isActive: true,
+			createdAt: now,
+			updatedAt: now,
+		});
+		await db.insert(account).values({
+			id: `${id}:account`,
+			userId: id,
+			accountId: id,
+			providerId: "credential",
+			password: BCRYPT_2Y,
+			createdAt: now,
+			updatedAt: now,
+		});
+
+		const ctx = await auth.$context;
+		const token = `t-${crypto.randomUUID()}`;
+		await ctx.internalAdapter.createVerificationValue({
+			value: id,
+			identifier: `reset-password:${token}`,
+			expiresAt: new Date(Date.now() + 60_000),
+		});
+		const res = await auth.api.resetPassword({
+			body: { token, newPassword: NEW_PASSWORD },
+			asResponse: true,
+		});
+		expect(res.status).toBe(200);
+
+		const rows = await db
+			.select({ password: account.password })
+			.from(account)
+			.where(eq(account.userId, id));
+		expect(isLegacyPasswordHash(rows[0]?.password ?? "")).toBeFalse();
+
+		const oldSignIn = await auth.api.signInEmail({
+			body: { email, password: OLD_PASSWORD },
+			asResponse: true,
+		});
+		expect(oldSignIn.status).toBe(401);
+		const newSignIn = await auth.api.signInEmail({
+			body: { email, password: NEW_PASSWORD },
+			asResponse: true,
+		});
+		expect(newSignIn.status).toBe(200);
 	});
 });

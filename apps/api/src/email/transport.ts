@@ -301,6 +301,44 @@ export function buildPasswordResetEmail(params: {
 	};
 }
 
+const EMAIL_ERROR_FIELD_RE = /^[A-Za-z0-9_]{1,64}$/;
+
+type EmailErrorSummary = {
+	name?: string;
+	code?: string;
+	responseCode?: number;
+};
+
+/**
+ * Lo que se puede registrar de un fallo de envío: la clase, el código
+ * (ECONNECTION, EAUTH…) y el código SMTP. Nunca `message` ni `response`, que
+ * pueden repetir el destinatario o el contenido del correo.
+ */
+export function summarizeEmailError(error: unknown): EmailErrorSummary {
+	if (error === null || typeof error !== "object") return {};
+	const fields = error as Record<string, unknown>;
+	const summary: EmailErrorSummary = {};
+	if (
+		typeof fields.name === "string" &&
+		EMAIL_ERROR_FIELD_RE.test(fields.name)
+	) {
+		summary.name = fields.name;
+	}
+	if (
+		typeof fields.code === "string" &&
+		EMAIL_ERROR_FIELD_RE.test(fields.code)
+	) {
+		summary.code = fields.code;
+	}
+	if (
+		typeof fields.responseCode === "number" &&
+		Number.isInteger(fields.responseCode)
+	) {
+		summary.responseCode = fields.responseCode;
+	}
+	return summary;
+}
+
 /** Opciones `emailAndPassword` de better-auth para el restablecimiento. */
 export function buildPasswordResetOptions(
 	config: PasswordResetConfig,
@@ -329,7 +367,12 @@ export function buildPasswordResetOptions(
 					),
 				)
 				.catch((error: unknown) => {
-					console.error("[email] no se ha enviado el restablecimiento", error);
+					// Sin el error entero: el de SMTP puede llevar el destinatario
+					// o la respuesta del servidor, y el enlace da acceso a la cuenta.
+					console.error(
+						"[email] no se ha enviado el restablecimiento",
+						summarizeEmailError(error),
+					);
 				});
 		},
 		resetPasswordTokenExpiresIn: config.expiresIn,

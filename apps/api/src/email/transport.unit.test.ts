@@ -13,6 +13,7 @@ import {
 	resolvePasswordResetConfig,
 	resolveSmtpConfig,
 	SmtpEmailTransport,
+	summarizeEmailError,
 } from "./transport.ts";
 
 describe("buildVerificationEmail", () => {
@@ -507,6 +508,57 @@ describe("buildPasswordResetOptions no espera al envío (#551)", () => {
 			console.error = originalError;
 		}
 		expect(errors).toHaveLength(1);
+	});
+
+	test("el log del fallo no lleva el destinatario ni el enlace", async () => {
+		const errors: unknown[] = [];
+		const originalError = console.error;
+		console.error = (...args: unknown[]) => errors.push(args);
+		try {
+			const options = buildPasswordResetOptions(
+				{ expiresIn: 3600 },
+				{},
+				() => ({
+					sendEmail: async () => {
+						throw Object.assign(
+							new Error("550 rechazado <secreta@b.test> token=t-secreto"),
+							{
+								code: "EENVELOPE",
+								responseCode: 550,
+								response: "550 <secreta@b.test> no existe",
+							},
+						);
+					},
+				}),
+			);
+			await options.sendResetPassword({
+				user: { email: "secreta@b.test" },
+				url: "https://procomun.test/restablecer?token=t-secreto",
+			});
+			await new Promise((resolve) => setTimeout(resolve, 0));
+		} finally {
+			console.error = originalError;
+		}
+		const logged = Bun.inspect(errors, { depth: 20 });
+		expect(logged).toContain("EENVELOPE");
+		expect(logged).toContain("550");
+		expect(logged).not.toContain("secreta@b.test");
+		expect(logged).not.toContain("t-secreto");
+	});
+});
+
+describe("summarizeEmailError (#551)", () => {
+	test("solo copia clase, código y código SMTP con forma válida", () => {
+		expect(summarizeEmailError(null)).toEqual({});
+		expect(summarizeEmailError("texto")).toEqual({});
+		expect(
+			summarizeEmailError({
+				name: "Error",
+				code: "con espacios <a@b>",
+				responseCode: 4.5,
+				message: "secreto",
+			}),
+		).toEqual({ name: "Error" });
 	});
 });
 
