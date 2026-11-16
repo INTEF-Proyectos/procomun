@@ -162,3 +162,11 @@ Los JSON/`.elpx` de `ode-export/` contienen datos personales reales (nombres y e
 - [x] Si la sustitución falla, el log lleva un mensaje fijo con un código controlado y el SQLSTATE; nunca el error, su mensaje, la consulta, los parámetros ni las causas. El inicio de sesión sigue siendo válido. Regresión con un trigger que falla con un marcador y el hash en el mensaje.
 - [x] `describeDbError` y `summarizeDbStepError` pasan a `@procomun/db/db-errors`, compartidas por la API y los importadores; `apps/cli/src/import-errors.ts` las reexporta.
 - [x] Revisión del 2026-11-08 (journal con la 0017 y la 0018 fundidas, test de migraciones sin cerrar): resuelta en 733e4fe0. Verificado en la punta: el journal no tiene claves repetidas, los idx son únicos y la 0019 tiene el `when` mayor, y el migrador de Drizzle aplica solo la 0019 sobre una base con las 15 migraciones de main registradas.
+
+## Perfil ampliado editable — 2026-11-16 (issue #533)
+
+- [x] `/perfil` edita país, localidad, centro y su web, web personal y redes. Privado hasta #504: solo lo devuelve `GET /api/v1/users/me/profile` a su dueño.
+- [x] El «Sobre mí» queda solo en `user_profile.about`. La migración 0023 le pasa `user.bio` (prevalece sobre el importado) y borra la columna.
+- [x] El servidor valida nombre (obligatorio), «Sobre mí», país, webs y longitudes, también en la administración de usuarios.
+- [ ] Mostrar en la ficha pública del autor (#487) lo que decida #504.
+
