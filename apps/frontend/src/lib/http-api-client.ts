@@ -345,11 +345,14 @@ export class HttpApiClient implements ApiClient {
 	}
 
 	async signInOidc(): Promise<SignInResult> {
-		const res = await fetch("/api/auth/sign-in/oauth2", {
+		// Desde Better Auth 1.7 el proveedor genérico usa el flujo social: no
+		// existe /sign-in/oauth2 y la vuelta llega a /api/auth/callback/oidc
+		// (#527, ADR-0007).
+		const res = await fetch("/api/auth/sign-in/social", {
 			method: "POST",
 			headers: { "Content-Type": "application/json" },
 			credentials: "include",
-			body: JSON.stringify({ providerId: "oidc", callbackURL: "/admin" }),
+			body: JSON.stringify({ provider: "oidc", callbackURL: "/admin" }),
 			redirect: "manual",
 		});
 		const location = res.headers.get("location");
