@@ -38,6 +38,11 @@ export interface LegacyResourceInput {
 	/** Calculado desde `published` del JSON (ver resolveLegacyPublicationStatus). */
 	editorialStatus: LegacyEditorialStatus;
 	/**
+	 * `certified: 1` en origen (#420). Solo da el sello «Validado» si el recurso
+	 * entra publicado.
+	 */
+	certified?: boolean;
+	/**
 	 * Visitas del Procomún antiguo (#421, ADR-0044): valor inicial del contador.
 	 * Pendiente: el exportador aún no incluye el dato, así que hoy llega vacío.
 	 */
@@ -136,6 +141,12 @@ export async function importLegacyResourceWithElpx(
 			// (`published: 1`); el resto entra como borrador (issue #447, ver
 			// Actualización 2026-10-22 en ADR-0029).
 			editorialStatus: input.resource.editorialStatus,
+			// #420: los 877 validados del Procomún antiguo conservan el sello.
+			// Sin validated_by: lo validó el equipo de entonces, no una cuenta.
+			...(input.resource.certified &&
+			input.resource.editorialStatus === "published"
+				? { validatedAt: now, validationSource: "legacy" }
+				: {}),
 			importedAt: input.resource.importedAt,
 			// El catálogo público ordena por createdAt DESC (listResources()); usar
 			// el instante de ejecución del importador aquí haría que TODO el
@@ -294,6 +305,79 @@ export async function unpublishUnreviewedLegacyResource(
 			);
 	}
 	return { outcome: "unpublished", resourceId: row.id };
+}
+
+export type MarkLegacyCertifiedResult =
+	| { outcome: "not_found"; resourceId: null }
+	| {
+			outcome: "marked" | "already_validated" | "not_published" | "edited";
+			resourceId: string;
+	  };
+
+/**
+ * `--mark-certified` (#420): da el sello «Validado» de origen a un recurso
+ * legacy ya importado con `certified: 1`. Solo si está publicado, aún no
+ * tiene sello y no se ha editado desde la importación: el sello del Procomún
+ * antiguo dice que se revisó aquel contenido, no lo cambiado después.
+ *
+ * «Editado» es tener una versión nueva (`resource_versions`: .elpx subido,
+ * guardado o restaurado) o un `resource_updated` en `activity_events`. No se
+ * usa `updated_at`, que también cambian la extracción de texto y las
+ * correcciones del propio importador. Nunca quita un sello y repetirlo no
+ * cambia nada.
+ */
+export async function markLegacyResourceCertified(
+	db: DrizzleDB,
+	importSource: string,
+	externalId: string,
+	options: { dryRun: boolean },
+): Promise<MarkLegacyCertifiedResult> {
+	// Columna calificada a mano: dentro de un select, drizzle escribe
+	// `${resources.id}` como "id" a secas y la subconsulta lo tomaría como suyo.
+	const editedSql = sql<boolean>`(
+		exists (select 1 from resource_versions rv where rv.resource_id = "resources"."id")
+		or exists (
+			select 1 from activity_events ae
+			where ae.resource_id = "resources"."id" and ae.type = 'resource_updated'
+		)
+	)`;
+	const [row] = await db
+		.select({
+			id: resources.id,
+			editorialStatus: resources.editorialStatus,
+			validatedAt: resources.validatedAt,
+			edited: editedSql,
+		})
+		.from(resources)
+		.where(
+			and(
+				eq(resources.importSource, importSource),
+				eq(resources.externalId, externalId),
+				isNull(resources.deletedAt),
+			),
+		)
+		.limit(1);
+	if (!row) return { outcome: "not_found", resourceId: null };
+	if (row.validatedAt) {
+		return { outcome: "already_validated", resourceId: row.id };
+	}
+	if (row.editorialStatus !== "published") {
+		return { outcome: "not_published", resourceId: row.id };
+	}
+	if (row.edited) return { outcome: "edited", resourceId: row.id };
+	if (!options.dryRun) {
+		await db
+			.update(resources)
+			.set({ validatedAt: new Date(), validationSource: "legacy" })
+			.where(
+				and(
+					eq(resources.id, row.id),
+					eq(resources.editorialStatus, "published"),
+					isNull(resources.validatedAt),
+				),
+			);
+	}
+	return { outcome: "marked", resourceId: row.id };
 }
 
 export type FixLegacyLanguageResult =

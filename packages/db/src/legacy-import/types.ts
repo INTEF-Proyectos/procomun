@@ -12,7 +12,8 @@ export interface LegacyOdeJson {
 	titleStr?: string | null;
 	type?: string | null;
 	published?: string | number | null;
-	certified?: number | null;
+	/** 1 = validado por expertos en el Procomún antiguo (#420). */
+	certified?: number | string | boolean | null;
 	mecIdentifierStr?: string | null;
 	descriptionStr?: string | null;
 	publicatorStr?: string | null;
@@ -84,6 +85,11 @@ export interface MappedLegacyResource {
 	editorialStatus: LegacyEditorialStatus;
 	/** Valor de `published` recibido, para el informe de importación. */
 	sourcePublished: string | number | null;
+	/**
+	 * `certified: 1` en origen (#420). Si además entra publicado, lleva el
+	 * sello «Validado» con `validation_source = 'legacy'`.
+	 */
+	certified: boolean;
 	/**
 	 * Visitas del Procomún antiguo (#421, ADR-0044). Pendiente: el exportador
 	 * todavía no incluye el dato y aún no se sabe el nombre del campo del JSON,

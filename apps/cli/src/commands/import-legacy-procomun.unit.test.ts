@@ -14,6 +14,7 @@ import path from "node:path";
 import { PGlite } from "@electric-sql/pglite";
 import type { LegacyOdeJson } from "@procomun/db/legacy-import";
 import {
+	isLegacyCertified,
 	normalizeLanguage,
 	resolveLegacyExternalId,
 	resolveLegacyPublicationStatus,
@@ -151,6 +152,7 @@ function buildMockDeps(
 		// que esperan los tests existentes.
 		resolveLegacyExternalId,
 		resolveLegacyPublicationStatus,
+		isLegacyCertified,
 		normalizeLanguage,
 		mapLegacyRecord: (() => ({
 			externalId: "es_mock",
@@ -175,6 +177,7 @@ function buildMockDeps(
 				previewImageUrl: null,
 				editorialStatus: "published",
 				sourcePublished: 1,
+				certified: false,
 			},
 		})) as Deps["mapLegacyRecord"],
 		ensureLegacyImportSystemUser: async () => ({
@@ -202,6 +205,10 @@ function buildMockDeps(
 				resourceId: null,
 			}),
 			unpublishUnreviewedLegacyResource: async () => ({
+				outcome: "not_found",
+				resourceId: null,
+			}),
+			markLegacyResourceCertified: async () => ({
 				outcome: "not_found",
 				resourceId: null,
 			}),
@@ -391,6 +398,10 @@ describe("runImportLegacyProcomun (deps mockeadas)", () => {
 					outcome: "not_found",
 					resourceId: null,
 				}),
+				markLegacyResourceCertified: async () => ({
+					outcome: "not_found",
+					resourceId: null,
+				}),
 				importLegacyResourceWithElpx: async () => {
 					importCalled = true;
 					throw new Error("no debería llamarse");
@@ -428,6 +439,10 @@ describe("runImportLegacyProcomun (deps mockeadas)", () => {
 					outcome: "not_found",
 					resourceId: null,
 				}),
+				markLegacyResourceCertified: async () => ({
+					outcome: "not_found",
+					resourceId: null,
+				}),
 				importLegacyResourceWithElpx: async () => {
 					importCalled = true;
 					throw new Error("no debería llamarse");
@@ -462,6 +477,10 @@ describe("runImportLegacyProcomun (deps mockeadas)", () => {
 					resourceId: null,
 				}),
 				unpublishUnreviewedLegacyResource: async () => ({
+					outcome: "not_found",
+					resourceId: null,
+				}),
+				markLegacyResourceCertified: async () => ({
 					outcome: "not_found",
 					resourceId: null,
 				}),
@@ -520,6 +539,7 @@ describe("runImportLegacyProcomun (deps mockeadas)", () => {
 					importedAt: null,
 					editorialStatus: "published",
 					sourcePublished: 1,
+					certified: false,
 				},
 			})) as Deps["mapLegacyRecord"],
 		});
@@ -700,6 +720,7 @@ describe("runImportLegacyProcomun (deps mockeadas)", () => {
 					previewImageUrl: null,
 					editorialStatus: "published",
 					sourcePublished: 1,
+					certified: false,
 				},
 			})) as Deps["mapLegacyRecord"],
 			repo: {
@@ -722,6 +743,10 @@ describe("runImportLegacyProcomun (deps mockeadas)", () => {
 					resourceId: null,
 				}),
 				unpublishUnreviewedLegacyResource: async () => ({
+					outcome: "not_found",
+					resourceId: null,
+				}),
+				markLegacyResourceCertified: async () => ({
 					outcome: "not_found",
 					resourceId: null,
 				}),
@@ -783,6 +808,7 @@ describe("runImportLegacyProcomun (deps mockeadas)", () => {
 					previewImageUrl: null,
 					editorialStatus: "published",
 					sourcePublished: 1,
+					certified: false,
 				},
 			})) as Deps["mapLegacyRecord"],
 			// computeFileSha256 (heredado del base mock) devuelve siempre
@@ -802,6 +828,10 @@ describe("runImportLegacyProcomun (deps mockeadas)", () => {
 					resourceId: null,
 				}),
 				unpublishUnreviewedLegacyResource: async () => ({
+					outcome: "not_found",
+					resourceId: null,
+				}),
+				markLegacyResourceCertified: async () => ({
 					outcome: "not_found",
 					resourceId: null,
 				}),

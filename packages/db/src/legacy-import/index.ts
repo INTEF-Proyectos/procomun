@@ -1,3 +1,4 @@
+export { isLegacyCertified } from "./certified.ts";
 export type {
 	CategorizacionEducativaInforme,
 	EducationalImportResourceNote,

@@ -499,3 +499,23 @@ describe("mapLegacyRecord — estado de publicación (issue #447)", () => {
 		}
 	});
 });
+
+describe("mapLegacyRecord — certified (issue #420)", () => {
+	it("certified = 1 marca el recurso como validado en origen", async () => {
+		const json = await loadFixture("es_2024052212_9181312");
+		const result = mapLegacyRecord({ ...json, certified: 1 }, "fallback.elpx");
+
+		expect(result.resource.certified).toBe(true);
+	});
+
+	it("certified = 0 o nulo no lo marca", async () => {
+		const json = await loadFixture("es_2024052212_9181312");
+		expect(mapLegacyRecord(json, "fallback.elpx").resource.certified).toBe(
+			false,
+		);
+		expect(
+			mapLegacyRecord({ ...json, certified: null }, "fallback.elpx").resource
+				.certified,
+		).toBe(false);
+	});
+});

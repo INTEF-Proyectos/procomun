@@ -18,6 +18,7 @@ import {
 	runFixLegacyLanguage,
 	runFixLegacyPublished,
 	runImportLegacyProcomun,
+	runMarkLegacyCertified,
 } from "./import-legacy-procomun.ts";
 
 // Fixtures versionadas (anonimizadas, ver ADR-0029): 3 pares .json+.elpx reales
@@ -875,5 +876,128 @@ describe("import:legacy-procomun — --fix-language reindexa la búsqueda (revis
 
 		// Lo que fallaba: el índice seguía en español y la búsqueda daba 0.
 		expect(await indexFindsRunningInEnglish(row.id)).toBe(true);
+	});
+});
+
+// Issue #420: los 877 recursos `certified` del Procomún antiguo llevan el
+// sello «Validado» si entran publicados.
+describe("import:legacy-procomun — certified (issue #420)", () => {
+	let deps: Awaited<ReturnType<typeof loadImportLegacyProcomunDependencies>>;
+	let sourceDir: string;
+
+	beforeAll(async () => {
+		process.env.UPLOAD_STORAGE_DIR = await mkdtemp(
+			path.join(tmpdir(), "legacy-import-storage-certified-"),
+		);
+		deps = await loadImportLegacyProcomunDependencies();
+		sourceDir = await mkdtemp(
+			path.join(tmpdir(), "legacy-import-certified-source-"),
+		);
+		for (const [name, published, certified] of [
+			["cert-pub", 1, 1],
+			["cert-draft", 0, 1],
+			["sin-cert", 1, 0],
+		] as const) {
+			await createMinimalElpx(
+				path.join(sourceDir, `${name}.elpx`),
+				`certified-${name}`,
+			);
+			await writeFile(
+				path.join(sourceDir, `${name}.json`),
+				JSON.stringify({
+					idODE: `es_certified_${name}`,
+					titleStr: `Recurso ${name}`,
+					descriptionStr: "Recurso para probar el campo certified.",
+					generalLanguageStr: ["es"],
+					rightsCopyrightAndOtherRestrictionsStr:
+						"creative commons: attribution",
+					resourceType: ["documento"],
+					published,
+					certified,
+				}),
+			);
+		}
+	});
+
+	async function sealOf(externalId: string) {
+		const found = await deps.repo.findLegacyResourceByExternalId(
+			deps.getDb().db,
+			"legacy-procomun",
+			externalId,
+		);
+		if (!found) throw new Error(`falta ${externalId}`);
+		const [row] = await deps
+			.getDb()
+			.db.select({
+				validatedAt: resources.validatedAt,
+				validationSource: resources.validationSource,
+			})
+			.from(resources)
+			.where(eq(resources.id, found.id));
+		return { id: found.id, ...row };
+	}
+
+	test("la importación pone el sello a los certificados publicados y el informe cuenta los que entran como borrador", async () => {
+		const report = await runImportLegacyProcomun(
+			{ sourceDir, dryRun: false },
+			deps,
+		);
+
+		expect(report.totals.imported).toBe(3);
+		expect(report.totals.importedValidated).toBe(1);
+		expect(report.totals.certifiedAsDraft).toBe(1);
+		expect(
+			report.records.find((r) => r.externalId === "es_certified_cert-pub"),
+		).toMatchObject({ outcome: "imported", certified: true });
+		expect((await sealOf("es_certified_cert-pub")).validationSource).toBe(
+			"legacy",
+		);
+		expect((await sealOf("es_certified_cert-draft")).validatedAt).toBeNull();
+		expect((await sealOf("es_certified_sin-cert")).validatedAt).toBeNull();
+	});
+
+	test("--mark-certified marca lo ya importado sin sello; en seco no escribe y repetirlo no cambia nada", async () => {
+		// Simula lo importado antes de leer `certified`.
+		const { id } = await sealOf("es_certified_cert-pub");
+		await deps
+			.getDb()
+			.db.update(resources)
+			.set({ validatedAt: null, validationSource: null })
+			.where(eq(resources.id, id));
+
+		const dry = await runMarkLegacyCertified({ sourceDir, dryRun: true }, deps);
+		expect(dry.totals).toEqual({
+			processed: 3,
+			certifiedAtSource: 2,
+			marked: 1,
+			alreadyValidated: 0,
+			notPublished: 1,
+			edited: 0,
+			notFound: 0,
+			errored: 0,
+		});
+		expect(dry.records).toContainEqual({
+			externalId: "es_certified_cert-pub",
+			outcome: "would_mark",
+			resourceId: id,
+		});
+		expect((await sealOf("es_certified_cert-pub")).validatedAt).toBeNull();
+
+		const real = await runMarkLegacyCertified(
+			{ sourceDir, dryRun: false },
+			deps,
+		);
+		expect(real.totals.marked).toBe(1);
+		expect((await sealOf("es_certified_cert-pub")).validationSource).toBe(
+			"legacy",
+		);
+		expect((await sealOf("es_certified_cert-draft")).validatedAt).toBeNull();
+
+		const again = await runMarkLegacyCertified(
+			{ sourceDir, dryRun: false },
+			deps,
+		);
+		expect(again.totals.marked).toBe(0);
+		expect(again.totals.alreadyValidated).toBe(1);
 	});
 });
