@@ -1,5 +1,6 @@
 /* ResourceCard.css — Stitch design */
 .rc-card {
+	position: relative;
 	display: flex;
 	flex-direction: column;
 	background: var(--color-surface-container-lowest);
@@ -13,7 +14,7 @@
 	box-shadow: 0 20px 40px rgba(18, 28, 40, 0.06);
 	text-decoration: none;
 }
-.rc-card:focus-visible {
+.rc-card:has(.card-stretched-link:focus-visible) {
 	outline: 2px solid var(--color-primary);
 	outline-offset: 2px;
 }

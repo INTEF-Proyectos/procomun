@@ -115,7 +115,7 @@ export function UsersCrudIsland() {
 				<span
 					className={`admin-badge ${row.isActive ? "admin-badge--active" : "admin-badge--inactive"}`}
 				>
-					{row.isActive ? "Activo" : "Inactivo"}
+					{row.isActive ? "Activo" : "Bloqueado"}
 				</span>
 			),
 		},
@@ -144,7 +144,7 @@ export function UsersCrudIsland() {
 						disabled={busyRowId === row.id}
 						onClick={() => void handleToggleActive(row)}
 					>
-						{row.isActive ? "Desactivar" : "Activar"}
+						{row.isActive ? "Bloquear" : "Desbloquear"}
 					</button>
 				</>
 			),

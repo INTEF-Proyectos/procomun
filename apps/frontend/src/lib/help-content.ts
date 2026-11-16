@@ -56,12 +56,12 @@ export const HELP_SECTIONS: HelpSection[] = [
 		eyebrow: "Crear",
 		title: "Publicar un recurso",
 		description:
-			"Las personas con rol autor o superior pueden crear borradores, completarlos y enviarlos a revisión editorial.",
+			"Las personas con rol autor o superior pueden crear borradores y completarlos. Los editores los publican directamente; los autores los envían a revisión editorial.",
 		icon: "upload_file",
 		items: [
 			'Entra en "Publicar" para abrir el formulario de alta y completa al menos título, descripción, tipo, licencia e idioma.',
 			"Añade ficheros o enlaces y revisa la calidad de los metadatos para facilitar el descubrimiento posterior.",
-			"Cuando el borrador esté listo, envíalo a revisión para que curación o administración lo validen antes de publicarlo.",
+			"Cuando el borrador esté listo, publícalo si tienes rol editor. Con rol autor, envíalo a revisión para que curación o administración lo validen antes de publicarlo.",
 		],
 	},
 	{
@@ -100,6 +100,7 @@ export const HELP_SECTIONS: HelpSection[] = [
 		items: [
 			"Lector: navega por el catálogo y consulta recursos publicados.",
 			"Autor: crea borradores, edita sus recursos y accede al flujo de publicación.",
+			"Editor: crea borradores y los publica directamente, sin enviarlos a revisión.",
 			"Curador: revisa, devuelve o publica recursos y gestiona taxonomías editoriales.",
 			"Administrador: mantiene usuarios y supervisa toda la operación del backoffice.",
 		],

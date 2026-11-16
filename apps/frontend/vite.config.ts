@@ -55,6 +55,20 @@ export default defineConfig({
 		}),
 	],
 	server: {
+		watch: {
+			// #492. La primera vez que el SDK de inlang abre el proyecto en una
+			// copia limpia (CI, Docker) escribe dentro de project.inlang/:
+			// settings.json, .lix/, .meta.json, README.md, .gitignore y cache/.
+			// El plugin de Paraglide lee esos ficheros y los trata como entrada,
+			// así que el watcher de Vite le avisaba de esas escrituras mientras
+			// compilaba en buildStart. Lanzaba otra compilación, todavía sin los
+			// hashes de la primera, que reescribía todo src/paraglide con Vite ya
+			// escuchando. El navegador recibía `page reload src/paraglide/runtime.js`
+			// en mitad del primer test e2e. messages/*.json sigue vigilado. Si se
+			// cambia settings.json hay que reiniciar Vite, como con los
+			// urlPatterns de arriba.
+			ignored: ["**/project.inlang/**"],
+		},
 		proxy: {
 			"/api": {
 				target: "http://localhost:3000",
