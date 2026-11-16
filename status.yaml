@@ -4214,3 +4214,17 @@ tasks:
       La revision del 08-nov ya estaba resuelta en 733e4fe0; se ha
       verificado el journal y el migrador real de Drizzle sobre una base en
       main.
+  T-2026-11-16-12140710:
+    date: 2026-11-16
+    agent: "backend-api-servicios"
+    task: "Poner #552 al dia con main tras #488: cambio de contrasena y hash heredado"
+    status: Done
+    related: ["#552", "#532", "#488"]
+    notes: >
+      El merge con main no tuvo conflictos en local: config.ts conserva
+      password: legacyAwarePasswordOptions (#488) y user.changeEmail (#552).
+      /change-password verifica la actual con el verificador de #488 y
+      escribe con internalAdapter.updatePassword; el UPDATE condicional de
+      #488 no la pisa. Test nuevo en account-settings.integration.test.ts:
+      con el hash heredado aun guardado, la contrasena heredada vale como
+      actual, el hash deja de ser heredado y la antigua ya no entra.

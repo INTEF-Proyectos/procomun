@@ -1,8 +1,9 @@
 import { afterEach, describe, expect, spyOn, test } from "bun:test";
-import { user } from "@procomun/db/schema";
+import { account, user } from "@procomun/db/schema";
 import { eq } from "drizzle-orm";
 import { getDb } from "../db.ts";
 import { auth, createAuth } from "./config.ts";
+import { isLegacyPasswordHash } from "./legacy-password.ts";
 import { getAuthBaseUrl, getFrontendUrl } from "./urls.ts";
 
 /**
@@ -155,6 +156,63 @@ describe("cambiar la contraseña (#532)", () => {
 		});
 		const body = await session.json().catch(() => null);
 		expect(body?.user ?? null).toBeNull();
+	});
+});
+
+// Al poner #552 al día con #488: una cuenta importada puede seguir con el hash
+// heredado aunque tenga sesión (la sustitución al entrar falló y se reintenta
+// en el siguiente inicio de sesión). Cambiar la contraseña tiene que aceptar
+// la heredada como actual y dejarla inservible.
+describe("cambiar la contraseña con el hash heredado (#552, #488)", () => {
+	const BCRYPT_2Y =
+		"$2y$10$NtYFUMRmtbKJyE.veX1nmuA5DC9GdFsrZVaUp6y6hIbFd5VDp//xi";
+	const LEGACY_PASSWORD = "Procomun-2026!";
+
+	async function storedHash(userId: string) {
+		const rows = await getDb()
+			.db.select({ password: account.password })
+			.from(account)
+			.where(eq(account.userId, userId));
+		return rows[0]?.password ?? null;
+	}
+
+	test("acepta la heredada como actual y después ya no vale", async () => {
+		const email = freshEmail("heredada");
+		const signUp = await authRequest("/sign-up/email", {
+			body: { email, password: LEGACY_PASSWORD, name: "Heredada 532" },
+		});
+		expect([200, 201]).toContain(signUp.status);
+		const cookie = cookieFrom(signUp);
+		const rows = await getDb()
+			.db.select({ id: user.id })
+			.from(user)
+			.where(eq(user.email, email));
+		const userId = rows[0]?.id ?? "";
+		// La cuenta vuelve al hash del Procomún anterior, como si la
+		// sustitución al entrar no hubiera llegado a escribirse.
+		await getDb()
+			.db.update(account)
+			.set({ password: BCRYPT_2Y })
+			.where(eq(account.userId, userId));
+
+		const res = await authRequest("/change-password", {
+			cookie,
+			body: {
+				currentPassword: LEGACY_PASSWORD,
+				newPassword: "contrasena-nueva-532",
+			},
+		});
+		expect(res.status).toBe(200);
+		expect(isLegacyPasswordHash((await storedHash(userId)) ?? "")).toBeFalse();
+
+		const vieja = await authRequest("/sign-in/email", {
+			body: { email, password: LEGACY_PASSWORD },
+		});
+		expect(vieja.status).not.toBe(200);
+		const nueva = await authRequest("/sign-in/email", {
+			body: { email, password: "contrasena-nueva-532" },
+		});
+		expect(nueva.status).toBe(200);
 	});
 });
 
