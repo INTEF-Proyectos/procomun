@@ -286,6 +286,10 @@ describe("Social — My profile", () => {
 		expect(body.name).toBe("Reader Test");
 		expect(body.bio).toBeNull();
 		expect(body.role).toBe("reader");
+		expect((body as { profile?: unknown }).profile).toMatchObject({
+			locality: null,
+			educationalCenter: null,
+		});
 	});
 
 	test("PATCH /users/me/profile → reader persiste nombre y bio y reaparece tras recarga", async () => {
@@ -312,6 +316,94 @@ describe("Social — My profile", () => {
 		};
 		expect(body.name).toBe("Reader Editado");
 		expect(body.bio).toBe("Bio persistida");
+	});
+
+	test("PATCH /users/me/profile → rechaza nombre vacío y «Sobre mí» demasiado largo sin guardar nada (#533)", async () => {
+		const id = `reader-invalid-${crypto.randomUUID()}`;
+		const readerApp = createSocialApp({
+			id,
+			role: "reader",
+			name: "Nombre Válido",
+			email: `${id}@test.com`,
+		});
+		await readerApp.request("/api/v1/users/me/profile", {
+			method: "PATCH",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({ name: "Nombre Válido", bio: "Bio previa" }),
+		});
+
+		for (const body of [
+			{ name: "   " },
+			{ name: "Otro", bio: "x".repeat(10_001) },
+			{ name: "Otro", profile: { website: "javascript:alert(1)" } },
+		]) {
+			const res = await readerApp.request("/api/v1/users/me/profile", {
+				method: "PATCH",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify(body),
+			});
+			expect(res.status).toBe(400);
+			const error = (await res.json()) as {
+				details: Array<{ field: string; code: string }>;
+			};
+			expect(error.details.length).toBeGreaterThan(0);
+		}
+
+		const getRes = await readerApp.request("/api/v1/users/me/profile");
+		const profile = (await getRes.json()) as {
+			name: string;
+			bio: string;
+			profile: { website: string | null };
+		};
+		expect(profile.name).toBe("Nombre Válido");
+		expect(profile.bio).toBe("Bio previa");
+		expect(profile.profile.website).toBeNull();
+	});
+
+	test("PATCH /users/me/profile → guarda centro, localidad y redes, y solo los ve su dueño (#533)", async () => {
+		const id = `reader-details-${crypto.randomUUID()}`;
+		const readerApp = createSocialApp({
+			id,
+			role: "reader",
+			name: "Docente",
+			email: `${id}@test.com`,
+		});
+
+		const patchRes = await readerApp.request("/api/v1/users/me/profile", {
+			method: "PATCH",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({
+				name: "Docente",
+				profile: {
+					countryCode: "es",
+					locality: "Burgos",
+					educationalCenter: "CEIP Ejemplo",
+					educationalCenterUrl: "ceip-ejemplo.es",
+					website: "",
+					twitter: "@docente",
+				},
+			}),
+		});
+		expect(patchRes.status).toBe(200);
+
+		const getRes = await readerApp.request("/api/v1/users/me/profile");
+		const body = (await getRes.json()) as { profile: Record<string, unknown> };
+		expect(body.profile).toEqual({
+			countryCode: "ES",
+			locality: "Burgos",
+			educationalCenter: "CEIP Ejemplo",
+			educationalCenterUrl: "https://ceip-ejemplo.es/",
+			website: null,
+			facebook: null,
+			twitter: "@docente",
+			linkedin: null,
+		});
+
+		// Privado hasta #504: la administración de usuarios no lo devuelve.
+		const adminView = await createSocialApp({ id: "1", role: "admin" }).request(
+			`/api/admin/users/${id}`,
+		);
+		expect(await adminView.json()).not.toHaveProperty("profile");
 	});
 
 	test("PATCH /users/me/profile → 401 without auth", async () => {

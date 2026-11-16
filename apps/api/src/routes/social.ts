@@ -1,5 +1,6 @@
 import * as repo from "@procomun/db/repository";
 import { favorites, ratings, resources } from "@procomun/db/schema";
+import { validateProfileUpdate } from "@procomun/db/user-profile";
 import { and, desc, eq, isNull, sql } from "drizzle-orm";
 import { Hono } from "hono";
 import { logActivity } from "../activity/log.ts";
@@ -234,11 +235,17 @@ socialRoutes.get("/users/me/dashboard", requireAuth, async (c) => {
 // ---------------------------------------------------------------------------
 // GET /users/me/profile (auth required)
 // ---------------------------------------------------------------------------
+// `profile` lleva centro, localidad y redes (#533). Es privado: solo se
+// devuelve aquí, a su dueño, hasta que #504 decida qué se muestra.
 socialRoutes.get("/users/me/profile", requireAuth, async (c) => {
 	const currentUser = requireUser(c);
-	const found = await repo.getUserById(getDb().db, currentUser.id);
+	const db = getDb().db;
+	const [found, profile] = await Promise.all([
+		repo.getUserById(db, currentUser.id),
+		repo.getUserProfileDetails(db, currentUser.id),
+	]);
 
-	if (found) return c.json(found);
+	if (found) return c.json({ ...found, profile });
 
 	return c.json({
 		id: currentUser.id,
@@ -247,6 +254,7 @@ socialRoutes.get("/users/me/profile", requireAuth, async (c) => {
 		bio: null,
 		role: currentUser.role ?? "reader",
 		isActive: true,
+		profile,
 	});
 });
 
@@ -263,17 +271,23 @@ socialRoutes.patch("/users/me/profile", requireAuth, async (c) => {
 	});
 
 	const body = await c.req.json().catch(() => null);
-	if (!body || typeof body !== "object") {
+	if (!body || typeof body !== "object" || Array.isArray(body)) {
 		return c.json({ error: "Cuerpo de la petición inválido" }, 400);
 	}
 
-	const updates: { name?: string | null; bio?: string | null } = {};
-	if ("name" in body)
-		updates.name = typeof body.name === "string" ? body.name : null;
-	if ("bio" in body)
-		updates.bio = typeof body.bio === "string" ? body.bio : null;
+	// #533: el nombre no puede quedar vacío y los textos tienen longitud máxima.
+	const validation = validateProfileUpdate(body);
+	if (!validation.ok) {
+		return c.json(
+			{ error: "Datos inválidos", details: validation.errors },
+			400,
+		);
+	}
+	const { profile, ...updates } = validation.value;
 
-	await repo.updateUser(getDb().db, currentUser.id, updates);
+	const db = getDb().db;
+	await repo.updateUser(db, currentUser.id, updates);
+	if (profile) await repo.saveUserProfileDetails(db, currentUser.id, profile);
 	return c.json({ id: currentUser.id, updated: true });
 });
 
