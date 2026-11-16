@@ -85,6 +85,9 @@ export async function listCollectionResources(
 			createdBy: resources.createdBy,
 			createdByName: user.name,
 			editorialStatus: resources.editorialStatus,
+			// Sello «Validado» (#420) para la tarjeta.
+			validatedAt: resources.validatedAt,
+			validationSource: resources.validationSource,
 		})
 		.from(collectionResources)
 		.innerJoin(resources, eq(collectionResources.resourceId, resources.id))

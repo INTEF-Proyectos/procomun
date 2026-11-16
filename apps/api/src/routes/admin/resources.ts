@@ -7,6 +7,7 @@ import {
 	validateTransition,
 	validateUpdateResource,
 } from "@procomun/db/validation";
+import { validationSealOnStatusChange } from "@procomun/db/validation-seal";
 import { Hono } from "hono";
 import { logActivity } from "../../activity/log.ts";
 import { type AuthEnv, requireRole } from "../../auth/middleware.ts";
@@ -19,6 +20,7 @@ import { ensureCurrentUser } from "../../auth/user-sync.ts";
 import { getDb } from "../../db.ts";
 import { elpxPreviewUrlForStatus } from "../../elpx/preview-token.ts";
 import { updateSearchVector } from "../../fts/search.ts";
+import { onPublicContentChanged } from "../../resources/validation-seal.ts";
 import { retireUploadArtifacts } from "../../services/elpx-retire.ts";
 import { contentDisposition, getUploadConfig } from "../../uploads/config.ts";
 import { buildCrudRoutes } from "../crud-builder.ts";
@@ -80,12 +82,15 @@ const resourceRoutes = buildCrudRoutes({
 	getById: repo.getResourceById,
 	create: (db, data) =>
 		repo.createResource(db, data as Parameters<typeof repo.createResource>[1]),
-	update: (db, id, data) =>
-		repo.updateResource(
+	update: async (db, id, data, user) => {
+		await repo.updateResource(
 			db,
 			id,
 			data as Parameters<typeof repo.updateResource>[2],
-		),
+		);
+		// #420: si edita el autor, el recurso pierde el sello «Validado».
+		await onPublicContentChanged(db, id, user);
+	},
 	remove: repo.deleteResource,
 	validateCreate: validateCreateResource,
 	validateUpdate: validateUpdateResource,
@@ -222,6 +227,7 @@ resourceRoutes.delete("/:id/media/:mediaItemId", async (c) => {
 		await retireUploadArtifacts(db(), item.uploadId, config);
 	}
 	await repo.deleteMediaItem(db(), mediaItemId);
+	await onPublicContentChanged(db(), id, getCurrentUser(c));
 
 	return c.json({ id: mediaItemId, deleted: true });
 });
@@ -331,7 +337,14 @@ resourceRoutes.patch("/:id/status", async (c) => {
 			400,
 		);
 
-	await repo.updateEditorialStatus(db(), id, status, user.id);
+	// #420: «Aprobar y publicar» (review → published) pone el sello
+	// «Validado»; volver a borrador lo quita.
+	await repo.updateEditorialStatus(db(), id, status, user.id, {
+		validationSeal: validationSealOnStatusChange(
+			existing.editorialStatus,
+			status,
+		),
+	});
 
 	const statusLabels: Record<string, string> = {
 		draft: "borrador",

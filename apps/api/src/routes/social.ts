@@ -145,6 +145,9 @@ socialRoutes.get("/users/me/favorites", requireAuth, async (c) => {
 			author: resources.author,
 			publisher: resources.publisher,
 			editorialStatus: resources.editorialStatus,
+			// Sello «Validado» (#420) para la tarjeta.
+			validatedAt: resources.validatedAt,
+			validationSource: resources.validationSource,
 			createdBy: resources.createdBy,
 			createdAt: resources.createdAt,
 			updatedAt: resources.updatedAt,

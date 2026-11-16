@@ -551,7 +551,7 @@ describe("migración 0016_resource_language_nullable", () => {
 // Issue #456: perfil migrado del Procomún anterior. Era la 0017, pero la 0018
 // de #471 llegó antes a main: pasa a 0019 para ir detrás con un `when` mayor.
 describe("migración 0019_user_profile", () => {
-	test("va la última en el journal y detrás de las 0012–0016 en curso", async () => {
+	test("va detrás de las 0012–0018 en el journal", async () => {
 		const journal = JSON.parse(
 			await readFile(path.join(migrationsDir, "meta/_journal.json"), "utf8"),
 		) as { entries: Array<{ tag: string; when: number }> };
@@ -559,8 +559,9 @@ describe("migración 0019_user_profile", () => {
 			(item) => item.tag === "0019_user_profile",
 		);
 		expect(entry).toBeDefined();
-		expect(entry?.when).toBe(
-			Math.max(...journal.entries.map((item) => item.when)),
+		const previous = journal.entries.filter((item) => item.tag < "0019");
+		expect(entry?.when ?? 0).toBeGreaterThan(
+			Math.max(...previous.map((item) => item.when)),
 		);
 		expect(entry?.when ?? 0).toBeGreaterThan(1793200000000);
 	});
@@ -607,7 +608,77 @@ describe("journal combinado de areas y miniaturas (#471)", () => {
 		// propio idx y su propio when, y que 0014 se conserva.
 		expect(screenshots?.idx ?? -1).toBeGreaterThan(areas?.idx ?? 0);
 		expect(screenshots?.when ?? 0).toBeGreaterThan(areas?.when ?? 0);
-		// Detras solo va la 0019_user_profile de #488, que se mezclo despues.
-		expect(journal.entries.at(-1)?.tag).toBe("0019_user_profile");
+		// Detras va la 0019_user_profile de #488, que se mezclo despues.
+		const profile = journal.entries.find(
+			(entry) => entry.tag === "0019_user_profile",
+		);
+		expect(profile?.idx).toBe((screenshots?.idx ?? 0) + 1);
+	});
+});
+
+// Issue #420, ADR-0049 (adenda 2026-11-16): sello «Validado». La 0026 la fija
+// el reparto de números entre PR abiertos (0020–0025 ya están cogidas).
+describe("migración 0026_resource_validation_seal", () => {
+	const OLD_SCHEMA = `CREATE TABLE "user" (id TEXT PRIMARY KEY);
+		CREATE TABLE "resources" (id TEXT PRIMARY KEY, title TEXT NOT NULL)`;
+
+	test("va la última en el journal con el when reservado", async () => {
+		const journal = JSON.parse(
+			await readFile(path.join(migrationsDir, "meta/_journal.json"), "utf8"),
+		) as { entries: Array<{ tag: string; when: number }> };
+		const entry = journal.entries.find(
+			(item) => item.tag === "0026_resource_validation_seal",
+		);
+		expect(entry?.when).toBe(1794000000000);
+		expect(entry?.when).toBe(
+			Math.max(...journal.entries.map((item) => item.when)),
+		);
+	});
+
+	test("es idempotente, solo admite los orígenes conocidos y suelta al validador borrado", async () => {
+		const migration = (
+			await readFile(
+				path.join(migrationsDir, "0026_resource_validation_seal.sql"),
+				"utf8",
+			)
+		).replaceAll("--> statement-breakpoint", "");
+		const db = new PGlite();
+		try {
+			await db.exec(OLD_SCHEMA);
+			await db.exec(migration);
+			await db.exec(migration);
+			await db.exec(`INSERT INTO "user" (id) VALUES ('curator-1')`);
+			await db.exec(
+				`INSERT INTO resources (id, title, validated_at, validated_by, validation_source)
+				 VALUES ('r1', 'Uno', NOW(), 'curator-1', 'review'),
+				        ('r2', 'Dos', NOW(), NULL, 'legacy'),
+				        ('r3', 'Tres', NULL, NULL, NULL)`,
+			);
+			await expect(
+				db.exec(
+					`INSERT INTO resources (id, title, validated_at, validation_source)
+					 VALUES ('r4', 'Cuatro', NOW(), 'manual')`,
+				),
+			).rejects.toThrow();
+			await db.exec(`DELETE FROM "user" WHERE id = 'curator-1'`);
+			const rows = await db.query<{ validated_by: string | null }>(
+				"SELECT validated_by FROM resources WHERE id = 'r1'",
+			);
+			expect(rows.rows[0]?.validated_by).toBeNull();
+		} finally {
+			await db.close();
+		}
+	});
+
+	test("el esquema de arranque (setup.ts) crea las mismas columnas", () => {
+		for (const column of [
+			"validated_at",
+			"validated_by",
+			"validation_source",
+		]) {
+			expect(
+				SCHEMA_STATEMENTS.some((statement) => statement.includes(column)),
+			).toBe(true);
+		}
 	});
 });

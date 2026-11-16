@@ -11,6 +11,7 @@ import { logActivity } from "../activity/log.ts";
 import type { AuthEnv } from "../auth/middleware.ts";
 import { canManageResource } from "../auth/roles.ts";
 import { getDb } from "../db.ts";
+import { onPublicContentChanged } from "../resources/validation-seal.ts";
 
 const apiResourceRoutes = new Hono<AuthEnv>();
 
@@ -235,6 +236,8 @@ apiResourceRoutes.put("/:id", async (c) => {
 	}
 	try {
 		await repo.updateResource(db, id, data);
+		// #420: si edita el autor, el recurso pierde el sello «Validado».
+		await onPublicContentChanged(db, id, user);
 	} catch (err) {
 		const invalid = selectionError(err);
 		if (invalid) return c.json(invalid, 400);

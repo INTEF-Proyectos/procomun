@@ -570,6 +570,15 @@ export const SCHEMA_STATEMENTS = [
 		ALTER TABLE "elpx_projects" ADD COLUMN has_screenshot BOOLEAN NOT NULL DEFAULT false;
 	EXCEPTION WHEN duplicate_column THEN NULL;
 	END $$`,
+	// Sello «Validado» (issue #420, ADR-0049, migración 0026)
+	`ALTER TABLE "resources" ADD COLUMN IF NOT EXISTS validated_at TIMESTAMP`,
+	`ALTER TABLE "resources" ADD COLUMN IF NOT EXISTS validated_by TEXT REFERENCES "user"(id) ON DELETE SET NULL`,
+	`ALTER TABLE "resources" ADD COLUMN IF NOT EXISTS validation_source VARCHAR(20)`,
+	`DO $$ BEGIN
+		ALTER TABLE "resources" ADD CONSTRAINT resources_validation_source_check
+			CHECK (validation_source IS NULL OR validation_source IN ('review', 'legacy'));
+	EXCEPTION WHEN duplicate_object THEN NULL;
+	END $$`,
 	`DO $$ BEGIN
 		ALTER TABLE "resources" ADD CONSTRAINT resources_current_version_id_fk
 			FOREIGN KEY (current_version_id) REFERENCES resource_versions(id) ON DELETE SET NULL;

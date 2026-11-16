@@ -10,6 +10,7 @@ import {
 } from "../../auth/roles.ts";
 import { getDb } from "../../db.ts";
 import { parsePagination } from "../../http/pagination.ts";
+import { onPublicContentChanged } from "../../resources/validation-seal.ts";
 
 const tagAdminRoutes = new Hono<AuthEnv>();
 
@@ -121,6 +122,8 @@ tagAdminRoutes.put("/resources/:resourceId", async (c) => {
 		resourceId,
 		body.labels,
 	);
+	// #420: si cambia las etiquetas el autor, el recurso pierde el sello.
+	await onPublicContentChanged(getDb().db, resourceId, user);
 	return c.json({ data: tags });
 });
 

@@ -6,6 +6,7 @@ import { type Context, Hono } from "hono";
 import type { AuthEnv } from "../auth/middleware.ts";
 import { getDb } from "../db.ts";
 import { enqueueExtraction } from "../fts/worker.ts";
+import { onPublicContentChanged } from "../resources/validation-seal.ts";
 import { processElpxUpload } from "../services/elpx-processor.ts";
 import {
 	buildUploadPublicUrl,
@@ -176,7 +177,7 @@ async function getTusServer() {
 					},
 				};
 			},
-			async onUploadFinish(_req, upload) {
+			async onUploadFinish(req, upload) {
 				const session = await repo.getUploadSessionById(getDb().db, upload.id);
 				if (!session) {
 					throw { status_code: 404, body: "Upload no encontrado" };
@@ -212,6 +213,14 @@ async function getTusServer() {
 					mediaItemId: media.id,
 					finalChecksum,
 				});
+				// #420: un adjunto nuevo del autor quita el sello «Validado». Sin
+				// usuario en la petición se trata como autor: el sello solo se
+				// conserva si consta que edita un curator o un admin.
+				await onPublicContentChanged(
+					getDb().db,
+					session.resourceId,
+					decodeUser(req) ?? {},
+				);
 
 				// Post-process .elpx files: extract and store metadata
 				const ext = extractFileExtension(session.originalFilename);

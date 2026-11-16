@@ -35,6 +35,9 @@ export type RelatedResourceCard = {
 	license: string;
 	author: string | null;
 	editorialStatus: string;
+	/** Sello «Validado» (#420). */
+	validatedAt: Date | string | null;
+	validationSource: string | null;
 	updatedAt: Date | string | null;
 	score: number;
 	signals: RecommendationSignals;
@@ -60,6 +63,8 @@ type SignalRow = {
 	license: string;
 	author: string | null;
 	editorial_status: string;
+	validated_at: Date | string | null;
+	validation_source: string | null;
 	updated_at: Date | string | null;
 	shared_subjects: string | number;
 	shared_levels: string | number;
@@ -179,6 +184,8 @@ export async function loadRecommendationSignalRows(
 			c.license,
 			c.author,
 			c.editorial_status,
+			c.validated_at,
+			c.validation_source,
 			c.updated_at,
 			(
 				SELECT count(*)::int
@@ -297,6 +304,8 @@ function toCard(
 		license: row.license,
 		author: row.author,
 		editorialStatus: row.editorial_status,
+		validatedAt: row.validated_at ?? null,
+		validationSource: row.validation_source ?? null,
 		updatedAt: row.updated_at,
 		score: scored.score,
 		signals: scored.signals,
