@@ -155,3 +155,10 @@ Los JSON/`.elpx` de `ode-export/` contienen datos personales reales (nombres y e
 ## Migración de perfil renumerada — 2026-11-11 (puesta al día de #488 con main)
 
 - [x] `0017_user_profile` pasa a `0019_user_profile` (idx 15), detrás de la `0018_elpx_has_screenshot` de #471, que llegó antes a main. Donde arriba dice «migración 0017», ahora es la 0019.
+
+## Revisión de #488 — 2026-11-16 (hash heredado y logs)
+
+- [x] La sustitución del hash heredado tras el inicio de sesión es un UPDATE condicional y atómico de la cuenta de credenciales (`WHERE id = ? AND password = <hash verificado>`, `replaceLegacyPasswordHash`). Un restablecimiento intercalado entre la lectura y la escritura ya no se pisa con el hash de la contraseña antigua. Regresión de integración con better-auth y unitaria sobre PGlite.
+- [x] Si la sustitución falla, el log lleva un mensaje fijo con un código controlado y el SQLSTATE; nunca el error, su mensaje, la consulta, los parámetros ni las causas. El inicio de sesión sigue siendo válido. Regresión con un trigger que falla con un marcador y el hash en el mensaje.
+- [x] `describeDbError` y `summarizeDbStepError` pasan a `@procomun/db/db-errors`, compartidas por la API y los importadores; `apps/cli/src/import-errors.ts` las reexporta.
+- [x] Revisión del 2026-11-08 (journal con la 0017 y la 0018 fundidas, test de migraciones sin cerrar): resuelta en 733e4fe0. Verificado en la punta: el journal no tiene claves repetidas, los idx son únicos y la 0019 tiene el `when` mayor, y el migrador de Drizzle aplica solo la 0019 sobre una base con las 15 migraciones de main registradas.

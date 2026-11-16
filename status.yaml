@@ -4016,3 +4016,18 @@ tasks:
       author@example.com con otro id. ensureUser hace onConflictDoNothing, asi
       que user-2 no se creaba y createApiToken fallaba con
       api_tokens_user_id_fkey. El test usa ahora api-tokens-*@example.com.
+  T-2026-11-16-08020377:
+    date: 2026-11-16
+    agent: "backend-api-servicios"
+    task: "Atender la revision de #488 del 16-nov: hash heredado condicional y logs sin datos"
+    status: Done
+    related: ["#488", "#456"]
+    notes: >
+      upgradeLegacyPasswordHash escribe con un UPDATE condicional
+      (id y hash verificado) en replaceLegacyPasswordHash: un
+      restablecimiento intercalado ya no se pisa. El catch del hook de
+      inicio de sesion registra solo un codigo y el SQLSTATE. El saneamiento
+      de errores de BD de los importadores pasa a @procomun/db/db-errors.
+      La revision del 08-nov ya estaba resuelta en 733e4fe0; se ha
+      verificado el journal y el migrador real de Drizzle sobre una base en
+      main.
