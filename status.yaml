@@ -3533,6 +3533,30 @@ tasks:
       la portada antes de que lleguen los datos, «Cargando…» tiene un
       contraste de 4,28:1, el pie de página uno de 2,45:1 y Material Symbols
       se descarga de Google Fonts. Queda pendiente aparte.
+  T-2026-11-03-12551668:
+    date: 2026-11-03
+    agent: "devops-sre"
+    task: "El access_log de nginx no guarda URL de capacidad"
+    status: Done
+    related: ["#466", "#317", "ADR-0021", "ADR-0026"]
+    notes: >
+      nginx.conf no declaraba access_log y se usaba el formato main de
+      nginx:alpine, que guarda $request y $http_referer enteros: el enlace
+      firmado /api/v1/elpx/preview/<hash>/<token>/ de #466, la instantánea
+      /api/v1/preview/<id>/ y /api/v1/preview-session/<id> de #317 y el
+      ?token= de la verificación de correo. El Referer también, porque el HTML
+      del .elpx sale con Referrer-Policy: same-origin. Ahora el access_log usa
+      main_redacted, el formato main con $redacted_uri y $redacted_referer: dos
+      map tapan el token (:token) y el id (:previewId), y el hash se conserva.
+      Sin cambios de rutas, cabeceras ni caché. Test:
+      scripts/nginx-log-redaction.unit.test.ts lee nginx.conf y ejecuta las
+      regex de los map contra URL de ejemplo y contra el enlace firmado real
+      (rojo → verde). Con nginx:alpine en Docker, nginx -t pasa con el host
+      api resoluble y el log de peticiones reales no lleva ningún secreto.
+      Queda abierto: el error_log no admite formato y un 502 escribe la
+      petición entera; un proxy inverso delante de producción tiene que
+      redactar igual (docs/operaciones/operaciones.md); api_access_logs guarda
+      la ruta de #466 entera hasta que entre redactAuditPath con #317.
   T-2026-11-03-13053388:
     date: 2026-11-03
     agent: "backend-api-servicios"
@@ -3921,6 +3945,33 @@ tasks:
       antes: guarda en PublicCollectionsIsland, tipo string | null en
       api-client y test de regresion. Test ajustado: el toEqual de totals en
       el caso en seco incluye la clave nueva reindexFailed.
+  T-2026-11-04-16381948:
+    date: 2026-11-04
+    agent: "devops-sre + seguridad-privacidad-legal"
+    task: "Atender la revision de #524: el access_log no registra la query"
+    status: Done
+    related: ["#524", "#466", "#536", "#317"]
+    notes: >
+      Dos hallazgos P2 de jacoboAlcantara, los dos reales. Tapar los secretos
+      por nombre de parametro no funcionaba: ?token=A&token=B dejaba el primero
+      porque la regex era codiciosa, ?t%6fken=A no casaba con token= aunque
+      Better Auth lo decodifique igual, y al casar primero una ruta sensible el
+      map devolvia su resultado sin aplicar la redaccion de la query. En vez de
+      perseguir variantes se deja de registrar la query: dos maps encadenados,
+      el primero la quita y deja el marcador ?:query y el segundo redacta la
+      ruta (token del enlace firmado a :token conservando el hash, e id de la
+      vista previa a :previewId). El Referer pasa por la misma pareja de maps,
+      quitando tambien el fragmento. Importante: los maps parten de
+      $request_uri y no de $uri. Con $uri el primer intento registraba
+      /index.html para cualquier ruta del SPA, porque $uri es la ruta despues
+      del try_files; se detecto probando con nginx real. Verificado con
+      nginx:alpine en Docker: nginx -t pasa con los maps encadenados y, con
+      peticiones reales de los tres bypass mas el Referer, el access_log sale
+      con ?:query, :token y :previewId y grep del secreto da 0; /recursos/
+      foto?page=2 y /explorar?q=... conservan su ruta. Contrapartida
+      documentada en operaciones.md: el log pierde los parametros de busqueda y
+      paginacion, y si hacen falta se añaden a una lista permitida uno a uno.
+      Los 6 casos de la revision estan en el test, rojo a verde.
   T-2026-11-04-16555820:
     date: 2026-11-04
     agent: "ingestas-y-migraciones + seguridad-privacidad-legal"
@@ -4003,6 +4054,22 @@ tasks:
       un when posterior, y #488 conserva la suya. AGENTS.md: renumera el que se
       mezcla despues. Si #471 acabase entrando antes que #488, no hace falta
       tocar nada: el journal aplica por idx y 0018 va detras de todo.
+  T-2026-11-10-21011876:
+    date: 2026-11-10
+    agent: "seguridad-privacidad-legal"
+    task: "access_log de nginx: miniatura firmada y rutas con %xx"
+    status: Done
+    related: ["#524", "#512", "#536", "#317"]
+    notes: >
+      La miniatura firmada de #512 (/api/v1/thumbnails/signed/<token>/...)
+      pasa a :token en la ruta y en el Referer. El map casaba sobre
+      $request_uri en crudo y Hono enruta sobre la ruta decodificada, asi que
+      /api/v1/elpx/previe%77/<hash>/<token>/ (o /%61pi/...) llegaba al handler
+      y quedaba en claro. En la API se registra ahora $uri (decodificada y
+      normalizada, sin try_files en /api/); fuera, la ruta pedida. El Referer
+      falla cerrado: con % en la ruta queda origen + /:encoded. Tests rojo ->
+      verde en scripts/nginx-log-redaction.unit.test.ts y comprobado con
+      nginx:alpine real (nginx -t y peticiones con %xx).
   T-2026-11-11-04241251:
     date: 2026-11-11
     agent: "ci"
@@ -4068,6 +4135,27 @@ tasks:
       author@example.com con otro id. ensureUser hace onConflictDoNothing, asi
       que user-2 no se creaba y createApiToken fallaba con
       api_tokens_user_id_fkey. El test usa ahora api-tokens-*@example.com.
+  T-2026-11-16-08024722:
+    date: 2026-11-16
+    agent: "devops-sre + seguridad-privacidad-legal"
+    task: "Segunda revision de #524: rutas no canonicas en el access_log"
+    status: Done
+    related: ["#524", "#466", "#317", "#512"]
+    notes: >
+      Hallazgo P2 de jacoboAlcantara: /ignored/../api/v1/elpx/preview/<hash>/<token>/
+      con curl --path-as-is llega a la API y el log guardaba el token. El caso
+      de la URI ya lo cubria el commit que registra $uri en /api/ (nginx
+      resuelve .. y %2e%2e), pero con nginx:alpine real quedaban seis fugas:
+      la barra invertida en la URI (nginx no la trata como separador y Bun la
+      convierte en /) y el Referer con .., ., // o \. Se falla cerrado: fuera
+      de la API una ruta pedida con .., ., //, \, %2e, %2f o %5c se registra
+      como /:noncanonical; en la API, $uri con \ tambien; el Referer queda en
+      origen + /:noncanonical. Test: scripts/nginx-log-redaction.unit.test.ts,
+      el simulador de $uri resuelve ahora los segmentos como nginx; 15 casos
+      nuevos fallaban y pasan (98 en verde). Verificado con nginx:alpine y una
+      API falsa en Bun: nginx -t pasa y 29 peticiones con --path-as-is dejan 0
+      secretos en el log (6 antes del cambio). Documentado en
+      docs/operaciones/operaciones.md.
   T-2026-11-16-08020377:
     date: 2026-11-16
     agent: "backend-api-servicios"
