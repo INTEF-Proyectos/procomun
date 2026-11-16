@@ -547,6 +547,21 @@ export const SCHEMA_STATEMENTS = [
 	END $$`,
 	// #473: sin idioma en origen no se asume "es" (migración 0016).
 	`ALTER TABLE "resources" ALTER COLUMN language DROP NOT NULL`,
+	// Perfil migrado del Procomún anterior (issue #456, migración 0019)
+	`CREATE TABLE IF NOT EXISTS "user_profile" (
+		user_id TEXT PRIMARY KEY REFERENCES "user"(id) ON DELETE CASCADE,
+		country_code VARCHAR(2),
+		locality TEXT,
+		educational_center TEXT,
+		educational_center_url TEXT,
+		about TEXT,
+		website TEXT,
+		facebook TEXT,
+		linkedin TEXT,
+		twitter TEXT,
+		created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+		updated_at TIMESTAMP NOT NULL DEFAULT NOW()
+	)`,
 	`DO $$ BEGIN
 		ALTER TABLE "resources" ADD COLUMN other_authors TEXT;
 	EXCEPTION WHEN duplicate_column THEN NULL;
