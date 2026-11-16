@@ -36,6 +36,9 @@ export interface Resource {
 	createdBy: string | null;
 	createdByName: string | null;
 	assignedCuratorId?: string | null;
+	/** Sello «Validado» (#420): fecha y origen («review» o «legacy»). */
+	validatedAt?: string | null;
+	validationSource?: string | null;
 	createdAt: string | number | Date | null;
 	updatedAt: string | number | Date | null;
 	deletedAt: unknown;
@@ -73,6 +76,9 @@ export interface RelatedResource {
 	license: string;
 	author: string | null;
 	editorialStatus?: string;
+	/** Sello «Validado» (#420). */
+	validatedAt?: string | null;
+	validationSource?: string | null;
 	score: number;
 	elpxPreview?: ElpxCardPreview | null;
 	signals?: {

@@ -318,5 +318,9 @@
 	"professional_families_help": "Optional. You can choose several.",
 	"professional_families_filter_help": "Vocational training resources with any of the chosen families.",
 	"professional_families_will_be_removed": "You have removed Vocational Training: saving will remove these professional families: {families}.",
-	"detail_professional_families": "Professional families"
+	"detail_professional_families": "Professional families",
+	"validated_badge": "Validated",
+	"validated_badge_explanation": "Reviewed by the Procomún curation team",
+	"validated_badge_on": "Validated on {date}",
+	"validated_edit_warning": "This resource has the “Validated” badge. If you save changes, it will lose it until a curator reviews it again."
 }

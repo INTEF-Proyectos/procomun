@@ -33,6 +33,7 @@ import { trackResourceViewOnce } from "../../lib/view-tracking.ts";
 import { AuthorSearchLinks, PublisherLink } from "../../ui/AuthorLinks.tsx";
 import { LicenseBadge } from "../../ui/LicenseBadge.tsx";
 import { ResourceCard } from "../../ui/ResourceCard.tsx";
+import { ValidatedBadge } from "../../ui/ValidatedBadge.tsx";
 import { FavoriteIsland } from "../social/FavoriteIsland.tsx";
 import { RatingIsland } from "../social/RatingIsland.tsx";
 import { ReportButton } from "../social/ReportButton.tsx";
@@ -58,6 +59,8 @@ function toResourceSummary(item: RelatedResource): ResourceSummary {
 		license: item.license,
 		author: item.author,
 		editorialStatus: item.editorialStatus ?? "published",
+		validatedAt: item.validatedAt ?? null,
+		validationSource: item.validationSource ?? null,
 		elpxPreview: item.elpxPreview ?? null,
 		// Related payload does not include timestamps; cards only need identity fields.
 		createdAt: "",
@@ -399,6 +402,11 @@ export function ResourceDetailContent({
 					<span className={getStatusBadgeClass(resource.editorialStatus)}>
 						{status.label}
 					</span>
+					<ValidatedBadge
+						resource={resource}
+						variant="detail"
+						dateLabel={resourceDate(resource.validatedAt ?? null)}
+					/>
 					{updatedDate || publicationDate ? (
 						<span className="detail-date">
 							<span className="material-symbols-outlined">calendar_today</span>

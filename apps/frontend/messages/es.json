@@ -318,5 +318,9 @@
 	"professional_families_help": "Opcional. Puedes elegir varias.",
 	"professional_families_filter_help": "Recursos de FP con cualquiera de las familias elegidas.",
 	"professional_families_will_be_removed": "Has quitado Formación Profesional: al guardar se eliminarán estas familias profesionales: {families}.",
-	"detail_professional_families": "Familias profesionales"
+	"detail_professional_families": "Familias profesionales",
+	"validated_badge": "Validado",
+	"validated_badge_explanation": "Revisado por el equipo de curación de Procomún",
+	"validated_badge_on": "Validado el {date}",
+	"validated_edit_warning": "Este recurso tiene el sello «Validado». Si guardas cambios, lo perderá hasta que un curator lo revise de nuevo."
 }

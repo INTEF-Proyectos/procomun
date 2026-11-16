@@ -318,5 +318,9 @@
 	"professional_families_help": "Aukerakoa. Hainbat aukera ditzakezu.",
 	"professional_families_filter_help": "Aukeratutako familietako edozein duten LHko baliabideak.",
 	"professional_families_will_be_removed": "Lanbide Heziketa kendu duzu: gordetzean, lanbide-familia hauek ezabatuko dira: {families}.",
-	"detail_professional_families": "Lanbide-familiak"
+	"detail_professional_families": "Lanbide-familiak",
+	"validated_badge": "Balioztatua",
+	"validated_badge_explanation": "Procomúneko kurazio-taldeak berrikusia",
+	"validated_badge_on": "{date}(e)an balioztatua",
+	"validated_edit_warning": "Baliabide honek «Balioztatua» zigilua du. Aldaketak gordetzen badituzu, galdu egingo du kuratzaile batek berriro berrikusi arte."
 }

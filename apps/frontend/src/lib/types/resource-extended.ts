@@ -27,6 +27,9 @@ export interface ResourceSummary {
 	rating?: { average: number; count: number };
 	favoriteCount?: number;
 	editorialStatus: string;
+	/** Sello «Validado» (#420). */
+	validatedAt?: string | null;
+	validationSource?: string | null;
 	createdAt: string;
 }
 

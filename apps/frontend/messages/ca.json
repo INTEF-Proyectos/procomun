@@ -318,5 +318,9 @@
 	"professional_families_help": "Opcional. En pots triar diverses.",
 	"professional_families_filter_help": "Recursos d'FP amb qualsevol de les famílies triades.",
 	"professional_families_will_be_removed": "Has tret Formació Professional: en desar s'eliminaran aquestes famílies professionals: {families}.",
-	"detail_professional_families": "Famílies professionals"
+	"detail_professional_families": "Famílies professionals",
+	"validated_badge": "Validat",
+	"validated_badge_explanation": "Revisat per l'equip de curació de Procomún",
+	"validated_badge_on": "Validat el {date}",
+	"validated_edit_warning": "Aquest recurs té el segell «Validat». Si deses canvis, el perdrà fins que un curador el torni a revisar."
 }

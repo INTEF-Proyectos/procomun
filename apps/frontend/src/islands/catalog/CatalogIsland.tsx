@@ -41,6 +41,7 @@ import {
 	DEFAULT_BADGE_CONFIG,
 } from "../../lib/shared-utils.ts";
 import { ResourceByline } from "../../ui/AuthorLinks.tsx";
+import { ValidatedBadge } from "../../ui/ValidatedBadge.tsx";
 import { KeywordCatalogField } from "../resources/KeywordCatalogField.tsx";
 import { EducationalSearchFilters } from "./EducationalSearchFilters.tsx";
 import { KnowledgeAreaSearchFilters } from "./KnowledgeAreaSearchFilters.tsx";
@@ -236,6 +237,7 @@ export function CatalogResourceCard({
 							? `\u2022 ${(resource.language).toUpperCase()}`
 							: ""}
 					</span>
+					<ValidatedBadge resource={resource} />
 				</div>
 				<h3>
 					<a
