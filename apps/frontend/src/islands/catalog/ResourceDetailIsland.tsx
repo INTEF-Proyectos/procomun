@@ -6,6 +6,7 @@ import type {
 	Resource,
 	SessionData,
 } from "../../lib/api-client.ts";
+import { splitAuthorNames } from "../../lib/author-links.ts";
 import { getApiClient } from "../../lib/get-api-client.ts";
 import {
 	knowledgeAreaHref,
@@ -28,6 +29,7 @@ import {
 } from "../../lib/resource-export.ts";
 import type { ResourceSummary } from "../../lib/types/resource-extended.ts";
 import { trackResourceViewOnce } from "../../lib/view-tracking.ts";
+import { AuthorSearchLinks, PublisherLink } from "../../ui/AuthorLinks.tsx";
 import { LicenseBadge } from "../../ui/LicenseBadge.tsx";
 import { ResourceCard } from "../../ui/ResourceCard.tsx";
 import { FavoriteIsland } from "../social/FavoriteIsland.tsx";
@@ -324,13 +326,26 @@ export function ResourceDetailContent({
 	const updatedDate = resourceDate(resource.updatedAt);
 	const currentUserId = session?.user?.id ?? null;
 	const canEdit = !!session?.user && canManageResource(session.user, resource);
+	// #458: quien publica (cuenta) lleva a su ficha; los autores del texto
+	// libre, a una búsqueda con su nombre. Los importados no tienen cuenta.
+	const publisherId =
+		resource.createdBy && resource.createdByName ? resource.createdBy : null;
+	// La ficha de autor solo existe con algún recurso publicado (#487): en la
+	// vista previa de uno sin publicar el nombre va sin enlace, porque la cuenta
+	// puede no tener ninguno y el enlace daría 404.
+	const publisherHref =
+		publisherId && resource.editorialStatus === "published"
+			? publisherId
+			: null;
+	const authorNames = splitAuthorNames(resource.author);
 	// Sin cuenta (p. ej. importados) va primero el publicador y la lista de
-	// autores debajo (#457); con cuenta, la cuenta y el publicador debajo.
-	const publisherFirst = !resource.createdByName && !!resource.publisher;
-	const authorName = publisherFirst
-		? (resource.publisher as string)
-		: resource.createdByName || resource.author || m.detail_unknown_author();
-	const authorRole = publisherFirst ? resource.author : resource.publisher;
+	// autores debajo (#457); con cuenta, la cuenta, la autoría y el publicador.
+	const publisherFirst = !publisherId && !!resource.publisher;
+	const authorName =
+		(publisherId && resource.createdByName) ||
+		(publisherFirst && resource.publisher) ||
+		authorNames[0] ||
+		m.detail_unknown_author();
 	const authorInitial = authorName.charAt(0).toUpperCase();
 	// Se derivan los valores, no solo los booleanos: un `hasPreview: boolean` no
 	// permite a TypeScript estrechar `resource.elpxPreview` en los usos, y menos
@@ -529,11 +544,36 @@ export function ResourceDetailContent({
 				{/* Author + license row */}
 				<div className="detail-author-row">
 					<div className="detail-author">
-						<div className="detail-author-avatar">{authorInitial}</div>
+						<div className="detail-author-avatar" aria-hidden="true">
+							{authorInitial}
+						</div>
 						<div>
-							<p className="detail-author-name">{authorName}</p>
-							{authorRole ? (
-								<p className="detail-author-role">{authorRole}</p>
+							<p className="detail-author-name">
+								{publisherHref ? (
+									<PublisherLink id={publisherHref} name={authorName} />
+								) : publisherId ? (
+									authorName
+								) : publisherFirst ? (
+									resource.publisher
+								) : authorNames.length > 0 ? (
+									<AuthorSearchLinks author={resource.author} />
+								) : (
+									authorName
+								)}
+							</p>
+							{publisherId && authorNames.length > 0 ? (
+								<p className="detail-author-role">
+									{m.detail_authors_label()}{" "}
+									<AuthorSearchLinks author={resource.author} />
+								</p>
+							) : null}
+							{publisherFirst && authorNames.length > 0 ? (
+								<p className="detail-author-role">
+									<AuthorSearchLinks author={resource.author} />
+								</p>
+							) : null}
+							{publisherId && resource.publisher ? (
+								<p className="detail-author-role">{resource.publisher}</p>
 							) : null}
 						</div>
 					</div>
