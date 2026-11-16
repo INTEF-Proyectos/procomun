@@ -3891,6 +3891,57 @@ tasks:
       cierre de sesion roto hasta reiniciar. Adenda fechada en ADR-0007 y
       variable documentada en .env.example e instalacion.md. Tests con un
       proveedor de prueba en oidc-discovery.unit.test.ts.
+  T-2026-11-04-13020315:
+    date: 2026-11-04
+    agent: "frontend-ux-accesibilidad"
+    task: "La insignia de rol del perfil sale traducida"
+    status: Done
+    related: ["#534", "#494"]
+    notes: >
+      La cabecera del perfil pintaba user.role en crudo en la insignia, asi
+      que se veia la clave sin traducir ("AUTHOR", en mayusculas por el CSS
+      de la insignia). Se anaden los mensajes role_reader, role_author,
+      role_editor, role_curator y role_admin a los cinco idiomas de Paraglide
+      y un helper roleLabel en apps/frontend/src/lib/role-label.ts, que trata
+      un rol desconocido o ausente como reader igual que hasMinRole. Las
+      etiquetas en castellano son las mismas que ROLE_OPTIONS de
+      AdminUsersSection, para que el perfil y la administracion no llamen
+      distinto al mismo rol.
+      Historia del sitio donde vive: primero en apps/frontend/src/lib/
+      role-label.ts importando el barrel paraglide/messages.js, pero la suite
+      de cobertura solo recorre los .ts (los .tsx de las islas van en test:ui,
+      que no mide cobertura) y hasta entonces ningun .ts cargaba ese barrel:
+      los casi 300 mensajes generados entraron en el denominador y la
+      cobertura cayo del 91 % al 49,38 %. El segundo intento, importar los
+      mensajes de uno en uno, arreglo la cobertura pero rompio la aplicacion:
+      el plugin de Vite solo emite el barrel, no los modulos por mensaje (esos
+      los genera el CLI), asi que el dev server respondia «Failed to resolve
+      import "../paraglide/messages/role_admin.js"», la isla del perfil no
+      cargaba y caian 3 e2e (logout, backoffice y «mis recursos»): la pagina
+      salia sin ningun encabezado. check-types no lo detecta. Solucion:
+      roleLabel vive en la propia isla, que ya importa el barrel, y su test en
+      PublicDashboardIsland.unit.test.tsx, que corre en test:ui. Cobertura
+      91,24 %. Regla general: ningun .ts de produccion debe importar el barrel
+      de Paraglide, y los modulos por mensaje no existen en el dev server.
+  T-2026-11-04-12561545:
+    date: 2026-11-04
+    agent: "seguridad-privacidad-legal + backend-api-servicios"
+    task: "Rol minimo author para crear claves de API y publicar por la API"
+    status: Done
+    related: ["#537", "ADR-0024", "#525"]
+    notes: >
+      POST /api/v1/tokens solo exigia requireAuth y POST
+      /api/v1/publish/resources solo comprobaba que hubiera usuario en
+      contexto, asi que una cuenta reader podia crearse una clave de API y
+      crear recursos en borrador o en revision, algo que la interfaz no
+      permite (NuevoPage lo bloquea y la pestana de claves se oculta con
+      hasMinRole author). Las dos rutas pasan a exigir rol minimo author con
+      el middleware requireRole que ya existia. GET y DELETE de /tokens
+      siguen abiertos para que quien ya tenga claves pueda revocarlas. Las
+      claves creadas antes por cuentas reader no se revocan en masa: dejan de
+      servir al usarse. Modificar y borrar no estaban afectados porque ya
+      pasaban por canManageResource. Adenda fechada en ADR-0024. Tests rojo a
+      verde en api-tokens.unit.test.ts y api-resources.unit.test.ts.
   T-2026-11-04-13404809:
     date: 2026-11-04
     agent: "frontend-ux-accesibilidad + qa-validacion"
@@ -4237,3 +4288,20 @@ tasks:
       La revision del 08-nov ya estaba resuelta en 733e4fe0; se ha
       verificado el journal y el migrador real de Drizzle sobre una base en
       main.
+  T-2026-11-16-13145950:
+    date: 2026-11-16
+    agent: "frontend-ux-accesibilidad + qa-validacion"
+    task: "Revision de #545: roleLabel con claves heredadas del prototipo"
+    status: Done
+    related: ["#545", "#534"]
+    notes: >
+      Revision de jacoboAlcantara del 16-nov (P2). roleLabel indexaba
+      ROLE_LABELS, un objeto literal, con el rol tal cual: claves como
+      __proto__ se resolvian por el prototipo, no eran un traductor y el
+      render del perfil lanzaba un TypeError en vez de mostrar «Lector».
+      Ahora solo se usa la entrada si Object.hasOwn(ROLE_LABELS, role); si
+      no, m.role_reader. Test rojo → verde en
+      PublicDashboardIsland.unit.test.tsx con __proto__, constructor,
+      toString y hasOwnProperty. Los demas mapas *_LABELS[...] del frontend
+      (HeroIsland, ResourceEditorIsland, AdminReportsSection, los CRUD y
+      EditarPageBase) quedan fuera del alcance de este PR.
