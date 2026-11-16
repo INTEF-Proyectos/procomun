@@ -1,0 +1,51 @@
+/* #458: el propio nombre del autor es el enlace. Formato discreto: hereda el
+   color del texto y se distingue con un subrayado fino. */
+.author-link {
+	position: relative;
+	z-index: 1;
+	color: inherit;
+	text-decoration: underline;
+	text-decoration-thickness: 1px;
+	text-decoration-color: color-mix(in srgb, currentColor 45%, transparent);
+	text-underline-offset: 0.2em;
+	border-radius: 2px;
+}
+
+.author-link:hover {
+	color: var(--color-primary);
+	text-decoration-color: currentColor;
+}
+
+.author-link:focus-visible {
+	outline: 2px solid var(--color-primary);
+	outline-offset: 2px;
+}
+
+/* Tarjetas con enlaces dentro (#458): el enlace del título cubre toda la
+   tarjeta (que debe tener `position: relative`) y los demás controles (autor,
+   botones) quedan por encima. El foco visible lo pinta la tarjeta con
+   `:has(.card-stretched-link:focus-visible)`. */
+.card-stretched-link {
+	color: inherit;
+	text-decoration: none;
+}
+
+.card-stretched-link:hover {
+	text-decoration: none;
+}
+
+.card-stretched-link::after {
+	content: "";
+	position: absolute;
+	inset: 0;
+	z-index: 0;
+}
+
+.card-stretched-link:focus-visible {
+	outline: none;
+}
+
+.card-over-link {
+	position: relative;
+	z-index: 1;
+}

@@ -41,6 +41,17 @@ describe("frontend Vite config", () => {
 		expect(JSON.stringify(proxy)).toContain("http://localhost:3000");
 	});
 
+	test("excluye project.inlang del watcher para que el SDK de inlang no dispare recompilaciones (#492)", () => {
+		if (typeof config === "function") {
+			throw new Error("Expected static Vite config object.");
+		}
+
+		const ignored = config.server?.watch?.ignored;
+		expect(Array.isArray(ignored) ? ignored : [ignored]).toContain(
+			"**/project.inlang/**",
+		);
+	});
+
 	test("configura soporte del dashboard dev antes de plugins de framework", () => {
 		if (typeof config === "function") {
 			throw new Error("Expected static Vite config object.");
