@@ -12,7 +12,6 @@ import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { PGlite } from "@electric-sql/pglite";
-import type { LegacyOdeJson } from "@procomun/db/legacy-import";
 import {
 	LEGACY_IMPORT_SYSTEM_USER_ID,
 	type LegacyOdeJson,
@@ -1142,47 +1141,6 @@ describe("runImportLegacyProcomun — autoría (issue #456)", () => {
 	});
 
 	afterEach(async () => {
-describe("errores de la base de datos sin datos del recurso (#488)", () => {
-	/** Dato sintético del recurso (los autores pueden llevar el correo). */
-	const AUTHOR_EMAIL = "autora-sintetica@example.test";
-	let pglite: PGlite;
-	/** Error real de Drizzle sobre PGlite con el correo como parámetro. */
-	let dbError: unknown;
-	let dir: string;
-	let storageDir: string;
-	let output: ReturnType<typeof captureConsole>;
-
-	beforeAll(async () => {
-		pglite = new PGlite();
-		try {
-			await drizzle(pglite).execute(sql`select ${AUTHOR_EMAIL}::int`);
-		} catch (error) {
-			dbError = error;
-		}
-		// Drizzle pone el parámetro en su mensaje y Postgres, el valor en el suyo.
-		expect(String((dbError as Error).message)).toContain(AUTHOR_EMAIL);
-		expect(String(((dbError as Error).cause as Error).message)).toContain(
-			AUTHOR_EMAIL,
-		);
-	});
-
-	afterAll(async () => {
-		await pglite.close();
-	});
-
-	beforeEach(async () => {
-		dir = await mkdtemp(path.join(tmpdir(), "legacy-db-errors-"));
-		storageDir = await mkdtemp(path.join(tmpdir(), "legacy-db-errors-st-"));
-		await writeFile(
-			path.join(dir, "es_mock.json"),
-			JSON.stringify({ idODE: "es_mock", published: 0 }),
-		);
-		await writeFile(path.join(dir, "es_mock.elpx"), "fake-zip-bytes");
-		output = captureConsole();
-	});
-
-	afterEach(async () => {
-		output.restore();
 		await rm(dir, { recursive: true, force: true });
 		await rm(storageDir, { recursive: true, force: true });
 	});
@@ -1766,6 +1724,53 @@ describe("runLinkLegacyAuthors", () => {
 			userId: "autora-1",
 		});
 	});
+});
+
+describe("errores de la base de datos sin datos del recurso (#488)", () => {
+	/** Dato sintético del recurso (los autores pueden llevar el correo). */
+	const AUTHOR_EMAIL = "autora-sintetica@example.test";
+	let pglite: PGlite;
+	/** Error real de Drizzle sobre PGlite con el correo como parámetro. */
+	let dbError: unknown;
+	let dir: string;
+	let storageDir: string;
+	let output: ReturnType<typeof captureConsole>;
+
+	beforeAll(async () => {
+		pglite = new PGlite();
+		try {
+			await drizzle(pglite).execute(sql`select ${AUTHOR_EMAIL}::int`);
+		} catch (error) {
+			dbError = error;
+		}
+		// Drizzle pone el parámetro en su mensaje y Postgres, el valor en el suyo.
+		expect(String((dbError as Error).message)).toContain(AUTHOR_EMAIL);
+		expect(String(((dbError as Error).cause as Error).message)).toContain(
+			AUTHOR_EMAIL,
+		);
+	});
+
+	afterAll(async () => {
+		await pglite.close();
+	});
+
+	beforeEach(async () => {
+		dir = await mkdtemp(path.join(tmpdir(), "legacy-db-errors-"));
+		storageDir = await mkdtemp(path.join(tmpdir(), "legacy-db-errors-st-"));
+		await writeFile(
+			path.join(dir, "es_mock.json"),
+			JSON.stringify({ idODE: "es_mock", published: 0 }),
+		);
+		await writeFile(path.join(dir, "es_mock.elpx"), "fake-zip-bytes");
+		output = captureConsole();
+	});
+
+	afterEach(async () => {
+		output.restore();
+		await rm(dir, { recursive: true, force: true });
+		await rm(storageDir, { recursive: true, force: true });
+	});
+
 	function expectNoResourceData(text: string) {
 		expect(text.toLowerCase()).not.toContain(AUTHOR_EMAIL);
 		expect(text.toLowerCase()).not.toContain("select ");

@@ -115,15 +115,6 @@ Los JSON/`.elpx` de `ode-export/` contienen datos personales reales (nombres y e
 - [ ] Decidir si el alta manual (`NuevoPage`, `POST /api/admin/resources/draft`) debe seguir proponiendo «Español» por defecto.
 - [ ] Retirar `ResourceEditorIsland`, `ResourceFormIsland`, `catalog-controller.ts` y `elpx-export.ts`, que no se usan en producción y aún suponen `"es"`.
 
-## Autoría de los recursos importados — 2026-11-03 (issue #456)
-
-- [x] Leer `publicatorEmailStr` (sin espacios ni mayúsculas) y asignar el recurso a la cuenta con ese correo (`resources.created_by`). Sin tocar `author`, `otherAuthors` ni `publisher`.
-- [x] Sin cuenta: a nombre del sistema como hasta ahora y en `authorsWithoutAccount` del informe, sin fallar el lote.
-- [x] Reimportar enlaza lo ya importado si la cuenta ya existe; nunca pisa un creador real.
-- [x] `--link-authors --source-dir <ruta> [--dry-run]`, que solo lee los `.json`.
-- [x] Tests de mapeo, repositorio, comando e integración; ADR-0029, diseño y README actualizados.
-- [ ] Tras importar los usuarios (#488), ejecutar `--link-authors --dry-run` sobre la exportación real y revisar `authorsWithoutAccount` con el equipo del Procomún antiguo.
-- [ ] Reutilizar la búsqueda por correo en los importadores de artículos (#446) e itinerarios (#432).
 ## Importador de usuarios — 2026-10-27 (issue #456)
 
 - [x] Roles según la tabla de la issue (varios separados por coma: gana el de más permisos; desconocidos como `author` y listados en `unknownRoles` del informe). Nunca `curator`.
@@ -143,6 +134,16 @@ Los JSON/`.elpx` de `ode-export/` contienen datos personales reales (nombres y e
 - [x] «Bloqueado» único: `is_active = false` + `banned`; cierra sesiones, rechaza tokens y el inicio de sesión (403 `BANNED_USER`).
 - [x] «Bloquear/Desbloquear» en la administración; no se puede bloquear la propia cuenta.
 - [x] Mensaje de cuenta bloqueada en la pantalla de acceso en los cinco idiomas.
+
+## Autoría de los recursos importados — 2026-11-03 (issue #456)
+
+- [x] Leer `publicatorEmailStr` (sin espacios ni mayúsculas) y asignar el recurso a la cuenta con ese correo (`resources.created_by`). Sin tocar `author`, `otherAuthors` ni `publisher`.
+- [x] Sin cuenta: a nombre del sistema como hasta ahora y en `authorsWithoutAccount` del informe, sin fallar el lote.
+- [x] Reimportar enlaza lo ya importado si la cuenta ya existe; nunca pisa un creador real.
+- [x] `--link-authors --source-dir <ruta> [--dry-run]`, que solo lee los `.json`.
+- [x] Tests de mapeo, repositorio, comando e integración; ADR-0029, diseño y README actualizados.
+- [ ] Tras importar los usuarios (#488), ejecutar `--link-authors --dry-run` sobre la exportación real y revisar `authorsWithoutAccount` con el equipo del Procomún antiguo.
+- [ ] Reutilizar la búsqueda por correo en los importadores de artículos (#446) e itinerarios (#432).
 
 ## Usuarios como `editor` — 2026-11-03 (issue #507, corrige #456)
 

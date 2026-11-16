@@ -227,6 +227,7 @@ En el Procomún antiguo el correo identifica la cuenta. El importador busca la c
 | Ya importado con otro creador real | no se toca | `authorLink: "kept_creator"` |
 
 La sesión de subida del paquete sigue a nombre del usuario de sistema, para no gastar la cuota de subida del autor. `import:legacy-procomun --link-authors --source-dir <ruta> [--dry-run]` enlaza lo ya importado leyendo solo los `.json`. Detalle en ADR-0029, actualización 2026-11-03.
+
 ## Roles de usuarios legacy: `editor` en lugar de `author` — 2026-11-03 (issue #507)
 
 Sustituye, para `roles`, las filas de las tablas de mapeo anteriores y la tabla de la adenda de ADR-0037 del 2026-10-27 (#456).
