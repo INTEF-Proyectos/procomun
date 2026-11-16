@@ -70,17 +70,26 @@ describe("PublicCollectionsIsland", () => {
 		});
 	});
 
+	// El autor se pinta con ResourceByline desde #458 (#487), asi que en lugar
+	// del HTML exacto se comprueba lo que importa aqui: que el idioma no
+	// aparece cuando no lo hay, y que si lo hay va delante de la licencia.
 	test("el detalle muestra un recurso sin idioma sin fallar ni inventarlo (#473)", () => {
 		const html = renderCollectionDetail({ language: null });
+		const meta = resourceMeta(html);
 
 		expect(html).toContain("Recurso de la colección");
-		// Sin idioma no hay hueco vacío ni «ES» por defecto: solo licencia y autor.
-		expect(resourceMeta(html)).toBe("<span>cc-by</span><span>Autora</span>");
+		// Sin idioma no hay hueco vacio ni «ES» por defecto.
+		expect(meta).toStartWith("<span>cc-by</span>");
+		expect(meta).not.toContain("<span></span>");
+		expect(meta).not.toContain("<span>ES</span>");
+		// El autor sigue ahi, ahora como enlace de busqueda (#458).
+		expect(meta).toContain("Autora");
 	});
 
 	test("el detalle muestra el idioma del recurso cuando lo tiene", () => {
-		expect(resourceMeta(renderCollectionDetail({ language: "en" }))).toBe(
-			"<span>EN</span><span>cc-by</span><span>Autora</span>",
-		);
+		const meta = resourceMeta(renderCollectionDetail({ language: "en" }));
+
+		expect(meta).toStartWith("<span>EN</span><span>cc-by</span>");
+		expect(meta).toContain("Autora");
 	});
 });
