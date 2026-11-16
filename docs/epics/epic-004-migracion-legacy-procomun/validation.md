@@ -182,3 +182,9 @@ Verde:
 - `bun test apps/cli/src/restricted-report.unit.test.ts apps/cli/src/commands/import-legacy-procomun.unit.test.ts` → 4 + 59 pass, 0 fail. Informe general serializado (importación, `--link-authors` y los ficheros que escribe el comando) sin ningún correo, tampoco en la consola. Informe restringido con `list`, `externalId`, `email`, `reason` y `createdBy`, permisos `0600`, rechazado dentro de `--report-dir` o con otro modo, y sin pisar un fichero que existe. Errores reales de Drizzle sobre PGlite con el correo como parámetro en la búsqueda de la cuenta, el enlace de lo ya importado y `--link-authors`: `db_error [SQLSTATE 22P02]`, sin el correo.
 - `bun run check-types` ✅ (0 errores). `bun run lint` (sin la exclusión de `.claude`, restaurada después) ✅: 0 errores, los 3 avisos de siempre. `bun run check-test-files` ✅.
 - `bun run check-coverage`: 1781 pass, 0 fail; líneas 92,14 % (≥ 90 %), `restricted-report.ts` al 97,96 %. `bun run test:integration`: 49 pass, 0 fail.
+
+## Artículos sin autor e informe restringido — 2026-11-16 (issues #446 y #543)
+
+- `bun test apps/cli/src/commands/import-legacy-procomun.unit.test.ts` → 66 pass, 0 fail. Los artículos sin autor quedan en `skipped_without_author` sin `email` (el informe serializado no lleva ningún `@`); con `restrictedEntries`, el correo va a la lista restringida con `list: "skipped_without_author"`. Un error real de Drizzle sobre PGlite con el texto del artículo y el correo como parámetros deja `db_error [SQLSTATE 22P02]` y ni el informe ni la consola llevan el texto, el correo ni `params:`.
+- `bun run check-types` ✅ (0 errores). `bun run lint` (sin la exclusión de `.claude`, restaurada después) ✅: 0 errores, los 3 avisos de siempre. `bun run check-test-files` ✅.
+- `bun run check-coverage`: 1807 pass, 0 fail; líneas 92,2 % (≥ 90 %). `bun run test:integration`: 54 pass, 0 fail.
