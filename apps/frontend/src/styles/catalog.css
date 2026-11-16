@@ -262,6 +262,7 @@
 
 /* -- Resource card (Stitch style) ---------------------------------- */
 .resource-card {
+	position: relative;
 	display: flex;
 	flex-direction: column;
 	background: var(--color-surface-container-lowest);
@@ -279,7 +280,8 @@
 	text-decoration: none;
 }
 
-.resource-card:focus-visible {
+/* #458: la tarjeta ya no es el enlace; el foco lo lleva el título estirado. */
+.resource-card:has(.card-stretched-link:focus-visible) {
 	outline: 2px solid var(--color-primary);
 	outline-offset: 2px;
 }

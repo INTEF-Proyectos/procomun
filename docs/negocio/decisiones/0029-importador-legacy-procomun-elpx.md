@@ -315,3 +315,17 @@ Decidido en #446 por el equipo del Procomún antiguo (@jacoboAlcantara), y por @
 * Riesgo de licencia: uno de los ejemplos (`vr5DpZYBAcddN1-H2qPg`) dice en su texto «licensed under CC BY-SA 4.0», y se importa como `cc-by`. El aviso `license` del informe permite localizar todos los artículos con la licencia asignada por defecto.
 * Las miniaturas de los artículos llegan como ruta relativa del Drupal antiguo y se descartan con aviso, porque `legacy-preview-image.ts` solo descarga de `ode.educacion.es`. Queda pendiente.
 * Tests: `article.unit.test.ts`, `field-mapper.unit.test.ts`, `repository.unit.test.ts`, `extract.unit.test.ts`, `import-legacy-procomun.unit.test.ts` e `import-legacy-procomun.integration.test.ts`. En rojo sin el cambio: `blocked` con `Licencia no reconocida: ""`, y los artículos sin cuenta se importaban a nombre del sistema.
+
+## Actualización 2026-11-16 — informes sin correos (issue #543)
+
+### Contexto
+El informe de la ingesta y el de `--link-authors` listaban el correo de origen en `authorsWithoutAccount` y `sourceEmailWithoutAccount`. Iba contra la garantía de que los informes no llevan datos personales. En #543 el equipo eligió quitar el correo del informe general y dejarlo en un informe aparte de acceso restringido, siempre que la separación sea efectiva.
+
+### Decisión
+* El informe general y la consola no llevan correos: de un recurso sin cuenta, solo `externalId`, el resultado (la lista) y `reason`. Sustituye a lo que dice la decisión del 2026-11-03 sobre `email` en `authorsWithoutAccount`.
+* `--restricted-report <ruta>` (importación y `--link-authors`) escribe aparte `externalId`, `email` y `reason`. La ruta la elige el operador, fuera de `--report-dir`; el fichero se crea nuevo con permisos `0600`, nunca pisa otro y lleva un aviso para borrarlo. Sin la opción, el correo no se guarda.
+* Los errores de los pasos de autoría pasan por `summarizeDbStepError` (`@procomun/db/db-errors`), como el resto de los importadores.
+
+### Consecuencias
+* El informe restringido contiene datos personales para resolver las incidencias de la migración: hay que guardarlo donde solo acceda quien las resuelve y borrarlo al terminar. Falta decidir esa ubicación en la migración real.
+* Tests: `apps/cli/src/restricted-report.unit.test.ts` e `import-legacy-procomun.unit.test.ts` («informes sin correos e informe restringido (#543)»).

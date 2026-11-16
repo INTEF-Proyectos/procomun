@@ -248,3 +248,80 @@ El cuerpo del artículo viene en HTML en `descriptionStr`. No va a la descripci�
 Informe (`informe_ingesta-*.json`): los registros de artículos llevan `kind: "article"`, `totals.articles` cuenta los procesados y `totals.skippedWithoutAuthor` los que no entran por falta de cuenta. Un artículo omitido no es un error: el lote sigue y el código de salida no cambia. Al reimportar, entra si su cuenta ya existe. Lo ya importado se omite y se enlaza como un ODE.
 
 El tipo «Artículo» vive en `RESOURCE_TYPES` (código, no BD), igual que el resto del diccionario: no hace falta migración. Aparece sin más cambios en los filtros y en los formularios de alta y edición. `LEGACY_ARTICLE_RESOURCE_TYPE` está tipado contra el diccionario: si la revisión de #419 cambia o quita la entrada, `check-types` obliga a revisar el importador.
+
+## Roles de usuarios legacy: `editor` en lugar de `author` — 2026-11-03 (issue #507)
+
+Sustituye, para `roles`, las filas de las tablas de mapeo anteriores y la tabla de la adenda de ADR-0037 del 2026-10-27 (#456).
+
+| `roles` | `user.role` |
+|---|---|
+| `administrator`, `administrador` | `admin` |
+| `publicador_certificado`, `-`, vacío o sin rol, `bm_documentalista`, `gestor_de_odes` | `editor` |
+| Cualquier otro (`Organization`…) | `editor`, listado en `unknownRoles` |
+
+Con varios roles separados por coma, `admin` gana a `editor`. Nunca `curator`. El mapeo está en `mapLegacyRoles()` (`packages/db/src/legacy-import/users.ts`). `LEGACY_DEFAULT_ROLE` es el rol de quien no trae rol o solo trae roles desconocidos.
+
+### Corrección de lo ya importado (`--fix-roles`)
+
+```
+usuarios.json
+  └─ import:legacy-users --fix-roles [--dry-run]   (runFixLegacyUserRoles)
+       ├─ mapLegacyUser()                          (mapeo vigente del registro)
+       └─ fixLegacyUserRole()                      (packages/db/src/repository/legacy-users-import.ts)
+            └─ UPDATE user SET role = 'editor', updated_at = now()
+               WHERE id = 'legacy-procomun:user:<uid>' AND role = 'author'
+```
+
+| Rol actual | Rol del mapeo | Resultado |
+|---|---|---|
+| `author` | `editor` | `fixed` (en dry-run, `would_fix`) |
+| el del mapeo | — | `unchanged` (solo se cuenta) |
+| `admin`, `curator`, `reader` u otro | — | `kept`, con el rol actual y el del mapeo |
+| `author` | `admin` | `kept`: solo se corrige author → editor |
+| sin cuenta con ese ID | — | `not_found` |
+
+Detalle y límites en la adenda de ADR-0037 del 2026-11-03.
+
+## Errores sin datos de la base de datos en informes y consola — 2026-11-03 (revisión del PR #488)
+
+Hasta ahora, los importadores copiaban `error.message` en el informe y en `console.error`. Si el error venía de la base de datos, ese texto llevaba la consulta SQL y sus parámetros (Drizzle: `Failed query: … params: …`). Postgres además puede poner la fila rechazada en `detail` o el propio valor en su mensaje. Al importar usuarios, eso era el correo y el hash de la contraseña. Al importar recursos, los autores, que a veces llevan el correo. Así se incumplía lo que dice ADR-0037: «el hash nunca aparece en el informe ni en los avisos».
+
+`apps/cli/src/import-errors.ts` resume cada error en un código controlado y nunca copia `message`, `detail`, `query` ni `params` de un error de la base de datos:
+
+| `code` | Cuándo | Qué más lleva |
+|---|---|---|
+| `duplicate_email` | SQLSTATE 23505 en una restricción con `email` en el nombre | `sqlState`, `constraint` |
+| `constraint_violation` | Cualquier otro SQLSTATE 23xxx | `sqlState`, `constraint` (solo si es un identificador) |
+| `db_error` | Cualquier otro error de la base de datos | `sqlState`, si lo hay |
+| `unexpected_error` | Un error que no es de la base de datos en un paso que solo la usa | La clase (`TypeError`…), nunca el mensaje |
+| `invalid_record` | El registro de origen no es válido (mapeo o JSON ilegible) | El mensaje propio del importador |
+| `import_error` | Fallo del procesado del `.elpx` o del almacenamiento (ZIP no válido, hash repetido) | El mensaje propio del importador |
+
+El error se reconoce como de la base de datos si en algún punto de su cadena de causas (`cause`) lleva `query` y `params` (Drizzle) o un SQLSTATE con `severity` (pg, PGlite, postgres.js; en Bun.SQL el SQLSTATE está en `errno`). El nombre de la restricción sale de `constraint` o `constraint_name`.
+
+En el informe, el registro de error queda así:
+
+- `import:legacy-users` y `--fix-roles`: `{ outcome: "error", index, legacyUid, code, message, sqlState?, constraint? }`. El `legacyUid` permite reintentar el registro. Si falla el mapeo, el mensaje es el del mapeo (`mail ausente o inválido`). Si falla un paso posterior, que solo usa la base de datos, nunca se copia el mensaje.
+- `import:legacy-procomun` y `--fix-published`: `{ outcome: "error", externalId, code, message, sqlState?, constraint? }`. Los mensajes propios del procesado se conservan porque sirven para diagnosticar y no salen de la base de datos. El aviso de `search_vector` solo lleva el resumen.
+
+En consola: `[error] registro <n> (uid <uid>): <code> (<restricción>) [SQLSTATE <estado>]: <mensaje>`.
+
+Los dos comandos pasan también por `withoutDbDetails()` los errores que salen de los bucles (por ejemplo, si falla `waitForDb`). Así el manejador general del CLI (`Error: <message>`) tampoco escribe la consulta.
+
+## Informes sin correos e informe restringido — 2026-11-16 (issue #543)
+
+Decisión de #543 (comentario del equipo del 2026-11-16): el informe general no lleva correos. Sustituye, para el informe, lo que dicen arriba la tabla de «Autoría desde `publicatorEmailStr`» (`authorsWithoutAccount` con `email`) y el diagnóstico `sourceEmailWithoutAccount`.
+
+| Fichero | Cuándo | Qué lleva de un recurso sin cuenta de autor |
+|---|---|---|
+| Informe general (`informe_ingesta-*.json`, `informe_enlace-autores-*.json`) y consola | Siempre | `externalId`, resultado (la lista en la que está) y `reason`; `createdBy` (id de la cuenta) en `sourceEmailWithoutAccount`. Sin correo. |
+| Informe restringido | Solo con `--restricted-report <ruta>` | `list`, `externalId`, `email`, `reason` y `createdBy` si lo hay, más un aviso de que lleva datos personales y hay que borrarlo. |
+
+Condiciones del informe restringido (`apps/cli/src/restricted-report.ts`):
+
+- Solo para la importación y `--link-authors`; con otro modo el comando falla.
+- La ruta la elige el operador y no puede estar dentro de `--report-dir`: así no viaja con los informes generales.
+- Se crea nuevo (`open(..., "wx", 0o600)`), nunca pisa un fichero que exista (podría tener otros permisos o ser un enlace). Se comprueba antes de importar, para no perder el informe al final.
+- Sin la opción, el correo no se guarda en ningún sitio: los run (`runImportLegacyProcomun`, `runLinkLegacyAuthors`) solo lo copian si reciben `restrictedEntries`.
+
+Errores de los pasos de autoría (#543, punto 1): `resolveAuthor`, `linkExistingResourceAuthor` y el `catch` de `--link-authors` solo usan la base de datos y su consulta lleva el correo como parámetro. Pasan por `summarizeDbStepError` y dejan `{ outcome: "error", externalId, code, message, sqlState? }`, como el resto (ver «Errores sin datos de la base de datos» arriba). Desaparece `summarizeStepError`, la utilidad propia de #508: `summarizeReindexError` también usa `summarizeDbStepError` y da `fallo al reindexar: <code> [SQLSTATE …]: <mensaje fijo>`.

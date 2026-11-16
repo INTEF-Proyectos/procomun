@@ -72,13 +72,19 @@ export function printHelp(log: Pick<typeof console, "log"> = console) {
 		"                    Copia a nuestro almacenamiento las miniaturas legacy enlazadas en caliente (#409)",
 	);
 	log.log(
-		"  import:legacy-procomun --link-authors --source-dir <ruta> [--dry-run] [--report-dir <ruta>]",
+		"  import:legacy-procomun --link-authors --source-dir <ruta> [--dry-run] [--report-dir <ruta>] [--restricted-report <ruta>]",
 	);
 	log.log(
 		"                    Pasa lo ya importado a la cuenta de su autor por publicatorEmailStr; solo lee los .json (#456)",
 	);
 	log.log(
 		"  import:legacy-users --source-file <usuarios.json> [--dry-run] [--limit <n>] [--report-dir <ruta>]",
+	);
+	log.log(
+		"  import:legacy-users --fix-roles --source-file <usuarios.json> [--dry-run] [--limit <n>] [--report-dir <ruta>]",
+	);
+	log.log(
+		"                    Pasa a editor las cuentas legacy importadas como author (#507)",
 	);
 	log.log(
 		"  elpx:screenshots [--dry-run]  Detecta screenshot.png en los paquetes ya subidos (#409)",
