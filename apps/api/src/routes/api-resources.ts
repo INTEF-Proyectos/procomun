@@ -3,6 +3,7 @@ import {
 	validateCreateResource,
 	validateResourceForStatus,
 	validateResourceUpdateForStatus,
+	validateTransition,
 	validateUpdateResource,
 } from "@procomun/db/validation";
 import { Hono } from "hono";
@@ -68,6 +69,23 @@ apiResourceRoutes.post("/", requireRole("author"), async (c) => {
 			{ error: "Errores de validación", details: validation.errors },
 			400,
 		);
+	}
+
+	// #506: crear en revisión es enviar a revisión. Se aplica la transición
+	// draft → review entera, como PATCH /api/admin/resources/:id/status: su rol
+	// mínimo (author) y la exclusión del editor.
+	if ((body as Record<string, unknown>).editorialStatus === "review") {
+		const transition = validateTransition(
+			"draft",
+			"review",
+			user.role ?? "reader",
+		);
+		if (!transition.valid) {
+			return c.json(
+				{ error: "Transición no permitida", details: transition.errors },
+				403,
+			);
+		}
 	}
 
 	const data = body as Record<string, unknown>;

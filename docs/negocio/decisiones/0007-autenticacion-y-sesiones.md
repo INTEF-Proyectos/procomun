@@ -120,3 +120,18 @@ Justificación principal:
    (a) Better Auth deja de mantenerse o pierde compatibilidad con Bun.
    (b) El esquema de tablas impuesto genera fricción no asumible con el modelo de dominio.
    (c) Requisitos de MFA o auth avanzado exceden las capacidades de los plugins disponibles.
+
+## Actualización 2026-11-03: rutas del acceso OIDC con Better Auth 1.7 (#527)
+
+Better Auth 1.7 (#362, 2026-09-22) rehízo el plugin `genericOAuth` sobre el flujo de los proveedores sociales. Ya no registra rutas propias: `POST /api/auth/sign-in/oauth2` y `/api/auth/oauth2/callback/:id` responden 404. El botón de acceso institucional seguía llamando a la primera y el login OIDC no funcionaba desde entonces. Fuentes: guía de actualización a 1.7 (*Generic OAuth is rebuilt on the social-provider path*) y `better-auth/dist/plugins/generic-oauth/index.mjs` de la 1.7.12.
+
+| | Better Auth 1.6 | Better Auth 1.7 |
+|---|---|---|
+| Inicio del acceso | `POST /api/auth/sign-in/oauth2` con `{ providerId: "oidc" }` | `POST /api/auth/sign-in/social` con `{ provider: "oidc" }` |
+| Vuelta del proveedor | `/api/auth/oauth2/callback/oidc` | `/api/auth/callback/oidc` |
+
+* El frontend (`signInOidc` en `apps/frontend/src/lib/http-api-client.ts`) llama ya a `/api/auth/sign-in/social`.
+* **URL de retorno que se da de alta en el proveedor de identidad:** `{BETTER_AUTH_URL}/api/auth/callback/oidc`, donde `BETTER_AUTH_URL` es la URL pública de Procomún (si no está definida se usa `FRONTEND_URL`). En local: `http://localhost:5173/api/auth/callback/oidc`. `oidc` es el `providerId` de `apps/api/src/auth/config.ts`.
+* **Despliegue existente:** si el cliente se registró en el proveedor con `{BETTER_AUTH_URL}/api/auth/oauth2/callback/oidc`, hay que sustituirla por la nueva; el proveedor rechaza el acceso si la URL de retorno no coincide. Las cuentas ya vinculadas siguen valiendo: con un proveedor OIDC estándar el identificador de la cuenta es el `sub` en las dos versiones.
+* PKCE viene activado por defecto en 1.7 (`pkce: true` en la configuración no cambia nada). Si el proveedor publica `jwks_uri`, Better Auth verifica la firma y el `nonce` del `id_token`, y comprueba el parámetro `iss` de la vuelta.
+* `apps/api/src/auth/config.ts` exporta `createAuth(env)` para montar una instancia con otro entorno. `apps/api/src/auth/oidc-sign-in.integration.test.ts` recorre el flujo completo con el cliente real del frontend y un proveedor OIDC de prueba (`Bun.serve`) que solo acepta la URL de retorno nueva, exige PKCE y firma el `id_token`: inicio, autorización, canje del código, userinfo y sesión. Si una actualización de Better Auth cambia las rutas, ese test falla.

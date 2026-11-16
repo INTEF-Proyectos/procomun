@@ -531,12 +531,17 @@ export function canManageResource(
 	return false;
 }
 
-export const TRANSITION_RULES: Record<
-	string,
-	{ to: EditorialStatus; minRole: string }[]
-> = {
+export interface TransitionRule {
+	to: EditorialStatus;
+	minRole: string;
+	/** Roles que, aun llegando a `minRole`, no pueden hacer la transición. */
+	excludedRoles?: readonly string[];
+}
+
+export const TRANSITION_RULES: Record<string, TransitionRule[]> = {
 	draft: [
-		{ to: "review", minRole: "author" },
+		// El editor publica directamente y no envía a revisión (#506).
+		{ to: "review", minRole: "author", excludedRoles: ["editor"] },
 		{ to: "published", minRole: "editor" },
 	],
 	review: [
@@ -589,7 +594,38 @@ export function validateTransition(
 			],
 		};
 	}
+	const excluded = transitionExclusionError(currentStatus, newStatus, userRole);
+	if (excluded) return { valid: false, errors: [excluded] };
 	return { valid: true, errors: [] };
+}
+
+/**
+ * Error si la regla de `currentStatus → newStatus` deja fuera a `userRole`
+ * aunque llegue al rol mínimo (#506: el editor no envía a revisión).
+ */
+export function transitionExclusionError(
+	currentStatus: string,
+	newStatus: string,
+	userRole: string,
+): ValidationError | null {
+	const rule = TRANSITION_RULES[currentStatus]?.find((r) => r.to === newStatus);
+	if (!rule?.excludedRoles?.includes(userRole)) return null;
+	return {
+		field: "status",
+		message: `El rol ${userRole} no puede hacer esta transición: ${currentStatus} → ${newStatus}`,
+	};
+}
+
+/**
+ * Si `userRole` puede llevar un recurso de `currentStatus` a `newStatus`. La
+ * interfaz lo usa para no ofrecer transiciones que la API rechaza (#506).
+ */
+export function canTransition(
+	currentStatus: string,
+	newStatus: string,
+	userRole: string,
+): boolean {
+	return validateTransition(currentStatus, newStatus, userRole).valid;
 }
 
 export function validateCollection(body: unknown): ValidationResult {
