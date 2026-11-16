@@ -129,6 +129,7 @@ export interface CollectionResourceRecord {
 	language: string | null;
 	license: string;
 	author: string | null;
+	createdBy?: string | null;
 	createdByName?: string | null;
 	editorialStatus: string;
 	thumbnailUrl?: string | null;
@@ -205,6 +206,13 @@ export interface PublicKnowledgeAreaCatalog {
 }
 
 /** Atomized educational tag (ADR-0034 / #76 / #310). */
+/** Datos públicos de la cuenta que publica (#458): sin correo ni rol. */
+export interface PublicAuthor {
+	id: string;
+	name: string | null;
+	image: string | null;
+}
+
 export interface TagRecord {
 	id: string;
 	slug: string;
@@ -358,6 +366,8 @@ export interface BadgeConfig {
 export interface SignInResult {
 	ok: boolean;
 	error?: string;
+	/** Código de better-auth, p. ej. `BANNED_USER` para una cuenta bloqueada. */
+	code?: string;
 	redirectUrl?: string;
 }
 
@@ -420,6 +430,11 @@ export interface ApiClient {
 		error?: string;
 		keyword?: CatalogKeyword;
 	}>;
+	/** Ficha pública de quien publica (#458); null si no existe. */
+	getPublicAuthor(
+		id: string,
+		opts?: { limit?: number; offset?: number },
+	): Promise<(PaginatedResult<Resource> & { author: PublicAuthor }) | null>;
 	getPublicTagBySlug(slug: string): Promise<TagRecord | null>;
 	listPublicTagResources(
 		slug: string,
