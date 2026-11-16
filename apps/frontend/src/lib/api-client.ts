@@ -352,6 +352,8 @@ export interface AppConfig {
 	oidcEnabled: boolean;
 	oidcEndSessionUrl: string | null;
 	emailVerificationRequired: boolean;
+	/** URL del banco multimedia externo (#569); `null` si no está configurada. */
+	mediaBankUrl?: string | null;
 }
 
 export interface BadgeConfig {

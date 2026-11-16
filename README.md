@@ -101,6 +101,7 @@ make format
 - `BETTER_AUTH_URL`: base pública usada por Better Auth
 - `OIDC_ENABLED`: habilita login institucional cuando vale `true`
 - `UPLOAD_STORAGE_DIR`: directorio local para binarios subidos
+- `MEDIA_BANK_URL`: URL del banco multimedia externo; sin ella no se muestra el enlace (#569)
 
 En desarrollo local normal, `FRONTEND_URL` y `BETTER_AUTH_URL` deben apuntar a `http://localhost:5173`.
 

@@ -67,3 +67,16 @@ Los archivos subidos se guardan localmente en el directorio configurado mediante
 Procomun soporta OpenID Connect para login institucional. Requiere configurar `OIDC_ISSUER`, `OIDC_CLIENT_ID` y `OIDC_CLIENT_SECRET` en el archivo `.env`.
 
 En el proveedor de identidad hay que dar de alta como URL de retorno (redirect URI) `{BETTER_AUTH_URL}/api/auth/callback/oidc`. Hasta Better Auth 1.6 era `{BETTER_AUTH_URL}/api/auth/oauth2/callback/oidc`; un despliegue registrado con esa tiene que cambiarla (ADR-0007, #527).
+
+## Enlace al banco multimedia (2026-11-16, #569)
+
+Procomún no tiene banco multimedia propio: enlaza con la aplicación del banco (decisión 1 de #494).
+
+| Variable | Descripción | Valor por defecto |
+|----------|-------------|-------------------|
+| `MEDIA_BANK_URL` | URL absoluta `http://` o `https://` de la aplicación del banco multimedia | Sin definir |
+
+- La lee la API y la publica en `GET /api/v1/config` como `mediaBankUrl`, así que basta con reiniciar el servicio `api` (no hay que reconstruir el frontend).
+- Con valor, aparece el enlace «Banco multimedia» en la cabecera, junto a «Explorar», y un aviso con «Ir al banco multimedia» en `/nuevo`. Se abre en la misma pestaña.
+- Sin definir, vacía o con otro esquema (`javascript:`, `ftp:`, una ruta relativa…), `mediaBankUrl` vale `null` y el enlace no aparece.
+- En pantallas de menos de 768 px los enlaces de la cabecera, incluido este, están ocultos, como «Explorar».

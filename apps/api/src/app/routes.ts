@@ -16,6 +16,7 @@ import { socialRoutes } from "../routes/social.ts";
 import { tagRoutes } from "../routes/tags.ts";
 import { thumbnailRoutes } from "../routes/thumbnails.ts";
 import { uploadRoutes } from "../routes/uploads.ts";
+import { resolveMediaBankUrl } from "./media-bank.ts";
 
 export function registerRoutes(app: Hono<AuthEnv>) {
 	app.get("/health", (c) => c.json({ status: "ok" }));
@@ -27,6 +28,7 @@ export function registerRoutes(app: Hono<AuthEnv>) {
 			oidcEndSessionUrl: process.env.OIDC_ISSUER
 				? `${process.env.OIDC_ISSUER}/connect/endsession`
 				: null,
+			mediaBankUrl: resolveMediaBankUrl(process.env),
 		}),
 	);
 

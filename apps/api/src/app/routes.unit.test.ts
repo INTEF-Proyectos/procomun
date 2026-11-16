@@ -20,6 +20,25 @@ describe("registerRoutes", () => {
 		expect("oidcEndSessionUrl" in config).toBe(true);
 	});
 
+	test("expone mediaBankUrl desde MEDIA_BANK_URL (#569)", async () => {
+		const previous = process.env.MEDIA_BANK_URL;
+		try {
+			const app = new Hono<AuthEnv>();
+			registerRoutes(app);
+
+			delete process.env.MEDIA_BANK_URL;
+			let config = await (await app.request("/api/v1/config")).json();
+			expect(config.mediaBankUrl).toBeNull();
+
+			process.env.MEDIA_BANK_URL = "https://multimedia.example.es/";
+			config = await (await app.request("/api/v1/config")).json();
+			expect(config.mediaBankUrl).toBe("https://multimedia.example.es/");
+		} finally {
+			if (previous === undefined) delete process.env.MEDIA_BANK_URL;
+			else process.env.MEDIA_BANK_URL = previous;
+		}
+	});
+
 	test("expone el catálogo de áreas de conocimiento sin sesión (#448)", async () => {
 		const app = new Hono<AuthEnv>();
 		registerRoutes(app);

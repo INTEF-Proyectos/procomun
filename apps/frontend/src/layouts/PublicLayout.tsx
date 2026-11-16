@@ -3,6 +3,7 @@ import { Link, Outlet, useLocation, useParams } from "react-router-dom";
 import { PublicNavIsland } from "../islands/layout/PublicNavIsland.tsx";
 import { buildHelpHref, HELP_FOOTER_LINKS } from "../lib/help-content.ts";
 import * as m from "../paraglide/messages.js";
+import { MediaBankLink } from "../ui/MediaBankLink.tsx";
 import "../styles/public-layout.css";
 
 const VALID_LOCALES = new Set(["es", "en", "ca", "gl", "eu"]);
@@ -111,6 +112,7 @@ export function PublicLayout() {
 							>
 								{m.nav_explore()}
 							</Link>
+							<MediaBankLink className="public-nav-link" />
 							<Link
 								to={localUrl("colecciones")}
 								className={`public-nav-link${activePage === "colecciones" ? " public-nav-link-active" : ""}`}
