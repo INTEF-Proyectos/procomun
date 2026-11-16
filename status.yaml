@@ -3969,3 +3969,21 @@ tasks:
       author@example.com con otro id. ensureUser hace onConflictDoNothing, asi
       que user-2 no se creaba y createApiToken fallaba con
       api_tokens_user_id_fkey. El test usa ahora api-tokens-*@example.com.
+  T-2026-11-16-08054707:
+    date: 2026-11-16
+    agent: "qa-validacion"
+    task: "Revisión de #512 (2026-11-08): migraciones 0020 y 0021, contenido tras settleMs y CSP de captura"
+    status: Done
+    related: ["#470", "#512", "#488", "ADR-0046"]
+    notes: >
+      #488 reservó 0019_user_profile con when 1793300000000, el mismo que la
+      cola de miniaturas. La cola pasa a 0020_elpx_thumbnail_queue (when
+      1793400000000) y los índices a 0021_thumbnail_owner_indexes (when
+      1793500000000); la regresión usa el migrador real de drizzle sobre
+      PGlite. El thumbnailer mide el contenido visible después de settleMs y
+      sirve el HTML con CAPTURE_HTML_CSP, sin allow-popups ni
+      allow-popups-to-escape-sandbox. Si #488 se mezcla antes, el idx de estas
+      dos sube en uno; si se mezcla después, su 0019 tiene que pasar a 0022
+      con when mayor que 1793500000000 o drizzle la saltará. Arreglado
+      también el test «recupera los processing colgados», que fallaba en la
+      punta con el fichero completo por proyectos pendientes de otros tests.

@@ -266,9 +266,12 @@ describe("cola de miniaturas en elpx_projects (#470)", () => {
 	});
 
 	test("recupera los processing colgados y agota los que tumban el servicio", async () => {
-		const stuck = await newProject("colgado");
-		const poison = await newProject("veneno");
-		const fresh = await newProject("reciente");
+		// created_at explícito y anterior a todo: con el fichero completo, el
+		// primer reclamo se llevaba proyectos pendientes de tests anteriores,
+		// creados antes que estos, y «colgado» no llegaba a reclamarse en T0.
+		const stuck = await newProject("colgado", { createdAt: at(-30) });
+		const poison = await newProject("veneno", { createdAt: at(-20) });
+		const fresh = await newProject("reciente", { createdAt: at(-10) });
 		await claimThumbnailJobs(db, { limit: 2, now: T0 });
 		await db
 			.update(elpxProjects)
