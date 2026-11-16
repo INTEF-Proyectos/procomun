@@ -336,7 +336,7 @@ export function AdminUsersSection() {
 				<span
 					className={`admin-active-badge ${u.isActive ? "admin-active-badge--active" : "admin-active-badge--inactive"}`}
 				>
-					{u.isActive ? "Activo" : "Inactivo"}
+					{u.isActive ? "Activo" : "Bloqueado"}
 				</span>
 			),
 		},
@@ -370,7 +370,7 @@ export function AdminUsersSection() {
 								disabled={busyId === u.id}
 								onClick={() => void toggleActive(u)}
 							>
-								{u.isActive ? "Desactivar" : "Activar"}
+								{u.isActive ? "Bloquear" : "Desbloquear"}
 							</button>
 							<button
 								type="button"

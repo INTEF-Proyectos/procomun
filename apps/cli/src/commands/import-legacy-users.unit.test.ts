@@ -1,11 +1,23 @@
-import { afterEach, beforeEach, describe, expect, test } from "bun:test";
-import { mkdtemp, rm, writeFile } from "node:fs/promises";
+import { afterEach, beforeEach, describe, expect, spyOn, test } from "bun:test";
+import { mkdtemp, readdir, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
+import { PGlite } from "@electric-sql/pglite";
 import { mapLegacyUser } from "@procomun/db/legacy-import";
+import {
+	findLegacyUserImportConflict,
+	fixLegacyUserRole,
+	importLegacyUser,
+} from "@procomun/db/repository";
+import * as schema from "@procomun/db/schema";
+import { createTables } from "@procomun/db/setup";
+import { eq } from "drizzle-orm";
+import { drizzle } from "drizzle-orm/pglite";
 import {
 	closeCliDb,
 	type loadImportLegacyUsersDependencies,
+	parseImportLegacyUsersArgs,
+	runFixLegacyUserRoles,
 	runImportLegacyUsers,
 	runImportLegacyUsersCommand,
 } from "./import-legacy-users.ts";
@@ -24,6 +36,11 @@ function buildDeps(overrides: Partial<Deps> = {}): Deps {
 		importLegacyUser: async (_db, mapped) => ({
 			outcome: "imported",
 			id: mapped.id,
+		}),
+		fixLegacyUserRole: async (_db, mapped) => ({
+			outcome: "unchanged",
+			id: mapped.id,
+			role: mapped.role,
 		}),
 		...overrides,
 	};
@@ -86,7 +103,7 @@ describe("runImportLegacyUsers", () => {
 		await rm(dir, { recursive: true, force: true });
 	});
 
-	test("importa los registros válidos, informa errores aislados y no migra contraseñas", async () => {
+	test("importa los registros válidos e informa errores aislados", async () => {
 		const sourceFile = path.join(dir, "usuarios.json");
 		await writeFile(
 			sourceFile,
@@ -123,12 +140,108 @@ describe("runImportLegacyUsers", () => {
 			skippedExistingId: 0,
 			skippedExistingEmail: 0,
 			errored: 1,
+			importedBlocked: 1,
+			withoutPassword: 2,
 		});
 		expect(report.records.map((record) => record.outcome)).toEqual([
 			"imported",
 			"error",
 			"imported",
 		]);
+	});
+
+	test("importa bloqueados los status 0 y los cuenta, también en dry-run", async () => {
+		const sourceFile = path.join(dir, "usuarios.json");
+		await writeFile(
+			sourceFile,
+			JSON.stringify([
+				{ uid: 20, mail: "bloq@example.test", roles: "-", status: 0 },
+				{ uid: 21, mail: "activa@example.test", roles: "-", status: 1 },
+			]),
+		);
+		for (const dryRun of [false, true]) {
+			const created: string[] = [];
+			const report = await runImportLegacyUsers(
+				{ sourceFile, dryRun },
+				buildDeps({
+					findLegacyUserImportConflict: async () => null,
+					importLegacyUser: async (_db, mapped) => {
+						created.push(mapped.legacyUid);
+						return { outcome: "imported", id: mapped.id };
+					},
+				}),
+			);
+			expect(created).toEqual(dryRun ? [] : ["20", "21"]);
+			expect(report.totals.importedBlocked).toBe(1);
+			expect(report.records[0]).toMatchObject({
+				outcome: dryRun ? "would_import" : "imported",
+				legacyUid: "20",
+				blocked: true,
+			});
+			expect(report.records[1]).toMatchObject({ blocked: false });
+		}
+	});
+
+	test("lista en el informe los roles sin correspondencia, el rol asignado y lo completado", async () => {
+		const sourceFile = path.join(dir, "usuarios.json");
+		await writeFile(
+			sourceFile,
+			JSON.stringify([
+				{ uid: 10, mail: "org@example.test", roles: "Organization", status: 1 },
+				{
+					uid: 11,
+					mail: "org2@example.test",
+					roles: "Organization, publicador_certificado",
+					status: 1,
+				},
+				{ uid: 12, mail: "otro@example.test", roles: "rol_raro", status: 1 },
+				{ uid: 13, mail: "ya@example.test", roles: "-", status: 1 },
+			]),
+		);
+
+		const report = await runImportLegacyUsers(
+			{ sourceFile, dryRun: false },
+			buildDeps({
+				importLegacyUser: async (_db, mapped) =>
+					mapped.legacyUid === "13"
+						? {
+								outcome: "skipped_existing_id",
+								id: mapped.id,
+								completed: ["password"],
+							}
+						: { outcome: "imported", id: mapped.id },
+			}),
+		);
+
+		expect(report.unknownRoles).toEqual([
+			{ role: "Organization", count: 2, legacyUids: ["10", "11"] },
+			{ role: "rol_raro", count: 1, legacyUids: ["12"] },
+		]);
+		expect(report.records).toContainEqual(
+			expect.objectContaining({
+				outcome: "imported",
+				legacyUid: "11",
+				role: "editor",
+			}),
+		);
+		// #507: los desconocidos y los sin rol entran como editor, no como author.
+		for (const legacyUid of ["10", "12"]) {
+			expect(report.records).toContainEqual(
+				expect.objectContaining({
+					outcome: "imported",
+					legacyUid,
+					role: "editor",
+				}),
+			);
+		}
+		expect(report.records).toContainEqual({
+			outcome: "skipped_existing_id",
+			legacyUid: "13",
+			userId: "legacy-procomun:user:13",
+			completed: ["password"],
+		});
+		// El informe no lleva correos ni otros datos personales.
+		expect(JSON.stringify(report)).not.toContain("@example.test");
 	});
 
 	test("dry-run valida sin persistir y respeta --limit", async () => {
@@ -163,6 +276,7 @@ describe("runImportLegacyUsers", () => {
 			runImportLegacyUsersCommand(
 				{
 					sourceFile: missingSourceFile,
+					fixRoles: false,
 					dryRun: false,
 					limit: undefined,
 					reportDir: path.join(dir, "reports"),
@@ -182,6 +296,522 @@ describe("runImportLegacyUsers", () => {
 			),
 		).rejects.toThrow();
 		expect(closed).toBeTrue();
+	});
+});
+
+describe("import:legacy-users --fix-roles (#507)", () => {
+	let dir: string;
+	let pglite: PGlite;
+	let db: ReturnType<Deps["getDb"]>["db"];
+
+	beforeEach(async () => {
+		dir = await mkdtemp(path.join(tmpdir(), "legacy-users-fix-"));
+		pglite = new PGlite();
+		await createTables(pglite);
+		db = drizzle(pglite, { schema }) as unknown as typeof db;
+	});
+
+	afterEach(async () => {
+		// El comando cierra PGlite al terminar, como en una ejecución real.
+		if (!pglite.closed) await pglite.close();
+		await rm(dir, { recursive: true, force: true });
+	});
+
+	function realDeps(): Deps {
+		return buildDeps({
+			getDb: () => ({ db, provider: "pg" }),
+			findLegacyUserImportConflict,
+			importLegacyUser,
+			fixLegacyUserRole,
+		});
+	}
+
+	const SOURCE = [
+		{ uid: 1, mail: "sin-rol@example.test", roles: "-", status: 1 },
+		{ uid: 2, mail: "doc@example.test", roles: "bm_documentalista", status: 0 },
+		{ uid: 3, mail: "admin@example.test", roles: "administrator", status: 1 },
+		{ uid: 4, mail: "curadora@example.test", roles: "-", status: 1 },
+		{ uid: 5, mail: "org@example.test", roles: "Organization", status: 1 },
+		{ uid: 6, mail: "nativa@example.test", roles: "-", status: 1 },
+		{ uid: 7, mail: "no-es-un-correo", roles: "-", status: 1 },
+		{
+			uid: 8,
+			mail: "certificada@example.test",
+			roles: "publicador_certificado",
+			status: 1,
+		},
+	];
+
+	/** Base como la dejó #488: legacy importados como author, más cuentas ajenas. */
+	async function seedImportedAsAuthor() {
+		for (const record of SOURCE.filter((r) =>
+			[1, 2, 3, 4, 5, 8].includes(r.uid),
+		)) {
+			await importLegacyUser(db, mapLegacyUser(record));
+		}
+		const legacyRole = (uid: number, role: string) =>
+			db
+				.update(schema.user)
+				.set({ role })
+				.where(eq(schema.user.id, `legacy-procomun:user:${uid}`));
+		await legacyRole(1, "author");
+		await legacyRole(2, "author");
+		await legacyRole(4, "curator");
+		await legacyRole(5, "author");
+		// Cuenta nativa con el mismo correo que el uid 6, que nunca se importó.
+		await db.insert(schema.user).values({
+			id: "native-6",
+			email: "nativa@example.test",
+			role: "author",
+		});
+	}
+
+	async function roles() {
+		const rows = await db
+			.select({ id: schema.user.id, role: schema.user.role })
+			.from(schema.user);
+		return Object.fromEntries(rows.map((row) => [row.id, row.role]));
+	}
+
+	test("relee el JSON y pasa a editor solo las cuentas legacy author; dry-run no escribe y repetir no cambia nada", async () => {
+		const sourceFile = path.join(dir, "usuarios.json");
+		await writeFile(sourceFile, JSON.stringify(SOURCE));
+		await seedImportedAsAuthor();
+		const before = await roles();
+
+		const dry = await runFixLegacyUserRoles(
+			{ sourceFile, dryRun: true },
+			realDeps(),
+		);
+		expect(await roles()).toEqual(before);
+		expect(dry.dryRun).toBeTrue();
+		expect(dry.totals).toEqual({
+			found: 8,
+			processed: 8,
+			fixed: 3,
+			unchanged: 2,
+			kept: 1,
+			notFound: 1,
+			errored: 1,
+		});
+		expect(
+			dry.records.flatMap((r) =>
+				r.outcome === "would_fix" ? [r.legacyUid] : [],
+			),
+		).toEqual(["1", "2", "5"]);
+
+		const real = await runFixLegacyUserRoles(
+			{ sourceFile, dryRun: false },
+			realDeps(),
+		);
+		expect(real.totals).toEqual(dry.totals);
+		expect(real.records).toEqual([
+			{
+				outcome: "fixed",
+				legacyUid: "1",
+				userId: "legacy-procomun:user:1",
+				from: "author",
+				to: "editor",
+			},
+			{
+				outcome: "fixed",
+				legacyUid: "2",
+				userId: "legacy-procomun:user:2",
+				from: "author",
+				to: "editor",
+			},
+			{
+				outcome: "kept",
+				legacyUid: "4",
+				userId: "legacy-procomun:user:4",
+				role: "curator",
+				mappedRole: "editor",
+			},
+			{
+				outcome: "fixed",
+				legacyUid: "5",
+				userId: "legacy-procomun:user:5",
+				from: "author",
+				to: "editor",
+			},
+			{
+				outcome: "not_found",
+				legacyUid: "6",
+				userId: "legacy-procomun:user:6",
+			},
+			{
+				outcome: "error",
+				index: 6,
+				legacyUid: "7",
+				code: "invalid_record",
+				message: "mail ausente o inválido",
+			},
+		]);
+		expect(real.unknownRoles).toEqual([
+			{ role: "Organization", count: 1, legacyUids: ["5"] },
+		]);
+		expect(await roles()).toEqual({
+			...before,
+			"legacy-procomun:user:1": "editor",
+			"legacy-procomun:user:2": "editor",
+			"legacy-procomun:user:5": "editor",
+		});
+		// La cuenta nativa, la admin y la curator no cambian.
+		expect((await roles())["native-6"]).toBe("author");
+		expect((await roles())["legacy-procomun:user:3"]).toBe("admin");
+		expect((await roles())["legacy-procomun:user:4"]).toBe("curator");
+		// El uid 2 sigue bloqueado.
+		const [blocked] = await db
+			.select()
+			.from(schema.user)
+			.where(eq(schema.user.id, "legacy-procomun:user:2"));
+		expect(blocked?.isActive).toBeFalse();
+		expect(blocked?.banned).toBeTrue();
+
+		const again = await runFixLegacyUserRoles(
+			{ sourceFile, dryRun: false },
+			realDeps(),
+		);
+		expect(again.totals).toMatchObject({ fixed: 0, unchanged: 5, kept: 1 });
+		expect(await db.select().from(schema.user)).toHaveLength(7);
+		// El informe no lleva correos.
+		expect(JSON.stringify(real)).not.toContain("@example.test");
+	});
+
+	test("el comando escribe el informe de corrección y respeta --limit", async () => {
+		const sourceFile = path.join(dir, "usuarios.json");
+		await writeFile(sourceFile, JSON.stringify(SOURCE));
+		await seedImportedAsAuthor();
+		const reportDir = path.join(dir, "reports");
+
+		const exitCode = await runImportLegacyUsersCommand(
+			parseImportLegacyUsersArgs([
+				"--fix-roles",
+				"--source-file",
+				sourceFile,
+				"--limit",
+				"2",
+				"--report-dir",
+				reportDir,
+			]),
+			realDeps(),
+		);
+		expect(exitCode).toBe(0);
+		expect(pglite.closed).toBeTrue();
+		const [reportName] = await readdir(reportDir);
+		expect(reportName).toStartWith("informe_usuarios-correccion-roles-");
+		const report = await Bun.file(
+			path.join(reportDir, reportName ?? ""),
+		).json();
+		expect(report.dryRun).toBeFalse();
+		expect(report.totals).toMatchObject({ found: 8, processed: 2, fixed: 2 });
+		expect(
+			report.records.map((record: { userId: string }) => record.userId),
+		).toEqual(["legacy-procomun:user:1", "legacy-procomun:user:2"]);
+	});
+
+	test("en dry-run el informe del comando lo indica en el nombre", async () => {
+		const sourceFile = path.join(dir, "usuarios.json");
+		await writeFile(sourceFile, JSON.stringify(SOURCE));
+		const reportDir = path.join(dir, "reports");
+
+		const exitCode = await runImportLegacyUsersCommand(
+			parseImportLegacyUsersArgs([
+				"--fix-roles",
+				"--dry-run",
+				"--source-file",
+				sourceFile,
+				"--report-dir",
+				reportDir,
+			]),
+			realDeps(),
+		);
+		// El registro con el correo no válido cuenta como error.
+		expect(exitCode).toBe(1);
+		const [reportName] = await readdir(reportDir);
+		expect(reportName).toStartWith("informe_usuarios-correccion-roles-dryrun-");
+	});
+});
+
+/**
+ * Hash bcrypt sintético (formato válido, no es de nadie): si aparece en el
+ * informe o en la consola, el error de la base de datos se ha filtrado.
+ */
+const SYNTHETIC_HASH = `$2y$10$${"SinteticoDePruebaNoEsUnHashReal".padEnd(53, "x")}`;
+const SYNTHETIC_EMAIL = "persona-sintetica@example.test";
+
+/** Recoge todo lo que se escribe en la consola durante el test. */
+function captureConsole() {
+	const lines: string[] = [];
+	const spies = (["log", "error", "warn", "info", "debug"] as const).map(
+		(method) =>
+			spyOn(console, method).mockImplementation((...args: unknown[]) => {
+				lines.push(
+					args
+						.map((arg) => (typeof arg === "string" ? arg : Bun.inspect(arg)))
+						.join(" "),
+				);
+			}),
+	);
+	return {
+		text: () => lines.join("\n"),
+		restore: () => {
+			for (const spy of spies) spy.mockRestore();
+		},
+	};
+}
+
+function expectNoSensitiveData(text: string) {
+	expect(text).not.toContain(SYNTHETIC_HASH);
+	// Ni un trozo del hash (Postgres puede recortar la fila en `detail`).
+	expect(text).not.toContain("SinteticoDePruebaNoEsUnHashReal");
+	expect(text.toLowerCase()).not.toContain(SYNTHETIC_EMAIL);
+	// Ni la consulta ni sus parámetros.
+	expect(text.toLowerCase()).not.toContain("insert into");
+	expect(text.toLowerCase()).not.toContain("update ");
+	expect(text).not.toContain("params:");
+	expect(text).not.toContain("Failing row");
+}
+
+describe("import:legacy-users: un fallo de la base de datos no filtra datos (#488)", () => {
+	let dir: string;
+	let pglite: PGlite;
+	let db: ReturnType<Deps["getDb"]>["db"];
+	let output: ReturnType<typeof captureConsole>;
+
+	beforeEach(async () => {
+		dir = await mkdtemp(path.join(tmpdir(), "legacy-users-errors-"));
+		pglite = new PGlite();
+		await createTables(pglite);
+		db = drizzle(pglite, { schema }) as unknown as typeof db;
+		output = captureConsole();
+	});
+
+	afterEach(async () => {
+		output.restore();
+		if (!pglite.closed) await pglite.close();
+		await rm(dir, { recursive: true, force: true });
+	});
+
+	function realDeps(): Deps {
+		return buildDeps({
+			getDb: () => ({ db, provider: "pg" }),
+			findLegacyUserImportConflict,
+			importLegacyUser,
+			fixLegacyUserRole,
+		});
+	}
+
+	async function writeSource(): Promise<string> {
+		const sourceFile = path.join(dir, "usuarios.json");
+		await writeFile(
+			sourceFile,
+			JSON.stringify([
+				{
+					uid: 41,
+					name: "Persona Sintética",
+					mail: SYNTHETIC_EMAIL,
+					roles: "-",
+					status: 1,
+					pass: SYNTHETIC_HASH,
+				},
+			]),
+		);
+		return sourceFile;
+	}
+
+	test("si la base de datos rechaza la credencial, ni el informe ni la consola llevan el hash", async () => {
+		const sourceFile = await writeSource();
+		await pglite.exec(
+			"ALTER TABLE account ADD CONSTRAINT test_rechaza_credencial CHECK (password NOT LIKE '$2y$%')",
+		);
+		const reportDir = path.join(dir, "reports");
+
+		const exitCode = await runImportLegacyUsersCommand(
+			parseImportLegacyUsersArgs([
+				"--source-file",
+				sourceFile,
+				"--report-dir",
+				reportDir,
+			]),
+			realDeps(),
+		);
+
+		expect(exitCode).toBe(1);
+		const [reportName] = await readdir(reportDir);
+		const reportText = await Bun.file(
+			path.join(reportDir, reportName ?? ""),
+		).text();
+		expectNoSensitiveData(reportText);
+		expectNoSensitiveData(output.text());
+
+		const report = JSON.parse(reportText);
+		expect(report.totals).toMatchObject({ imported: 0, errored: 1 });
+		// El uid queda en el informe para reintentar ese registro.
+		expect(report.records).toEqual([
+			{
+				outcome: "error",
+				index: 0,
+				legacyUid: "41",
+				code: "constraint_violation",
+				message: "la base de datos rechazó el registro por una restricción",
+				sqlState: "23514",
+				constraint: "test_rechaza_credencial",
+			},
+		]);
+		expect(output.text()).toContain(
+			"[error] registro 0 (uid 41): constraint_violation (test_rechaza_credencial) [SQLSTATE 23514]",
+		);
+	});
+
+	test("aunque Postgres ponga el hash en su propio mensaje, solo sale el código; al quitar el fallo se reintenta", async () => {
+		const sourceFile = await writeSource();
+		await pglite.exec(`
+			CREATE FUNCTION test_rechaza_credencial() RETURNS trigger AS $$
+			BEGIN
+				RAISE EXCEPTION 'credencial rechazada: % (%)', NEW.password, NEW.user_id;
+			END
+			$$ LANGUAGE plpgsql;
+			CREATE TRIGGER test_rechaza_credencial BEFORE INSERT ON account
+				FOR EACH ROW EXECUTE FUNCTION test_rechaza_credencial();
+		`);
+
+		const failed = await runImportLegacyUsers(
+			{ sourceFile, dryRun: false },
+			realDeps(),
+		);
+
+		expectNoSensitiveData(JSON.stringify(failed));
+		expectNoSensitiveData(output.text());
+		expect(failed.records).toEqual([
+			{
+				outcome: "error",
+				index: 0,
+				legacyUid: "41",
+				code: "db_error",
+				message: "error de la base de datos",
+				sqlState: "P0001",
+			},
+		]);
+		// La transacción no deja la cuenta a medias.
+		expect(await db.select().from(schema.user)).toHaveLength(0);
+
+		await pglite.exec(
+			"DROP TRIGGER test_rechaza_credencial ON account; DROP FUNCTION test_rechaza_credencial();",
+		);
+		const retried = await runImportLegacyUsers(
+			{ sourceFile, dryRun: false },
+			realDeps(),
+		);
+		expect(retried.records).toEqual([
+			expect.objectContaining({ outcome: "imported", legacyUid: "41" }),
+		]);
+		const [credential] = await db
+			.select({ password: schema.account.password })
+			.from(schema.account)
+			.where(eq(schema.account.userId, "legacy-procomun:user:41"));
+		expect(credential?.password).toBe(SYNTHETIC_HASH);
+	});
+
+	test("--fix-roles tampoco copia el error de la base de datos", async () => {
+		const sourceFile = await writeSource();
+		await importLegacyUser(
+			db,
+			mapLegacyUser(JSON.parse(await Bun.file(sourceFile).text())[0]),
+		);
+		await db
+			.update(schema.user)
+			.set({ role: "author" })
+			.where(eq(schema.user.id, "legacy-procomun:user:41"));
+		await pglite.exec(`
+			CREATE FUNCTION test_rechaza_rol() RETURNS trigger AS $$
+			BEGIN
+				RAISE EXCEPTION 'rol rechazado para %', NEW.email;
+			END
+			$$ LANGUAGE plpgsql;
+			CREATE TRIGGER test_rechaza_rol BEFORE UPDATE ON "user"
+				FOR EACH ROW EXECUTE FUNCTION test_rechaza_rol();
+		`);
+
+		const report = await runFixLegacyUserRoles(
+			{ sourceFile, dryRun: false },
+			realDeps(),
+		);
+
+		expectNoSensitiveData(JSON.stringify(report));
+		expectNoSensitiveData(output.text());
+		expect(report.totals).toMatchObject({ fixed: 0, errored: 1 });
+		expect(report.records).toEqual([
+			{
+				outcome: "error",
+				index: 0,
+				legacyUid: "41",
+				code: "db_error",
+				message: "error de la base de datos",
+				sqlState: "P0001",
+			},
+		]);
+	});
+
+	test("un error inesperado al persistir no copia su mensaje", async () => {
+		const sourceFile = await writeSource();
+		const report = await runImportLegacyUsers(
+			{ sourceFile, dryRun: false },
+			buildDeps({
+				importLegacyUser: async () => {
+					throw new TypeError(`fallo con ${SYNTHETIC_HASH}`);
+				},
+			}),
+		);
+		expectNoSensitiveData(JSON.stringify(report));
+		expectNoSensitiveData(output.text());
+		expect(report.records).toEqual([
+			{
+				outcome: "error",
+				index: 0,
+				legacyUid: "41",
+				code: "unexpected_error",
+				message: "error inesperado (TypeError)",
+			},
+		]);
+	});
+
+	test("un error de la base de datos fuera del bucle tampoco llega entero a la consola", async () => {
+		const sourceFile = await writeSource();
+		const dbError = Object.assign(
+			new Error(`Failed query: select 1\nparams: ${SYNTHETIC_HASH}`),
+			{ query: "select 1", params: [SYNTHETIC_HASH] },
+		);
+		const run = runImportLegacyUsersCommand(
+			parseImportLegacyUsersArgs(["--source-file", sourceFile]),
+			buildDeps({
+				waitForDb: async () => {
+					throw dbError;
+				},
+			}),
+		);
+		await expect(run).rejects.toThrow("db_error: error de la base de datos");
+		await run.catch((error: unknown) => {
+			expectNoSensitiveData(Bun.inspect(error));
+		});
+	});
+});
+
+describe("parseImportLegacyUsersArgs", () => {
+	test("--fix-roles necesita --source-file y admite --dry-run", () => {
+		expect(() => parseImportLegacyUsersArgs(["--fix-roles"])).toThrow(
+			"--source-file",
+		);
+		const options = parseImportLegacyUsersArgs([
+			"--fix-roles",
+			"--source-file",
+			"usuarios.json",
+			"--dry-run",
+		]);
+		expect(options).toMatchObject({ fixRoles: true, dryRun: true });
+		expect(
+			parseImportLegacyUsersArgs(["--source-file", "u.json"]).fixRoles,
+		).toBeFalse();
 	});
 });
 
