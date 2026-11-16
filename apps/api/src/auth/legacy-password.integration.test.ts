@@ -143,9 +143,8 @@ describe("restablecimiento intercalado con la actualización del hash (#488)", (
 
 describe("fallo al sustituir el hash heredado (#488)", () => {
 	const MARKER = "marcador-sensible-488";
-	const spies = (["error", "warn", "log", "info", "debug"] as const).map(
-		(level) => spyOn(console, level),
-	);
+	const LEVELS = ["error", "warn", "log", "info", "debug"] as const;
+	let spies: Array<ReturnType<typeof spyOn>> = [];
 
 	beforeAll(async () => {
 		await waitForDb();
@@ -180,7 +179,7 @@ describe("fallo al sustituir el hash heredado (#488)", () => {
 					EXECUTE FUNCTION legacy_upgrade_falla()
 			`),
 		);
-		for (const spy of spies) spy.mockClear();
+		spies = LEVELS.map((level) => spyOn(console, level));
 
 		const res = await signIn(legacy.email, PASSWORD);
 
