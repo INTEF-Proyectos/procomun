@@ -6,8 +6,6 @@ import {
 	MY_RESOURCES_PAGE_SIZE,
 	myResourcesRequest,
 	pageAfterDelete,
-	statusBadge,
-	statusFilterOptions,
 } from "./my-resources.ts";
 
 describe("myResourcesRequest (#530)", () => {
@@ -50,65 +48,6 @@ describe("myResourcesRequest (#530)", () => {
 		expect(request.q).toBeUndefined();
 		expect(request.offset).toBe(0);
 		expect(request.professionalFamilies).toEqual([]);
-	});
-});
-
-describe("statusFilterOptions (#530)", () => {
-	test("ofrece los cuatro estados con su contador y «Todos» con el total", () => {
-		const options = statusFilterOptions({
-			draft: 2,
-			review: 1,
-			published: 5,
-			archived: 0,
-			total: 8,
-		});
-		expect(options.map((o) => o.value)).toEqual([
-			"",
-			"published",
-			"draft",
-			"review",
-			"archived",
-		]);
-		expect(options.map((o) => o.label)).toEqual([
-			"Todos (8)",
-			"Publicados (5)",
-			"Borradores (2)",
-			"En revisión (1)",
-			"Archivados (0)",
-		]);
-	});
-
-	test("los contadores de los estados suman el de «Todos»", () => {
-		const counts = {
-			draft: 3,
-			review: 4,
-			published: 2,
-			archived: 1,
-			total: 10,
-		};
-		const options = statusFilterOptions(counts);
-		const sum = options
-			.filter((o) => o.value !== "")
-			.reduce((acc, o) => acc + o.count, 0);
-		expect(sum).toBe(options[0]?.count ?? -1);
-	});
-});
-
-describe("statusBadge (#530)", () => {
-	test("marca borrador, revisión y archivado; lo publicado no lleva insignia", () => {
-		expect(statusBadge("draft")).toEqual({
-			text: "Borrador",
-			variant: "draft",
-		});
-		expect(statusBadge("review")).toEqual({
-			text: "En revisión",
-			variant: "review",
-		});
-		expect(statusBadge("archived")).toEqual({
-			text: "Archivado",
-			variant: "tertiary",
-		});
-		expect(statusBadge("published")).toBeNull();
 	});
 });
 

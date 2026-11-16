@@ -4,8 +4,6 @@ import type {
 } from "../../lib/api-client.ts";
 import { sanitizeEducationalFilter } from "../../lib/educational-classification.ts";
 import { familyFilterFor } from "../../lib/knowledge-area-field.ts";
-import "../../lib/paraglide-client.ts";
-import * as m from "../../paraglide/messages.js";
 
 /** Estados editoriales que se pueden filtrar en «Mis recursos»; vacío es «todos». */
 export type MyResourcesStatus =
@@ -76,65 +74,6 @@ export function myResourcesRequest(
 			filters.professionalFamilies,
 		),
 	};
-}
-
-export interface StatusFilterOption {
-	value: MyResourcesStatus;
-	label: string;
-	count: number;
-}
-
-/** Opciones del filtro de estado con los contadores de la API. */
-export function statusFilterOptions(
-	counts: ResourceStatusCounts,
-): StatusFilterOption[] {
-	return [
-		{
-			value: "",
-			count: counts.total,
-			label: m.my_resources_status_all({ count: String(counts.total) }),
-		},
-		{
-			value: "published",
-			count: counts.published,
-			label: m.my_resources_status_published({
-				count: String(counts.published),
-			}),
-		},
-		{
-			value: "draft",
-			count: counts.draft,
-			label: m.my_resources_status_draft({ count: String(counts.draft) }),
-		},
-		{
-			value: "review",
-			count: counts.review,
-			label: m.my_resources_status_review({ count: String(counts.review) }),
-		},
-		{
-			value: "archived",
-			count: counts.archived,
-			label: m.my_resources_status_archived({
-				count: String(counts.archived),
-			}),
-		},
-	];
-}
-
-/** Insignia del estado en la tarjeta. Lo publicado no la necesita. */
-export function statusBadge(
-	status: string | undefined,
-): { text: string; variant: "draft" | "review" | "tertiary" } | null {
-	switch (status) {
-		case "draft":
-			return { text: m.resource_draft(), variant: "draft" };
-		case "review":
-			return { text: m.resource_in_review(), variant: "review" };
-		case "archived":
-			return { text: m.resource_archived(), variant: "tertiary" };
-		default:
-			return null;
-	}
 }
 
 /** Hay búsqueda o filtros además del estado (para «Limpiar filtros»). */
