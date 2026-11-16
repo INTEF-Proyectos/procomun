@@ -2,6 +2,8 @@ import { describe, expect, test } from "bun:test";
 import { readdir, readFile } from "node:fs/promises";
 import path from "node:path";
 import { PGlite } from "@electric-sql/pglite";
+import { drizzle } from "drizzle-orm/pglite";
+import { migrate } from "drizzle-orm/pglite/migrator";
 import { SCHEMA_STATEMENTS } from "./setup.ts";
 
 const migrationsDir = path.resolve(import.meta.dir, "../migrations");
@@ -573,12 +575,12 @@ describe("journal combinado de areas y miniaturas (#471)", () => {
 });
 
 // #470 (ADR-0046): cola de miniaturas generadas en el servidor.
-describe("migración 0019_elpx_thumbnail_queue", () => {
+describe("migración 0020_elpx_thumbnail_queue", () => {
 	const COLUMNS_QUERY = `SELECT column_name FROM information_schema.columns
 		WHERE table_name = 'elpx_projects' AND column_name LIKE 'thumbnail_%'
 		ORDER BY column_name`;
 
-	test("va detrás de 0018 en el journal con el when reservado", async () => {
+	test("va detrás de 0018 y de la 0019 de #488 con el when reservado", async () => {
 		const journal = JSON.parse(
 			await readFile(path.join(migrationsDir, "meta/_journal.json"), "utf8"),
 		) as { entries: Array<{ idx: number; tag: string; when: number }> };
@@ -586,16 +588,17 @@ describe("migración 0019_elpx_thumbnail_queue", () => {
 			(entry) => entry.tag === "0018_elpx_has_screenshot",
 		);
 		const queue = journal.entries.find(
-			(entry) => entry.tag === "0019_elpx_thumbnail_queue",
+			(entry) => entry.tag === "0020_elpx_thumbnail_queue",
 		);
-		expect(queue?.idx).toBe((screenshots?.idx ?? -2) + 1);
-		expect(queue?.when).toBe(1793300000000);
+		expect(queue?.idx ?? -1).toBeGreaterThan(screenshots?.idx ?? 0);
+		// 1793300000000 es el de 0019_user_profile (#488): esta va detrás.
+		expect(queue?.when).toBe(1793400000000);
 		expect(queue?.when ?? 0).toBeGreaterThan(screenshots?.when ?? 0);
 	});
 
 	test("coincide con setup.ts, se aplica dos veces y deja nulo el estado de los previos", async () => {
 		const migration = await readFile(
-			path.join(migrationsDir, "0019_elpx_thumbnail_queue.sql"),
+			path.join(migrationsDir, "0020_elpx_thumbnail_queue.sql"),
 			"utf8",
 		);
 		const { ELPX_THUMBNAIL_QUEUE_SCHEMA, SCHEMA_STATEMENTS } = await import(
@@ -648,16 +651,16 @@ describe("migración 0019_elpx_thumbnail_queue", () => {
 
 // Revisión de #481 (adenda 2026-11-03 de ADR-0046): la ruta de miniaturas
 // busca el dueño del fichero en cada petición.
-describe("migración 0020_thumbnail_owner_indexes", () => {
-	test("va detrás de 0019 en el journal", async () => {
+describe("migración 0021_thumbnail_owner_indexes", () => {
+	test("va detrás de 0020 en el journal", async () => {
 		const journal = JSON.parse(
 			await readFile(path.join(migrationsDir, "meta/_journal.json"), "utf8"),
 		) as { entries: Array<{ idx: number; tag: string; when: number }> };
 		const queue = journal.entries.find(
-			(entry) => entry.tag === "0019_elpx_thumbnail_queue",
+			(entry) => entry.tag === "0020_elpx_thumbnail_queue",
 		);
 		const owners = journal.entries.find(
-			(entry) => entry.tag === "0020_thumbnail_owner_indexes",
+			(entry) => entry.tag === "0021_thumbnail_owner_indexes",
 		);
 		expect(owners?.idx).toBe((queue?.idx ?? -2) + 1);
 		expect(owners?.when ?? 0).toBeGreaterThan(queue?.when ?? 0);
@@ -665,7 +668,7 @@ describe("migración 0020_thumbnail_owner_indexes", () => {
 
 	test("coincide con setup.ts, se aplica dos veces y crea los dos índices", async () => {
 		const migration = await readFile(
-			path.join(migrationsDir, "0020_thumbnail_owner_indexes.sql"),
+			path.join(migrationsDir, "0021_thumbnail_owner_indexes.sql"),
 			"utf8",
 		);
 		const { THUMBNAIL_OWNER_INDEXES_SCHEMA, SCHEMA_STATEMENTS } = await import(
@@ -698,6 +701,125 @@ describe("migración 0020_thumbnail_owner_indexes", () => {
 				"idx_elpx_projects_thumbnail_file",
 				"idx_resources_thumbnail_url",
 			]);
+		} finally {
+			await db.close();
+		}
+	});
+});
+
+// Revisión de #512 (2026-11-08): el migrador de drizzle solo aplica una
+// migración cuyo `when` sea mayor que el `created_at` de la última aplicada.
+// Si la cola de miniaturas comparte número o `when` con una ya aplicada, se
+// salta en silencio y la de índices posterior falla. Se prueba con el migrador
+// real de drizzle sobre PGlite.
+describe("actualización con el migrador de drizzle (#512)", () => {
+	// Última migración de main al abrir la revisión.
+	const MAIN_LAST_TAG = "0018_elpx_has_screenshot";
+	// #488 reservó 0019_user_profile con este `when`.
+	const PR_488_WHEN = 1793300000000;
+	const QUEUE_TAG = "0020_elpx_thumbnail_queue";
+	const OWNER_INDEXES_TAG = "0021_thumbnail_owner_indexes";
+	const THUMBNAIL_COLUMNS_QUERY = `SELECT column_name FROM information_schema.columns
+		WHERE table_name = 'elpx_projects' AND column_name LIKE 'thumbnail_%'`;
+	const OWNER_INDEXES_QUERY = `SELECT indexname FROM pg_indexes
+		WHERE indexname IN ('idx_resources_thumbnail_url', 'idx_elpx_projects_thumbnail_file')`;
+
+	type JournalEntry = { idx: number; when: number; tag: string };
+
+	async function readJournal(): Promise<{ entries: JournalEntry[] }> {
+		return JSON.parse(
+			await readFile(path.join(migrationsDir, "meta/_journal.json"), "utf8"),
+		);
+	}
+
+	/**
+	 * Base tal como la deja main: el esquema completo sin la cola de miniaturas
+	 * ni sus índices, y la tabla de control de drizzle con todas las entradas
+	 * del journal hasta `MAIN_LAST_TAG`. La cadena 0000→0001 no se puede
+	 * reproducir desde cero (0001 cambia email_verified a boolean sin USING), así
+	 * que se parte del esquema de arranque y se retira lo que añade este PR.
+	 */
+	async function mainDatabase(): Promise<PGlite> {
+		const { createTables } = await import("./setup.ts");
+		const db = new PGlite();
+		await createTables(db);
+		await db.exec(`ALTER TABLE elpx_projects
+			DROP COLUMN thumbnail_status, DROP COLUMN thumbnail_file,
+			DROP COLUMN thumbnail_attempts, DROP COLUMN thumbnail_error,
+			DROP COLUMN thumbnail_updated_at, DROP COLUMN thumbnail_next_attempt_at;
+			DROP INDEX IF EXISTS idx_resources_thumbnail_url;`);
+		const journal = await readJournal();
+		const mainLast = journal.entries.findIndex(
+			(entry) => entry.tag === MAIN_LAST_TAG,
+		);
+		expect(mainLast).toBeGreaterThanOrEqual(0);
+		await db.exec(`CREATE SCHEMA drizzle;
+			CREATE TABLE drizzle.__drizzle_migrations (
+				id SERIAL PRIMARY KEY, hash text NOT NULL, created_at bigint
+			);`);
+		for (const entry of journal.entries.slice(0, mainLast + 1)) {
+			await db.query(
+				"INSERT INTO drizzle.__drizzle_migrations (hash, created_at) VALUES ($1, $2)",
+				[entry.tag, entry.when],
+			);
+		}
+		return db;
+	}
+
+	async function migrateAll(db: PGlite) {
+		await migrate(drizzle(db), { migrationsFolder: migrationsDir });
+	}
+
+	async function expectThumbnailSchema(db: PGlite) {
+		const columns = await db.query(THUMBNAIL_COLUMNS_QUERY);
+		expect(columns.rows).toHaveLength(6);
+		const indexes = await db.query(OWNER_INDEXES_QUERY);
+		expect(indexes.rows).toHaveLength(2);
+	}
+
+	test("las migraciones de la cola van detrás de main y de la 0019 de #488", async () => {
+		const journal = await readJournal();
+		const tags = journal.entries.map((entry) => entry.tag);
+		const mainLast = tags.indexOf(MAIN_LAST_TAG);
+		const queueAt = tags.indexOf(QUEUE_TAG);
+		expect(queueAt).toBeGreaterThan(mainLast);
+		expect(tags.indexOf(OWNER_INDEXES_TAG)).toBe(queueAt + 1);
+		const queue = journal.entries[queueAt] as JournalEntry;
+		expect(queue.when).toBeGreaterThan(PR_488_WHEN);
+	});
+
+	test("en una base nueva el esquema de arranque trae la cola y sus índices", async () => {
+		const { createTables } = await import("./setup.ts");
+		const db = new PGlite();
+		try {
+			await createTables(db);
+			await expectThumbnailSchema(db);
+		} finally {
+			await db.close();
+		}
+	});
+
+	test("en una base migrada con main aplica la cola y los índices", async () => {
+		const db = await mainDatabase();
+		try {
+			expect((await db.query(THUMBNAIL_COLUMNS_QUERY)).rows).toHaveLength(0);
+			await migrateAll(db);
+			await expectThumbnailSchema(db);
+		} finally {
+			await db.close();
+		}
+	});
+
+	test("en una base que ya aplicó la 0019 de #488 aplica la cola y los índices", async () => {
+		const db = await mainDatabase();
+		try {
+			// Así queda la tabla de control tras aplicar 0019_user_profile.
+			await db.query(
+				"INSERT INTO drizzle.__drizzle_migrations (hash, created_at) VALUES ('0019_user_profile', $1)",
+				[PR_488_WHEN],
+			);
+			await migrateAll(db);
+			await expectThumbnailSchema(db);
 		} finally {
 			await db.close();
 		}
