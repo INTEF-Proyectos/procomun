@@ -7,7 +7,7 @@ import {
 	REPORT_REASON_VALUES,
 	type ReportTarget,
 	reportReasonLabel,
-} from "../../lib/report-labels.ts";
+} from "../../lib/report-labels.tsx";
 import * as m from "../../paraglide/messages.js";
 import { ModalFrame } from "../shared/ModalFrame.tsx";
 

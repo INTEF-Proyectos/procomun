@@ -8,7 +8,7 @@ import {
 	reportReasonLabel,
 	reportStatusLabel,
 	reportTarget,
-} from "../../lib/report-labels.ts";
+} from "../../lib/report-labels.tsx";
 import * as m from "../../paraglide/messages.js";
 import { AdminTable, type Column } from "./AdminTable.tsx";
 

@@ -5,7 +5,7 @@ import {
 	reportReasonLabel,
 	reportStatusLabel,
 	reportTarget,
-} from "./report-labels.ts";
+} from "./report-labels.tsx";
 
 describe("etiquetas de denuncias (#539)", () => {
 	test("todos los motivos tienen etiqueta y el desconocido se muestra tal cual", () => {
