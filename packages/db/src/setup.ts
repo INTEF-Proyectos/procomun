@@ -25,6 +25,24 @@ export const RESOURCE_VIEWS_SCHEMA = [
 	`CREATE INDEX IF NOT EXISTS resource_view_sessions_created_at_idx ON resource_view_sessions (created_at)`,
 ];
 /**
+ * #533: el «Sobre mí» queda solo en `user_profile.about`, privado como el resto
+ * del perfil (ADR-0037). Le pasa el `user.bio` escrito en la plataforma nueva
+ * (prevalece sobre el importado) y borra esa columna. La migración
+ * 0023_user_bio_to_profile contiene esta misma sentencia.
+ */
+export const USER_BIO_TO_PROFILE = `DO $$ BEGIN
+	IF EXISTS (
+		SELECT 1 FROM information_schema.columns
+		WHERE table_schema = current_schema()
+			AND table_name = 'user' AND column_name = 'bio'
+	) THEN
+		INSERT INTO "user_profile" (user_id, about)
+		SELECT id, bio FROM "user" WHERE bio IS NOT NULL AND btrim(bio) <> ''
+		ON CONFLICT (user_id) DO UPDATE SET about = EXCLUDED.about, updated_at = now();
+		ALTER TABLE "user" DROP COLUMN "bio";
+	END IF;
+END $$`;
+/**
  * Catálogo inicial de palabras clave (issue #384, ADR-0042). Solo inserta si
  * aún no hay ningún término de catálogo: no reescribe etiquetas existentes ni
  * recupera términos o alias borrados después. Si el slug ya lo usa una
@@ -157,7 +175,6 @@ export const SCHEMA_STATEMENTS = [
 		email_verified BOOLEAN NOT NULL DEFAULT false,
 		name TEXT,
 		image TEXT,
-		bio TEXT,
 		role VARCHAR(50) NOT NULL DEFAULT 'reader',
 		is_active BOOLEAN NOT NULL DEFAULT true,
 		banned BOOLEAN DEFAULT false,
@@ -466,10 +483,6 @@ export const SCHEMA_STATEMENTS = [
 	EXCEPTION WHEN duplicate_column THEN NULL;
 	END $$`,
 	`DO $$ BEGIN
-		ALTER TABLE "user" ADD COLUMN bio TEXT;
-	EXCEPTION WHEN duplicate_column THEN NULL;
-	END $$`,
-	`DO $$ BEGIN
 		ALTER TABLE "user" ADD COLUMN deleted_at TIMESTAMP;
 	EXCEPTION WHEN duplicate_column THEN NULL;
 	END $$`,
@@ -562,6 +575,8 @@ export const SCHEMA_STATEMENTS = [
 		created_at TIMESTAMP NOT NULL DEFAULT NOW(),
 		updated_at TIMESTAMP NOT NULL DEFAULT NOW()
 	)`,
+	// #533: bases PGlite creadas con user.bio (migración 0023).
+	USER_BIO_TO_PROFILE,
 	`DO $$ BEGIN
 		ALTER TABLE "resources" ADD COLUMN other_authors TEXT;
 	EXCEPTION WHEN duplicate_column THEN NULL;

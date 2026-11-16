@@ -3,9 +3,10 @@ import { user } from "./auth.ts";
 
 /**
  * Datos de perfil migrados del Procomún anterior (issue #456, ADR-0037 adenda
- * 2026-10-27). Uno a uno con `user`. Es privado: ningún endpoint lo expone
- * todavía. Solo guarda lo acordado en la issue; DNI, fecha de nacimiento,
- * sexo, estudios y ocupación no se importan.
+ * 2026-10-27). Uno a uno con `user`. Es privado: solo lo ve y lo edita su
+ * dueño en `/perfil` (#533) hasta que #504 decida la visibilidad; el «Sobre
+ * mí» lo ve además la administración de usuarios. Solo guarda lo acordado;
+ * DNI, fecha de nacimiento, sexo, estudios, ocupación y provincia no están.
  */
 export const userProfile = pgTable("user_profile", {
 	userId: text("user_id")
@@ -16,7 +17,7 @@ export const userProfile = pgTable("user_profile", {
 	locality: text("locality"),
 	educationalCenter: text("educational_center"),
 	educationalCenterUrl: text("educational_center_url"),
-	/** «Sobre mí» del perfil antiguo. */
+	/** «Sobre mí»: el importado y el que se edita en /perfil (#533). */
 	about: text("about"),
 	website: text("website"),
 	facebook: text("facebook"),

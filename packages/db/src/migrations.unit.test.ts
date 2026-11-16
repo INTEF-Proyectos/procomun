@@ -551,7 +551,7 @@ describe("migración 0016_resource_language_nullable", () => {
 // Issue #456: perfil migrado del Procomún anterior. Era la 0017, pero la 0018
 // de #471 llegó antes a main: pasa a 0019 para ir detrás con un `when` mayor.
 describe("migración 0019_user_profile", () => {
-	test("va la última en el journal y detrás de las 0012–0016 en curso", async () => {
+	test("va detrás de las 0012–0018 en el journal", async () => {
 		const journal = JSON.parse(
 			await readFile(path.join(migrationsDir, "meta/_journal.json"), "utf8"),
 		) as { entries: Array<{ tag: string; when: number }> };
@@ -559,8 +559,12 @@ describe("migración 0019_user_profile", () => {
 			(item) => item.tag === "0019_user_profile",
 		);
 		expect(entry).toBeDefined();
-		expect(entry?.when).toBe(
-			Math.max(...journal.entries.map((item) => item.when)),
+		// Desde #533 la sigue la 0023, que pasa user.bio a user_profile.about.
+		const earlier = journal.entries.filter(
+			(item) => Number(item.tag.slice(0, 4)) < 19,
+		);
+		expect(entry?.when ?? 0).toBeGreaterThan(
+			Math.max(...earlier.map((item) => item.when)),
 		);
 		expect(entry?.when ?? 0).toBeGreaterThan(1793200000000);
 	});
@@ -607,7 +611,73 @@ describe("journal combinado de areas y miniaturas (#471)", () => {
 		// propio idx y su propio when, y que 0014 se conserva.
 		expect(screenshots?.idx ?? -1).toBeGreaterThan(areas?.idx ?? 0);
 		expect(screenshots?.when ?? 0).toBeGreaterThan(areas?.when ?? 0);
-		// Detras solo va la 0019_user_profile de #488, que se mezclo despues.
-		expect(journal.entries.at(-1)?.tag).toBe("0019_user_profile");
+		// Detras va la 0019_user_profile de #488, que se mezclo despues.
+		const profile = journal.entries.find(
+			(entry) => entry.tag === "0019_user_profile",
+		);
+		expect(profile?.idx ?? -1).toBeGreaterThan(screenshots?.idx ?? 0);
+	});
+});
+
+// #533: el «Sobre mí» queda solo en user_profile.about, privado como el resto
+// del perfil (ADR-0037). La 0023 le pasa el user.bio que se escribió en la
+// plataforma nueva y borra esa columna. setup.ts aplica la misma sentencia.
+describe("migración 0023_user_bio_to_profile", () => {
+	test("va en el journal con su when reservado", async () => {
+		const journal = JSON.parse(
+			await readFile(path.join(migrationsDir, "meta/_journal.json"), "utf8"),
+		) as { entries: Array<{ tag: string; when: number }> };
+		const entry = journal.entries.find(
+			(item) => item.tag === "0023_user_bio_to_profile",
+		);
+		expect(entry?.when).toBe(1793700000000);
+	});
+
+	test("coincide con setup.ts, mueve la bio sin perder el «Sobre mí» importado y es idempotente", async () => {
+		const migration = await readFile(
+			path.join(migrationsDir, "0023_user_bio_to_profile.sql"),
+			"utf8",
+		);
+		const { USER_BIO_TO_PROFILE } = await import("./setup.ts");
+		expect(migration.replace(/^(--[^\n]*\n)+/, "").trim()).toBe(
+			`${USER_BIO_TO_PROFILE};`,
+		);
+		expect(SCHEMA_STATEMENTS).toContain(USER_BIO_TO_PROFILE);
+
+		const db = new PGlite();
+		try {
+			await db.exec(`CREATE TABLE "user" (id text PRIMARY KEY, bio text);
+				CREATE TABLE "user_profile" (user_id text PRIMARY KEY, locality text, about text,
+					created_at timestamp NOT NULL DEFAULT now(), updated_at timestamp NOT NULL DEFAULT now());
+				INSERT INTO "user" (id, bio) VALUES
+					('u1', 'Nueva 1'), ('u2', 'Nueva 2'), ('u3', '  '), ('u4', NULL), ('u5', 'Nueva 5');
+				INSERT INTO "user_profile" (user_id, locality, about) VALUES
+					('u2', 'Burgos', 'Antiguo 2'), ('u3', NULL, 'Antiguo 3'), ('u5', 'Soria', NULL);`);
+			await db.exec(migration);
+			await db.exec(migration);
+
+			const profiles = await db.query<{
+				user_id: string;
+				locality: string | null;
+				about: string | null;
+			}>(
+				'SELECT user_id, locality, about FROM "user_profile" ORDER BY user_id',
+			);
+			expect(profiles.rows).toEqual([
+				// Sin fila de perfil: se crea con la bio.
+				{ user_id: "u1", locality: null, about: "Nueva 1" },
+				// Lo escrito en la plataforma nueva prevalece sobre lo importado.
+				{ user_id: "u2", locality: "Burgos", about: "Nueva 2" },
+				// Una bio en blanco no borra el «Sobre mí» importado.
+				{ user_id: "u3", locality: null, about: "Antiguo 3" },
+				{ user_id: "u5", locality: "Soria", about: "Nueva 5" },
+			]);
+			const columns = await db.query<{ column_name: string }>(
+				"SELECT column_name FROM information_schema.columns WHERE table_name = 'user'",
+			);
+			expect(columns.rows.map((row) => row.column_name)).not.toContain("bio");
+		} finally {
+			await db.close();
+		}
 	});
 });

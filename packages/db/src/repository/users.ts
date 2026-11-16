@@ -1,5 +1,6 @@
 import { and, asc, eq, isNull, sql } from "drizzle-orm";
 import { account, lowerEmail, session, user } from "../schema/auth.ts";
+import { userProfile } from "../schema/user-profile.ts";
 import {
 	andWhere,
 	buildSearchTerm,
@@ -7,12 +8,14 @@ import {
 	normalizePagination,
 	normalizeSearch,
 } from "./shared.ts";
+import { saveUserAbout } from "./user-profile.ts";
 
+/** `bio` es el «Sobre mí», que vive en `user_profile.about` desde #533. */
 const USER_COLUMNS = {
 	id: user.id,
 	email: user.email,
 	name: user.name,
-	bio: user.bio,
+	bio: userProfile.about,
 	role: user.role,
 	isActive: user.isActive,
 	createdAt: user.createdAt,
@@ -50,6 +53,7 @@ export async function listUsers(
 	const query = db
 		.select(USER_COLUMNS)
 		.from(user)
+		.leftJoin(userProfile, eq(userProfile.userId, user.id))
 		.limit(limit)
 		.offset(offset)
 		.orderBy(asc(user.name), asc(user.email));
@@ -67,6 +71,7 @@ export async function getUserById(db: DrizzleDB, id: string) {
 	const rows = await db
 		.select(USER_COLUMNS)
 		.from(user)
+		.leftJoin(userProfile, eq(userProfile.userId, user.id))
 		.where(and(eq(user.id, id), isNull(user.deletedAt)))
 		.limit(1);
 
@@ -77,6 +82,7 @@ export async function getUserByEmail(db: DrizzleDB, email: string) {
 	const rows = await db
 		.select(USER_COLUMNS)
 		.from(user)
+		.leftJoin(userProfile, eq(userProfile.userId, user.id))
 		.where(eq(lowerEmail(user.email), email.trim().toLowerCase()))
 		.limit(1);
 
@@ -114,7 +120,8 @@ export async function updateUser(
 		isActive: boolean;
 	}>,
 ) {
-	const { isActive, ...rest } = data;
+	const { isActive, bio, ...rest } = data;
+	if (bio !== undefined) await saveUserAbout(db, id, bio);
 	if (Object.keys(rest).length > 0) {
 		await db
 			.update(user)

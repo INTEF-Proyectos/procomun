@@ -194,9 +194,15 @@ export async function seedWithClient(
 			const passwordHash = await hashPassword(u.password);
 
 			await client.query(
-				`INSERT INTO "user" (id, email, email_verified, name, bio, role, is_active, created_at, updated_at) VALUES ($1, $2, true, $3, $4, $5, true, $6, $7)
-				ON CONFLICT (id) DO UPDATE SET email = EXCLUDED.email, email_verified = true, name = EXCLUDED.name, bio = EXCLUDED.bio, role = EXCLUDED.role, is_active = true, updated_at = EXCLUDED.updated_at`,
-				[u.id, u.email, u.name, u.bio, u.role, now, now],
+				`INSERT INTO "user" (id, email, email_verified, name, role, is_active, created_at, updated_at) VALUES ($1, $2, true, $3, $4, true, $5, $6)
+				ON CONFLICT (id) DO UPDATE SET email = EXCLUDED.email, email_verified = true, name = EXCLUDED.name, role = EXCLUDED.role, is_active = true, updated_at = EXCLUDED.updated_at`,
+				[u.id, u.email, u.name, u.role, now, now],
+			);
+			// El «Sobre mí» vive en user_profile desde #533.
+			await client.query(
+				`INSERT INTO "user_profile" (user_id, about, created_at, updated_at) VALUES ($1, $2, $3, $4)
+				ON CONFLICT (user_id) DO UPDATE SET about = EXCLUDED.about, updated_at = EXCLUDED.updated_at`,
+				[u.id, u.bio, now, now],
 			);
 			// Una sola credencial por usuario de demo: se sustituye la anterior.
 			await client.query(
