@@ -4192,3 +4192,20 @@ tasks:
       La revision del 08-nov ya estaba resuelta en 733e4fe0; se ha
       verificado el journal y el migrador real de Drizzle sobre una base en
       main.
+  T-2026-11-16-15033420:
+    date: 2026-11-16
+    agent: "empresa-y-producto + arquitectura-solucion + documentacion-y-roadmap"
+    task: "Abrir la épica 006 de comunidades y la ADR-0050 (modelo de comunidades)"
+    status: Done
+    related: ["#493", "#495", "#504", "ADR-0050"]
+    notes: >
+      Solo documentación, sin código. docs/epics/epic-006-comunidades/ con
+      requirements, design (modelo de datos, permisos, estados con el
+      borrador sin administrador, navegación, importador, búsqueda,
+      moderación y datos personales), tasks (F1 modelo y API, F2 interfaz,
+      F3 solicitudes e invitaciones, F4 importador) y validation. ADR-0050
+      Propuesta: tablas propias frente a plataforma externa, colecciones y
+      el plugin organization de Better Auth. Recoge las decisiones de
+      jacoboAlcantara del 2026-11-16 y deja doce preguntas abiertas (Q-1 a
+      Q-12), entre ellas qué ve un no miembro de una privada, si los miembros
+      enlazan recursos y la correspondencia de IDs Drupal de ODE y artículos.
