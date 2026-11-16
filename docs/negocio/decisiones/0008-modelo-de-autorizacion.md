@@ -173,7 +173,7 @@ La vista previa de una versión histórica sigue la regla de la adenda anterior.
 
 - el **admin** gestiona cualquier colección, en cualquier estado;
 - el **curator** gestiona las suyas y las que no están en borrador: la cola de curación (`review`), las publicadas y las archivadas;
-- un **borrador ajeno** no lo ve ni lo edita, ni siquiera el del admin, igual que pasa con los recursos.
+- un curator no ve ni edita el **borrador ajeno**, aunque sea del admin, igual que pasa con los recursos.
 
 **Implementación.** `isOthersPrivateCollectionDraft` y `canManageCollection` en `apps/api/src/auth/roles.ts`, y el filtro `hideOthersDraftsFor` de `listCollections` (`packages/db/src/repository/collections.ts`), para que el listado y la comprobación por entidad no se desalineen. Las subrutas `/:id/resources` y `/:id/resources/reorder` ya pasan por `requireManageableCollection`, así que quedan cubiertas sin tocarlas.
 
