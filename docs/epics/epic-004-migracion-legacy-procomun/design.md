@@ -286,3 +286,21 @@ En el informe, el registro de error queda así:
 En consola: `[error] registro <n> (uid <uid>): <code> (<restricción>) [SQLSTATE <estado>]: <mensaje>`.
 
 Los dos comandos pasan también por `withoutDbDetails()` los errores que salen de los bucles (por ejemplo, si falla `waitForDb`). Así el manejador general del CLI (`Error: <message>`) tampoco escribe la consulta.
+
+## Informes sin correos e informe restringido — 2026-11-16 (issue #543)
+
+Decisión de #543 (comentario del equipo del 2026-11-16): el informe general no lleva correos. Sustituye, para el informe, lo que dicen arriba la tabla de «Autoría desde `publicatorEmailStr`» (`authorsWithoutAccount` con `email`) y el diagnóstico `sourceEmailWithoutAccount`.
+
+| Fichero | Cuándo | Qué lleva de un recurso sin cuenta de autor |
+|---|---|---|
+| Informe general (`informe_ingesta-*.json`, `informe_enlace-autores-*.json`) y consola | Siempre | `externalId`, resultado (la lista en la que está) y `reason`; `createdBy` (id de la cuenta) en `sourceEmailWithoutAccount`. Sin correo. |
+| Informe restringido | Solo con `--restricted-report <ruta>` | `list`, `externalId`, `email`, `reason` y `createdBy` si lo hay, más un aviso de que lleva datos personales y hay que borrarlo. |
+
+Condiciones del informe restringido (`apps/cli/src/restricted-report.ts`):
+
+- Solo para la importación y `--link-authors`; con otro modo el comando falla.
+- La ruta la elige el operador y no puede estar dentro de `--report-dir`: así no viaja con los informes generales.
+- Se crea nuevo (`open(..., "wx", 0o600)`), nunca pisa un fichero que exista (podría tener otros permisos o ser un enlace). Se comprueba antes de importar, para no perder el informe al final.
+- Sin la opción, el correo no se guarda en ningún sitio: los run (`runImportLegacyProcomun`, `runLinkLegacyAuthors`) solo lo copian si reciben `restrictedEntries`.
+
+Errores de los pasos de autoría (#543, punto 1): `resolveAuthor`, `linkExistingResourceAuthor` y el `catch` de `--link-authors` solo usan la base de datos y su consulta lleva el correo como parámetro. Pasan por `summarizeDbStepError` y dejan `{ outcome: "error", externalId, code, message, sqlState? }`, como el resto (ver «Errores sin datos de la base de datos» arriba). Desaparece `summarizeStepError`, la utilidad propia de #508: `summarizeReindexError` también usa `summarizeDbStepError` y da `fallo al reindexar: <code> [SQLSTATE …]: <mensaje fijo>`.

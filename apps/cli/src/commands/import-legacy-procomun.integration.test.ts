@@ -996,12 +996,10 @@ describe("import:legacy-procomun — cada recurso pasa a la cuenta de su autor (
 		expect(report.authorsWithoutAccount).toEqual([
 			{
 				externalId: "es_autor_cuatro",
-				email: "autora.cuatro@issue456.test",
 				reason: "no_account",
 			},
 			{
 				externalId: "es_autor_dos",
-				email: "autora.dos@issue456.test",
 				reason: "no_account",
 			},
 		]);
@@ -1064,7 +1062,6 @@ describe("import:legacy-procomun — cada recurso pasa a la cuenta de su autor (
 		expect(real.authorsWithoutAccount).toEqual([
 			{
 				externalId: "es_autor_cuatro",
-				email: "autora.cuatro@issue456.test",
 				reason: "no_account",
 			},
 		]);

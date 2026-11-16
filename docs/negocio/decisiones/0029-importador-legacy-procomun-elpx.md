@@ -288,3 +288,17 @@ El importador dejaba `resources.created_by` vacío y la sesión de subida del pa
 * Las cuentas las crea el importador de usuarios (#488). Lo más sencillo es importar antes los usuarios; si no, basta con `--link-authors` o con reimportar.
 * Artículos (#446) e itinerarios (#432) usarán la misma búsqueda por correo.
 * Tests: `publicator-email.unit.test.ts`, `field-mapper.unit.test.ts`, `repository/legacy-authors.unit.test.ts`, `import-legacy-procomun.unit.test.ts` e `import-legacy-procomun.integration.test.ts` (rojo sin el cambio: módulos y exportaciones inexistentes, `publicatorEmail` `undefined`).
+
+## Actualización 2026-11-16 — informes sin correos (issue #543)
+
+### Contexto
+El informe de la ingesta y el de `--link-authors` listaban el correo de origen en `authorsWithoutAccount` y `sourceEmailWithoutAccount`. Iba contra la garantía de que los informes no llevan datos personales. En #543 el equipo eligió quitar el correo del informe general y dejarlo en un informe aparte de acceso restringido, siempre que la separación sea efectiva.
+
+### Decisión
+* El informe general y la consola no llevan correos: de un recurso sin cuenta, solo `externalId`, el resultado (la lista) y `reason`. Sustituye a lo que dice la decisión del 2026-11-03 sobre `email` en `authorsWithoutAccount`.
+* `--restricted-report <ruta>` (importación y `--link-authors`) escribe aparte `externalId`, `email` y `reason`. La ruta la elige el operador, fuera de `--report-dir`; el fichero se crea nuevo con permisos `0600`, nunca pisa otro y lleva un aviso para borrarlo. Sin la opción, el correo no se guarda.
+* Los errores de los pasos de autoría pasan por `summarizeDbStepError` (`@procomun/db/db-errors`), como el resto de los importadores.
+
+### Consecuencias
+* El informe restringido contiene datos personales para resolver las incidencias de la migración: hay que guardarlo donde solo acceda quien las resuelve y borrarlo al terminar. Falta decidir esa ubicación en la migración real.
+* Tests: `apps/cli/src/restricted-report.unit.test.ts` e `import-legacy-procomun.unit.test.ts` («informes sin correos e informe restringido (#543)»).

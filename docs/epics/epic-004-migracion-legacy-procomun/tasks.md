@@ -172,3 +172,12 @@ Los JSON/`.elpx` de `ode-export/` contienen datos personales reales (nombres y e
 - [x] Si la sustitución falla, el log lleva un mensaje fijo con un código controlado y el SQLSTATE; nunca el error, su mensaje, la consulta, los parámetros ni las causas. El inicio de sesión sigue siendo válido. Regresión con un trigger que falla con un marcador y el hash en el mensaje.
 - [x] `describeDbError` y `summarizeDbStepError` pasan a `@procomun/db/db-errors`, compartidas por la API y los importadores; `apps/cli/src/import-errors.ts` las reexporta.
 - [x] Revisión del 2026-11-08 (journal con la 0017 y la 0018 fundidas, test de migraciones sin cerrar): resuelta en 733e4fe0. Verificado en la punta: el journal no tiene claves repetidas, los idx son únicos y la 0019 tiene el `when` mayor, y el migrador de Drizzle aplica solo la 0019 sobre una base con las 15 migraciones de main registradas.
+
+## Informes sin correos e informe restringido — 2026-11-16 (issue #543)
+
+- [x] `authorsWithoutAccount` y `sourceEmailWithoutAccount` sin `email` en el informe general de la importación y de `--link-authors`.
+- [x] `--restricted-report <ruta>`: informe aparte con el correo, permisos 0600, fuera de `--report-dir`, sin pisar otro fichero y solo para la importación y `--link-authors`.
+- [x] Los errores de `resolveAuthor`, `linkExistingResourceAuthor` y `--link-authors` pasan por `summarizeDbStepError`. `summarizeStepError` se retira y `summarizeReindexError` usa la misma utilidad.
+- [x] Tests: informe general serializado sin correos, informe restringido con su contenido y sus permisos, errores reales de Drizzle con el correo como parámetro.
+- [x] README, diseño y ADR-0029 con la garantía: el informe general no lleva datos personales; el restringido sí y hay que borrarlo al terminar.
+- [ ] Decidir dónde se guarda el informe restringido en la migración real, quién accede y cuándo se borra (#543).

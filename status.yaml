@@ -4228,3 +4228,19 @@ tasks:
       La revision del 08-nov ya estaba resuelta en 733e4fe0; se ha
       verificado el journal y el migrador real de Drizzle sobre una base en
       main.
+  T-2026-11-16-12204258:
+    date: 2026-11-16
+    agent: "backend-api-servicios"
+    task: "Poner #508 al dia con main y aplicar la decision de #543 (informes sin correos)"
+    status: Done
+    related: ["#508", "#543", "#456", "#488"]
+    notes: >
+      La mezcla de main del 16-nov (637d2cd1) dejo roto el test del importador
+      (bloque de #488 dentro del afterEach de autoria, import repetido) y las
+      exportaciones de users.ts duplicadas: el job build fallaba en biome. Se
+      rehace la mezcla. summarizeStepError (de #508) se retira: los pasos de
+      autoria y summarizeReindexError usan summarizeDbStepError. Decision de
+      #543: authorsWithoutAccount y sourceEmailWithoutAccount sin correo en
+      el informe general; --restricted-report <ruta> escribe aparte el correo,
+      con permisos 0600, fuera de --report-dir y sin pisar otro fichero.
+      Falta decidir donde se guarda en la migracion real y quien accede.

@@ -8,7 +8,15 @@ import {
 	spyOn,
 	test,
 } from "bun:test";
-import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
+import {
+	mkdir,
+	mkdtemp,
+	readdir,
+	readFile,
+	rm,
+	stat,
+	writeFile,
+} from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { PGlite } from "@electric-sql/pglite";
@@ -22,6 +30,7 @@ import {
 import { sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/pglite";
 import { isAllowedPreviewImageUrl } from "../../../api/src/services/legacy-preview-image.ts";
+import type { RestrictedReportEntry } from "../restricted-report.ts";
 import {
 	findLegacyJsonFiles,
 	findLegacySourcePairs,
@@ -1114,17 +1123,37 @@ describe("summarizeReindexError (revisión #475)", () => {
 		expect(summary).not.toContain("search_vector");
 	});
 
-	test("conserva el tipo de error, que sirve para diagnosticar", () => {
-		class DrizzleQueryError extends Error {}
-		expect(summarizeReindexError(new DrizzleQueryError("x"))).toContain(
-			"DrizzleQueryError",
+	// #543: usa summarizeDbStepError, el criterio común de los importadores.
+	test("un error de la base de datos queda con su código y su SQLSTATE", () => {
+		const err = Object.assign(
+			new Error("Failed query: update ... params: secreto-del-recurso"),
+			{
+				query: "update resources set search_vector = $1",
+				params: ["secreto-del-recurso"],
+				cause: Object.assign(new Error("secreto-del-recurso"), {
+					code: "22P02",
+					severity: "ERROR",
+				}),
+			},
 		);
-		expect(summarizeReindexError(new TypeError("x"))).toContain("TypeError");
+		const summary = summarizeReindexError(err);
+
+		expect(summary).toBe(
+			"fallo al reindexar: db_error [SQLSTATE 22P02]: error de la base de datos",
+		);
+	});
+
+	test("de otro error conserva solo la clase, que sirve para diagnosticar", () => {
+		expect(summarizeReindexError(new TypeError("secreto"))).toBe(
+			"fallo al reindexar: unexpected_error: error inesperado (TypeError)",
+		);
 	});
 
 	test("admite algo que no es un Error", () => {
-		expect(summarizeReindexError("texto suelto")).toContain("string");
-		expect(summarizeReindexError(undefined)).toContain("undefined");
+		expect(summarizeReindexError("texto suelto")).toBe(
+			"fallo al reindexar: unexpected_error: error inesperado",
+		);
+		expect(summarizeReindexError(undefined)).toContain("error inesperado");
 	});
 });
 
@@ -1267,7 +1296,6 @@ describe("runImportLegacyProcomun — autoría (issue #456)", () => {
 		expect(report.sourceEmailWithoutAccount).toEqual([
 			{
 				externalId: "es_mock",
-				email: "desconocida@ejemplo.test",
 				reason: "no_account",
 				createdBy: "curadora-7",
 			},
@@ -1352,7 +1380,6 @@ describe("runImportLegacyProcomun — autoría (issue #456)", () => {
 		expect(report.authorsWithoutAccount).toEqual([
 			{
 				externalId: "es_mock",
-				email: "nadie@ejemplo.test",
 				reason: "no_account",
 			},
 		]);
@@ -1387,10 +1414,9 @@ describe("runImportLegacyProcomun — autoría (issue #456)", () => {
 		expect(report.authorsWithoutAccount).toEqual([
 			{
 				externalId: "es_mock",
-				email: "baja@ejemplo.test",
 				reason: "deleted_account",
 			},
-			{ externalId: "es_sin_correo", email: null, reason: "no_email" },
+			{ externalId: "es_sin_correo", reason: "no_email" },
 		]);
 	});
 
@@ -1417,7 +1443,6 @@ describe("runImportLegacyProcomun — autoría (issue #456)", () => {
 		expect(report.authorsWithoutAccount).toEqual([
 			{
 				externalId: "es_mock",
-				email: "autora@ejemplo.test",
 				reason: "unverified_account",
 			},
 		]);
@@ -1700,7 +1725,6 @@ describe("runLinkLegacyAuthors", () => {
 		expect(report.authorsWithoutAccount).toEqual([
 			{
 				externalId: "es_sin_cuenta",
-				email: "nadie@ejemplo.test",
 				reason: "no_account",
 			},
 		]);
@@ -1912,5 +1936,330 @@ describe("errores de la base de datos sin datos del recurso (#488)", () => {
 				code: "invalid_record",
 			}),
 		]);
+	});
+});
+
+// #543: el informe general no lleva correos, solo el identificador del
+// recurso, el resultado y el motivo. El correo va, si se pide con
+// --restricted-report, en un informe aparte con permisos 0600.
+describe("informes sin correos e informe restringido (#543)", () => {
+	const EMAIL_RE = /[^\s"'<>()]+@[^\s"'<>()]+/;
+	const SIN_CUENTA = "sin.cuenta@ejemplo.test";
+	const REASIGNADO = "reasignado@ejemplo.test";
+	/** Correo de una cuenta que existe: tampoco debe salir. */
+	const CON_CUENTA = "con.cuenta@ejemplo.test";
+	let pglite: PGlite;
+	/** Error real de Drizzle sobre PGlite con el correo como parámetro. */
+	let dbError: unknown;
+	let base: string;
+	let dir: string;
+	let storageDir: string;
+	let reportDir: string;
+	let output: ReturnType<typeof captureConsole>;
+
+	beforeAll(async () => {
+		pglite = new PGlite();
+		try {
+			await drizzle(pglite).execute(sql`select ${CON_CUENTA}::int`);
+		} catch (error) {
+			dbError = error;
+		}
+		expect(String((dbError as Error).message)).toContain(CON_CUENTA);
+	});
+
+	afterAll(async () => {
+		await pglite.close();
+	});
+
+	const EMAILS: Record<string, string> = {
+		es_sin_cuenta: SIN_CUENTA,
+		es_reasignado: REASIGNADO,
+		es_con_cuenta: CON_CUENTA,
+	};
+
+	beforeEach(async () => {
+		base = await mkdtemp(path.join(tmpdir(), "legacy-543-"));
+		dir = path.join(base, "origen");
+		storageDir = path.join(base, "storage");
+		reportDir = path.join(base, "informes");
+		await mkdir(dir, { recursive: true });
+		await mkdir(storageDir, { recursive: true });
+		for (const [externalId, email] of Object.entries(EMAILS)) {
+			await writeFile(
+				path.join(dir, `${externalId}.json`),
+				JSON.stringify({ idODE: externalId, publicatorEmailStr: email }),
+			);
+			await writeFile(path.join(dir, `${externalId}.elpx`), "fake-zip-bytes");
+		}
+		output = captureConsole();
+	});
+
+	afterEach(async () => {
+		output.restore();
+		await rm(base, { recursive: true, force: true });
+	});
+
+	function deps(overrides: Partial<Deps> = {}): Deps {
+		const mock = buildMockDeps(storageDir);
+		return buildMockDeps(storageDir, {
+			resolveLegacyExternalId: (json) => String(json.idODE ?? ""),
+			mapLegacyRecord: ((json: LegacyOdeJson, fallback: string) => {
+				const mapping = mock.mapLegacyRecord(json, fallback);
+				const externalId = String(json.idODE);
+				return {
+					...mapping,
+					externalId,
+					publicatorEmail: EMAILS[externalId] ?? null,
+					resource: { ...mapping.resource, externalId },
+				};
+			}) as Deps["mapLegacyRecord"],
+			findLegacyAuthorAccount: async (_db, email) =>
+				email === CON_CUENTA
+					? { id: "autora-1", deleted: false, emailVerified: true }
+					: null,
+			linkLegacyResourceAuthor: async () => ({ outcome: "linked" }),
+			repo: {
+				...mock.repo,
+				// es_reasignado ya está importado y tiene un creador real.
+				findLegacyResourceByExternalId: async (_db, _source, externalId) =>
+					externalId === "es_reasignado"
+						? { id: "r-reasignado", slug: "r", createdBy: "editora-7" }
+						: { id: `r-${externalId}`, slug: "r", createdBy: null },
+			},
+			...overrides,
+		});
+	}
+
+	function expectNoEmail(text: string) {
+		expect(text).not.toMatch(EMAIL_RE);
+	}
+
+	test("el informe general de la importación no lleva correos", async () => {
+		const report = await runImportLegacyProcomun(
+			{ sourceDir: dir, dryRun: false },
+			deps(),
+		);
+
+		expectNoEmail(JSON.stringify(report));
+		expectNoEmail(output.text());
+		expect(report.authorsWithoutAccount).toEqual([
+			{ externalId: "es_sin_cuenta", reason: "no_account" },
+		]);
+		expect(report.sourceEmailWithoutAccount).toEqual([
+			{
+				externalId: "es_reasignado",
+				reason: "no_account",
+				createdBy: "editora-7",
+			},
+		]);
+	});
+
+	test("el informe general de --link-authors no lleva correos", async () => {
+		const report = await runLinkLegacyAuthors(
+			{ sourceDir: dir, dryRun: false },
+			deps(),
+		);
+
+		expectNoEmail(JSON.stringify(report));
+		expectNoEmail(output.text());
+		expect(report.authorsWithoutAccount).toEqual([
+			{ externalId: "es_reasignado", reason: "no_account" },
+			{ externalId: "es_sin_cuenta", reason: "no_account" },
+		]);
+	});
+
+	test("solo si se pide, el correo va a la lista restringida", async () => {
+		const restrictedEntries: RestrictedReportEntry[] = [];
+		const report = await runImportLegacyProcomun(
+			{ sourceDir: dir, dryRun: false, restrictedEntries },
+			deps(),
+		);
+
+		expectNoEmail(JSON.stringify(report));
+		expect(restrictedEntries).toEqual([
+			{
+				list: "sourceEmailWithoutAccount",
+				externalId: "es_reasignado",
+				email: REASIGNADO,
+				reason: "no_account",
+				createdBy: "editora-7",
+			},
+			{
+				list: "authorsWithoutAccount",
+				externalId: "es_sin_cuenta",
+				email: SIN_CUENTA,
+				reason: "no_account",
+			},
+		]);
+
+		const linkEntries: RestrictedReportEntry[] = [];
+		await runLinkLegacyAuthors(
+			{ sourceDir: dir, dryRun: true, restrictedEntries: linkEntries },
+			deps(),
+		);
+		expect(linkEntries.map((e) => [e.externalId, e.email])).toEqual([
+			["es_reasignado", REASIGNADO],
+			["es_sin_cuenta", SIN_CUENTA],
+		]);
+	});
+
+	/** Ejecuta el comando del CLI sin salir del proceso de test. */
+	async function runCli(args: string[], d: Deps = deps()) {
+		const exit = spyOn(process, "exit").mockImplementation(((code?: number) => {
+			throw new Error(`process.exit(${code})`);
+		}) as typeof process.exit);
+		try {
+			await importLegacyProcomun(args, async () => d).catch(
+				(error: unknown) => {
+					if (!String(error).includes("process.exit(")) throw error;
+				},
+			);
+		} finally {
+			exit.mockRestore();
+		}
+	}
+
+	async function generalReports(): Promise<string[]> {
+		const names = await readdir(reportDir);
+		return Promise.all(
+			names.map((name) => readFile(path.join(reportDir, name), "utf8")),
+		);
+	}
+
+	test("sin --restricted-report no queda ningún correo en ningún fichero", async () => {
+		await runCli(["--source-dir", dir, "--report-dir", reportDir]);
+
+		const reports = await generalReports();
+		expect(reports).toHaveLength(1);
+		expectNoEmail(reports[0] as string);
+		expectNoEmail(output.text());
+		expect((await readdir(base)).sort()).toEqual([
+			"informes",
+			"origen",
+			"storage",
+		]);
+	});
+
+	test("--restricted-report escribe el correo aparte, con permisos 0600", async () => {
+		const restricted = path.join(base, "privado", "autores.json");
+		for (const mode of [[], ["--link-authors"]]) {
+			await rm(restricted, { force: true });
+			await runCli([
+				"--source-dir",
+				dir,
+				"--report-dir",
+				reportDir,
+				"--restricted-report",
+				restricted,
+				...mode,
+			]);
+
+			expect((await stat(restricted)).mode & 0o777).toBe(0o600);
+			const content = JSON.parse(await readFile(restricted, "utf8"));
+			expect(content.aviso).toContain("datos personales");
+			expect(
+				content.entries.map((e: RestrictedReportEntry) => e.email).sort(),
+			).toEqual([REASIGNADO, SIN_CUENTA]);
+		}
+		for (const report of await generalReports()) expectNoEmail(report);
+		expectNoEmail(output.text());
+	});
+
+	test("--restricted-report no se admite dentro del directorio de informes", async () => {
+		await expect(
+			importLegacyProcomun(
+				[
+					"--source-dir",
+					dir,
+					"--report-dir",
+					reportDir,
+					"--restricted-report",
+					path.join(reportDir, "autores.json"),
+				],
+				async () => deps(),
+			),
+		).rejects.toThrow("fuera del directorio de los informes");
+	});
+
+	test("--restricted-report solo vale para la importación y --link-authors", async () => {
+		await expect(
+			importLegacyProcomun(
+				[
+					"--source-dir",
+					dir,
+					"--fix-published",
+					"--restricted-report",
+					path.join(base, "privado.json"),
+				],
+				async () => deps(),
+			),
+		).rejects.toThrow("--restricted-report");
+	});
+
+	// #543, punto 1: los pasos de autoría pasan por summarizeDbStepError.
+	test("un fallo de la base de datos al buscar la cuenta queda como db_error, sin el correo", async () => {
+		const report = await runImportLegacyProcomun(
+			{ sourceDir: dir, dryRun: false },
+			deps({
+				findLegacyAuthorAccount: async () => {
+					throw dbError;
+				},
+			}),
+		);
+
+		expectNoEmail(JSON.stringify(report));
+		expectNoEmail(output.text());
+		expect(report.records).toContainEqual({
+			outcome: "error",
+			externalId: "es_con_cuenta",
+			code: "db_error",
+			message: "error de la base de datos",
+			sqlState: "22P02",
+		});
+		expect(output.text()).toContain(
+			"[error] es_con_cuenta: db_error [SQLSTATE 22P02]: error de la base de datos",
+		);
+	});
+
+	test("un fallo de la base de datos al enlazar lo ya importado queda como db_error", async () => {
+		const report = await runImportLegacyProcomun(
+			{ sourceDir: dir, dryRun: false },
+			deps({
+				linkLegacyResourceAuthor: async () => {
+					throw dbError;
+				},
+			}),
+		);
+
+		expectNoEmail(JSON.stringify(report));
+		expectNoEmail(output.text());
+		expect(report.records).toContainEqual({
+			outcome: "error",
+			externalId: "es_con_cuenta",
+			code: "db_error",
+			message: "error de la base de datos",
+			sqlState: "22P02",
+		});
+	});
+
+	test("--link-authors resume los fallos de la base de datos sin el correo", async () => {
+		const report = await runLinkLegacyAuthors(
+			{ sourceDir: dir, dryRun: false },
+			deps({
+				linkLegacyResourceAuthor: async () => {
+					throw dbError;
+				},
+			}),
+		);
+
+		expectNoEmail(JSON.stringify(report));
+		expectNoEmail(output.text());
+		expect(report.records).toContainEqual({
+			externalId: "es_con_cuenta",
+			outcome: "error",
+			code: "db_error",
+			message: "error de la base de datos",
+			sqlState: "22P02",
+		});
 	});
 });

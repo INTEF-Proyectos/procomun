@@ -149,3 +149,13 @@ Verde:
 - `describeDbError`: Bun.SQL (SQLSTATE en `errno`), postgres.js (`constraint_name`), restricción que no es un identificador (no se copia), `EPERM` de Node (no es de la base de datos) y causas en ciclo.
 - `bun run check-types` ✅ (0 errores). `bun run lint` (sin la exclusión de `.claude` en `biome.json`, restaurada después) ✅: 0 errores, los 3 avisos de siempre en ficheros que no toca este cambio.
 - `bun run test`: unit 1363 pass y 3 fail, los 3 de #431 en `apps/api/src/routes/elpx-content.unit.test.ts` (los arregla #505). Integración 30 pass, 0 fail. UI 79 pass, 0 fail. `check-coverage`: 1393 pass y los mismos 3 fail; líneas 91,47 % (≥ 90 %), `apps/cli/src/import-errors.ts` al 100 %.
+
+## Informes sin correos e informe restringido — 2026-11-16 (issue #543)
+
+Rojo antes del cambio: los 9 tests nuevos de «informes sin correos e informe restringido (#543)» en `import-legacy-procomun.unit.test.ts` (el informe llevaba `email` y los errores de autoría no tenían `code`) y `restricted-report.unit.test.ts` (el módulo no existía).
+
+Verde:
+
+- `bun test apps/cli/src/restricted-report.unit.test.ts apps/cli/src/commands/import-legacy-procomun.unit.test.ts` → 4 + 59 pass, 0 fail. Informe general serializado (importación, `--link-authors` y los ficheros que escribe el comando) sin ningún correo, tampoco en la consola. Informe restringido con `list`, `externalId`, `email`, `reason` y `createdBy`, permisos `0600`, rechazado dentro de `--report-dir` o con otro modo, y sin pisar un fichero que existe. Errores reales de Drizzle sobre PGlite con el correo como parámetro en la búsqueda de la cuenta, el enlace de lo ya importado y `--link-authors`: `db_error [SQLSTATE 22P02]`, sin el correo.
+- `bun run check-types` ✅ (0 errores). `bun run lint` (sin la exclusión de `.claude`, restaurada después) ✅: 0 errores, los 3 avisos de siempre. `bun run check-test-files` ✅.
+- `bun run check-coverage`: 1781 pass, 0 fail; líneas 92,14 % (≥ 90 %), `restricted-report.ts` al 97,96 %. `bun run test:integration`: 49 pass, 0 fail.

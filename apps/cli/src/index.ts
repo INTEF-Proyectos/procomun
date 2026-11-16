@@ -72,7 +72,7 @@ export function printHelp(log: Pick<typeof console, "log"> = console) {
 		"                    Copia a nuestro almacenamiento las miniaturas legacy enlazadas en caliente (#409)",
 	);
 	log.log(
-		"  import:legacy-procomun --link-authors --source-dir <ruta> [--dry-run] [--report-dir <ruta>]",
+		"  import:legacy-procomun --link-authors --source-dir <ruta> [--dry-run] [--report-dir <ruta>] [--restricted-report <ruta>]",
 	);
 	log.log(
 		"                    Pasa lo ya importado a la cuenta de su autor por publicatorEmailStr; solo lee los .json (#456)",
