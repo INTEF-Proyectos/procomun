@@ -3,10 +3,10 @@
  *
  * El paquete se abre en un origen ficticio (`https://elpx-thumb.invalid/`) y
  * cada petición pasa por aquí: lo que está dentro de `storageDir/elpx/<hash>/`
- * se devuelve con las mismas cabeceras que `routes/elpx-content.ts`, CSP de
- * origen opaco incluida; todo lo demás (otros hosts, otros esquemas, `..`,
- * enlaces simbólicos que salen del paquete) se aborta. El contenido del autor
- * no tiene red.
+ * se devuelve con las cabeceras de `routes/elpx-content.ts`, salvo la CSP del
+ * HTML, que es propia: origen opaco y sin ventanas emergentes. Todo lo demás
+ * (otros hosts, otros esquemas, `..`, enlaces simbólicos que salen del
+ * paquete) se aborta. El contenido del autor no tiene red.
  */
 import { readFile, realpath, stat } from "node:fs/promises";
 import path from "node:path";
@@ -14,12 +14,15 @@ import path from "node:path";
 export const PACKAGE_ORIGIN = "https://elpx-thumb.invalid";
 
 /**
- * Copia de `ELPX_HTML_CSP` (apps/api/src/routes/elpx-content.ts): `sandbox`
- * sin `allow-same-origin` deja el JavaScript del autor en origen opaco. Un
- * test comprueba que sigue siendo igual a la de la API.
+ * CSP propia de la captura (adenda 2026-11-04 de ADR-0046). Parte de
+ * `ELPX_HTML_CSP` (apps/api/src/routes/elpx-content.ts): `sandbox` sin
+ * `allow-same-origin` deja el JavaScript del autor en origen opaco. Además
+ * quita `allow-popups` y `allow-popups-to-escape-sandbox`: el visor los
+ * necesita para que el usuario abra enlaces, la captura no. Un test comprueba
+ * que las demás directivas siguen siendo las de la API.
  */
-export const ELPX_HTML_CSP =
-	"default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; media-src 'self' data: blob: https:; font-src 'self' data:; connect-src 'self'; frame-src 'self' https:; form-action 'self'; base-uri 'self'; sandbox allow-scripts allow-popups allow-forms allow-popups-to-escape-sandbox";
+export const CAPTURE_HTML_CSP =
+	"default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; media-src 'self' data: blob: https:; font-src 'self' data:; connect-src 'self'; frame-src 'self' https:; form-action 'self'; base-uri 'self'; sandbox allow-scripts allow-forms";
 
 /** Copia de `AUTHOR_ASSET_CSP` de la API, para lo que no es HTML. */
 export const AUTHOR_ASSET_CSP = "sandbox; default-src 'none'";
@@ -125,7 +128,7 @@ function contentHeaders(ext: string): Record<string, string> {
 		// El documento corre en origen opaco: sus fuentes y módulos se piden
 		// en modo CORS, igual que con la API.
 		"Access-Control-Allow-Origin": "*",
-		"Content-Security-Policy": isHtml ? ELPX_HTML_CSP : AUTHOR_ASSET_CSP,
+		"Content-Security-Policy": isHtml ? CAPTURE_HTML_CSP : AUTHOR_ASSET_CSP,
 	};
 }
 

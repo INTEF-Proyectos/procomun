@@ -198,6 +198,32 @@ describe.skipIf(!launch)("captura con Chromium (#470)", () => {
 		expect(canaryHits).toEqual([]);
 	}, 40_000);
 
+	// Adenda 2026-11-04 de ADR-0046: la CSP de captura no lleva allow-popups.
+	test("la portada no puede abrir ventanas emergentes", async () => {
+		const target = `http://127.0.0.1:${canary.port}`;
+		const dir = await writePackage(
+			"cccc0008",
+			`<!doctype html><body><h1 id="estado">cargando</h1><script>
+				let popup = null;
+				try { popup = window.open("${target}/popup"); } catch (e) {}
+				document.getElementById("estado").textContent =
+					popup ? "popup=abierta" : "popup=bloqueada";
+			</script></body>`,
+		);
+		const context = await browser.newContext(CONTEXT_OPTIONS);
+		try {
+			await context.route("**/*", packageRouteHandler(dir, OPTIONS));
+			const page = await context.newPage();
+			await page.goto(COVER_URL, { waitUntil: "load", timeout: 10_000 });
+			expect(
+				await page.evaluate('document.getElementById("estado").textContent'),
+			).toBe("popup=bloqueada");
+		} finally {
+			await context.close();
+		}
+		expect(canaryHits).toEqual([]);
+	}, 30_000);
+
 	test("una portada que se va a otra web no deja capturar la página de error", async () => {
 		const dir = await writePackage(
 			"ffff0006",

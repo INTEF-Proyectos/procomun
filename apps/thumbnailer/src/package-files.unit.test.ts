@@ -11,8 +11,8 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import {
 	AUTHOR_ASSET_CSP,
+	CAPTURE_HTML_CSP,
 	decodeDoubleEscapedEntities,
-	ELPX_HTML_CSP,
 	PACKAGE_ORIGIN,
 	packageRelativePath,
 	resolvePackageRequest,
@@ -74,19 +74,18 @@ describe("packageRelativePath", () => {
 });
 
 describe("resolvePackageRequest (#470)", () => {
-	test("sirve el HTML con la CSP de origen opaco", async () => {
+	test("sirve el HTML con la CSP de captura: origen opaco y sin ventanas", async () => {
 		const response = await get("/index.html?nav=false");
 		expect(response.action).toBe("fulfill");
 		if (response.action !== "fulfill") return;
 		expect(response.status).toBe(200);
 		expect(response.headers["Content-Type"]).toBe("text/html");
-		expect(response.headers["Content-Security-Policy"]).toBe(ELPX_HTML_CSP);
-		expect(response.headers["Content-Security-Policy"]).toContain(
-			"sandbox allow-scripts",
-		);
-		expect(response.headers["Content-Security-Policy"]).not.toContain(
-			"allow-same-origin",
-		);
+		const csp = response.headers["Content-Security-Policy"];
+		expect(csp).toBe(CAPTURE_HTML_CSP);
+		expect(sandboxTokens(csp ?? "")).toContain("allow-scripts");
+		expect(csp).not.toContain("allow-same-origin");
+		// Adenda 2026-11-04 de ADR-0046: la captura no abre ventanas.
+		expect(csp).not.toContain("allow-popups");
 		expect(new TextDecoder().decode(response.body as Uint8Array)).toContain(
 			"<h1>Hola</h1>",
 		);
@@ -155,12 +154,51 @@ describe("resolvePackageRequest (#470)", () => {
 	});
 });
 
-// Las copias de la API no pueden divergir: el contenido del autor tiene que
-// correr con la misma política en la miniatura y en el visor.
+/** Directivas de una CSP, sin `sandbox`, indexadas por nombre. */
+function directives(csp: string): Map<string, string> {
+	const map = new Map<string, string>();
+	for (const part of csp.split(";")) {
+		const [name, ...values] = part.trim().split(/\s+/);
+		if (name && name !== "sandbox") map.set(name, values.join(" "));
+	}
+	return map;
+}
+
+/** Permisos de la directiva `sandbox`; null si no la tiene. */
+function sandboxTokens(csp: string): string[] | null {
+	for (const part of csp.split(";")) {
+		const [name, ...values] = part.trim().split(/\s+/);
+		if (name === "sandbox") return values;
+	}
+	return null;
+}
+
+const POPUP_TOKENS = ["allow-popups", "allow-popups-to-escape-sandbox"];
+
+// El contenido del autor corre en la miniatura con las mismas garantías que en
+// el visor, y además sin ventanas emergentes (adenda 2026-11-04 de ADR-0046).
 describe("paridad con routes/elpx-content.ts", () => {
-	test("misma CSP para HTML y para activos", async () => {
+	test("la CSP de captura es la del visor sin ventanas emergentes", async () => {
 		const api = await import("../../api/src/routes/elpx-content.ts");
-		expect(ELPX_HTML_CSP).toBe(api.ELPX_HTML_CSP);
+		// Garantías comunes: mismas directivas de recursos, red y formularios.
+		expect(directives(CAPTURE_HTML_CSP)).toEqual(directives(api.ELPX_HTML_CSP));
+		// Origen opaco en las dos.
+		const viewer = sandboxTokens(api.ELPX_HTML_CSP);
+		const capture = sandboxTokens(CAPTURE_HTML_CSP);
+		expect(viewer).not.toBeNull();
+		expect(capture).not.toBeNull();
+		expect(viewer).not.toContain("allow-same-origin");
+		expect(capture).not.toContain("allow-same-origin");
+		// La captura solo quita permisos, nunca añade.
+		for (const token of capture ?? []) expect(viewer).toContain(token);
+		for (const token of POPUP_TOKENS) expect(capture).not.toContain(token);
+		expect(capture?.sort()).toEqual(
+			(viewer ?? []).filter((token) => !POPUP_TOKENS.includes(token)).sort(),
+		);
+	});
+
+	test("misma CSP para los activos", async () => {
+		const api = await import("../../api/src/routes/elpx-content.ts");
 		expect(AUTHOR_ASSET_CSP).toBe(api.AUTHOR_ASSET_CSP);
 	});
 
