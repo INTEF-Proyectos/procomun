@@ -6,10 +6,12 @@ import {
 
 // #470 (ADR-0046): ningún listado carga el paquete en un iframe. Las tarjetas
 // usan screenshot.png, la imagen legacy, la miniatura generada en el servidor
-// o el marcador del tipo de recurso.
+// o el marcador del tipo de recurso. Desde #458 las tarjetas de Explorar y de
+// recomendados son <article> (llevan dentro el enlace al autor), no <a>: los
+// selectores no fijan la etiqueta.
 const CARD_FRAMES = [
-	"a.resource-card iframe",
-	"a.rc-card iframe",
+	".resource-card iframe",
+	".rc-card iframe",
 	".home-featured-grid iframe",
 	".home-news-grid iframe",
 	".collection-resource-card iframe",
@@ -32,7 +34,7 @@ function trackElpxFrames(page: Page): string[] {
 
 const LISTINGS = [
 	{ name: "portada", path: "/", ready: ".home-featured-hero, .home-news-card" },
-	{ name: "Explorar", path: "/explorar", ready: "a.resource-card" },
+	{ name: "Explorar", path: "/explorar", ready: ".resource-card" },
 	{
 		name: "colección",
 		path: `/colecciones?slug=${PUBLIC_COLLECTION.slug}`,
@@ -59,6 +61,6 @@ test.describe("Tarjetas sin iframe (#470)", () => {
 	test("ficha: los recomendados no cargan el paquete", async ({ page }) => {
 		await page.goto(`/recurso?slug=${PUBLISHED_RESOURCE.slug}`);
 		await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
-		await expect(page.locator("a.rc-card iframe")).toHaveCount(0);
+		await expect(page.locator(".rc-card iframe")).toHaveCount(0);
 	});
 });
