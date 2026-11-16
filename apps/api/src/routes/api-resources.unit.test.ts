@@ -108,8 +108,9 @@ describe("API Resources — con autenticación", () => {
 		});
 		expect(res.status).toBe(403);
 		const body = await res.json();
-		expect(body.error).toBe("Transición no permitida");
-		expect(body.details[0].field).toBe("status");
+		// requireRole("author") rechaza al reader antes de validar la transición (#537).
+		expect(body.error).toBe("Permisos insuficientes");
+		expect(body.details).toBeUndefined();
 	});
 
 	test("POST /api/v1/publish/resources → 400 sin campos obligatorios", async () => {
