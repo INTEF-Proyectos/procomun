@@ -65,3 +65,5 @@ Los archivos subidos se guardan localmente en el directorio configurado mediante
 ## Configuración de Proveedores OIDC
 
 Procomun soporta OpenID Connect para login institucional. Requiere configurar `OIDC_ISSUER`, `OIDC_CLIENT_ID` y `OIDC_CLIENT_SECRET` en el archivo `.env`.
+
+En el proveedor de identidad hay que dar de alta como URL de retorno (redirect URI) `{BETTER_AUTH_URL}/api/auth/callback/oidc`. Hasta Better Auth 1.6 era `{BETTER_AUTH_URL}/api/auth/oauth2/callback/oidc`; un despliegue registrado con esa tiene que cambiarla (ADR-0007, #527).

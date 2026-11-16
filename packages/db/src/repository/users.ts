@@ -114,10 +114,56 @@ export async function updateUser(
 		isActive: boolean;
 	}>,
 ) {
+	const { isActive, ...rest } = data;
+	if (Object.keys(rest).length > 0) {
+		await db
+			.update(user)
+			.set({ ...rest, updatedAt: new Date() })
+			.where(eq(user.id, id));
+	}
+	if (isActive !== undefined) await setUserBlocked(db, id, !isActive);
+}
+
+/** Motivo que se guarda en `ban_reason` cuando bloquea la administración. */
+export const ADMIN_BLOCKED_REASON = "Bloqueada por la administración";
+
+/**
+ * Estado «bloqueado» de una cuenta (#456). `is_active = false` es el estado
+ * de la plataforma (administración, tokens de API) y `banned` el que aplica
+ * better-auth al iniciar sesión; se cambian siempre juntos. Al bloquear se
+ * cierran sus sesiones. Una cuenta dada de baja no se desbloquea.
+ */
+export async function setUserBlocked(
+	db: DrizzleDB,
+	id: string,
+	blocked: boolean,
+	reason: string = ADMIN_BLOCKED_REASON,
+) {
+	const now = new Date();
+	if (blocked) {
+		await db
+			.update(user)
+			.set({
+				isActive: false,
+				banned: true,
+				banReason: reason,
+				banExpires: null,
+				updatedAt: now,
+			})
+			.where(eq(user.id, id));
+		await db.delete(session).where(eq(session.userId, id));
+		return;
+	}
 	await db
 		.update(user)
-		.set({ ...data, updatedAt: new Date() })
-		.where(eq(user.id, id));
+		.set({
+			isActive: true,
+			banned: false,
+			banReason: null,
+			banExpires: null,
+			updatedAt: now,
+		})
+		.where(and(eq(user.id, id), isNull(user.deletedAt)));
 }
 
 /**

@@ -14,6 +14,8 @@ export async function listPublishedResources(opts: {
 	tag?: string;
 	educationalCategory?: string;
 	educationalOption?: string;
+	/** Cuenta que publica (#458). */
+	createdBy?: string;
 	/** Áreas de conocimiento (#448): cualquiera de ellas. */
 	knowledgeAreas?: string[];
 	/** Familias profesionales (#448): cualquiera de ellas. */
@@ -21,6 +23,7 @@ export async function listPublishedResources(opts: {
 }) {
 	const db = getDb().db;
 	const result = await repo.listResources(db, {
+		createdBy: opts.createdBy,
 		limit: opts.limit,
 		offset: opts.offset,
 		search: opts.search,
