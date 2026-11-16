@@ -3870,6 +3870,27 @@ tasks:
       'published'. Las reglas de transición por rol de las colecciones quedan
       fuera: desde #433 solo las crean admin y curator. Tests rojo → verde en validation.unit.test.ts y
       admin.unit.test.ts.
+  T-2026-11-04-13045419:
+    date: 2026-11-04
+    agent: "seguridad-privacidad-legal + backend-api-servicios"
+    task: "La URL de cierre de sesion OIDC sale del documento de descubrimiento"
+    status: Done
+    related: ["#542", "#527", "ADR-0007"]
+    notes: >
+      GET /api/v1/config construia la URL de cierre de sesion como
+      {OIDC_ISSUER}/connect/endsession, la ruta de Duende IdentityServer, el
+      proveedor de demostracion. Keycloak la publica en
+      /realms/<realm>/protocol/openid-connect/logout y Azure AD en otra, asi
+      que con un proveedor real el cierre de sesion institucional apuntaba a
+      una URL inexistente. Ahora sale de end_session_endpoint del documento de
+      descubrimiento, con OIDC_END_SESSION_URL para forzarla. Solo se acepta
+      una URL absoluta http(s), hay limite de 5 s para no colgar
+      /api/v1/config, se guarda en cache el resultado de un proveedor que
+      responde (incluido el null de uno que no publica el campo) y no se
+      guardan los fallos de red ni los 5xx, para que un corte no deje el
+      cierre de sesion roto hasta reiniciar. Adenda fechada en ADR-0007 y
+      variable documentada en .env.example e instalacion.md. Tests con un
+      proveedor de prueba en oidc-discovery.unit.test.ts.
   T-2026-11-04-13020315:
     date: 2026-11-04
     agent: "frontend-ux-accesibilidad"
@@ -4017,6 +4038,30 @@ tasks:
       antes: guarda en PublicCollectionsIsland, tipo string | null en
       api-client y test de regresion. Test ajustado: el toEqual de totals en
       el caso en seco incluye la clave nueva reindexFailed.
+  T-2026-11-04-17115230:
+    date: 2026-11-04
+    agent: "backend-api-servicios"
+    task: "El config de OIDC no espera a la red"
+    status: Done
+    related: ["#542", "#546", "#525"]
+    notes: >
+      Correccion de la entrada T-2026-11-04-13045419. La primera version
+      consultaba el documento de descubrimiento dentro de GET /api/v1/config
+      con await: un endpoint pasaba a depender de una peticion a un tercero.
+      Lo delato el CI de #546: registration.unit.test.ts de #525 deja
+      OIDC_ISSUER apuntando a un proveedor de prueba ya cerrado, y como los
+      ficheros de bun test comparten proceso la peticion agotaba el tope
+      mientras el endpoint esperaba, asi que el test del config se pasaba de
+      su limite de 5 s. Ahora getCachedOidcEndSessionUrl solo lee la cache y
+      nunca espera: con la cache fria lanza el calentado en segundo plano y
+      devuelve null esa vez, que es lo mismo que cuando el proveedor no publica
+      el campo. Una sola consulta en vuelo por issuer. warmOidcEndSessionUrl
+      calienta al arrancar la API (solo si import.meta.main, para no hacerlo en
+      los tests) y un fallo no impide arrancar. No se consulta nada si
+      OIDC_ENABLED no es true. El tope baja a 2 s. Y clearOidcDiscoveryCache
+      limpia tambien las consultas en vuelo: sin eso, una colgada bloqueaba los
+      reintentos de ese issuer el resto del proceso, defecto que saco a la luz
+      uno de los tests nuevos.
   T-2026-11-04-16381948:
     date: 2026-11-04
     agent: "devops-sre + seguridad-privacidad-legal"
