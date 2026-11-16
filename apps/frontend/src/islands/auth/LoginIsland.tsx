@@ -50,7 +50,11 @@ export function LoginIsland() {
 				return;
 			}
 
-			setError(result.error ?? m.auth_bad_credentials());
+			setError(
+				result.code === "BANNED_USER"
+					? m.auth_account_blocked()
+					: (result.error ?? m.auth_bad_credentials()),
+			);
 		} catch {
 			setError(m.auth_connection_error());
 		} finally {
