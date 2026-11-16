@@ -28,6 +28,7 @@ import {
 	type loadImportLegacyProcomunDependencies,
 	runBackfillLegacyEducationalAreas,
 	runCopyLegacyPreviews,
+	runFixLegacyLanguage,
 	runFixLegacyPublished,
 	runImportLegacyProcomun,
 	summarizeReindexError,
@@ -1247,6 +1248,35 @@ describe("errores de la base de datos sin datos del recurso (#488)", () => {
 				sqlState: "22P02",
 			},
 		]);
+	});
+
+	test("--fix-language tampoco copia el error de la base de datos (#572)", async () => {
+		const report = await runFixLegacyLanguage(
+			{ sourceDir: dir, dryRun: false },
+			buildMockDeps(storageDir, {
+				repo: repoWith({
+					fixLegacyResourceLanguage: async () => {
+						throw dbError;
+					},
+				}),
+			}),
+		);
+
+		expectNoResourceData(JSON.stringify(report));
+		expectNoResourceData(output.text());
+		expect(report.totals).toMatchObject({ processed: 1, errored: 1 });
+		expect(report.records).toEqual([
+			{
+				externalId: "es_mock",
+				outcome: "error",
+				code: "db_error",
+				message: "error de la base de datos",
+				sqlState: "22P02",
+			},
+		]);
+		expect(output.text()).toContain(
+			"[error] es_mock: db_error [SQLSTATE 22P02]: error de la base de datos",
+		);
 	});
 
 	test("un fallo de la base de datos fuera de los registros tampoco llega entero al CLI", async () => {
