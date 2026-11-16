@@ -273,15 +273,17 @@ export async function captureThumbnail(
 				});
 				await page.evaluate(FONTS_READY_SCRIPT);
 				await page.addStyleTag({ content: HIDE_CHROME_CSS });
-				const content = (await page.evaluate(
-					VISIBLE_CONTENT_SCRIPT,
-				)) as VisibleContent;
 				await page.waitForTimeout(options.settleMs);
 				// Si la portada se fue a otra web, lo que hay es la página de
 				// error de Chromium (la navegación se abortó): no se captura.
 				if (!page.url().startsWith(`${PACKAGE_ORIGIN}/`)) {
 					return { status: "error", message: "la portada salió del paquete" };
 				}
+				// Se mide después de la espera: lo que se pinta durante settleMs
+				// también cuenta (revisión de #512).
+				const content = (await page.evaluate(
+					VISIBLE_CONTENT_SCRIPT,
+				)) as VisibleContent;
 				if (isEmptyCover(content)) return { status: "empty" };
 				const shot = await screenshotWithinLimit(page, {
 					maxImageBytes: options.maxImageBytes,

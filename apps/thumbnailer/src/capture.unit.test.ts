@@ -154,8 +154,9 @@ describe("captureThumbnail (#470)", () => {
 			`goto ${COVER_URL} load`,
 			"fonts",
 			"hide-chrome",
-			"detect",
+			// Se mide después de la espera (revisión de #512).
 			"settle",
+			"detect",
 		]);
 		expect(COVER_URL).toBe(`${PACKAGE_ORIGIN}/index.html?nav=false`);
 		expect(fake.closed).toBe(1);

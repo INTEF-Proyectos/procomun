@@ -133,6 +133,25 @@ describe.skipIf(!launch)("captura con Chromium (#470)", () => {
 		expect(result).toEqual({ status: "empty" });
 	}, 30_000);
 
+	// Revisión de #512: el contenido se medía antes de la espera y una portada
+	// que se pinta durante settleMs se daba por vacía.
+	test("el contenido que aparece dentro de settleMs se captura", async () => {
+		const dir = await writePackage(
+			"bbbb0007",
+			`<!doctype html><body class="exe-web-site">${EXE_CHROME}<main class="page"></main>
+			<script>setTimeout(() => {
+				const h1 = document.createElement("h1");
+				h1.textContent = "Llega tarde";
+				document.querySelector("main").append(h1);
+			}, 200);</script></body>`,
+		);
+		const { result } = await captureThumbnail(browser, dir, {
+			...OPTIONS,
+			settleMs: 1_000,
+		});
+		expect(result.status).toBe("ok");
+	}, 30_000);
+
 	test("el contenido corre en origen opaco y no sale ninguna petición", async () => {
 		const target = `http://127.0.0.1:${canary.port}`;
 		const dir = await writePackage(
