@@ -18,6 +18,8 @@ El panel está disponible en `/admin` tras autenticarse con el rol `admin` o `cu
 4. **Publicación**: El curador aprueba el recurso y lo hace público.
 5. **Rechazo**: Si el recurso no cumple con los criterios, el curador lo rechaza con feedback para el autor.
 
+Los editores no pasan por este flujo: publican directamente sus borradores cuando cumplen las validaciones de publicación y no pueden enviarlos a revisión ([ADR-0016](../negocio/decisiones/0016-rol-editor-publicacion-directa.md), #506).
+
 ## Importación de datos (CSV, OAI-PMH)
 
 ### Importación masiva desde CSV
