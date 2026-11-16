@@ -12,6 +12,7 @@ const RecursoPage = lazy(() => import("./pages/RecursoPage.tsx"));
 const AyudaPage = lazy(() => import("./pages/AyudaPage.tsx"));
 const ColeccionesPage = lazy(() => import("./pages/ColeccionesPage.tsx"));
 const TagPage = lazy(() => import("./pages/TagPage.tsx"));
+const AutorPage = lazy(() => import("./pages/AutorPage.tsx"));
 const EditarPage = lazy(() => import("./pages/EditarPage.tsx"));
 const NuevoPage = lazy(() => import("./pages/NuevoPage.tsx"));
 
@@ -48,6 +49,7 @@ function AppRoutes() {
 			<Route path="ayuda" element={<AyudaPage />} />
 			<Route path="colecciones" element={<ColeccionesPage />} />
 			<Route path="tags/:slug" element={<TagPage />} />
+			<Route path="autor/:id" element={<AutorPage />} />
 			<Route path="editar" element={<EditarPage />} />
 			<Route path="nuevo" element={<NuevoPage />} />
 		</>
