@@ -18,7 +18,7 @@ El INTEF ha respondido en #504 (2026-11-03 y 2026-11-16):
 - En el Procomún antiguo la baja borra el usuario y sus contenidos, y guarda `uid`, `name`, `surname`, `mail` y `remove_date` en `intef_users_removed`.
 - No hay procedimiento para menores; queda por decidir.
 
-El diseño completo está en `docs/epics/epic-0XX-proteccion-de-datos/design.md`.
+El diseño completo está en `docs/epics/epic-007-proteccion-de-datos/design.md`.
 
 ## Opciones Consideradas
 
@@ -70,7 +70,7 @@ Los puntos 3, 6 y 7, y la edad mínima para registrarse, están pendientes de co
 
 ## Notas de Implementación
 
-* Las fases y tareas están en `docs/epics/epic-0XX-proteccion-de-datos/tasks.md`. Cada una se abre como issue propia.
+* Las fases y tareas están en `docs/epics/epic-007-proteccion-de-datos/tasks.md`. Cada una se abre como issue propia.
 * #533 aplica la visibilidad por campo del §6 del diseño.
 * La épica de comunidades (#493) incorpora las reglas del §7 del diseño sobre los datos de los miembros.
 * Las migraciones nuevas (`legal_acceptances`, `account_removals`, visibilidad del perfil) cogen número cuando se implementen, revisando antes los PR abiertos.

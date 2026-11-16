@@ -1,4 +1,4 @@
-# Requirements — Épica XX: protección de datos en el área de usuario
+# Requirements — Épica 007: protección de datos en el área de usuario
 
 ## Fecha
 2026-11-16

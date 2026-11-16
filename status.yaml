@@ -4195,11 +4195,11 @@ tasks:
   T-2026-11-16-15015380:
     date: 2026-11-16
     agent: "seguridad-privacidad-legal + documentacion-y-roadmap"
-    task: "Abrir la épica XX de protección de datos y ADR-0051 (#504)"
+    task: "Abrir la épica 007 de protección de datos y ADR-0051 (#504)"
     status: In Progress
     related: ["#504", "#533", "#493", "#488", "#456", "#540", "ADR-0051", "ADR-0037", "ADR-0044"]
     notes: >
-      Diseño sin código en docs/epics/epic-0XX-proteccion-de-datos/ con las
+      Diseño sin código en docs/epics/epic-007-proteccion-de-datos/ con las
       respuestas del INTEF del 03-nov y del 16-nov: base 6.1.e, aceptación que
       no es consentimiento, primer acceso de importados y OIDC, enlaces a los
       textos legales de procomun.intef.es, derechos en la sede, baja con

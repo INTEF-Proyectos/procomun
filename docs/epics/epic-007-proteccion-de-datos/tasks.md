@@ -1,4 +1,4 @@
-# Tasks — Épica XX: protección de datos en el área de usuario
+# Tasks — Épica 007: protección de datos en el área de usuario
 
 ## Diseño — 2026-11-16 (issue #504)
 - [x] Recoger las respuestas del INTEF en #504 (2026-11-03 y 2026-11-16).

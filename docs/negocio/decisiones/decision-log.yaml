@@ -362,7 +362,7 @@ ADR-0051:
   date: 2026-11-16
   file: 0051-tratamiento-datos-personales-y-baja-de-cuentas.md
   notes: >
-    Issue #504, épica XX. Base art. 6.1.e RGPD: el registro informa y pide
+    Issue #504, épica 007. Base art. 6.1.e RGPD: el registro informa y pide
     aceptar las condiciones, que no es consentimiento; solo la foto lleva
     consentimiento. Aceptaciones versionadas sin IP; importados y OIDC aceptan
     en el primer acceso. Derechos en la sede. Baja lógica y purga a los 30 días;
