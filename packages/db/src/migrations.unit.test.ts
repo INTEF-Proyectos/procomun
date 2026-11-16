@@ -550,6 +550,50 @@ describe("migración 0016_resource_language_nullable", () => {
 	});
 });
 
+// Issue #456: perfil migrado del Procomún anterior. Era la 0017, pero la 0018
+// de #471 llegó antes a main: pasa a 0019 para ir detrás con un `when` mayor.
+describe("migración 0019_user_profile", () => {
+	// Era la última; con #470 detrás van las de la cola de miniaturas (0020 y
+	// 0021), así que se comprueba que va detrás de todo lo anterior a ellas.
+	test("va detrás de todas las anteriores, hasta la 0018", async () => {
+		const journal = JSON.parse(
+			await readFile(path.join(migrationsDir, "meta/_journal.json"), "utf8"),
+		) as { entries: Array<{ tag: string; when: number }> };
+		const entry = journal.entries.find(
+			(item) => item.tag === "0019_user_profile",
+		);
+		expect(entry).toBeDefined();
+		const previous = journal.entries.filter(
+			(item) => item.tag < "0019_user_profile",
+		);
+		expect(entry?.when).toBeGreaterThan(
+			Math.max(...previous.map((item) => item.when)),
+		);
+		expect(entry?.when ?? 0).toBeGreaterThan(1793200000000);
+	});
+
+	test("es idempotente y el perfil se borra con el usuario", async () => {
+		const migration = (
+			await readFile(path.join(migrationsDir, "0019_user_profile.sql"), "utf8")
+		).replaceAll("--> statement-breakpoint", "");
+		const db = new PGlite();
+		try {
+			await db.exec('CREATE TABLE "user" (id text PRIMARY KEY)');
+			await db.exec(migration);
+			await db.exec(migration);
+			await db.exec(`INSERT INTO "user" (id) VALUES ('u1')`);
+			await db.exec(
+				`INSERT INTO "user_profile" (user_id, country_code, locality) VALUES ('u1', 'ES', 'Burgos')`,
+			);
+			await db.exec(`DELETE FROM "user" WHERE id = 'u1'`);
+			const rows = await db.query('SELECT * FROM "user_profile"');
+			expect(rows.rows).toHaveLength(0);
+		} finally {
+			await db.close();
+		}
+	});
+});
+
 // Renumerada a 0018: la 0016 de #473 ya esta en main y #488 reclamo la 0017
 // para user_profile, asi que esta va detras (AGENTS.md: renumera el ultimo).
 describe("journal combinado de areas y miniaturas (#471)", () => {
@@ -570,7 +614,8 @@ describe("journal combinado de areas y miniaturas (#471)", () => {
 		// propio idx y su propio when, y que 0014 se conserva.
 		expect(screenshots?.idx ?? -1).toBeGreaterThan(areas?.idx ?? 0);
 		expect(screenshots?.when ?? 0).toBeGreaterThan(areas?.when ?? 0);
-		// Ya no es la ultima: detras van las de la cola de miniaturas de #470.
+		// Ya no es la ultima: detras van la 0019_user_profile de #488 y las de
+		// la cola de miniaturas de #470.
 	});
 });
 
@@ -587,12 +632,18 @@ describe("migración 0020_elpx_thumbnail_queue", () => {
 		const screenshots = journal.entries.find(
 			(entry) => entry.tag === "0018_elpx_has_screenshot",
 		);
+		const profile = journal.entries.find(
+			(entry) => entry.tag === "0019_user_profile",
+		);
 		const queue = journal.entries.find(
 			(entry) => entry.tag === "0020_elpx_thumbnail_queue",
 		);
+		expect(profile).toBeDefined();
 		expect(queue?.idx ?? -1).toBeGreaterThan(screenshots?.idx ?? 0);
-		// 1793300000000 es el de 0019_user_profile (#488): esta va detrás.
+		// La 0019_user_profile de #488 ya está en main: esta va justo detrás.
+		expect(queue?.idx).toBe((profile?.idx ?? -2) + 1);
 		expect(queue?.when).toBe(1793400000000);
+		expect(queue?.when ?? 0).toBeGreaterThan(profile?.when ?? Infinity);
 		expect(queue?.when ?? 0).toBeGreaterThan(screenshots?.when ?? 0);
 	});
 
@@ -713,10 +764,10 @@ describe("migración 0021_thumbnail_owner_indexes", () => {
 // salta en silencio y la de índices posterior falla. Se prueba con el migrador
 // real de drizzle sobre PGlite.
 describe("actualización con el migrador de drizzle (#512)", () => {
-	// Última migración de main al abrir la revisión.
-	const MAIN_LAST_TAG = "0018_elpx_has_screenshot";
-	// #488 reservó 0019_user_profile con este `when`.
-	const PR_488_WHEN = 1793300000000;
+	// Última migración de main: la 0019_user_profile de #488, ya mezclada.
+	const MAIN_LAST_TAG = "0019_user_profile";
+	// Última migración de main antes de mezclarse #488.
+	const BEFORE_PROFILE_TAG = "0018_elpx_has_screenshot";
 	const QUEUE_TAG = "0020_elpx_thumbnail_queue";
 	const OWNER_INDEXES_TAG = "0021_thumbnail_owner_indexes";
 	const THUMBNAIL_COLUMNS_QUERY = `SELECT column_name FROM information_schema.columns
@@ -735,11 +786,13 @@ describe("actualización con el migrador de drizzle (#512)", () => {
 	/**
 	 * Base tal como la deja main: el esquema completo sin la cola de miniaturas
 	 * ni sus índices, y la tabla de control de drizzle con todas las entradas
-	 * del journal hasta `MAIN_LAST_TAG`. La cadena 0000→0001 no se puede
-	 * reproducir desde cero (0001 cambia email_verified a boolean sin USING), así
-	 * que se parte del esquema de arranque y se retira lo que añade este PR.
+	 * del journal hasta `lastTag` (por defecto `MAIN_LAST_TAG`). La cadena
+	 * 0000→0001 no se puede reproducir desde cero (0001 cambia email_verified a
+	 * boolean sin USING), así que se parte del esquema de arranque y se retira
+	 * lo que añade este PR. Si la base se quedó antes de la 0019, también se
+	 * retira la tabla de perfiles que crea esa migración.
 	 */
-	async function mainDatabase(): Promise<PGlite> {
+	async function mainDatabase(lastTag = MAIN_LAST_TAG): Promise<PGlite> {
 		const { createTables } = await import("./setup.ts");
 		const db = new PGlite();
 		await createTables(db);
@@ -748,9 +801,12 @@ describe("actualización con el migrador de drizzle (#512)", () => {
 			DROP COLUMN thumbnail_attempts, DROP COLUMN thumbnail_error,
 			DROP COLUMN thumbnail_updated_at, DROP COLUMN thumbnail_next_attempt_at;
 			DROP INDEX IF EXISTS idx_resources_thumbnail_url;`);
+		if (lastTag < MAIN_LAST_TAG) {
+			await db.exec('DROP TABLE "user_profile"');
+		}
 		const journal = await readJournal();
 		const mainLast = journal.entries.findIndex(
-			(entry) => entry.tag === MAIN_LAST_TAG,
+			(entry) => entry.tag === lastTag,
 		);
 		expect(mainLast).toBeGreaterThanOrEqual(0);
 		await db.exec(`CREATE SCHEMA drizzle;
@@ -785,7 +841,8 @@ describe("actualización con el migrador de drizzle (#512)", () => {
 		expect(queueAt).toBeGreaterThan(mainLast);
 		expect(tags.indexOf(OWNER_INDEXES_TAG)).toBe(queueAt + 1);
 		const queue = journal.entries[queueAt] as JournalEntry;
-		expect(queue.when).toBeGreaterThan(PR_488_WHEN);
+		const profile = journal.entries[mainLast] as JournalEntry;
+		expect(queue.when).toBeGreaterThan(profile.when);
 	});
 
 	test("en una base nueva el esquema de arranque trae la cola y sus índices", async () => {
@@ -810,16 +867,24 @@ describe("actualización con el migrador de drizzle (#512)", () => {
 		}
 	});
 
-	test("en una base que ya aplicó la 0019 de #488 aplica la cola y los índices", async () => {
-		const db = await mainDatabase();
+	// Antes se simulaba la 0019 de #488 con una fila a mano en la tabla de
+	// control; ya está en main, así que se aplica la migración real.
+	test("en una base que se quedó en la 0018 aplica la 0019 de main, la cola y los índices", async () => {
+		const db = await mainDatabase(BEFORE_PROFILE_TAG);
 		try {
-			// Así queda la tabla de control tras aplicar 0019_user_profile.
-			await db.query(
-				"INSERT INTO drizzle.__drizzle_migrations (hash, created_at) VALUES ('0019_user_profile', $1)",
-				[PR_488_WHEN],
-			);
+			const profileTable = `SELECT 1 FROM information_schema.tables
+				WHERE table_name = 'user_profile'`;
+			expect((await db.query(profileTable)).rows).toHaveLength(0);
 			await migrateAll(db);
+			expect((await db.query(profileTable)).rows).toHaveLength(1);
 			await expectThumbnailSchema(db);
+			const applied = await db.query<{ created_at: string }>(
+				"SELECT created_at FROM drizzle.__drizzle_migrations ORDER BY id",
+			);
+			const journal = await readJournal();
+			expect(applied.rows.map((row) => Number(row.created_at))).toEqual(
+				journal.entries.map((entry) => entry.when),
+			);
 		} finally {
 			await db.close();
 		}

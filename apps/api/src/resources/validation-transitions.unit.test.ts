@@ -1,7 +1,9 @@
 import { describe, expect, test } from "bun:test";
 import {
+	canTransition,
 	ROLE_LEVELS,
 	TRANSITION_RULES,
+	transitionExclusionError,
 	validateTransition,
 } from "@procomun/db/validation";
 
@@ -52,9 +54,13 @@ describe("validateTransition", () => {
 			expect(r.valid).toBe(true);
 		});
 
-		test("draft → review con editor es válido", () => {
+		// #506: el editor publica directamente; no envía a revisión.
+		test("draft → review con editor es inválido", () => {
 			const r = validateTransition("draft", "review", "editor");
-			expect(r.valid).toBe(true);
+			expect(r.valid).toBe(false);
+			const firstError = r.errors[0];
+			expect(firstError?.field).toBe("status");
+			expect(firstError?.message).toContain("editor");
 		});
 
 		test("review → published con editor es inválido (rol insuficiente)", () => {
@@ -141,6 +147,76 @@ describe("validateTransition", () => {
 			expect(firstError).toBeDefined();
 			expect(firstError?.message).toContain("Estado actual no válido");
 		});
+	});
+});
+
+describe("transiciones por rol (#506)", () => {
+	const statuses = ["draft", "review", "published", "archived"] as const;
+	// Lo que cada rol puede hacer. Solo cambia el editor: pierde draft → review.
+	const allowed: Record<string, string[]> = {
+		reader: [],
+		author: ["draft→review"],
+		editor: ["draft→published"],
+		curator: [
+			"draft→review",
+			"draft→published",
+			"review→draft",
+			"review→published",
+			"published→archived",
+			"archived→draft",
+		],
+		admin: [
+			"draft→review",
+			"draft→published",
+			"review→draft",
+			"review→published",
+			"published→archived",
+			"archived→draft",
+		],
+	};
+
+	for (const [role, transitions] of Object.entries(allowed)) {
+		test(`${role}: ${transitions.join(", ") || "ninguna"}`, () => {
+			const valid: string[] = [];
+			for (const from of statuses) {
+				for (const to of statuses) {
+					if (validateTransition(from, to, role).valid) {
+						valid.push(`${from}→${to}`);
+					}
+				}
+			}
+			expect(valid).toEqual(transitions);
+		});
+	}
+
+	test("canTransition coincide con validateTransition", () => {
+		for (const role of Object.keys(allowed)) {
+			for (const from of statuses) {
+				for (const to of statuses) {
+					expect(canTransition(from, to, role)).toBe(
+						validateTransition(from, to, role).valid,
+					);
+				}
+			}
+		}
+	});
+
+	test("canTransition con un rol desconocido no permite nada", () => {
+		expect(canTransition("draft", "review", "desconocido")).toBe(false);
+	});
+
+	test("transitionExclusionError solo señala al editor en draft → review", () => {
+		expect(transitionExclusionError("draft", "review", "editor")).toEqual({
+			field: "status",
+			message: "El rol editor no puede hacer esta transición: draft → review",
+		});
+		for (const role of ["reader", "author", "curator", "admin"]) {
+			expect(transitionExclusionError("draft", "review", role)).toBeNull();
+		}
+		expect(transitionExclusionError("draft", "published", "editor")).toBeNull();
+		expect(
+			transitionExclusionError("estado-raro", "review", "editor"),
+		).toBeNull();
 	});
 });
 
