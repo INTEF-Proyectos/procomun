@@ -288,9 +288,11 @@ export const MOCK_USER_PROFILE: PublicUserProfile = {
 
 export const MOCK_DASHBOARD: DashboardSummary = {
 	user: MOCK_USER_PROFILE,
-	recentResources: MOCK_RESOURCES.slice(0, 4),
 	draftCount: 3,
 	publishedCount: 12,
+	reviewCount: 1,
+	archivedCount: 0,
+	resourceCount: 16,
 	favoriteCount: 47,
 	recentActivity: [
 		{
