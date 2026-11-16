@@ -1,37 +1,17 @@
-import { favorites, ratings, resources } from "@procomun/db/schema";
-import { and, desc, eq, isNull, sql } from "drizzle-orm";
+import * as repo from "@procomun/db/repository";
+import { favorites, ratings } from "@procomun/db/schema";
+import { eq, sql } from "drizzle-orm";
 import { getDb } from "../db.ts";
-import { enrichResourceCards } from "./resource-card.ts";
 
+/**
+ * Resumen del perfil. «Mis recursos» ya no va aquí (eran los 5 últimos): tiene
+ * su propio listado paginado en GET /users/me/resources (#530).
+ */
 export async function getUserDashboardSummary(userId: string) {
 	const db = getDb().db;
-	const [
-		draftResult,
-		publishedResult,
-		favResult,
-		ratingCountResult,
-		recentResources,
-	] = await Promise.all([
-		db
-			.select({ count: sql<number>`count(*)` })
-			.from(resources)
-			.where(
-				and(
-					eq(resources.createdBy, userId),
-					eq(resources.editorialStatus, "draft"),
-					isNull(resources.deletedAt),
-				),
-			),
-		db
-			.select({ count: sql<number>`count(*)` })
-			.from(resources)
-			.where(
-				and(
-					eq(resources.createdBy, userId),
-					eq(resources.editorialStatus, "published"),
-					isNull(resources.deletedAt),
-				),
-			),
+	const [statusCounts, favResult, ratingCountResult] = await Promise.all([
+		// #530: los cuatro estados con las mismas condiciones que «Mis recursos».
+		repo.countResourcesByStatus(db, { createdBy: userId }),
 		db
 			.select({ count: sql<number>`count(*)` })
 			.from(favorites)
@@ -40,34 +20,15 @@ export async function getUserDashboardSummary(userId: string) {
 			.select({ count: sql<number>`count(*)` })
 			.from(ratings)
 			.where(eq(ratings.userId, userId)),
-		db
-			.select({
-				id: resources.id,
-				slug: resources.slug,
-				title: resources.title,
-				description: resources.description,
-				language: resources.language,
-				license: resources.license,
-				resourceType: resources.resourceType,
-				keywords: resources.keywords,
-				author: resources.author,
-				publisher: resources.publisher,
-				editorialStatus: resources.editorialStatus,
-				createdBy: resources.createdBy,
-				createdAt: resources.createdAt,
-				updatedAt: resources.updatedAt,
-			})
-			.from(resources)
-			.where(and(eq(resources.createdBy, userId), isNull(resources.deletedAt)))
-			.orderBy(desc(resources.updatedAt))
-			.limit(5),
 	]);
 
 	return {
-		draftCount: Number(draftResult[0]?.count ?? 0),
-		publishedCount: Number(publishedResult[0]?.count ?? 0),
+		draftCount: statusCounts.draft,
+		reviewCount: statusCounts.review,
+		publishedCount: statusCounts.published,
+		archivedCount: statusCounts.archived,
+		resourceCount: statusCounts.total,
 		favoriteCount: Number(favResult[0]?.count ?? 0),
 		ratingCount: Number(ratingCountResult[0]?.count ?? 0),
-		recentResources: await enrichResourceCards(recentResources),
 	};
 }

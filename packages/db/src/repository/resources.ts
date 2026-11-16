@@ -62,6 +62,8 @@ type ResourceListOptions = {
 	 * SQL de `isOthersPrivateDraft` (validation.ts) para el listado del curator.
 	 */
 	hideOthersDraftsFor?: string;
+	/** Orden descendente por fecha de alta (por defecto) o de edición (#530). */
+	orderBy?: "createdAt" | "updatedAt";
 };
 
 type ResourceMutationInput = {
@@ -188,8 +190,11 @@ async function attachResourceTaxonomies<
 	};
 }
 
-export async function listResources(db: DrizzleDB, opts: ResourceListOptions) {
-	const { limit, offset } = normalizePagination(opts.limit, opts.offset);
+/**
+ * Condiciones del listado de recursos, compartidas por `listResources` y
+ * `countResourcesByStatus` para que los contadores cuadren con la lista (#530).
+ */
+function resourceListConditions(opts: ResourceListOptions) {
 	const conditions = [isNull(resources.deletedAt)];
 
 	if (opts.search) {
@@ -284,7 +289,15 @@ export async function listResources(db: DrizzleDB, opts: ResourceListOptions) {
 		if (visibility) conditions.push(visibility);
 	}
 
-	const where = andWhere(conditions);
+	return conditions;
+}
+
+export async function listResources(db: DrizzleDB, opts: ResourceListOptions) {
+	const { limit, offset } = normalizePagination(opts.limit, opts.offset);
+	const where = andWhere(resourceListConditions(opts));
+	// #530: «Mis recursos» enseña primero lo último editado.
+	const orderColumn =
+		opts.orderBy === "updatedAt" ? resources.updatedAt : resources.createdAt;
 	const rows = await db
 		.select(resourceListSelection)
 		.from(resources)
@@ -292,7 +305,7 @@ export async function listResources(db: DrizzleDB, opts: ResourceListOptions) {
 		.where(where)
 		.limit(limit)
 		.offset(offset)
-		.orderBy(desc(resources.createdAt));
+		.orderBy(desc(orderColumn), desc(resources.id));
 
 	const countResult = await db
 		.select({ count: sql<number>`count(*)` })
@@ -308,6 +321,50 @@ export async function listResources(db: DrizzleDB, opts: ResourceListOptions) {
 		limit,
 		offset,
 	};
+}
+
+export type ResourceStatusCounts = {
+	draft: number;
+	review: number;
+	published: number;
+	archived: number;
+	total: number;
+};
+
+/**
+ * Recursos por estado editorial con los mismos filtros que `listResources`
+ * (el estado se ignora). Es lo que cuentan «Mis recursos» y el perfil (#530).
+ */
+export async function countResourcesByStatus(
+	db: DrizzleDB,
+	opts: Omit<ResourceListOptions, "status" | "limit" | "offset" | "orderBy">,
+): Promise<ResourceStatusCounts> {
+	const rows = await db
+		.select({
+			status: resources.editorialStatus,
+			count: sql<number>`count(*)`,
+		})
+		.from(resources)
+		.leftJoin(user, eq(resources.createdBy, user.id))
+		.where(andWhere(resourceListConditions(opts)))
+		.groupBy(resources.editorialStatus);
+
+	const counts: ResourceStatusCounts = {
+		draft: 0,
+		review: 0,
+		published: 0,
+		archived: 0,
+		total: 0,
+	};
+	for (const row of rows) {
+		const count = Number(row.count ?? 0);
+		counts.total += count;
+		if (row.status && row.status in counts && row.status !== "total") {
+			counts[row.status as Exclude<keyof ResourceStatusCounts, "total">] +=
+				count;
+		}
+	}
+	return counts;
 }
 
 export async function getResourceById(db: DrizzleDB, id: string) {
