@@ -4194,3 +4194,23 @@ tasks:
       La revision del 08-nov ya estaba resuelta en 733e4fe0; se ha
       verificado el journal y el migrador real de Drizzle sobre una base en
       main.
+  T-2026-11-16-13581092:
+    date: 2026-11-16
+    agent: "ingestas-y-migraciones + backend-api-servicios"
+    task: "Importador de itinerarios legacy como colecciones (#432)"
+    status: Done
+    related: ["#432", "#548", "#538", "#508", "#543", "ADR-0008", "ADR-0029"]
+    notes: >
+      import:legacy-itineraries importa el JSON de itinerarios como
+      colecciones. Clave (import_source, external_id) con indice unico
+      parcial (migracion 0022; la 0020 y la 0021 son de #512). Propietario:
+      la cuenta del correo de publicatorEmailStr (regla de #508); sin cuenta,
+      borrador a nombre del usuario de sistema. Recursos: ODE y luego
+      articulos, en el orden del JSON; los no importados se omiten y salen en
+      el informe, que no lleva correos (#543). isOrdered = true. Se descartan
+      knowledgeArea, labelsStr, learningContext y educationalDescription.
+      API: el propietario author o editor ve, lista y edita sus colecciones y
+      las manda a revision; no crea, no borra, no publica ni archiva
+      (adenda de ADR-0008). Apilado sobre #548. Pendiente: visitas e
+      interfaz «Mis colecciones» (issues aparte), y cambiar a
+      findLegacyAuthorAccount y --restricted-report cuando #508 llegue a main.

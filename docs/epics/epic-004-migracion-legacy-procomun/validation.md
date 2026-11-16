@@ -130,3 +130,18 @@ Verde:
 - `describeDbError`: Bun.SQL (SQLSTATE en `errno`), postgres.js (`constraint_name`), restricción que no es un identificador (no se copia), `EPERM` de Node (no es de la base de datos) y causas en ciclo.
 - `bun run check-types` ✅ (0 errores). `bun run lint` (sin la exclusión de `.claude` en `biome.json`, restaurada después) ✅: 0 errores, los 3 avisos de siempre en ficheros que no toca este cambio.
 - `bun run test`: unit 1363 pass y 3 fail, los 3 de #431 en `apps/api/src/routes/elpx-content.unit.test.ts` (los arregla #505). Integración 30 pass, 0 fail. UI 79 pass, 0 fail. `check-coverage`: 1393 pass y los mismos 3 fail; líneas 91,47 % (≥ 90 %), `apps/cli/src/import-errors.ts` al 100 %.
+
+## Importador de itinerarios como colecciones — 2026-11-16 (#432)
+
+Rojo antes del cambio:
+
+- `packages/db/src/legacy-import/itinerary.unit.test.ts`: no cargaba (`itinerary.ts` no existía).
+- `apps/api/src/routes/admin.unit.test.ts` y `apps/api/src/auth/roles.unit.test.ts`: 8 fallos. El propietario editor o author recibía 403 en `GET`, `PATCH` y las subrutas de su colección y no podía listarla. Tampoco había regla para que no publicara.
+
+Verde:
+
+- Mapeo, repositorio, CLI, migraciones y API: `itinerary.unit.test.ts` (16 pass con `publicator-email`), `legacy-collections.unit.test.ts` y `migrations.unit.test.ts` (32 pass), `import-legacy-itineraries.unit.test.ts` (5 pass), `import-legacy-itineraries.integration.test.ts` (6 pass), `admin.unit.test.ts` + `roles.unit.test.ts` + `crud-builder.unit.test.ts` (120 pass).
+- Integración con el `itinerarios.json` real (quien publica, anonimizado) sobre PGlite: dos colecciones. La del itinerario 2 queda a nombre de la cuenta con su correo (con mayúsculas y un espacio al final en el JSON), publicada y con los cuatro ODE sembrados en el orden del JSON. El pódcast no está sembrado y se omite. La del itinerario 1 queda en borrador a nombre del usuario de sistema, con su ODE y sin el artículo. El informe no lleva `@` ni nombres. La segunda pasada da `unchanged` y no cambia id, slug ni `updated_at`. También se prueban `--dry-run` (no escribe ni crea el usuario de sistema), `--only`, `--limit`, una cuenta de baja (no la recibe), una bloqueada (sí) y una sin verificar que no es del importador de usuarios (no). Un error de restricción sale como `constraint_violation` con su SQLSTATE, sin la consulta.
+- Prueba real con el CLI (`bun run apps/cli/src/index.ts import:legacy-itineraries`) y el JSON original sobre una PGlite nueva. En seco: `a_crear=2`, `sin_propietario=2`, `recursos_no_encontrados=7`. Real: `creadas=2`. Repetido: `sin_cambios=2`. Después se sembraron los cinco ODE adjuntos a la issue y la cuenta del autor del itinerario 2 (id `legacy-procomun:user:…`, sin verificar), y se relanzó: `actualizadas=2`, `sin_propietario=1`, `recursos_no_encontrados=2`. El itinerario 2 pasa a su autor (`owner: "linked"`) y a `published` con los cuatro ODE en orden. El 1 sigue en borrador a nombre del sistema con su ODE. Ningún informe lleva `@` ni los nombres de origen.
+- `bun run check-types` ✅ (0 errores). `bun run check-test-files` ✅. `bun run check-tracking` ✅. `bun run lint` (con la exclusión de `.claude` renombrada en `biome.json` y restaurada después): 0 errores; los avisos son de ficheros que no toca este cambio.
+- `bun run check-coverage`: 1784 pass, 0 fail; cobertura de líneas 92,13 % (≥ 90 %).

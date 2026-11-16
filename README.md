@@ -164,6 +164,15 @@ Para corregir el idioma «es» puesto por defecto (#473): `make cli ARGS="import
 
 Al terminar escribe un `informe_ingesta-<runId>.json` con el desglose (importados, omitidos por ya existir, bloqueados por licencia no reconocida u otros motivos, y warnings tolerables).
 
+Los itinerarios del Procomún antiguo se importan como colecciones (#432), después de los usuarios y los recursos:
+
+```bash
+make cli ARGS="import:legacy-itineraries --source-file <itinerarios.json> --dry-run"
+make cli ARGS="import:legacy-itineraries --source-file <itinerarios.json>"
+```
+
+Flags: `--source-file <ruta>` (obligatorio), `--dry-run`, `--limit <n>`, `--only <id del itinerario>` y `--report-dir <ruta>`. Cada colección queda a nombre de la cuenta con el correo de `publicatorEmailStr`. Si no hay cuenta, queda en borrador a nombre del usuario de sistema. Los recursos que aún no estén importados se omiten. Es idempotente. El informe `informe_itinerarios-<runId>.json` no lleva correos. Detalle en el `design.md` de la épica (sección del 2026-11-16).
+
 **Con PGlite (por defecto, sin `DATABASE_URL`)**: detén el servidor de desarrollo (`make up` / `make up-api`) antes de lanzar el import — PGlite es una base de datos embebida de un solo proceso y no soporta que dos procesos abran el mismo directorio de datos a la vez. Con PostgreSQL real (`make up-postgres` o `DATABASE_URL` configurada) no hace falta parar nada, ya que Postgres sí admite conexiones concurrentes de varios procesos.
 
 Documentación completa: [ADR-0029](docs/negocio/decisiones/0029-importador-legacy-procomun-elpx.md) y [`docs/epics/epic-004-migracion-legacy-procomun/`](docs/epics/epic-004-migracion-legacy-procomun/) (requisitos, diseño, mapeo de campos, resultados del piloto).
