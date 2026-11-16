@@ -92,4 +92,11 @@ describe("PublicCollectionsIsland", () => {
 		expect(meta).toStartWith("<span>EN</span><span>cc-by</span>");
 		expect(meta).toContain("Autora");
 	});
+
+	test("la ficha de la colección tiene el botón para denunciarla (#539)", () => {
+		const html = renderCollectionDetail({});
+
+		expect(html).toContain('aria-label="Reportar colección"');
+		expect(html).toContain("collection-report-btn");
+	});
 });

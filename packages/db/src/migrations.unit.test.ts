@@ -551,7 +551,8 @@ describe("migración 0016_resource_language_nullable", () => {
 // Issue #456: perfil migrado del Procomún anterior. Era la 0017, pero la 0018
 // de #471 llegó antes a main: pasa a 0019 para ir detrás con un `when` mayor.
 describe("migración 0019_user_profile", () => {
-	test("va la última en el journal y detrás de las 0012–0016 en curso", async () => {
+	// Era la última hasta la 0025 de #539, que va detrás.
+	test("va detrás de las 0012–0018 en el journal", async () => {
 		const journal = JSON.parse(
 			await readFile(path.join(migrationsDir, "meta/_journal.json"), "utf8"),
 		) as { entries: Array<{ tag: string; when: number }> };
@@ -559,8 +560,11 @@ describe("migración 0019_user_profile", () => {
 			(item) => item.tag === "0019_user_profile",
 		);
 		expect(entry).toBeDefined();
-		expect(entry?.when).toBe(
-			Math.max(...journal.entries.map((item) => item.when)),
+		const previous = journal.entries.filter(
+			(item) => item.tag < "0019_user_profile",
+		);
+		expect(entry?.when ?? 0).toBeGreaterThan(
+			Math.max(...previous.map((item) => item.when)),
 		);
 		expect(entry?.when ?? 0).toBeGreaterThan(1793200000000);
 	});
@@ -607,7 +611,106 @@ describe("journal combinado de areas y miniaturas (#471)", () => {
 		// propio idx y su propio when, y que 0014 se conserva.
 		expect(screenshots?.idx ?? -1).toBeGreaterThan(areas?.idx ?? 0);
 		expect(screenshots?.when ?? 0).toBeGreaterThan(areas?.when ?? 0);
-		// Detras solo va la 0019_user_profile de #488, que se mezclo despues.
-		expect(journal.entries.at(-1)?.tag).toBe("0019_user_profile");
+		// Detras va la 0019_user_profile de #488, que se mezclo despues (y,
+		// desde #539, la 0025 de las denuncias de colecciones).
+		const tags = journal.entries.map((entry) => entry.tag);
+		expect(tags.indexOf("0019_user_profile")).toBeGreaterThan(
+			tags.indexOf("0018_elpx_has_screenshot"),
+		);
+	});
+});
+
+// Issue #539: las colecciones también se pueden denunciar. Una denuncia apunta
+// a un recurso o a una colección, nunca a los dos ni a ninguno.
+// #512 tiene la 0020 y la 0021, #573 la 0022: esta es la 0025.
+describe("migración 0025_reports_collections", () => {
+	const OLD_SCHEMA = `CREATE TABLE "user" (id TEXT PRIMARY KEY);
+		CREATE TABLE "resources" (id TEXT PRIMARY KEY);
+		CREATE TABLE "collections" (id TEXT PRIMARY KEY);
+		CREATE TABLE "reports" (
+			id TEXT PRIMARY KEY,
+			resource_id TEXT NOT NULL REFERENCES "resources"(id) ON DELETE CASCADE,
+			reporter_id TEXT REFERENCES "user"(id) ON DELETE SET NULL,
+			reason VARCHAR(50) NOT NULL,
+			status VARCHAR(20) NOT NULL DEFAULT 'pending'
+		);
+		INSERT INTO "resources" (id) VALUES ('r1');
+		INSERT INTO "collections" (id) VALUES ('c1');
+		INSERT INTO "reports" (id, resource_id, reason) VALUES ('previa', 'r1', 'spam');`;
+	const sqlText = (value: string | null) => (value ? `'${value}'` : "NULL");
+	const insert = (
+		id: string,
+		resourceId: string | null,
+		collectionId: string | null,
+	) =>
+		`INSERT INTO "reports" (id, resource_id, collection_id, reason)
+		VALUES ('${id}', ${sqlText(resourceId)}, ${sqlText(collectionId)}, 'spam')`;
+
+	test("está en el journal con el when que le toca, detrás de 0019", async () => {
+		const journal = JSON.parse(
+			await readFile(path.join(migrationsDir, "meta/_journal.json"), "utf8"),
+		) as { entries: Array<{ idx: number; tag: string; when: number }> };
+		const entry = journal.entries.find(
+			(item) => item.tag === "0025_reports_collections",
+		);
+		const profile = journal.entries.find(
+			(item) => item.tag === "0019_user_profile",
+		);
+		expect(entry?.when).toBe(1793900000000);
+		expect(entry?.when ?? 0).toBeGreaterThan(profile?.when ?? Infinity);
+	});
+
+	async function assertSchema(db: PGlite) {
+		// La denuncia previa sigue apuntando a su recurso.
+		const previous = await db.query<{ resource_id: string }>(
+			`SELECT resource_id FROM "reports" WHERE id = 'previa'`,
+		);
+		expect(previous.rows).toEqual([{ resource_id: "r1" }]);
+		await db.exec(insert("a-coleccion", null, "c1"));
+		await expect(db.exec(insert("a-nada", null, null))).rejects.toThrow();
+		await expect(db.exec(insert("a-ambos", "r1", "c1"))).rejects.toThrow();
+		// Al borrar la colección se van sus denuncias.
+		await db.exec(`DELETE FROM "collections" WHERE id = 'c1'`);
+		const rows = await db.query<{ id: string }>(
+			`SELECT id FROM "reports" ORDER BY id`,
+		);
+		expect(rows.rows).toEqual([{ id: "previa" }]);
+	}
+
+	test("es idempotente y admite denuncias de colecciones", async () => {
+		const migration = (
+			await readFile(
+				path.join(migrationsDir, "0025_reports_collections.sql"),
+				"utf8",
+			)
+		).replaceAll("--> statement-breakpoint", "");
+		const db = new PGlite();
+		try {
+			await db.exec(OLD_SCHEMA);
+			await db.exec(migration);
+			await db.exec(migration);
+			await assertSchema(db);
+		} finally {
+			await db.close();
+		}
+	});
+
+	test("el esquema de arranque (setup.ts) hace lo mismo en una base previa", async () => {
+		const statements = SCHEMA_STATEMENTS.filter((statement) =>
+			/"reports"[\s\S]*(collection_id|resource_id DROP NOT NULL)/.test(
+				statement,
+			),
+		);
+		expect(statements.length).toBeGreaterThan(0);
+		const db = new PGlite();
+		try {
+			await db.exec(OLD_SCHEMA);
+			for (const statement of [...statements, ...statements]) {
+				await db.exec(statement);
+			}
+			await assertSchema(db);
+		} finally {
+			await db.close();
+		}
 	});
 });

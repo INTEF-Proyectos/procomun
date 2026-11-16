@@ -233,9 +233,13 @@ export interface PaginatedResult<T> {
 
 export interface ReportRecord {
 	id: string;
-	resourceId: string;
-	resourceTitle?: string;
-	resourceSlug?: string;
+	/** Una denuncia apunta a un recurso o a una colección (#539). */
+	resourceId: string | null;
+	resourceTitle?: string | null;
+	resourceSlug?: string | null;
+	collectionId?: string | null;
+	collectionTitle?: string | null;
+	collectionSlug?: string | null;
 	reporterId?: string | null;
 	reporterName?: string | null;
 	reason: string;
@@ -692,12 +696,18 @@ export interface ApiClient {
 		reason: string,
 		description?: string,
 	): Promise<{ id: string }>;
+	reportCollection(
+		slug: string,
+		reason: string,
+		description?: string,
+	): Promise<{ id: string }>;
 
 	// Admin Reports
 	listReports(opts?: {
 		status?: string;
 		reason?: string;
 		resourceId?: string;
+		collectionId?: string;
 		limit?: number;
 		offset?: number;
 	}): Promise<PaginatedResult<ReportRecord>>;

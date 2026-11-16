@@ -1056,11 +1056,32 @@ export class HttpApiClient implements ApiClient {
 		reason: string,
 		description?: string,
 	): Promise<{ id: string }> {
-		const res = await fetch(`/api/v1/resources/${slug}/report`, {
+		return this.postReport(`/api/v1/resources/${slug}/report`, {
+			reason,
+			description,
+		});
+	}
+
+	async reportCollection(
+		slug: string,
+		reason: string,
+		description?: string,
+	): Promise<{ id: string }> {
+		return this.postReport(`/api/v1/collections/${slug}/report`, {
+			reason,
+			description,
+		});
+	}
+
+	private async postReport(
+		endpoint: string,
+		body: { reason: string; description?: string },
+	): Promise<{ id: string }> {
+		const res = await fetch(endpoint, {
 			method: "POST",
 			headers: { "Content-Type": "application/json" },
 			credentials: "include",
-			body: JSON.stringify({ reason, description }),
+			body: JSON.stringify(body),
 		});
 		if (!res.ok) {
 			const err = await res.json().catch(() => ({}));
@@ -1073,6 +1094,7 @@ export class HttpApiClient implements ApiClient {
 		status?: string;
 		reason?: string;
 		resourceId?: string;
+		collectionId?: string;
 		limit?: number;
 		offset?: number;
 	}): Promise<PaginatedResult<ReportRecord>> {
@@ -1080,6 +1102,7 @@ export class HttpApiClient implements ApiClient {
 		if (opts?.status) params.set("status", opts.status);
 		if (opts?.reason) params.set("reason", opts.reason);
 		if (opts?.resourceId) params.set("resourceId", opts.resourceId);
+		if (opts?.collectionId) params.set("collectionId", opts.collectionId);
 		if (opts?.limit) params.set("limit", String(opts.limit));
 		if (opts?.offset) params.set("offset", String(opts.offset));
 		const res = await fetch(`/api/admin/reports?${params}`, {

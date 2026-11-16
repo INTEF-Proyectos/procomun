@@ -111,3 +111,12 @@ En desarrollo
 
 ### Cierre
 - [x] Registrar validación final y cierre de la iteración.
+
+## Denuncias de colecciones (#539) — 2026-11-16
+
+- [x] Migración `0025_reports_collections`: una denuncia apunta a un recurso o a una colección (CHECK `reports_target_check`); la denuncia se borra con la colección.
+- [x] `POST /api/v1/collections/:slug/report`: con sesión, solo colecciones publicadas y con los mismos motivos que los recursos.
+- [x] `/api/admin/reports`: las denuncias de colecciones salen en la misma cola, se filtran por `collectionId` y se resuelven con `collection_edited`, `collection_deactivated` (archiva) o `collection_deleted`.
+- [x] Botón «Reportar» en la ficha pública de la colección y columna «Contenido» en la cola de administración.
+- [x] Textos de `ReportButton` y `AdminReportsSection` con Paraglide (es, en, ca, gl, eu).
+- [ ] Pendiente de producto: motivos propios para colecciones y si un curator puede resolver denuncias de sus propias colecciones.

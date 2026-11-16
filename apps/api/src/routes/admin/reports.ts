@@ -18,6 +18,7 @@ reportRoutes.get("/", async (c) => {
 	const status = c.req.query("status");
 	const reason = c.req.query("reason");
 	const resourceId = c.req.query("resourceId");
+	const collectionId = c.req.query("collectionId");
 
 	const result = await repo.listReports(getDb().db, {
 		limit,
@@ -25,6 +26,7 @@ reportRoutes.get("/", async (c) => {
 		status: status || undefined,
 		reason: reason || undefined,
 		resourceId: resourceId || undefined,
+		collectionId: collectionId || undefined,
 	});
 
 	return c.json(result);
@@ -82,6 +84,25 @@ reportRoutes.patch("/:id", async (c) => {
 		);
 	}
 
+	// #539: una acción de recurso no vale para una colección, ni al revés.
+	const target: repo.ReportTarget = report.collectionId
+		? "collection"
+		: "resource";
+	if (
+		body.actionTaken &&
+		!repo.isReportActionAllowed(body.actionTaken as repo.ReportAction, target)
+	) {
+		return c.json(
+			{
+				error:
+					target === "collection"
+						? "Esa acción no se aplica a una colección"
+						: "Esa acción no se aplica a un recurso",
+			},
+			400,
+		);
+	}
+
 	await repo.updateReport(getDb().db, id, {
 		status: body.status as repo.ReportStatus | undefined,
 		moderatorId: currentUser.id,
@@ -99,6 +120,19 @@ reportRoutes.patch("/:id", async (c) => {
 		);
 	} else if (body.actionTaken === "resource_deleted" && report.resourceId) {
 		await repo.deleteResource(getDb().db, report.resourceId);
+	} else if (
+		body.actionTaken === "collection_deactivated" &&
+		report.collectionId
+	) {
+		await repo.updateCollection(getDb().db, report.collectionId, {
+			editorialStatus: "archived",
+		});
+	} else if (body.actionTaken === "collection_deleted" && report.collectionId) {
+		// La denuncia se borra con la colección (ON DELETE CASCADE): se devuelve
+		// tal como quedó resuelta.
+		const resolved = await repo.getReportById(getDb().db, id);
+		await repo.deleteCollection(getDb().db, report.collectionId);
+		return c.json(resolved);
 	}
 
 	const updated = await repo.getReportById(getDb().db, id);

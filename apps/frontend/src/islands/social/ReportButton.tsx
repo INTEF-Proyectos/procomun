@@ -1,25 +1,43 @@
 import { useState } from "react";
+import type { ApiClient } from "../../lib/api-client.ts";
 import { getApiClient } from "../../lib/get-api-client.ts";
+import "../../lib/paraglide-client.ts";
 import { url } from "../../lib/paths.ts";
+import {
+	REPORT_REASON_VALUES,
+	type ReportTarget,
+	reportReasonLabel,
+} from "../../lib/report-labels.ts";
+import * as m from "../../paraglide/messages.js";
 import { ModalFrame } from "../shared/ModalFrame.tsx";
 
-const REPORT_REASONS = [
-	{ value: "inappropriate", label: "Contenido inapropiado" },
-	{ value: "copyright", label: "Infraccion de derechos de autor" },
-	{ value: "incorrect_info", label: "Informacion incorrecta" },
-	{ value: "broken_link", label: "Enlace roto" },
-	{ value: "spam", label: "Spam" },
-	{ value: "other", label: "Otro motivo" },
-] as const;
-
 interface ReportButtonProps {
-	resourceSlug: string;
+	/** Qué se denuncia (#539): un recurso o una colección. */
+	target: ReportTarget;
+	slug: string;
 	currentUserId?: string | null;
+	className?: string;
+}
+
+/** Envía la denuncia al endpoint de lo denunciado. */
+export function sendReport(
+	api: Pick<ApiClient, "reportResource" | "reportCollection">,
+	target: ReportTarget,
+	slug: string,
+	reason: string,
+	description: string,
+) {
+	const detail = description || undefined;
+	return target === "collection"
+		? api.reportCollection(slug, reason, detail)
+		: api.reportResource(slug, reason, detail);
 }
 
 export function ReportButton({
-	resourceSlug,
+	target,
+	slug,
 	currentUserId,
+	className = "meta-action-btn",
 }: ReportButtonProps) {
 	const [open, setOpen] = useState(false);
 	const [reason, setReason] = useState("");
@@ -27,6 +45,10 @@ export function ReportButton({
 	const [busy, setBusy] = useState(false);
 	const [success, setSuccess] = useState(false);
 	const [error, setError] = useState("");
+	const title =
+		target === "collection"
+			? m.report_collection_title()
+			: m.report_resource_title();
 
 	function handleOpen() {
 		if (!currentUserId) {
@@ -44,7 +66,7 @@ export function ReportButton({
 		setError("");
 		try {
 			const api = await getApiClient();
-			await api.reportResource(resourceSlug, reason, description || undefined);
+			await sendReport(api, target, slug, reason, description);
 			setSuccess(true);
 			setTimeout(() => {
 				setOpen(false);
@@ -53,9 +75,7 @@ export function ReportButton({
 				setDescription("");
 			}, 2000);
 		} catch (err) {
-			setError(
-				err instanceof Error ? err.message : "Error al enviar la denuncia",
-			);
+			setError(err instanceof Error ? err.message : m.report_error());
 		} finally {
 			setBusy(false);
 		}
@@ -65,14 +85,14 @@ export function ReportButton({
 		<>
 			<button
 				type="button"
-				className="meta-action-btn"
+				className={className}
 				onClick={handleOpen}
-				aria-label="Reportar recurso"
+				aria-label={title}
 			>
 				<span className="material-symbols-outlined" aria-hidden="true">
 					flag
 				</span>
-				Reportar
+				{m.report_button()}
 			</button>
 
 			<ModalFrame
@@ -86,12 +106,12 @@ export function ReportButton({
 						id="report-dialog-title"
 						style={{ margin: "0 0 1rem", fontSize: "1.25rem" }}
 					>
-						Reportar recurso
+						{title}
 					</h2>
 
 					{success ? (
-						<p style={{ color: "var(--color-primary)" }}>
-							Denuncia enviada correctamente. Sera revisada por un moderador.
+						<p role="status" style={{ color: "var(--color-primary)" }}>
+							{m.report_success()}
 						</p>
 					) : (
 						<>
@@ -104,7 +124,7 @@ export function ReportButton({
 										fontWeight: 500,
 									}}
 								>
-									Motivo *
+									{m.report_reason_label()} *
 								</label>
 								<select
 									id="report-reason"
@@ -118,10 +138,10 @@ export function ReportButton({
 										border: "1px solid var(--color-outline)",
 									}}
 								>
-									<option value="">Selecciona un motivo</option>
-									{REPORT_REASONS.map((r) => (
-										<option key={r.value} value={r.value}>
-											{r.label}
+									<option value="">{m.report_reason_placeholder()}</option>
+									{REPORT_REASON_VALUES.map((value) => (
+										<option key={value} value={value}>
+											{reportReasonLabel(value)}
 										</option>
 									))}
 								</select>
@@ -136,7 +156,7 @@ export function ReportButton({
 										fontWeight: 500,
 									}}
 								>
-									Descripcion (opcional)
+									{m.report_description_label()}
 								</label>
 								<textarea
 									id="report-description"
@@ -151,12 +171,13 @@ export function ReportButton({
 										border: "1px solid var(--color-outline)",
 										resize: "vertical",
 									}}
-									placeholder="Describe el problema con mas detalle..."
+									placeholder={m.report_description_placeholder()}
 								/>
 							</div>
 
 							{error ? (
 								<p
+									role="alert"
 									style={{
 										color: "var(--color-error)",
 										marginBottom: "0.5rem",
@@ -173,14 +194,14 @@ export function ReportButton({
 									onClick={() => setOpen(false)}
 									disabled={busy}
 								>
-									Cancelar
+									{m.report_cancel()}
 								</button>
 								<button
 									type="submit"
 									className="admin-btn admin-btn--danger"
 									disabled={busy || !reason}
 								>
-									{busy ? "Enviando..." : "Enviar denuncia"}
+									{busy ? m.report_sending() : m.report_submit()}
 								</button>
 							</div>
 						</>

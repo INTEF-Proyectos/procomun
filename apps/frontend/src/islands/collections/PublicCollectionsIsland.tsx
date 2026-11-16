@@ -16,6 +16,7 @@ import { resourceCardMedia } from "../../lib/resource-card-media.ts";
 import { formatDateLong } from "../../lib/shared-utils.ts";
 import { ResourceByline } from "../../ui/AuthorLinks.tsx";
 import { CardTypeMarker } from "../../ui/CardTypeMarker.tsx";
+import { ReportButton } from "../social/ReportButton.tsx";
 import "./PublicCollectionsIsland.css";
 
 const PAGE_SIZE = 9;
@@ -71,15 +72,30 @@ function readCollectionLocation(search: string): CollectionLocationState {
 export function CollectionDetailContent({
 	detail,
 	onBack,
+	currentUserId = null,
 }: {
 	detail: CollectionDetailRecord;
 	onBack: () => void;
+	currentUserId?: string | null;
 }) {
 	return (
 		<section className="collections-shell">
-			<button type="button" className="collections-back-link" onClick={onBack}>
-				Volver al listado
-			</button>
+			<div className="collection-detail-toolbar">
+				<button
+					type="button"
+					className="collections-back-link"
+					onClick={onBack}
+				>
+					Volver al listado
+				</button>
+				{/* #539: las colecciones también se denuncian. */}
+				<ReportButton
+					target="collection"
+					slug={detail.slug}
+					currentUserId={currentUserId}
+					className="collection-report-btn"
+				/>
+			</div>
 
 			<header
 				className="collection-detail-hero"
@@ -179,6 +195,15 @@ export function PublicCollectionsIsland() {
 	const [total, setTotal] = useState(0);
 	const [detail, setDetail] = useState<CollectionDetailRecord | null>(null);
 	const [error, setError] = useState("");
+	const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+
+	useEffect(() => {
+		void (async () => {
+			const api = await getApiClient();
+			const session = await api.getSession().catch(() => null);
+			setCurrentUserId(session?.user?.id ?? null);
+		})();
+	}, []);
 
 	function syncUrl(next: { q?: string; page?: number; slug?: string | null }) {
 		const params = new URLSearchParams(window.location.search);
@@ -288,6 +313,7 @@ export function PublicCollectionsIsland() {
 		return (
 			<CollectionDetailContent
 				detail={detail}
+				currentUserId={currentUserId}
 				onBack={() => {
 					syncUrl({ slug: null });
 					void loadList(page, appliedQuery);
