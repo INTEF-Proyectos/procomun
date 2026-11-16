@@ -317,3 +317,44 @@ Después, las del flujo:
 11. **Lo ya aprobado en la plataforma nueva:** ¿se recupera el sello de los recursos que un curator publicó desde `review`, a partir de `activity_events`? Es posible para lo que siga en esa tabla, con un informe previo.
 12. **Quién validó:** ¿se muestra en la ficha? La propuesta es que no: solo «Validado» y la fecha.
 13. **Relevancia y filtro:** ¿suben los validados en los resultados? La propuesta es que no por ahora. Si el sello va a ser escaso, ¿se adelanta el filtro «Solo validados» a la fase 1?
+
+## Adenda 2026-11-16 — Sello «Validado» implementado (#420)
+
+### Decidido en #420
+
+El 2026-11-03 @jacoboAlcantara aprobó la propuesta («Veo genial la propuesta»):
+
+* Llevan el sello los recursos que un curator o un admin publica tras revisarlos: el resultado de «Aprobar y publicar» (`review → published`).
+* Los que publica directamente un editor quedan publicados, pero sin sello.
+* Los importados con `certified` activo también lo llevan.
+* El sello se ve en la ficha y en la tarjeta de los listados.
+* Si edita un curator o un admin, el recurso lo conserva. Si lo edita su autor, lo pierde hasta que se revise de nuevo.
+* El filtro «Solo validados» del buscador queda para #568.
+
+### Qué se implementa
+
+Es la parte del sello de la fase 1b y el distintivo de la fase 1c, sobre el flujo de estados actual. No incluye los estados nuevos, el historial, los comentarios, las notificaciones ni la validación de lo publicado (opciones H2 y H3), que siguen pendientes de R1 a R4.
+
+* **Columnas (punto 9, opción F2).** Migración 0026: `validated_at`, `validated_by` (FK a `user`, `ON DELETE SET NULL`) y `validation_source` (`review` o `legacy`, con `CHECK`), también en `setup.ts`. Un recurso está validado si está publicado y tiene `validated_at`.
+* **Reglas compartidas.** `packages/db/src/validation-seal.ts`, que usan el servidor y el frontend:
+  * `validationSealOnStatusChange(desde, hacia)`: `review → published` pone el sello; volver a `draft` o a `review` lo quita (`archived → draft`); el resto lo deja igual. `draft → published` no lo pone y archivar lo conserva.
+  * `keepsValidationOnEdit(rol)`: curator y admin lo conservan.
+  * `isResourceValidated(recurso)`.
+* **Al cambiar de estado.** `PATCH /api/admin/resources/:id/status` pasa el resultado a `updateEditorialStatus`, que guarda fecha, quien aprueba y `review`. La moderación de denuncias archiva sin tocar el sello.
+* **Al editar.** `onPublicContentChanged` (`apps/api/src/resources/validation-seal.ts`) quita el sello si quien edita no es curator ni admin. Se llama en todas las rutas que cambian lo público: metadatos (`PATCH /api/admin/resources/:id` y `PUT /api/v1/publish/resources/:id`, que incluyen palabras clave, áreas y familias), etiquetas (`PUT /api/admin/tags/resources/:id`), `.elpx` (subir, guardar desde el editor y generar) y adjuntos (subida tus y borrado). Restaurar una versión solo lo pueden hacer curator y admin, así que lo conserva. No hay evento `validation_removed` porque aún no existe `resource_editorial_events` (fase 1a).
+* **Lectura.** `validatedAt` y `validationSource` salen en el detalle, los listados, los recursos de una colección y los relacionados. `validated_by` no sale en ninguna respuesta pública (pregunta 12).
+* **Interfaz.** Distintivo «Validado» (`ui/ValidatedBadge.tsx`) en la tarjeta de los listados (catálogo, autor, etiqueta, favoritos y relacionados) y en la cabecera de la ficha, con «Revisado por el equipo de curación de Procomún» y la fecha. En los importados no hay fecha. Se identifica por el texto; el icono va con `aria-hidden` y los colores salen de los tokens. En el editor, el autor de un recurso validado ve el aviso de que lo perderá si guarda cambios. Textos en es, en, ca, gl y eu.
+* **Importados (punto 10).** `isLegacyCertified` cuenta `1`, como número o como texto. El importador pone el sello (`legacy`, sin `validated_by`) solo si el recurso entra publicado; el informe da `importedValidated` y `certifiedAsDraft`. Para lo ya importado, `import:legacy-procomun --mark-certified --source-dir <ruta> [--dry-run]`. Marca solo los certificados con `published: 1` en origen que siguen publicados, sin sello y sin editar. «Editado» es tener una fila en `resource_versions` o un `resource_updated` en `activity_events`. No se usa `updated_at`, porque también lo cambian la extracción de texto y las correcciones del importador. Nunca quita un sello y repetirlo no cambia nada.
+
+### Decisiones tomadas al implementar
+
+* **Autoaprobación (pregunta 6).** Si un curator o un admin aprueba su propio recurso desde `review`, también recibe el sello: es la regla literal de #420. Queda como pregunta para el equipo.
+* **`validated_at` de los importados.** Es la fecha de la importación o de `--mark-certified`, porque el JSON no trae la de la validación. Por eso la ficha no la enseña.
+* **Cualquier guardado del autor quita el sello**, aunque no cambie nada. Detectar cambios reales obligaría a comparar todos los campos y asociaciones. El aviso del editor lo advierte.
+
+### Pendiente
+
+* La fecha, el actor y el motivo de la retirada del sello, cuando exista el historial (fase 1a).
+* La validación de lo publicado (H2 y H3), pendiente de R1 a R4.
+* El filtro «Solo validados» y la regla de visibilidad de #568.
+* `validated` en los feeds.

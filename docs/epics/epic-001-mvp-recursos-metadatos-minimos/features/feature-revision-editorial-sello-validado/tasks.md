@@ -74,3 +74,19 @@ Se añade a la fase 1:
 - [ ] `validation_status` en `resources`, con las acciones `request_validation`, `withdraw_validation_request`, `validate`, `request_changes` y `deny_validation` sobre publicados
 - [ ] Vistas «Validación solicitada» y «Publicados sin validar» en la cola, con sus filtros
 - [ ] e2e de la validación de lo publicado: el editor publica y pide la validación, y el curator la valida
+
+## 2026-11-16 — Sello «Validado» (#420)
+
+Decidido en #420 (propuesta del 2026-11-03, aprobada por @jacoboAlcantara): sello al «Aprobar y publicar» de un curator o un admin, sin sello en la publicación directa del editor, sello en los importados con `certified`, visible en la ficha y en las tarjetas, se conserva con las ediciones de curator y admin y se pierde con las del autor. El filtro «Solo validados» va en #568. Detalle en la adenda 2026-11-16 de ADR-0049.
+
+- [x] Migración 0026 (`validated_at`, `validated_by`, `validation_source`) y `setup.ts`
+- [x] `packages/db/src/validation-seal.ts`: `validationSealOnStatusChange`, `keepsValidationOnEdit` e `isResourceValidated`
+- [x] Sello al «Aprobar y publicar» (`review → published`), que se conserva al archivar y se quita al volver a borrador
+- [x] `onPublicContentChanged` en metadatos (admin y API v1), etiquetas, `.elpx` (subir, guardar y generar) y adjuntos (subir y borrar), con un test por ruta
+- [x] `validatedAt` y `validationSource` en el detalle, los listados, las colecciones, los relacionados y los favoritos, sin `validated_by`
+- [x] Distintivo «Validado» en la ficha y en las tarjetas, y aviso en el editor, en los cinco idiomas
+- [x] `isLegacyCertified` y sello al importar, con `importedValidated` y `certifiedAsDraft` en el informe
+- [x] `import:legacy-procomun --mark-certified [--dry-run]` con informe
+- [ ] Evento `validation_removed` cuando exista `resource_editorial_events` (fase 1a)
+- [ ] `validated` en los feeds
+- [ ] Filtro «Solo validados» (#568)

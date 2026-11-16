@@ -4209,3 +4209,20 @@ tasks:
       La revision del 08-nov ya estaba resuelta en 733e4fe0; se ha
       verificado el journal y el migrador real de Drizzle sobre una base en
       main.
+  T-2026-11-16-15193773:
+    date: 2026-11-16
+    agent: "backend-api-servicios + frontend-ux-accesibilidad + ingestas-y-migraciones"
+    task: "Sello «Validado» de los recursos (#420)"
+    status: Done
+    related: ["#420", "#496", "#518", "#568", "ADR-0049", "ADR-0029"]
+    notes: >
+      Migración 0026 con validated_at, validated_by y validation_source. El
+      sello lo pone «Aprobar y publicar» (review -> published) de un curator
+      o un admin; la publicación directa del editor no. Se conserva con las
+      ediciones de curator y admin y al archivar, y se quita si edita el
+      autor (metadatos, API v1, etiquetas, .elpx y adjuntos) o si el recurso
+      vuelve a borrador. Distintivo en la ficha y en las tarjetas, y aviso en
+      el editor. El importador pone el sello legacy a los certified que
+      entran publicados y --mark-certified lo aplica a lo ya importado sin
+      editar. Adenda 2026-11-16 en ADR-0049. Pendiente: el evento de
+      retirada (fase 1a), los feeds y el filtro de #568.
