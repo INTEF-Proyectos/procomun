@@ -3533,6 +3533,25 @@ tasks:
       la portada antes de que lleguen los datos, «Cargando…» tiene un
       contraste de 4,28:1, el pie de página uno de 2,45:1 y Material Symbols
       se descarga de Google Fonts. Queda pendiente aparte.
+  T-2026-11-03-13053388:
+    date: 2026-11-03
+    agent: "backend-api-servicios"
+    task: "El editor publica directamente y no envía a revisión (#506)"
+    status: Done
+    related: ["#506", "#515", "ADR-0008", "ADR-0016", "ADR-0024"]
+    notes: >
+      TRANSITION_RULES marca draft → review con excludedRoles: ["editor"] y
+      validateTransition lo aplica además del rol mínimo; canTransition y
+      transitionExclusionError salen de la misma regla. La API devuelve 403
+      sin cambiar el estado en PATCH /api/admin/resources/:id/status y en el
+      alta en revisión de POST /api/v1/publish/resources. Author, curator y
+      admin conservan todas sus transiciones (matriz por rol en
+      validation-transitions.unit.test.ts). En la interfaz, /editar pinta los
+      botones con EditorialActions, que filtra con canTransition, y
+      ResourceEditorIsland usa las reglas compartidas en vez de su copia. La
+      ayuda describe la publicación directa del editor. Tests:
+      editorial-transitions-by-role.unit.test.ts (API por rol) y
+      EditorialActions.unit.test.tsx (acciones visibles por rol y estado).
   T-2026-11-03-12341998:
     date: 2026-11-03
     agent: "ingestas-y-migraciones"
