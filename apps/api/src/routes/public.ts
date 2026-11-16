@@ -121,6 +121,21 @@ publicRoutes.get("/resources/:slug", async (c) => {
 	});
 });
 
+// Ficha pública de quien publica (#458): nombre, foto y sus recursos
+// publicados (sin borradores ni eliminados), del más reciente al más antiguo.
+publicRoutes.get("/authors/:id", async (c) => {
+	const id = c.req.param("id");
+	const author = await repo.getPublicAuthor(getDb().db, id);
+	if (!author) return c.json({ error: "Ficha no encontrada" }, 404);
+	const { limit, offset } = parsePagination(c);
+	const resources = await listPublishedResources({
+		limit,
+		offset,
+		createdBy: author.id,
+	});
+	return c.json({ ...resources, author });
+});
+
 publicRoutes.get("/uploads/:id/content", async (c) => {
 	const { id } = c.req.param();
 	const session = await repo.getUploadSessionById(getDb().db, id);

@@ -148,9 +148,13 @@ describe("Catalog islands", () => {
 			"reader",
 		);
 
+		// Con #458 cada autor es un enlace de búsqueda (sin la coletilla «para
+		// X»); el publicador, sin cuenta a la que enlazar, queda como texto.
+		const q = encodeURIComponent("Mª del Mar Pérez Gómez");
 		expect(html).toContain(
-			'<p class="detail-author-name">CEDEC INTEF</p><p class="detail-author-role">Mª del Mar Pérez Gómez para Cedec</p>',
+			`<p class="detail-author-name">CEDEC INTEF</p><p class="detail-author-role"><span><a class="author-link" href="${url(`explorar?q=${q}`)}">Mª del Mar Pérez Gómez</a></span></p>`,
 		);
+		expect(html).not.toContain(url("autor/"));
 	});
 
 	test("sin cuenta ni publicador, la ficha sigue mostrando los autores (#457)", () => {
@@ -159,7 +163,9 @@ describe("Catalog islands", () => {
 			"reader",
 		);
 
-		expect(html).toContain('<p class="detail-author-name">Ana Pérez</p>');
+		expect(html).toContain(
+			`<p class="detail-author-name"><span><a class="author-link" href="${url(`explorar?q=${encodeURIComponent("Ana Pérez")}`)}">Ana Pérez</a></span></p>`,
+		);
 		expect(html).not.toContain("detail-author-role");
 	});
 
@@ -169,8 +175,9 @@ describe("Catalog islands", () => {
 			"reader",
 		);
 
+		// Con #458 la cuenta enlaza a su ficha y la autoría va entre ambas.
 		expect(html).toContain(
-			'<p class="detail-author-name">Autora</p><p class="detail-author-role">CEDEC INTEF</p>',
+			`<p class="detail-author-name"><a class="author-link" href="${url("autor/author-1")}">Autora</a></p><p class="detail-author-role">Autoría: <span><a class="author-link" href="${url(`explorar?q=${encodeURIComponent("Ana Pérez")}`)}">Ana Pérez</a></span></p><p class="detail-author-role">CEDEC INTEF</p>`,
 		);
 	});
 
@@ -558,5 +565,88 @@ describe("Catalog islands", () => {
 		const html = renderDetail({ createdAt: "2024-05-01T00:00:00Z" }, "viewer");
 		expect(html).not.toContain("explorar?q=2024");
 		expect(html).toMatch(/<p class="meta-row-value">[^<]*2024<\/p>/);
+	});
+});
+
+describe("nombres de autor pulsables (#458)", () => {
+	const profileHref = `href="${url("autor/author-1")}"`;
+	const searchHref = (name: string) =>
+		`href="${url(`explorar?q=${encodeURIComponent(name)}`)}"`;
+
+	test("en la ficha, quien publica lleva a su ficha y cada autor a su búsqueda", () => {
+		const html = renderDetail(
+			{ author: "Mª del Mar Pérez, Irene González… para Cedec" },
+			"reader",
+		);
+		expect(html).toContain(`<a class="author-link" ${profileHref}>Autora</a>`);
+		expect(html).toContain(searchHref("Mª del Mar Pérez"));
+		expect(html).toContain(searchHref("Irene González"));
+		expect(html).not.toContain("para Cedec");
+	});
+
+	// Revisión de #487: la ficha de autor solo existe con algún recurso
+	// publicado. La vista previa de un recurso sin publicar (la ve quien lo
+	// creó o el equipo editorial) no enlaza a una ficha que puede dar 404.
+	for (const status of ["draft", "review", "archived"]) {
+		test(`en la ficha de un recurso ${status} el nombre de la cuenta no enlaza`, () => {
+			const html = renderDetail({ editorialStatus: status }, "curator");
+			expect(html).toContain('<p class="detail-author-name">Autora</p>');
+			expect(html).not.toContain(url("autor/"));
+		});
+	}
+
+	test("en la ficha de un importado sin cuenta no hay enlace de publicador", () => {
+		const html = renderDetail(
+			{ createdBy: null, createdByName: null, author: "Ana López" },
+			"reader",
+		);
+		expect(html).not.toContain(url("autor/"));
+		expect(html).toContain(searchHref("Ana López"));
+	});
+
+	const resource = {
+		id: "r1",
+		slug: "r1",
+		title: "Recurso",
+		description: "",
+		resourceType: "proyecto",
+		language: "es",
+		license: "cc-by",
+		editorialStatus: "published",
+		createdBy: "author-1",
+		createdByName: "Autora",
+		author: null,
+	};
+
+	test("la tarjeta común enlaza el nombre sin anidar enlaces", () => {
+		const html = renderToStaticMarkup(
+			<ResourceCard
+				resource={{ ...resource, createdAt: "" }}
+				href="/recurso?slug=r1"
+			/>,
+		);
+		expect(html).toContain(profileHref);
+		expect(html).toContain(
+			'class="card-stretched-link" href="/recurso?slug=r1"',
+		);
+		expect(html.startsWith("<article")).toBe(true);
+	});
+
+	test("la tarjeta del catálogo enlaza el nombre sin anidar enlaces", () => {
+		const html = renderToStaticMarkup(
+			<CatalogResourceCard
+				resource={{
+					...resource,
+					keywords: null,
+					publisher: null,
+					createdAt: null,
+					updatedAt: null,
+					deletedAt: null,
+				}}
+			/>,
+		);
+		expect(html).toContain(profileHref);
+		expect(html).toContain("card-stretched-link");
+		expect(html.startsWith("<article")).toBe(true);
 	});
 });

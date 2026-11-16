@@ -39,6 +39,7 @@ import {
 	computeResourceBadges,
 	DEFAULT_BADGE_CONFIG,
 } from "../../lib/shared-utils.ts";
+import { ResourceByline } from "../../ui/AuthorLinks.tsx";
 import { KeywordCatalogField } from "../resources/KeywordCatalogField.tsx";
 import { EducationalSearchFilters } from "./EducationalSearchFilters.tsx";
 import { KnowledgeAreaSearchFilters } from "./KnowledgeAreaSearchFilters.tsx";
@@ -189,10 +190,9 @@ export function CatalogResourceCard({
 		) : null;
 
 	return (
-		<a
-			href={url(`recurso?slug=${resource.slug}`)}
-			className={`resource-card${hasPreview ? " has-preview" : ""}`}
-		>
+		// #458: no es un enlace porque contiene el del autor; el del título se
+		// estira para que toda la tarjeta siga siendo pulsable.
+		<article className={`resource-card${hasPreview ? " has-preview" : ""}`}>
 			{media.kind === "image" ? (
 				<div className="card-preview">
 					<img src={media.url} alt="" />
@@ -220,18 +220,25 @@ export function CatalogResourceCard({
 							: ""}
 					</span>
 				</div>
-				<h3>{resource.title}</h3>
+				<h3>
+					<a
+						className="card-stretched-link"
+						href={url(`recurso?slug=${resource.slug}`)}
+					>
+						{resource.title}
+					</a>
+				</h3>
 				<p>{clipped}</p>
 				<div className="card-footer">
 					<div className="card-author">
-						<div className="card-author-avatar">{authorInitial}</div>
+						<div className="card-author-avatar" aria-hidden="true">
+							{authorInitial}
+						</div>
 						<span className="card-author-name">
-							{resource.createdByName ||
-								resource.author ||
-								m.common_anonymous()}
+							<ResourceByline resource={resource} />
 						</span>
 					</div>
-					<div className="card-actions">
+					<div className="card-actions card-over-link">
 						{rating && rating.count > 0 && (
 							<span className="card-rating">
 								<span
@@ -284,7 +291,7 @@ export function CatalogResourceCard({
 					</div>
 				</div>
 			</div>
-		</a>
+		</article>
 	);
 }
 
