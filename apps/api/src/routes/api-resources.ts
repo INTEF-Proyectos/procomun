@@ -9,6 +9,7 @@ import {
 import { Hono } from "hono";
 import { logActivity } from "../activity/log.ts";
 import type { AuthEnv } from "../auth/middleware.ts";
+import { requireRole } from "../auth/middleware.ts";
 import { canManageResource } from "../auth/roles.ts";
 import { getDb } from "../db.ts";
 
@@ -34,7 +35,12 @@ function selectionError(err: unknown) {
 }
 
 // POST /api/v1/resources — Create a new resource
-apiResourceRoutes.post("/", async (c) => {
+//
+// Rol mínimo `author` (#537): antes solo se comprobaba que hubiera usuario, así
+// que una clave de API de una cuenta `reader` creaba recursos en borrador o en
+// revisión, algo que la interfaz no permite. Modificar y borrar ya lo exigían
+// por `canManageResource`.
+apiResourceRoutes.post("/", requireRole("author"), async (c) => {
 	const user = c.get("user");
 	if (!user) return c.json({ error: "No autenticado" }, 401);
 
