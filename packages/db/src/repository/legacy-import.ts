@@ -43,6 +43,11 @@ export interface LegacyResourceInput {
 	 * Pendiente: el exportador aún no incluye el dato, así que hoy llega vacío.
 	 */
 	legacyViewCount?: number | null;
+	/**
+	 * Cuenta cuyo correo coincide con `publicatorEmailStr` (#456). Sin cuenta
+	 * queda vacío y el recurso sigue a nombre del sistema, como hasta ahora.
+	 */
+	createdBy?: string | null;
 }
 
 export interface LegacyElpxInput {
@@ -85,7 +90,14 @@ export async function findLegacyResourceByExternalId(
 	externalId: string,
 ) {
 	const rows = await db
-		.select({ id: resources.id, slug: resources.slug })
+		// createdBy: el informe tiene que distinguir un recurso que sigue sin
+		// autor de uno reasignado a mano cuyo correo de origen no lleva a
+		// ninguna cuenta (revisión #508).
+		.select({
+			id: resources.id,
+			slug: resources.slug,
+			createdBy: resources.createdBy,
+		})
 		.from(resources)
 		.where(
 			and(
@@ -132,6 +144,7 @@ export async function importLegacyResourceWithElpx(
 			author: input.resource.author,
 			otherAuthors: input.resource.otherAuthors ?? null,
 			publisher: input.resource.publisher,
+			createdBy: input.resource.createdBy ?? null,
 			thumbnailUrl: input.resource.previewImageUrl,
 			// Solo se publica lo que el Procomún antiguo tenía publicado
 			// (`published: 1`); el resto entra como borrador (issue #447, ver

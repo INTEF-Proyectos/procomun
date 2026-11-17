@@ -1,6 +1,7 @@
 import { normalizeLanguage } from "./normalize-language.ts";
 import { normalizeLicense } from "./normalize-license.ts";
 import { resolveLegacyPublicationStatus } from "./publication-status.ts";
+import { normalizeLegacyPublicatorEmail } from "./publicator-email.ts";
 import { mapResourceType } from "./resource-type-map.ts";
 import type {
 	LegacyOdeJson,
@@ -461,6 +462,7 @@ export function mapLegacyRecord(
 		blocking: blockingErrors.length > 0,
 		blockingErrors,
 		warnings,
+		publicatorEmail: normalizeLegacyPublicatorEmail(json.publicatorEmailStr),
 		resource,
 	};
 }

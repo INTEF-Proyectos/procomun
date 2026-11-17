@@ -3500,6 +3500,23 @@ tasks:
       referencias en el CI. Validado reproduciendo el conflicto de #465 contra
       main: la union automatica da un status.yaml identico a la resolucion
       manual (diff vacio) y check-tracking lo acepta.
+  T-2026-11-03-10331754:
+    date: 2026-11-03
+    agent: "ingestas-y-migraciones"
+    task: "Los recursos importados pasan a la cuenta de su autor por publicatorEmailStr"
+    status: Done
+    related: ["#456", "#487", "#488", "#446", "#432"]
+    notes: >
+      El importador busca la cuenta con el publicatorEmailStr del JSON (sin
+      espacios ni mayúsculas) y la guarda en resources.created_by, que es lo que
+      usan «Mis recursos», la ficha de autor y los permisos. El autor en texto
+      no cambia. Sin cuenta (o con la cuenta dada de baja) queda a nombre del
+      sistema y el informe lo lista en authorsWithoutAccount sin fallar el
+      lote. Reimportar enlaza lo que ya tiene cuenta y nunca pisa un creador
+      real. Nuevo import:legacy-procomun --link-authors [--dry-run], que solo
+      lee los .json. La sesión de subida del paquete sigue a nombre del
+      sistema para no gastar la cuota del autor. Sin migración. ADR-0029,
+      actualización 2026-11-03.
   T-2026-11-03-13524606:
     date: 2026-11-03
     agent: "backend-api-servicios"
@@ -4150,6 +4167,34 @@ tasks:
       antes: guarda en PublicCollectionsIsland, tipo string | null en
       api-client y test de regresion. Test ajustado: el toEqual de totals en
       el caso en seco incluye la clave nueva reindexFailed.
+  T-2026-11-04-16215488:
+    date: 2026-11-04
+    agent: "ingestas-y-migraciones + seguridad-privacidad-legal"
+    task: "Atender la revision de #508: errores por recurso e informe de autoria"
+    status: Done
+    related: ["#508", "#456", "#543"]
+    notes: >
+      Dos hallazgos de jacoboAlcantara. P2: resolveAuthor y
+      linkExistingResourceAuthor quedaban fuera del manejo de errores por
+      recurso, asi que un rechazo abortaba el lote y no se escribia el informe
+      aunque ya se hubieran importado recursos antes. Ahora cada uno va en su
+      try: se cuenta en errored, se registra el ODE con el mensaje y se sigue
+      con el siguiente, como hace runLinkLegacyAuthors. El mensaje va saneado
+      con summarizeStepError (generalizacion de summarizeReindexError), porque
+      la consulta que envuelve lleva el correo como parametro (#543); hay un
+      test que comprueba que el informe no contiene la consulta ni el correo.
+      P3: el informe listaba en authorsWithoutAccount recursos que ya tenian
+      creador real reasignado a mano, solo porque su correo de origen no
+      llevaba a ninguna cuenta. findLegacyResourceByExternalId devuelve ahora
+      createdBy y el diagnostico del correo va en una lista aparte,
+      sourceEmailWithoutAccount, con el creador que se conserva; el contador
+      authorWithoutAccount queda para creador nulo o usuario de sistema.
+      Al poner el PR al dia con main hubo 11 conflictos en 7 ficheros por los
+      merges de #475 y #523: los de documentacion se resolvieron conservando
+      las dos adendas, las tres listas de modos del CLI incluyen ahora
+      --fix-language y --link-authors, y en los dos ficheros de test los
+      bloques describe de cada rama comparten el cierre, asi que se cerro a
+      mano el de main y el nuestro lo cierra la cola compartida.
   T-2026-11-04-17115230:
     date: 2026-11-04
     agent: "backend-api-servicios"
@@ -4324,6 +4369,18 @@ tasks:
       elpx-versioning) recibian una BD sin los usuarios del preload y fallaban
       con resources_created_by_fkey. En las VMs del runner propio el orden de
       los ficheros los dejaba detras; en GitHub no. Ahora usa la BD compartida.
+  T-2026-11-11-04585652:
+    date: 2026-11-11
+    agent: "ingestas-y-migraciones"
+    task: "Las cuentas del importador de usuarios reciben sus recursos aunque no estén verificadas"
+    status: Done
+    related: ["#508", "#488", "#456"]
+    notes: >
+      #488 crea las cuentas con emailVerified false y #508 no enlazaba recursos
+      a cuentas sin verificar, asi que juntos los recursos quedaban a nombre del
+      sistema. Se acepta la cuenta sin verificar si su id empieza por
+      legacy-procomun:user: (LEGACY_USER_ID_PREFIX), que nadie puede elegir al
+      registrarse. El resto de cuentas sin verificar siguen sin recibir nada.
   T-2026-11-11-04505124:
     date: 2026-11-11
     agent: "ingestas-y-migraciones"
@@ -4430,6 +4487,22 @@ tasks:
       La revision del 08-nov ya estaba resuelta en 733e4fe0; se ha
       verificado el journal y el migrador real de Drizzle sobre una base en
       main.
+  T-2026-11-16-12204258:
+    date: 2026-11-16
+    agent: "backend-api-servicios"
+    task: "Poner #508 al dia con main y aplicar la decision de #543 (informes sin correos)"
+    status: Done
+    related: ["#508", "#543", "#456", "#488"]
+    notes: >
+      La mezcla de main del 16-nov (637d2cd1) dejo roto el test del importador
+      (bloque de #488 dentro del afterEach de autoria, import repetido) y las
+      exportaciones de users.ts duplicadas: el job build fallaba en biome. Se
+      rehace la mezcla. summarizeStepError (de #508) se retira: los pasos de
+      autoria y summarizeReindexError usan summarizeDbStepError. Decision de
+      #543: authorsWithoutAccount y sourceEmailWithoutAccount sin correo en
+      el informe general; --restricted-report <ruta> escribe aparte el correo,
+      con permisos 0600, fuera de --report-dir y sin pisar otro fichero.
+      Falta decidir donde se guarda en la migracion real y quien accede.
   T-2026-11-16-13145950:
     date: 2026-11-16
     agent: "frontend-ux-accesibilidad + qa-validacion"

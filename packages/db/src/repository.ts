@@ -11,6 +11,7 @@ export * from "./repository/elpx-projects.ts";
 export * from "./repository/elpx-thumbnails.ts";
 export * from "./repository/keyword-catalog.ts";
 export * from "./repository/knowledge-areas.ts";
+export * from "./repository/legacy-authors.ts";
 export * from "./repository/legacy-import.ts";
 export * from "./repository/legacy-users-import.ts";
 export * from "./repository/public-authors.ts";
