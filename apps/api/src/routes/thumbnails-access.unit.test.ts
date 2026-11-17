@@ -82,7 +82,14 @@ async function storeJpeg(): Promise<string> {
 }
 
 async function setStatus(resourceId: string, status: Status) {
-	await repo.updateEditorialStatus(getDb().db, resourceId, status, "system");
+	// #568: el listado público solo da lo validado.
+	await repo.updateEditorialStatus(
+		getDb().db,
+		resourceId,
+		status,
+		"system",
+		status === "published" ? { validationSeal: "grant" } : undefined,
+	);
 }
 
 async function seed(status: Status, label: string = status): Promise<Seeded> {
