@@ -1,5 +1,6 @@
 import type { Hono } from "hono";
 import type { AuthEnv } from "../auth/middleware.ts";
+import { getCachedOidcEndSessionUrl } from "../auth/oidc-discovery.ts";
 import { tokenAuthMiddleware } from "../auth/token-auth.ts";
 import { resolveEmailVerificationConfig } from "../email/transport.ts";
 import { adminRoutes } from "../routes/admin/index.ts";
@@ -25,9 +26,10 @@ export function registerRoutes(app: Hono<AuthEnv>) {
 			oidcEnabled: process.env.OIDC_ENABLED === "true",
 			emailVerificationRequired: resolveEmailVerificationConfig(process.env)
 				.enabled,
-			oidcEndSessionUrl: process.env.OIDC_ISSUER
-				? `${process.env.OIDC_ISSUER}/connect/endsession`
-				: null,
+			// #542: sale de end_session_endpoint del documento de descubrimiento,
+			// no de la ruta de Duende. Se lee de la caché y nunca se espera a la
+			// red aquí: el calentado va en segundo plano (ver oidc-discovery.ts).
+			oidcEndSessionUrl: getCachedOidcEndSessionUrl(process.env),
 			mediaBankUrl: resolveMediaBankUrl(process.env),
 		}),
 	);
