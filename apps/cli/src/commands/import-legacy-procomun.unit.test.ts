@@ -2619,6 +2619,23 @@ describe("informes sin correos e informe restringido (#543)", () => {
 		).rejects.toThrow("--restricted-report");
 	});
 
+	// Revisión de #587: --mark-certified recorre todo; no ignora en silencio
+	// las opciones que acotarían lo que marca o pedirían otro informe.
+	test("--mark-certified rechaza --only, --limit y --restricted-report", async () => {
+		for (const extra of [
+			["--only", "es_con_cuenta"],
+			["--limit", "1"],
+			["--restricted-report", path.join(base, "privado.json")],
+		]) {
+			await expect(
+				importLegacyProcomun(
+					["--source-dir", dir, "--mark-certified", ...extra],
+					async () => deps(),
+				),
+			).rejects.toThrow(extra[0]);
+		}
+	});
+
 	// #543, punto 1: los pasos de autoría pasan por summarizeDbStepError.
 	test("un fallo de la base de datos al buscar la cuenta queda como db_error, sin el correo", async () => {
 		const report = await runImportLegacyProcomun(
