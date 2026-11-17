@@ -179,3 +179,55 @@ describe("Token management — tope de tokens activos", () => {
 		expect(listBody.data).toHaveLength(10);
 	});
 });
+
+// #537: una cuenta reader no puede crear recursos desde la interfaz, así que
+// tampoco debe poder crearse una clave de API con la que publicar por la API.
+// Listar y revocar siguen abiertos a cualquier sesión: quien ya tenga claves
+// creadas antes de esta regla debe poder verlas y revocarlas.
+describe("Token management — rol mínimo (#537)", () => {
+	const readerApp = createTokenApp({
+		id: "reader-537",
+		role: "reader",
+		email: "reader537@example.com",
+		name: "Lectora",
+	});
+
+	test("POST /api/v1/tokens → 403 con rol reader", async () => {
+		const res = await readerApp.request("/api/v1/tokens", {
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({ name: "Clave de una lectora" }),
+		});
+		expect(res.status).toBe(403);
+		const body = await res.json();
+		expect(body.error).toContain("Permisos insuficientes");
+	});
+
+	test("GET y DELETE /api/v1/tokens siguen abiertos con rol reader", async () => {
+		const list = await readerApp.request("/api/v1/tokens");
+		expect(list.status).toBe(200);
+
+		const revoked = await readerApp.request(
+			"/api/v1/tokens/00000000-0000-0000-0000-000000000000",
+			{ method: "DELETE" },
+		);
+		expect(revoked.status).toBe(200);
+	});
+
+	test("POST /api/v1/tokens → 201 desde author en adelante", async () => {
+		for (const role of ["author", "editor", "curator", "admin"]) {
+			const app = createTokenApp({
+				id: `user-537-${role}`,
+				role,
+				email: `${role}537@example.com`,
+				name: role,
+			});
+			const res = await app.request("/api/v1/tokens", {
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify({ name: `Clave de ${role}` }),
+			});
+			expect(res.status).toBe(201);
+		}
+	});
+});
