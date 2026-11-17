@@ -1409,6 +1409,20 @@ describe("Rutas admin — colecciones", () => {
 		expect(adminCreateRes.status).toBe(201);
 		const adminCollection = await adminCreateRes.json();
 
+		// #538: un borrador ajeno ya no lo ve el curator, ni siquiera el del
+		// admin (misma regla que #460 en los recursos). Para que este caso siga
+		// comprobando lo que comprobaba (que el curator gestiona lo que existe),
+		// la coleccion del admin pasa a revision.
+		const toReview = await app.request(
+			`/api/admin/collections/${adminCollection.id}`,
+			{
+				method: "PATCH",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify({ editorialStatus: "review" }),
+			},
+		);
+		expect(toReview.status).toBe(200);
+
 		const curatorApp = createAdminApp({
 			id: "curator-1",
 			role: "curator",
@@ -2027,5 +2041,146 @@ describe("Seguridad — mass assignment / bypass del flujo editorial (recursos)"
 		const getRes = await app.request(`/api/admin/resources/${created.id}`);
 		const body = await getRes.json();
 		expect(body.editorialStatus).toBe("published");
+	});
+});
+
+// #538: a las colecciones se les aplica la regla de #460, que ya rige en los
+// recursos: un borrador es privado de quien lo crea y del admin. Hasta ahora
+// cualquier curator veia y editaba los borradores de otro curator.
+describe("Rutas admin — borradores de coleccion ajenos (#538)", () => {
+	const ownerId = "curator-538-dueno";
+	const otherId = "curator-538-otro";
+	const ownerApp = createAdminApp({ id: ownerId, role: "curator" });
+	const otherApp = createAdminApp({ id: otherId, role: "curator" });
+	const adminApp = createAdminApp({ id: "admin-538", role: "admin" });
+
+	async function createCollection(
+		app: ReturnType<typeof createAdminApp>,
+		title: string,
+	) {
+		const res = await app.request("/api/admin/collections", {
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({ title, description: "Coleccion de prueba #538" }),
+		});
+		expect(res.status).toBe(201);
+		return (await res.json()) as { id: string; editorialStatus: string };
+	}
+
+	async function setStatus(
+		app: ReturnType<typeof createAdminApp>,
+		id: string,
+		editorialStatus: string,
+	) {
+		const res = await app.request(`/api/admin/collections/${id}`, {
+			method: "PATCH",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({ editorialStatus }),
+		});
+		expect(res.status).toBe(200);
+	}
+
+	test("nace en borrador y su dueno lo gestiona", async () => {
+		const created = await createCollection(ownerApp, "Borrador propio #538");
+
+		const get = await ownerApp.request(`/api/admin/collections/${created.id}`);
+		expect(get.status).toBe(200);
+		const body = await get.json();
+		expect(body.editorialStatus).toBe("draft");
+		expect(body.curatorId).toBe(ownerId);
+	});
+
+	test("otro curator no ve ni edita el borrador", async () => {
+		const created = await createCollection(ownerApp, "Borrador ajeno #538");
+
+		const get = await otherApp.request(`/api/admin/collections/${created.id}`);
+		expect(get.status).toBe(403);
+
+		const patch = await otherApp.request(
+			`/api/admin/collections/${created.id}`,
+			{
+				method: "PATCH",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify({ title: "No debe cambiar" }),
+			},
+		);
+		expect(patch.status).toBe(403);
+
+		const del = await otherApp.request(`/api/admin/collections/${created.id}`, {
+			method: "DELETE",
+		});
+		expect(del.status).toBe(403);
+
+		// Las subrutas pasan por el mismo guard.
+		const resources = await otherApp.request(
+			`/api/admin/collections/${created.id}/resources`,
+		);
+		expect(resources.status).toBe(403);
+
+		// Y sigue intacta.
+		const stillThere = await ownerApp.request(
+			`/api/admin/collections/${created.id}`,
+		);
+		expect((await stillThere.json()).title).toBe("Borrador ajeno #538");
+	});
+
+	test("el borrador ajeno no sale en el listado del otro curator", async () => {
+		const created = await createCollection(ownerApp, "Oculta en listado #538");
+
+		const own = await ownerApp.request("/api/admin/collections?limit=100");
+		const ownIds = (await own.json()).data.map((x: { id: string }) => x.id);
+		expect(ownIds).toContain(created.id);
+
+		const other = await otherApp.request("/api/admin/collections?limit=100");
+		const otherIds = (await other.json()).data.map((x: { id: string }) => x.id);
+		expect(otherIds).not.toContain(created.id);
+	});
+
+	test("en revision la ve cualquier curator: es la cola de curacion", async () => {
+		const created = await createCollection(ownerApp, "En revision #538");
+		await setStatus(ownerApp, created.id, "review");
+
+		const get = await otherApp.request(`/api/admin/collections/${created.id}`);
+		expect(get.status).toBe(200);
+
+		const listed = await otherApp.request("/api/admin/collections?limit=100");
+		const ids = (await listed.json()).data.map((x: { id: string }) => x.id);
+		expect(ids).toContain(created.id);
+	});
+
+	test("publicada y archivada las ve cualquier curator", async () => {
+		for (const status of ["published", "archived"]) {
+			const created = await createCollection(ownerApp, `${status} #538`);
+			await setStatus(ownerApp, created.id, status);
+
+			const get = await otherApp.request(
+				`/api/admin/collections/${created.id}`,
+			);
+			expect(get.status).toBe(200);
+		}
+	});
+
+	test("el admin ve y edita el borrador de cualquier curator", async () => {
+		const created = await createCollection(
+			ownerApp,
+			"Borrador para admin #538",
+		);
+
+		const get = await adminApp.request(`/api/admin/collections/${created.id}`);
+		expect(get.status).toBe(200);
+
+		const patch = await adminApp.request(
+			`/api/admin/collections/${created.id}`,
+			{
+				method: "PATCH",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify({ title: "El admin si puede #538" }),
+			},
+		);
+		expect(patch.status).toBe(200);
+
+		const listed = await adminApp.request("/api/admin/collections?limit=100");
+		const ids = (await listed.json()).data.map((x: { id: string }) => x.id);
+		expect(ids).toContain(created.id);
 	});
 });
