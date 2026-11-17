@@ -295,7 +295,18 @@ describe("miniatura de un paquete sin index.html (#471)", () => {
 			hash,
 			previewUrl: null,
 			screenshotUrl: `/api/v1/elpx/${hash}/screenshot.png`,
+			thumbnailUrl: null,
 		});
+	});
+
+	// #470 solo encola la captura si hay index.html; aquí ya basta screenshot.png.
+	test("no se encola una miniatura generada para el paquete sin visor", async () => {
+		const project = await repo.getCurrentElpxProjectByResourceId(
+			getDb().db,
+			shotOnly.published.resourceId,
+		);
+		expect(project?.thumbnailStatus).toBe("skipped");
+		expect(project?.thumbnailFile ?? null).toBeNull();
 	});
 
 	test("el listado público expone la miniatura sin visor", async () => {
@@ -310,6 +321,7 @@ describe("miniatura de un paquete sin index.html (#471)", () => {
 			hash,
 			previewUrl: null,
 			screenshotUrl: `/api/v1/elpx/${hash}/screenshot.png`,
+			thumbnailUrl: null,
 		});
 	});
 

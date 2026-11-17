@@ -129,6 +129,7 @@ describe("inventario de package.json y lockfiles", () => {
 		).toEqual([
 			"apps/cli/package.json",
 			"apps/frontend/package.json",
+			"apps/thumbnailer/package.json",
 			"packages/db/package.json",
 		]);
 		expect(

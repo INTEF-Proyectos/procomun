@@ -167,7 +167,7 @@ socialRoutes.get("/users/me/favorites", requireAuth, async (c) => {
 			and(eq(favorites.userId, currentUser.id), isNull(resources.deletedAt)),
 		);
 
-	const enriched = await enrichResourceCards(rows);
+	const enriched = await enrichResourceCards(rows, currentUser);
 	return c.json({
 		data: enriched,
 		total: Number(countResult[0]?.count ?? 0),
@@ -195,6 +195,8 @@ socialRoutes.get("/users/me/ratings", requireAuth, async (c) => {
 			resourceType: resources.resourceType,
 			author: resources.author,
 			editorialStatus: resources.editorialStatus,
+			// Para decidir si quien valoró puede ver un recurso ya no publicado.
+			createdBy: resources.createdBy,
 			createdAt: resources.createdAt,
 			userScore: ratings.score,
 			ratedAt: ratings.createdAt,
@@ -214,7 +216,7 @@ socialRoutes.get("/users/me/ratings", requireAuth, async (c) => {
 			and(eq(ratings.userId, currentUser.id), isNull(resources.deletedAt)),
 		);
 
-	const enrichedRatings = await enrichResourceCards(rows);
+	const enrichedRatings = await enrichResourceCards(rows, currentUser);
 	return c.json({
 		data: enrichedRatings,
 		total: Number(countResult[0]?.count ?? 0),

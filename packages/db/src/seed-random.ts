@@ -1,5 +1,6 @@
 import { faker } from "@faker-js/faker/locale/es";
 import { inArray, sql } from "drizzle-orm";
+import { initialThumbnailStatus } from "./repository/elpx-thumbnails.ts";
 import type { DrizzleDB } from "./repository/shared.ts";
 import { user } from "./schema/auth.ts";
 import { elpxProjects } from "./schema/elpx.ts";
@@ -209,6 +210,7 @@ export async function seedRandomResources(
 						version: 3,
 						hasPreview: result.hasPreview,
 						hasScreenshot: result.hasScreenshot ?? false,
+						thumbnailStatus: initialThumbnailStatus(result),
 						elpxMetadata: result.metadata,
 						createdAt: new Date(),
 						updatedAt: new Date(),
