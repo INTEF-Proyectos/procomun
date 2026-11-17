@@ -289,6 +289,33 @@ El importador dejaba `resources.created_by` vacío y la sesión de subida del pa
 * Artículos (#446) e itinerarios (#432) usarán la misma búsqueda por correo.
 * Tests: `publicator-email.unit.test.ts`, `field-mapper.unit.test.ts`, `repository/legacy-authors.unit.test.ts`, `import-legacy-procomun.unit.test.ts` e `import-legacy-procomun.integration.test.ts` (rojo sin el cambio: módulos y exportaciones inexistentes, `publicatorEmail` `undefined`).
 
+## Actualización 2026-11-03 (2) — importación de artículos (issue #446)
+
+### Contexto
+El Procomún antiguo exporta sus artículos en el mismo formato que los ODE (`<id>.json` + `<id>.elpx`), con `"type": "POST"`. El importador los bloqueaba todos: su JSON no trae `rightsCopyrightAndOtherRestrictionsStr` y la licencia es obligatoria. Además, el tipo salía genérico, el autor quedaba vacío (solo traen `publicatorStr`) y la descripción recibía el HTML completo del artículo. El `.elpx` exportado declara CC BY-SA 4.0 en los cuatro ejemplos, pero es el valor por defecto del exportador, no la licencia del artículo.
+
+### Decisión
+Decidido en #446 por el equipo del Procomún antiguo (@jacoboAlcantara), y por @juanda para los artículos sin autor (2026-11-03):
+
+* Los artículos entran por el mismo comando, `import:legacy-procomun`. `isLegacyArticle` los reconoce por `type` y `mapLegacyRecord` devuelve `kind: "article"`.
+* **Licencia:** la de por defecto de la plataforma, `DEFAULT_LICENSE` (`cc-by`, la que preseleccionan los formularios de alta), con aviso `license` en el informe para poder listarlos. Si un artículo sí trae licencia, se trata como en un ODE. La licencia del `.elpx` no se usa.
+* **Tipo:** `articulo` («Artículo»), nueva entrada de `RESOURCE_TYPES`, para todos. Es una entrada más del diccionario, así que la revisión de #419 puede cambiarla.
+* **Autor:** la cuenta cuyo correo es `publicatorEmailStr` (#456) pasa a ser la creadora. `publicatorStr` queda como autor y editor en texto, como `publicatorNameStr` en los ODE.
+* **Sin cuenta, sin correo o con la cuenta dada de baja:** el artículo **no se importa**. El informe lo registra como `skipped_without_author` con `externalId`, `email` y `reason`, y lo cuenta en `totals.skippedWithoutAuthor`. No es un error y el lote sigue. Los ODE sin cuenta no cambian: siguen entrando a nombre del sistema (#456).
+* **Descripción:** `"Artículo relacionado con " + titleStr`.
+* **Imágenes externas:** se conservan. El `.elpx` se procesa sin modificarlo.
+* **Borradores:** `published: 0` entra como borrador de su autor (#447).
+* **Contenido HTML:** el cuerpo (`descriptionStr`) no se guarda como HTML en ningún sitio. Se pasa a texto plano con `extractTextFromHtml`, la misma limpieza que un `.html` subido, y va a `resources.extracted_text` para la búsqueda. El artículo se ve desde su `.elpx`, servido con origen opaco y CSP (ADR-0026).
+
+### Consecuencias
+* El informe añade `kind: "article"` a los registros de artículos y `totals.articles` y `totals.skippedWithoutAuthor`.
+* Sin migración: los tipos de recurso viven en código (`packages/db/src/resource-types.ts`) y «Artículo» aparece en filtros y formularios.
+* Reimportar es idempotente: lo importado se omite y se enlaza como un ODE, y un artículo omitido entra cuando su cuenta exista. Por eso conviene importar antes los usuarios (#488).
+* Supuesto sin confirmar: los `id` de artículos y ODE no coinciden entre sí. En el origen parecen vivir en el mismo índice, distinguidos por `type`. Si alguno coincidiera, el segundo se omitiría como ya importado.
+* Riesgo de licencia: uno de los ejemplos (`vr5DpZYBAcddN1-H2qPg`) dice en su texto «licensed under CC BY-SA 4.0», y se importa como `cc-by`. El aviso `license` del informe permite localizar todos los artículos con la licencia asignada por defecto.
+* Las miniaturas de los artículos llegan como ruta relativa del Drupal antiguo y se descartan con aviso, porque `legacy-preview-image.ts` solo descarga de `ode.educacion.es`. Queda pendiente.
+* Tests: `article.unit.test.ts`, `field-mapper.unit.test.ts`, `repository.unit.test.ts`, `extract.unit.test.ts`, `import-legacy-procomun.unit.test.ts` e `import-legacy-procomun.integration.test.ts`. En rojo sin el cambio: `blocked` con `Licencia no reconocida: ""`, y los artículos sin cuenta se importaban a nombre del sistema.
+
 ## Actualización 2026-11-16 — informes sin correos (issue #543)
 
 ### Contexto
@@ -302,3 +329,15 @@ El informe de la ingesta y el de `--link-authors` listaban el correo de origen e
 ### Consecuencias
 * El informe restringido contiene datos personales para resolver las incidencias de la migración: hay que guardarlo donde solo acceda quien las resuelve y borrarlo al terminar. Falta decidir esa ubicación en la migración real.
 * Tests: `apps/cli/src/restricted-report.unit.test.ts` e `import-legacy-procomun.unit.test.ts` («informes sin correos e informe restringido (#543)»).
+
+## Actualización 2026-11-16 (2) — artículos sin autor sin correo en el informe (issues #446 y #543)
+
+### Contexto
+La importación de artículos (2026-11-03 (2)) listaba el correo en los registros `skipped_without_author`. La decisión de #543 (2026-11-16) también los cubre.
+
+### Decisión
+* `skipped_without_author` lleva `externalId`, `kind` y `reason`, sin `email`. El correo solo va al informe restringido (`--restricted-report`), con `list: "skipped_without_author"`.
+* Los errores al guardar un artículo pasan por la utilidad saneada (`summarizeImportError`), así que el texto del artículo, que va en los parámetros del INSERT, no llega al informe ni a la consola.
+
+### Consecuencias
+* Para saber a qué correo pertenece un artículo sin importar hay que pedir el informe restringido o mirar el JSON de origen.
