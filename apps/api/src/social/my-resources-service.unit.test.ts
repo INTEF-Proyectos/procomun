@@ -149,6 +149,8 @@ describe("listMyResources (#530)", () => {
 		const userId = await createUser("mis-recursos-orden");
 		const older = await createOwn(userId, "Antiguo", "draft");
 		await createOwn(userId, "Nuevo", "draft");
+		// Sin pausa, la edición puede caer en el mismo milisegundo que «Nuevo».
+		await Bun.sleep(5);
 		await repo.updateResource(getDb().db, older.id, {
 			title: "Antiguo editado",
 		});

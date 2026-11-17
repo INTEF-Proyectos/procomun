@@ -89,6 +89,15 @@ async function extractHtml(filePath: string): Promise<string> {
 	return stripHtml(html);
 }
 
+/**
+ * Texto plano de un fragmento HTML, con el mismo tratamiento que un `.html`
+ * subido (sin scripts ni estilos, espacios compactados y límite de tamaño).
+ * Lo usa el importador legacy para el cuerpo de los artículos (#446).
+ */
+export function extractTextFromHtml(html: string): string {
+	return normalizeText(stripHtml(html));
+}
+
 export function stripHtml(html: string): string {
 	const { load } = require("cheerio");
 	const $ = load(html);

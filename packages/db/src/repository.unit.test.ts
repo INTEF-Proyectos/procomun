@@ -931,6 +931,48 @@ describe("legacy import repository (epic-004-migracion-legacy-procomun)", () => 
 		);
 	});
 
+	test("guarda el texto del artículo para la búsqueda y lo da por extraído (issue #446)", async () => {
+		const article = await importLegacyResourceWithElpx(db, {
+			resource: {
+				...baseResourceInput,
+				externalId: "1400000000001",
+				resourceType: "articulo",
+				extractedText: "Descripción del aula invertida",
+			},
+			elpx: { ...elpxInput, hash: "hash-legacy-test-articulo" },
+			media: buildMediaInput(crypto.randomUUID()),
+		});
+		const ode = await importLegacyResourceWithElpx(db, {
+			resource: { ...baseResourceInput, externalId: "es_test_sin_texto" },
+			elpx: { ...elpxInput, hash: "hash-legacy-test-sin-texto" },
+			media: buildMediaInput(crypto.randomUUID()),
+		});
+
+		const rows = await db
+			.select({
+				id: schema.resources.id,
+				extractedText: schema.resources.extractedText,
+				extractionStatus: schema.resources.extractionStatus,
+				extractedAt: schema.resources.extractedAt,
+			})
+			.from(schema.resources)
+			.where(
+				inArray(schema.resources.id, [article.resourceId, ode.resourceId]),
+			);
+		const byId = new Map(rows.map((row) => [row.id, row]));
+		expect(byId.get(article.resourceId)).toMatchObject({
+			extractedText: "Descripción del aula invertida",
+			extractionStatus: "completed",
+		});
+		expect(byId.get(article.resourceId)?.extractedAt).toBeInstanceOf(Date);
+		// Un ODE sigue como hasta ahora: sin texto y pendiente de extracción.
+		expect(byId.get(ode.resourceId)).toMatchObject({
+			extractedText: null,
+			extractionStatus: "pending",
+			extractedAt: null,
+		});
+	});
+
 	describe("unpublishUnreviewedLegacyResource (corrección de #447)", () => {
 		async function importAs(externalId: string) {
 			return importLegacyResourceWithElpx(db, {

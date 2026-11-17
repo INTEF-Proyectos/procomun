@@ -12,6 +12,8 @@ import {
 	updateStatsAfterDownload,
 } from "./ResourceDetailIsland.tsx";
 
+const GENERATED_THUMBNAIL = `/api/v1/thumbnails/${"a".repeat(64)}.jpg`;
+
 function renderDetail(
 	resource: Partial<Resource>,
 	role: string,
@@ -107,7 +109,8 @@ describe("Catalog islands", () => {
 		expect(html).toContain("chevron_right");
 	});
 
-	test("las tarjetas de recomendados muestran la previsualización del recurso (#426)", () => {
+	// #470: la miniatura generada sustituye al iframe del paquete (#426).
+	test("las tarjetas de recomendados muestran la miniatura generada, sin iframe", () => {
 		const card = {
 			id: "rel-1",
 			slug: "relacionado",
@@ -118,7 +121,11 @@ describe("Catalog islands", () => {
 			license: "cc-by",
 			author: null,
 			score: 1,
-			elpxPreview: { hash: "abc", previewUrl: "/api/v1/elpx/abc/" },
+			elpxPreview: {
+				hash: "abc",
+				previewUrl: "/api/v1/elpx/abc/",
+				thumbnailUrl: GENERATED_THUMBNAIL,
+			},
 		};
 		const html = renderDetail({}, "reader", {
 			data: [card],
@@ -126,7 +133,8 @@ describe("Catalog islands", () => {
 			limit: 6,
 		});
 
-		expect(html).toContain('src="/api/v1/elpx/abc/"');
+		expect(html).toContain(`src="${GENERATED_THUMBNAIL}"`);
+		expect(html).not.toContain('src="/api/v1/elpx/abc/"');
 	});
 
 	test("sin cuenta, la ficha pone el publicador bajo el título y los autores debajo (#457)", () => {
