@@ -82,6 +82,7 @@ export async function listCollectionResources(
 			license: resources.license,
 			author: resources.author,
 			thumbnailUrl: resources.thumbnailUrl,
+			// Para decidir quién puede ver la miniatura de lo no publicado (#481).
 			createdBy: resources.createdBy,
 			createdByName: user.name,
 			editorialStatus: resources.editorialStatus,

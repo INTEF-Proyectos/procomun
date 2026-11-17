@@ -57,6 +57,7 @@ describe("elpx_projects.has_screenshot", () => {
 				hash: "con-captura",
 				hasPreview: true,
 				hasScreenshot: true,
+				thumbnailFile: null,
 			},
 		]);
 	});
