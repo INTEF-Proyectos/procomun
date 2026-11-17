@@ -397,6 +397,12 @@ function parseCliArgs(args: string[]) {
 		);
 	}
 
+	// --mark-certified recorre siempre todo --source-dir: con --only o --limit
+	// marcaría más de lo pedido sin avisar.
+	if (markCertified && (values.only !== undefined || values.limit != null)) {
+		throw new Error("--mark-certified no admite --only ni --limit");
+	}
+
 	const limit = values.limit != null ? Number(values.limit) : undefined;
 	if (limit != null && (!Number.isFinite(limit) || limit <= 0)) {
 		throw new Error(`--limit inválido: ${values.limit}`);
@@ -412,7 +418,11 @@ function parseCliArgs(args: string[]) {
 	const rawRestricted = values["restricted-report"];
 	if (
 		rawRestricted !== undefined &&
-		(backfillCategories || fixPublished || fixLanguage || copyPreviews)
+		(backfillCategories ||
+			fixPublished ||
+			fixLanguage ||
+			copyPreviews ||
+			markCertified)
 	) {
 		throw new Error(
 			"--restricted-report solo vale para la importación y para --link-authors",

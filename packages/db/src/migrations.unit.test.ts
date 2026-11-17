@@ -897,16 +897,20 @@ describe("migración 0026_resource_validation_seal", () => {
 	const OLD_SCHEMA = `CREATE TABLE "user" (id TEXT PRIMARY KEY);
 		CREATE TABLE "resources" (id TEXT PRIMARY KEY, title TEXT NOT NULL)`;
 
-	test("va la última en el journal con el when reservado", async () => {
+	// Detrás de todas las anteriores, no la última: si no, la 0027 rompería el test.
+	test("va detrás de las anteriores con el when reservado", async () => {
 		const journal = JSON.parse(
 			await readFile(path.join(migrationsDir, "meta/_journal.json"), "utf8"),
 		) as { entries: Array<{ tag: string; when: number }> };
 		const entry = journal.entries.find(
 			(item) => item.tag === "0026_resource_validation_seal",
 		);
+		const previous = journal.entries.filter(
+			(item) => item.tag < "0026_resource_validation_seal",
+		);
 		expect(entry?.when).toBe(1794000000000);
-		expect(entry?.when).toBe(
-			Math.max(...journal.entries.map((item) => item.when)),
+		expect(entry?.when ?? 0).toBeGreaterThan(
+			Math.max(...previous.map((item) => item.when)),
 		);
 	});
 
