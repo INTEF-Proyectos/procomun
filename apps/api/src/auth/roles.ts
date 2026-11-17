@@ -16,19 +16,33 @@ export function getCurrentUser(c: Context<AuthEnv>) {
 }
 
 /**
- * La colección no se inspecciona: la política vigente es que cualquier curator
- * o admin puede gestionar cualquier colección, sin comprobar curatorId. El
- * parámetro se mantiene porque la firma la impone el contrato `canManage` de
- * crud-builder.ts (`(user, entity) => boolean`), que invoca esta función con la
- * entidad.
+ * Quién gestiona una colección. El admin, cualquiera. El curator, las suyas y
+ * las que no están en borrador: la cola de curación (revisión), las publicadas
+ * y las archivadas.
+ *
+ * Issue #538: un borrador es trabajo de quien lo crea y no lo ve otro curator,
+ * la misma regla que `canManageResource`/`isOthersPrivateDraft` aplica a los
+ * recursos desde #460. En las colecciones el dueño es `curatorId`.
+ * `listCollections({ hideOthersDraftsFor })` la aplica en SQL para que el
+ * listado y esta comprobación no se desalineen.
  */
 export function canManageCollection(
 	user: { id: string; role?: string },
-	_collection: { curatorId?: string | null },
+	collection: { curatorId?: string | null; editorialStatus?: string | null },
 ) {
 	if (hasMinRole(user.role, "admin")) return true;
 	if (hasMinRole(user.role, "curator")) {
-		return true;
+		return !isOthersPrivateCollectionDraft(user, collection);
 	}
 	return false;
+}
+
+/** Borrador de colección de otra persona (#538). */
+export function isOthersPrivateCollectionDraft(
+	user: { id: string },
+	collection: { curatorId?: string | null; editorialStatus?: string | null },
+) {
+	return (
+		collection.editorialStatus === "draft" && collection.curatorId !== user.id
+	);
 }
