@@ -3924,6 +3924,29 @@ tasks:
       'published'. Las reglas de transición por rol de las colecciones quedan
       fuera: desde #433 solo las crean admin y curator. Tests rojo → verde en validation.unit.test.ts y
       admin.unit.test.ts.
+  T-2026-11-04-13193751:
+    date: 2026-11-04
+    agent: "backend-api-servicios + seguridad-privacidad-legal"
+    task: "El borrador de una coleccion es privado de su curator"
+    status: Done
+    related: ["#538", "#484", "#460", "#433", "ADR-0008"]
+    notes: >
+      canManageCollection no inspeccionaba la coleccion y concedia gestion
+      completa a cualquier curator, asi que un curator veia y editaba los
+      borradores de otro curator. Desde #460 los recursos ya no funcionan asi.
+      Se aplica la misma regla con curatorId como dueno: el admin gestiona
+      todo; el curator, las suyas y las que no estan en borrador (revision,
+      publicadas, archivadas); un borrador ajeno no lo ve ni lo edita, ni
+      siquiera el del admin. Nuevo isOthersPrivateCollectionDraft en roles.ts y
+      filtro hideOthersDraftsFor en listCollections, para que el listado y la
+      comprobacion por entidad no se desalineen (el countQuery reutiliza el
+      mismo where, asi que el total tambien sale bien). Las subrutas
+      /:id/resources ya pasaban por requireManageableCollection. Solo se toca
+      listCollections: getCollectionBySlug tiene un bloque igual y no se
+      cambia. Test ajustado a proposito: "curator puede listar y gestionar
+      colecciones existentes" esperaba que el curator viese el borrador del
+      admin; ahora esa coleccion pasa a revision dentro del test. Adenda
+      fechada en ADR-0008.
   T-2026-11-04-13124130:
     date: 2026-11-04
     agent: "seguridad-privacidad-legal"

@@ -1,4 +1,4 @@
-import { desc, eq, sql } from "drizzle-orm";
+import { desc, eq, ne, or, sql } from "drizzle-orm";
 import { user } from "../schema/auth.ts";
 import { collections } from "../schema/collections.ts";
 import {
@@ -18,6 +18,8 @@ type CollectionFilters = {
 	curatorId?: string;
 	status?: string;
 	resourceStatus?: string;
+	/** #538: oculta los borradores de coleccion que no son de este usuario. */
+	hideOthersDraftsFor?: string;
 };
 
 const collectionSelection = (resourceStatus?: string) => ({
@@ -52,6 +54,15 @@ export async function listCollections(
 		conditions.push(eq(collections.curatorId, opts.curatorId));
 	if (opts.status)
 		conditions.push(eq(collections.editorialStatus, opts.status));
+	// #538: el curator no ve los borradores ajenos. Misma regla que
+	// canManageCollection y que listResources({ hideOthersDraftsFor }).
+	if (opts.hideOthersDraftsFor) {
+		const ownOrNotDraft = or(
+			ne(collections.editorialStatus, "draft"),
+			eq(collections.curatorId, opts.hideOthersDraftsFor),
+		);
+		if (ownOrNotDraft) conditions.push(ownOrNotDraft);
+	}
 
 	const where = conditions.length ? andWhere(conditions) : undefined;
 	const query = db
