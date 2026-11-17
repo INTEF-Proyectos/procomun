@@ -11,6 +11,7 @@ export const CLI_COMMANDS = [
 	"import:legacy-procomun",
 	"import:legacy-users",
 	"elpx:screenshots",
+	"elpx:thumbnails",
 	"catalog:area-keywords",
 	"import:legacy-keywords",
 ] as const;
@@ -33,6 +34,8 @@ const commandLoaders: Record<
 		(await import("./commands/import-legacy-users.ts")).importLegacyUsers,
 	"elpx:screenshots": async () =>
 		(await import("./commands/elpx-screenshots.ts")).elpxScreenshots,
+	"elpx:thumbnails": async () =>
+		(await import("./commands/elpx-thumbnails.ts")).elpxThumbnails,
 	"catalog:area-keywords": async () =>
 		(await import("./commands/catalog-area-keywords.ts")).catalogAreaKeywords,
 	"import:legacy-keywords": async () =>
@@ -88,6 +91,10 @@ export function printHelp(log: Pick<typeof console, "log"> = console) {
 	);
 	log.log(
 		"  elpx:screenshots [--dry-run]  Detecta screenshot.png en los paquetes ya subidos (#409)",
+	);
+	log.log("  elpx:thumbnails [--dry-run] [--limit <n>] [--force]");
+	log.log(
+		"                    Encola la miniatura generada de los paquetes sin imagen (#470)",
 	);
 	log.log(
 		"  catalog:area-keywords [--apply] [--include <id,id>] [--report-dir <ruta>]",
