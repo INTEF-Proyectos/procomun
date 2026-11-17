@@ -191,6 +191,24 @@ describe("HttpApiClient", () => {
 		]);
 	});
 
+	test("signIn devuelve el código de cuenta bloqueada (#456)", async () => {
+		mockFetchQueue([
+			jsonResponse(
+				{ code: "BANNED_USER", message: "Tu cuenta está bloqueada." },
+				403,
+			),
+		]);
+		const client = new HttpApiClient();
+
+		await expect(
+			client.signIn("bloqueada@example.com", "secret"),
+		).resolves.toEqual({
+			ok: false,
+			code: "BANNED_USER",
+			error: "Tu cuenta está bloqueada.",
+		});
+	});
+
 	test("handles session and sign-in flows", async () => {
 		const calls = mockFetchQueue([
 			emptyResponse(401),
@@ -249,9 +267,11 @@ describe("HttpApiClient", () => {
 			email: "user@example.com",
 			password: "secret",
 		});
-		expect(getCall(calls, 5).url).toBe("/api/auth/sign-in/oauth2");
+		// El flujo completo contra Better Auth está en
+		// apps/api/src/auth/oidc-sign-in.integration.test.ts (#527).
+		expect(getCall(calls, 5).url).toBe("/api/auth/sign-in/social");
 		expect(bodyAsJson(getCall(calls, 5))).toEqual({
-			providerId: "oidc",
+			provider: "oidc",
 			callbackURL: "/admin",
 		});
 		expect(getCall(calls, 8)).toMatchObject({

@@ -14,6 +14,7 @@ import type {
 	KnowledgeAreaRecord,
 	MediaItemRecord,
 	PaginatedResult,
+	PublicAuthor,
 	PublicKnowledgeAreaCatalog,
 	RelatedResourcesResult,
 	ReportRecord,
@@ -121,6 +122,22 @@ export class HttpApiClient implements ApiClient {
 		return res.status === 201
 			? { status: 201, keyword: body as CatalogKeyword }
 			: { status: res.status, error: body.error, keyword: body.keyword };
+	}
+
+	async getPublicAuthor(
+		id: string,
+		opts?: { limit?: number; offset?: number },
+	): Promise<(PaginatedResult<Resource> & { author: PublicAuthor }) | null> {
+		const params = new URLSearchParams();
+		if (opts?.limit) params.set("limit", String(opts.limit));
+		if (opts?.offset) params.set("offset", String(opts.offset));
+		const qs = params.toString();
+		const res = await fetch(
+			`/api/v1/authors/${encodeURIComponent(id)}${qs ? `?${qs}` : ""}`,
+		);
+		if (res.status === 404) return null;
+		if (!res.ok) throw await res.json().catch(() => ({}));
+		return res.json();
 	}
 
 	async getPublicTagBySlug(slug: string): Promise<TagRecord | null> {
@@ -241,15 +258,21 @@ export class HttpApiClient implements ApiClient {
 		});
 		if (res.ok) return { ok: true };
 		const data = await res.json().catch(() => null);
-		return { ok: false, error: data?.message ?? "Credenciales incorrectas" };
+		const error = data?.message ?? "Credenciales incorrectas";
+		return typeof data?.code === "string"
+			? { ok: false, code: data.code, error }
+			: { ok: false, error };
 	}
 
 	async signInOidc(): Promise<SignInResult> {
-		const res = await fetch("/api/auth/sign-in/oauth2", {
+		// Desde Better Auth 1.7 el proveedor genérico usa el flujo social: no
+		// existe /sign-in/oauth2 y la vuelta llega a /api/auth/callback/oidc
+		// (#527, ADR-0007).
+		const res = await fetch("/api/auth/sign-in/social", {
 			method: "POST",
 			headers: { "Content-Type": "application/json" },
 			credentials: "include",
-			body: JSON.stringify({ providerId: "oidc", callbackURL: "/admin" }),
+			body: JSON.stringify({ provider: "oidc", callbackURL: "/admin" }),
 			redirect: "manual",
 		});
 		const location = res.headers.get("location");
