@@ -27,6 +27,7 @@ export type {
 	LegacyPublicationStatus,
 } from "./publication-status.ts";
 export { resolveLegacyPublicationStatus } from "./publication-status.ts";
+export { normalizeLegacyPublicatorEmail } from "./publicator-email.ts";
 export type { ResourceTypeMappingResult } from "./resource-type-map.ts";
 export { mapResourceType } from "./resource-type-map.ts";
 export {
@@ -46,4 +47,8 @@ export type {
 	LegacyUserRole,
 	MappedLegacyUser,
 } from "./users.ts";
-export { mapLegacyRoles, mapLegacyUser } from "./users.ts";
+export {
+	LEGACY_USER_ID_PREFIX,
+	mapLegacyRoles,
+	mapLegacyUser,
+} from "./users.ts";

@@ -47,6 +47,7 @@ describe("legacy-import types", () => {
 			blocking: false,
 			blockingErrors: [],
 			warnings: [warning],
+			publicatorEmail: null,
 			resource,
 		};
 
