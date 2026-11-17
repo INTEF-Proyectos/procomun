@@ -1,5 +1,6 @@
 import { describe, expect, it } from "bun:test";
 import path from "node:path";
+import { DEFAULT_LICENSE } from "../validation.ts";
 import { mapLegacyRecord, resolveLegacyExternalId } from "./field-mapper.ts";
 import type { LegacyOdeJson } from "./types.ts";
 
@@ -497,5 +498,123 @@ describe("mapLegacyRecord — estado de publicación (issue #447)", () => {
 				result.warnings.find((w) => w.field === "published")?.message,
 			).toContain("se importa como borrador");
 		}
+	});
+});
+
+describe("mapLegacyRecord — correo de quien publicó (issue #456)", () => {
+	it("devuelve publicatorEmailStr normalizado y no cambia los campos de autoría en texto", async () => {
+		const json = await loadFixture("es_2024052212_9181312");
+		const before = mapLegacyRecord(json, "fallback.elpx");
+		const result = mapLegacyRecord(
+			{ ...json, publicatorEmailStr: "  Docente.Dos@Ejemplo.TEST " },
+			"fallback.elpx",
+		);
+
+		expect(result.publicatorEmail).toBe("docente.dos@ejemplo.test");
+		expect(result.resource.author).toBe(before.resource.author);
+		expect(result.resource.otherAuthors).toBe(before.resource.otherAuthors);
+		expect(result.resource.publisher).toBe(before.resource.publisher);
+	});
+
+	it("sin publicatorEmailStr devuelve null y el registro sigue siendo importable", async () => {
+		const json = await loadFixture("es_2024052212_9181312");
+		const { publicatorEmailStr: _email, ...withoutEmail } = json;
+		const result = mapLegacyRecord(withoutEmail, "fallback.elpx");
+
+		expect(result.publicatorEmail).toBeNull();
+		expect(result.blocking).toBe(false);
+	});
+});
+
+// #446: el Procomún antiguo exporta sus artículos como pares .json+.elpx con
+// `type: "POST"`. Sin licencia en el JSON, el importador los bloqueaba todos.
+describe("mapLegacyRecord — artículos (issue #446)", () => {
+	it("un artículo sin licencia no se bloquea: recibe la licencia por defecto y se avisa", async () => {
+		const json = await loadFixture("1400000000001");
+		expect(json.rightsCopyrightAndOtherRestrictionsStr).toBeUndefined();
+
+		const result = mapLegacyRecord(json, "1400000000001.elpx");
+
+		expect(result.blockingErrors).toEqual([]);
+		expect(result.blocking).toBe(false);
+		expect(result.resource.license).toBe(DEFAULT_LICENSE);
+		expect(result.warnings).toContainEqual({
+			field: "license",
+			message: `El artículo no trae licencia; se asigna la de por defecto de la plataforma ("${DEFAULT_LICENSE}")`,
+		});
+	});
+
+	it("aplica las reglas de los artículos: tipo «Artículo», descripción fija y autor desde publicatorStr", async () => {
+		const json = await loadFixture("1400000000001");
+		const result = mapLegacyRecord(json, "1400000000001.elpx");
+
+		expect(result.kind).toBe("article");
+		expect(result.externalId).toBe("1400000000001");
+		expect(result.resource.title).toBe("Aula invertida");
+		expect(result.resource.description).toBe(
+			"Artículo relacionado con Aula invertida",
+		);
+		expect(result.resource.resourceType).toBe("articulo");
+		expect(result.warnings.map((w) => w.field)).not.toContain("resourceType");
+		expect(result.resource.author).toBe("Docente Articulista");
+		expect(result.resource.publisher).toBe("Docente Articulista");
+		expect(result.publicatorEmail).toBe("articulista.uno@ejemplo.test");
+		expect(result.resource.editorialStatus).toBe("published");
+		expect(result.resource.language).toBe("es");
+		expect(result.resource.subjects).toEqual(["Matemáticas"]);
+		expect(result.resource.keywords).toBe(
+			"aula invertida,metodología,Ayuda Procomún",
+		);
+		expect(result.resource.importedAt?.toISOString()).toBe(
+			"2021-10-21T08:43:00.000Z",
+		);
+	});
+
+	it("devuelve el cuerpo HTML del artículo tal cual, sin llevarlo a la descripción", async () => {
+		const json = await loadFixture("1400000000001");
+		const result = mapLegacyRecord(json, "1400000000001.elpx");
+
+		expect(result.articleHtml).toBe(json.descriptionStr ?? null);
+		expect(result.articleHtml).toContain(
+			'src="http://imagenes.ejemplo.test/fotos/aula-invertida.jpg"',
+		);
+		expect(result.resource.description).not.toContain("<");
+	});
+
+	it("un artículo con published = 0 entra como borrador", async () => {
+		const json = await loadFixture("ArtBorrador000000001");
+		const result = mapLegacyRecord(json, "ArtBorrador000000001.elpx");
+
+		expect(result.kind).toBe("article");
+		expect(result.blocking).toBe(false);
+		expect(result.resource.editorialStatus).toBe("draft");
+		expect(result.resource.sourcePublished).toBe(0);
+		expect(result.resource.description).toBe(
+			"Artículo relacionado con Artículo en borrador",
+		);
+	});
+
+	it("si un artículo sí trae licencia, se respeta con las reglas de siempre", async () => {
+		const json = await loadFixture("1400000000001");
+		const result = mapLegacyRecord(
+			{
+				...json,
+				rightsCopyrightAndOtherRestrictionsStr:
+					"creative commons: attribution - non commercial",
+			},
+			"1400000000001.elpx",
+		);
+
+		expect(result.resource.license).toBe("cc-by-nc");
+		expect(result.warnings.map((w) => w.field)).not.toContain("license");
+	});
+
+	it("los ODE no cambian: kind «ode» y sin cuerpo de artículo", async () => {
+		const json = await loadFixture("es_2024052212_9181312");
+		const result = mapLegacyRecord(json, "fallback.elpx");
+
+		expect(result.kind).toBe("ode");
+		expect(result.articleHtml).toBeNull();
+		expect(result.resource.resourceType).not.toBe("articulo");
 	});
 });

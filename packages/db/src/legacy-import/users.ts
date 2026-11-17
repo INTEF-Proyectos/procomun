@@ -262,6 +262,13 @@ function mapProfile(
  * Convierte un usuario del Procomún anterior en cuenta, credencial y perfil.
  * Los avisos nunca incluyen datos personales ni el hash.
  */
+/**
+ * Prefijo del id de las cuentas que crea el importador de usuarios. Nadie que
+ * se registre puede elegirlo, así que identifica de forma fiable una cuenta
+ * migrada del Procomún antiguo (#508).
+ */
+export const LEGACY_USER_ID_PREFIX = "legacy-procomun:user:";
+
 export function mapLegacyUser(record: LegacyUserJson): MappedLegacyUser {
 	const legacyUid = asNonEmptyString(record.uid);
 	if (!legacyUid) throw new Error("uid ausente o inválido");
@@ -304,7 +311,7 @@ export function mapLegacyUser(record: LegacyUserJson): MappedLegacyUser {
 
 	return {
 		legacyUid,
-		id: `legacy-procomun:user:${legacyUid}`,
+		id: `${LEGACY_USER_ID_PREFIX}${legacyUid}`,
 		email,
 		name,
 		role,
