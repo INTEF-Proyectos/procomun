@@ -22,6 +22,7 @@ import { elpxPreviewUrlForStatus } from "../../elpx/preview-token.ts";
 import { updateSearchVector } from "../../fts/search.ts";
 import { onPublicContentChanged } from "../../resources/validation-seal.ts";
 import { retireUploadArtifacts } from "../../services/elpx-retire.ts";
+import { thumbnailUrlForStatus } from "../../thumbnails/access.ts";
 import { contentDisposition, getUploadConfig } from "../../uploads/config.ts";
 import { buildCrudRoutes } from "../crud-builder.ts";
 import { readUploadContent, terminateUpload } from "../uploads.ts";
@@ -75,11 +76,37 @@ adminUploadRoutes.get("/:id/content", async (c) => {
 
 // --- Resource CRUD (montadas en /resources por admin/index.ts) ---
 
+/**
+ * Revisión de #481: el backoffice ve recursos en cualquier estado y la preview
+ * legacy de lo no publicado solo sale firmada. `listFilters` y `canManage` ya
+ * dejan fuera lo que el usuario no puede ver. `thumbnailUrl` no es editable,
+ * así que el enlace firmado nunca vuelve a la base de datos.
+ */
+function withThumbnailForStatus<
+	T extends { thumbnailUrl: string | null; editorialStatus: string },
+>(resource: T): T {
+	return {
+		...resource,
+		thumbnailUrl: thumbnailUrlForStatus(
+			resource.thumbnailUrl,
+			resource.editorialStatus,
+		),
+	};
+}
+
 const resourceRoutes = buildCrudRoutes({
 	baseRole: "author",
-	list: (db, opts) =>
-		repo.listResources(db, opts as Parameters<typeof repo.listResources>[1]),
-	getById: repo.getResourceById,
+	list: async (db, opts) => {
+		const result = await repo.listResources(
+			db,
+			opts as Parameters<typeof repo.listResources>[1],
+		);
+		return { ...result, data: result.data.map(withThumbnailForStatus) };
+	},
+	getById: async (db, id) => {
+		const resource = await repo.getResourceById(db, id);
+		return resource ? withThumbnailForStatus(resource) : null;
+	},
 	create: (db, data) =>
 		repo.createResource(db, data as Parameters<typeof repo.createResource>[1]),
 	update: async (db, id, data, user) => {

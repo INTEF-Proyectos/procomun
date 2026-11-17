@@ -1,5 +1,4 @@
 import { useEffect, useRef, useState } from "react";
-import { useIframeScale } from "../../hooks/use-iframe-scale.ts";
 import type {
 	BadgeConfig,
 	CollectionRecord,
@@ -30,42 +29,6 @@ function shuffleAndPick<T>(arr: T[], n: number): T[] {
 		copy[j] = a;
 	}
 	return copy.slice(0, n);
-}
-
-// ---------------------------------------------------------------------------
-// Scaled iframe preview component (uses shared hook)
-// ---------------------------------------------------------------------------
-
-function IframePreview({
-	src,
-	className,
-	iframeWidth = 1024,
-	iframeHeight = 768,
-	fillWidth = false,
-}: {
-	src: string;
-	className?: string;
-	iframeWidth?: number;
-	iframeHeight?: number;
-	fillWidth?: boolean;
-}) {
-	const ref = useIframeScale<HTMLDivElement>({
-		iframeWidth,
-		iframeHeight,
-		fillWidth,
-	});
-
-	return (
-		<div className={`home-iframe-wrap ${className ?? ""}`} ref={ref}>
-			<iframe
-				src={src}
-				loading="lazy"
-				tabIndex={-1}
-				sandbox="allow-scripts"
-				title="Vista previa"
-			/>
-		</div>
-	);
 }
 
 // ---------------------------------------------------------------------------
@@ -110,12 +73,6 @@ function FeaturedSection({
 				<div className="home-featured-hero-preview">
 					{heroMedia.kind === "image" ? (
 						<img src={heroMedia.url} alt="" />
-					) : heroMedia.kind === "preview" ? (
-						<IframePreview
-							src={heroMedia.url}
-							className="home-featured-iframe"
-							fillWidth
-						/>
 					) : (
 						<div className="home-featured-placeholder">
 							<CardTypeMarker
@@ -162,12 +119,6 @@ function FeaturedSection({
 					<div className="home-featured-sec-preview">
 						{secMedia?.kind === "image" ? (
 							<img src={secMedia.url} alt="" />
-						) : secMedia?.kind === "preview" ? (
-							<IframePreview
-								src={secMedia.url}
-								className="home-featured-iframe"
-								fillWidth
-							/>
 						) : (
 							<div className="home-featured-placeholder">
 								<CardTypeMarker
@@ -340,12 +291,6 @@ function NewsSection({ resources }: { resources: Resource[] }) {
 						<div className="home-news-preview">
 							{media.kind === "image" ? (
 								<img src={media.url} alt="" />
-							) : media.kind === "preview" ? (
-								<IframePreview
-									src={media.url}
-									className="home-news-iframe"
-									fillWidth
-								/>
 							) : (
 								<div className="home-news-placeholder">
 									<CardTypeMarker
@@ -492,12 +437,12 @@ export function HomeDataIsland() {
 							perfil, guarda tus recursos favoritos y participa en comunidades
 							especializadas.
 						</p>
+						{/* #535: «Saber mas» enlazaba a `sobre`, una ruta que no
+						    existe en App.tsx, y llevaba a una pagina vacia. Se quita
+						    el boton; no hay pagina institucional que ofrecer todavia. */}
 						<div className="home-cta-buttons">
 							<a href={url("registro")} className="home-cta-btn-primary">
 								Empezar ahora
-							</a>
-							<a href={url("sobre")} className="home-cta-btn-ghost">
-								Saber mas
 							</a>
 						</div>
 					</div>

@@ -54,3 +54,11 @@ Implementación (en #512, apilado sobre #471):
 - [ ] `buildElpxPreview`, la ficha, el panel, favoritos, valoraciones y administración con la URL según el estado
 - [ ] `location ^~ /api/v1/thumbnails/` en `nginx.conf`
 - [ ] Tests de CA-1 a CA-10
+
+## 2026-11-16 — Revisión de #512 (@jacoboAlcantara, 2026-11-08)
+
+- [x] [P1] La cola de miniaturas pasa a `0020_elpx_thumbnail_queue` y los índices a `0021_thumbnail_owner_indexes`, con `when` posteriores a la `0019_user_profile` de #488. Regresión con el migrador real de drizzle: base nueva, base migrada con main y base con la 0019 de #488.
+- [x] [P2] El contenido visible se mide después de `settleMs`. Test de integración con Chromium con contenido que aparece durante la espera.
+- [x] [P2] CSP propia de captura (`CAPTURE_HTML_CSP`) sin `allow-popups` ni `allow-popups-to-escape-sandbox`. El test de paridad comprueba las garantías comunes con el visor y los permisos que se quitan; test de integración de que `window.open` no abre nada.
+
+- [x] `recupera los processing colgados…` (elpx-thumbnails) fallaba también en la punta revisada al correr el fichero completo (aislado pasaba): el primer reclamo se llevaba proyectos pendientes de tests anteriores, creados antes. El test fija `created_at` anteriores.

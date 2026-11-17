@@ -44,3 +44,9 @@ Un vocabulario de tipos de recurso poco fiable degrada directamente la capacidad
 ## Estado
 
 Sin resolver. No se ha implementado nada de este documento — es la investigación previa acordada con el usuario junto al parche pragmático ya aplicado (ADR-0029, actualización 2026-07-16 (3)). Siguiente paso: sesión de decisión con roles de Metadatos y Curación + Arquitectura de Solución (`@.agents/skills/metadatos-y-curacion`, `@.agents/skills/arquitectura-solucion`) para responder las preguntas de arriba y producir un `design.md` con la opción elegida.
+
+## Actualización 2026-11-03 — nuevo tipo «Artículo» (issues #446 y #419)
+
+* `RESOURCE_TYPES` (`packages/db/src/resource-types.ts`) suma `{ value: "articulo", label: "Artículo" }`: 14 valores. Lo pidió el equipo del Procomún antiguo en #419 y lo usa el importador para todos los artículos (`type: "POST"`, #446). Ver ADR-0029, actualización 2026-11-03 (2).
+* Es una entrada normal del diccionario, no un caso especial. Sale en los filtros y en los formularios de alta y edición. El importador la referencia con `LEGACY_ARTICLE_RESOURCE_TYPE`, tipado contra `ResourceTypeValue`: si se renombra o se quita, `check-types` falla en el importador.
+* Pendiente para la revisión de #419: decidir si «Artículo» tiene equivalente en LOM-ES (Learning Resource Type) o se queda como tipo propio de la plataforma. Si cambia, hay que migrar los recursos ya importados con `resource_type = 'articulo'`, porque el valor se guarda tal cual.

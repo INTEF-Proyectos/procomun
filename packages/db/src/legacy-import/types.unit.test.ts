@@ -45,9 +45,12 @@ describe("legacy-import types", () => {
 		};
 		const result: MappingResult = {
 			externalId: "es_x",
+			kind: "ode",
 			blocking: false,
 			blockingErrors: [],
 			warnings: [warning],
+			publicatorEmail: null,
+			articleHtml: null,
 			resource,
 		};
 

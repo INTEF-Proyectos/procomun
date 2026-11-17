@@ -1,0 +1,19 @@
+{
+	"preview": "/files/articulos/migration_post_preview//00000000-0000-4000-8000-000000000001.jpg",
+	"publicatorStr": "Docente Articulista  ",
+	"labelsStr": ["aula invertida", "metodología", "Ayuda Procomún"],
+	"lastIndexDate": "2021-10-21T11:17:00.716Z",
+	"published": 1,
+	"type": "POST",
+	"publicatorEmailStr": " Articulista.Uno@Ejemplo.TEST ",
+	"titleStr": "Aula invertida ",
+	"generalLanguageStr": ["es"],
+	"learningContext": ["Bachillerato", "12 - 13 años / Primer curso"],
+	"knowledgeArea": ["Matemáticas"],
+	"certified": "0",
+	"id": "1400000000001",
+	"publicationDate": "2021-10-21T08:43:00.000Z",
+	"descriptionStr": "<p>Descripci&oacute;n del <strong>aula invertida</strong> para quien empieza.<img alt=\"\" src=\"http://imagenes.ejemplo.test/fotos/aula-invertida.jpg\" style=\"width: 800px; height: 389px;\" /></p>\n<script>alert('no debe llegar al texto')</script>\n",
+	"idDrupal": "1001",
+	"urlDrupal": ["/view-resource/POST/1400000000001", "/node/1001"]
+}

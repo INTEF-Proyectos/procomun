@@ -2,14 +2,21 @@ import { beforeAll, describe, expect, test } from "bun:test";
 import { copyFile, mkdtemp, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
+import { LEGACY_IMPORT_SYSTEM_USER_ID } from "@procomun/db/legacy-import";
 import {
 	getElpxProjectByResourceId,
 	listMediaItemsForResource,
 	listResources,
 } from "@procomun/db/repository";
-import { resourceEducationalAreas, resources } from "@procomun/db/schema";
+import {
+	resourceEducationalAreas,
+	resources,
+	uploadSessions,
+	user,
+} from "@procomun/db/schema";
 import { eq, inArray, sql } from "drizzle-orm";
 import { Hono } from "hono";
+import { searchResources } from "../../../api/src/fts/search.ts";
 import { elpxContentRoutes } from "../../../api/src/routes/elpx-content.ts";
 import { computeFileSha256 } from "../../../api/src/uploads/config.ts";
 import {
@@ -18,6 +25,7 @@ import {
 	runFixLegacyLanguage,
 	runFixLegacyPublished,
 	runImportLegacyProcomun,
+	runLinkLegacyAuthors,
 	runMarkLegacyCertified,
 } from "./import-legacy-procomun.ts";
 
@@ -876,6 +884,450 @@ describe("import:legacy-procomun — --fix-language reindexa la búsqueda (revis
 
 		// Lo que fallaba: el índice seguía en español y la búsqueda daba 0.
 		expect(await indexFindsRunningInEnglish(row.id)).toBe(true);
+	});
+});
+
+describe("import:legacy-procomun — cada recurso pasa a la cuenta de su autor (issue #456)", () => {
+	let deps: Awaited<ReturnType<typeof loadImportLegacyProcomunDependencies>>;
+	let sourceDir: string;
+	let jsonOnlyDir: string;
+
+	// Correo de cada ODE tal como llega en publicatorEmailStr.
+	const SOURCES = {
+		es_autor_uno: "  Autora.Uno@Issue456.TEST ",
+		es_autor_dos: "autora.dos@issue456.test",
+		es_autor_tres: "autora.uno@issue456.test",
+		es_autor_cuatro: "autora.cuatro@issue456.test",
+	} as const;
+	type SourceId = keyof typeof SOURCES;
+
+	async function insertAccount(id: string, email: string) {
+		await deps.getDb().db.insert(user).values({
+			id,
+			email,
+			emailVerified: true,
+			name: id,
+			role: "author",
+			createdAt: new Date(),
+			updatedAt: new Date(),
+		});
+	}
+
+	async function rowOf(externalId: SourceId) {
+		const found = await deps.repo.findLegacyResourceByExternalId(
+			deps.getDb().db,
+			"legacy-procomun",
+			externalId,
+		);
+		if (!found) return null;
+		const [row] = await deps
+			.getDb()
+			.db.select({
+				id: resources.id,
+				createdBy: resources.createdBy,
+				author: resources.author,
+				publisher: resources.publisher,
+			})
+			.from(resources)
+			.where(eq(resources.id, found.id));
+		return row ?? null;
+	}
+
+	beforeAll(async () => {
+		process.env.UPLOAD_STORAGE_DIR = await mkdtemp(
+			path.join(tmpdir(), "legacy-import-storage-authors-"),
+		);
+		deps = await loadImportLegacyProcomunDependencies();
+		sourceDir = await mkdtemp(path.join(tmpdir(), "legacy-authors-source-"));
+		jsonOnlyDir = await mkdtemp(path.join(tmpdir(), "legacy-authors-json-"));
+
+		for (const [externalId, email] of Object.entries(SOURCES)) {
+			await createMinimalElpx(
+				path.join(sourceDir, `${externalId}.elpx`),
+				`authors-${externalId}`,
+			);
+			const json = JSON.stringify({
+				idODE: externalId,
+				titleStr: `Recurso ${externalId}`,
+				descriptionStr: "Recurso para probar la autoría.",
+				generalLanguageStr: ["es"],
+				rightsCopyrightAndOtherRestrictionsStr: "creative commons: attribution",
+				resourceType: ["documento"],
+				published: externalId === "es_autor_uno" ? 0 : 1,
+				authorStr: ["Autora en texto"],
+				publicatorNameStr: "Publicadora en texto",
+				publicatorEmailStr: email,
+			});
+			await writeFile(path.join(sourceDir, `${externalId}.json`), json);
+			// Para --link-authors basta con los .json: sin paquetes .elpx.
+			await writeFile(path.join(jsonOnlyDir, `${externalId}.json`), json);
+		}
+
+		// La cuenta guarda el correo con otras mayúsculas que el JSON.
+		await insertAccount("issue456-uno", "AUTORA.uno@issue456.test");
+	});
+
+	test("--dry-run dice a quién pasaría cada recurso y no escribe", async () => {
+		const report = await runImportLegacyProcomun(
+			{ sourceDir, dryRun: true },
+			deps,
+		);
+
+		const byId = new Map(report.records.map((r) => [r.externalId, r]));
+		expect(byId.get("es_autor_uno")).toMatchObject({
+			outcome: "would_import",
+			createdBy: "issue456-uno",
+		});
+		expect(byId.get("es_autor_dos")).toMatchObject({
+			outcome: "would_import",
+			createdBy: null,
+		});
+		expect(report.totals.authorLinked).toBe(2);
+		expect(await rowOf("es_autor_uno")).toBeNull();
+	});
+
+	test("la importación asigna la cuenta con ese correo y deja el resto a nombre del sistema", async () => {
+		const report = await runImportLegacyProcomun(
+			{ sourceDir, dryRun: false },
+			deps,
+		);
+
+		expect(report.totals.imported).toBe(4);
+		expect(report.totals.errored).toBe(0);
+		expect(report.totals.authorLinked).toBe(2);
+		expect(report.authorsWithoutAccount).toEqual([
+			{
+				externalId: "es_autor_cuatro",
+				reason: "no_account",
+			},
+			{
+				externalId: "es_autor_dos",
+				reason: "no_account",
+			},
+		]);
+
+		const uno = await rowOf("es_autor_uno");
+		expect(uno).toMatchObject({
+			createdBy: "issue456-uno",
+			author: "Autora en texto",
+			publisher: "Publicadora en texto",
+		});
+		const tres = await rowOf("es_autor_tres");
+		expect(tres?.createdBy).toBe("issue456-uno");
+		expect((await rowOf("es_autor_dos"))?.createdBy).toBeNull();
+
+		// El paquete lo subió el importador: su sesión de subida no cambia.
+		const [session] = await deps
+			.getDb()
+			.db.select({ ownerId: uploadSessions.ownerId })
+			.from(uploadSessions)
+			.where(eq(uploadSessions.resourceId, uno?.id as string));
+		expect(session?.ownerId).toBe(LEGACY_IMPORT_SYSTEM_USER_ID);
+
+		// «Mis recursos» de la autora, borradores incluidos.
+		const mine = await listResources(deps.getDb().db, {
+			createdBy: "issue456-uno",
+			limit: 100,
+		});
+		expect(mine.data.map((r) => r.id).sort()).toEqual(
+			[String(uno?.id), String(tres?.id)].sort(),
+		);
+	});
+
+	test("--link-authors enlaza lo ya importado con solo los .json; en seco no escribe", async () => {
+		await insertAccount("issue456-dos", "autora.dos@issue456.test");
+
+		const dry = await runLinkLegacyAuthors(
+			{ sourceDir: jsonOnlyDir, dryRun: true },
+			deps,
+		);
+		expect(dry.totals).toMatchObject({
+			processed: 4,
+			linked: 1,
+			alreadyLinked: 2,
+			withoutAccount: 1,
+			errored: 0,
+		});
+		expect((await rowOf("es_autor_dos"))?.createdBy).toBeNull();
+
+		const real = await runLinkLegacyAuthors(
+			{ sourceDir: jsonOnlyDir, dryRun: false },
+			deps,
+		);
+		expect(real.totals.linked).toBe(1);
+		expect(real.records).toContainEqual({
+			externalId: "es_autor_dos",
+			outcome: "linked",
+			resourceId: (await rowOf("es_autor_dos"))?.id as string,
+			userId: "issue456-dos",
+		});
+		expect(real.authorsWithoutAccount).toEqual([
+			{
+				externalId: "es_autor_cuatro",
+				reason: "no_account",
+			},
+		]);
+		expect(await rowOf("es_autor_dos")).toMatchObject({
+			createdBy: "issue456-dos",
+			author: "Autora en texto",
+		});
+	});
+
+	test("reimportar enlaza las cuentas creadas después; repetirlo no cambia nada", async () => {
+		await insertAccount("issue456-cuatro", "autora.cuatro@issue456.test");
+
+		const rerun = await runImportLegacyProcomun(
+			{ sourceDir, dryRun: false },
+			deps,
+		);
+		expect(rerun.totals.imported).toBe(0);
+		expect(rerun.totals.skippedExisting).toBe(4);
+		expect(rerun.totals.authorLinked).toBe(1);
+		expect(rerun.authorsWithoutAccount).toEqual([]);
+		expect(
+			rerun.records.find((r) => r.externalId === "es_autor_cuatro"),
+		).toEqual({
+			outcome: "skipped_existing",
+			externalId: "es_autor_cuatro",
+			authorLink: "linked",
+		});
+		expect((await rowOf("es_autor_cuatro"))?.createdBy).toBe("issue456-cuatro");
+
+		const again = await runImportLegacyProcomun(
+			{ sourceDir, dryRun: false },
+			deps,
+		);
+		expect(again.totals.authorLinked).toBe(0);
+		expect(
+			again.records.every(
+				(r) =>
+					r.outcome === "skipped_existing" && r.authorLink === "already_linked",
+			),
+		).toBe(true);
+		const linkAgain = await runLinkLegacyAuthors(
+			{ sourceDir: jsonOnlyDir, dryRun: false },
+			deps,
+		);
+		expect(linkAgain.totals).toMatchObject({ linked: 0, alreadyLinked: 4 });
+	});
+
+	test("nunca pisa a un creador real, aunque el correo tenga cuenta", async () => {
+		await insertAccount("issue456-editora", "editora@issue456.test");
+		const tres = await rowOf("es_autor_tres");
+		await deps
+			.getDb()
+			.db.update(resources)
+			.set({ createdBy: "issue456-editora" })
+			.where(eq(resources.id, tres?.id as string));
+
+		const linked = await runLinkLegacyAuthors(
+			{ sourceDir: jsonOnlyDir, dryRun: false },
+			deps,
+		);
+		expect(linked.totals.keptCreator).toBe(1);
+		expect(linked.records).toContainEqual({
+			externalId: "es_autor_tres",
+			outcome: "kept_creator",
+			resourceId: tres?.id as string,
+			userId: "issue456-uno",
+			createdBy: "issue456-editora",
+		});
+
+		const rerun = await runImportLegacyProcomun(
+			{ sourceDir, dryRun: false },
+			deps,
+		);
+		expect(
+			rerun.records.find((r) => r.externalId === "es_autor_tres"),
+		).toMatchObject({ authorLink: "kept_creator" });
+		expect((await rowOf("es_autor_tres"))?.createdBy).toBe("issue456-editora");
+	});
+});
+
+describe("import:legacy-procomun — artículos (issue #446)", () => {
+	let deps: Awaited<ReturnType<typeof loadImportLegacyProcomunDependencies>>;
+	let sourceDir: string;
+
+	// JSON sintéticos con la forma real de la exportación (`type: "POST"`, sin
+	// licencia, cuerpo HTML en descriptionStr); los paquetes son mínimos.
+	const ARTICLE_FIXTURES = path.join(
+		import.meta.dir,
+		"../../../../packages/db/src/test-fixtures/legacy-procomun",
+	);
+	const PUBLISHED = "1400000000001";
+	const DRAFT = "ArtBorrador000000001";
+
+	async function insertAccount(id: string, email: string) {
+		await deps.getDb().db.insert(user).values({
+			id,
+			email,
+			emailVerified: true,
+			name: id,
+			role: "author",
+			createdAt: new Date(),
+			updatedAt: new Date(),
+		});
+	}
+
+	async function rowOf(externalId: string) {
+		const found = await deps.repo.findLegacyResourceByExternalId(
+			deps.getDb().db,
+			"legacy-procomun",
+			externalId,
+		);
+		if (!found) return null;
+		const [row] = await deps
+			.getDb()
+			.db.select({
+				id: resources.id,
+				createdBy: resources.createdBy,
+				resourceType: resources.resourceType,
+				license: resources.license,
+				description: resources.description,
+				author: resources.author,
+				editorialStatus: resources.editorialStatus,
+				extractedText: resources.extractedText,
+			})
+			.from(resources)
+			.where(eq(resources.id, found.id));
+		return row ?? null;
+	}
+
+	beforeAll(async () => {
+		process.env.UPLOAD_STORAGE_DIR = await mkdtemp(
+			path.join(tmpdir(), "legacy-import-storage-articles-"),
+		);
+		deps = await loadImportLegacyProcomunDependencies();
+		sourceDir = await mkdtemp(path.join(tmpdir(), "legacy-articles-source-"));
+		for (const id of [PUBLISHED, DRAFT]) {
+			await copyFile(
+				path.join(ARTICLE_FIXTURES, `${id}.json`),
+				path.join(sourceDir, `${id}.json`),
+			);
+			await createMinimalElpx(
+				path.join(sourceDir, `${id}.elpx`),
+				`articles-${id}`,
+			);
+		}
+		// Solo la autora del artículo publicado tiene cuenta, con otras mayúsculas.
+		await insertAccount("issue446-uno", "ARTICULISTA.uno@ejemplo.test");
+	});
+
+	test("--dry-run: el artículo con cuenta se importaría, el otro no, y no escribe nada", async () => {
+		const report = await runImportLegacyProcomun(
+			{ sourceDir, dryRun: true },
+			deps,
+		);
+
+		expect(report.totals).toMatchObject({
+			articles: 2,
+			imported: 1,
+			skippedWithoutAuthor: 1,
+			blocked: 0,
+			errored: 0,
+		});
+		expect(await rowOf(PUBLISHED)).toBeNull();
+	});
+
+	test("importa el artículo con cuenta como «Artículo» de su autora y deja fuera el que no la tiene", async () => {
+		const report = await runImportLegacyProcomun(
+			{ sourceDir, dryRun: false },
+			deps,
+		);
+
+		expect(report.totals).toMatchObject({
+			imported: 1,
+			skippedWithoutAuthor: 1,
+			blocked: 0,
+			errored: 0,
+		});
+		expect(report.records).toContainEqual({
+			outcome: "skipped_without_author",
+			externalId: DRAFT,
+			kind: "article",
+			reason: "no_account",
+		});
+		// #543: el informe general no lleva el correo.
+		expect(JSON.stringify(report)).not.toContain("articulista.dos");
+		expect(await rowOf(DRAFT)).toBeNull();
+
+		expect(await rowOf(PUBLISHED)).toMatchObject({
+			createdBy: "issue446-uno",
+			resourceType: "articulo",
+			license: "cc-by",
+			description: "Artículo relacionado con Aula invertida",
+			author: "Docente Articulista",
+			editorialStatus: "published",
+			extractedText: "Descripción del aula invertida para quien empieza.",
+		});
+	});
+
+	test("el texto del artículo se encuentra en la búsqueda, aunque no esté en la descripción", async () => {
+		const result = await searchResources(deps.getDb().db, {
+			query: "empieza",
+			language: "es",
+			status: "published",
+		});
+
+		const article = await rowOf(PUBLISHED);
+		expect(result.data.map((r) => r.id)).toContain(article?.id as string);
+		// El fragmento sale de la descripción, nunca del HTML del artículo.
+		const hit = result.data.find((r) => r.id === article?.id);
+		expect(hit?.description).toBe("Artículo relacionado con Aula invertida");
+	});
+
+	test("con la cuenta ya creada, reimportar trae el borrador como borrador de su autora; repetirlo no cambia nada", async () => {
+		await insertAccount("issue446-dos", "articulista.dos@ejemplo.test");
+
+		const rerun = await runImportLegacyProcomun(
+			{ sourceDir, dryRun: false },
+			deps,
+		);
+		expect(rerun.totals).toMatchObject({
+			imported: 1,
+			importedAsDraft: 1,
+			skippedExisting: 1,
+			skippedWithoutAuthor: 0,
+		});
+		expect(await rowOf(DRAFT)).toMatchObject({
+			createdBy: "issue446-dos",
+			editorialStatus: "draft",
+			resourceType: "articulo",
+		});
+		// «Mis recursos» de la autora incluye su borrador.
+		const mine = await listResources(deps.getDb().db, {
+			createdBy: "issue446-dos",
+			limit: 100,
+		});
+		expect(mine.data.map((r) => r.id)).toEqual([
+			(await rowOf(DRAFT))?.id as string,
+		]);
+		// Y no sale en el catálogo público.
+		const catalog = await listResources(deps.getDb().db, {
+			status: "published",
+			limit: 100,
+		});
+		expect(catalog.data.map((r) => r.id)).not.toContain(
+			(await rowOf(DRAFT))?.id as string,
+		);
+
+		const again = await runImportLegacyProcomun(
+			{ sourceDir, dryRun: false },
+			deps,
+		);
+		expect(again.totals).toMatchObject({
+			imported: 0,
+			skippedExisting: 2,
+			authorLinked: 0,
+		});
+		expect(
+			again.records.every(
+				(r) =>
+					r.outcome === "skipped_existing" &&
+					r.kind === "article" &&
+					r.authorLink === "already_linked",
+			),
+		).toBe(true);
 	});
 });
 

@@ -15,6 +15,7 @@ import {
 } from "../schema/resources.ts";
 import { resourceViewCounts } from "../schema/social.ts";
 import { uploadSessions } from "../schema/uploads.ts";
+import { initialThumbnailStatus } from "./elpx-thumbnails.ts";
 import { buildSlug, type DrizzleDB } from "./shared.ts";
 
 export interface LegacyResourceInput {
@@ -47,6 +48,17 @@ export interface LegacyResourceInput {
 	 * Pendiente: el exportador aún no incluye el dato, así que hoy llega vacío.
 	 */
 	legacyViewCount?: number | null;
+	/**
+	 * Cuenta cuyo correo coincide con `publicatorEmailStr` (#456). Sin cuenta
+	 * queda vacío y el recurso sigue a nombre del sistema, como hasta ahora.
+	 */
+	createdBy?: string | null;
+	/**
+	 * Texto plano del artículo para la búsqueda (#446), ya sin HTML. Se guarda
+	 * como extracción terminada; sin él, el recurso queda pendiente como hasta
+	 * ahora.
+	 */
+	extractedText?: string | null;
 }
 
 export interface LegacyElpxInput {
@@ -89,7 +101,14 @@ export async function findLegacyResourceByExternalId(
 	externalId: string,
 ) {
 	const rows = await db
-		.select({ id: resources.id, slug: resources.slug })
+		// createdBy: el informe tiene que distinguir un recurso que sigue sin
+		// autor de uno reasignado a mano cuyo correo de origen no lleva a
+		// ninguna cuenta (revisión #508).
+		.select({
+			id: resources.id,
+			slug: resources.slug,
+			createdBy: resources.createdBy,
+		})
 		.from(resources)
 		.where(
 			and(
@@ -136,6 +155,7 @@ export async function importLegacyResourceWithElpx(
 			author: input.resource.author,
 			otherAuthors: input.resource.otherAuthors ?? null,
 			publisher: input.resource.publisher,
+			createdBy: input.resource.createdBy ?? null,
 			thumbnailUrl: input.resource.previewImageUrl,
 			// Solo se publica lo que el Procomún antiguo tenía publicado
 			// (`published: 1`); el resto entra como borrador (issue #447, ver
@@ -156,6 +176,13 @@ export async function importLegacyResourceWithElpx(
 			// fallback a "now" solo si no pudo resolverse ninguna fecha de origen.
 			createdAt: input.resource.importedAt ?? now,
 			updatedAt: now,
+			...(input.resource.extractedText
+				? {
+						extractedText: input.resource.extractedText,
+						extractionStatus: "completed",
+						extractedAt: now,
+					}
+				: {}),
 		});
 
 		if (input.resource.subjects.length) {
@@ -238,6 +265,12 @@ export async function importLegacyResourceWithElpx(
 			version: 3,
 			hasPreview: input.elpx.hasPreview,
 			hasScreenshot: input.elpx.hasScreenshot ?? false,
+			// #470: con la imagen preview copiada la tarjeta ya tiene miniatura.
+			thumbnailStatus: initialThumbnailStatus({
+				hasPreview: input.elpx.hasPreview,
+				hasScreenshot: input.elpx.hasScreenshot,
+				hasPreviewImage: Boolean(input.resource.previewImageUrl),
+			}),
 			elpxMetadata: input.elpx.elpxMetadata,
 			createdAt: now,
 			updatedAt: now,

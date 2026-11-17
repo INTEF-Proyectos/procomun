@@ -25,6 +25,8 @@ export const EXPECTED_WORKSPACE_MANIFESTS = [
 	"apps/api/package.json",
 	"apps/cli/package.json",
 	"apps/frontend/package.json",
+	// Servicio de miniaturas (#470, ADR-0046): solo playwright-core.
+	"apps/thumbnailer/package.json",
 	"packages/db/package.json",
 ] as const;
 
