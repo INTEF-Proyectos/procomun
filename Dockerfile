@@ -15,6 +15,7 @@ COPY package.json bun.lock ./
 COPY apps/api/package.json apps/api/package.json
 COPY apps/cli/package.json apps/cli/package.json
 COPY apps/frontend/package.json apps/frontend/package.json
+COPY apps/thumbnailer/package.json apps/thumbnailer/package.json
 COPY packages/db/package.json packages/db/package.json
 
 RUN bun install --frozen-lockfile
@@ -113,6 +114,43 @@ COPY --from=frontend-build /app/apps/frontend/dist /usr/share/nginx/html
 COPY nginx.conf /etc/nginx/conf.d/default.conf
 
 EXPOSE 80/tcp
+
+# --- Miniaturas (#470, ADR-0046) ---
+# Servicio aparte con Chromium sin interfaz: sin red de salida, sin secretos y
+# con el almacenamiento en solo lectura (ver docker-compose.yml). Va antes de
+# `app` para que la imagen por defecto, la última etapa, siga siendo la todo
+# en uno. Solo instala playwright-core y chromium-headless-shell.
+FROM oven/bun:1.4.4 AS thumbnailer
+WORKDIR /app
+ENV PLAYWRIGHT_BROWSERS_PATH=/ms-playwright
+
+COPY package.json bun.lock ./
+COPY apps/api/package.json apps/api/package.json
+COPY apps/cli/package.json apps/cli/package.json
+COPY apps/frontend/package.json apps/frontend/package.json
+COPY apps/thumbnailer/package.json apps/thumbnailer/package.json
+COPY packages/db/package.json packages/db/package.json
+RUN bun install --frozen-lockfile --production --filter @procomun/thumbnailer
+
+# Chromium y sus bibliotecas del sistema, con la versión que fija playwright-core.
+RUN bun apps/thumbnailer/node_modules/playwright-core/cli.js install --with-deps --only-shell chromium \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY apps/thumbnailer/src/ apps/thumbnailer/src/
+
+# Usuario sin privilegios: el sandbox de Chromium sigue activo. HOME en /tmp
+# porque el sistema de ficheros raíz se monta en solo lectura.
+ENV NODE_ENV=production
+ENV HOME=/tmp
+ENV THUMBNAILER_PORT=3100
+ENV THUMBNAILER_STORAGE_DIR=/data/uploads
+USER bun
+EXPOSE 3100/tcp
+
+HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
+    CMD ["bun", "-e", "fetch('http://127.0.0.1:' + (process.env.THUMBNAILER_PORT || 3100) + '/health').then((r) => process.exit(r.ok ? 0 : 1), () => process.exit(1))"]
+
+CMD ["bun", "run", "apps/thumbnailer/src/index.ts"]
 
 # --- All-in-one (API + frontend + seed) ---
 FROM base AS app
