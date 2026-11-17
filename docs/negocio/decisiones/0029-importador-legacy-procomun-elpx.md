@@ -264,3 +264,80 @@ El importador ponía `"es"` a todo recurso sin idioma reconocible y, si faltaba 
 * Sin idioma, los niveles ELE no se asignan (la regla exige `es`) y el recurso queda pendiente de revisión.
 * Idiomas declarados fuera de `VALID_LANGUAGES` (`ar`, `la`, `zh`…) quedan sin idioma en lugar de en español.
 * La búsqueda usa el diccionario `spanish` cuando el idioma es `null`, igual que antes.
+
+## Actualización 2026-11-03 — cada recurso pasa a la cuenta de su autor (issue #456)
+
+### Contexto
+El importador dejaba `resources.created_by` vacío y la sesión de subida del paquete a nombre del usuario de sistema. El autor solo quedaba como texto (`author`, `otherAuthors`, `publisher`), así que el recurso no salía en «Mis recursos» ni en la ficha de autor (#487) y su autor no podía editarlo. El equipo del Procomún antiguo confirmó el 2026-11-02 que allí el identificador único de la cuenta es el correo, y que cada ODE, artículo e itinerario lo trae en `publicatorEmailStr`.
+
+### Decisión
+* `mapLegacyRecord` devuelve `publicatorEmail`: `publicatorEmailStr` sin espacios y en minúsculas (`normalizeLegacyPublicatorEmail`).
+* `findLegacyAuthorAccount` busca la cuenta por `lower(user.email)` (índice `user_email_lower_unique`) y el recurso nace con `created_by` igual a esa cuenta. Es la columna que usan «Mis recursos», el panel del usuario, la ficha `/autor/<id>`, el feed del usuario y los permisos (`canManageResource`, `canManageResourceUpload`). Cada correo se busca una vez por ejecución.
+* Las cuentas bloqueadas cuentan: sus recursos quedan asociados, como pidió el equipo del Procomún antiguo. Las dadas de baja no reciben nada y el usuario de sistema nunca se asigna.
+* Sin cuenta, el recurso entra como hasta ahora (`created_by` vacío) y el informe lo lista en `authorsWithoutAccount` con `externalId`, `email` y `reason` (`no_email`, `no_account`, `deleted_account` o `unverified_account`). El lote no falla. Una cuenta con el correo sin verificar no recibe recursos: con `AUTH_REQUIRE_EMAIL_VERIFICATION=false` cualquiera podría registrarse antes con el correo de un autor antiguo y quedarse con ellos. La excepción son las cuentas que crea el importador de usuarios (#488), con id `legacy-procomun:user:<uid>` (`LEGACY_USER_ID_PREFIX`): se crean sin verificar, pero quien se registra no puede elegir ese id.
+* Los campos de autoría en texto no cambian.
+* `upload_sessions.owner_id` del paquete sigue siendo el usuario de sistema. Registra quién subió el fichero, no da permisos y solo cuenta para la cuota de subida (`UPLOAD_MAX_TOTAL_BYTES_PER_USER`), así que los paquetes legacy no gastan la cuota del autor. `elpx_projects` no tiene propietario.
+* Reimportar es idempotente y enlaza: lo ya importado que sigue a nombre del sistema (`created_by` vacío o el usuario de sistema) pasa a la cuenta que exista ahora. Un creador real (por ejemplo, reasignado a mano) no se pisa nunca; la condición va en el propio `UPDATE` (`linkLegacyResourceAuthor`). No cambia `updated_at`.
+* `import:legacy-procomun --link-authors --source-dir <ruta> [--dry-run] [--report-dir <ruta>]` enlaza lo ya importado sin reimportar. Solo lee los `.json`, no necesita los `.elpx`. Escribe `informe_enlace-autores-<runId>.json`: lo enlazado, lo que conserva otro creador y lo no importado van en `records`; lo ya enlazado solo se cuenta.
+* El informe de la ingesta añade `createdBy` a cada `imported`/`would_import`, `authorLink` a cada `skipped_existing`, `totals.authorLinked`, `totals.authorWithoutAccount` y `authorsWithoutAccount`.
+
+### Consecuencias
+* El autor ve y gestiona sus recursos importados en cualquier estado, borradores incluidos: `canManageResource` deja al creador con rol `author` o superior gestionar lo suyo, y los borradores ajenos solo los ven su creador y el admin (#460). Es lo que pidió el equipo del Procomún antiguo. Hasta ahora los borradores legacy solo los veía el admin. Una cuenta `reader` ve sus borradores, pero no puede editarlos.
+* La búsqueda del backoffice por nombre del creador (`user.name`) encuentra también los recursos legacy enlazados.
+* Sin migración: `created_by` ya existía.
+* Las cuentas las crea el importador de usuarios (#488). Lo más sencillo es importar antes los usuarios; si no, basta con `--link-authors` o con reimportar.
+* Artículos (#446) e itinerarios (#432) usarán la misma búsqueda por correo.
+* Tests: `publicator-email.unit.test.ts`, `field-mapper.unit.test.ts`, `repository/legacy-authors.unit.test.ts`, `import-legacy-procomun.unit.test.ts` e `import-legacy-procomun.integration.test.ts` (rojo sin el cambio: módulos y exportaciones inexistentes, `publicatorEmail` `undefined`).
+
+## Actualización 2026-11-03 (2) — importación de artículos (issue #446)
+
+### Contexto
+El Procomún antiguo exporta sus artículos en el mismo formato que los ODE (`<id>.json` + `<id>.elpx`), con `"type": "POST"`. El importador los bloqueaba todos: su JSON no trae `rightsCopyrightAndOtherRestrictionsStr` y la licencia es obligatoria. Además, el tipo salía genérico, el autor quedaba vacío (solo traen `publicatorStr`) y la descripción recibía el HTML completo del artículo. El `.elpx` exportado declara CC BY-SA 4.0 en los cuatro ejemplos, pero es el valor por defecto del exportador, no la licencia del artículo.
+
+### Decisión
+Decidido en #446 por el equipo del Procomún antiguo (@jacoboAlcantara), y por @juanda para los artículos sin autor (2026-11-03):
+
+* Los artículos entran por el mismo comando, `import:legacy-procomun`. `isLegacyArticle` los reconoce por `type` y `mapLegacyRecord` devuelve `kind: "article"`.
+* **Licencia:** la de por defecto de la plataforma, `DEFAULT_LICENSE` (`cc-by`, la que preseleccionan los formularios de alta), con aviso `license` en el informe para poder listarlos. Si un artículo sí trae licencia, se trata como en un ODE. La licencia del `.elpx` no se usa.
+* **Tipo:** `articulo` («Artículo»), nueva entrada de `RESOURCE_TYPES`, para todos. Es una entrada más del diccionario, así que la revisión de #419 puede cambiarla.
+* **Autor:** la cuenta cuyo correo es `publicatorEmailStr` (#456) pasa a ser la creadora. `publicatorStr` queda como autor y editor en texto, como `publicatorNameStr` en los ODE.
+* **Sin cuenta, sin correo o con la cuenta dada de baja:** el artículo **no se importa**. El informe lo registra como `skipped_without_author` con `externalId`, `email` y `reason`, y lo cuenta en `totals.skippedWithoutAuthor`. No es un error y el lote sigue. Los ODE sin cuenta no cambian: siguen entrando a nombre del sistema (#456).
+* **Descripción:** `"Artículo relacionado con " + titleStr`.
+* **Imágenes externas:** se conservan. El `.elpx` se procesa sin modificarlo.
+* **Borradores:** `published: 0` entra como borrador de su autor (#447).
+* **Contenido HTML:** el cuerpo (`descriptionStr`) no se guarda como HTML en ningún sitio. Se pasa a texto plano con `extractTextFromHtml`, la misma limpieza que un `.html` subido, y va a `resources.extracted_text` para la búsqueda. El artículo se ve desde su `.elpx`, servido con origen opaco y CSP (ADR-0026).
+
+### Consecuencias
+* El informe añade `kind: "article"` a los registros de artículos y `totals.articles` y `totals.skippedWithoutAuthor`.
+* Sin migración: los tipos de recurso viven en código (`packages/db/src/resource-types.ts`) y «Artículo» aparece en filtros y formularios.
+* Reimportar es idempotente: lo importado se omite y se enlaza como un ODE, y un artículo omitido entra cuando su cuenta exista. Por eso conviene importar antes los usuarios (#488).
+* Supuesto sin confirmar: los `id` de artículos y ODE no coinciden entre sí. En el origen parecen vivir en el mismo índice, distinguidos por `type`. Si alguno coincidiera, el segundo se omitiría como ya importado.
+* Riesgo de licencia: uno de los ejemplos (`vr5DpZYBAcddN1-H2qPg`) dice en su texto «licensed under CC BY-SA 4.0», y se importa como `cc-by`. El aviso `license` del informe permite localizar todos los artículos con la licencia asignada por defecto.
+* Las miniaturas de los artículos llegan como ruta relativa del Drupal antiguo y se descartan con aviso, porque `legacy-preview-image.ts` solo descarga de `ode.educacion.es`. Queda pendiente.
+* Tests: `article.unit.test.ts`, `field-mapper.unit.test.ts`, `repository.unit.test.ts`, `extract.unit.test.ts`, `import-legacy-procomun.unit.test.ts` e `import-legacy-procomun.integration.test.ts`. En rojo sin el cambio: `blocked` con `Licencia no reconocida: ""`, y los artículos sin cuenta se importaban a nombre del sistema.
+
+## Actualización 2026-11-16 — informes sin correos (issue #543)
+
+### Contexto
+El informe de la ingesta y el de `--link-authors` listaban el correo de origen en `authorsWithoutAccount` y `sourceEmailWithoutAccount`. Iba contra la garantía de que los informes no llevan datos personales. En #543 el equipo eligió quitar el correo del informe general y dejarlo en un informe aparte de acceso restringido, siempre que la separación sea efectiva.
+
+### Decisión
+* El informe general y la consola no llevan correos: de un recurso sin cuenta, solo `externalId`, el resultado (la lista) y `reason`. Sustituye a lo que dice la decisión del 2026-11-03 sobre `email` en `authorsWithoutAccount`.
+* `--restricted-report <ruta>` (importación y `--link-authors`) escribe aparte `externalId`, `email` y `reason`. La ruta la elige el operador, fuera de `--report-dir`; el fichero se crea nuevo con permisos `0600`, nunca pisa otro y lleva un aviso para borrarlo. Sin la opción, el correo no se guarda.
+* Los errores de los pasos de autoría pasan por `summarizeDbStepError` (`@procomun/db/db-errors`), como el resto de los importadores.
+
+### Consecuencias
+* El informe restringido contiene datos personales para resolver las incidencias de la migración: hay que guardarlo donde solo acceda quien las resuelve y borrarlo al terminar. Falta decidir esa ubicación en la migración real.
+* Tests: `apps/cli/src/restricted-report.unit.test.ts` e `import-legacy-procomun.unit.test.ts` («informes sin correos e informe restringido (#543)»).
+
+## Actualización 2026-11-16 (2) — artículos sin autor sin correo en el informe (issues #446 y #543)
+
+### Contexto
+La importación de artículos (2026-11-03 (2)) listaba el correo en los registros `skipped_without_author`. La decisión de #543 (2026-11-16) también los cubre.
+
+### Decisión
+* `skipped_without_author` lleva `externalId`, `kind` y `reason`, sin `email`. El correo solo va al informe restringido (`--restricted-report`), con `list: "skipped_without_author"`.
+* Los errores al guardar un artículo pasan por la utilidad saneada (`summarizeImportError`), así que el texto del artículo, que va en los parámetros del INSERT, no llega al informe ni a la consola.
+
+### Consecuencias
+* Para saber a qué correo pertenece un artículo sin importar hay que pedir el informe restringido o mirar el JSON de origen.

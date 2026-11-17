@@ -24,6 +24,37 @@ export const RESOURCE_VIEWS_SCHEMA = [
 	)`,
 	`CREATE INDEX IF NOT EXISTS resource_view_sessions_created_at_idx ON resource_view_sessions (created_at)`,
 ];
+
+/**
+ * Cola de miniaturas generadas en el servidor (#470, ADR-0046). La migración
+ * 0020_elpx_thumbnail_queue contiene estas mismas sentencias; un test
+ * comprueba que coinciden.
+ */
+export const ELPX_THUMBNAIL_QUEUE_SCHEMA = [
+	`ALTER TABLE "elpx_projects" ADD COLUMN IF NOT EXISTS "thumbnail_status" TEXT`,
+	`ALTER TABLE "elpx_projects" ADD COLUMN IF NOT EXISTS "thumbnail_file" TEXT`,
+	`ALTER TABLE "elpx_projects" ADD COLUMN IF NOT EXISTS "thumbnail_attempts" INTEGER NOT NULL DEFAULT 0`,
+	`ALTER TABLE "elpx_projects" ADD COLUMN IF NOT EXISTS "thumbnail_error" TEXT`,
+	`ALTER TABLE "elpx_projects" ADD COLUMN IF NOT EXISTS "thumbnail_updated_at" TIMESTAMPTZ`,
+	`ALTER TABLE "elpx_projects" ADD COLUMN IF NOT EXISTS "thumbnail_next_attempt_at" TIMESTAMPTZ`,
+	`DO $$ BEGIN
+		ALTER TABLE "elpx_projects" ADD CONSTRAINT "elpx_projects_thumbnail_status_check"
+			CHECK (thumbnail_status IS NULL OR thumbnail_status IN ('pending', 'processing', 'done', 'empty', 'failed', 'skipped'));
+	EXCEPTION WHEN duplicate_object THEN NULL;
+	END $$`,
+	`CREATE INDEX IF NOT EXISTS "idx_elpx_projects_thumbnail_queue" ON "elpx_projects" ("thumbnail_next_attempt_at") WHERE thumbnail_status IN ('pending', 'processing')`,
+] as const;
+
+/**
+ * Índices para buscar el dueño de una miniatura en cada petición (revisión de
+ * #481, adenda 2026-11-03 de ADR-0046). Mismas sentencias que la migración
+ * 0021_thumbnail_owner_indexes; un test comprueba que coinciden.
+ */
+export const THUMBNAIL_OWNER_INDEXES_SCHEMA = [
+	`CREATE INDEX IF NOT EXISTS "idx_resources_thumbnail_url" ON "resources" ("thumbnail_url") WHERE thumbnail_url IS NOT NULL`,
+	`CREATE INDEX IF NOT EXISTS "idx_elpx_projects_thumbnail_file" ON "elpx_projects" ("thumbnail_file") WHERE thumbnail_file IS NOT NULL`,
+] as const;
+
 /**
  * Catálogo inicial de palabras clave (issue #384, ADR-0042). Solo inserta si
  * aún no hay ningún término de catálogo: no reescribe etiquetas existentes ni
@@ -576,6 +607,8 @@ export const SCHEMA_STATEMENTS = [
 		ALTER TABLE "elpx_projects" ADD COLUMN has_screenshot BOOLEAN NOT NULL DEFAULT false;
 	EXCEPTION WHEN duplicate_column THEN NULL;
 	END $$`,
+	...ELPX_THUMBNAIL_QUEUE_SCHEMA,
+	...THUMBNAIL_OWNER_INDEXES_SCHEMA,
 	`DO $$ BEGIN
 		ALTER TABLE "resources" ADD CONSTRAINT resources_current_version_id_fk
 			FOREIGN KEY (current_version_id) REFERENCES resource_versions(id) ON DELETE SET NULL;

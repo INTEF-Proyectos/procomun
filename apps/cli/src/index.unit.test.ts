@@ -26,6 +26,7 @@ describe("CLI dispatcher", () => {
 		expect(lines.join("\n")).toContain("seed");
 		expect(lines.join("\n")).toContain("fts:reindex");
 		expect(lines.join("\n")).toContain("import:legacy-procomun");
+		expect(lines.join("\n")).toContain("--link-authors");
 		expect(lines.join("\n")).toContain("import:legacy-users");
 		expect(lines.join("\n")).toContain("import:legacy-itineraries");
 		expect(lines.join("\n")).toContain("catalog:area-keywords");

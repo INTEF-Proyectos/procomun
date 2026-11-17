@@ -215,6 +215,40 @@ Para lo importado antes, `import:legacy-procomun --fix-published --source-dir <r
 
 Para lo importado antes, `import:legacy-procomun --fix-language --source-dir <ruta> [--dry-run]` relee `generalLanguageStr` y corrige solo los recursos que siguen en `"es"` y cuyo origen no lo declara. Detalle en ADR-0029, actualización 2026-10-26 (#473).
 
+## Autoría desde `publicatorEmailStr` — 2026-11-03 (issue #456)
+
+En el Procomún antiguo el correo identifica la cuenta. El importador busca la cuenta con el `publicatorEmailStr` del JSON (sin espacios ni mayúsculas) y la guarda en `resources.created_by`, que es lo que usan «Mis recursos», la ficha de autor y los permisos. Los campos de autoría en texto no cambian.
+
+| Situación | `created_by` | Informe |
+|---|---|---|
+| Hay cuenta (también bloqueada) | la cuenta | `createdBy` en el registro, `totals.authorLinked` |
+| Sin correo, sin cuenta o cuenta dada de baja | vacío, como hasta ahora | `authorsWithoutAccount` (`externalId`, `email`, `reason`) |
+| Ya importado, a nombre del sistema, y ahora hay cuenta | la cuenta (al reimportar o con `--link-authors`) | `authorLink: "linked"` |
+| Ya importado con otro creador real | no se toca | `authorLink: "kept_creator"` |
+
+La sesión de subida del paquete sigue a nombre del usuario de sistema, para no gastar la cuota de subida del autor. `import:legacy-procomun --link-authors --source-dir <ruta> [--dry-run]` enlaza lo ya importado leyendo solo los `.json`. Detalle en ADR-0029, actualización 2026-11-03.
+
+## Artículos (`type: "POST"`) — 2026-11-03 (issue #446)
+
+Los artículos del Procomún antiguo llegan como los ODE: un `.json` y un `.elpx` con el mismo nombre. El importador los bloqueaba todos porque su JSON no trae `rightsCopyrightAndOtherRestrictionsStr`. Ahora entran por el mismo comando, `import:legacy-procomun`: `isLegacyArticle` (`packages/db/src/legacy-import/article.ts`) los reconoce por `type` y `mapLegacyRecord` aplica sus reglas. El resto del mapeo es el de un ODE: idioma, materias, niveles, categorización, palabras clave, fechas y `published`.
+
+| Campo | Artículo | Decisión |
+|---|---|---|
+| Licencia | `DEFAULT_LICENSE` (`cc-by`, `packages/db/src/validation.ts`), con aviso `license` en el informe | #446: la de por defecto para todos, porque ninguno la trae. Si alguno la trae, se aplican las reglas de siempre. |
+| `resourceType` | `articulo`, entrada «Artículo» de `RESOURCE_TYPES` | #446 y #419 |
+| Descripción | `"Artículo relacionado con " + título` | #446 |
+| `author` y `publisher` | `publicatorStr` | El artículo no trae otro nombre |
+| Creador (`created_by`) | cuenta de `publicatorEmailStr` (`findLegacyAuthorAccount`, #456) | #446 |
+| Sin cuenta, sin correo o con la cuenta dada de baja | **no se importa**; registro `skipped_without_author` con `email` y `reason` | @juanda, 2026-11-03 |
+| `published: 0` | borrador de su autor | #446 y #447 |
+| Contenido | el `.elpx`, sin modificar: las imágenes externas siguen enlazadas | #446 |
+
+El cuerpo del artículo viene en HTML en `descriptionStr`. No va a la descripción ni se muestra nunca. `extractTextFromHtml` (`apps/api/src/fts/extract.ts`) lo pasa a texto plano igual que un `.html` subido (sin `script`/`style`, entidades resueltas, espacios compactados, 500 KB como mucho), y se guarda en `resources.extracted_text` con `extraction_status = completed`. Así el artículo se encuentra por su texto (peso D del `search_vector`). Los fragmentos de la búsqueda salen solo de la descripción. El artículo se ve desde su `.elpx`, servido con origen opaco y CSP como cualquier paquete (ADR-0026).
+
+Informe (`informe_ingesta-*.json`): los registros de artículos llevan `kind: "article"`, `totals.articles` cuenta los procesados y `totals.skippedWithoutAuthor` los que no entran por falta de cuenta. Un artículo omitido no es un error: el lote sigue y el código de salida no cambia. Al reimportar, entra si su cuenta ya existe. Lo ya importado se omite y se enlaza como un ODE.
+
+El tipo «Artículo» vive en `RESOURCE_TYPES` (código, no BD), igual que el resto del diccionario: no hace falta migración. Aparece sin más cambios en los filtros y en los formularios de alta y edición. `LEGACY_ARTICLE_RESOURCE_TYPE` está tipado contra el diccionario: si la revisión de #419 cambia o quita la entrada, `check-types` obliga a revisar el importador.
+
 ## Roles de usuarios legacy: `editor` en lugar de `author` — 2026-11-03 (issue #507)
 
 Sustituye, para `roles`, las filas de las tablas de mapeo anteriores y la tabla de la adenda de ADR-0037 del 2026-10-27 (#456).
@@ -328,3 +362,26 @@ Los errores de la base de datos pasan por `summarizeDbStepError` y `withoutDbDet
 
 - Visitas de los itinerarios: el exportador no las trae (#432). Irán en otra issue.
 - Pantalla «Mis colecciones» para el autor: la API ya le deja listar, ver y editar las suyas. La interfaz va en otra issue.
+## Informes sin correos e informe restringido — 2026-11-16 (issue #543)
+
+Decisión de #543 (comentario del equipo del 2026-11-16): el informe general no lleva correos. Sustituye, para el informe, lo que dicen arriba la tabla de «Autoría desde `publicatorEmailStr`» (`authorsWithoutAccount` con `email`) y el diagnóstico `sourceEmailWithoutAccount`.
+
+| Fichero | Cuándo | Qué lleva de un recurso sin cuenta de autor |
+|---|---|---|
+| Informe general (`informe_ingesta-*.json`, `informe_enlace-autores-*.json`) y consola | Siempre | `externalId`, resultado (la lista en la que está) y `reason`; `createdBy` (id de la cuenta) en `sourceEmailWithoutAccount`. Sin correo. |
+| Informe restringido | Solo con `--restricted-report <ruta>` | `list`, `externalId`, `email`, `reason` y `createdBy` si lo hay, más un aviso de que lleva datos personales y hay que borrarlo. |
+
+Condiciones del informe restringido (`apps/cli/src/restricted-report.ts`):
+
+- Solo para la importación y `--link-authors`; con otro modo el comando falla.
+- La ruta la elige el operador y no puede estar dentro de `--report-dir`: así no viaja con los informes generales.
+- Se crea nuevo (`open(..., "wx", 0o600)`), nunca pisa un fichero que exista (podría tener otros permisos o ser un enlace). Se comprueba antes de importar, para no perder el informe al final.
+- Sin la opción, el correo no se guarda en ningún sitio: los run (`runImportLegacyProcomun`, `runLinkLegacyAuthors`) solo lo copian si reciben `restrictedEntries`.
+
+Errores de los pasos de autoría (#543, punto 1): `resolveAuthor`, `linkExistingResourceAuthor` y el `catch` de `--link-authors` solo usan la base de datos y su consulta lleva el correo como parámetro. Pasan por `summarizeDbStepError` y dejan `{ outcome: "error", externalId, code, message, sqlState? }`, como el resto (ver «Errores sin datos de la base de datos» arriba). Desaparece `summarizeStepError`, la utilidad propia de #508: `summarizeReindexError` también usa `summarizeDbStepError` y da `fallo al reindexar: <code> [SQLSTATE …]: <mensaje fijo>`.
+
+## Artículos sin autor e informe restringido — 2026-11-16 (issues #446 y #543)
+
+Sustituye, para el informe, la fila «Sin cuenta, sin correo o con la cuenta dada de baja» de «Artículos» (2026-11-03): el registro `skipped_without_author` queda `{ outcome, externalId, kind: "article", reason }`, sin `email`. Con `--restricted-report <ruta>` el correo va al informe restringido con `list: "skipped_without_author"`, en las mismas condiciones que el resto (ver «Informes sin correos e informe restringido»).
+
+Un fallo de la base de datos al guardar el artículo pasa por `summarizeImportError`: los parámetros del INSERT llevan el texto extraído del artículo y el registro de error solo deja `code`, `message` fijo y `sqlState`.

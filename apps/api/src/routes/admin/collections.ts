@@ -9,6 +9,7 @@ import {
 } from "../../auth/roles.ts";
 import { ensureCurrentUser } from "../../auth/user-sync.ts";
 import { getDb } from "../../db.ts";
+import { thumbnailUrlForViewer } from "../../thumbnails/access.ts";
 import { buildCrudRoutes } from "../crud-builder.ts";
 import { parseJsonBodyOrNull, requireManageableCollection } from "./guards.ts";
 
@@ -134,7 +135,16 @@ collectionRoutes.get("/:id/resources", async (c) => {
 	const resources = await repo.listCollectionResources(getDb().db, id, {
 		limit: 100,
 	});
-	return c.json(resources);
+	// Revisión de #481: la colección puede tener recursos no publicados, también
+	// borradores ajenos (#460). Su preview legacy sale firmada si el usuario
+	// puede verlos y no sale si no.
+	const user = getCurrentUser(c);
+	return c.json(
+		resources.map((resource) => ({
+			...resource,
+			thumbnailUrl: thumbnailUrlForViewer(resource, user),
+		})),
+	);
 });
 
 collectionRoutes.post("/:id/resources", async (c) => {

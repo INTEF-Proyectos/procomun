@@ -97,6 +97,48 @@ Ambos bugs eran preexistentes en la infraestructura reutilizada, no introducidos
 - La prueba del comando verifica que el cliente PGlite se cierra incluso si falla la lectura del JSON antes de generar el informe.
 - Las pruebas de `--dry-run` verifican que `wouldImport` cuenta los registros importables y `imported` permanece en cero.
 
+## Autoría de los recursos importados — 2026-11-03 (issue #456)
+
+Tests escritos antes del cambio (rojo: módulos `publicator-email.ts` y `legacy-authors.ts` inexistentes, `publicatorEmail` `undefined`, `runLinkLegacyAuthors` sin exportar) y en verde después:
+
+- `packages/db/src/legacy-import/publicator-email.unit.test.ts`: espacios y mayúsculas; campo ausente, vacío o que no es texto.
+- `packages/db/src/legacy-import/field-mapper.unit.test.ts`: `publicatorEmail` normalizado sin cambiar `author`, `otherAuthors` ni `publisher`; sin correo el registro sigue siendo importable.
+- `packages/db/src/repository/legacy-authors.unit.test.ts`: cuenta por correo con mayúsculas distintas en los dos lados; sin cuenta; cuenta dada de baja; nunca el usuario de sistema; `importLegacyResourceWithElpx` guarda el creador; enlace en seco sin escribir, real e idempotente, también desde el usuario de sistema, sin tocar `updatedAt` y sin pisar a un creador real.
+- `apps/cli/src/commands/import-legacy-procomun.unit.test.ts`: recurso nuevo con cuenta (la sesión de subida sigue a nombre del sistema); sin cuenta, en el informe y sin fallar el lote; cuenta dada de baja y sin correo; una búsqueda por correo y ejecución; `--dry-run`; al reimportar enlaza, en seco no escribe, respeta al creador real y no cuenta lo ya enlazado; `findLegacyJsonFiles`; `runLinkLegacyAuthors` solo con `.json`, con un JSON roto y en seco.
+- `apps/cli/src/commands/import-legacy-procomun.integration.test.ts` (PGlite real): dry-run, importación con la cuenta del correo, «Mis recursos» con el borrador incluido, `--link-authors` sin `.elpx`, reimportación que enlaza una cuenta creada después, repetición sin cambios y creador real conservado.
+
+Resultados:
+
+- Tests de esta ampliación: `bun test` de los 7 ficheros afectados → **98 pass, 0 fail**.
+- `bun run test:unit` → 1313 pass, 3 fail. Los 3 son los de `apps/api/src/routes/elpx-content.unit.test.ts` (#431), que fallan también en `main` en esta máquina y pasan en el CI.
+- `bun run test:integration` → 27 pass, 0 fail. `bun run test:ui` → 79 pass, 0 fail.
+- `bun run check-coverage` → 91,2 % de líneas (mínimo 90 %); `publicator-email.ts` y `repository/legacy-authors.ts` al 100 %.
+- `bun run check-types` → 0 errores. `bun run lint` (sin excluir `.claude/`) → 0 errores; quedan 3 avisos que ya estaban en `main`.
+- `bun run check-test-files` y `bun run check-tracking` → OK.
+- Pendiente: `--link-authors --dry-run` sobre la exportación real cuando estén importados los usuarios (#488).
+
+## Artículos — 2026-11-03 (issue #446)
+
+Reproducido con un test antes del cambio: un artículo (`type: "POST"`) sin `rightsCopyrightAndOtherRestrictionsStr` quedaba `blocked` con `Licencia no reconocida: ""`. Es lo que veía el equipo del Procomún antiguo con los cuatro adjuntos de la issue. Tests escritos antes del cambio (rojo) y en verde después:
+
+- `packages/db/src/legacy-import/article.unit.test.ts`: `type` POST sin distinguir mayúsculas; ODE, itinerario o sin `type` no son artículos; descripción fija; «Artículo» está en `RESOURCE_TYPES`; `DEFAULT_LICENSE` es una licencia válida.
+- `packages/db/src/legacy-import/field-mapper.unit.test.ts`: el artículo deja de bloquearse y recibe `cc-by` con aviso; tipo `articulo`, descripción, autor desde `publicatorStr`, correo normalizado; el cuerpo HTML sale aparte (`articleHtml`) y no en la descripción; `published: 0` es borrador; una licencia presente se respeta; los ODE no cambian.
+- `packages/db/src/repository.unit.test.ts`: el texto del artículo se guarda en `extracted_text` con `extraction_status = completed`; un ODE sigue `pending` y sin texto.
+- `apps/api/src/fts/extract.unit.test.ts`: `extractTextFromHtml` quita etiquetas, `script` y `style`, y resuelve entidades.
+- `apps/cli/src/commands/import-legacy-procomun.unit.test.ts` (mapeo real): sin cuenta, con la cuenta dada de baja o sin correo, el artículo no se importa ni se extrae y sale como `skipped_without_author`; `--dry-run` aplica la misma regla; con cuenta se importa a su nombre con tipo, licencia, descripción y texto, y el borrador queda como borrador de su autora; lo ya importado se omite y se enlaza. Con el comando anterior fallan los cinco: los artículos sin cuenta se importaban a nombre del sistema.
+- `apps/cli/src/commands/import-legacy-procomun.integration.test.ts` (PGlite real): en seco no escribe; importa solo el artículo con cuenta; el texto del artículo se encuentra en la búsqueda; con la cuenta creada después, reimportar trae el borrador a «Mis recursos» de su autora y fuera del catálogo; repetirlo no cambia nada.
+
+Prueba con los cuatro artículos reales de la issue (1418141533770, 1462525849300, nK2GWKEBtiK_QYVzQ7Lg y vr5DpZYBAcddN1-H2qPg), en una BD PGlite en memoria y con cuenta para tres de los cuatro correos: ninguno se bloquea; tres se importan como `articulo` con `cc-by` (nK2GWKEBtiK_QYVzQ7Lg como borrador) y el cuarto queda como `skipped_without_author`. Los paquetes `.elpx` reales pasan la validación y la extracción segura, y el de 1462525849300 conserva el enlace `http://media.gettyimages.com/...`. Los fixtures versionados son sintéticos, con la misma forma y sin nombres ni correos reales.
+
+Resultados:
+
+- `bun run test:unit` → 1332 pass, 3 fail. Los 3 son los de `apps/api/src/routes/elpx-content.unit.test.ts` (#431), que también fallan en `main` en esta máquina.
+- `bun run test:integration` → 31 pass, 0 fail. `bun run test:ui` → 79 pass, 0 fail.
+- `bun run check-coverage` → 91,26 % de líneas (mínimo 90 %); `article.ts` y `repository/legacy-import.ts` al 100 %.
+- `bun run check-test-files` y `bun run check-tracking` → OK.
+- `bun run check-types` → 0 errores. `bun run lint` (sin excluir `.claude/`) → 0 errores; quedan 3 avisos que ya estaban en `main`.
+- Pendiente: `--dry-run` sobre la exportación real de artículos cuando estén importados los usuarios (#488).
+
 ## Usuarios como `editor` y `--fix-roles` — 2026-11-03 (issue #507)
 
 Rojo antes del cambio:
@@ -145,3 +187,18 @@ Verde:
 - Prueba real con el CLI (`bun run apps/cli/src/index.ts import:legacy-itineraries`) y el JSON original sobre una PGlite nueva. En seco: `a_crear=2`, `sin_propietario=2`, `recursos_no_encontrados=7`. Real: `creadas=2`. Repetido: `sin_cambios=2`. Después se sembraron los cinco ODE adjuntos a la issue y la cuenta del autor del itinerario 2 (id `legacy-procomun:user:…`, sin verificar), y se relanzó: `actualizadas=2`, `sin_propietario=1`, `recursos_no_encontrados=2`. El itinerario 2 pasa a su autor (`owner: "linked"`) y a `published` con los cuatro ODE en orden. El 1 sigue en borrador a nombre del sistema con su ODE. Ningún informe lleva `@` ni los nombres de origen.
 - `bun run check-types` ✅ (0 errores). `bun run check-test-files` ✅. `bun run check-tracking` ✅. `bun run lint` (con la exclusión de `.claude` renombrada en `biome.json` y restaurada después): 0 errores; los avisos son de ficheros que no toca este cambio.
 - `bun run check-coverage`: 1784 pass, 0 fail; cobertura de líneas 92,13 % (≥ 90 %).
+## Informes sin correos e informe restringido — 2026-11-16 (issue #543)
+
+Rojo antes del cambio: los 9 tests nuevos de «informes sin correos e informe restringido (#543)» en `import-legacy-procomun.unit.test.ts` (el informe llevaba `email` y los errores de autoría no tenían `code`) y `restricted-report.unit.test.ts` (el módulo no existía).
+
+Verde:
+
+- `bun test apps/cli/src/restricted-report.unit.test.ts apps/cli/src/commands/import-legacy-procomun.unit.test.ts` → 4 + 59 pass, 0 fail. Informe general serializado (importación, `--link-authors` y los ficheros que escribe el comando) sin ningún correo, tampoco en la consola. Informe restringido con `list`, `externalId`, `email`, `reason` y `createdBy`, permisos `0600`, rechazado dentro de `--report-dir` o con otro modo, y sin pisar un fichero que existe. Errores reales de Drizzle sobre PGlite con el correo como parámetro en la búsqueda de la cuenta, el enlace de lo ya importado y `--link-authors`: `db_error [SQLSTATE 22P02]`, sin el correo.
+- `bun run check-types` ✅ (0 errores). `bun run lint` (sin la exclusión de `.claude`, restaurada después) ✅: 0 errores, los 3 avisos de siempre. `bun run check-test-files` ✅.
+- `bun run check-coverage`: 1781 pass, 0 fail; líneas 92,14 % (≥ 90 %), `restricted-report.ts` al 97,96 %. `bun run test:integration`: 49 pass, 0 fail.
+
+## Artículos sin autor e informe restringido — 2026-11-16 (issues #446 y #543)
+
+- `bun test apps/cli/src/commands/import-legacy-procomun.unit.test.ts` → 66 pass, 0 fail. Los artículos sin autor quedan en `skipped_without_author` sin `email` (el informe serializado no lleva ningún `@`); con `restrictedEntries`, el correo va a la lista restringida con `list: "skipped_without_author"`. Un error real de Drizzle sobre PGlite con el texto del artículo y el correo como parámetros deja `db_error [SQLSTATE 22P02]` y ni el informe ni la consola llevan el texto, el correo ni `params:`.
+- `bun run check-types` ✅ (0 errores). `bun run lint` (sin la exclusión de `.claude`, restaurada después) ✅: 0 errores, los 3 avisos de siempre. `bun run check-test-files` ✅.
+- `bun run check-coverage`: 1807 pass, 0 fail; líneas 92,2 % (≥ 90 %). `bun run test:integration`: 54 pass, 0 fail.

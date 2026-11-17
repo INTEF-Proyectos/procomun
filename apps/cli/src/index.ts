@@ -12,6 +12,7 @@ export const CLI_COMMANDS = [
 	"import:legacy-users",
 	"import:legacy-itineraries",
 	"elpx:screenshots",
+	"elpx:thumbnails",
 	"catalog:area-keywords",
 	"import:legacy-keywords",
 ] as const;
@@ -37,6 +38,8 @@ const commandLoaders: Record<
 			.importLegacyItineraries,
 	"elpx:screenshots": async () =>
 		(await import("./commands/elpx-screenshots.ts")).elpxScreenshots,
+	"elpx:thumbnails": async () =>
+		(await import("./commands/elpx-thumbnails.ts")).elpxThumbnails,
 	"catalog:area-keywords": async () =>
 		(await import("./commands/catalog-area-keywords.ts")).catalogAreaKeywords,
 	"import:legacy-keywords": async () =>
@@ -61,7 +64,7 @@ export function printHelp(log: Pick<typeof console, "log"> = console) {
 		"  import:legacy-procomun --source-dir <ruta> [--dry-run] [--limit <n>] [--only <externalId>] [--report-dir <ruta>]",
 	);
 	log.log(
-		"                    Importa recursos legacy de Procomún (pares .json+.elpx), ver ADR-0029",
+		"                    Importa recursos y artículos legacy de Procomún (pares .json+.elpx), ver ADR-0029",
 	);
 	log.log(
 		"  import:legacy-procomun --backfill-categories [--dry-run] [--report-dir <ruta>]",
@@ -74,6 +77,12 @@ export function printHelp(log: Pick<typeof console, "log"> = console) {
 	);
 	log.log(
 		"                    Copia a nuestro almacenamiento las miniaturas legacy enlazadas en caliente (#409)",
+	);
+	log.log(
+		"  import:legacy-procomun --link-authors --source-dir <ruta> [--dry-run] [--report-dir <ruta>] [--restricted-report <ruta>]",
+	);
+	log.log(
+		"                    Pasa lo ya importado a la cuenta de su autor por publicatorEmailStr; solo lee los .json (#456)",
 	);
 	log.log(
 		"  import:legacy-users --source-file <usuarios.json> [--dry-run] [--limit <n>] [--report-dir <ruta>]",
@@ -92,6 +101,10 @@ export function printHelp(log: Pick<typeof console, "log"> = console) {
 	);
 	log.log(
 		"  elpx:screenshots [--dry-run]  Detecta screenshot.png en los paquetes ya subidos (#409)",
+	);
+	log.log("  elpx:thumbnails [--dry-run] [--limit <n>] [--force]");
+	log.log(
+		"                    Encola la miniatura generada de los paquetes sin imagen (#470)",
 	);
 	log.log(
 		"  catalog:area-keywords [--apply] [--include <id,id>] [--report-dir <ruta>]",
