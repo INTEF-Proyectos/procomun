@@ -2,7 +2,7 @@ import * as repo from "@procomun/db/repository";
 import { sql } from "drizzle-orm";
 import { Hono } from "hono";
 import type { AuthEnv } from "../auth/middleware.ts";
-import { requireAuth } from "../auth/middleware.ts";
+import { requireAuth, requireRole } from "../auth/middleware.ts";
 import { getCurrentUser } from "../auth/roles.ts";
 import { ensureCurrentUser } from "../auth/user-sync.ts";
 import { getDb } from "../db.ts";
@@ -17,7 +17,12 @@ const apiTokenRoutes = new Hono<AuthEnv>();
 apiTokenRoutes.use("*", requireAuth);
 
 // POST /api/v1/tokens — Create a new API token
-apiTokenRoutes.post("/", async (c) => {
+//
+// Rol mínimo `author` (#537): la clave sirve para publicar por la API, y la
+// interfaz no deja crear recursos a una cuenta `reader`. Listar y revocar no
+// lo exigen, para que quien ya tenga claves creadas antes de esta regla pueda
+// verlas y revocarlas.
+apiTokenRoutes.post("/", requireRole("author"), async (c) => {
 	const user = getCurrentUser(c);
 	const db = getDb().db;
 	await ensureCurrentUser(user);

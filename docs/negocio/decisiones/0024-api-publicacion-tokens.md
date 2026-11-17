@@ -50,3 +50,17 @@ Justificación:
 4. Middleware `tokenAuthMiddleware` que valida el token y carga el usuario en contexto.
 5. Rate limit: 100 peticiones/minuto por token (in-memory).
 6. Los recursos creados vía API entran en flujo editorial con estado configurable (draft o review).
+
+## Adenda 2026-11-04 — rol mínimo `author` para crear claves y publicar (#537)
+
+**Problema.** Esta ADR no fijó rol mínimo, y la implementación solo exigía estar autenticado: `POST /api/v1/tokens` detrás de `requireAuth` y `POST /api/v1/publish/resources` comprobando únicamente que hubiera usuario en contexto. Una cuenta `reader`, que en la interfaz no puede crear recursos (`NuevoPage` lo bloquea y la pestaña de claves se oculta con `hasMinRole(user.role, "author")`), podía crearse una clave de API y crear recursos en borrador o en revisión. Modificar y borrar no estaban afectados: ya pasaban por `canManageResource`, que exige `author` o superior.
+
+**Decisión.** Las dos rutas de creación exigen rol mínimo `author`, con el middleware `requireRole` que ya aplica la jerarquía de `ROLE_LEVELS`. La regla del servidor queda igual que la de la interfaz.
+
+- `POST /api/v1/tokens` → 403 «Permisos insuficientes» con rol `reader` o sin rol.
+- `POST /api/v1/publish/resources` → 403, también cuando se pide `editorialStatus: "review"`.
+- `GET` y `DELETE /api/v1/tokens` **no** lo exigen: quien creó claves antes de esta regla tiene que poder listarlas y revocarlas.
+
+**Claves ya creadas por cuentas `reader`.** No se revocan en masa. Dejan de servir para publicar en cuanto se usan (403) y su dueño puede revocarlas desde su perfil. Revocarlas de oficio exigiría un comando y un criterio sobre cuentas que entretanto hayan cambiado de rol; con #525 las cuentas nuevas nacen como `editor`, así que el caso se limita a cuentas puestas en `reader` a mano.
+
+**Validación.** `apps/api/src/routes/api-tokens.unit.test.ts` y `apps/api/src/routes/api-resources.unit.test.ts`, bloques «rol mínimo (#537)»: rojo → verde con `reader` y sin rol, verde de `author` a `admin`, y listar y revocar siguen abiertos.
