@@ -1,33 +1,44 @@
 import { apiAccessLogs } from "@procomun/db/schema";
 import type { Context, Next } from "hono";
 import { getDb } from "../db.ts";
+import { ELPX_PREVIEW_PREFIX } from "../elpx/preview-token.ts";
 import type { AuthEnv } from "./middleware.ts";
 
 /**
- * Redact capability secrets from an audit path before it is persisted to the
- * durable `api_access_logs` table. Two AUTHLESS routes carry their only secret
- * in the path; anyone holding the logged path could replay it:
+ * Ruta tal y como se guarda en `api_access_logs` (issue #536).
  *
- * - Editor preview (#317): `/api/v1/preview/{previewId}/*` serves the live
- *   snapshot, and the management route `/api/v1/preview-session/{previewId}`
- *   carries the same id. The UUID becomes `:previewId`.
- * - Signed `.elpx` preview of an unpublished resource (#466):
- *   `/api/v1/elpx/preview/{hash}/{token}/*`. The HMAC token becomes `:token`.
- *   The hash only names the package (the stable URL refuses unpublished
- *   ones), so it is kept: it says which resource was previewed. Any segment
- *   in the token position is redacted, valid or not, because the audit does
- *   not know whether it verified.
+ * Varias rutas sin sesión llevan el permiso en la propia URL, y guardar la
+ * ruta entera lo dejaba en la tabla: quien pudiera leerla podía reutilizarlo
+ * mientras no caducase. Se tapa el secreto y se conserva lo que dice qué se
+ * vio. Los marcadores son los mismos que usa el `access_log` de nginx (#524).
  *
- * The access is still audited (method, route, user, status), just without the
- * secret. The query string is not part of `c.req.path`, so it never gets here.
+ * - Enlace firmado de un recurso no publicado (#466):
+ *   `/api/v1/elpx/preview/<hash>/<token>/…`. El token pasa a `:token`.
+ * - Miniatura firmada de un recurso no publicado (#512):
+ *   `/api/v1/thumbnails/signed/<token>/<fichero>`. El token pasa a `:token`.
+ * - Instantánea de la vista previa del editor (#317): `/api/v1/preview/<id>/…`
+ *   y `/api/v1/preview-session/<id>/…`. El UUID pasa a `:previewId`.
+ *
+ * Se tapa cualquier segmento en la posición del token, válido o no, porque la
+ * auditoría no sabe si se verificó. Sin distinguir mayúsculas, como #317.
+ * `c.req.path` llega ya decodificado (Hono), así que `previe%77` no se cuela,
+ * y no trae la query, así que el `?token=` de la verificación de correo
+ * tampoco llega aquí.
  */
+const CAPABILITY_PATHS: ReadonlyArray<readonly [RegExp, string]> = [
+	[new RegExp(`^(${ELPX_PREVIEW_PREFIX}/[^/]+/)[^/]+`, "i"), "$1:token"],
+	[/^(\/api\/v1\/thumbnails\/signed\/)[^/]+/i, "$1:token"],
+	[
+		/^(\/api\/v1\/preview(?:-session)?\/)[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i,
+		"$1:previewId",
+	],
+];
+
 export function redactAuditPath(path: string): string {
-	return path
-		.replace(
-			/^(\/api\/v1\/preview(?:-session)?)\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i,
-			"$1/:previewId",
-		)
-		.replace(/^(\/api\/v1\/elpx\/preview\/[^/]+)\/[^/]+/i, "$1/:token");
+	return CAPABILITY_PATHS.reduce(
+		(acc, [re, marker]) => acc.replace(re, marker),
+		path,
+	);
 }
 
 /**

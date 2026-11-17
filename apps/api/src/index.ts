@@ -1,4 +1,5 @@
 import { createApp } from "./app.ts";
+import { warmOidcEndSessionUrl } from "./auth/oidc-discovery.ts";
 import {
 	evaluatePreviewReplicaConfig,
 	startPreviewSessionSweeper,
@@ -15,6 +16,15 @@ startPreviewSessionSweeper();
 const previewReplicaWarning = evaluatePreviewReplicaConfig();
 if (previewReplicaWarning) {
 	console.warn(`[preview] ${previewReplicaWarning}`);
+}
+
+// #542: se consulta el documento de descubrimiento una vez al arrancar, para
+// que /api/v1/config nunca espere a la red. Si falla, no impide arrancar: el
+// endpoint sirve null y se reintenta en la siguiente petición.
+if (import.meta.main) {
+	void warmOidcEndSessionUrl().catch(() => {
+		// Ya se reintentará: getCachedOidcEndSessionUrl relanza el calentado.
+	});
 }
 
 export function resolveMaxRequestBodySize(
