@@ -3870,6 +3870,113 @@ tasks:
       'published'. Las reglas de transición por rol de las colecciones quedan
       fuera: desde #433 solo las crean admin y curator. Tests rojo → verde en validation.unit.test.ts y
       admin.unit.test.ts.
+  T-2026-11-04-13124130:
+    date: 2026-11-04
+    agent: "seguridad-privacidad-legal"
+    task: "api_access_logs no guarda el token de los enlaces firmados"
+    status: Done
+    related: ["#536", "#466", "#524", "#317"]
+    notes: >
+      auditMiddleware guardaba c.req.path entero en api_access_logs. En el
+      enlace firmado de un recurso no publicado (#466) el permiso va en la
+      propia URL, /api/v1/elpx/preview/<hash>/<token>/..., asi que quien
+      pudiera leer la tabla podia abrir el contenido no publicado mientras el
+      enlace no caducase (2 h). redactAuditPath cambia el token por :token y
+      conserva el hash, con el mismo marcador que el access_log de nginx
+      (#524). La query no llega a esta tabla, asi que el ?token= de la
+      verificacion de correo nunca estuvo afectado. Las rutas de la
+      instantanea del editor (#317) anadiran su :previewId cuando existan. La
+      issue decia sacarlo a un PR contra main si #317 no se mezclaba pronto,
+      y sigue en borrador. Nota: la tabla api_access_logs no se crea en la
+      base de test (setup.ts no la incluye) y el insert es fire-and-forget con
+      el error tragado, asi que el test del middleware espia el insert en vez
+      de consultar la tabla. Documentado en operaciones.md.
+  T-2026-11-10-20561795:
+    date: 2026-11-10
+    agent: "seguridad-privacidad-legal"
+    task: "redactAuditPath tapa tambien la miniatura firmada y la vista previa del editor"
+    status: Done
+    related: ["#536", "#512", "#317", "#524"]
+    notes: >
+      Un solo redactAuditPath para todas las URL con permiso en la ruta:
+      /api/v1/elpx/preview/<hash>/<token> (#466), /api/v1/thumbnails/signed/
+      <token>/<fichero> (#512) y /api/v1/preview(-session)/<uuid> (#317, con
+      las mismas regex que el borrador). Sin distinguir mayusculas. Test que
+      comprueba que una ruta con %xx llega decodificada al middleware y se
+      tapa. #317 debe quedarse con esta version al rebasar. Tests rojo ->
+      verde en audit.unit.test.ts.
+  T-2026-11-04-13045419:
+    date: 2026-11-04
+    agent: "seguridad-privacidad-legal + backend-api-servicios"
+    task: "La URL de cierre de sesion OIDC sale del documento de descubrimiento"
+    status: Done
+    related: ["#542", "#527", "ADR-0007"]
+    notes: >
+      GET /api/v1/config construia la URL de cierre de sesion como
+      {OIDC_ISSUER}/connect/endsession, la ruta de Duende IdentityServer, el
+      proveedor de demostracion. Keycloak la publica en
+      /realms/<realm>/protocol/openid-connect/logout y Azure AD en otra, asi
+      que con un proveedor real el cierre de sesion institucional apuntaba a
+      una URL inexistente. Ahora sale de end_session_endpoint del documento de
+      descubrimiento, con OIDC_END_SESSION_URL para forzarla. Solo se acepta
+      una URL absoluta http(s), hay limite de 5 s para no colgar
+      /api/v1/config, se guarda en cache el resultado de un proveedor que
+      responde (incluido el null de uno que no publica el campo) y no se
+      guardan los fallos de red ni los 5xx, para que un corte no deje el
+      cierre de sesion roto hasta reiniciar. Adenda fechada en ADR-0007 y
+      variable documentada en .env.example e instalacion.md. Tests con un
+      proveedor de prueba en oidc-discovery.unit.test.ts.
+  T-2026-11-04-13020315:
+    date: 2026-11-04
+    agent: "frontend-ux-accesibilidad"
+    task: "La insignia de rol del perfil sale traducida"
+    status: Done
+    related: ["#534", "#494"]
+    notes: >
+      La cabecera del perfil pintaba user.role en crudo en la insignia, asi
+      que se veia la clave sin traducir ("AUTHOR", en mayusculas por el CSS
+      de la insignia). Se anaden los mensajes role_reader, role_author,
+      role_editor, role_curator y role_admin a los cinco idiomas de Paraglide
+      y un helper roleLabel en apps/frontend/src/lib/role-label.ts, que trata
+      un rol desconocido o ausente como reader igual que hasMinRole. Las
+      etiquetas en castellano son las mismas que ROLE_OPTIONS de
+      AdminUsersSection, para que el perfil y la administracion no llamen
+      distinto al mismo rol.
+      Historia del sitio donde vive: primero en apps/frontend/src/lib/
+      role-label.ts importando el barrel paraglide/messages.js, pero la suite
+      de cobertura solo recorre los .ts (los .tsx de las islas van en test:ui,
+      que no mide cobertura) y hasta entonces ningun .ts cargaba ese barrel:
+      los casi 300 mensajes generados entraron en el denominador y la
+      cobertura cayo del 91 % al 49,38 %. El segundo intento, importar los
+      mensajes de uno en uno, arreglo la cobertura pero rompio la aplicacion:
+      el plugin de Vite solo emite el barrel, no los modulos por mensaje (esos
+      los genera el CLI), asi que el dev server respondia «Failed to resolve
+      import "../paraglide/messages/role_admin.js"», la isla del perfil no
+      cargaba y caian 3 e2e (logout, backoffice y «mis recursos»): la pagina
+      salia sin ningun encabezado. check-types no lo detecta. Solucion:
+      roleLabel vive en la propia isla, que ya importa el barrel, y su test en
+      PublicDashboardIsland.unit.test.tsx, que corre en test:ui. Cobertura
+      91,24 %. Regla general: ningun .ts de produccion debe importar el barrel
+      de Paraglide, y los modulos por mensaje no existen en el dev server.
+  T-2026-11-04-12561545:
+    date: 2026-11-04
+    agent: "seguridad-privacidad-legal + backend-api-servicios"
+    task: "Rol minimo author para crear claves de API y publicar por la API"
+    status: Done
+    related: ["#537", "ADR-0024", "#525"]
+    notes: >
+      POST /api/v1/tokens solo exigia requireAuth y POST
+      /api/v1/publish/resources solo comprobaba que hubiera usuario en
+      contexto, asi que una cuenta reader podia crearse una clave de API y
+      crear recursos en borrador o en revision, algo que la interfaz no
+      permite (NuevoPage lo bloquea y la pestana de claves se oculta con
+      hasMinRole author). Las dos rutas pasan a exigir rol minimo author con
+      el middleware requireRole que ya existia. GET y DELETE de /tokens
+      siguen abiertos para que quien ya tenga claves pueda revocarlas. Las
+      claves creadas antes por cuentas reader no se revocan en masa: dejan de
+      servir al usarse. Modificar y borrar no estaban afectados porque ya
+      pasaban por canManageResource. Adenda fechada en ADR-0024. Tests rojo a
+      verde en api-tokens.unit.test.ts y api-resources.unit.test.ts.
   T-2026-11-04-13404809:
     date: 2026-11-04
     agent: "frontend-ux-accesibilidad + qa-validacion"
@@ -3966,6 +4073,30 @@ tasks:
       antes: guarda en PublicCollectionsIsland, tipo string | null en
       api-client y test de regresion. Test ajustado: el toEqual de totals en
       el caso en seco incluye la clave nueva reindexFailed.
+  T-2026-11-04-17115230:
+    date: 2026-11-04
+    agent: "backend-api-servicios"
+    task: "El config de OIDC no espera a la red"
+    status: Done
+    related: ["#542", "#546", "#525"]
+    notes: >
+      Correccion de la entrada T-2026-11-04-13045419. La primera version
+      consultaba el documento de descubrimiento dentro de GET /api/v1/config
+      con await: un endpoint pasaba a depender de una peticion a un tercero.
+      Lo delato el CI de #546: registration.unit.test.ts de #525 deja
+      OIDC_ISSUER apuntando a un proveedor de prueba ya cerrado, y como los
+      ficheros de bun test comparten proceso la peticion agotaba el tope
+      mientras el endpoint esperaba, asi que el test del config se pasaba de
+      su limite de 5 s. Ahora getCachedOidcEndSessionUrl solo lee la cache y
+      nunca espera: con la cache fria lanza el calentado en segundo plano y
+      devuelve null esa vez, que es lo mismo que cuando el proveedor no publica
+      el campo. Una sola consulta en vuelo por issuer. warmOidcEndSessionUrl
+      calienta al arrancar la API (solo si import.meta.main, para no hacerlo en
+      los tests) y un fallo no impide arrancar. No se consulta nada si
+      OIDC_ENABLED no es true. El tope baja a 2 s. Y clearOidcDiscoveryCache
+      limpia tambien las consultas en vuelo: sin eso, una colgada bloqueaba los
+      reintentos de ese issuer el resto del proceso, defecto que saco a la luz
+      uno de los tests nuevos.
   T-2026-11-04-16381948:
     date: 2026-11-04
     agent: "devops-sre + seguridad-privacidad-legal"
@@ -4210,3 +4341,20 @@ tasks:
       pasa los recursos a una cuenta de sistema y el nombre sale de author).
       Tests: public-authors.integration.test.ts (4 casos),
       author-links.unit.test.ts y AuthorLinks.unit.test.tsx, en rojo antes.
+  T-2026-11-16-13145950:
+    date: 2026-11-16
+    agent: "frontend-ux-accesibilidad + qa-validacion"
+    task: "Revision de #545: roleLabel con claves heredadas del prototipo"
+    status: Done
+    related: ["#545", "#534"]
+    notes: >
+      Revision de jacoboAlcantara del 16-nov (P2). roleLabel indexaba
+      ROLE_LABELS, un objeto literal, con el rol tal cual: claves como
+      __proto__ se resolvian por el prototipo, no eran un traductor y el
+      render del perfil lanzaba un TypeError en vez de mostrar «Lector».
+      Ahora solo se usa la entrada si Object.hasOwn(ROLE_LABELS, role); si
+      no, m.role_reader. Test rojo → verde en
+      PublicDashboardIsland.unit.test.tsx con __proto__, constructor,
+      toString y hasOwnProperty. Los demas mapas *_LABELS[...] del frontend
+      (HeroIsland, ResourceEditorIsland, AdminReportsSection, los CRUD y
+      EditarPageBase) quedan fuera del alcance de este PR.
