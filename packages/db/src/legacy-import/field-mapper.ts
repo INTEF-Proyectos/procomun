@@ -1,6 +1,13 @@
+import { DEFAULT_LICENSE } from "../validation.ts";
+import {
+	buildLegacyArticleDescription,
+	isLegacyArticle,
+	LEGACY_ARTICLE_RESOURCE_TYPE,
+} from "./article.ts";
 import { normalizeLanguage } from "./normalize-language.ts";
 import { normalizeLicense } from "./normalize-license.ts";
 import { resolveLegacyPublicationStatus } from "./publication-status.ts";
+import { normalizeLegacyPublicatorEmail } from "./publicator-email.ts";
 import { mapResourceType } from "./resource-type-map.ts";
 import type {
 	LegacyOdeJson,
@@ -284,6 +291,9 @@ export function mapLegacyRecord(
 ): MappingResult {
 	const warnings: MappingWarning[] = [];
 	const blockingErrors: string[] = [];
+	// #446: los artículos (`type: "POST"`) siguen sus propias reglas de
+	// licencia, tipo, descripción y autor; el resto del mapeo es el de un ODE.
+	const article = isLegacyArticle(json);
 
 	const externalId = resolveLegacyExternalId(json);
 	if (!externalId) {
@@ -295,13 +305,17 @@ export function mapLegacyRecord(
 	const title =
 		truncate((json.titleStr ?? "").trim(), MAX_TITLE_LENGTH) || fallbackTitle;
 
-	const description = truncate(
-		firstNonEmpty([
-			json.descriptionStr,
-			...(json.educationalDescriptionStr ?? []),
-		]),
-		MAX_DESCRIPTION_LENGTH,
-	);
+	// Un artículo no tiene descripción: su `descriptionStr` es el cuerpo en
+	// HTML. Se sustituye por un texto fijo y el cuerpo va en articleHtml.
+	const description = article
+		? buildLegacyArticleDescription(title)
+		: truncate(
+				firstNonEmpty([
+					json.descriptionStr,
+					...(json.educationalDescriptionStr ?? []),
+				]),
+				MAX_DESCRIPTION_LENGTH,
+			);
 	if (!description) {
 		blockingErrors.push(
 			"descriptionStr y educationalDescriptionStr están vacíos",
@@ -322,7 +336,15 @@ export function mapLegacyRecord(
 	const licenseResult = normalizeLicense(
 		json.rightsCopyrightAndOtherRestrictionsStr,
 	);
-	if (!licenseResult.matched) {
+	// Los artículos no traen licencia (#446): reciben la de por defecto de la
+	// plataforma, con aviso para poder listarlos. Si alguno la trae, se respeta.
+	const articleWithoutLicense = article && !licenseResult.rawInput.trim();
+	if (articleWithoutLicense) {
+		warnings.push({
+			field: "license",
+			message: `El artículo no trae licencia; se asigna la de por defecto de la plataforma ("${DEFAULT_LICENSE}")`,
+		});
+	} else if (!licenseResult.matched) {
 		blockingErrors.push(`Licencia no reconocida: "${licenseResult.rawInput}"`);
 	} else if (licenseResult.ndSaConflictResolved) {
 		warnings.push({
@@ -333,10 +355,13 @@ export function mapLegacyRecord(
 		});
 	}
 
-	const resourceTypeResult = mapResourceType([
-		...(json.resourceType ?? []),
-		...(json.educationalLearningResourceTypeStr ?? []),
-	]);
+	// Todo artículo es del tipo «Artículo» (#446), traiga lo que traiga.
+	const resourceTypeResult = article
+		? { resourceType: LEGACY_ARTICLE_RESOURCE_TYPE, mapped: true }
+		: mapResourceType([
+				...(json.resourceType ?? []),
+				...(json.educationalLearningResourceTypeStr ?? []),
+			]);
 	if (!resourceTypeResult.mapped) {
 		warnings.push({
 			field: "resourceType",
@@ -353,10 +378,17 @@ export function mapLegacyRecord(
 	}
 
 	const vcardAuthors = extractVcardAuthorNames(json.lifecycleContributeStr);
+	// Los artículos solo traen el nombre de quien publica en `publicatorStr`
+	// (#446). La cuenta del autor se busca por correo, no por este nombre.
+	const publisherName =
+		firstNonEmpty([
+			json.publicatorNameStr,
+			article ? json.publicatorStr : null,
+		]) || null;
 	const author =
 		firstNonEmpty([
 			...(json.authorStr ?? []),
-			json.publicatorNameStr,
+			publisherName,
 			vcardAuthors[0],
 		]) || null;
 	if (author) {
@@ -383,7 +415,7 @@ export function mapLegacyRecord(
 		});
 	}
 
-	const publisher = (json.publicatorNameStr ?? "").trim() || null;
+	const publisher = publisherName;
 
 	const { keywords, truncated: keywordsTruncated } = buildKeywords(
 		dedupeTrimmed(json.labelsStr),
@@ -442,7 +474,7 @@ export function mapLegacyRecord(
 		title,
 		description,
 		language,
-		license: licenseResult.license,
+		license: articleWithoutLicense ? DEFAULT_LICENSE : licenseResult.license,
 		resourceType,
 		subjects,
 		levels,
@@ -458,9 +490,12 @@ export function mapLegacyRecord(
 
 	return {
 		externalId,
+		kind: article ? "article" : "ode",
 		blocking: blockingErrors.length > 0,
 		blockingErrors,
 		warnings,
+		publicatorEmail: normalizeLegacyPublicatorEmail(json.publicatorEmailStr),
+		articleHtml: article ? (json.descriptionStr ?? null) : null,
 		resource,
 	};
 }
