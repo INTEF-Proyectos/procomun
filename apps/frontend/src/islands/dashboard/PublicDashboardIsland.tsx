@@ -57,6 +57,34 @@ export function hasEmailVerificationSuccess(search: string): boolean {
 	return new URLSearchParams(search).get("verified") === "1";
 }
 
+/**
+ * Etiqueta traducida de un rol (#534). La insignia pintaba `user.role` en
+ * crudo y se veia la clave sin traducir («AUTHOR», en mayusculas por el CSS).
+ * Un rol desconocido o ausente se trata como `reader`, igual que `hasMinRole`.
+ *
+ * Vive aqui, y no en un modulo de `lib/`, por dos motivos: esta isla ya importa
+ * el barrel de Paraglide, y un `.ts` que lo importe mete los casi 300 mensajes
+ * generados en el denominador de la cobertura (que solo recorre los `.ts`) y la
+ * hunde del 91 % al 49 %. Importar los mensajes de uno en uno tampoco vale: el
+ * plugin de Vite solo emite el barrel, no los modulos por mensaje, y el dev
+ * server responde «Failed to resolve import».
+ */
+const ROLE_LABELS: Record<string, () => string> = {
+	reader: m.role_reader,
+	author: m.role_author,
+	editor: m.role_editor,
+	curator: m.role_curator,
+	admin: m.role_admin,
+};
+
+export function roleLabel(role: string | null | undefined): string {
+	// `Object.hasOwn` y no `ROLE_LABELS[role] ?? ...`: claves como `__proto__`
+	// o `toString` se resuelven por el prototipo y no son traductores.
+	const translate =
+		role && Object.hasOwn(ROLE_LABELS, role) ? ROLE_LABELS[role] : undefined;
+	return (translate ?? m.role_reader)();
+}
+
 function FavoritesTab({
 	favorites,
 	favoritesLoaded,
@@ -761,7 +789,7 @@ export function PublicDashboardIsland() {
 								</button>
 							</div>
 							<div className="dashboard-badges">
-								<Badge variant="primary">{user.role}</Badge>
+								<Badge variant="primary">{roleLabel(user.role)}</Badge>
 								<span className="dashboard-stat">
 									<strong>{dashboard.publishedCount}</strong>{" "}
 									{m.profile_published()}
