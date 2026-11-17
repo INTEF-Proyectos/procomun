@@ -4,6 +4,7 @@
  */
 import { describe, expect, test } from "bun:test";
 import {
+	extractTextFromHtml,
 	isSupportedForExtraction,
 	normalizeText,
 	stripHtml,
@@ -111,5 +112,18 @@ describe("Extract module — unit helpers", () => {
 	test("stripHtml handles plain text without HTML", () => {
 		const result = stripHtml("Just plain text");
 		expect(result).toContain("Just plain text");
+	});
+
+	// #446: el cuerpo de los artículos legacy llega como HTML en el JSON y se
+	// guarda para la búsqueda igual que el texto de un .html subido.
+	test("extractTextFromHtml deja solo el texto, sin scripts y con las entidades resueltas", () => {
+		const result = extractTextFromHtml(
+			'<p>Descripci&oacute;n  del <strong>aula</strong>\n\n\n\nfinal.<img src="http://imagenes.ejemplo.test/a.jpg" onerror="alert(1)" /></p><script>alert(\'x\')</script><style>p{}</style>',
+		);
+		expect(result).toBe("Descripción del aula\n\nfinal.");
+	});
+
+	test("extractTextFromHtml devuelve cadena vacía si no hay texto", () => {
+		expect(extractTextFromHtml("<img src='x'><script>1</script>")).toBe("");
 	});
 });

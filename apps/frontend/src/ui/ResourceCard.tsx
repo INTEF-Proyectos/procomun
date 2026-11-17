@@ -1,5 +1,4 @@
 import { useEffect, useState } from "react";
-import { useIframeScale } from "../hooks/use-iframe-scale.ts";
 import { resourceCardMedia } from "../lib/resource-card-media.ts";
 import type { ResourceSummary } from "../lib/types/resource-extended.ts";
 import { ResourceByline } from "./AuthorLinks.tsx";
@@ -39,10 +38,6 @@ export function ResourceCard({
 	// La valoración solo se muestra en recursos publicados (#461).
 	const rating =
 		resource.editorialStatus === "published" ? resource.rating : undefined;
-	const previewRef = useIframeScale<HTMLDivElement>({
-		iframeWidth: 1200,
-		iframeHeight: 675,
-	});
 	const [favorited, setFavorited] = useState(isFavorited);
 	const [favCount, setFavCount] = useState(resource.favoriteCount ?? 0);
 	const [copied, setCopied] = useState(false);
@@ -93,16 +88,6 @@ export function ResourceCard({
 			<div className="rc-image">
 				{media.kind === "image" ? (
 					<img src={media.url} alt="" className="rc-image-img" loading="lazy" />
-				) : media.kind === "preview" ? (
-					<div className="rc-preview-wrapper" ref={previewRef}>
-						<iframe
-							src={media.url}
-							loading="lazy"
-							tabIndex={-1}
-							sandbox="allow-scripts"
-							title="Vista previa"
-						/>
-					</div>
 				) : (
 					<div className="rc-image-placeholder">
 						<CardTypeMarker icon={media.icon} />

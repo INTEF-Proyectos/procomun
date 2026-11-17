@@ -92,11 +92,27 @@ export interface MappedLegacyResource {
 	legacyViewCount?: number | null;
 }
 
+/** Qué es el registro en el Procomún antiguo: un ODE o un artículo (#446). */
+export type LegacyRecordKind = "ode" | "article";
+
 export interface MappingResult {
 	externalId: string;
+	kind: LegacyRecordKind;
 	/** true si el registro no debe importarse (ver blockingErrors) */
 	blocking: boolean;
 	blockingErrors: string[];
 	warnings: MappingWarning[];
+	/**
+	 * `publicatorEmailStr` normalizado (#456), o null si el JSON no lo trae. El
+	 * importador lo usa para asignar el recurso a la cuenta con ese correo; no
+	 * es un campo del recurso y no se guarda.
+	 */
+	publicatorEmail: string | null;
+	/**
+	 * Cuerpo HTML del artículo (`descriptionStr`), sin tocar; null en los ODE.
+	 * No es la descripción del recurso: el importador solo guarda su texto
+	 * plano para la búsqueda (#446). El artículo se ve desde su `.elpx`.
+	 */
+	articleHtml: string | null;
 	resource: MappedLegacyResource;
 }
