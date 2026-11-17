@@ -484,23 +484,6 @@
 	transform: scale(1.05);
 	text-decoration: none;
 }
-.home-cta-btn-ghost {
-	background: rgba(255, 255, 255, 0.12);
-	color: white;
-	padding: var(--space-4) var(--space-8);
-	border-radius: var(--radius-full);
-	font-weight: var(--weight-bold);
-	font-size: 1.125rem;
-	text-decoration: none;
-	backdrop-filter: blur(12px);
-	border: 1px solid rgba(255, 255, 255, 0.25);
-	transition: background-color var(--transition-fast);
-	display: inline-block;
-}
-.home-cta-btn-ghost:hover {
-	background: rgba(255, 255, 255, 0.22);
-	text-decoration: none;
-}
 .home-cta-right {
 	flex: 1;
 	position: relative;

@@ -3941,6 +3941,26 @@ tasks:
       'published'. Las reglas de transición por rol de las colecciones quedan
       fuera: desde #433 solo las crean admin y curator. Tests rojo → verde en validation.unit.test.ts y
       admin.unit.test.ts.
+  T-2026-11-04-13442952:
+    date: 2026-11-04
+    agent: "frontend-ux-accesibilidad"
+    task: "El boton «Saber mas» de la portada ya no lleva a una ruta inexistente"
+    status: Done
+    related: ["#535", "#493"]
+    notes: >
+      El boton de la portada enlazaba a url("sobre") y esa ruta no existe en
+      App.tsx, asi que llevaba a una pagina vacia. Se quita el boton: no hay
+      pagina institucional que ofrecer y el texto de ese bloque habla ademas de
+      comunidades, que tampoco existen (#493). Se borran de paso las dos reglas
+      .home-cta-btn-ghost, que quedaban sin uso. Nuevo
+      route-links.unit.test.ts: recorre el frontend, saca el destino de cada
+      url() con cadena literal y comprueba que hay una ruta que lo sirve,
+      aceptando comodines (admin/*), segmentos dinamicos (tags/:slug) y query.
+      Excluye los destinos api/, porque url() tambien construye rutas del
+      backend con el base path (la portada del editor de eXeLearning y el
+      analisis del .elpx), que no las sirve el router. Es el guard que habria
+      detectado el defecto y sirve para cualquier enlace muerto futuro. El
+      texto del bloque sobre comunidades se deja como esta hasta #493.
   T-2026-11-04-13193751:
     date: 2026-11-04
     agent: "backend-api-servicios + seguridad-privacidad-legal"
