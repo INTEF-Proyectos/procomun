@@ -1,0 +1,18 @@
+{
+	"publicationDate": "2026-10-20T10:55:09.000Z",
+	"publicatorStr": "Docente Articulista Dos",
+	"publicatorEmailStr": "articulista.dos@ejemplo.test",
+	"type": "POST",
+	"titleStr": "Artículo en borrador",
+	"descriptionStr": "Artículo en borrador",
+	"published": 0,
+	"generalLanguageStr": ["es"],
+	"knowledgeArea": ["Física"],
+	"labelsStr": ["borrador"],
+	"learningContext": ["Formación Profesional Básica (más de 15 años)"],
+	"educationalDescription": ["", ""],
+	"preview": "/sites/default/files/articulos/2026-10/00000000-0000-4000-8000-000000000002.jpeg",
+	"id": "ArtBorrador000000001",
+	"idDrupal": "1002",
+	"urlDrupal": ["/view-resource/POST/ArtBorrador000000001", "/node/1002"]
+}

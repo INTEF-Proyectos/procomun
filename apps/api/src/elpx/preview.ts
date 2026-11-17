@@ -1,3 +1,8 @@
+import {
+	THUMBNAIL_FILE_RE,
+	THUMBNAIL_PUBLIC_PREFIX,
+} from "../services/legacy-preview-image.ts";
+import { thumbnailUrlForStatus } from "../thumbnails/access.ts";
 import { elpxPreviewUrlForStatus } from "./preview-token.ts";
 
 /**
@@ -12,16 +17,32 @@ export type ElpxPreview = {
 	previewUrl: string | null;
 	/** Miniatura screenshot.png de eXeLearning 4 (#409), si el paquete la trae. */
 	screenshotUrl: string | null;
+	/** Miniatura generada en el servidor (#470) para los paquetes sin imagen. */
+	thumbnailUrl: string | null;
 };
+
+/** Solo un nombre del almacén: lo que venga de la base de datos no se interpola. */
+function generatedThumbnailUrl(file: string | null | undefined): string | null {
+	return file && THUMBNAIL_FILE_RE.test(file)
+		? `${THUMBNAIL_PUBLIC_PREFIX}${file}`
+		: null;
+}
 
 /**
  * Los listados publicos usan la URL estable. Las rutas autorizadas que pasan
- * un estado no publicado reciben un enlace firmado tambien para la miniatura.
- * Devuelve null solo si el paquete no tiene ni visor ni miniatura.
+ * un estado no publicado reciben un enlace firmado tambien para la miniatura:
+ * screenshot.png con el del paquete (#466) y la generada con el del almacén
+ * de miniaturas (revisión de #481). Devuelve null solo si el paquete no tiene
+ * ni visor ni miniatura (screenshot.png o generada).
  */
 export function buildElpxPreview(
 	elpx:
-		| { hash?: string; hasPreview?: boolean; hasScreenshot?: boolean }
+		| {
+				hash?: string;
+				hasPreview?: boolean;
+				hasScreenshot?: boolean;
+				thumbnailFile?: string | null;
+		  }
 		| null
 		| undefined,
 	editorialStatus: string | null | undefined = "published",
@@ -29,7 +50,8 @@ export function buildElpxPreview(
 	if (!elpx?.hash) return null;
 	const hasPreview = elpx.hasPreview === true;
 	const hasScreenshot = elpx.hasScreenshot === true;
-	if (!hasPreview && !hasScreenshot) return null;
+	const storedThumbnailUrl = generatedThumbnailUrl(elpx.thumbnailFile);
+	if (!hasPreview && !hasScreenshot && !storedThumbnailUrl) return null;
 	// La miniatura cuelga del mismo prefijo que el visor: la URL estable si está
 	// publicado y el enlace firmado si no (#466, #483).
 	const baseUrl = elpxPreviewUrlForStatus(elpx.hash, editorialStatus);
@@ -37,6 +59,7 @@ export function buildElpxPreview(
 		hash: elpx.hash,
 		previewUrl: hasPreview ? baseUrl : null,
 		screenshotUrl: hasScreenshot ? `${baseUrl}screenshot.png` : null,
+		thumbnailUrl: thumbnailUrlForStatus(storedThumbnailUrl, editorialStatus),
 	};
 }
 
@@ -45,6 +68,7 @@ export type ElpxRow = {
 	hash: string;
 	hasPreview: boolean;
 	hasScreenshot?: boolean;
+	thumbnailFile?: string | null;
 };
 
 export function buildElpxMap(rows: ElpxRow[]): Map<string, ElpxRow> {

@@ -25,27 +25,42 @@ function previewSecret(): string | null {
 	return process.env.NODE_ENV === "production" ? null : DEV_FALLBACK_SECRET;
 }
 
-function sign(secret: string, hash: string, exp: number): string {
+/**
+ * Para qué vale un token. Va dentro de lo firmado, así que un token emitido
+ * para la vista previa del paquete no vale para una miniatura ni al revés
+ * (revisión de #481).
+ */
+export type SignedTokenPurpose = "elpx-preview" | "thumbnail";
+
+function sign(
+	secret: string,
+	purpose: SignedTokenPurpose,
+	subject: string,
+	exp: number,
+): string {
 	return createHmac("sha256", secret)
-		.update(`elpx-preview:v1:${hash}:${exp}`)
+		.update(`${purpose}:v1:${subject}:${exp}`)
 		.digest("base64url");
 }
 
-export function createElpxPreviewToken(
-	hash: string,
+/** Token `<caducidad>.<firma>` para `subject` (un hash o un fichero). */
+export function createSignedToken(
+	purpose: SignedTokenPurpose,
+	subject: string,
 	nowMs: number = Date.now(),
 	ttlSeconds: number = ELPX_PREVIEW_TTL_SECONDS,
 ): string {
 	const secret = previewSecret();
 	if (!secret) {
-		throw new Error("Falta BETTER_AUTH_SECRET para firmar la vista previa");
+		throw new Error("Falta BETTER_AUTH_SECRET para firmar el enlace");
 	}
 	const exp = Math.floor(nowMs / 1000) + ttlSeconds;
-	return `${exp}.${sign(secret, hash, exp)}`;
+	return `${exp}.${sign(secret, purpose, subject, exp)}`;
 }
 
-export function verifyElpxPreviewToken(
-	hash: string,
+export function verifySignedToken(
+	purpose: SignedTokenPurpose,
+	subject: string,
 	token: string,
 	nowMs: number = Date.now(),
 ): boolean {
@@ -55,11 +70,27 @@ export function verifyElpxPreviewToken(
 	if (exp * 1000 <= nowMs) return false;
 	const secret = previewSecret();
 	if (!secret) return false;
-	const expected = Buffer.from(sign(secret, hash, exp));
+	const expected = Buffer.from(sign(secret, purpose, subject, exp));
 	const received = Buffer.from(match[2] as string);
 	return (
 		expected.length === received.length && timingSafeEqual(expected, received)
 	);
+}
+
+export function createElpxPreviewToken(
+	hash: string,
+	nowMs: number = Date.now(),
+	ttlSeconds: number = ELPX_PREVIEW_TTL_SECONDS,
+): string {
+	return createSignedToken("elpx-preview", hash, nowMs, ttlSeconds);
+}
+
+export function verifyElpxPreviewToken(
+	hash: string,
+	token: string,
+	nowMs: number = Date.now(),
+): boolean {
+	return verifySignedToken("elpx-preview", hash, token, nowMs);
 }
 
 export function buildSignedElpxPreviewUrl(
