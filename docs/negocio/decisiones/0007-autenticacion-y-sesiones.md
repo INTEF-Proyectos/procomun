@@ -135,3 +135,27 @@ Better Auth 1.7 (#362, 2026-09-22) rehízo el plugin `genericOAuth` sobre el flu
 * **Despliegue existente:** si el cliente se registró en el proveedor con `{BETTER_AUTH_URL}/api/auth/oauth2/callback/oidc`, hay que sustituirla por la nueva; el proveedor rechaza el acceso si la URL de retorno no coincide. Las cuentas ya vinculadas siguen valiendo: con un proveedor OIDC estándar el identificador de la cuenta es el `sub` en las dos versiones.
 * PKCE viene activado por defecto en 1.7 (`pkce: true` en la configuración no cambia nada). Si el proveedor publica `jwks_uri`, Better Auth verifica la firma y el `nonce` del `id_token`, y comprueba el parámetro `iss` de la vuelta.
 * `apps/api/src/auth/config.ts` exporta `createAuth(env)` para montar una instancia con otro entorno. `apps/api/src/auth/oidc-sign-in.integration.test.ts` recorre el flujo completo con el cliente real del frontend y un proveedor OIDC de prueba (`Bun.serve`) que solo acepta la URL de retorno nueva, exige PKCE y firma el `id_token`: inicio, autorización, canje del código, userinfo y sesión. Si una actualización de Better Auth cambia las rutas, ese test falla.
+
+## Adenda 2026-11-04 — la URL de cierre de sesión OIDC sale del descubrimiento (#542)
+
+**Problema.** `GET /api/v1/config` construía la URL de cierre de sesión del proveedor como `${OIDC_ISSUER}/connect/endsession`. Esa es la ruta de Duende IdentityServer, el proveedor de demostración que usa el entorno de desarrollo. Keycloak (`/realms/<realm>/protocol/openid-connect/logout`), Azure AD y los demás la publican en otra ruta, así que con cualquier proveedor real el cierre de sesión institucional apuntaba a una URL que no existe.
+
+**Decisión.** La URL sale de `end_session_endpoint` del documento de descubrimiento (`{OIDC_ISSUER}/.well-known/openid-configuration`), que es donde la especificación de OpenID Connect Session Management dice que está. `OIDC_END_SESSION_URL` la fuerza para un proveedor que no la publique.
+
+**Implementación** (`apps/api/src/auth/oidc-discovery.ts`).
+
+- Orden: `OIDC_END_SESSION_URL` → descubrimiento → `null`. Ya no se construye ninguna ruta por nuestra cuenta.
+- Solo se acepta una URL absoluta `http(s)`, así que un documento manipulado no puede colar un `javascript:` ni una ruta suelta en el enlace de cierre de sesión.
+- Tiempo máximo de 5 s, para que el descubrimiento no cuelgue `/api/v1/config`.
+- Se guarda en caché el resultado de un proveedor que responde, incluido el `null` de uno que no publica el campo (es su configuración). Un fallo de red o un 5xx **no** se guardan: el siguiente intento vuelve a probar, para que un corte momentáneo no deje el cierre de sesión roto hasta reiniciar.
+- Cualquier fallo devuelve `null` y la interfaz deja de ofrecer el cierre de sesión del proveedor, en vez de llevar a una URL inventada.
+
+**Corrección del mismo día.** La primera versión hacía la consulta **dentro** de `GET /api/v1/config`, con `await`. Que un endpoint dependa de una petición a un tercero es un defecto: lo pagan su latencia y su previsibilidad. Lo descubrió el CI, donde otro fichero de test deja `OIDC_ISSUER` apuntando a un proveedor de prueba ya cerrado —los ficheros de `bun test` comparten proceso— y la petición agotaba el tope mientras el endpoint esperaba. Ahora:
+
+* `getCachedOidcEndSessionUrl` **solo lee la caché** y no espera a la red. Si está fría, lanza el calentado en segundo plano y devuelve `null` esa vez, que es el mismo comportamiento que cuando el proveedor no publica el campo.
+* Una única consulta en vuelo por issuer, no una por petición.
+* `warmOidcEndSessionUrl` la calienta al arrancar la API, así que en la práctica ya está resuelta cuando alguien cierra sesión. Un fallo no impide arrancar.
+* No se consulta nada si `OIDC_ENABLED` no es `true`: sin OIDC la URL no sirve de nada.
+* El tope baja a 2 s.
+
+**Validación.** `apps/api/src/auth/oidc-discovery.unit.test.ts`, con un proveedor de prueba: se lee la ruta de Keycloak, nunca se construye la de Duende, la variable manda y no consulta, sin issuer no consulta nada, un proveedor sin el campo da `null`, se descartan los valores que no son URL http(s), el acierto se guarda en caché y el fallo no, un error de red da `null` y una barra final en el issuer no duplica la barra.
