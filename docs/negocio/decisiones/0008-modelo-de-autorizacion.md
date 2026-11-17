@@ -164,3 +164,19 @@ La vista previa de una versión histórica sigue la regla de la adenda anterior.
 * La regla vive en `TRANSITION_RULES` (`packages/db/src/validation.ts`): la transición `draft → review` lleva `excludedRoles: ["editor"]`. `validateTransition` la aplica además del rol mínimo; `canTransition` y `transitionExclusionError` se apoyan en la misma regla.
 * La API rechaza con 403 la petición directa del editor sin cambiar el estado: `PATCH /api/admin/resources/:id/status` y el alta en revisión de `POST /api/v1/publish/resources` (ADR-0024), donde el editor sigue creando borradores.
 * La interfaz filtra los botones con `canTransition`, la misma función que usa la API: la edición del recurso (`EditorialActions`, `/editar`) y `ResourceEditorIsland` ya no repiten la tabla de transiciones por rol.
+
+## Adenda 2026-11-04 — el borrador de una colección es privado de su curator (#538)
+
+**Problema.** Desde #460 un recurso en borrador es trabajo de quien lo crea: solo lo ven él y el admin, no otro curator (`isOthersPrivateDraft`, `canManageResource` y `listResources({ hideOthersDraftsFor })`). Las colecciones se quedaron fuera: `canManageCollection` no inspeccionaba la colección y concedía gestión completa a cualquier curator, así que un curator veía y editaba los borradores de otro. Al decidirse en #433 que las colecciones solo las crean admin y curator, la asimetría quedó a la vista (#484, ADR-0047).
+
+**Decisión.** Misma regla que en los recursos, con `curatorId` como dueño en lugar de `createdBy`:
+
+- el **admin** gestiona cualquier colección, en cualquier estado;
+- el **curator** gestiona las suyas y las que no están en borrador: la cola de curación (`review`), las publicadas y las archivadas;
+- un curator no ve ni edita el **borrador ajeno**, aunque sea del admin, igual que pasa con los recursos.
+
+**Implementación.** `isOthersPrivateCollectionDraft` y `canManageCollection` en `apps/api/src/auth/roles.ts`, y el filtro `hideOthersDraftsFor` de `listCollections` (`packages/db/src/repository/collections.ts`), para que el listado y la comprobación por entidad no se desalineen. Las subrutas `/:id/resources` y `/:id/resources/reorder` ya pasan por `requireManageableCollection`, así que quedan cubiertas sin tocarlas.
+
+**Validación.** `apps/api/src/routes/admin.unit.test.ts`, bloque «borradores de coleccion ajenos (#538)»: el dueño gestiona su borrador; otro curator recibe 403 en `GET /:id`, `PATCH`, `DELETE` y `GET /:id/resources`, y el borrador no sale en su listado; en revisión, publicada y archivada las ve cualquier curator; el admin ve y edita el borrador de cualquiera.
+
+**Test ajustado.** «curator puede listar y gestionar colecciones existentes» esperaba que el curator viera el **borrador del admin**. Esa expectativa ya no vale por diseño: ahora la colección del admin pasa a revisión dentro del propio test para seguir comprobando lo que comprobaba.
