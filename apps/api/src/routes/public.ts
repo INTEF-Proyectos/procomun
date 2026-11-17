@@ -226,6 +226,7 @@ publicRoutes.get("/search", async (c) => {
 		offset,
 		language,
 		status: "published",
+		validatedOnly: true,
 	});
 
 	return c.json(result);

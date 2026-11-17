@@ -41,7 +41,9 @@ beforeAll(async () => {
 		resourceType: "documento",
 	});
 	publishedSlug = pub.slug;
-	await repo.updateEditorialStatus(getDb().db, pub.id, "published", "system");
+	await repo.updateEditorialStatus(getDb().db, pub.id, "published", "system", {
+		validationSeal: "grant",
+	});
 	publishedUploadId = `public-upload-${crypto.randomUUID()}`;
 	await writeFile(
 		path.join(uploadStorageDir, publishedUploadId),
@@ -85,7 +87,13 @@ beforeAll(async () => {
 		resourceType: "video",
 	});
 	videoSlug = video.slug;
-	await repo.updateEditorialStatus(getDb().db, video.id, "published", "system");
+	await repo.updateEditorialStatus(
+		getDb().db,
+		video.id,
+		"published",
+		"system",
+		{ validationSeal: "grant" },
+	);
 
 	const english = await repo.createResource(getDb().db, {
 		title: "English lesson resource",
@@ -100,6 +108,7 @@ beforeAll(async () => {
 		english.id,
 		"published",
 		"system",
+		{ validationSeal: "grant" },
 	);
 
 	const publishedElpx = await repo.createResource(getDb().db, {
@@ -115,6 +124,7 @@ beforeAll(async () => {
 		publishedElpx.id,
 		"published",
 		"system",
+		{ validationSeal: "grant" },
 	);
 	publishedElpxUploadId = `public-elpx-${crypto.randomUUID()}`;
 	await writeFile(
@@ -314,7 +324,7 @@ describe("Rutas públicas /api/v1", () => {
 				{ categoryId: "ensenanzas-regimen-especial", optionId: null },
 			],
 		});
-		await repo.createResource(getDb().db, {
+		const ele = await repo.createResource(getDb().db, {
 			title: "ELE avanzado en inglés",
 			description: "Nivel avanzado",
 			language: "en",
@@ -323,6 +333,12 @@ describe("Rutas públicas /api/v1", () => {
 			editorialStatus: "published",
 			educationalAreas: [{ categoryId: "ele", optionId: "avanzado" }],
 		});
+		// #568: el listado público solo enseña lo validado.
+		for (const { id } of [both, categoryOnly, ele]) {
+			await repo.updateEditorialStatus(getDb().db, id, "published", "system", {
+				validationSeal: "grant",
+			});
+		}
 
 		const byCategory = await app.request(
 			"/api/v1/resources?educationalCategory=ensenanzas-regimen-especial&language=es",

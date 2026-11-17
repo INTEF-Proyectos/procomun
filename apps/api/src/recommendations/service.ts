@@ -235,6 +235,8 @@ export async function loadRecommendationSignalRows(
 		CROSS JOIN seed_query sq
 		WHERE c.deleted_at IS NULL
 			AND c.editorial_status = 'published'
+			-- #568: los relacionados son descubrimiento: solo validados.
+			AND c.validated_at IS NOT NULL
 			AND c.id <> s.id
 			AND (
 				EXISTS (

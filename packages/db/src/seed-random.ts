@@ -131,6 +131,7 @@ export async function seedRandomResources(
 
 			const createdAt = faker.date.past({ years: 1 });
 			const updatedAt = faker.date.between({ from: createdAt, to: new Date() });
+			const editorialStatus = faker.helpers.arrayElement(VALID_STATUSES);
 
 			resourcesToInsert.push({
 				id,
@@ -145,7 +146,10 @@ export async function seedRandomResources(
 				author: faker.person.fullName(),
 				publisher: faker.company.name(),
 				createdBy: faker.helpers.arrayElement(userIds),
-				editorialStatus: faker.helpers.arrayElement(VALID_STATUSES),
+				editorialStatus,
+				// #568: sin sello, un publicado no sale en Explorar ni en Novedades.
+				validatedAt: editorialStatus === "published" ? updatedAt : null,
+				validationSource: editorialStatus === "published" ? "review" : null,
 				createdAt,
 				updatedAt,
 			});

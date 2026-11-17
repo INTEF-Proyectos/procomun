@@ -166,6 +166,8 @@ export async function buildGeneralFeed(opts: FeedOptions) {
 		limit,
 		offset,
 		status: "published",
+		// #568: el feed general es descubrimiento; el del autor, no.
+		validatedOnly: true,
 		resourceType: opts.resourceType,
 		language: opts.language,
 		license: opts.license,

@@ -258,6 +258,7 @@ describe("miniatura de un paquete sin index.html (#471)", () => {
 				resource.id,
 				"published",
 				"system",
+				{ validationSeal: "grant" },
 			);
 		}
 		const hash = crypto.randomUUID().replaceAll("-", "").padEnd(40, "1");

@@ -4340,6 +4340,20 @@ tasks:
       La revision del 08-nov ya estaba resuelta en 733e4fe0; se ha
       verificado el journal y el migrador real de Drizzle sobre una base en
       main.
+  T-2026-11-17-06132851:
+    date: 2026-11-17
+    agent: "busqueda-y-descubrimiento + backend-api-servicios + qa-validacion"
+    task: "Solo recursos validados en buscadores y Novedades (#568)"
+    status: Done
+    related: ["#568", "#420", "#496", "ADR-0049"]
+    notes: >
+      Filtro validatedOnly en listResources y en la búsqueda FTS. Lo aplican
+      el listado público (Explorar, Novedades, etiquetas), /search, los feeds
+      generales y los relacionados. Quedan fuera, por decisión de #568, la
+      ficha del autor y su feed, y las colecciones, que siguen enseñando todos
+      sus publicados. El enlace directo no cambia. La semilla de demo da el
+      sello a sus publicados. Adenda 2026-11-17 en ADR-0049. No hay sitemap
+      todavía.
   T-2026-11-16-15193773:
     date: 2026-11-16
     agent: "backend-api-servicios + frontend-ux-accesibilidad + ingestas-y-migraciones"

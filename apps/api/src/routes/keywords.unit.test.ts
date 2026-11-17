@@ -178,7 +178,9 @@ describe("Catálogo de palabras clave (#384)", () => {
 			keywordIds: ["astronomia"],
 		});
 		const { id } = await created.json();
-		await repo.updateEditorialStatus(db(), id, "published", "1");
+		await repo.updateEditorialStatus(db(), id, "published", "1", {
+			validationSeal: "grant",
+		});
 
 		const vector = await db().execute(
 			sql`select search_vector::text as v from resources where id = ${id}`,
@@ -203,6 +205,9 @@ describe("Catálogo de palabras clave (#384)", () => {
 			title: `Vecino ${crypto.randomUUID().slice(0, 8)}`,
 			editorialStatus: "published",
 			keywordIds: ["astronomia"],
+		});
+		await repo.updateEditorialStatus(db(), other.id, "published", "1", {
+			validationSeal: "grant",
 		});
 		// Señales en bruto: el ranking y el límite dependen del resto del fondo.
 		const signals = await loadRecommendationSignalRows(db(), id);

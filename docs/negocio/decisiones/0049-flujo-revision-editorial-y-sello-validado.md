@@ -358,3 +358,32 @@ Es la parte del sello de la fase 1b y el distintivo de la fase 1c, sobre el fluj
 * La validación de lo publicado (H2 y H3), pendiente de R1 a R4.
 * El filtro «Solo validados» y la regla de visibilidad de #568.
 * `validated` en los feeds.
+
+## Adenda 2026-11-17 — solo lo validado sale en el descubrimiento (#568)
+
+**Decisión del equipo (#568, 2026-11-16).** Desde el primer día, sin periodo transitorio, los buscadores, Novedades, el sitemap y los listados generales de la API pública solo enseñan recursos publicados con el sello. Hay dos excepciones, que solo abarcan recursos **publicados** (nunca borradores, en revisión, archivados ni eliminados) y no cambian ningún permiso:
+
+* **Dentro de una colección** se ven todos sus recursos publicados, validados o no.
+* **La búsqueda por autor** (su ficha pública) trae todos sus publicados.
+
+Un publicado sin sello se sigue abriendo por su enlace directo, y su creador lo ve en su espacio personal.
+
+**Superficies.** Un único filtro `validatedOnly` (`validated_at IS NOT NULL`) en `listResources` y en la búsqueda de texto completo:
+
+| Superficie | Regla |
+| --- | --- |
+| `GET /api/v1/resources` (Explorar, Novedades de la portada, filtros, paginación y total) | solo validados |
+| `GET /api/v1/tags/…` (recursos de una etiqueta) | solo validados |
+| `GET /api/v1/search` (texto completo) | solo validados |
+| Feeds generales (`/feeds/atom/resources`, `/feeds/rss/resources`) | solo validados |
+| Relacionados de la ficha (`/resources/:slug/related`), incluida la tira del mismo autor | solo validados |
+| Ficha pública del autor (`/authors/:id`) y su feed | todos sus publicados |
+| Colecciones (ficha, API y feed) | todos sus publicados |
+| Ficha por enlace (`/resources/:slug`) | sin cambios |
+
+* **Relacionados.** Son una superficie de descubrimiento, así que se tratan como un listado general. La tira «Más del mismo autor» sale del mismo conjunto de candidatos y hereda la regla.
+* **Sitemap.** No existe todavía; cuando se haga, debe usar `validatedOnly`.
+* **Semilla de desarrollo.** Los recursos publicados de `seed` y `seed:resources` llevan el sello, para que Explorar y los e2e no se queden vacíos.
+* **Pérdida del sello.** Como la regla se evalúa en cada consulta, un recurso que pierde el sello (#420) desaparece de inmediato de esas superficies y sigue accesible por enlace.
+
+**Validación.** `apps/api/src/public/validated-discovery.unit.test.ts` (listado y total, texto completo, feed general, relacionados, pérdida del sello, enlace directo, autor y su feed, colección) y el caso nuevo de `apps/cli/src/commands/seed.unit.test.ts`.

@@ -161,6 +161,8 @@ export type FtsSearchOptions = {
 	offset?: number;
 	language?: string;
 	status?: string;
+	/** Solo recursos con el sello «Validado» (#568). */
+	validatedOnly?: boolean;
 };
 
 export type FtsSearchResult = {
@@ -195,6 +197,10 @@ export async function searchResources(
 	const config = getFtsConfig(opts.language ?? "es");
 	const status = opts.status ?? "published";
 	const hasUnaccent = await isUnaccentAvailable(db);
+	// #568: la búsqueda pública solo encuentra recursos con el sello «Validado».
+	const validated = opts.validatedOnly
+		? sql`AND r.validated_at IS NOT NULL`
+		: sql``;
 
 	let results: FtsSearchResult[];
 	let countResult: { total: string | number }[];
@@ -217,6 +223,7 @@ export async function searchResources(
 			WHERE r.search_vector @@ websearch_to_tsquery(${config}::regconfig, unaccent(${opts.query}))
 				AND r.editorial_status = ${status}
 				AND r.deleted_at IS NULL
+				${validated}
 			ORDER BY rank DESC
 			LIMIT ${limit}
 			OFFSET ${offset}
@@ -229,6 +236,7 @@ export async function searchResources(
 			WHERE r.search_vector @@ websearch_to_tsquery(${config}::regconfig, unaccent(${opts.query}))
 				AND r.editorial_status = ${status}
 				AND r.deleted_at IS NULL
+				${validated}
 		`);
 		countResult = rowsFromExecute<{ total: string | number }>(rawCount);
 	} else {
@@ -249,6 +257,7 @@ export async function searchResources(
 			WHERE r.search_vector @@ websearch_to_tsquery(${config}::regconfig, ${opts.query})
 				AND r.editorial_status = ${status}
 				AND r.deleted_at IS NULL
+				${validated}
 			ORDER BY rank DESC
 			LIMIT ${limit}
 			OFFSET ${offset}
@@ -261,6 +270,7 @@ export async function searchResources(
 			WHERE r.search_vector @@ websearch_to_tsquery(${config}::regconfig, ${opts.query})
 				AND r.editorial_status = ${status}
 				AND r.deleted_at IS NULL
+				${validated}
 		`);
 		countResult = rowsFromExecute<{ total: string | number }>(rawCount);
 	}

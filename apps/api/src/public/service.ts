@@ -36,6 +36,9 @@ export async function listPublishedResources(opts: {
 		knowledgeAreaIds: opts.knowledgeAreas,
 		professionalFamilyIds: opts.professionalFamilies,
 		status: "published",
+		// #568: los listados generales solo enseñan lo validado; la ficha del
+		// autor (createdBy) trae todos sus publicados.
+		validatedOnly: !opts.createdBy,
 	});
 
 	const resourceIds = result.data.map(
