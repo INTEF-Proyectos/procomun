@@ -53,6 +53,7 @@ Esta guía detalla los pasos necesarios para desplegar Procomun utilizando Docke
 | `BETTER_AUTH_URL` | URL pública de la API para redirecciones de Auth | `http://localhost:3000` |
 | `UPLOAD_STORAGE_DIR` | Directorio local para almacenamiento de archivos | `./local-data/uploads` |
 | `OIDC_ENABLED` | Activar autenticación OIDC | `false` |
+| `OIDC_END_SESSION_URL` | Cierre de sesión del proveedor; vacía, se lee `end_session_endpoint` del documento de descubrimiento (#542) | vacía |
 
 ## Configuración de PostgreSQL
 
@@ -65,3 +66,5 @@ Los archivos subidos se guardan localmente en el directorio configurado mediante
 ## Configuración de Proveedores OIDC
 
 Procomun soporta OpenID Connect para login institucional. Requiere configurar `OIDC_ISSUER`, `OIDC_CLIENT_ID` y `OIDC_CLIENT_SECRET` en el archivo `.env`.
+
+En el proveedor de identidad hay que dar de alta como URL de retorno (redirect URI) `{BETTER_AUTH_URL}/api/auth/callback/oidc`. Hasta Better Auth 1.6 era `{BETTER_AUTH_URL}/api/auth/oauth2/callback/oidc`; un despliegue registrado con esa tiene que cambiarla (ADR-0007, #527).
