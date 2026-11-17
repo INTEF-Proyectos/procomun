@@ -35,6 +35,7 @@ import {
 	type MyResourcesStatus,
 	myResourcesRequest,
 	pageAfterDelete,
+	pageOutOfRange,
 } from "./my-resources.ts";
 import "./MyResourcesTab.css";
 import "../../lib/paraglide-client.ts";
@@ -158,9 +159,13 @@ export function MyResourcesView({
 		(page - 1) * MY_RESOURCES_PAGE_SIZE,
 	);
 	const filtering = hasActiveFilters(filters);
+	// Abierto al montar si ya hay filtros; luego lo decide quien lo usa. Si
+	// dependiera de `filtering`, al limpiar se cerraría con el foco dentro.
+	const [filtersOpenOnMount] = useState(filtering);
 
 	function change(next: Partial<MyResourcesFilters>) {
-		onFiltersChange({ ...filters, ...next });
+		// Lo escrito y aún sin aplicar por el retardo también cuenta.
+		onFiltersChange({ ...filters, query: searchText, ...next });
 	}
 
 	// Sin ningún recurso propio no hay nada que filtrar: se invita a crear.
@@ -218,7 +223,10 @@ export function MyResourcesView({
 				</div>
 			</fieldset>
 
-			<details className="my-resources-filters" open={filtering || undefined}>
+			<details
+				className="my-resources-filters"
+				open={filtersOpenOnMount || undefined}
+			>
 				<summary>{m.my_resources_filters()}</summary>
 				<div className="my-resources-filters-body">
 					<div className="filter-group">
@@ -481,6 +489,11 @@ export function MyResourcesTab({
 					myResourcesRequest(filters, page),
 				);
 				if (requestId !== requestIdRef.current) return;
+				const inRange = pageOutOfRange(page, result.data.length, result.total);
+				if (inRange !== null) {
+					setPage(inRange);
+					return;
+				}
 				setResources(result.data);
 				setTotal(result.total);
 				setStatusCounts(result.statusCounts ?? EMPTY_STATUS_COUNTS);
@@ -561,8 +574,9 @@ export function MyResourcesTab({
 				}}
 				onFiltersChange={(next) => {
 					setNotice("");
-					// «Limpiar filtros» también vacía la caja de búsqueda.
-					if (next.query !== filters.query) setSearchText(next.query);
+					// «Limpiar filtros» también vacía la caja de búsqueda, aunque lo
+					// escrito no se haya aplicado aún.
+					if (next.query !== searchText) setSearchText(next.query);
 					setFilters(next);
 					setPage(1);
 				}}

@@ -92,3 +92,19 @@ export function hasActiveFilters(filters: MyResourcesFilters): boolean {
 export function pageAfterDelete(page: number, itemsOnPage: number): number {
 	return itemsOnPage <= 1 && page > 1 ? page - 1 : page;
 }
+
+/**
+ * Página a pedir si la actual se ha quedado vacía porque `total` bajó por otro
+ * lado (borrado en otra pestaña o desde el editor): la última que tiene algo.
+ * Si la página sigue siendo válida, devuelve null.
+ */
+export function pageOutOfRange(
+	page: number,
+	itemsOnPage: number,
+	total: number,
+): number | null {
+	if (itemsOnPage > 0 || page <= 1 || total <= 0) return null;
+	const last = Math.ceil(total / MY_RESOURCES_PAGE_SIZE);
+	// Si ya es la última, volver a pedirla no cambiaría nada.
+	return last < page ? last : null;
+}

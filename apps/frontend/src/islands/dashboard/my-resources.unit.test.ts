@@ -6,6 +6,7 @@ import {
 	MY_RESOURCES_PAGE_SIZE,
 	myResourcesRequest,
 	pageAfterDelete,
+	pageOutOfRange,
 } from "./my-resources.ts";
 
 describe("myResourcesRequest (#530)", () => {
@@ -80,5 +81,21 @@ describe("pageAfterDelete (#530)", () => {
 describe("EMPTY_STATUS_COUNTS", () => {
 	test("empieza a cero", () => {
 		expect(EMPTY_STATUS_COUNTS.total).toBe(0);
+	});
+});
+
+// Revisión de #580: si `total` baja por otro lado, no se queda en una página vacía.
+describe("pageOutOfRange", () => {
+	test("una página vacía más allá del final vuelve a la última con algo", () => {
+		expect(pageOutOfRange(3, 0, 24)).toBe(2);
+		expect(pageOutOfRange(5, 0, 25)).toBe(3);
+		// Vacía pero dentro del rango: pedirla otra vez no arreglaría nada.
+		expect(pageOutOfRange(3, 0, 25)).toBeNull();
+	});
+
+	test("deja la página si tiene recursos, es la primera o no hay nada", () => {
+		expect(pageOutOfRange(3, 1, 25)).toBeNull();
+		expect(pageOutOfRange(1, 0, 0)).toBeNull();
+		expect(pageOutOfRange(2, 0, 0)).toBeNull();
 	});
 });

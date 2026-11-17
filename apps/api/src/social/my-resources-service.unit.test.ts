@@ -145,6 +145,21 @@ describe("listMyResources (#530)", () => {
 		expect(byArea.data.map((r) => r.title)).toEqual(["Fracciones en vídeo"]);
 	});
 
+	// Revisión de #580: buscar parte del propio nombre no debe devolverlo todo.
+	test("la búsqueda no mira el nombre de la autora: todos son suyos", async () => {
+		const userId = await createUser("mis-recursos-nombre");
+		await createOwn(userId, "Fracciones", "draft");
+		await createOwn(userId, "Recursos de autoría", "draft");
+
+		const result = await listMyResources(userId, {
+			search: "autora",
+			limit: 20,
+			offset: 0,
+		});
+		expect(result.data.map((r) => r.title)).toEqual([]);
+		expect(result.statusCounts.total).toBe(0);
+	});
+
 	test("devuelve las tarjetas enriquecidas y lo último editado primero", async () => {
 		const userId = await createUser("mis-recursos-orden");
 		const older = await createOwn(userId, "Antiguo", "draft");

@@ -199,14 +199,24 @@ function resourceListConditions(opts: ResourceListOptions) {
 
 	if (opts.search) {
 		const term = buildSearchTerm(opts.search);
+		// DEF-014: incluir el nombre del creador (user.name, mostrado como
+		// "autor" en el listado) además del campo de texto libre `author`.
+		// Con `createdBy` (#530, «Mis recursos») todos son suyos y el autor
+		// suele ser su nombre: buscar «ana» siendo Ana no filtraría nada.
+		const fields = opts.createdBy
+			? [resources.title, resources.description, resources.keywords]
+			: [
+					resources.title,
+					resources.description,
+					resources.author,
+					user.name,
+					resources.keywords,
+				];
 		conditions.push(
-			// DEF-014: incluir el nombre del creador (user.name, mostrado como
-			// "autor" en el listado) además del campo de texto libre `author`.
-			sql`(${normalizeSearch(resources.title)} LIKE ${term} OR
-                 ${normalizeSearch(resources.description)} LIKE ${term} OR
-                 ${normalizeSearch(resources.author)} LIKE ${term} OR
-                 ${normalizeSearch(user.name)} LIKE ${term} OR
-                 ${normalizeSearch(resources.keywords)} LIKE ${term})`,
+			sql`(${sql.join(
+				fields.map((field) => sql`${normalizeSearch(field)} LIKE ${term}`),
+				sql` OR `,
+			)})`,
 		);
 	}
 	if (opts.status) conditions.push(eq(resources.editorialStatus, opts.status));
