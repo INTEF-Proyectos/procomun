@@ -26,9 +26,66 @@ services:
       BETTER_AUTH_URL: http://localhost:3000
       BETTER_AUTH_SECRET: docker-local-dev-secret-change-in-production
       FRONTEND_URL: http://localhost:3000
+      # Miniaturas generadas en el servidor (#470, ADR-0046). Sin esta
+      # variable el bucle no arranca y las tarjetas sin imagen muestran el
+      # marcador del tipo de recurso.
+      THUMBNAILER_URL: http://thumbnailer:3100
+      THUMBNAILER_CONCURRENCY: ${THUMBNAILER_CONCURRENCY:-2}
+    volumes:
+      # Lo comparte, en solo lectura, el servicio de miniaturas.
+      - uploads:/app/local-data/uploads
+    networks:
+      - default
+      - thumbnails
     depends_on:
       db:
         condition: service_healthy
 
+  # Captura la portada de los paquetes .elpx sin imagen (#470, ADR-0046).
+  # Ejecuta contenido de autor en Chromium, así que va aislado: solo lo alcanza
+  # `app` por una red interna sin salida a Internet, no tiene secretos ni base
+  # de datos, el sistema de ficheros es de solo lectura y el almacenamiento se
+  # monta en solo lectura. Sin puertos publicados.
+  thumbnailer:
+    build:
+      context: .
+      target: thumbnailer
+    environment:
+      THUMBNAILER_STORAGE_DIR: /data/uploads
+      THUMBNAILER_CONCURRENCY: ${THUMBNAILER_CONCURRENCY:-2}
+      # false solo si el host no permite el sandbox de Chromium (ver
+      # docs/operaciones/operaciones.md); quedan las demás capas.
+      THUMBNAILER_CHROMIUM_SANDBOX: ${THUMBNAILER_CHROMIUM_SANDBOX:-true}
+    volumes:
+      - uploads:/data/uploads:ro
+    networks:
+      - thumbnails
+    read_only: true
+    tmpfs:
+      - /tmp:size=256m
+    shm_size: 256m
+    mem_limit: ${THUMBNAILER_MEM_LIMIT:-1g}
+    cpus: ${THUMBNAILER_CPUS:-1.0}
+    pids_limit: 512
+    cap_drop:
+      - ALL
+    # El sandbox de Chromium hace chroot dentro de su espacio de nombres de
+    # usuario. El proceso corre sin privilegios y con no-new-privileges, así que
+    # esta capacidad solo habilita la regla del perfil seccomp.
+    cap_add:
+      - SYS_CHROOT
+    security_opt:
+      - no-new-privileges:true
+      # Perfil por defecto de Docker más los espacios de nombres de usuario que
+      # necesita el sandbox de Chromium (copia del de Playwright 1.64.1).
+      - seccomp=./apps/thumbnailer/seccomp-chromium.json
+    restart: unless-stopped
+
+networks:
+  # internal: sin ruta hacia fuera; solo app ↔ thumbnailer.
+  thumbnails:
+    internal: true
+
 volumes:
   pgdata:
+  uploads:

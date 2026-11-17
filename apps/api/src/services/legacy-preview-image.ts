@@ -6,7 +6,8 @@
  * `maxBytes` y decide el tipo por los primeros bytes, no por la cabecera ni
  * la extensión: un HTML o un SVG nunca se guarda como miniatura.
  */
-import { mkdir, writeFile } from "node:fs/promises";
+import { randomUUID } from "node:crypto";
+import { mkdir, rename, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 
 export const PREVIEW_IMAGE_HOSTS = ["ode.educacion.es"] as const;
@@ -157,12 +158,37 @@ export async function copyLegacyPreviewImage(
 		return fail(`error de red (${message})`, true);
 	}
 	if (!bytes) return fail(`la imagen supera ${maxBytes} bytes`);
-	const type = detectImageType(bytes);
-	if (!type) return fail("el contenido no es una imagen PNG, JPEG, GIF o WebP");
+	const stored = await storeThumbnailBytes(options.storageDir, bytes);
+	if (!stored) {
+		return fail("el contenido no es una imagen PNG, JPEG, GIF o WebP");
+	}
+	return { ok: true, url: stored.url };
+}
 
+/**
+ * Guarda una miniatura en `storageDir/thumbnails/` con el sha256 del contenido
+ * como nombre. `null` si los bytes no son PNG, JPEG, GIF ni WebP. Se escribe
+ * en un temporal y se renombra: una escritura a medias nunca queda con el
+ * nombre definitivo. El contenido de un nombre no cambia nunca; quién puede
+ * verlo depende del estado del recurso (revisión de #481, `routes/thumbnails.ts`).
+ */
+export async function storeThumbnailBytes(
+	storageDir: string,
+	bytes: Uint8Array,
+): Promise<{ file: string; url: string } | null> {
+	const type = detectImageType(bytes);
+	if (!type) return null;
 	const hash = new Bun.CryptoHasher("sha256").update(bytes).digest("hex");
 	const file = `${hash}.${type.ext}`;
-	await mkdir(path.join(options.storageDir, "thumbnails"), { recursive: true });
-	await writeFile(thumbnailPath(options.storageDir, file), bytes);
-	return { ok: true, url: `${THUMBNAIL_PUBLIC_PREFIX}${file}` };
+	const target = thumbnailPath(storageDir, file);
+	const temp = `${target}.${randomUUID()}.tmp`;
+	await mkdir(path.dirname(target), { recursive: true });
+	try {
+		await writeFile(temp, bytes);
+		await rename(temp, target);
+	} catch (err) {
+		await rm(temp, { force: true });
+		throw err;
+	}
+	return { file, url: `${THUMBNAIL_PUBLIC_PREFIX}${file}` };
 }
