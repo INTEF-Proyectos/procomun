@@ -715,8 +715,7 @@ describe("Rutas admin — borradores privados frente al curator (#460)", () => {
 		expect(search.ids).not.toContain(draft.id);
 		// La misma búsqueda lo encuentra para el admin.
 		expect(
-			(await listIds(adminApp, `&q=${encodeURIComponent(draft.title)}`))
-				.ids,
+			(await listIds(adminApp, `&q=${encodeURIComponent(draft.title)}`)).ids,
 		).toContain(draft.id);
 
 		// El autor y el admin sí lo ven.
