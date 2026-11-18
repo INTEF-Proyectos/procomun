@@ -3500,6 +3500,41 @@ tasks:
       referencias en el CI. Validado reproduciendo el conflicto de #465 contra
       main: la union automatica da un status.yaml identico a la resolucion
       manual (diff vacio) y check-tracking lo acepta.
+  T-2026-11-03-10331754:
+    date: 2026-11-03
+    agent: "ingestas-y-migraciones"
+    task: "Los recursos importados pasan a la cuenta de su autor por publicatorEmailStr"
+    status: Done
+    related: ["#456", "#487", "#488", "#446", "#432"]
+    notes: >
+      El importador busca la cuenta con el publicatorEmailStr del JSON (sin
+      espacios ni mayúsculas) y la guarda en resources.created_by, que es lo que
+      usan «Mis recursos», la ficha de autor y los permisos. El autor en texto
+      no cambia. Sin cuenta (o con la cuenta dada de baja) queda a nombre del
+      sistema y el informe lo lista en authorsWithoutAccount sin fallar el
+      lote. Reimportar enlaza lo que ya tiene cuenta y nunca pisa un creador
+      real. Nuevo import:legacy-procomun --link-authors [--dry-run], que solo
+      lee los .json. La sesión de subida del paquete sigue a nombre del
+      sistema para no gastar la cuota del autor. Sin migración. ADR-0029,
+      actualización 2026-11-03.
+  T-2026-11-03-12143790:
+    date: 2026-11-03
+    agent: "ingestas-y-migraciones"
+    task: "Importar los artículos del Procomún antiguo (type POST)"
+    status: Done
+    related: ["#446", "#419", "#456", "#447", "#434"]
+    notes: >
+      import:legacy-procomun bloqueaba todos los artículos porque su JSON no
+      trae licencia. Ahora los reconoce por type POST y les aplica la licencia
+      por defecto (cc-by, con aviso), el nuevo tipo «Artículo» del diccionario,
+      la descripción «Artículo relacionado con <título>» y publicatorStr como
+      autor en texto. Cada artículo pasa a la cuenta de su publicatorEmailStr
+      (#456). Sin cuenta no se importa y el informe lo lista como
+      skipped_without_author. published 0 entra como borrador de su autor. El
+      .elpx no se toca, así que las imágenes externas siguen enlazadas. El
+      cuerpo HTML solo se guarda como texto plano para la búsqueda. Sin
+      migración. ADR-0029, actualización 2026-11-03 (2). Pendiente: miniaturas
+      con ruta relativa y dry-run sobre la exportación real tras #488.
   T-2026-11-03-13524606:
     date: 2026-11-03
     agent: "backend-api-servicios"
@@ -3733,6 +3768,28 @@ tasks:
       Corregidos tambien el journal heredado (0014 y 0015 separados), la ayuda
       del CLI y el fixture legacy publicado. Avisos previos de lint y tracking;
       no se ejecutan e2e en esta resolucion.
+  T-2026-11-03-10550566:
+    date: 2026-11-03
+    agent: "backend-api-servicios"
+    task: "Miniaturas generadas en el servidor para los paquetes sin imagen"
+    status: Done
+    related: ["#470", "#471", "#409", "ADR-0046"]
+    notes: >
+      Implementa las decisiones de la issue #470 sobre la rama de #471. Nuevo
+      servicio apps/thumbnailer (Bun + Playwright, chromium-headless-shell) en
+      su propio contenedor: red interna sin salida, sin secretos, raiz y
+      almacenamiento en solo lectura, usuario sin privilegios y sandbox de
+      Chromium activo con el perfil seccomp de Playwright. Sirve el paquete
+      desde disco en un origen ficticio con la CSP de origen opaco y aborta
+      cualquier otra peticion. Captura JPEG de 640x400 sin la navegacion de
+      eXe. Cola en elpx_projects (migracion 0018) con un bucle en la API que
+      solo arranca con THUMBNAILER_URL, reintentos con espera y recuperacion
+      de los processing colgados. Comando elpx:thumbnails para el relleno de
+      los recursos sin preview. Las tarjetas dejan el iframe: screenshot.png,
+      preview legacy, miniatura generada y marcador por tipo. Playwright
+      funciona bajo Bun en macOS y en la imagen Debian 13, asi que no hace
+      falta Node. Pendiente: piloto con paquetes reales y publicar la imagen
+      thumbnailer en el CI.
   T-2026-11-03-12011140:
     date: 2026-11-03
     agent: "backend-api-servicios"
@@ -3748,6 +3805,38 @@ tasks:
       publicado sigue firmada. Pruebas nuevas de buildElpxPreview, de la API
       (ficha, listado, borrador firmado), de la tarjeta y de la ficha.
       Detalle en docs/hotfixes/pr-471-conflictos/validation.md.
+  T-2026-11-03-12090790:
+    date: 2026-11-03
+    agent: "backend-api-servicios"
+    task: "Integrar en #512 la revisión de #471 (miniatura sin visor HTML)"
+    status: Done
+    related: ["#470", "#512", "#471", "#409"]
+    notes: >
+      Merge de feat/issue-409-miniaturas. Conflictos en preview.ts, su test y
+      el comentario de resourceCardMedia. buildElpxPreview conserva
+      thumbnailUrl (#470) y devuelve null solo si no hay visor, ni
+      screenshot.png, ni miniatura generada; previewUrl sigue a null sin
+      index.html. Orden de la tarjeta sin iframe: screenshot.png, imagen
+      legacy, generada y marcador. Las pruebas de #471 esperan
+      thumbnailUrl: null y comprueban que el paquete sin index.html queda en
+      thumbnailStatus skipped, así que la tarjeta muestra screenshot.png.
+  T-2026-11-03-12581968:
+    date: 2026-11-03
+    agent: "backend-api-servicios"
+    task: "Acceso a las miniaturas de recursos no publicados (revisión de #481)"
+    status: Done
+    related: ["#470", "#481", "#512", "#466", "#483", "#472", "#471", "ADR-0046", "ADR-0026"]
+    notes: >
+      /api/v1/thumbnails/<fichero> solo sirve lo que pertenece a un recurso
+      publicado y no borrado (thumbnail_url legacy o miniatura del proyecto
+      vigente), con public, max-age=3600 en vez de immutable. Lo no publicado
+      va por /api/v1/thumbnails/signed/<token>/<fichero> (HMAC con prefijo
+      propio, 2 h) con private, no-store; screenshot.png del enlace firmado del
+      paquete, también private, no-store. Firman la ficha, el panel, favoritos
+      y valoraciones (solo si el usuario puede ver el recurso) y la
+      administración. Migración 0019 con índices parciales y location ^~ para
+      las miniaturas en nginx.conf. elpxPreview sigue existiendo con visor o
+      miniatura (#471).
   T-2026-11-03-12314847:
     date: 2026-11-03
     agent: "backend-api-servicios"
@@ -3870,6 +3959,26 @@ tasks:
       'published'. Las reglas de transición por rol de las colecciones quedan
       fuera: desde #433 solo las crean admin y curator. Tests rojo → verde en validation.unit.test.ts y
       admin.unit.test.ts.
+  T-2026-11-04-13442952:
+    date: 2026-11-04
+    agent: "frontend-ux-accesibilidad"
+    task: "El boton «Saber mas» de la portada ya no lleva a una ruta inexistente"
+    status: Done
+    related: ["#535", "#493"]
+    notes: >
+      El boton de la portada enlazaba a url("sobre") y esa ruta no existe en
+      App.tsx, asi que llevaba a una pagina vacia. Se quita el boton: no hay
+      pagina institucional que ofrecer y el texto de ese bloque habla ademas de
+      comunidades, que tampoco existen (#493). Se borran de paso las dos reglas
+      .home-cta-btn-ghost, que quedaban sin uso. Nuevo
+      route-links.unit.test.ts: recorre el frontend, saca el destino de cada
+      url() con cadena literal y comprueba que hay una ruta que lo sirve,
+      aceptando comodines (admin/*), segmentos dinamicos (tags/:slug) y query.
+      Excluye los destinos api/, porque url() tambien construye rutas del
+      backend con el base path (la portada del editor de eXeLearning y el
+      analisis del .elpx), que no las sirve el router. Es el guard que habria
+      detectado el defecto y sirve para cualquier enlace muerto futuro. El
+      texto del bloque sobre comunidades se deja como esta hasta #493.
   T-2026-11-04-13193751:
     date: 2026-11-04
     agent: "backend-api-servicios + seguridad-privacidad-legal"
@@ -4096,6 +4205,34 @@ tasks:
       antes: guarda en PublicCollectionsIsland, tipo string | null en
       api-client y test de regresion. Test ajustado: el toEqual de totals en
       el caso en seco incluye la clave nueva reindexFailed.
+  T-2026-11-04-16215488:
+    date: 2026-11-04
+    agent: "ingestas-y-migraciones + seguridad-privacidad-legal"
+    task: "Atender la revision de #508: errores por recurso e informe de autoria"
+    status: Done
+    related: ["#508", "#456", "#543"]
+    notes: >
+      Dos hallazgos de jacoboAlcantara. P2: resolveAuthor y
+      linkExistingResourceAuthor quedaban fuera del manejo de errores por
+      recurso, asi que un rechazo abortaba el lote y no se escribia el informe
+      aunque ya se hubieran importado recursos antes. Ahora cada uno va en su
+      try: se cuenta en errored, se registra el ODE con el mensaje y se sigue
+      con el siguiente, como hace runLinkLegacyAuthors. El mensaje va saneado
+      con summarizeStepError (generalizacion de summarizeReindexError), porque
+      la consulta que envuelve lleva el correo como parametro (#543); hay un
+      test que comprueba que el informe no contiene la consulta ni el correo.
+      P3: el informe listaba en authorsWithoutAccount recursos que ya tenian
+      creador real reasignado a mano, solo porque su correo de origen no
+      llevaba a ninguna cuenta. findLegacyResourceByExternalId devuelve ahora
+      createdBy y el diagnostico del correo va en una lista aparte,
+      sourceEmailWithoutAccount, con el creador que se conserva; el contador
+      authorWithoutAccount queda para creador nulo o usuario de sistema.
+      Al poner el PR al dia con main hubo 11 conflictos en 7 ficheros por los
+      merges de #475 y #523: los de documentacion se resolvieron conservando
+      las dos adendas, las tres listas de modos del CLI incluyen ahora
+      --fix-language y --link-authors, y en los dos ficheros de test los
+      bloques describe de cada rama comparten el cierre, asi que se cerro a
+      mano el de main y el nuestro lo cierra la cola compartida.
   T-2026-11-04-17115230:
     date: 2026-11-04
     agent: "backend-api-servicios"
@@ -4270,6 +4407,30 @@ tasks:
       elpx-versioning) recibian una BD sin los usuarios del preload y fallaban
       con resources_created_by_fkey. En las VMs del runner propio el orden de
       los ficheros los dejaba detras; en GitHub no. Ahora usa la BD compartida.
+  T-2026-11-11-04585652:
+    date: 2026-11-11
+    agent: "ingestas-y-migraciones"
+    task: "Las cuentas del importador de usuarios reciben sus recursos aunque no estén verificadas"
+    status: Done
+    related: ["#508", "#488", "#456"]
+    notes: >
+      #488 crea las cuentas con emailVerified false y #508 no enlazaba recursos
+      a cuentas sin verificar, asi que juntos los recursos quedaban a nombre del
+      sistema. Se acepta la cuenta sin verificar si su id empieza por
+      legacy-procomun:user: (LEGACY_USER_ID_PREFIX), que nadie puede elegir al
+      registrarse. El resto de cuentas sin verificar siguen sin recibir nada.
+  T-2026-11-11-04505124:
+    date: 2026-11-11
+    agent: "ingestas-y-migraciones"
+    task: "Las migraciones de #470 pasan a 0019 y 0020 al mezclar main"
+    status: Done
+    related: ["#470", "#512", "#471"]
+    notes: >
+      main ya tiene 0018_elpx_has_screenshot (#471), así que la cola de
+      miniaturas pasa a 0019_elpx_thumbnail_queue (idx 15) y los índices de
+      dueño a 0020_thumbnail_owner_indexes (idx 16), con when posteriores.
+      AGENTS.md: renumera el que se mezcla después. El test de #471 ya no
+      exige que su migración sea la última del journal.
   T-2026-11-11-04511329:
     date: 2026-11-11
     agent: "documentacion-y-roadmap"
@@ -4310,6 +4471,24 @@ tasks:
       author@example.com con otro id. ensureUser hace onConflictDoNothing, asi
       que user-2 no se creaba y createApiToken fallaba con
       api_tokens_user_id_fkey. El test usa ahora api-tokens-*@example.com.
+  T-2026-11-16-08054707:
+    date: 2026-11-16
+    agent: "qa-validacion"
+    task: "Revisión de #512 (2026-11-08): migraciones 0020 y 0021, contenido tras settleMs y CSP de captura"
+    status: Done
+    related: ["#470", "#512", "#488", "ADR-0046"]
+    notes: >
+      #488 reservó 0019_user_profile con when 1793300000000, el mismo que la
+      cola de miniaturas. La cola pasa a 0020_elpx_thumbnail_queue (when
+      1793400000000) y los índices a 0021_thumbnail_owner_indexes (when
+      1793500000000); la regresión usa el migrador real de drizzle sobre
+      PGlite. El thumbnailer mide el contenido visible después de settleMs y
+      sirve el HTML con CAPTURE_HTML_CSP, sin allow-popups ni
+      allow-popups-to-escape-sandbox. Si #488 se mezcla antes, el idx de estas
+      dos sube en uno; si se mezcla después, su 0019 tiene que pasar a 0022
+      con when mayor que 1793500000000 o drizzle la saltará. Arreglado
+      también el test «recupera los processing colgados», que fallaba en la
+      punta con el fichero completo por proyectos pendientes de otros tests.
   T-2026-11-16-08024722:
     date: 2026-11-16
     agent: "devops-sre + seguridad-privacidad-legal"
@@ -4360,6 +4539,34 @@ tasks:
       textos en es/en/ca/gl/eu. Pendiente en #569: la URL real y confirmar la
       ubicacion. Documentado en .env.example, README y
       docs/operaciones/instalacion.md. Sin migracion ni ADR.
+  T-2026-11-16-12204258:
+    date: 2026-11-16
+    agent: "backend-api-servicios"
+    task: "Poner #508 al dia con main y aplicar la decision de #543 (informes sin correos)"
+    status: Done
+    related: ["#508", "#543", "#456", "#488"]
+    notes: >
+      La mezcla de main del 16-nov (637d2cd1) dejo roto el test del importador
+      (bloque de #488 dentro del afterEach de autoria, import repetido) y las
+      exportaciones de users.ts duplicadas: el job build fallaba en biome. Se
+      rehace la mezcla. summarizeStepError (de #508) se retira: los pasos de
+      autoria y summarizeReindexError usan summarizeDbStepError. Decision de
+      #543: authorsWithoutAccount y sourceEmailWithoutAccount sin correo en
+      el informe general; --restricted-report <ruta> escribe aparte el correo,
+      con permisos 0600, fuera de --report-dir y sin pisar otro fichero.
+      Falta decidir donde se guarda en la migracion real y quien accede.
+  T-2026-11-16-12342641:
+    date: 2026-11-16
+    agent: "backend-api-servicios"
+    task: "Poner #517 al dia con #508 y aplicar la decision de #543 a los articulos"
+    status: Done
+    related: ["#517", "#446", "#508", "#543"]
+    notes: >
+      Merge de la rama de #508 actualizada (main con #488 y la decision de
+      #543). skipped_without_author ya no lleva el correo en el informe
+      general; con --restricted-report va al informe restringido. Test con un
+      error real de Drizzle cuyos parametros llevan el texto del articulo y el
+      correo: el informe y la consola quedan con db_error y sin esos datos.
   T-2026-11-16-13145950:
     date: 2026-11-16
     agent: "frontend-ux-accesibilidad + qa-validacion"
