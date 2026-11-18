@@ -207,3 +207,14 @@ Better Auth 1.7 (#362, 2026-09-22) rehízo el plugin `genericOAuth` sobre el flu
 * La redacción de `/api/auth/reset-password/<token>` de la adenda anterior se mantiene para los enlaces de Better Auth abiertos a mano o enviados antes del cambio.
 
 **Validación.** `apps/api/src/email/transport.unit.test.ts` (`directResetLink`: destino, idioma, ruta base, URL absoluta, sin `callbackURL`, lo que no es el enlace de Better Auth, y que el correo no lleva `/api/auth/reset-password`), `apps/api/src/auth/password-reset.integration.test.ts` (con Better Auth real: el enlace del correo es `/en/restablecer?token=…`, no contiene `/api/` y su token restablece la contraseña) y `scripts/nginx-log-redaction.unit.test.ts` (el `map` pone `no-referrer` en la pantalla en cada idioma y con query, en ninguna otra ruta, y el server lo añade). Con `nginx:alpine`: `nginx -t` correcto, la cabecera sale solo en `/restablecer` y `/en/restablecer`, y `/restablecer?token=…` no deja nada en el `error_log`.
+
+## Adenda 2026-11-18 (3) — el token va en el fragmento, no en la query (tercera revisión de #551)
+
+**Problema.** `/restablecer?token=…` sigue llevando el token en la petición HTTP inicial: un proxy o CDN que registre la URL completa lo guarda antes de que `Referrer-Policy` tenga efecto, y en el despliegue canónico (imagen `app`) la cabecera depende del proxy. Además, el transporte de log de desarrollo/CI imprimía el correo entero, enlace incluido, en el log del build.
+
+**Decisión.**
+
+* `directResetLink` pone el token en el fragmento: `/restablecer#token=…`. El navegador no envía el fragmento, así que no llega a ningún proxy ni log. `ResetPasswordIsland` lo lee de `location.hash`, lo quita de la URL con `history.replaceState` y lo manda a la API en el cuerpo del `POST /api/auth/reset-password`. La query `?token=` se sigue aceptando para los correos ya enviados. `Referrer-Policy: no-referrer` se mantiene como defensa en profundidad.
+* `LogEmailTransport` tacha los tokens (`token=…` y `/reset-password/<token>`) en el log. `EMAIL_LOG_LINKS=true` los deja en claro para probar a mano en local; CI no lo activa.
+
+**Validación.** `transport.unit.test.ts` (`directResetLink` con fragmento y `LogEmailTransport` sin tokens), `PasswordResetIslands.unit.test.tsx` (lectura del fragmento y de la query antigua) y `password-reset.integration.test.ts` (el enlace real no lleva query y su token del fragmento restablece; una cuenta importada sin credencial fija su primera contraseña, inicia sesión y el mismo enlace se rechaza con 400 al reutilizarlo).

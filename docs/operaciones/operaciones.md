@@ -66,7 +66,7 @@ El Referer también las lleva: el HTML del `.elpx` sale con `Referrer-Policy: sa
 
 **Proxy inverso delante de producción.** Tiene que hacer lo mismo: no registrar la URI ni el Referer en crudo en esas rutas. En nginx, copiar los dos `map` y el `log_format` de `nginx.conf`. En otro proxy o balanceador (Traefik, Caddy, HAProxy, el de la plataforma), quitar del log la ruta y la query de esas rutas, o redactarlas igual. Lo mismo vale para una CDN o un WAF que guarde URL.
 
-**Límite conocido.** El `error_log` de nginx no admite formato. Un fallo con el upstream (502) escribe la petición, la URL del upstream y el Referer enteros. Restringe quién lo lee y guárdalo poco tiempo. El token de recuperación de contraseña no llega ahí (#551): ni el enlace del correo ni el Referer de la pantalla pasan por el proxy con él. Un proxy inverso delante de la imagen `app` debería poner también `Referrer-Policy: no-referrer` en `/restablecer` (y `/<idioma>/restablecer`).
+**Límite conocido.** El `error_log` de nginx no admite formato. Un fallo con el upstream (502) escribe la petición, la URL del upstream y el Referer enteros. Restringe quién lo lee y guárdalo poco tiempo. El token de recuperación de contraseña no llega ahí (#551): ni el enlace del correo ni el Referer de la pantalla pasan por el proxy con él (desde la tercera revisión el token va en el fragmento `#token=…`, que el navegador no envía). Un proxy inverso delante de la imagen `app` debería poner también `Referrer-Policy: no-referrer` en `/restablecer` (y `/<idioma>/restablecer`). El transporte de log de desarrollo/CI tacha los tokens de los correos; `EMAIL_LOG_LINKS=true` los muestra para probar en local.
 
 ## Actualización de la Plataforma (Process of Upgrade)
 
