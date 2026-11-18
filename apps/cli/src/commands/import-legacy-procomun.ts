@@ -785,7 +785,7 @@ type FixLanguageRecord = { externalId: string } & (
 			reindexError?: string;
 	  }
 	| { outcome: "not_found" }
-	| { outcome: "error"; message: string }
+	| ({ outcome: "error" } & ImportErrorSummary)
 );
 
 export interface FixLegacyLanguageReport {
@@ -862,6 +862,7 @@ export async function runFixLegacyLanguage(
 			records.push({
 				externalId,
 				outcome: "error",
+				code: "invalid_record",
 				message: `No se pudo leer/parsear el JSON: ${resolved.parseError}`,
 			});
 			continue;
@@ -921,9 +922,11 @@ export async function runFixLegacyLanguage(
 			});
 		} catch (err) {
 			totals.errored++;
-			const message = err instanceof Error ? err.message : String(err);
-			records.push({ externalId, outcome: "error", message });
-			console.error(`[error] ${externalId}: ${message}`);
+			// Este paso solo usa la base de datos: nunca se copia el mensaje
+			// (#572), porque el de Drizzle lleva la consulta y sus parametros.
+			const summary = summarizeDbStepError(err);
+			records.push({ externalId, outcome: "error", ...summary });
+			console.error(`[error] ${externalId}: ${formatImportError(summary)}`);
 		}
 	}
 
