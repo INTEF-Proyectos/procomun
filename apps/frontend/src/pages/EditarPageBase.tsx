@@ -37,6 +37,7 @@ import {
 import { EditorialActions } from "./EditorialActions.tsx";
 import { ResourceVersionPanel } from "./ResourceVersionPanel.tsx";
 import "../styles/editar.css";
+import { labelFor } from "../lib/labels.ts";
 
 const STATUS_LABELS: Record<string, { label: string; cssClass: string }> = {
 	draft: { label: "Borrador", cssClass: "edit-badge-draft" },
@@ -497,7 +498,7 @@ export default function EditarPage() {
 			const api = await getApiClient();
 			await api.updateResourceStatus(resource.id, newStatus);
 			setSuccessMsg(
-				`Estado actualizado a "${STATUS_LABELS[newStatus]?.label ?? newStatus}"`,
+				`Estado actualizado a "${labelFor(STATUS_LABELS, newStatus)?.label ?? newStatus}"`,
 			);
 			// #460: un curator que devuelve a borrador un recurso ajeno deja de
 			// poder verlo; vuelve al listado de Administrar en vez de recargar.
@@ -665,7 +666,7 @@ export default function EditarPage() {
 	);
 	const authorRequired = isNew || Boolean(res.author);
 	const st =
-		STATUS_LABELS[res.editorialStatus] ??
+		labelFor(STATUS_LABELS, res.editorialStatus) ??
 		STATUS_LABELS.draft ??
 		({ label: res.editorialStatus, cssClass: "" } as const);
 	const date = formatDate(res.updatedAt || res.createdAt);
