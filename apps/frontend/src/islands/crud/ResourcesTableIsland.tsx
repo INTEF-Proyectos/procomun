@@ -1,6 +1,7 @@
 import { startTransition, useCallback, useEffect, useState } from "react";
 import type { Resource } from "../../lib/api-client.ts";
 import { getApiClient } from "../../lib/get-api-client.ts";
+import { labelFor } from "../../lib/labels.ts";
 import { url } from "../../lib/paths.ts";
 import { ConfirmDialog } from "../shared/ConfirmDialog.tsx";
 import { type CrudColumn, CrudTable } from "./CrudTable.tsx";
@@ -27,7 +28,7 @@ function formatDate(dateValue: Resource["updatedAt"]) {
 }
 
 function statusLabel(status: string) {
-	return STATUS_LABELS[status] ?? status;
+	return labelFor(STATUS_LABELS, status, status);
 }
 
 function statusBadgeClass(status: string) {
