@@ -37,6 +37,7 @@ export async function listMyResources(userId: string, query: MyResourcesQuery) {
 	const filters = {
 		createdBy: userId,
 		search: query.search || undefined,
+		searchExcludesAuthorship: true,
 		resourceType: query.resourceType || undefined,
 		tagSlug: query.tag || undefined,
 		educationalCategory: query.educationalCategory || undefined,

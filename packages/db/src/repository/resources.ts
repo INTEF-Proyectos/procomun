@@ -64,6 +64,11 @@ type ResourceListOptions = {
 	hideOthersDraftsFor?: string;
 	/** Orden descendente por fecha de alta (por defecto) o de edición (#530). */
 	orderBy?: "createdAt" | "updatedAt";
+	/**
+	 * Busca solo en título, descripción y palabras clave, sin la autoría.
+	 * Para «Mis recursos» (#530): todos son suyos y el autor suele ser su nombre.
+	 */
+	searchExcludesAuthorship?: boolean;
 };
 
 type ResourceMutationInput = {
@@ -201,9 +206,8 @@ function resourceListConditions(opts: ResourceListOptions) {
 		const term = buildSearchTerm(opts.search);
 		// DEF-014: incluir el nombre del creador (user.name, mostrado como
 		// "autor" en el listado) además del campo de texto libre `author`.
-		// Con `createdBy` (#530, «Mis recursos») todos son suyos y el autor
-		// suele ser su nombre: buscar «ana» siendo Ana no filtraría nada.
-		const fields = opts.createdBy
+		// «Mis recursos» (#530) la excluye: buscar «ana» siendo Ana no filtraría.
+		const fields = opts.searchExcludesAuthorship
 			? [resources.title, resources.description, resources.keywords]
 			: [
 					resources.title,

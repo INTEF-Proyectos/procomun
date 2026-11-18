@@ -710,18 +710,36 @@ describe("Rutas admin — borradores privados frente al curator (#460)", () => {
 		);
 		const search = await listIds(
 			curatorApp,
-			`&search=${encodeURIComponent(draft.title)}`,
+			`&q=${encodeURIComponent(draft.title)}`,
 		);
 		expect(search.ids).not.toContain(draft.id);
 		// La misma búsqueda lo encuentra para el admin.
 		expect(
-			(await listIds(adminApp, `&search=${encodeURIComponent(draft.title)}`))
+			(await listIds(adminApp, `&q=${encodeURIComponent(draft.title)}`))
 				.ids,
 		).toContain(draft.id);
 
 		// El autor y el admin sí lo ven.
 		expect((await listIds(authorApp, "&status=draft")).ids).toContain(draft.id);
 		expect((await listIds(adminApp, "&status=draft")).ids).toContain(draft.id);
+	});
+
+	test("el autor encuentra su recurso buscando un término que solo está en la autoría (#580)", async () => {
+		await ensureUsers();
+		const token = `autoria${crypto.randomUUID().slice(0, 8)}`;
+		const res = await authorApp.request("/api/admin/resources", {
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({
+				...validResource,
+				title: `Sin coincidencia ${crypto.randomUUID()}`,
+				author: `Autoría ${token}`,
+			}),
+		});
+		expect(res.status).toBe(201);
+		const { id } = (await res.json()) as { id: string };
+
+		expect((await listIds(authorApp, `&q=${token}`)).ids).toContain(id);
 	});
 
 	test("el curator no lee ni modifica el borrador ajeno por acceso directo", async () => {
