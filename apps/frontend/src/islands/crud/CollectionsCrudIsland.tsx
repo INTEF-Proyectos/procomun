@@ -11,6 +11,7 @@ import type {
 	Resource,
 } from "../../lib/api-client.ts";
 import { getApiClient } from "../../lib/get-api-client.ts";
+import { labelFor } from "../../lib/labels.ts";
 import { AccessibleFeedback } from "../shared/AccessibleFeedback.tsx";
 import { ConfirmDialog } from "../shared/ConfirmDialog.tsx";
 import { ModalFrame } from "../shared/ModalFrame.tsx";
@@ -60,7 +61,7 @@ function truncate(text: string, maxLength: number) {
 }
 
 function statusLabel(status: string) {
-	return STATUS_LABELS[status] ?? status;
+	return labelFor(STATUS_LABELS, status, status);
 }
 
 function statusBadgeClass(status: string) {

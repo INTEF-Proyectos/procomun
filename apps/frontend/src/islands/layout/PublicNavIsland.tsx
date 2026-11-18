@@ -10,6 +10,7 @@ import * as m from "../../paraglide/messages.js";
 import { baseLocale, getLocale, locales } from "../../paraglide/runtime.js";
 import { UserAvatar } from "../../ui/UserAvatar.tsx";
 import "./PublicNavIsland.css";
+import { labelFor } from "../../lib/labels.ts";
 
 interface NavUser extends SessionUser {
 	/** Gravatar del correo de la sesión; `null` si no pudo calcularse. */
@@ -111,7 +112,7 @@ function LanguageSwitcher() {
 							lang={loc}
 							onClick={() => switchLocale(loc)}
 						>
-							{LOCALE_LABELS[loc] ?? loc}
+							{labelFor(LOCALE_LABELS, loc, loc)}
 						</button>
 					))}
 				</div>
