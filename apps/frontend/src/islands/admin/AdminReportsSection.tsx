@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { ReportRecord } from "../../lib/api-client.ts";
 import { getApiClient } from "../../lib/get-api-client.ts";
+import { labelFor } from "../../lib/labels.ts";
 import { AdminTable, type Column } from "./AdminTable.tsx";
 
 const PAGE_SIZE = 10;
@@ -152,7 +153,7 @@ export function AdminReportsSection() {
 		{
 			key: "reason",
 			label: "Motivo",
-			render: (r) => REASON_LABELS[r.reason] || r.reason,
+			render: (r) => labelFor(REASON_LABELS, r.reason) || r.reason,
 		},
 		{
 			key: "status",
@@ -256,7 +257,8 @@ export function AdminReportsSection() {
 							</p>
 							<p style={{ marginBottom: "1rem" }}>
 								<strong>Motivo:</strong>{" "}
-								{REASON_LABELS[selectedReport.reason] || selectedReport.reason}
+								{labelFor(REASON_LABELS, selectedReport.reason) ||
+									selectedReport.reason}
 								{selectedReport.description && (
 									<span
 										style={{

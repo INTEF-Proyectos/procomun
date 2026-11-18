@@ -7,6 +7,7 @@ import {
 } from "react";
 import type { TaxonomyRecord } from "../../lib/api-client.ts";
 import { getApiClient } from "../../lib/get-api-client.ts";
+import { labelFor } from "../../lib/labels.ts";
 import { AccessibleFeedback } from "../shared/AccessibleFeedback.tsx";
 import { ConfirmDialog } from "../shared/ConfirmDialog.tsx";
 import { type CrudColumn, CrudTable } from "./CrudTable.tsx";
@@ -46,7 +47,7 @@ function formatDate(dateValue: TaxonomyRecord["updatedAt"]) {
 }
 
 function taxonomyTypeLabel(type: string) {
-	return TAXONOMY_LABELS[type as TaxonomyType] ?? type;
+	return labelFor(TAXONOMY_LABELS, type, type);
 }
 
 export function TaxonomyCrudIsland() {
