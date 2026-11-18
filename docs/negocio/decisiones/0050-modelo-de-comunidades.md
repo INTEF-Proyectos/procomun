@@ -89,3 +89,7 @@ Detalle en `docs/epics/epic-006-comunidades/design.md`. Revisión del 2026-11-18
 
 5. **Identidad en el importador**: los miembros y administradores se resuelven por el UID legado; el correo solo detecta conflictos. Si UID y correo apuntan a cuentas distintas, la relación queda pendiente de revisión y no se asigna nada (`design.md` R-5, RF-038).
 6. **Invitaciones**: solo se muestran y se aceptan desde una cuenta activa con el correo verificado, con la misma comprobación en el servidor en ambas vías (`design.md` R-6, RF-039).
+
+## Adenda 2026-11-18 (tercera revisión de #578)
+
+7. **Resolución manual de `identity_conflict`**: un usuario `admin` registra en `community_legacy_resolutions` (comunidad, tipo, UID, cuenta confirmada, quién y cuándo, sin correo) la confirmación de que la cuenta vinculada al UID es la correcta. Queda auditada en `activity_events`. En la siguiente ejecución el importador no abre el conflicto para esa relación, la aplica una sola vez a la cuenta del UID e ignora el correo del JSON. La comunidad no se publica sola: sigue en `draft` hasta una publicación explícita (`design.md` R-7, RF-040).

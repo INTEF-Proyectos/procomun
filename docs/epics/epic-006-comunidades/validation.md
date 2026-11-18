@@ -39,3 +39,24 @@ Solo documentación: `bun run check-tracking` valida `status.yaml` y `decision-l
 |---|---|---|
 | RF-038 Identidad por UID | PGlite: UID y correo en cuentas distintas no asignan miembro ni administrador, relación `pending` con `identity_conflict`, informe sin correo, comunidad en `draft` con `no_admin` si era el único administrador; UID resuelto asigna a su cuenta; tras vincular el UID, la reimportación aplica una sola vez | F4 |
 | RF-039 Invitación con correo verificado | Integración: correo coincidente sin verificar no ve ni acepta (404 genérico, sin membresía) por enlace y por «Mis comunidades»; cuenta verificada acepta y rechaza por ambas vías; otro correo, cuenta de baja o bloqueada, no; respuesta idéntica exista o no la cuenta | F3 |
+
+## Tercera revisión de #578 — 2026-11-18
+
+### Resolución manual de `identity_conflict` (RF-040, F4, PGlite)
+Caso: el UID legado `legacy-procomun:user:<uid>` ya está vinculado a la cuenta A (activa), el correo del JSON pertenece a la cuenta B y era el único administrador de la comunidad.
+
+| # | Paso | Resultado esperado |
+|---|---|---|
+| 1 | Primera importación | Relación `pending` con `identity_conflict`; ni A ni B reciben el rol; comunidad en `draft` con `no_admin`; informe sin correo |
+| 2 | Reimportar el mismo JSON sin resolución | Sigue `identity_conflict`; nada cambia |
+| 3 | Un usuario sin rol `admin` (incluido el administrador de la comunidad) intenta registrar la resolución | Rechazado (403); no se crea fila |
+| 4 | Registrar la resolución con el UID aún sin vincular | Rechazado; no se crea fila |
+| 5 | Un `admin` registra la resolución confirmando la cuenta A | Una fila en `community_legacy_resolutions` con `resolved_by`, UID y `user_id` = A, sin correo ni en la nota; un evento en `activity_events` sin correo; segunda resolución vigente para la misma relación: rechazada |
+| 6 | Reimportar el mismo JSON (UID ya vinculado, correo todavía en B) | A recibe el rol de administrador **una sola vez**; B no recibe nada; relación `applied`; informe `applied_by_resolution` sin correo; la comunidad **sigue en `draft`** con `admin_resolved_draft` |
+| 7 | Reimportar de nuevo | Sin cambios: no hay segundo rol ni segundo evento; la comunidad sigue en `draft` |
+| 8 | Un administrador publica la comunidad de forma explícita | Pasa a `published`; solo entonces |
+| 9 | Resolución revocada antes de reimportar | Vuelve `identity_conflict`; no se asigna |
+| 10 | La cuenta del UID cambia o se da de baja tras la resolución | La resolución no vale: `identity_conflict` otra vez |
+| 11 | Inspección de tablas, informe y logs | Ningún correo del JSON aparece en `community_legacy_resolutions`, `community_legacy_relations`, `activity_events`, informe ni logs |
+
+El mismo escenario con `kind = member` asigna la membresía de miembro a A una sola vez y no cambia el estado de la comunidad.

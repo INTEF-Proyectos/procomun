@@ -403,3 +403,43 @@ La configuración actual permite iniciar sesión con un correo sin verificar (`.
 
 ### Preguntas abiertas que se añaden (segunda revisión)
 - Q-15: confirmar con #577 que la regla de identidad por UID (R-5) es común a ambas épicas. Sin respuesta, esta épica la aplica igualmente al importador.
+
+## Tercera revisión del 2026-11-18 (#578)
+
+Un ajuste de R-5 tras la revisión de `c0a2949a`. Prevalece sobre R-5 donde lo contradiga; el texto previo se conserva.
+
+### R-7. Resolución manual de una relación en `identity_conflict`
+
+**Problema.** Con R-5, si el UID legado ya está vinculado a la cuenta correcta pero el correo del JSON se ha reasignado a otra persona, vincular el UID no basta: en cada reimportación el UID y el correo siguen apuntando a cuentas distintas y la relación vuelve a salir en `identity_conflict`. Si era el único administrador, la comunidad seguiría en `draft` sin salida.
+
+**Qué se registra.** Una resolución manual autorizada sobre una relación concreta de `community_legacy_relations`. Se guarda en una tabla propia, `community_legacy_resolutions`:
+
+- `id`, `community_id`, `kind` (`member` \| `admin`), `legacy_id` (UID legado, `legacy-procomun:user:<uid>`), `user_id` (cuenta confirmada), `resolved_by` (usuario `admin` que la registra), `resolved_at`, `note` (texto libre corto, opcional, sin correos; se valida que no contenga una dirección) y `revoked_at` (nulo mientras vale).
+- Índice único parcial sobre (`community_id`, `kind`, `legacy_id`) donde `revoked_at` es nulo: una sola resolución vigente por relación.
+- **No guarda el correo** ni en la tabla ni en la nota. La resolución dice «para esta relación, el UID manda y la cuenta es esta»; no necesita saber qué correo había.
+
+**Quién y cómo.** Solo un usuario con rol global `admin` (no un administrador de comunidad), desde la herramienta de revisión de relaciones pendientes (API `POST /api/admin/communities/:id/legacy-relations/:relationId/resolve`, F4; antes, el comando `import:legacy-communities resolve`). Requisitos del servidor:
+
+1. La relación está `pending` con `reason = identity_conflict`.
+2. El UID está vinculado (#488) a una cuenta **activa** y esa es la `user_id` que se confirma; si el UID no está vinculado, se rechaza («vincula primero el UID»).
+3. Quien resuelve ve la cuenta del UID y los IDs internos, **nunca el correo del JSON**; confirma de forma explícita que la cuenta del UID es la correcta.
+4. En la misma transacción se inserta la resolución y se escribe en `activity_events` el evento `community_legacy_resolution_created` con actor, comunidad, `kind`, `legacy_id` y `user_id`, y sin correo.
+
+Se puede revocar (`revoked_at` más evento `…_revoked`): una revocación no deshace lo ya aplicado, solo impide que la resolución se use en otra ejecución.
+
+**Cómo la usa el importador.** En la siguiente ejecución, al evaluar una relación `member` o `admin`:
+
+1. Resuelve el UID a su cuenta (R-5).
+2. Si hay una resolución vigente para (`community_id`, `kind`, `legacy_id`) y su `user_id` es la cuenta que resuelve el UID, **no abre `identity_conflict`**, aunque el correo apunte a otra cuenta. El correo del JSON se ignora para esa relación y no se asigna nada a la cuenta del correo.
+3. Aplica la relación a la cuenta confirmada por UID con las reglas de R-1: una sola vez (la relación pasa a `applied`), sin cambiar el rol de una membresía existente y sin volver a aplicar lo ya aplicado.
+4. Si la cuenta del UID cambió desde que se registró la resolución (ya no coincide con `user_id`) o está dada de baja, la resolución no vale: vuelve `identity_conflict` y hay que resolver de nuevo.
+5. El informe cuenta la relación como `applied_by_resolution` con IDs legacy e internos, sin correo.
+
+**Estado de la comunidad (sigue R-1).** La importación solo decide el estado al crear la comunidad. Si el administrador resuelto era el único y la comunidad estaba en `draft` con `no_admin`, tras reimportar el administrador existe, pero la comunidad **sigue en `draft`** (aviso `admin_resolved_draft`) hasta que un administrador la publica de forma explícita. Nunca se publica sola.
+
+**Descartado**: guardar el correo «aprobado» (sería guardar el dato que se quiere evitar y se invalidaría al reasignarse otra vez); asignar a la cuenta del correo (es el fallo que R-5 evita); permitir que el administrador de la comunidad resuelva (el conflicto es de identidad de cuenta, no de la comunidad).
+
+**Pruebas previstas (F4, PGlite)**: ver la tabla en `validation.md`, «Resolución manual de `identity_conflict`».
+
+### Preguntas abiertas que se añaden (tercera revisión)
+- Q-16: confirmar que solo el rol global `admin` registra resoluciones y que basta una sola persona, sin doble confirmación. Sin respuesta, se aplica así.

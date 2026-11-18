@@ -116,3 +116,7 @@ Recuperar las comunidades del Procomún antiguo, sin funciones que no existían,
 ## Segunda revisión de #578 — 2026-11-18
 - RF-038: el importador resuelve a miembros y administradores por el UID legado (`legacy-procomun:user:<uid>`) como referencia principal. Si el UID y el correo apuntan a cuentas distintas, la relación queda pendiente de revisión, se refleja en el informe sin correo y no se asigna automáticamente ni la membresía ni el rol de administrador (`design.md` R-5). Sustituye la regla del apartado «Importador» que buscaba primero por correo.
 - RF-039: una invitación por correo solo se muestra y se acepta desde una cuenta activa con ese correo verificado, con la misma regla aplicada en el servidor en el enlace y en «Mis comunidades» (`design.md` R-6). Complementa RF-016.
+
+## Tercera revisión de #578 — 2026-11-18
+
+- RF-040: un usuario `admin` puede registrar una resolución manual autorizada para una relación del importador en `identity_conflict` cuando el UID legado ya está vinculado a una cuenta activa. La resolución guarda comunidad, tipo, UID, cuenta confirmada, quién la registra y cuándo, **sin correo**, y queda auditada en `activity_events`. En la siguiente ejecución el importador no abre el conflicto para esa relación, la aplica una sola vez a la cuenta confirmada por UID e ignora el correo del JSON. La comunidad no se publica sola: si estaba en `draft` por no tener administrador, sigue en `draft` hasta una publicación explícita (`design.md` R-7). Complementa RF-038.

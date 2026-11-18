@@ -1,3 +1,4 @@
+import { DEFAULT_LICENSE } from "@procomun/db/validation";
 import { type FormEvent, useEffect, useState } from "react";
 import type {
 	CreateResourceInput,
@@ -32,7 +33,7 @@ const EMPTY_FORM: ResourceFormState = {
 	title: "",
 	description: "",
 	language: "es",
-	license: "cc-by",
+	license: DEFAULT_LICENSE,
 	resourceType: "documento",
 	author: "",
 	keywords: "",
@@ -55,7 +56,7 @@ function toFormState(resource: {
 		title: resource.title ?? "",
 		description: resource.description ?? "",
 		language: resource.language ?? "es",
-		license: resource.license ?? "cc-by",
+		license: resource.license ?? DEFAULT_LICENSE,
 		resourceType: resource.resourceType ?? "documento",
 		author: resource.author ?? "",
 		keywords: resource.keywords ?? "",

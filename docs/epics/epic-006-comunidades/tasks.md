@@ -76,3 +76,8 @@ Depende de F1, de #488 (usuarios), #517 (artículos) y de Q-11 (correspondencia 
 - [ ] F4: resolver por UID, `identity_conflict` en `community_legacy_relations` y las cinco pruebas de R-5.
 - [ ] F3: función de servidor única para listar y aceptar invitaciones con correo verificado y las cinco pruebas de R-6.
 - [ ] Q-15: confirmar con #577 la regla común de identidad por UID.
+
+## Tercera revisión de #578 — 2026-11-18
+- [x] Resolución manual autorizada de `identity_conflict`: registro, auditoría sin correo y uso por el importador (`design.md` R-7, RF-040).
+- [ ] F4: tabla `community_legacy_resolutions`, endpoint o subcomando `resolve`, uso en el importador y las pruebas de «Resolución manual de `identity_conflict`» de `validation.md`.
+- [ ] Q-16: confirmar quién puede registrar resoluciones.
