@@ -111,6 +111,11 @@ const resourceBaseSelection = {
 	thumbnailUrl: resources.thumbnailUrl,
 	createdBy: resources.createdBy,
 	createdByName: user.name,
+	/**
+	 * La cuenta creadora existe y no está dada de baja (#541). Si no, su ficha
+	 * de autor responde 404 y el frontend no enlaza su nombre.
+	 */
+	createdByActive: sql<boolean>`(${user.id} is not null and ${user.deletedAt} is null)`,
 	editorialStatus: resources.editorialStatus,
 	assignedCuratorId: resources.assignedCuratorId,
 	curatedAt: resources.curatedAt,

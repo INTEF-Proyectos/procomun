@@ -179,6 +179,7 @@ function FavoritesTab({
 								author: resource.author ?? null,
 								createdBy: resource.createdBy ?? null,
 								createdByName: resource.createdByName ?? null,
+								createdByActive: resource.createdByActive ?? null,
 								thumbnailUrl: null,
 								elpxPreview: resource.elpxPreview ?? null,
 								rating: resource.rating,
