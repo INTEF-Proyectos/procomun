@@ -29,7 +29,11 @@ export function loadMediaBankUrl(
 	if (!cached) {
 		cached = getConfig()
 			.then((config) => safeMediaBankUrl(config?.mediaBankUrl))
-			.catch(() => null);
+			.catch(() => {
+				// Un fallo no se cachea: el siguiente intento vuelve a pedir.
+				cached = null;
+				return null;
+			});
 	}
 	return cached;
 }

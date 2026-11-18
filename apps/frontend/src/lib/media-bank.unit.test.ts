@@ -56,4 +56,18 @@ describe("URL del banco multimedia (#569)", () => {
 			}),
 		).toBeNull();
 	});
+
+	test("tras un fallo se vuelve a pedir la configuración", async () => {
+		let calls = 0;
+		const getConfig = async () => {
+			calls += 1;
+			if (calls === 1) throw new Error("sin red");
+			return { mediaBankUrl: "https://multimedia.example.es/" };
+		};
+		expect(await loadMediaBankUrl(getConfig)).toBeNull();
+		expect(await loadMediaBankUrl(getConfig)).toBe(
+			"https://multimedia.example.es/",
+		);
+		expect(calls).toBe(2);
+	});
 });
