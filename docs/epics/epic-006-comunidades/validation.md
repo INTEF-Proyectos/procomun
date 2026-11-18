@@ -33,3 +33,9 @@ La tabla «Resultado esperado» de `design.md` es el oráculo de la prueba de in
 
 ## Validación de esta entrega (F0, 2026-11-16)
 Solo documentación: `bun run check-tracking` valida `status.yaml` y `decision-log.yaml`.
+
+## Segunda revisión de #578 — 2026-11-18
+| Requisito | Prueba prevista | Feature |
+|---|---|---|
+| RF-038 Identidad por UID | PGlite: UID y correo en cuentas distintas no asignan miembro ni administrador, relación `pending` con `identity_conflict`, informe sin correo, comunidad en `draft` con `no_admin` si era el único administrador; UID resuelto asigna a su cuenta; tras vincular el UID, la reimportación aplica una sola vez | F4 |
+| RF-039 Invitación con correo verificado | Integración: correo coincidente sin verificar no ve ni acepta (404 genérico, sin membresía) por enlace y por «Mis comunidades»; cuenta verificada acepta y rechaza por ambas vías; otro correo, cuenta de baja o bloqueada, no; respuesta idéntica exista o no la cuenta | F3 |

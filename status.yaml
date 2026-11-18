@@ -4557,6 +4557,19 @@ tasks:
       invitaciones a 14 días, correo y solicitud borrados en cualquier
       cierre); R-4 unirse sin aprobación a una pública, provisional.
       Pendiente: Q-8, Q-13 y Q-14.
+  T-2026-11-18-18095901:
+    date: 2026-11-18
+    agent: "arquitectura-solucion + seguridad-privacidad-legal + documentacion-y-roadmap"
+    task: "Segunda revisión de #578: identidad por UID legado e invitaciones con correo verificado"
+    status: In Progress
+    related: ["#578", "#577", "#493", "#495", "ADR-0050"]
+    notes: >
+      Apartado «Segunda revisión del 2026-11-18» del diseño: R-5 el importador
+      resuelve por UID legado y un conflicto UID/correo queda pendiente de
+      revisión sin guardar el correo (RF-038); R-6 las invitaciones solo se ven
+      y aceptan desde una cuenta activa con el correo verificado, en el servidor
+      y en ambas vías (RF-039). Pruebas previstas en validation.md. Pendiente
+      Q-15 (regla común de identidad con #577).
   T-2026-11-16-15172341:
     date: 2026-11-16
     agent: "backend-api-servicios + frontend-ux-accesibilidad"

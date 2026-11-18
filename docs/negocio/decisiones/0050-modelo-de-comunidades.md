@@ -84,3 +84,8 @@ Detalle en `docs/epics/epic-006-comunidades/design.md`. Revisión del 2026-11-18
 * Migración con el siguiente número libre al implementar; revisar antes los PR abiertos.
 * Al implementar F1, adenda fechada en ADR-0008 con las funciones de autorización de comunidad.
 * Esta ADR pasa a «Aceptado» cuando INTEF responda las preguntas abiertas del diseño (Q-1 a Q-14), o se actualiza con lo que respondan.
+
+## Adenda 2026-11-18 (segunda revisión de #578)
+
+5. **Identidad en el importador**: los miembros y administradores se resuelven por el UID legado; el correo solo detecta conflictos. Si UID y correo apuntan a cuentas distintas, la relación queda pendiente de revisión y no se asigna nada (`design.md` R-5, RF-038).
+6. **Invitaciones**: solo se muestran y se aceptan desde una cuenta activa con el correo verificado, con la misma comprobación en el servidor en ambas vías (`design.md` R-6, RF-039).

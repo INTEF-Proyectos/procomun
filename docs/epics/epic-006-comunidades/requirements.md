@@ -112,3 +112,7 @@ Recuperar las comunidades del Procomún antiguo, sin funciones que no existían,
 - Tiempo desde la solicitud de creación hasta la decisión del `admin`.
 - Comunidades nuevas creadas, miembros por comunidad y recursos enlazados por comunidad.
 - Visitas a las fichas de comunidad.
+
+## Segunda revisión de #578 — 2026-11-18
+- RF-038: el importador resuelve a miembros y administradores por el UID legado (`legacy-procomun:user:<uid>`) como referencia principal. Si el UID y el correo apuntan a cuentas distintas, la relación queda pendiente de revisión, se refleja en el informe sin correo y no se asigna automáticamente ni la membresía ni el rol de administrador (`design.md` R-5). Sustituye la regla del apartado «Importador» que buscaba primero por correo.
+- RF-039: una invitación por correo solo se muestra y se acepta desde una cuenta activa con ese correo verificado, con la misma regla aplicada en el servidor en el enlace y en «Mis comunidades» (`design.md` R-6). Complementa RF-016.

@@ -69,3 +69,10 @@ Depende de F1, de #488 (usuarios), #517 (artículos) y de Q-11 (correspondencia 
 - [ ] F1: envolver `softDeleteUser` en una transacción que también pase a `draft` las comunidades sin administrador, con sus pruebas.
 - [ ] F3: borrado del correo y del token en cada estado de cierre de las invitaciones, y de la solicitud al cerrarse, con sus pruebas.
 - [ ] F4: `community_legacy_relations` con estado `pending`/`applied` y pruebas de reimportación de R-1.
+
+## Segunda revisión de #578 — 2026-11-18
+- [x] Identidad por UID legado y conflicto UID/correo pendiente de revisión sin guardar el correo (`design.md` R-5, RF-038).
+- [x] Invitaciones solo con cuenta activa y correo verificado, en ambas vías y en el servidor (`design.md` R-6, RF-039).
+- [ ] F4: resolver por UID, `identity_conflict` en `community_legacy_relations` y las cinco pruebas de R-5.
+- [ ] F3: función de servidor única para listar y aceptar invitaciones con correo verificado y las cinco pruebas de R-6.
+- [ ] Q-15: confirmar con #577 la regla común de identidad por UID.

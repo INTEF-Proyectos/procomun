@@ -370,3 +370,36 @@ RF-014 (unirse sin aprobación a una pública, como en el antiguo) está **pendi
 - Q-8 (revisada): cuenta bloqueada de un administrador, opción A o B de R-2.
 - Q-13: ¿se confirma la incorporación directa a las comunidades públicas (R-4)?
 - Q-14: ¿se valida con negocio y con la responsable legal la regla común de R-3 (visibilidad de quienes administran, 14 días y borrado al cerrar)?
+
+## Segunda revisión del 2026-11-18 (#578)
+
+Dos ajustes de acceso tras la revisión de `e85b78d`. Prevalecen sobre lo anterior donde lo contradigan; el texto previo se conserva.
+
+### R-5. Identidad de miembros y administradores: el UID legado manda
+
+Sustituye la regla de usuarios de «Importador» (que buscaba primero por correo y usaba el UID solo si faltaba el correo). Un correo institucional puede haberse reasignado y estar verificado por otra persona, así que no puede decidir quién recibe una membresía ni la administración.
+
+- **Referencia principal**: `legacy-procomun:user:<uid>` (#488), o una correspondencia validada de ese UID con una cuenta. Si resuelve a una cuenta activa, se usa esa.
+- **El correo del exportador (D8) no resuelve por sí solo.** Solo sirve para detectar conflictos: se compara con la cuenta que resuelve el UID, sin guardarlo.
+- **Conflicto**: si el UID resuelve a una cuenta y el correo a otra distinta, o el UID no resuelve pero el correo sí a una cuenta no vinculada a ese UID, la relación queda `pending` en `community_legacy_relations` con `reason = identity_conflict` y sale en el informe como aviso. No se asigna ni la membresía ni el rol de administrador a ninguna de las dos. El informe lleva solo IDs legacy y el ID interno; **nunca el correo**.
+- **Sin UID resuelto ni conflicto** (UID sin cuenta y correo sin cuenta): `pending` como hasta ahora (`unresolved_user`).
+- Las cuentas dadas de baja siguen sin contar. Una relación en conflicto solo se aplica tras revisión manual (vincular el UID a la cuenta correcta) y en la siguiente reimportación; sigue las reglas de R-1.
+- Si la comunidad se queda sin administrador por un conflicto, queda en `draft` con `no_admin` (RF-032).
+- **Regla común con #577 (épica 007)**: la identidad de una persona entre el Procomún antiguo y esta plataforma se resuelve por UID, nunca por correo. #577 no se edita desde esta rama; se propone allí la misma regla y se anota como remisión en Q-15.
+
+**Pruebas previstas (F4, PGlite)**: (1) UID y correo en cuentas distintas: ni miembro ni administrador asignados a ninguna, relación `pending` con `identity_conflict`, informe sin correo; (2) caso de administrador en conflicto: la comunidad queda en `draft` con `no_admin`; (3) UID resuelto y correo coincidente o ausente: se asigna a la cuenta del UID; (4) correo que coincide con una cuenta sin vínculo y UID sin cuenta: no se asigna; (5) tras vincular el UID, la reimportación aplica la relación una sola vez.
+
+### R-6. Invitaciones: solo desde una cuenta activa con el correo verificado
+
+La configuración actual permite iniciar sesión con un correo sin verificar (`.env.example`), así que la coincidencia de direcciones no demuestra el control del buzón. Sustituye el paso 3 de «Invitar».
+
+- Una invitación dirigida a un correo solo **se muestra y se puede aceptar o rechazar** desde una cuenta **activa** (sin `deleted_at` ni bloqueo) cuyo correo coincide con el de la invitación **y está verificado** (`email_verified = true`).
+- **Misma regla en las dos vías**, aplicada en el servidor en una única función compartida: el enlace con token (`…/invitations/<token>`) y «Mis comunidades» (`GET …/me/invitations`, `POST …/invitations/<id>/accept|decline`). La interfaz no decide nada.
+- Una cuenta con el correo sin verificar: «Mis comunidades» no lista la invitación y aceptar devuelve la misma respuesta que una invitación inexistente o de otra persona (404 genérico), sin revelar que existe. La página del enlace puede ofrecer reenviar el correo de verificación, sin confirmar la invitación.
+- Invitaciones por `user_id` (cuenta ya existente): se mantiene la comprobación de que la sesión es esa cuenta y está activa; no hay correo que verificar.
+- La verificación se comprueba en el momento de aceptar, no solo al listar: aceptar es una escritura y repite la comprobación dentro de la transacción.
+
+**Pruebas previstas (F3)**: (1) correo coincidente **sin verificar**: no aparece en «Mis comunidades», aceptar por el enlace y por la API devuelve el 404 genérico y no se crea la membresía; (2) cuenta **verificada** con el correo coincidente: puede listar, aceptar y rechazar por las dos vías; (3) cuenta verificada con otro correo: 404; (4) cuenta dada de baja o bloqueada con el correo verificado: no puede; (5) la respuesta de una invitación a una dirección sin cuenta es idéntica a la de una con cuenta (RF-016, punto 4).
+
+### Preguntas abiertas que se añaden (segunda revisión)
+- Q-15: confirmar con #577 que la regla de identidad por UID (R-5) es común a ambas épicas. Sin respuesta, esta épica la aplica igualmente al importador.
