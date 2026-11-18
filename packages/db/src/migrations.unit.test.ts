@@ -966,6 +966,50 @@ describe("migración 0025_reports_collections", () => {
 		}
 	});
 
+	// Review de #585: con el migrador real de drizzle, sobre una base que tiene
+	// aplicadas todas las migraciones del journal anteriores a la 0025. Si al
+	// integrar #586/#587 el `when` de la 0025 quedara por debajo del de una ya
+	// aplicada, drizzle se la saltaría en silencio y este test fallaría.
+	test("el migrador de drizzle la aplica sobre una base con las anteriores", async () => {
+		const { createTables } = await import("./setup.ts");
+		const journal = JSON.parse(
+			await readFile(path.join(migrationsDir, "meta/_journal.json"), "utf8"),
+		) as { entries: Array<{ tag: string; when: number }> };
+		const at = journal.entries.findIndex(
+			(item) => item.tag === "0025_reports_collections",
+		);
+		expect(at).toBeGreaterThan(0);
+		const db = new PGlite();
+		try {
+			await createTables(db);
+			// Se retira lo que añade la 0025 para dejar la base como antes de ella.
+			await db.exec(`DELETE FROM "reports" WHERE resource_id IS NULL;
+				ALTER TABLE "reports" DROP CONSTRAINT IF EXISTS "reports_target_check";
+				DROP INDEX IF EXISTS "idx_reports_collection_id";
+				ALTER TABLE "reports" DROP COLUMN "collection_id";
+				ALTER TABLE "reports" ALTER COLUMN "resource_id" SET NOT NULL;
+				CREATE SCHEMA drizzle;
+				CREATE TABLE drizzle.__drizzle_migrations (
+					id SERIAL PRIMARY KEY, hash text NOT NULL, created_at bigint
+				);`);
+			for (const entry of journal.entries.slice(0, at)) {
+				await db.query(
+					"INSERT INTO drizzle.__drizzle_migrations (hash, created_at) VALUES ($1, $2)",
+					[entry.tag, entry.when],
+				);
+			}
+			await migrate(drizzle(db), { migrationsFolder: migrationsDir });
+			const column = await db.query(`SELECT 1 FROM information_schema.columns
+				WHERE table_name = 'reports' AND column_name = 'collection_id'`);
+			expect(column.rows).toHaveLength(1);
+			const check = await db.query(`SELECT 1 FROM pg_constraint
+				WHERE conname = 'reports_target_check'`);
+			expect(check.rows).toHaveLength(1);
+		} finally {
+			await db.close();
+		}
+	});
+
 	test("el esquema de arranque (setup.ts) hace lo mismo en una base previa", async () => {
 		const statements = SCHEMA_STATEMENTS.filter((statement) =>
 			/"reports"[\s\S]*(collection_id|resource_id DROP NOT NULL)/.test(
