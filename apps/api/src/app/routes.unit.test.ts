@@ -18,6 +18,8 @@ describe("registerRoutes", () => {
 		expect(typeof config.oidcEnabled).toBe("boolean");
 		expect(typeof config.emailVerificationRequired).toBe("boolean");
 		expect("oidcEndSessionUrl" in config).toBe(true);
+		// #551: la interfaz esconde la recuperación si no se puede mandar correo.
+		expect(config.emailDeliveryEnabled).toBe(true);
 	});
 
 	test("expone el catálogo de áreas de conocimiento sin sesión (#448)", async () => {
