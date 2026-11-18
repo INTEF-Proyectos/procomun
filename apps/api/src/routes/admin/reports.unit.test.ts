@@ -1,4 +1,5 @@
-import { describe, expect, test } from "bun:test";
+import { describe, expect, spyOn, test } from "bun:test";
+import * as repo from "@procomun/db/repository";
 import { Hono } from "hono";
 import type { AuthEnv } from "../../auth/middleware.ts";
 import { socialRoutes } from "../social.ts";
@@ -419,5 +420,94 @@ describe("Reports — Colecciones", () => {
 			`/api/admin/collections/${collection.id}`,
 		);
 		expect(after.status).toBe(404);
+	});
+
+	// Review de #585: la colección puede volver a borrador entre la denuncia y
+	// su resolución. Otro curator no gestiona ese borrador (#538), tampoco desde
+	// la cola de denuncias.
+	test("otro curator no actúa sobre una colección que volvió a borrador", async () => {
+		const collection = await createCollection(adminApp, "published");
+		const submitRes = await reportCollection(authorApp, collection.slug, {
+			reason: "spam",
+		});
+		const { id: reportId } = (await submitRes.json()) as { id: string };
+
+		const toDraft = await adminApp.request(
+			`/api/admin/collections/${collection.id}`,
+			{
+				method: "PATCH",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify({ editorialStatus: "draft" }),
+			},
+		);
+		expect(toDraft.status).toBe(200);
+
+		const otherCurator = createApp({
+			id: "otro-curator",
+			role: "curator",
+			name: "Otro curator",
+		});
+		for (const actionTaken of [
+			"collection_deactivated",
+			"collection_deleted",
+		]) {
+			const res = await otherCurator.request(`/api/admin/reports/${reportId}`, {
+				method: "PATCH",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify({ status: "resolved", actionTaken }),
+			});
+			expect(res.status).toBe(403);
+		}
+
+		const report = await curatorApp.request(`/api/admin/reports/${reportId}`);
+		expect(((await report.json()) as { status: string }).status).toBe(
+			"pending",
+		);
+		const after = await adminApp.request(
+			`/api/admin/collections/${collection.id}`,
+		);
+		expect(
+			((await after.json()) as { editorialStatus: string }).editorialStatus,
+		).toBe("draft");
+	});
+
+	// Review de #585: la resolución y la acción van juntas. Si falla la acción,
+	// la denuncia no queda resuelta con la colección aún publicada.
+	test("si falla la acción, la denuncia conserva su estado", async () => {
+		const collection = await createCollection(adminApp, "published");
+		const submitRes = await reportCollection(authorApp, collection.slug, {
+			reason: "spam",
+		});
+		const { id: reportId } = (await submitRes.json()) as { id: string };
+
+		const spy = spyOn(repo, "updateCollection").mockImplementation(() => {
+			throw new Error("fallo forzado");
+		});
+		try {
+			const res = await curatorApp.request(`/api/admin/reports/${reportId}`, {
+				method: "PATCH",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify({
+					status: "resolved",
+					actionTaken: "collection_deactivated",
+				}),
+			});
+			expect(res.status).toBe(500);
+		} finally {
+			spy.mockRestore();
+		}
+
+		const report = await curatorApp.request(`/api/admin/reports/${reportId}`);
+		const body = (await report.json()) as {
+			status: string;
+			actionTaken: string | null;
+		};
+		expect(body).toMatchObject({ status: "pending", actionTaken: null });
+		const after = await adminApp.request(
+			`/api/admin/collections/${collection.id}`,
+		);
+		expect(
+			((await after.json()) as { editorialStatus: string }).editorialStatus,
+		).toBe("published");
 	});
 });

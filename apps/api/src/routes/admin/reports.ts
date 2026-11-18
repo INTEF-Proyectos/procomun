@@ -4,6 +4,10 @@ import { type AuthEnv, requireRole } from "../../auth/middleware.ts";
 import { getCurrentUser } from "../../auth/roles.ts";
 import { getDb } from "../../db.ts";
 import { parsePagination } from "../../http/pagination.ts";
+import {
+	requireManageableCollection,
+	requireManageableResource,
+} from "./guards.ts";
 
 const reportRoutes = new Hono<AuthEnv>();
 
@@ -103,40 +107,56 @@ reportRoutes.patch("/:id", async (c) => {
 		);
 	}
 
-	await repo.updateReport(getDb().db, id, {
-		status: body.status as repo.ReportStatus | undefined,
-		moderatorId: currentUser.id,
-		resolution: body.resolution,
-		actionTaken: body.actionTaken as repo.ReportAction | undefined,
-	});
-
-	// Apply real action on the resource if applicable
-	if (body.actionTaken === "resource_deactivated" && report.resourceId) {
-		await repo.updateEditorialStatus(
-			getDb().db,
-			report.resourceId,
-			"archived",
-			currentUser.id,
-		);
-	} else if (body.actionTaken === "resource_deleted" && report.resourceId) {
-		await repo.deleteResource(getDb().db, report.resourceId);
-	} else if (
-		body.actionTaken === "collection_deactivated" &&
-		report.collectionId
-	) {
-		await repo.updateCollection(getDb().db, report.collectionId, {
-			editorialStatus: "archived",
-		});
-	} else if (body.actionTaken === "collection_deleted" && report.collectionId) {
-		// La denuncia se borra con la colección (ON DELETE CASCADE): se devuelve
-		// tal como quedó resuelta.
-		const resolved = await repo.getReportById(getDb().db, id);
-		await repo.deleteCollection(getDb().db, report.collectionId);
-		return c.json(resolved);
+	// Review de #585: la colección o el recurso pueden haber cambiado desde la
+	// denuncia (p. ej. volver a borrador). Se comprueba sobre su estado actual
+	// con la misma regla que sus propias rutas de gestión.
+	if (body.actionTaken && report.collectionId) {
+		const check = await requireManageableCollection(c, report.collectionId);
+		if ("response" in check) return check.response;
+	} else if (body.actionTaken && report.resourceId) {
+		const check = await requireManageableResource(c, report.resourceId);
+		if ("response" in check) return check.response;
 	}
 
-	const updated = await repo.getReportById(getDb().db, id);
-	return c.json(updated);
+	// La resolución y la acción van en una transacción: si falla la acción, la
+	// denuncia no queda resuelta con el contenido intacto.
+	const resolved = await getDb().db.transaction(async (tx: repo.DrizzleDB) => {
+		await repo.updateReport(tx, id, {
+			status: body.status as repo.ReportStatus | undefined,
+			moderatorId: currentUser.id,
+			resolution: body.resolution,
+			actionTaken: body.actionTaken as repo.ReportAction | undefined,
+		});
+		// Se lee antes de la acción: con collection_deleted la denuncia se borra
+		// con la colección (ON DELETE CASCADE) y se devuelve tal como quedó.
+		const updated = await repo.getReportById(tx, id);
+
+		if (body.actionTaken === "resource_deactivated" && report.resourceId) {
+			await repo.updateEditorialStatus(
+				tx,
+				report.resourceId,
+				"archived",
+				currentUser.id,
+			);
+		} else if (body.actionTaken === "resource_deleted" && report.resourceId) {
+			await repo.deleteResource(tx, report.resourceId);
+		} else if (
+			body.actionTaken === "collection_deactivated" &&
+			report.collectionId
+		) {
+			await repo.updateCollection(tx, report.collectionId, {
+				editorialStatus: "archived",
+			});
+		} else if (
+			body.actionTaken === "collection_deleted" &&
+			report.collectionId
+		) {
+			await repo.deleteCollection(tx, report.collectionId);
+		}
+		return updated;
+	});
+
+	return c.json(resolved);
 });
 
 export { reportRoutes };

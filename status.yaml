@@ -4525,6 +4525,21 @@ tasks:
       La revision del 08-nov ya estaba resuelta en 733e4fe0; se ha
       verificado el journal y el migrador real de Drizzle sobre una base en
       main.
+  T-2026-11-18-13305617:
+    date: 2026-11-18
+    agent: "backend-api-servicios + qa-validacion"
+    task: "Review de #585: permisos y transaccion al resolver denuncias"
+    status: Done
+    related: ["#539", "#585", "#586", "#587"]
+    notes: >
+      Al resolver una denuncia con accion se comprueba el permiso sobre la
+      coleccion (o el recurso) en su estado actual con
+      requireManageableCollection/requireManageableResource: otro curator no
+      archiva ni borra un borrador ajeno (403). La resolucion y la accion van
+      en una transaccion. Test con el migrador real de Drizzle para la 0025
+      sobre una base con las anteriores aplicadas; el journal se ajusta al
+      integrar #586 y #587. Se retira del seguimiento la cache de Inlang y se
+      ignora apps/frontend/project.inlang/cache/.
   T-2026-11-16-15113076:
     date: 2026-11-16
     agent: "backend-api-servicios + frontend-ux-accesibilidad"
