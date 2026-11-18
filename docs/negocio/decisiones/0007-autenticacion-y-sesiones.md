@@ -190,3 +190,19 @@ El correo de verificación de Better Auth es el mismo para el alta y para el cor
 * **Sin transporte de correo no hay cambio de correo.** En producción sin `SMTP_HOST`, `user.changeEmail.enabled` queda en `false`, `/api/v1/config` devuelve `emailDeliveryEnabled: false` y la pestaña Cuenta esconde el formulario de correo; la contraseña se sigue pudiendo cambiar. Mismo criterio que la recuperación (#551): se descarta exigir SMTP al arrancar porque la imagen corre con `NODE_ENV=production` y el `docker-compose.yml` no trae SMTP.
 * La URL de vuelta del cambio de correo se construye con `url()`: respeta la ruta base y el prefijo de idioma.
 * Un fallo de red al cambiar la contraseña o el correo enseña el error de conexión traducido.
+
+## Adenda 2026-11-18 — la autoría histórica no depende del correo actual (#552)
+
+**Problema (revisión de #552, P1).** El importador resolvía `publicatorEmailStr` contra el correo **actual** de las cuentas. Si una persona cambia de correo y su dirección antigua se reasigna a otra persona que la verifica en Procomún, los recursos históricos pendientes de importar (o aún a nombre del sistema) se le atribuían. Y si la dirección antigua quedaba sin cuenta, los artículos pendientes se perdían como `skipped_without_author`. Esto corrige el punto 3 de la adenda del #532, que lo daba por «visible y recuperable»: no lo era, porque la atribución errónea no se ve.
+
+**Decisión.** La autoría se resuelve con un identificador estable. El `.json` de cada recurso solo trae el correo (no el UID de quien publicó), así que el vínculo correo -> UID sale del volcado de usuarios del Procomún antiguo, que ya usa `import:legacy-users`:
+
+* Nueva opción `--users-file <usuarios.json>` en `import:legacy-procomun` (importación y `--link-authors`). Con ella, un correo presente en el volcado se resuelve al UID y de ahí a la cuenta `legacy-procomun:user:<uid>` por **id** (`findLegacyAccountById`), aunque esa cuenta haya cambiado de correo. **Nunca** se cae al titular actual de la dirección.
+* Si el UID no tiene cuenta, queda `no_account`: no se usa el correo como alternativa.
+* Un correo con **varios UID** en el volcado es ambiguo: motivo `ambiguous_account`, sin asignar nada y para revisión manual. El informe general sigue sin llevar correos (#543); no se guarda el correo en la base de datos.
+* Un correo que no aparece en el volcado nunca tuvo cuenta legada, y se busca por el correo actual como en #456.
+* Los artículos pendientes cuyo correo antiguo ya no tiene cuenta se importan a la cuenta del UID, en vez de quedar `skipped_without_author`.
+
+**Límite.** Sin `--users-file` el comportamiento es el de #456 (por correo actual), y el riesgo descrito sigue existiendo. Para los lotes reales, pasarlo siempre.
+
+**Validación.** `import-legacy-procomun.unit.test.ts` (cambio de titular del correo, UID sin cuenta, UID ambiguo sin correo en el informe, índice) y `legacy-authors.unit.test.ts` (búsqueda por id con el correo cambiado).

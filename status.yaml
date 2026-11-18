@@ -4678,3 +4678,16 @@ tasks:
       toString y hasOwnProperty. Los demas mapas *_LABELS[...] del frontend
       (HeroIsland, ResourceEditorIsland, AdminReportsSection, los CRUD y
       EditarPageBase) quedan fuera del alcance de este PR.
+  T-2026-11-18-18122409:
+    date: 2026-11-18
+    agent: "ingestas-y-migraciones + seguridad-privacidad-legal"
+    task: "Revision de #552 (P1): la autoria historica no depende del correo actual"
+    status: Done
+    related: ["#552", "#532", "#456"]
+    notes: >
+      import:legacy-procomun acepta --users-file (volcado de usuarios) y
+      resuelve el correo del recurso al UID legacy-procomun:user:<uid> por id,
+      no por el titular actual de la direccion. UID sin cuenta: no_account sin
+      caer al correo; correo con varios UID: ambiguous_account (revision
+      manual, sin correo en el informe). Test de cambio de titular del correo.
+      ADR-0007 con adenda fechada. Sin --users-file queda el comportamiento de #456.
