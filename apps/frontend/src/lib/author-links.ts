@@ -23,6 +23,21 @@ export function splitAuthorNames(author: string | null | undefined): string[] {
 	return names;
 }
 
+/**
+ * Cuenta cuya ficha se puede enlazar: tiene id y nombre y no está dada de baja
+ * (#541). Una cuenta dada de baja no tiene ficha (responde 404), así que su
+ * nombre va sin enlace. Si la respuesta no trae `createdByActive` se mantiene
+ * el enlace, como antes de #541.
+ */
+export function publisherProfileId(resource: {
+	createdBy?: string | null;
+	createdByName?: string | null;
+	createdByActive?: boolean | null;
+}): string | null {
+	if (!resource.createdBy || !resource.createdByName) return null;
+	return resource.createdByActive === false ? null : resource.createdBy;
+}
+
 /** Ficha pública de la cuenta que publica (#458). */
 export function authorProfileHref(id: string): string {
 	return url(`autor/${encodeURIComponent(id)}`);
