@@ -10,7 +10,10 @@ import { getDb } from "../db.ts";
 import {
 	buildChangeEmailOptions,
 	buildEmailVerificationOptions,
+	buildPasswordResetOptions,
+	hasEmailTransport,
 	resolveEmailVerificationConfig,
+	resolvePasswordResetConfig,
 } from "../email/transport.ts";
 import { AUTH_DEFAULT_COOKIE_ATTRIBUTES } from "./cookie-config.ts";
 import {
@@ -48,6 +51,7 @@ export function createAuth(env: NodeJS.ProcessEnv = process.env) {
 	const frontendUrl = getFrontendUrl(env);
 	const oidcEnabled = env.OIDC_ENABLED === "true";
 	const emailVerificationConfig = resolveEmailVerificationConfig(env);
+	const passwordResetConfig = resolvePasswordResetConfig(env);
 
 	return betterAuth({
 		baseURL: getAuthBaseUrl(env),
@@ -152,6 +156,16 @@ export function createAuth(env: NodeJS.ProcessEnv = process.env) {
 			enabled: true,
 			minPasswordLength: 8,
 			requireEmailVerification: emailVerificationConfig.enabled,
+			// #531: ADR-0007 daba la recuperación por disponible, pero
+			// sendResetPassword no estaba puesto y no se enviaba nada. Es la
+			// única vía de entrada de los importados sin contraseña traída (#488).
+			// #551: sin transporte de correo no se ofrece (la interfaz lo sabe
+			// por /api/v1/config). Restablecer cierra todas las sesiones: quien
+			// lo hace suele temer que otro tenga la contraseña vieja.
+			...(hasEmailTransport(env)
+				? buildPasswordResetOptions(passwordResetConfig, env)
+				: {}),
+			revokeSessionsOnPasswordReset: true,
 			password: legacyAwarePasswordOptions,
 		},
 		// #532: el cambio de correo estaba desactivado. Con el correo verificado

@@ -160,6 +160,65 @@ Better Auth 1.7 (#362, 2026-09-22) rehízo el plugin `genericOAuth` sobre el flu
 
 **Validación.** `apps/api/src/auth/oidc-discovery.unit.test.ts`, con un proveedor de prueba: se lee la ruta de Keycloak, nunca se construye la de Duende, la variable manda y no consulta, sin issuer no consulta nada, un proveedor sin el campo da `null`, se descartan los valores que no son URL http(s), el acierto se guarda en caché y el fallo no, un error de red da `null` y una barra final en el issuer no duplica la barra.
 
+## Adenda 2026-11-04 — la recuperación de contraseña, conectada (#531)
+
+**Problema.** Esta ADR daba la recuperación de contraseña por disponible «sin desarrollo adicional» porque Better Auth la trae. Pero `sendResetPassword` no estaba configurado, así que `POST /api/auth/request-password-reset` no enviaba nada, y no había ni enlace en la pantalla de acceso ni pantalla para la contraseña nueva. Quien olvidaba la contraseña se quedaba fuera. Y es la **única vía de entrada** de los usuarios importados cuya contraseña no se pudo traer (#488: un hash en formato no admitido no se importa).
+
+**Decisión.** Se conecta con la capa de correo de ADR-0031, igual que la verificación:
+
+* `buildPasswordResetOptions` (`apps/api/src/email/transport.ts`) aporta `sendResetPassword` y `resetPasswordTokenExpiresIn` a `emailAndPassword`.
+* **Caducidad de 1 hora** por defecto, configurable con `PASSWORD_RESET_EXPIRES_IN` entre 60 s y 24 h. El tope es deliberado: mientras vale, el enlace **equivale a la contraseña**.
+* Enlace de un solo uso, que es el comportamiento propio de Better Auth. El correo lo dice, para que nadie lo guarde esperando reutilizarlo.
+* Pantallas `/recuperar` (pedir) y `/restablecer` (elegir la nueva), con el enlace «¿Has olvidado tu contraseña?» bajo el botón de acceso.
+
+**No revelar qué correos están registrados.** La pantalla de petición responde **siempre lo mismo**, exista o no la cuenta. En el cliente, `requestPasswordReset` devuelve `ok` salvo fallo de red: un error del servidor aquí solo puede delatar que esa cuenta no está, y eso convertiría la pantalla en un comprobador de correos. El fallo de red sí se distingue, porque ahí no se ha enviado nada y hay que reintentar. Hay un test de integración que compara código y cuerpo de las dos respuestas.
+
+**El enlace y los logs.** El token viaja en la query de una ruta del frontend (`/restablecer?token=…`). Con #524 el `access_log` de nginx **no registra la query**, así que queda como `/restablecer?:query`; y `api_access_logs` guarda solo la ruta, sin query. **Esto depende de que #524 entre**: hasta entonces, un token de recuperación aparecería entero en el `access_log` de la imagen `frontend`.
+
+**El correo no repite el destinatario en el cuerpo.** Ya va en el `to`, y así un reenvío no lo reparte otra vez.
+
+**Validación.** `apps/api/src/email/transport.unit.test.ts` (contenido del correo, caducidad en minutos u horas, límites de la variable) y `apps/api/src/auth/password-reset.integration.test.ts`, contra la instancia real de Better Auth: la capa de correo recibe el enlace, la respuesta es la misma exista o no la cuenta, `sendResetPassword` está configurado y la contraseña de siempre sigue valiendo si no se usa el enlace.
+
+## Adenda 2026-11-10 — revisión de la recuperación (#551)
+
+* **El envío no se espera.** Better Auth solo llama a `sendResetPassword` si la cuenta existe; esperar al SMTP hacía que el tiempo de respuesta delatara qué correos están registrados. Se lanza sin `await` y un fallo se registra en el log. Con eso la respuesta es la misma exista o no la cuenta, y el cliente ya puede contar un error del servidor como fallo (antes devolvía `ok` y la pantalla decía «enviado» aunque no se mandara nada).
+* **Restablecer cierra todas las sesiones** (`revokeSessionsOnPasswordReset: true`): quien lo hace suele temer que otro tenga la contraseña vieja.
+* **Sin transporte de correo no hay recuperación.** En producción sin `SMTP_HOST` no se configura `sendResetPassword`, `/api/v1/config` devuelve `emailDeliveryEnabled: false` y el acceso esconde el enlace. Se descarta exigir SMTP al arrancar: la imagen corre con `NODE_ENV=production` y el `docker-compose.yml` no trae SMTP, así que tumbaría despliegues que hoy funcionan.
+* La URL de retorno se construye con `url()`: respeta la ruta base y el prefijo de idioma.
+
+## Adenda 2026-11-18 — el token de recuperación también va en la ruta (revisión de #551)
+
+**Problema.** La adenda del 2026-11-04 da por cubierto el enlace porque el token viaja en la query de `/restablecer?token=…`. No es el primer salto: el correo lleva la URL que genera Better Auth, `/api/auth/reset-password/<token>?callbackURL=…`, que valida el token y **después** redirige a `/restablecer?token=…`. En esa primera petición el token va en la **ruta**, y ni los `map` de `nginx.conf` (ruta y Referer) ni `redactAuditPath` (`api_access_logs`) la tapaban. Quien pudiera leer cualquiera de los dos registros podía restablecer la contraseña mientras el token siguiera vigente y sin usar. Quitar la query (#524) no basta.
+
+**Decisión.** `/api/auth/reset-password/<token>` pasa a ser una ruta con capacidad, como el enlace firmado del `.elpx` (#466) o la miniatura firmada (#512): el segmento se sustituye por `:token`, sin distinguir mayúsculas, en `redactAuditPath` y en los `map` de la ruta y del Referer de `nginx.conf`. `POST /api/auth/reset-password` (sin segmento, el token va en el cuerpo) se registra tal cual. Las defensas de #524 para rutas con `%xx` o no canónicas se aplican también a esta.
+
+**Validación.** `apps/api/src/auth/audit.unit.test.ts` (la ruta con token se tapa y las de recuperación sin token no cambian), `scripts/nginx-log-redaction.unit.test.ts` (la ruta y el Referer, con y sin query, y con `%xx` en el prefijo) y `apps/api/src/auth/password-reset.integration.test.ts`, que captura el enlace que Better Auth genera de verdad en `requestPasswordReset` y comprueba su forma y que `redactAuditPath` le quita el token.
+
+## Adenda 2026-11-18 (2) — el token de recuperación tampoco va al error_log de nginx (segunda revisión de #551)
+
+**Problema.** La adenda anterior tapa el token de `/api/auth/reset-password/<token>` en el `access_log` y en `api_access_logs`, pero el `error_log` de nginx no admite formato: si falla el proxy a la API (502), escribe la petición y el Referer enteros. Comprobado con `nginx:alpine` y la API caída: `request: "GET /api/auth/reset-password/<token>?callbackURL=…"`. Hay un segundo camino: la pantalla `/restablecer?token=…` hace peticiones a la API y, con la política de Referer por defecto del navegador, todas llevan su URL, con el token, en el Referer, que el `error_log` también escribe.
+
+**Opciones.** (a) Que el correo no pase por la API con el token en la URL. (b) Una `location` para `/api/auth/reset-password/` con `error_log` a `crit` o apagado. Se elige (a): cierra el hueco en la raíz, vale para cualquier proxy delante (no solo el nginx de la imagen `frontend`) y no deja una ruta de la API sin diagnóstico. (b) no cubría el Referer.
+
+**Decisión.**
+
+* `directResetLink` (`apps/api/src/email/transport.ts`) convierte el enlace de Better Auth en su destino final: `callbackURL` resuelta contra el origen del enlace, como la redirección de Better Auth (que ya la valida con `trustedOrigins`), más `?token=…`. Conserva el idioma y la ruta base. El correo lleva `/restablecer?token=…`, una ruta estática que nginx sirve sin proxy, y el token solo vuelve a la API en el cuerpo del `POST /api/auth/reset-password`, que lo valida igual. Se pierde la validación previa del `GET`: un enlace caducado se detecta al enviar la contraseña nueva, y la pantalla ya muestra ese error.
+* `nginx.conf` añade `Referrer-Policy: no-referrer` a `/restablecer` y `/<idioma>/restablecer`. Va con un `map` sobre `$request_uri` y un `add_header` del server, no con una `location` propia: el `try_files` del SPA redirige a `/index.html` y la cabecera de esa `location` se perdía (comprobado con `nginx:alpine`).
+* La redacción de `/api/auth/reset-password/<token>` de la adenda anterior se mantiene para los enlaces de Better Auth abiertos a mano o enviados antes del cambio.
+
+**Validación.** `apps/api/src/email/transport.unit.test.ts` (`directResetLink`: destino, idioma, ruta base, URL absoluta, sin `callbackURL`, lo que no es el enlace de Better Auth, y que el correo no lleva `/api/auth/reset-password`), `apps/api/src/auth/password-reset.integration.test.ts` (con Better Auth real: el enlace del correo es `/en/restablecer?token=…`, no contiene `/api/` y su token restablece la contraseña) y `scripts/nginx-log-redaction.unit.test.ts` (el `map` pone `no-referrer` en la pantalla en cada idioma y con query, en ninguna otra ruta, y el server lo añade). Con `nginx:alpine`: `nginx -t` correcto, la cabecera sale solo en `/restablecer` y `/en/restablecer`, y `/restablecer?token=…` no deja nada en el `error_log`.
+
+## Adenda 2026-11-18 (3) — el token va en el fragmento, no en la query (tercera revisión de #551)
+
+**Problema.** `/restablecer?token=…` sigue llevando el token en la petición HTTP inicial: un proxy o CDN que registre la URL completa lo guarda antes de que `Referrer-Policy` tenga efecto, y en el despliegue canónico (imagen `app`) la cabecera depende del proxy. Además, el transporte de log de desarrollo/CI imprimía el correo entero, enlace incluido, en el log del build.
+
+**Decisión.**
+
+* `directResetLink` pone el token en el fragmento: `/restablecer#token=…`. El navegador no envía el fragmento, así que no llega a ningún proxy ni log. `ResetPasswordIsland` lo lee de `location.hash`, lo quita de la URL con `history.replaceState` y lo manda a la API en el cuerpo del `POST /api/auth/reset-password`. La query `?token=` se sigue aceptando para los correos ya enviados. `Referrer-Policy: no-referrer` se mantiene como defensa en profundidad.
+* `LogEmailTransport` tacha los tokens (`token=…` y `/reset-password/<token>`) en el log. `EMAIL_LOG_LINKS=true` los deja en claro para probar a mano en local; CI no lo activa.
+
+**Validación.** `transport.unit.test.ts` (`directResetLink` con fragmento y `LogEmailTransport` sin tokens), `PasswordResetIslands.unit.test.tsx` (lectura del fragmento y de la query antigua) y `password-reset.integration.test.ts` (el enlace real no lleva query y su token del fragmento restablece; una cuenta importada sin credencial fija su primera contraseña, inicia sesión y el mismo enlace se rechaza con 400 al reutilizarlo).
+
 ## Adenda 2026-11-04 — la pestaña «Cuenta»: cambiar la contraseña y el correo (#532)
 
 **Problema.** No había pantalla para cambiar la contraseña ni el correo. Better Auth trae el cambio de contraseña, y el de correo estaba desactivado (`/change-email` respondía `CHANGE_EMAIL_DISABLED`).

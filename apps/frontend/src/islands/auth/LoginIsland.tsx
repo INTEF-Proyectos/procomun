@@ -12,6 +12,7 @@ export function LoginIsland() {
 	const [submitting, setSubmitting] = useState(false);
 	const [oidcSubmitting, setOidcSubmitting] = useState(false);
 	const [oidcEnabled, setOidcEnabled] = useState(true);
+	const [emailDeliveryEnabled, setEmailDeliveryEnabled] = useState(true);
 
 	useEffect(() => {
 		void (async () => {
@@ -29,6 +30,10 @@ export function LoginIsland() {
 
 				if (config?.oidcEnabled === false) {
 					setOidcEnabled(false);
+				}
+				// #551: sin correo no hay enlace que mandar.
+				if (config?.emailDeliveryEnabled === false) {
+					setEmailDeliveryEnabled(false);
 				}
 			} catch {
 				// No session or config: keep form visible
@@ -155,6 +160,15 @@ export function LoginIsland() {
 					>
 						{submitting ? m.auth_submitting() : m.auth_submit()}
 					</button>
+
+					{/* #531: sin esto, quien olvida la contraseña no tiene salida.
+					    Es la única vía de entrada de los importados cuya contraseña
+					    no se pudo traer (#488). */}
+					{emailDeliveryEnabled && (
+						<p className="login-forgot">
+							<a href={url("recuperar")}>{m.auth_forgot_link()}</a>
+						</p>
+					)}
 				</form>
 
 				{/* OIDC */}

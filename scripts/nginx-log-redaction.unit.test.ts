@@ -373,6 +373,16 @@ const URI_CASES: [string, string, string][] = [
 		`/api/v1/thumbnails/signed/:token/${HASH}.jpg`,
 	],
 	[
+		"enlace de recuperación de contraseña de Better Auth (#551)",
+		`/api/auth/reset-password/${TOKEN}?callbackURL=%2Frestablecer`,
+		"/api/auth/reset-password/:token?:query",
+	],
+	[
+		"enlace de recuperación sin query (#551)",
+		`/api/auth/reset-password/${TOKEN}`,
+		"/api/auth/reset-password/:token",
+	],
+	[
 		"verificación de correo de Better Auth (?token=)",
 		`/api/auth/verify-email?token=${VERIFY_JWT}&callbackURL=%2F`,
 		"/api/auth/verify-email?:query",
@@ -394,6 +404,7 @@ const UNCHANGED: [string, string][] = [
 	[`/api/v1/elpx/${HASH}/index.html`, `/api/v1/elpx/${HASH}/index.html`],
 	[`/api/v1/elpx/preview/${HASH}`, `/api/v1/elpx/preview/${HASH}`],
 	["/api/v1/preview-session", "/api/v1/preview-session"],
+	["/api/auth/reset-password", "/api/auth/reset-password"],
 	["/api/v1/previews/42", "/api/v1/previews/42"],
 	[`/api/v1/thumbnails/${HASH}.jpg`, `/api/v1/thumbnails/${HASH}.jpg`],
 	["/api/v1/search?q=token", "/api/v1/search?:query"],
@@ -430,6 +441,11 @@ const ENCODED_CASES: [string, string, string][] = [
 		"prefijo /api con %xx: la location de nginx también decodifica",
 		`/%61pi/v1/elpx/preview/${HASH}/${TOKEN}/index.html`,
 		`/api/v1/elpx/preview/${HASH}/:token/index.html`,
+	],
+	[
+		"enlace de recuperación con %xx (#551)",
+		`/api/auth/reset-p%61ssword/${TOKEN}?callbackURL=%2Frestablecer`,
+		"/api/auth/reset-password/:token?:query",
 	],
 	[
 		"miniatura firmada con %xx",
@@ -668,5 +684,50 @@ describe("map $http_referer → $redacted_referer", () => {
 	// una cadena vacía, así que se pone "-" a mano para no cambiar el log.
 	it("escribe - si no hay Referer, como el formato main", () => {
 		expect(refererMap("")).toBe("-");
+	});
+});
+
+// Segunda revisión de #551: el error_log no admite formato y, si el proxy a la
+// API falla, escribe la petición y el Referer enteros. El correo ya lleva a
+// /restablecer?token=… (estática, sin proxy), pero las peticiones que hace esa
+// pantalla mandarían su URL, con el token, en el Referer. `no-referrer` en el
+// documento lo corta. Va por $request_uri: el try_files del SPA redirige a
+// /index.html y una location propia perdería la cabecera.
+describe("la pantalla de restablecer no manda el token en el Referer (#551)", () => {
+	const policyMap = findMap("$request_uri", "$restablecer_referrer_policy");
+	const policy = (uri: string) => (policyMap ? evalMap(policyMap, uri) : "?");
+
+	it("pone no-referrer en la pantalla, en cada idioma y con o sin query", () => {
+		for (const uri of [
+			"/restablecer",
+			"/restablecer/",
+			`/restablecer?token=${TOKEN}`,
+			`/en/restablecer?token=${TOKEN}`,
+			"/eu/restablecer/",
+		]) {
+			expect(policy(uri)).toBe("no-referrer");
+		}
+	});
+
+	it("no la pone en el resto: valor vacío, nginx no envía la cabecera", () => {
+		for (const uri of [
+			"/",
+			"/recuperar",
+			"/restablecerx",
+			"/x/y/restablecer",
+			"/api/auth/reset-password",
+		]) {
+			expect(policy(uri)).toBe("");
+		}
+	});
+
+	it("el server la añade con always, junto a las cabeceras de seguridad", () => {
+		const server = conf.find((d) => d.name === "server");
+		const headers = server?.block?.filter((d) => d.name === "add_header");
+		expect(headers?.map((d) => d.args)).toContainEqual([
+			"Referrer-Policy",
+			"$restablecer_referrer_policy",
+			"always",
+		]);
 	});
 });
