@@ -168,19 +168,46 @@ export function MyResourcesView({
 		onFiltersChange({ ...filters, query: searchText, ...next });
 	}
 
+	// Región del aviso y del resumen. También en la vista vacía: tras borrar el
+	// último recurso el aviso tiene que seguir montado para recibir el foco.
+	const summary = (
+		<p
+			ref={noticeRef}
+			className="my-resources-summary"
+			role="status"
+			tabIndex={-1}
+		>
+			{notice ? <span className="my-resources-notice">{notice} </span> : null}
+			{loading
+				? m.catalog_searching()
+				: error
+					? null
+					: total > 0
+						? m.my_resources_showing({
+								start: String(pagination.startItem),
+								end: String(pagination.endItem),
+								total: String(total),
+							})
+						: null}
+		</p>
+	);
+
 	// Sin ningún recurso propio no hay nada que filtrar: se invita a crear.
 	if (!loading && !error && statusCounts.total === 0 && !filtering) {
 		return (
-			<EmptyState
-				icon="note_add"
-				title={m.profile_no_resources()}
-				description={m.profile_no_resources_desc()}
-				action={
-					<a href={url("nuevo")} className="dashboard-create-btn">
-						{m.profile_create_resource()}
-					</a>
-				}
-			/>
+			<>
+				{notice ? summary : null}
+				<EmptyState
+					icon="note_add"
+					title={m.profile_no_resources()}
+					description={m.profile_no_resources_desc()}
+					action={
+						<a href={url("nuevo")} className="dashboard-create-btn">
+							{m.profile_create_resource()}
+						</a>
+					}
+				/>
+			</>
 		);
 	}
 
@@ -308,25 +335,7 @@ export function MyResourcesView({
 				</div>
 			</details>
 
-			<p
-				ref={noticeRef}
-				className="my-resources-summary"
-				role="status"
-				tabIndex={-1}
-			>
-				{notice ? <span className="my-resources-notice">{notice} </span> : null}
-				{loading
-					? m.catalog_searching()
-					: error
-						? null
-						: total > 0
-							? m.my_resources_showing({
-									start: String(pagination.startItem),
-									end: String(pagination.endItem),
-									total: String(total),
-								})
-							: null}
-			</p>
+			{summary}
 
 			{error ? (
 				<p className="my-resources-error" role="alert">

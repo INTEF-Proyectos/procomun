@@ -145,6 +145,14 @@ describe("MyResourcesView (#530)", () => {
 		});
 		expect(html).toMatch(/role="status"[^>]*>.*Se ha eliminado «X»\./);
 	});
+
+	test("al borrar el último recurso el aviso sigue en la vista vacía y es enfocable (#580)", () => {
+		const html = render({ notice: "Se ha eliminado «X»." });
+		expect(html).toContain("Aún no tienes recursos");
+		expect(html).toMatch(
+			/role="status" tabindex="-1"[^>]*>.*Se ha eliminado «X»\./,
+		);
+	});
 });
 
 describe("MyResourcesTab (#530)", () => {
