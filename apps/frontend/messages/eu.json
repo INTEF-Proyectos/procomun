@@ -222,6 +222,7 @@
 	"profile_save_error": "Errorea aldaketak gordetzean",
 	"profile_load_error": "Errorea panela kargatzean",
 	"profile_load_error_desc": "Ezin izan da panelaren informazioa kargatu. Saiatu berriro.",
+	"profile_load_partial": "Ezin izan da zure profila kargatu. Aldatzen duzuna bakarrik gordeko da.",
 	"profile_edit_resource": "{title} editatu",
 	"profile_title": "Nire panela",
 	"profile_details_title": "Profileko datuak",

@@ -1,10 +1,15 @@
 import {
 	EMPTY_PROFILE_DETAILS,
+	PROFILE_DETAIL_FIELDS,
 	PROFILE_LIMITS,
 	type ProfileDetails,
 } from "@procomun/db/user-profile";
 import { useCallback, useEffect, useState } from "react";
-import type { Resource, SessionUser } from "../../lib/api-client.ts";
+import type {
+	MyProfileUpdate,
+	Resource,
+	SessionUser,
+} from "../../lib/api-client.ts";
 import { getApiClient } from "../../lib/get-api-client.ts";
 import { gravatarUrl } from "../../lib/gravatar.ts";
 import { url } from "../../lib/paths.ts";
@@ -396,6 +401,29 @@ interface ProfileEditState {
 	details: ProfileDetails;
 }
 
+/**
+ * Solo lo que el usuario ha cambiado respecto a lo que se cargó (revisión de
+ * #586). Así, si la lectura del perfil falló, guardar el nombre no vacía la
+ * bio ni los datos ampliados, y un país importado que la lista no tiene (XK)
+ * no impide guardar el resto.
+ */
+export function profileChanges(
+	original: ProfileEditState,
+	form: ProfileEditState,
+): MyProfileUpdate {
+	const changes: MyProfileUpdate = {};
+	if (form.name !== original.name) changes.name = form.name;
+	if (form.bio !== original.bio) changes.bio = form.bio;
+	const profile: Partial<ProfileDetails> = {};
+	for (const field of PROFILE_DETAIL_FIELDS) {
+		if ((form.details[field] ?? "") !== (original.details[field] ?? "")) {
+			profile[field] = form.details[field];
+		}
+	}
+	if (Object.keys(profile).length > 0) changes.profile = profile;
+	return changes;
+}
+
 export function PublicDashboardIsland() {
 	const [dashboard, setDashboard] = useState<DashboardSummary | null>(null);
 	const [loading, setLoading] = useState(true);
@@ -408,6 +436,10 @@ export function PublicDashboardIsland() {
 		bio: "",
 		details: EMPTY_PROFILE_DETAILS,
 	});
+	// Valores con los que se abrió el formulario: se envía solo lo que cambia.
+	const [editOriginal, setEditOriginal] = useState<ProfileEditState>(editForm);
+	// getMyProfile() falló: la bio y los datos ampliados no se conocen.
+	const [profileLoadFailed, setProfileLoadFailed] = useState(false);
 	const [profileDetails, setProfileDetails] = useState<ProfileDetails>(
 		EMPTY_PROFILE_DETAILS,
 	);
@@ -451,10 +483,11 @@ export function PublicDashboardIsland() {
 					recentResources: [] as Resource[],
 				})),
 				api.getBadgeConfig().catch(() => null),
-				api.getMyProfile().catch(() => null),
+				api.getMyProfile().catch(() => undefined),
 				profileAvatarUrl(user),
 			]);
 			if (config) setBadgeConfig(config);
+			setProfileLoadFailed(profile === undefined);
 			setProfileDetails(profile?.profile ?? EMPTY_PROFILE_DETAILS);
 
 			const nextFavoriteCount = dashData.favoriteCount ?? 0;
@@ -550,11 +583,13 @@ export function PublicDashboardIsland() {
 
 	function startEditing() {
 		if (!dashboard) return;
-		setEditForm({
+		const initial = {
 			name: dashboard.user.name || "",
 			bio: dashboard.user.bio || "",
 			details: profileDetails,
-		});
+		};
+		setEditForm(initial);
+		setEditOriginal(initial);
 		setEditing(true);
 		setSaveMessage("");
 		setFieldErrors({});
@@ -573,11 +608,9 @@ export function PublicDashboardIsland() {
 
 		try {
 			const api = await getApiClient();
-			const result = await api.updateMyProfile({
-				name: editForm.name,
-				bio: editForm.bio,
-				profile: editForm.details,
-			});
+			const result = await api.updateMyProfile(
+				profileChanges(editOriginal, editForm),
+			);
 			if (!result.ok && result.fieldErrors?.length) {
 				// #533: la API valida; se señalan los campos sin salir de la edición.
 				setFieldErrors(errorsByField(result.fieldErrors));
@@ -599,6 +632,7 @@ export function PublicDashboardIsland() {
 				},
 			});
 			setProfileDetails(saved?.profile ?? editForm.details);
+			if (saved) setProfileLoadFailed(false);
 			setFieldErrors({});
 			setEditing(false);
 			setSaveMessage(m.profile_saved_ok());
@@ -851,6 +885,17 @@ export function PublicDashboardIsland() {
 					) : (
 						/* --- Edit mode --- */
 						<div className="dashboard-edit-form">
+							{profileLoadFailed && (
+								<p className="dashboard-details-note" role="status">
+									<span
+										className="material-symbols-outlined"
+										aria-hidden="true"
+									>
+										info
+									</span>
+									{m.profile_load_partial()}
+								</p>
+							)}
 							<div className="dashboard-edit-field">
 								<label htmlFor="profile-name">{m.profile_name_label()}</label>
 								<input

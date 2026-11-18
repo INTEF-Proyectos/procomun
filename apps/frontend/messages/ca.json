@@ -222,6 +222,7 @@
 	"profile_save_error": "Error en desar els canvis",
 	"profile_load_error": "Error en carregar el tauler",
 	"profile_load_error_desc": "No s'ha pogut carregar la informació del tauler. Torna-ho a provar.",
+	"profile_load_partial": "No s'ha pogut carregar el teu perfil. Només es desarà el que canviïs.",
 	"profile_edit_resource": "Editar {title}",
 	"profile_title": "El meu tauler",
 	"profile_details_title": "Dades del perfil",

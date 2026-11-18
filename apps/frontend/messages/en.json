@@ -222,6 +222,7 @@
 	"profile_save_error": "Error saving changes",
 	"profile_load_error": "Error loading dashboard",
 	"profile_load_error_desc": "Could not load dashboard information. Please try again.",
+	"profile_load_partial": "Could not load your profile. Only what you change will be saved.",
 	"profile_edit_resource": "Edit {title}",
 	"profile_title": "My dashboard",
 	"profile_details_title": "Profile details",

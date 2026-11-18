@@ -1,10 +1,12 @@
 import { describe, expect, test } from "bun:test";
+import { EMPTY_PROFILE_DETAILS } from "@procomun/db/user-profile";
 import { renderToStaticMarkup } from "react-dom/server";
 import type { DashboardSummary } from "../../lib/types/user-extended.ts";
 import {
 	hasEmailVerificationSuccess,
 	PublicDashboardIsland,
 	profileAvatarUrl,
+	profileChanges,
 	roleLabel,
 	withFavoriteCount,
 } from "./PublicDashboardIsland.tsx";
@@ -111,5 +113,47 @@ describe("roleLabel (#534)", () => {
 			expect(roleLabel(role)).not.toBe(role.toUpperCase());
 			expect(roleLabel(role)).not.toBe(role);
 		}
+	});
+});
+
+describe("profileChanges (#533, revisión de #586)", () => {
+	const empty = {
+		name: "Ana",
+		bio: "",
+		details: { ...EMPTY_PROFILE_DETAILS },
+	};
+
+	test("si falló la lectura del perfil, guardar el nombre no envía la bio ni los datos ampliados", () => {
+		// El formulario parte de valores vacíos porque getMyProfile() falló.
+		expect(profileChanges(empty, { ...empty, name: "Ana María" })).toEqual({
+			name: "Ana María",
+		});
+	});
+
+	test("una cuenta con un país importado como XK edita el nombre sin enviar el país", () => {
+		const imported = {
+			...empty,
+			bio: "Sobre mí importado",
+			details: { ...EMPTY_PROFILE_DETAILS, countryCode: "XK" },
+		};
+		expect(
+			profileChanges(imported, { ...imported, name: "Ana María" }),
+		).toEqual({ name: "Ana María" });
+	});
+
+	test("envía solo los campos que cambian, también al vaciarlos", () => {
+		const original = {
+			...empty,
+			bio: "Antes",
+			details: { ...EMPTY_PROFILE_DETAILS, locality: "Burgos" },
+		};
+		expect(
+			profileChanges(original, {
+				...original,
+				bio: "",
+				details: { ...original.details, locality: "", twitter: "@ana" },
+			}),
+		).toEqual({ bio: "", profile: { locality: "", twitter: "@ana" } });
+		expect(profileChanges(original, original)).toEqual({});
 	});
 });

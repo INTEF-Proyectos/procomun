@@ -222,6 +222,7 @@
 	"profile_save_error": "Error al guardar los cambios",
 	"profile_load_error": "Error al cargar el panel",
 	"profile_load_error_desc": "No se pudo cargar la información del panel. Inténtalo de nuevo.",
+	"profile_load_partial": "No se pudo cargar tu perfil. Solo se guardará lo que cambies.",
 	"profile_edit_resource": "Editar {title}",
 	"profile_title": "Mi panel",
 	"profile_details_title": "Datos del perfil",
