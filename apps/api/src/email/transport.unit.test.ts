@@ -584,14 +584,17 @@ describe("directResetLink (#551)", () => {
 	const API = "https://procomun.test/api/auth/reset-password";
 
 	test("lleva directamente a la pantalla con el token en la query", () => {
-		expect(directResetLink(`${API}/tok123?callbackURL=%2Frestablecer`)).toBe(
-			"https://procomun.test/restablecer#token=tok123",
-		);
+		expect(
+			directResetLink(`${API}/tok123?callbackURL=%2Frestablecer`, {}),
+		).toBe("https://procomun.test/restablecer#token=tok123");
 	});
 
 	test("conserva el idioma y la ruta base de la URL de retorno", () => {
 		expect(
-			directResetLink(`${API}/tok123?callbackURL=%2Fbase%2Fen%2Frestablecer`),
+			directResetLink(
+				`${API}/tok123?callbackURL=%2Fbase%2Fen%2Frestablecer`,
+				{},
+			),
 		).toBe("https://procomun.test/base/en/restablecer#token=tok123");
 	});
 
@@ -603,8 +606,25 @@ describe("directResetLink (#551)", () => {
 		).toBe("https://web.test/restablecer?x=1#token=tok123");
 	});
 
+	test("con orígenes separados abre /restablecer en el frontend (#598)", () => {
+		const env = { FRONTEND_URL: "https://web.test" };
+		const api = "https://api.test/api/auth/reset-password";
+		expect(
+			directResetLink(`${api}/tok123?callbackURL=%2Frestablecer`, env),
+		).toBe("https://web.test/restablecer#token=tok123");
+		expect(
+			directResetLink(
+				`${api}/tok123?callbackURL=%2Fbase%2Fen%2Frestablecer`,
+				env,
+			),
+		).toBe("https://web.test/base/en/restablecer#token=tok123");
+		expect(directResetLink(`${api}/tok123`, env)).toBe(
+			"https://web.test/restablecer#token=tok123",
+		);
+	});
+
 	test("sin URL de retorno va a /restablecer", () => {
-		expect(directResetLink(`${API}/tok123`)).toBe(
+		expect(directResetLink(`${API}/tok123`, {})).toBe(
 			"https://procomun.test/restablecer#token=tok123",
 		);
 	});

@@ -369,7 +369,10 @@ export function summarizeEmailError(error: unknown): EmailErrorSummary {
  * resuelve igual que la redirección de Better Auth, que ya la comprueba contra
  * `trustedOrigins`. Lo que no tenga esa forma se deja tal cual.
  */
-export function directResetLink(url: string): string {
+export function directResetLink(
+	url: string,
+	env: RuntimeEnv = process.env,
+): string {
 	let link: URL;
 	try {
 		link = new URL(url);
@@ -380,7 +383,9 @@ export function directResetLink(url: string): string {
 	if (!token) return url;
 	const target = new URL(
 		link.searchParams.get("callbackURL") || "/restablecer",
-		link.origin,
+		// Con orígenes separados, BETTER_AUTH_URL apunta a la API y la pantalla
+		// vive en FRONTEND_URL (#598). Sin ella, el mismo origen de antes.
+		env.FRONTEND_URL?.trim() || link.origin,
 	);
 	// En el fragmento: el navegador no lo manda en la petición HTTP, así que
 	// no llega a ningún proxy ni log (tercera revisión de #551).
@@ -412,7 +417,7 @@ export function buildPasswordResetOptions(
 					transport(env).sendEmail(
 						buildPasswordResetEmail({
 							email: user.email,
-							url: directResetLink(url),
+							url: directResetLink(url, env),
 							expiresIn: config.expiresIn,
 						}),
 					),
