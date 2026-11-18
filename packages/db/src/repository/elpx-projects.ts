@@ -2,6 +2,10 @@ import { desc, eq, sql } from "drizzle-orm";
 import { elpxProjects } from "../schema/elpx.ts";
 import { resources } from "../schema/resources.ts";
 import { resourceVersions } from "../schema/versions.ts";
+import {
+	initialThumbnailStatus,
+	type ThumbnailStatus,
+} from "./elpx-thumbnails.ts";
 import type { DrizzleDB } from "./shared.ts";
 
 export async function createElpxProject(
@@ -15,6 +19,8 @@ export async function createElpxProject(
 		version?: number;
 		hasPreview?: boolean;
 		hasScreenshot?: boolean;
+		/** Por defecto, el que toca según la portada y screenshot.png (#470). */
+		thumbnailStatus?: ThumbnailStatus;
 		elpxMetadata?: Record<string, unknown> | null;
 	},
 ) {
@@ -29,6 +35,7 @@ export async function createElpxProject(
 		version: data.version ?? 3,
 		hasPreview: data.hasPreview ?? false,
 		hasScreenshot: data.hasScreenshot ?? false,
+		thumbnailStatus: data.thumbnailStatus ?? initialThumbnailStatus(data),
 		elpxMetadata: data.elpxMetadata ?? null,
 		createdAt: new Date(),
 		updatedAt: new Date(),
@@ -108,6 +115,7 @@ export async function listElpxProjectsByResourceIds(
 			hash: elpxProjects.hash,
 			hasPreview: elpxProjects.hasPreview,
 			hasScreenshot: elpxProjects.hasScreenshot,
+			thumbnailFile: elpxProjects.thumbnailFile,
 			createdAt: elpxProjects.createdAt,
 			isCurrent: sql<boolean>`COALESCE(${resourceVersions.elpxProjectId} = ${elpxProjects.id}, false)`,
 		})
@@ -131,6 +139,8 @@ export async function listElpxProjectsByResourceIds(
 			hash: string;
 			hasPreview: boolean;
 			hasScreenshot: boolean;
+			/** Miniatura generada en el servidor (#470), si la hay. */
+			thumbnailFile: string | null;
 		}
 	>();
 	const pick = new Map<string, (typeof rows)[number]>();
@@ -151,6 +161,7 @@ export async function listElpxProjectsByResourceIds(
 			hash: row.hash,
 			hasPreview: row.hasPreview,
 			hasScreenshot: row.hasScreenshot,
+			thumbnailFile: row.thumbnailFile,
 		});
 	}
 	return [...byResource.values()];

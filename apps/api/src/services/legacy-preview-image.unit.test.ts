@@ -6,6 +6,7 @@ import {
 	copyLegacyPreviewImage,
 	detectImageType,
 	isAllowedPreviewImageUrl,
+	storeThumbnailBytes,
 	THUMBNAIL_FILE_RE,
 	thumbnailPath,
 } from "./legacy-preview-image.ts";
@@ -230,5 +231,37 @@ describe("copyLegacyPreviewImage", () => {
 		expect(await readdir(path.join(storageDir, "thumbnails"))).toContainEqual(
 			expect.stringMatching(/\.jpg$/),
 		);
+	});
+});
+
+// #470: las miniaturas generadas en el servidor usan el mismo almacén.
+describe("storeThumbnailBytes", () => {
+	test("guarda un JPEG con su sha256 y sin dejar temporales", async () => {
+		const dir = await mkdtemp(path.join(tmpdir(), "thumb-store-"));
+		try {
+			const stored = await storeThumbnailBytes(dir, JPEG);
+			expect(stored?.file).toMatch(THUMBNAIL_FILE_RE);
+			expect(stored?.file.endsWith(".jpg")).toBe(true);
+			expect(stored?.url).toBe(`/api/v1/thumbnails/${stored?.file}`);
+			expect(await readdir(path.join(dir, "thumbnails"))).toEqual([
+				stored?.file ?? "",
+			]);
+			// Mismo contenido, mismo nombre: guardar dos veces no duplica.
+			expect(await storeThumbnailBytes(dir, JPEG)).toEqual(stored);
+			expect(await readdir(path.join(dir, "thumbnails"))).toHaveLength(1);
+		} finally {
+			await rm(dir, { recursive: true, force: true });
+		}
+	});
+
+	test("no guarda lo que no es una imagen", async () => {
+		const dir = await mkdtemp(path.join(tmpdir(), "thumb-store-"));
+		try {
+			expect(
+				await storeThumbnailBytes(dir, new TextEncoder().encode("<svg/>")),
+			).toBeNull();
+		} finally {
+			await rm(dir, { recursive: true, force: true });
+		}
 	});
 });
