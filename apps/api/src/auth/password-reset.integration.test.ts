@@ -128,6 +128,59 @@ describe("recuperar la contraseña olvidada (#531)", () => {
 
 // Revisión de #551: quien restablece la contraseña suele hacerlo porque teme
 // que otro la tenga; las sesiones abiertas con la vieja tienen que caer.
+// Segunda revisión de #551: si el proxy falla, el error_log de nginx escribe la
+// petición entera, y los map solo cubren el access_log. El correo ya no manda
+// a /api/auth/reset-password/<token>: lleva a la pantalla, que es estática, y
+// el token solo vuelve a la API en el cuerpo del POST.
+describe("el correo de recuperación no pasa el token por la API en la URL (#551)", () => {
+	test("el enlace va a /restablecer y su token restablece la contraseña", async () => {
+		const auth = createAuth(process.env);
+		const email = `enlace-${crypto.randomUUID()}@issue531.test`;
+		await auth.api.signUpEmail({
+			body: { email, password: "contrasena-vieja-551", name: "Enlace" },
+		});
+
+		const sent: EmailMessage[] = [];
+		const ctx = await auth.$context;
+		const options = ctx.options.emailAndPassword as {
+			sendResetPassword: (data: {
+				user: { email: string };
+				url: string;
+			}) => Promise<void>;
+		};
+		const original = options.sendResetPassword;
+		options.sendResetPassword = buildPasswordResetOptions(
+			{ expiresIn: 3600 },
+			process.env,
+			() => ({
+				sendEmail: async (message: EmailMessage) => {
+					sent.push(message);
+				},
+			}),
+		).sendResetPassword;
+		try {
+			await auth.api.requestPasswordReset({
+				body: { email, redirectTo: "/en/restablecer" },
+			});
+			await new Promise((resolve) => setTimeout(resolve, 0));
+		} finally {
+			options.sendResetPassword = original;
+		}
+
+		const link = new URL(sent[0]?.text.match(/https?:\/\/\S+/)?.[0] ?? "");
+		expect(link.pathname).toBe("/en/restablecer");
+		expect(sent[0]?.text).not.toContain("/api/");
+		const token = link.searchParams.get("token") ?? "";
+		expect(token.length).toBeGreaterThan(10);
+
+		const res = await auth.api.resetPassword({
+			body: { token, newPassword: "contrasena-nueva-551" },
+			asResponse: true,
+		});
+		expect(res.status).toBe(200);
+	});
+});
+
 describe("restablecer cierra las sesiones abiertas (#551)", () => {
 	test("la sesión anterior deja de valer tras el restablecimiento", async () => {
 		const auth = createAuth(process.env);

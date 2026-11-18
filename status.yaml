@@ -4691,3 +4691,20 @@ tasks:
       nginx-log-redaction.unit.test.ts (con %xx y Referer) y un test de
       integracion que captura el enlace real de requestPasswordReset. Adenda
       de ADR-0007 del 18-nov y docs/operaciones/operaciones.md.
+  T-2026-11-18-15224663:
+    date: 2026-11-18
+    agent: "seguridad-privacidad-legal + backend-api-servicios"
+    task: "Segunda revision de #551: el token de recuperacion en el error_log de nginx"
+    status: Done
+    related: ["#551", "#531", "ADR-0007"]
+    notes: >
+      El error_log de nginx no admite formato y en un 502 escribe la peticion
+      y el Referer enteros. El correo ya no lleva /api/auth/reset-password/
+      <token> sino el destino final /restablecer?token=... (directResetLink en
+      transport.ts), que nginx sirve sin proxy; el token vuelve a la API solo
+      en el cuerpo del POST. La pantalla sale con Referrer-Policy: no-referrer
+      (map sobre $request_uri y add_header del server; una location propia la
+      perdia por el try_files). Descartado error_log crit en una location: no
+      cubria el Referer. Tests rojo -> verde en transport.unit.test.ts,
+      password-reset.integration.test.ts y nginx-log-redaction.unit.test.ts;
+      comprobado con nginx:alpine. Adenda de ADR-0007 y operaciones.md.

@@ -686,3 +686,48 @@ describe("map $http_referer → $redacted_referer", () => {
 		expect(refererMap("")).toBe("-");
 	});
 });
+
+// Segunda revisión de #551: el error_log no admite formato y, si el proxy a la
+// API falla, escribe la petición y el Referer enteros. El correo ya lleva a
+// /restablecer?token=… (estática, sin proxy), pero las peticiones que hace esa
+// pantalla mandarían su URL, con el token, en el Referer. `no-referrer` en el
+// documento lo corta. Va por $request_uri: el try_files del SPA redirige a
+// /index.html y una location propia perdería la cabecera.
+describe("la pantalla de restablecer no manda el token en el Referer (#551)", () => {
+	const policyMap = findMap("$request_uri", "$restablecer_referrer_policy");
+	const policy = (uri: string) => (policyMap ? evalMap(policyMap, uri) : "?");
+
+	it("pone no-referrer en la pantalla, en cada idioma y con o sin query", () => {
+		for (const uri of [
+			"/restablecer",
+			"/restablecer/",
+			`/restablecer?token=${TOKEN}`,
+			`/en/restablecer?token=${TOKEN}`,
+			"/eu/restablecer/",
+		]) {
+			expect(policy(uri)).toBe("no-referrer");
+		}
+	});
+
+	it("no la pone en el resto: valor vacío, nginx no envía la cabecera", () => {
+		for (const uri of [
+			"/",
+			"/recuperar",
+			"/restablecerx",
+			"/x/y/restablecer",
+			"/api/auth/reset-password",
+		]) {
+			expect(policy(uri)).toBe("");
+		}
+	});
+
+	it("el server la añade con always, junto a las cabeceras de seguridad", () => {
+		const server = conf.find((d) => d.name === "server");
+		const headers = server?.block?.filter((d) => d.name === "add_header");
+		expect(headers?.map((d) => d.args)).toContainEqual([
+			"Referrer-Policy",
+			"$restablecer_referrer_policy",
+			"always",
+		]);
+	});
+});

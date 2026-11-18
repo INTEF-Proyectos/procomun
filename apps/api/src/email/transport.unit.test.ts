@@ -5,6 +5,7 @@ import {
 	buildPasswordResetEmail,
 	buildPasswordResetOptions,
 	buildVerificationEmail,
+	directResetLink,
 	type EmailMessage,
 	getEmailTransport,
 	hasEmailTransport,
@@ -544,6 +545,65 @@ describe("buildPasswordResetOptions no espera al envío (#551)", () => {
 		expect(logged).toContain("550");
 		expect(logged).not.toContain("secreta@b.test");
 		expect(logged).not.toContain("t-secreto");
+	});
+});
+
+// Segunda revisión de #551: el enlace de Better Auth lleva el token en la ruta
+// de la API (/api/auth/reset-password/<token>). Si el proxy falla, el
+// error_log de nginx escribe la petición entera. El correo lleva ya el enlace
+// final de la pantalla, con el token en la query de una ruta estática.
+describe("directResetLink (#551)", () => {
+	const API = "https://procomun.test/api/auth/reset-password";
+
+	test("lleva directamente a la pantalla con el token en la query", () => {
+		expect(directResetLink(`${API}/tok123?callbackURL=%2Frestablecer`)).toBe(
+			"https://procomun.test/restablecer?token=tok123",
+		);
+	});
+
+	test("conserva el idioma y la ruta base de la URL de retorno", () => {
+		expect(
+			directResetLink(`${API}/tok123?callbackURL=%2Fbase%2Fen%2Frestablecer`),
+		).toBe("https://procomun.test/base/en/restablecer?token=tok123");
+	});
+
+	test("una URL de retorno absoluta se respeta, como hace Better Auth", () => {
+		expect(
+			directResetLink(
+				`${API}/tok123?callbackURL=${encodeURIComponent("https://web.test/restablecer?x=1")}`,
+			),
+		).toBe("https://web.test/restablecer?x=1&token=tok123");
+	});
+
+	test("sin URL de retorno va a /restablecer", () => {
+		expect(directResetLink(`${API}/tok123`)).toBe(
+			"https://procomun.test/restablecer?token=tok123",
+		);
+	});
+
+	test("deja igual lo que no es el enlace de Better Auth", () => {
+		for (const url of ["u", "https://procomun.test/restablecer?token=abc"]) {
+			expect(directResetLink(url)).toBe(url);
+		}
+	});
+
+	test("el correo no lleva la ruta de la API con el token", async () => {
+		const sent: EmailMessage[] = [];
+		const options = buildPasswordResetOptions({ expiresIn: 3600 }, {}, () => ({
+			sendEmail: async (message: EmailMessage) => {
+				sent.push(message);
+			},
+		}));
+		await options.sendResetPassword({
+			user: { email: "a@b.test" },
+			url: `${API}/tok123?callbackURL=%2Frestablecer`,
+		});
+		await new Promise((resolve) => setTimeout(resolve, 0));
+
+		expect(sent[0]?.text).toContain(
+			"https://procomun.test/restablecer?token=tok123",
+		);
+		expect(sent[0]?.text).not.toContain("/api/auth/reset-password");
 	});
 });
 

@@ -339,6 +339,35 @@ export function summarizeEmailError(error: unknown): EmailErrorSummary {
 	return summary;
 }
 
+/**
+ * Enlace del correo de recuperación (segunda revisión de #551).
+ *
+ * Better Auth da `/api/auth/reset-password/<token>?callbackURL=…`: valida el
+ * token y redirige a `callbackURL?token=…`. Ese primer salto lleva el token en
+ * la ruta de una petición a la API, y si el proxy falla el `error_log` de
+ * nginx la escribe entera (no admite formato). Se manda directamente al
+ * destino de la redirección: la pantalla es estática y el token solo vuelve a
+ * la API en el cuerpo del POST, que también lo valida. La URL de retorno se
+ * resuelve igual que la redirección de Better Auth, que ya la comprueba contra
+ * `trustedOrigins`. Lo que no tenga esa forma se deja tal cual.
+ */
+export function directResetLink(url: string): string {
+	let link: URL;
+	try {
+		link = new URL(url);
+	} catch {
+		return url;
+	}
+	const token = /\/reset-password\/([^/]+)$/.exec(link.pathname)?.[1];
+	if (!token) return url;
+	const target = new URL(
+		link.searchParams.get("callbackURL") || "/restablecer",
+		link.origin,
+	);
+	target.searchParams.set("token", decodeURIComponent(token));
+	return target.href;
+}
+
 /** Opciones `emailAndPassword` de better-auth para el restablecimiento. */
 export function buildPasswordResetOptions(
 	config: PasswordResetConfig,
@@ -361,7 +390,7 @@ export function buildPasswordResetOptions(
 					transport(env).sendEmail(
 						buildPasswordResetEmail({
 							email: user.email,
-							url,
+							url: directResetLink(url),
 							expiresIn: config.expiresIn,
 						}),
 					),

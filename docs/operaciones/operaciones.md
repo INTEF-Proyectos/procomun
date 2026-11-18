@@ -50,7 +50,7 @@ En algunas URL el permiso va en la propia URL. Quien lea un log con esas URL ent
 - la miniatura firmada de un recurso no publicado (#512): `/api/v1/thumbnails/signed/<token>/<fichero>`, válida 2 h;
 - la instantánea de la vista previa del editor (#317): `/api/v1/preview/<id>/…` y `/api/v1/preview-session/<id>`;
 - el `?token=` de la verificación de correo de Better Auth (`/api/auth/verify-email?token=…`);
-- el enlace del correo de recuperación de contraseña (#551): `/api/auth/reset-password/<token>?callbackURL=…`, válido 1 h por defecto. El token va en la ruta y se tapa como `:token` en el `access_log` de nginx (ruta y Referer) y en `api_access_logs`.
+- el enlace del correo de recuperación de contraseña (#551): `/api/auth/reset-password/<token>?callbackURL=…`, válido 1 h por defecto. El token va en la ruta y se tapa como `:token` en el `access_log` de nginx (ruta y Referer) y en `api_access_logs`. Desde la segunda revisión de #551 el correo ya no lleva esta URL sino `/restablecer?token=…` (estática, no pasa por la API), y esa pantalla sale con `Referrer-Policy: no-referrer` para que sus peticiones no lleven el token en el Referer. La redacción de la ruta se mantiene para quien abra el enlace de Better Auth a mano.
 
 El Referer también las lleva: el HTML del `.elpx` sale con `Referrer-Policy: same-origin`, así que los CSS, JS e imágenes del paquete se piden con la URL firmada en el Referer.
 
@@ -66,7 +66,7 @@ El Referer también las lleva: el HTML del `.elpx` sale con `Referrer-Policy: sa
 
 **Proxy inverso delante de producción.** Tiene que hacer lo mismo: no registrar la URI ni el Referer en crudo en esas rutas. En nginx, copiar los dos `map` y el `log_format` de `nginx.conf`. En otro proxy o balanceador (Traefik, Caddy, HAProxy, el de la plataforma), quitar del log la ruta y la query de esas rutas, o redactarlas igual. Lo mismo vale para una CDN o un WAF que guarde URL.
 
-**Límite conocido.** El `error_log` de nginx no admite formato. Un fallo con el upstream (502) escribe la petición, la URL del upstream y el Referer enteros. Restringe quién lo lee y guárdalo poco tiempo.
+**Límite conocido.** El `error_log` de nginx no admite formato. Un fallo con el upstream (502) escribe la petición, la URL del upstream y el Referer enteros. Restringe quién lo lee y guárdalo poco tiempo. El token de recuperación de contraseña no llega ahí (#551): ni el enlace del correo ni el Referer de la pantalla pasan por el proxy con él. Un proxy inverso delante de la imagen `app` debería poner también `Referrer-Policy: no-referrer` en `/restablecer` (y `/<idioma>/restablecer`).
 
 ## Actualización de la Plataforma (Process of Upgrade)
 
