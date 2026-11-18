@@ -6,8 +6,9 @@
 /**
  * Previsualización del .elpx que la API adjunta a cada recurso. El visor y la
  * miniatura son independientes (revisión de #471): un objeto no nulo no
- * implica que haya visor. El iframe y «Ponlo en tu web» dependen de
- * `previewUrl`; la miniatura de la tarjeta, de `screenshotUrl`.
+ * implica que haya visor. El iframe de la ficha y «Ponlo en tu web» dependen
+ * de `previewUrl`; la miniatura de la tarjeta, de `screenshotUrl` o
+ * `thumbnailUrl`.
  */
 export interface ElpxCardPreview {
 	hash: string;
@@ -15,6 +16,8 @@ export interface ElpxCardPreview {
 	previewUrl: string | null;
 	/** Miniatura screenshot.png de eXeLearning 4 (#409), si el paquete la trae. */
 	screenshotUrl?: string | null;
+	/** Miniatura generada en el servidor (#470) para los paquetes sin imagen. */
+	thumbnailUrl?: string | null;
 }
 
 export interface Resource {

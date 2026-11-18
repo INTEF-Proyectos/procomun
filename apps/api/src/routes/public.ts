@@ -14,6 +14,7 @@ import {
 	listPublishedResources,
 } from "../public/service.ts";
 import { getRelatedResourcesBySlug } from "../recommendations/service.ts";
+import { thumbnailUrlForStatus } from "../thumbnails/access.ts";
 import { contentDisposition } from "../uploads/config.ts";
 import { readUploadContent } from "./uploads.ts";
 
@@ -109,6 +110,12 @@ publicRoutes.get("/resources/:slug", async (c) => {
 
 	return c.json({
 		...resource,
+		// Revisión de #481: la preview legacy de un recurso no publicado solo
+		// sale firmada, igual que la miniatura del paquete.
+		thumbnailUrl: thumbnailUrlForStatus(
+			resource.thumbnailUrl,
+			resource.editorialStatus,
+		),
 		elpxPreview: buildElpxPreview(elpx, resource.editorialStatus),
 		elpxFileUrl,
 	});
