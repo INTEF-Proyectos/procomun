@@ -30,6 +30,9 @@ export const RESOURCE_TYPES = [
 	{ value: "guia-docente", label: "Guía docente" },
 	{ value: "infografia", label: "Infografía" },
 	{ value: "mapa-conceptual", label: "Mapa conceptual" },
+	// Los artículos del Procomún antiguo (#446). Tipo propio de la plataforma
+	// hasta que la revisión del diccionario (#419) decida su encaje en LOM-ES.
+	{ value: "articulo", label: "Artículo" },
 ] as const satisfies readonly ResourceTypeDefinition[];
 
 export type ResourceTypeValue = (typeof RESOURCE_TYPES)[number]["value"];

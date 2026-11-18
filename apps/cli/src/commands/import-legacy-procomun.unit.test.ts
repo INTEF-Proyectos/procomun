@@ -9,6 +9,7 @@ import {
 	test,
 } from "bun:test";
 import {
+	copyFile,
 	mkdir,
 	mkdtemp,
 	readdir,
@@ -23,12 +24,14 @@ import { PGlite } from "@electric-sql/pglite";
 import {
 	LEGACY_IMPORT_SYSTEM_USER_ID,
 	type LegacyOdeJson,
+	mapLegacyRecord,
 	normalizeLanguage,
 	resolveLegacyExternalId,
 	resolveLegacyPublicationStatus,
 } from "@procomun/db/legacy-import";
 import { sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/pglite";
+import { extractTextFromHtml } from "../../../api/src/fts/extract.ts";
 import { isAllowedPreviewImageUrl } from "../../../api/src/services/legacy-preview-image.ts";
 import type { RestrictedReportEntry } from "../restricted-report.ts";
 import {
@@ -39,6 +42,7 @@ import {
 	type loadImportLegacyProcomunDependencies,
 	runBackfillLegacyEducationalAreas,
 	runCopyLegacyPreviews,
+	runFixLegacyLanguage,
 	runFixLegacyPublished,
 	runImportLegacyProcomun,
 	runLinkLegacyAuthors,
@@ -146,6 +150,8 @@ function buildMockDeps(
 			await rm(extractPath, { recursive: true, force: true });
 		}) as Deps["removeElpxExtraction"],
 		updateSearchVector: (async () => {}) as Deps["updateSearchVector"],
+		// Implementación real: es pura (texto del cuerpo de los artículos, #446).
+		extractTextFromHtml,
 		copyLegacyPreviewImage: (async () => ({
 			ok: false,
 			reason: "sin red en los tests",
@@ -166,10 +172,12 @@ function buildMockDeps(
 		normalizeLanguage,
 		mapLegacyRecord: (() => ({
 			externalId: "es_mock",
+			kind: "ode",
 			blocking: false,
 			blockingErrors: [],
 			warnings: [],
 			publicatorEmail: null,
+			articleHtml: null,
 			resource: {
 				externalId: "es_mock",
 				importSource: "legacy-procomun",
@@ -386,6 +394,8 @@ describe("runImportLegacyProcomun (deps mockeadas)", () => {
 				blockingErrors: ["licencia no reconocida"],
 				warnings: [],
 				publicatorEmail: null,
+				kind: "ode",
+				articleHtml: null,
 				// Deliberadamente vacío: con blocking:true el flujo corta antes de
 				// leer `resource`, y este test comprueba justamente eso.
 				resource: {} as unknown as ReturnType<
@@ -517,6 +527,8 @@ describe("runImportLegacyProcomun (deps mockeadas)", () => {
 				blockingErrors: [],
 				warnings: [],
 				publicatorEmail: null,
+				kind: "ode",
+				articleHtml: null,
 				resource: {
 					externalId: "es_mock",
 					importSource: "legacy-procomun",
@@ -702,6 +714,8 @@ describe("runImportLegacyProcomun (deps mockeadas)", () => {
 				blockingErrors: [],
 				warnings: [],
 				publicatorEmail: null,
+				kind: "ode",
+				articleHtml: null,
 				resource: {
 					externalId: fallbackTitle,
 					importSource: "legacy-procomun",
@@ -786,6 +800,8 @@ describe("runImportLegacyProcomun (deps mockeadas)", () => {
 				blockingErrors: [],
 				warnings: [],
 				publicatorEmail: null,
+				kind: "ode",
+				articleHtml: null,
 				resource: {
 					externalId: fallbackTitle.replace(".elpx", ""),
 					importSource: "legacy-procomun",
@@ -1610,6 +1626,383 @@ describe("runImportLegacyProcomun — autoría (issue #456)", () => {
 	});
 });
 
+// #446: los artículos (`type: "POST"`) se importan con el mapeo real y solo
+// si su publicatorEmailStr lleva a una cuenta; si no, se listan en el informe.
+describe("runImportLegacyProcomun — artículos (issue #446)", () => {
+	const ARTICLE_FIXTURES = path.join(
+		import.meta.dir,
+		"../../../../packages/db/src/test-fixtures/legacy-procomun",
+	);
+	const PUBLISHED = "1400000000001";
+	const DRAFT = "ArtBorrador000000001";
+	let dir: string;
+	let storageDir: string;
+
+	beforeEach(async () => {
+		dir = await mkdtemp(path.join(tmpdir(), "legacy-articles-"));
+		storageDir = await mkdtemp(path.join(tmpdir(), "legacy-articles-storage-"));
+		for (const id of [PUBLISHED, DRAFT]) {
+			await copyFile(
+				path.join(ARTICLE_FIXTURES, `${id}.json`),
+				path.join(dir, `${id}.json`),
+			);
+			await writeFile(path.join(dir, `${id}.elpx`), `fake-zip-${id}`);
+		}
+	});
+
+	afterEach(async () => {
+		await rm(dir, { recursive: true, force: true });
+		await rm(storageDir, { recursive: true, force: true });
+	});
+
+	/** Deps con el mapeo y la conversión a texto reales, que registran lo que se persiste. */
+	function articleDeps(
+		accounts: Record<
+			string,
+			{ id: string; deleted: boolean; emailVerified: boolean }
+		>,
+		overrides: Partial<Deps> = {},
+	) {
+		const calls: Parameters<Deps["repo"]["importLegacyResourceWithElpx"]>[1][] =
+			[];
+		let extractions = 0;
+		const base = buildMockDeps(storageDir);
+		const deps = buildMockDeps(storageDir, {
+			mapLegacyRecord,
+			findLegacyAuthorAccount: async (_db, email) => accounts[email] ?? null,
+			processElpxUpload: (async (...args) => {
+				extractions++;
+				return base.processElpxUpload(...args);
+			}) as Deps["processElpxUpload"],
+			repo: {
+				...base.repo,
+				importLegacyResourceWithElpx: (async (_db, input) => {
+					calls.push(input);
+					return {
+						...(await base.repo.importLegacyResourceWithElpx(_db, input)),
+						resourceId: `resource-${input.resource.externalId}`,
+					};
+				}) as Deps["repo"]["importLegacyResourceWithElpx"],
+			},
+			...overrides,
+		});
+		return { deps, calls, extractions: () => extractions };
+	}
+
+	test("sin cuenta de autor no se importa: el informe lo lista con el motivo, sin el correo (#543)", async () => {
+		const { deps, calls, extractions } = articleDeps({});
+
+		const report = await runImportLegacyProcomun(
+			{ sourceDir: dir, dryRun: false },
+			deps,
+		);
+
+		expect(calls).toEqual([]);
+		expect(extractions()).toBe(0);
+		expect(report.totals).toMatchObject({
+			processed: 2,
+			articles: 2,
+			imported: 0,
+			skippedWithoutAuthor: 2,
+			blocked: 0,
+			errored: 0,
+		});
+		expect(report.records).toEqual([
+			{
+				outcome: "skipped_without_author",
+				externalId: PUBLISHED,
+				kind: "article",
+				reason: "no_account",
+			},
+			{
+				outcome: "skipped_without_author",
+				externalId: DRAFT,
+				kind: "article",
+				reason: "no_account",
+			},
+		]);
+		// No se importan, así que no quedan a nombre del sistema.
+		expect(report.authorsWithoutAccount).toEqual([]);
+		expect(JSON.stringify(report)).not.toMatch(/@/);
+	});
+
+	test("el correo de los artículos sin autor solo va a la lista restringida (#543)", async () => {
+		const { deps } = articleDeps({});
+		const restrictedEntries: RestrictedReportEntry[] = [];
+
+		const report = await runImportLegacyProcomun(
+			{ sourceDir: dir, dryRun: false, restrictedEntries },
+			deps,
+		);
+
+		expect(JSON.stringify(report)).not.toMatch(/@/);
+		expect(restrictedEntries).toEqual([
+			{
+				list: "skipped_without_author",
+				externalId: PUBLISHED,
+				email: "articulista.uno@ejemplo.test",
+				reason: "no_account",
+			},
+			{
+				list: "skipped_without_author",
+				externalId: DRAFT,
+				email: "articulista.dos@ejemplo.test",
+				reason: "no_account",
+			},
+		]);
+	});
+
+	test("un fallo de la base de datos al guardar el artículo no copia su texto ni el correo (#543)", async () => {
+		const pglite = new PGlite();
+		const output = captureConsole();
+		try {
+			// Error real de Drizzle con el texto extraído del artículo y el
+			// correo del autor como parámetros, como el INSERT del recurso.
+			let dbError: unknown;
+			const articleText = extractTextFromHtml(
+				(
+					await Bun.file(
+						path.join(ARTICLE_FIXTURES, `${PUBLISHED}.json`),
+					).json()
+				).descriptionStr,
+			);
+			expect(articleText).toContain("para quien empieza");
+			try {
+				await drizzle(pglite).execute(
+					sql`select ${articleText}::text, ${"articulista.uno@ejemplo.test"}::int`,
+				);
+			} catch (error) {
+				dbError = error;
+			}
+			expect(String((dbError as Error).message)).toContain(
+				"articulista.uno@ejemplo.test",
+			);
+			const { deps } = articleDeps(
+				{
+					"articulista.uno@ejemplo.test": {
+						id: "autora-1",
+						deleted: false,
+						emailVerified: true,
+					},
+				},
+				{
+					repo: {
+						...buildMockDeps(storageDir).repo,
+						importLegacyResourceWithElpx: async () => {
+							throw dbError;
+						},
+					},
+				},
+			);
+
+			const report = await runImportLegacyProcomun(
+				{ sourceDir: dir, dryRun: false },
+				deps,
+			);
+
+			expect(report.records).toContainEqual({
+				outcome: "error",
+				externalId: PUBLISHED,
+				code: "db_error",
+				message: "error de la base de datos",
+				sqlState: "22P02",
+			});
+			for (const text of [JSON.stringify(report), output.text()]) {
+				expect(text).not.toMatch(/@/);
+				expect(text).not.toContain("params:");
+				expect(text).not.toContain("para quien empieza");
+			}
+		} finally {
+			output.restore();
+			await pglite.close();
+		}
+	});
+
+	test("una cuenta dada de baja o un artículo sin correo tampoco se importan", async () => {
+		await writeFile(
+			path.join(dir, `${DRAFT}.json`),
+			JSON.stringify({
+				...(await Bun.file(
+					path.join(ARTICLE_FIXTURES, `${DRAFT}.json`),
+				).json()),
+				publicatorEmailStr: "",
+			}),
+		);
+		const { deps, calls } = articleDeps({
+			"articulista.uno@ejemplo.test": {
+				id: "baja",
+				deleted: true,
+				emailVerified: true,
+			},
+		});
+
+		const report = await runImportLegacyProcomun(
+			{ sourceDir: dir, dryRun: false },
+			deps,
+		);
+
+		expect(calls).toEqual([]);
+		expect(
+			report.records.map((r) => [
+				r.externalId,
+				"reason" in r ? r.reason : null,
+			]),
+		).toEqual([
+			[PUBLISHED, "deleted_account"],
+			[DRAFT, "no_email"],
+		]);
+	});
+
+	test("--dry-run aplica la misma regla: sin cuenta no figura como importable", async () => {
+		const { deps, calls } = articleDeps({
+			"articulista.uno@ejemplo.test": {
+				id: "autora-1",
+				deleted: false,
+				emailVerified: true,
+			},
+		});
+
+		const report = await runImportLegacyProcomun(
+			{ sourceDir: dir, dryRun: true },
+			deps,
+		);
+
+		expect(calls).toEqual([]);
+		expect(report.records).toEqual([
+			{
+				outcome: "would_import",
+				externalId: PUBLISHED,
+				kind: "article",
+				warnings: [
+					'license: El artículo no trae licencia; se asigna la de por defecto de la plataforma ("cc-by")',
+					"preview: preview no es una URL válida y no se importa",
+				],
+				editorialStatus: "published",
+				sourcePublished: 1,
+				createdBy: "autora-1",
+			},
+			{
+				outcome: "skipped_without_author",
+				externalId: DRAFT,
+				kind: "article",
+				reason: "no_account",
+			},
+		]);
+		expect(report.totals).toMatchObject({
+			imported: 1,
+			skippedWithoutAuthor: 1,
+			authorLinked: 1,
+		});
+	});
+
+	test("con cuenta se importa a su nombre como «Artículo», con la licencia por defecto y su texto para la búsqueda", async () => {
+		const { deps, calls } = articleDeps({
+			"articulista.uno@ejemplo.test": {
+				id: "autora-1",
+				deleted: false,
+				emailVerified: true,
+			},
+			"articulista.dos@ejemplo.test": {
+				id: "autora-2",
+				deleted: false,
+				emailVerified: true,
+			},
+		});
+
+		const report = await runImportLegacyProcomun(
+			{ sourceDir: dir, dryRun: false },
+			deps,
+		);
+
+		expect(report.totals).toMatchObject({
+			articles: 2,
+			imported: 2,
+			importedAsDraft: 1,
+			skippedWithoutAuthor: 0,
+			authorLinked: 2,
+			errored: 0,
+		});
+		const published = calls.find(
+			(c) => c.resource.externalId === PUBLISHED,
+		)?.resource;
+		expect(published).toMatchObject({
+			createdBy: "autora-1",
+			resourceType: "articulo",
+			license: "cc-by",
+			description: "Artículo relacionado con Aula invertida",
+			author: "Docente Articulista",
+			editorialStatus: "published",
+		});
+		// El cuerpo HTML pasa a texto plano como cualquier HTML subido: sin
+		// etiquetas, sin el <script> y con las entidades resueltas.
+		expect(published?.extractedText).toBe(
+			"Descripción del aula invertida para quien empieza.",
+		);
+		// El borrador es de su autora, sin publicar.
+		expect(
+			calls.find((c) => c.resource.externalId === DRAFT)?.resource,
+		).toMatchObject({ createdBy: "autora-2", editorialStatus: "draft" });
+		expect(report.records).toContainEqual(
+			expect.objectContaining({
+				outcome: "imported",
+				externalId: DRAFT,
+				kind: "article",
+				editorialStatus: "draft",
+				createdBy: "autora-2",
+			}),
+		);
+		// El paquete lo sube el importador, igual que en los ODE (#456).
+		expect(calls.every((c) => c.media.ownerId === "system-user")).toBe(true);
+	});
+
+	test("un artículo ya importado se omite y se enlaza si sigue a nombre del sistema", async () => {
+		const links: string[] = [];
+		const base = buildMockDeps(storageDir);
+		const { deps, calls } = articleDeps(
+			{
+				"articulista.uno@ejemplo.test": {
+					id: "autora-1",
+					deleted: false,
+					emailVerified: true,
+				},
+			},
+			{
+				linkLegacyResourceAuthor: async (_db, resourceId, userId) => {
+					links.push(`${resourceId}->${userId}`);
+					return { outcome: "linked" };
+				},
+				repo: {
+					...base.repo,
+					findLegacyResourceByExternalId: async (_db, _source, externalId) =>
+						externalId === PUBLISHED
+							? {
+									id: "existing-article",
+									slug: "existente",
+									createdBy: null,
+								}
+							: null,
+				},
+			},
+		);
+
+		const report = await runImportLegacyProcomun(
+			{ sourceDir: dir, dryRun: false, only: PUBLISHED },
+			deps,
+		);
+
+		expect(calls).toEqual([]);
+		expect(links).toEqual(["existing-article->autora-1"]);
+		expect(report.records).toEqual([
+			{
+				outcome: "skipped_existing",
+				externalId: PUBLISHED,
+				kind: "article",
+				authorLink: "linked",
+			},
+		]);
+	});
+});
+
 describe("findLegacyJsonFiles", () => {
 	test("lista los .json tengan o no su .elpx", async () => {
 		const dir = await mkdtemp(path.join(tmpdir(), "legacy-json-"));
@@ -1881,6 +2274,35 @@ describe("errores de la base de datos sin datos del recurso (#488)", () => {
 				sqlState: "22P02",
 			},
 		]);
+	});
+
+	test("--fix-language tampoco copia el error de la base de datos (#572)", async () => {
+		const report = await runFixLegacyLanguage(
+			{ sourceDir: dir, dryRun: false },
+			buildMockDeps(storageDir, {
+				repo: repoWith({
+					fixLegacyResourceLanguage: async () => {
+						throw dbError;
+					},
+				}),
+			}),
+		);
+
+		expectNoResourceData(JSON.stringify(report));
+		expectNoResourceData(output.text());
+		expect(report.totals).toMatchObject({ processed: 1, errored: 1 });
+		expect(report.records).toEqual([
+			{
+				externalId: "es_mock",
+				outcome: "error",
+				code: "db_error",
+				message: "error de la base de datos",
+				sqlState: "22P02",
+			},
+		]);
+		expect(output.text()).toContain(
+			"[error] es_mock: db_error [SQLSTATE 22P02]: error de la base de datos",
+		);
 	});
 
 	test("un fallo de la base de datos fuera de los registros tampoco llega entero al CLI", async () => {

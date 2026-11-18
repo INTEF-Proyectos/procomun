@@ -1,7 +1,8 @@
 /**
  * CLI command: importa recursos legacy de Procomún (pares <id>.json + <id>.elpx)
  * a procomun-ng, de forma idempotente (ver ADR-0029 y
- * docs/epics/epic-004-migracion-legacy-procomun/).
+ * docs/epics/epic-004-migracion-legacy-procomun/). Los artículos (`type:
+ * "POST"`) llegan en el mismo formato y entran por el mismo comando (#446).
  *
  * Uso:
  *   bun run apps/cli/src/index.ts import:legacy-procomun --source-dir <ruta> [--dry-run] [--limit <n>] [--only <externalId>] [--report-dir <ruta>] [--restricted-report <ruta>]
@@ -54,6 +55,7 @@ export async function loadImportLegacyProcomunDependencies() {
 			sanitizeFilename,
 		},
 		{ updateSearchVector },
+		{ extractTextFromHtml },
 		{ copyLegacyPreviewImage, isAllowedPreviewImageUrl },
 		legacyImport,
 		repo,
@@ -62,6 +64,7 @@ export async function loadImportLegacyProcomunDependencies() {
 		import("../../../api/src/services/elpx-processor.ts"),
 		import("../../../api/src/uploads/config.ts"),
 		import("../../../api/src/fts/search.ts"),
+		import("../../../api/src/fts/extract.ts"),
 		import("../../../api/src/services/legacy-preview-image.ts"),
 		import("@procomun/db/legacy-import"),
 		import("@procomun/db/repository"),
@@ -79,6 +82,7 @@ export async function loadImportLegacyProcomunDependencies() {
 		buildUploadPublicUrl,
 		sanitizeFilename,
 		updateSearchVector,
+		extractTextFromHtml,
 		copyLegacyPreviewImage,
 		isAllowedPreviewImageUrl,
 		listLegacyRemoteThumbnails: repo.listLegacyRemoteThumbnails,
@@ -250,6 +254,9 @@ type AuthorLinkOutcome =
 	| "without_account"
 	| "not_found";
 
+/** Los registros de un artículo (#446) llevan `kind: "article"`; los de un ODE, nada. */
+type ArticleTag = { kind?: "article" };
+
 type RecordOutcome =
 	| ({
 			outcome: "imported";
@@ -258,22 +265,39 @@ type RecordOutcome =
 			warnings: string[];
 			/** Cuenta del autor (#456); null si queda a nombre del sistema. */
 			createdBy: string | null;
-	  } & PublicationTrace)
+	  } & PublicationTrace &
+			ArticleTag)
 	| ({
 			outcome: "would_import";
 			externalId: string;
 			warnings: string[];
 			createdBy: string | null;
-	  } & PublicationTrace)
-	| {
+	  } & PublicationTrace &
+			ArticleTag)
+	| ({
 			outcome: "skipped_existing";
 			externalId: string;
 			authorLink: AuthorLinkOutcome;
+	  } & ArticleTag)
+	| {
+			/**
+			 * Artículo sin cuenta de autor utilizable: no se importa (#446,
+			 * decidido el 2026-11-03). Reimportar lo importa si la cuenta ya existe.
+			 */
+			outcome: "skipped_without_author";
+			externalId: string;
+			kind: "article";
+			/**
+			 * Sin el correo (#543): solo va al informe restringido, si se pide
+			 * con --restricted-report.
+			 */
+			reason: AuthorWithoutAccount["reason"];
 	  }
-	| { outcome: "blocked"; externalId: string; reasons: string[] }
+	| ({ outcome: "blocked"; externalId: string; reasons: string[] } & ArticleTag)
 	/**
 	 * Un error de la base de datos solo deja su código: su mensaje lleva la
-	 * consulta y los parámetros, con autores y correos (#488).
+	 * consulta y los parámetros, con autores, correos o el texto del
+	 * artículo (#488, #543).
 	 */
 	| ({ outcome: "error"; externalId: string } & ImportErrorSummary);
 
@@ -304,6 +328,10 @@ export interface ImportLegacyProcomunReport {
 		 * aunque su correo de origen no lleve a ninguna cuenta (revisión #508).
 		 */
 		authorWithoutAccount: number;
+		/** De los procesados, los que son artículos (`type: "POST"`, #446). */
+		articles: number;
+		/** Artículos que no se importan por no tener cuenta de autor (#446). */
+		skippedWithoutAuthor: number;
 	};
 	incompletePairs: string[];
 	records: RecordOutcome[];
@@ -505,7 +533,8 @@ async function runImportLegacyProcomunCommand(
 			("imported" in report.totals
 				? `importados=${report.totals.imported} omitidos_ya_existentes=${report.totals.skippedExisting} ` +
 					`bloqueados=${report.totals.blocked} errores=${report.totals.errored} incompletos=${report.totals.incompletePairs} ` +
-					`con_autor=${report.totals.authorLinked} sin_cuenta=${report.totals.authorWithoutAccount} `
+					`con_autor=${report.totals.authorLinked} sin_cuenta=${report.totals.authorWithoutAccount} ` +
+					`articulos=${report.totals.articles} articulos_sin_autor=${report.totals.skippedWithoutAuthor} `
 				: `sin_clasificar_revisados=${report.totals.processed} `) +
 			`categorias_ok=${report.categorizacionEducativa.recursosConTodasTransformadas} ` +
 			`categorias_revision=${report.categorizacionEducativa.recursosPendientesDeRevision} ` +
@@ -756,7 +785,7 @@ type FixLanguageRecord = { externalId: string } & (
 			reindexError?: string;
 	  }
 	| { outcome: "not_found" }
-	| { outcome: "error"; message: string }
+	| ({ outcome: "error" } & ImportErrorSummary)
 );
 
 export interface FixLegacyLanguageReport {
@@ -833,6 +862,7 @@ export async function runFixLegacyLanguage(
 			records.push({
 				externalId,
 				outcome: "error",
+				code: "invalid_record",
 				message: `No se pudo leer/parsear el JSON: ${resolved.parseError}`,
 			});
 			continue;
@@ -892,9 +922,11 @@ export async function runFixLegacyLanguage(
 			});
 		} catch (err) {
 			totals.errored++;
-			const message = err instanceof Error ? err.message : String(err);
-			records.push({ externalId, outcome: "error", message });
-			console.error(`[error] ${externalId}: ${message}`);
+			// Este paso solo usa la base de datos: nunca se copia el mensaje
+			// (#572), porque el de Drizzle lleva la consulta y sus parametros.
+			const summary = summarizeDbStepError(err);
+			records.push({ externalId, outcome: "error", ...summary });
+			console.error(`[error] ${externalId}: ${formatImportError(summary)}`);
 		}
 	}
 
@@ -1283,6 +1315,8 @@ export async function runImportLegacyProcomun(
 	let blocked = 0;
 	let errored = 0;
 	let authorLinked = 0;
+	let articles = 0;
+	let skippedWithoutAuthor = 0;
 	const authorsWithoutAccount: AuthorWithoutAccount[] = [];
 	const sourceEmailWithoutAccount: SourceEmailWithoutAccount[] = [];
 	const resolveAuthor = createLegacyAuthorResolver(deps, db);
@@ -1339,6 +1373,9 @@ export async function runImportLegacyProcomun(
 			const warningMessages = mapping.warnings.map(
 				(w) => `${w.field}: ${w.message}`,
 			);
+			const isArticle = mapping.kind === "article";
+			const articleTag: ArticleTag = isArticle ? { kind: "article" } : {};
+			if (isArticle) articles++;
 
 			if (mapping.blocking) {
 				blocked++;
@@ -1346,6 +1383,7 @@ export async function runImportLegacyProcomun(
 					outcome: "blocked",
 					externalId: mapping.externalId || pair.baseName,
 					reasons: mapping.blockingErrors,
+					...articleTag,
 				});
 				console.log(
 					`[bloqueado] ${pair.baseName}: ${mapping.blockingErrors.join("; ")}`,
@@ -1452,12 +1490,33 @@ export async function runImportLegacyProcomun(
 						outcome: "skipped_existing",
 						externalId: mapping.externalId,
 						authorLink: link.outcome,
+						...articleTag,
 					});
 					console.log(
 						`[omitido] ${mapping.externalId}: ya importado (resourceId=${existing.id})` +
 							(linked
 								? `; autor ${author.userId}${options.dryRun ? " (dry-run)" : ""}`
 								: ""),
+					);
+				} else if (isArticle && author.userId === null) {
+					// #446: un artículo sin cuenta de autor no se importa; queda en
+					// el informe con el motivo para revisarlo. El correo solo va al
+					// informe restringido, si se pide (#543).
+					skippedWithoutAuthor++;
+					records.push({
+						outcome: "skipped_without_author",
+						externalId: mapping.externalId,
+						kind: "article",
+						reason: author.reason,
+					});
+					options.restrictedEntries?.push({
+						list: "skipped_without_author",
+						externalId: mapping.externalId,
+						email: mapping.publicatorEmail,
+						reason: author.reason,
+					});
+					console.log(
+						`[sin autor] ${mapping.externalId}: artículo sin cuenta de autor (${author.reason}), no se importa`,
 					);
 				} else if (options.dryRun) {
 					imported++;
@@ -1475,6 +1534,7 @@ export async function runImportLegacyProcomun(
 						editorialStatus: mapping.resource.editorialStatus,
 						sourcePublished: mapping.resource.sourcePublished,
 						createdBy: author.userId,
+						...articleTag,
 					});
 				} else {
 					await persistImportedResource({
@@ -1487,6 +1547,7 @@ export async function runImportLegacyProcomun(
 						warningMessages,
 						systemUser,
 						createdBy: author.userId,
+						articleTag,
 						records,
 						onImported: () => {
 							imported++;
@@ -1526,6 +1587,8 @@ export async function runImportLegacyProcomun(
 			errored,
 			authorLinked,
 			authorWithoutAccount: authorsWithoutAccount.length,
+			articles,
+			skippedWithoutAuthor,
 		},
 		incompletePairs: incomplete,
 		records,
@@ -1575,6 +1638,7 @@ async function persistImportedResource(params: {
 	systemUser: { id: string } | null;
 	/** Cuenta del autor (#456); null si no hay cuenta con su correo. */
 	createdBy: string | null;
+	articleTag: ArticleTag;
 	records: RecordOutcome[];
 	onImported: () => void;
 	onErrored: () => void;
@@ -1589,6 +1653,7 @@ async function persistImportedResource(params: {
 		warningMessages,
 		systemUser,
 		createdBy,
+		articleTag,
 		records,
 		onImported,
 		onErrored,
@@ -1666,6 +1731,12 @@ async function persistImportedResource(params: {
 				// mapping.blocking === false garantiza license !== null (ver field-mapper.ts)
 				license: mapping.resource.license as string,
 				createdBy,
+				// #446: el cuerpo HTML del artículo solo se guarda como texto plano
+				// para la búsqueda, con la misma limpieza que un .html subido. Nunca
+				// se muestra; el artículo se ve desde su .elpx, sin modificar.
+				extractedText: mapping.articleHtml
+					? deps.extractTextFromHtml(mapping.articleHtml) || null
+					: null,
 			},
 			elpx: {
 				hash: checksum,
@@ -1732,6 +1803,7 @@ async function persistImportedResource(params: {
 			editorialStatus: mapping.resource.editorialStatus,
 			sourcePublished: mapping.resource.sourcePublished,
 			createdBy,
+			...articleTag,
 		});
 		console.log(
 			`[importado] ${mapping.externalId} -> ${result.resourceId} (${mapping.resource.editorialStatus})` +

@@ -16,6 +16,7 @@ import {
 } from "@procomun/db/schema";
 import { eq, inArray, sql } from "drizzle-orm";
 import { Hono } from "hono";
+import { searchResources } from "../../../api/src/fts/search.ts";
 import { elpxContentRoutes } from "../../../api/src/routes/elpx-content.ts";
 import { computeFileSha256 } from "../../../api/src/uploads/config.ts";
 import {
@@ -1139,5 +1140,192 @@ describe("import:legacy-procomun — cada recurso pasa a la cuenta de su autor (
 			rerun.records.find((r) => r.externalId === "es_autor_tres"),
 		).toMatchObject({ authorLink: "kept_creator" });
 		expect((await rowOf("es_autor_tres"))?.createdBy).toBe("issue456-editora");
+	});
+});
+
+describe("import:legacy-procomun — artículos (issue #446)", () => {
+	let deps: Awaited<ReturnType<typeof loadImportLegacyProcomunDependencies>>;
+	let sourceDir: string;
+
+	// JSON sintéticos con la forma real de la exportación (`type: "POST"`, sin
+	// licencia, cuerpo HTML en descriptionStr); los paquetes son mínimos.
+	const ARTICLE_FIXTURES = path.join(
+		import.meta.dir,
+		"../../../../packages/db/src/test-fixtures/legacy-procomun",
+	);
+	const PUBLISHED = "1400000000001";
+	const DRAFT = "ArtBorrador000000001";
+
+	async function insertAccount(id: string, email: string) {
+		await deps.getDb().db.insert(user).values({
+			id,
+			email,
+			emailVerified: true,
+			name: id,
+			role: "author",
+			createdAt: new Date(),
+			updatedAt: new Date(),
+		});
+	}
+
+	async function rowOf(externalId: string) {
+		const found = await deps.repo.findLegacyResourceByExternalId(
+			deps.getDb().db,
+			"legacy-procomun",
+			externalId,
+		);
+		if (!found) return null;
+		const [row] = await deps
+			.getDb()
+			.db.select({
+				id: resources.id,
+				createdBy: resources.createdBy,
+				resourceType: resources.resourceType,
+				license: resources.license,
+				description: resources.description,
+				author: resources.author,
+				editorialStatus: resources.editorialStatus,
+				extractedText: resources.extractedText,
+			})
+			.from(resources)
+			.where(eq(resources.id, found.id));
+		return row ?? null;
+	}
+
+	beforeAll(async () => {
+		process.env.UPLOAD_STORAGE_DIR = await mkdtemp(
+			path.join(tmpdir(), "legacy-import-storage-articles-"),
+		);
+		deps = await loadImportLegacyProcomunDependencies();
+		sourceDir = await mkdtemp(path.join(tmpdir(), "legacy-articles-source-"));
+		for (const id of [PUBLISHED, DRAFT]) {
+			await copyFile(
+				path.join(ARTICLE_FIXTURES, `${id}.json`),
+				path.join(sourceDir, `${id}.json`),
+			);
+			await createMinimalElpx(
+				path.join(sourceDir, `${id}.elpx`),
+				`articles-${id}`,
+			);
+		}
+		// Solo la autora del artículo publicado tiene cuenta, con otras mayúsculas.
+		await insertAccount("issue446-uno", "ARTICULISTA.uno@ejemplo.test");
+	});
+
+	test("--dry-run: el artículo con cuenta se importaría, el otro no, y no escribe nada", async () => {
+		const report = await runImportLegacyProcomun(
+			{ sourceDir, dryRun: true },
+			deps,
+		);
+
+		expect(report.totals).toMatchObject({
+			articles: 2,
+			imported: 1,
+			skippedWithoutAuthor: 1,
+			blocked: 0,
+			errored: 0,
+		});
+		expect(await rowOf(PUBLISHED)).toBeNull();
+	});
+
+	test("importa el artículo con cuenta como «Artículo» de su autora y deja fuera el que no la tiene", async () => {
+		const report = await runImportLegacyProcomun(
+			{ sourceDir, dryRun: false },
+			deps,
+		);
+
+		expect(report.totals).toMatchObject({
+			imported: 1,
+			skippedWithoutAuthor: 1,
+			blocked: 0,
+			errored: 0,
+		});
+		expect(report.records).toContainEqual({
+			outcome: "skipped_without_author",
+			externalId: DRAFT,
+			kind: "article",
+			reason: "no_account",
+		});
+		// #543: el informe general no lleva el correo.
+		expect(JSON.stringify(report)).not.toContain("articulista.dos");
+		expect(await rowOf(DRAFT)).toBeNull();
+
+		expect(await rowOf(PUBLISHED)).toMatchObject({
+			createdBy: "issue446-uno",
+			resourceType: "articulo",
+			license: "cc-by",
+			description: "Artículo relacionado con Aula invertida",
+			author: "Docente Articulista",
+			editorialStatus: "published",
+			extractedText: "Descripción del aula invertida para quien empieza.",
+		});
+	});
+
+	test("el texto del artículo se encuentra en la búsqueda, aunque no esté en la descripción", async () => {
+		const result = await searchResources(deps.getDb().db, {
+			query: "empieza",
+			language: "es",
+			status: "published",
+		});
+
+		const article = await rowOf(PUBLISHED);
+		expect(result.data.map((r) => r.id)).toContain(article?.id as string);
+		// El fragmento sale de la descripción, nunca del HTML del artículo.
+		const hit = result.data.find((r) => r.id === article?.id);
+		expect(hit?.description).toBe("Artículo relacionado con Aula invertida");
+	});
+
+	test("con la cuenta ya creada, reimportar trae el borrador como borrador de su autora; repetirlo no cambia nada", async () => {
+		await insertAccount("issue446-dos", "articulista.dos@ejemplo.test");
+
+		const rerun = await runImportLegacyProcomun(
+			{ sourceDir, dryRun: false },
+			deps,
+		);
+		expect(rerun.totals).toMatchObject({
+			imported: 1,
+			importedAsDraft: 1,
+			skippedExisting: 1,
+			skippedWithoutAuthor: 0,
+		});
+		expect(await rowOf(DRAFT)).toMatchObject({
+			createdBy: "issue446-dos",
+			editorialStatus: "draft",
+			resourceType: "articulo",
+		});
+		// «Mis recursos» de la autora incluye su borrador.
+		const mine = await listResources(deps.getDb().db, {
+			createdBy: "issue446-dos",
+			limit: 100,
+		});
+		expect(mine.data.map((r) => r.id)).toEqual([
+			(await rowOf(DRAFT))?.id as string,
+		]);
+		// Y no sale en el catálogo público.
+		const catalog = await listResources(deps.getDb().db, {
+			status: "published",
+			limit: 100,
+		});
+		expect(catalog.data.map((r) => r.id)).not.toContain(
+			(await rowOf(DRAFT))?.id as string,
+		);
+
+		const again = await runImportLegacyProcomun(
+			{ sourceDir, dryRun: false },
+			deps,
+		);
+		expect(again.totals).toMatchObject({
+			imported: 0,
+			skippedExisting: 2,
+			authorLinked: 0,
+		});
+		expect(
+			again.records.every(
+				(r) =>
+					r.outcome === "skipped_existing" &&
+					r.kind === "article" &&
+					r.authorLink === "already_linked",
+			),
+		).toBe(true);
 	});
 });

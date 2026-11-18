@@ -145,6 +145,19 @@ Los JSON/`.elpx` de `ode-export/` contienen datos personales reales (nombres y e
 - [ ] Tras importar los usuarios (#488), ejecutar `--link-authors --dry-run` sobre la exportación real y revisar `authorsWithoutAccount` con el equipo del Procomún antiguo.
 - [ ] Reutilizar la búsqueda por correo en los importadores de artículos (#446) e itinerarios (#432).
 
+## Artículos — 2026-11-03 (issue #446)
+
+- [x] Reproducir el bloqueo con un test: los artículos (`type: "POST"`) no traen licencia y quedaban `blocked` con `Licencia no reconocida: ""`.
+- [x] Reconocer los artículos y aplicarles la licencia por defecto (`DEFAULT_LICENSE`, con aviso), el tipo «Artículo», la descripción «Artículo relacionado con <título>» y `publicatorStr` como autor en texto.
+- [x] Añadir «Artículo» (`articulo`) al diccionario de tipos de recurso (`RESOURCE_TYPES`) y anotarlo en `docs/casos/tipos-de-recurso/` para #419.
+- [x] Asignar cada artículo a la cuenta de su `publicatorEmailStr` con la búsqueda de #456. Sin cuenta, no se importa y el informe lo lista (`skipped_without_author`). Queda reutilizarla en los itinerarios (#432).
+- [x] Los artículos con `published: 0` entran como borrador de su autor.
+- [x] Guardar el texto plano del cuerpo para la búsqueda, con la misma limpieza que un `.html` subido. El `.elpx` no se toca: las imágenes externas siguen enlazadas.
+- [x] Tests de mapeo, repositorio, comando e integración. Prueba con los cuatro artículos adjuntos a la issue.
+- [ ] Ejecutar `--dry-run` sobre la exportación real de artículos, después de importar los usuarios (#488), y revisar `skipped_without_author` con el equipo del Procomún antiguo.
+- [ ] Decidir si las miniaturas de los artículos se copian. Hoy llegan como ruta relativa del Drupal antiguo (`/files/articulos/...`, `/sites/default/files/articulos/...`) y se descartan con aviso. Copiarlas exige admitir `procomun.intef.es` en `legacy-preview-image.ts` (#409, #472).
+- [ ] Deuda: los formularios de alta y edición siguen escribiendo `"cc-by"` a mano en lugar de usar `DEFAULT_LICENSE`.
+
 ## Usuarios como `editor` — 2026-11-03 (issue #507, corrige #456)
 
 - [x] Lo que daba `author` (sin rol, `-`, `bm_documentalista`, `gestor_de_odes`) da `editor`. Los roles desconocidos (`Organization`…) también, y siguen en `unknownRoles`.
@@ -181,3 +194,9 @@ Los JSON/`.elpx` de `ode-export/` contienen datos personales reales (nombres y e
 - [x] Tests: informe general serializado sin correos, informe restringido con su contenido y sus permisos, errores reales de Drizzle con el correo como parámetro.
 - [x] README, diseño y ADR-0029 con la garantía: el informe general no lleva datos personales; el restringido sí y hay que borrarlo al terminar.
 - [ ] Decidir dónde se guarda el informe restringido en la migración real, quién accede y cuándo se borra (#543).
+
+## Artículos sin autor e informe restringido — 2026-11-16 (issues #446 y #543)
+
+- [x] `skipped_without_author` sin `email` en el informe general; el correo va a la lista restringida con `list: "skipped_without_author"`.
+- [x] Test con un error real de Drizzle cuyos parámetros llevan el texto del artículo y el correo: el informe y la consola no los llevan.
+- [x] README y diseño actualizados.

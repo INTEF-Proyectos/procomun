@@ -48,6 +48,12 @@ export interface LegacyResourceInput {
 	 * queda vacío y el recurso sigue a nombre del sistema, como hasta ahora.
 	 */
 	createdBy?: string | null;
+	/**
+	 * Texto plano del artículo para la búsqueda (#446), ya sin HTML. Se guarda
+	 * como extracción terminada; sin él, el recurso queda pendiente como hasta
+	 * ahora.
+	 */
+	extractedText?: string | null;
 }
 
 export interface LegacyElpxInput {
@@ -159,6 +165,13 @@ export async function importLegacyResourceWithElpx(
 			// fallback a "now" solo si no pudo resolverse ninguna fecha de origen.
 			createdAt: input.resource.importedAt ?? now,
 			updatedAt: now,
+			...(input.resource.extractedText
+				? {
+						extractedText: input.resource.extractedText,
+						extractionStatus: "completed",
+						extractedAt: now,
+					}
+				: {}),
 		});
 
 		if (input.resource.subjects.length) {

@@ -60,7 +60,7 @@ export function printHelp(log: Pick<typeof console, "log"> = console) {
 		"  import:legacy-procomun --source-dir <ruta> [--dry-run] [--limit <n>] [--only <externalId>] [--report-dir <ruta>]",
 	);
 	log.log(
-		"                    Importa recursos legacy de Procomún (pares .json+.elpx), ver ADR-0029",
+		"                    Importa recursos y artículos legacy de Procomún (pares .json+.elpx), ver ADR-0029",
 	);
 	log.log(
 		"  import:legacy-procomun --backfill-categories [--dry-run] [--report-dir <ruta>]",

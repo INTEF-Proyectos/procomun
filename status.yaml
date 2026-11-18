@@ -3517,6 +3517,24 @@ tasks:
       lee los .json. La sesión de subida del paquete sigue a nombre del
       sistema para no gastar la cuota del autor. Sin migración. ADR-0029,
       actualización 2026-11-03.
+  T-2026-11-03-12143790:
+    date: 2026-11-03
+    agent: "ingestas-y-migraciones"
+    task: "Importar los artículos del Procomún antiguo (type POST)"
+    status: Done
+    related: ["#446", "#419", "#456", "#447", "#434"]
+    notes: >
+      import:legacy-procomun bloqueaba todos los artículos porque su JSON no
+      trae licencia. Ahora los reconoce por type POST y les aplica la licencia
+      por defecto (cc-by, con aviso), el nuevo tipo «Artículo» del diccionario,
+      la descripción «Artículo relacionado con <título>» y publicatorStr como
+      autor en texto. Cada artículo pasa a la cuenta de su publicatorEmailStr
+      (#456). Sin cuenta no se importa y el informe lo lista como
+      skipped_without_author. published 0 entra como borrador de su autor. El
+      .elpx no se toca, así que las imágenes externas siguen enlazadas. El
+      cuerpo HTML solo se guarda como texto plano para la búsqueda. Sin
+      migración. ADR-0029, actualización 2026-11-03 (2). Pendiente: miniaturas
+      con ruta relativa y dry-run sobre la exportación real tras #488.
   T-2026-11-03-13524606:
     date: 2026-11-03
     agent: "backend-api-servicios"
@@ -4580,6 +4598,39 @@ tasks:
       correo de restablecimiento registraba el error entero (el de SMTP
       puede llevar destinatario y respuesta del servidor); ahora solo
       summarizeEmailError (clase, codigo, codigo SMTP), con test.
+  T-2026-11-16-15050452:
+    date: 2026-11-16
+    agent: "frontend-ux-accesibilidad"
+    task: "Los mapas de etiquetas del frontend solo usan sus claves propias (#576)"
+    status: Done
+    related: ["#576", "#545"]
+    notes: >
+      Nueva utilidad labelFor(map, key, fallback) en
+      apps/frontend/src/lib/labels.ts: solo usa las claves propias del mapa
+      (Object.hasOwn), asi que constructor, toString o __proto__ dan el
+      respaldo y no una funcion del prototipo. Se aplica en
+      AdminReportsSection (REASON_LABELS), CollectionsCrudIsland y
+      ResourcesTableIsland (STATUS_LABELS), TaxonomyCrudIsland
+      (TAXONOMY_LABELS), ResourceEditorIsland (STEP_LABELS y
+      TRANSITION_LABELS), EditarPageBase (STATUS_LABELS) y PublicNavIsland
+      (LOCALE_LABELS). HeroIsland usa claves fijas y no cambia. Test:
+      labels.unit.test.ts (claves heredadas en rojo con map[key] ?? fallback,
+      verde con labelFor).
+  T-2026-11-16-15005986:
+    date: 2026-11-16
+    agent: "ingestas-y-migraciones + seguridad-privacidad-legal"
+    task: "import:legacy-procomun --fix-language sin el error de la base de datos en el informe (#572)"
+    status: Done
+    related: ["#572", "#543", "#488"]
+    notes: >
+      runFixLegacyLanguage copiaba err.message al informe y a la consola; el
+      error de Drizzle lleva la consulta y sus parametros. Ahora pasa por
+      summarizeDbStepError (@procomun/db/db-errors) y formatImportError, como
+      --fix-published y la importacion. El registro de error lleva code,
+      message y sqlState; el JSON ilegible queda como invalid_record. Test:
+      "--fix-language tampoco copia el error de la base de datos (#572)" en
+      import-legacy-procomun.unit.test.ts, con un error real de Drizzle sobre
+      PGlite que lleva un correo en los parametros (rojo antes, verde despues).
   T-2026-11-16-12204258:
     date: 2026-11-16
     agent: "backend-api-servicios"
@@ -4596,6 +4647,18 @@ tasks:
       el informe general; --restricted-report <ruta> escribe aparte el correo,
       con permisos 0600, fuera de --report-dir y sin pisar otro fichero.
       Falta decidir donde se guarda en la migracion real y quien accede.
+  T-2026-11-16-12342641:
+    date: 2026-11-16
+    agent: "backend-api-servicios"
+    task: "Poner #517 al dia con #508 y aplicar la decision de #543 a los articulos"
+    status: Done
+    related: ["#517", "#446", "#508", "#543"]
+    notes: >
+      Merge de la rama de #508 actualizada (main con #488 y la decision de
+      #543). skipped_without_author ya no lleva el correo en el informe
+      general; con --restricted-report va al informe restringido. Test con un
+      error real de Drizzle cuyos parametros llevan el texto del articulo y el
+      correo: el informe y la consola quedan con db_error y sin esos datos.
   T-2026-11-16-13145950:
     date: 2026-11-16
     agent: "frontend-ux-accesibilidad + qa-validacion"
