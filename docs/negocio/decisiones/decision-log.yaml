@@ -355,3 +355,24 @@ ADR-0046:
     Adenda 2026-11-03 (revisión de #481): la miniatura de lo publicado sale
     por la URL estable solo si pertenece a un recurso publicado (public,
     max-age=3600); lo no publicado, por enlace firmado (private, no-store).
+
+ADR-0051:
+  title: "Tratamiento de datos personales y baja de cuentas"
+  status: Propuesto
+  date: 2026-11-16
+  file: 0051-tratamiento-datos-personales-y-baja-de-cuentas.md
+  notes: >
+    Issue #504, épica 007. Base art. 6.1.e RGPD: el registro informa y pide
+    aceptar las condiciones, que no es consentimiento; solo la foto lleva
+    consentimiento. Aceptaciones versionadas sin IP; importados y OIDC aceptan
+    en el primer acceso. Derechos en la sede. Baja lógica y purga a los 30 días;
+    el usuario elige si sus recursos publicados se quedan con su nombre, sin él
+    o se borran. Registro de bajas sin nombre ni correo, 3 años. Sin Gravatar ni
+    terceros. Pendiente de confirmar por el INTEF en #504.
+    Revisión 2026-11-18 (#577): la baja solo desvincula la cuenta que publica
+    (conservar o borrar) y no toca resources.author; retirar la atribución es
+    otra solicitud del autor. Cada versión aceptada tiene texto recuperable
+    (URL versionada o copia autorizada). Sin banner solo si se confirma la
+    exención del contador de visitas o se adapta. Regla común de comunidades
+    con ADR-0050: recuento y administradores públicos, invitaciones a 14 días,
+    correo y solicitud borrados en cualquier cierre.
