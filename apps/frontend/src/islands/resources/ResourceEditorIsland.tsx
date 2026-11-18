@@ -2,6 +2,7 @@ import { canTransition, TRANSITION_RULES } from "@procomun/db/validation";
 import { type FormEvent, Fragment, useEffect, useRef, useState } from "react";
 import type { Resource, UpdateResourceInput } from "../../lib/api-client.ts";
 import { getApiClient } from "../../lib/get-api-client.ts";
+import { labelFor } from "../../lib/labels.ts";
 import { url } from "../../lib/paths.ts";
 import { hasMinRole } from "../../lib/shared-utils.ts";
 import { statusChangeFeedback } from "../../lib/status-change-errors.ts";
@@ -225,7 +226,7 @@ export function ResourceEditorIsland() {
 			await api.updateResourceStatus(resourceId, targetStatus);
 			setCurrentStatus(targetStatus);
 			setWorkflowSuccess(
-				`Estado cambiado a: ${STEP_LABELS[targetStatus] ?? "Archivado"}`,
+				`Estado cambiado a: ${labelFor(STEP_LABELS, targetStatus, "Archivado")}`,
 			);
 		} catch (error) {
 			setWorkflowError(statusChangeFeedback(error).message);
@@ -326,7 +327,9 @@ export function ResourceEditorIsland() {
 									}
 								>
 									<span className="step-dot" aria-hidden="true"></span>
-									<span className="step-label">{STEP_LABELS[step]}</span>
+									<span className="step-label">
+										{labelFor(STEP_LABELS, step)}
+									</span>
 								</div>
 								{index < STEPS.length - 1 ? (
 									<div
@@ -360,7 +363,7 @@ export function ResourceEditorIsland() {
 					Archivado
 				</div>
 				<p className="sr-only" id="status-announcement" aria-live="polite">
-					{`Estado actual: ${STEP_LABELS[currentStatus] ?? "Archivado"}`}
+					{`Estado actual: ${labelFor(STEP_LABELS, currentStatus, "Archivado")}`}
 				</p>
 				<div id="workflow-actions" className="workflow-actions">
 					<button
@@ -383,7 +386,7 @@ export function ResourceEditorIsland() {
 							>
 								{busyTransition === rule.to
 									? "Actualizando..."
-									: (TRANSITION_LABELS[key] ?? rule.to)}
+									: labelFor(TRANSITION_LABELS, key, rule.to)}
 							</button>
 						);
 					})}
