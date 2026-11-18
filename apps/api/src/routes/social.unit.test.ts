@@ -1,6 +1,8 @@
 import { describe, expect, test } from "bun:test";
+import * as schema from "@procomun/db/schema";
 import { Hono } from "hono";
 import type { AuthEnv } from "../auth/middleware.ts";
+import { getDb } from "../db.ts";
 import { adminRoutes } from "./admin/index.ts";
 import { socialRoutes } from "./social.ts";
 
@@ -404,6 +406,36 @@ describe("Social — My profile", () => {
 			`/api/admin/users/${id}`,
 		);
 		expect(await adminView.json()).not.toHaveProperty("profile");
+	});
+
+	test("el «Sobre mí» que solo viene de la importación lo ve su dueño pero no la administración (#586)", async () => {
+		const id = `reader-imported-${crypto.randomUUID()}`;
+		const readerApp = createSocialApp({
+			id,
+			role: "reader",
+			name: "Importada",
+			email: `${id}@test.com`,
+		});
+		const db = getDb().db;
+		await db
+			.insert(schema.user)
+			.values({ id, email: `${id}@test.com`, name: "Importada" });
+		// Como lo deja el importador de usuarios (#488), sin editar.
+		await db
+			.insert(schema.userProfile)
+			.values({ userId: id, about: "Del Procomún anterior" });
+
+		const own = (await (
+			await readerApp.request("/api/v1/users/me/profile")
+		).json()) as { bio: string | null };
+		expect(own.bio).toBe("Del Procomún anterior");
+
+		const adminView = (await (
+			await createSocialApp({ id: "1", role: "admin" }).request(
+				`/api/admin/users/${id}`,
+			)
+		).json()) as { bio: string | null };
+		expect(adminView.bio).toBeNull();
 	});
 
 	test("PATCH /users/me/profile → 401 without auth", async () => {

@@ -200,8 +200,8 @@ export async function seedWithClient(
 			);
 			// El «Sobre mí» vive en user_profile desde #533.
 			await client.query(
-				`INSERT INTO "user_profile" (user_id, about, created_at, updated_at) VALUES ($1, $2, $3, $4)
-				ON CONFLICT (user_id) DO UPDATE SET about = EXCLUDED.about, updated_at = EXCLUDED.updated_at`,
+				`INSERT INTO "user_profile" (user_id, about, about_edited_at, created_at, updated_at) VALUES ($1, $2, $3, $3, $4)
+				ON CONFLICT (user_id) DO UPDATE SET about = EXCLUDED.about, about_edited_at = EXCLUDED.about_edited_at, updated_at = EXCLUDED.updated_at`,
 				[u.id, u.bio, now, now],
 			);
 			// Una sola credencial por usuario de demo: se sustituye la anterior.

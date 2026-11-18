@@ -1,6 +1,7 @@
 import { and, asc, eq, isNull, sql } from "drizzle-orm";
 import { account, lowerEmail, session, user } from "../schema/auth.ts";
 import { userProfile } from "../schema/user-profile.ts";
+import type { ProfileUpdate } from "../user-profile.ts";
 import {
 	andWhere,
 	buildSearchTerm,
@@ -8,14 +9,21 @@ import {
 	normalizePagination,
 	normalizeSearch,
 } from "./shared.ts";
-import { saveUserAbout } from "./user-profile.ts";
+import { saveUserAbout, saveUserProfileDetails } from "./user-profile.ts";
 
-/** `bio` es el «Sobre mí», que vive en `user_profile.about` desde #533. */
+/**
+ * `bio` es el «Sobre mí», que vive en `user_profile.about` desde #533. Solo
+ * sale el escrito en la plataforma nueva, como cuando era `user.bio`: el
+ * importado sin editar queda para su dueño (`getUserAbout`) hasta que #504
+ * decida si lo ve la administración (revisión de #586).
+ */
 const USER_COLUMNS = {
 	id: user.id,
 	email: user.email,
 	name: user.name,
-	bio: userProfile.about,
+	bio: sql<
+		string | null
+	>`CASE WHEN ${userProfile.aboutEditedAt} IS NOT NULL THEN ${userProfile.about} END`,
 	role: user.role,
 	isActive: user.isActive,
 	createdAt: user.createdAt,
@@ -129,6 +137,21 @@ export async function updateUser(
 			.where(eq(user.id, id));
 	}
 	if (isActive !== undefined) await setUserBlocked(db, id, !isActive);
+}
+
+/**
+ * Perfil propio (#533): nombre, «Sobre mí» y datos ampliados en una sola
+ * transacción, para no dejar un cambio a medias si falla la última escritura.
+ */
+export async function updateOwnProfile(
+	db: DrizzleDB,
+	id: string,
+	{ profile, ...data }: ProfileUpdate,
+): Promise<void> {
+	await db.transaction(async (tx: DrizzleDB) => {
+		await updateUser(tx, id, data);
+		if (profile) await saveUserProfileDetails(tx, id, profile);
+	});
 }
 
 /** Motivo que se guarda en `ban_reason` cuando bloquea la administración. */

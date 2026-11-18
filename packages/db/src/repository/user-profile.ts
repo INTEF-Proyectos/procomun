@@ -54,7 +54,8 @@ export async function saveUserProfileDetails(
 
 /**
  * «Sobre mí» (#533). Vive en `user_profile.about`, privado como el resto del
- * perfil (ADR-0037); crea la fila si no existe.
+ * perfil (ADR-0037); crea la fila si no existe y lo marca como escrito en la
+ * plataforma nueva.
  */
 export async function saveUserAbout(
 	db: DrizzleDB,
@@ -64,9 +65,28 @@ export async function saveUserAbout(
 	const now = new Date();
 	await db
 		.insert(userProfile)
-		.values({ userId, about, createdAt: now, updatedAt: now })
+		.values({
+			userId,
+			about,
+			aboutEditedAt: now,
+			createdAt: now,
+			updatedAt: now,
+		})
 		.onConflictDoUpdate({
 			target: userProfile.userId,
-			set: { about, updatedAt: now },
+			set: { about, aboutEditedAt: now, updatedAt: now },
 		});
+}
+
+/** «Sobre mí» completo, también el importado. Solo para su dueño. */
+export async function getUserAbout(
+	db: DrizzleDB,
+	userId: string,
+): Promise<string | null> {
+	const rows = await db
+		.select({ about: userProfile.about })
+		.from(userProfile)
+		.where(eq(userProfile.userId, userId))
+		.limit(1);
+	return rows[0]?.about ?? null;
 }

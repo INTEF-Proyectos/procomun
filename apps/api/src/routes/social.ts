@@ -242,12 +242,14 @@ socialRoutes.get("/users/me/dashboard", requireAuth, async (c) => {
 socialRoutes.get("/users/me/profile", requireAuth, async (c) => {
 	const currentUser = requireUser(c);
 	const db = getDb().db;
-	const [found, profile] = await Promise.all([
+	const [found, profile, bio] = await Promise.all([
 		repo.getUserById(db, currentUser.id),
 		repo.getUserProfileDetails(db, currentUser.id),
+		// Su dueño ve también el «Sobre mí» importado sin editar (#586).
+		repo.getUserAbout(db, currentUser.id),
 	]);
 
-	if (found) return c.json({ ...found, profile });
+	if (found) return c.json({ ...found, bio, profile });
 
 	return c.json({
 		id: currentUser.id,
@@ -285,11 +287,8 @@ socialRoutes.patch("/users/me/profile", requireAuth, async (c) => {
 			400,
 		);
 	}
-	const { profile, ...updates } = validation.value;
-
-	const db = getDb().db;
-	await repo.updateUser(db, currentUser.id, updates);
-	if (profile) await repo.saveUserProfileDetails(db, currentUser.id, profile);
+	// Todo o nada: un fallo al final no deja el nombre cambiado y el resto no.
+	await repo.updateOwnProfile(getDb().db, currentUser.id, validation.value);
 	return c.json({ id: currentUser.id, updated: true });
 });
 

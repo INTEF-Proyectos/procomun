@@ -932,22 +932,73 @@ describe("migración 0023_user_bio_to_profile", () => {
 				user_id: string;
 				locality: string | null;
 				about: string | null;
+				edited: boolean;
 			}>(
-				'SELECT user_id, locality, about FROM "user_profile" ORDER BY user_id',
+				'SELECT user_id, locality, about, about_edited_at IS NOT NULL AS edited FROM "user_profile" ORDER BY user_id',
 			);
 			expect(profiles.rows).toEqual([
 				// Sin fila de perfil: se crea con la bio.
-				{ user_id: "u1", locality: null, about: "Nueva 1" },
+				{ user_id: "u1", locality: null, about: "Nueva 1", edited: true },
 				// Lo escrito en la plataforma nueva prevalece sobre lo importado.
-				{ user_id: "u2", locality: "Burgos", about: "Nueva 2" },
-				// Una bio en blanco no borra el «Sobre mí» importado.
-				{ user_id: "u3", locality: null, about: "Antiguo 3" },
-				{ user_id: "u5", locality: "Soria", about: "Nueva 5" },
+				{ user_id: "u2", locality: "Burgos", about: "Nueva 2", edited: true },
+				// Una bio en blanco no borra el «Sobre mí» importado, que sigue
+				// sin marcar como editado: la administración no lo ve (#586).
+				{ user_id: "u3", locality: null, about: "Antiguo 3", edited: false },
+				{ user_id: "u5", locality: "Soria", about: "Nueva 5", edited: true },
 			]);
 			const columns = await db.query<{ column_name: string }>(
 				"SELECT column_name FROM information_schema.columns WHERE table_name = 'user'",
 			);
 			expect(columns.rows.map((row) => row.column_name)).not.toContain("bio");
+		} finally {
+			await db.close();
+		}
+	});
+
+	// Revisión de #586: con el migrador real, sobre una base que se quedó en la
+	// 0021 (con user.bio y sin about_edited_at), la bio se copia antes de borrar
+	// la columna.
+	test("con el migrador de drizzle copia la bio a user_profile.about y después borra user.bio", async () => {
+		const { createTables } = await import("./setup.ts");
+		const db = new PGlite();
+		try {
+			await createTables(db);
+			await db.exec(`ALTER TABLE "user" ADD COLUMN bio TEXT;
+				ALTER TABLE "user_profile" DROP COLUMN about_edited_at;
+				INSERT INTO "user" (id, email, bio) VALUES
+					('nueva', 'nueva@example.test', 'Escrita en la plataforma'),
+					('importada', 'importada@example.test', NULL);
+				INSERT INTO "user_profile" (user_id, about) VALUES ('importada', 'Del Procomún anterior');
+				CREATE SCHEMA drizzle;
+				CREATE TABLE drizzle.__drizzle_migrations (
+					id SERIAL PRIMARY KEY, hash text NOT NULL, created_at bigint
+				);`);
+			const journal = JSON.parse(
+				await readFile(path.join(migrationsDir, "meta/_journal.json"), "utf8"),
+			) as { entries: Array<{ tag: string; when: number }> };
+			const at = journal.entries.findIndex(
+				(entry) => entry.tag === "0023_user_bio_to_profile",
+			);
+			for (const entry of journal.entries.slice(0, at)) {
+				await db.query(
+					"INSERT INTO drizzle.__drizzle_migrations (hash, created_at) VALUES ($1, $2)",
+					[entry.tag, entry.when],
+				);
+			}
+
+			await migrate(drizzle(db), { migrationsFolder: migrationsDir });
+
+			const profiles = await db.query(
+				'SELECT user_id, about, about_edited_at IS NOT NULL AS edited FROM "user_profile" ORDER BY user_id',
+			);
+			expect(profiles.rows).toEqual([
+				{ user_id: "importada", about: "Del Procomún anterior", edited: false },
+				{ user_id: "nueva", about: "Escrita en la plataforma", edited: true },
+			]);
+			const bio = await db.query(
+				"SELECT 1 FROM information_schema.columns WHERE table_name = 'user' AND column_name = 'bio'",
+			);
+			expect(bio.rows).toHaveLength(0);
 		} finally {
 			await db.close();
 		}

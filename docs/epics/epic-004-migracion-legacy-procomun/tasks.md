@@ -208,3 +208,10 @@ Los JSON/`.elpx` de `ode-export/` contienen datos personales reales (nombres y e
 - [x] El servidor valida nombre (obligatorio), «Sobre mí», país, webs y longitudes, también en la administración de usuarios.
 - [ ] Mostrar en la ficha pública del autor (#487) lo que decida #504.
 
+### Revisión de #586 — 2026-11-18
+
+- [x] `/perfil` envía solo lo que cambia: un fallo al leer el perfil no vacía la bio ni los datos ampliados, y un país importado como `XK` no impide guardar el nombre.
+- [x] La administración solo ve el «Sobre mí» escrito en la plataforma nueva (`about_edited_at`). Ampliarlo al importado queda para #504.
+- [x] El `PATCH` del perfil propio guarda todo en una transacción.
+- [x] Prueba con el migrador de drizzle: la 0023 copia la bio antes de borrar `user.bio`.
+- [x] Caché de Inlang fuera de Git (`.gitignore`).

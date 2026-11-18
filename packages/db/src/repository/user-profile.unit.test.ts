@@ -6,11 +6,17 @@ import { createTables } from "../setup.ts";
 import { EMPTY_PROFILE_DETAILS } from "../user-profile.ts";
 import type { DrizzleDB } from "./shared.ts";
 import {
+	getUserAbout,
 	getUserProfileDetails,
 	saveUserAbout,
 	saveUserProfileDetails,
 } from "./user-profile.ts";
-import { getUserById, listUsers, updateUser } from "./users.ts";
+import {
+	getUserById,
+	listUsers,
+	updateOwnProfile,
+	updateUser,
+} from "./users.ts";
 
 describe("perfil ampliado (#533)", () => {
 	let pglite: PGlite;
@@ -69,6 +75,42 @@ describe("perfil ampliado (#533)", () => {
 		await saveUserAbout(db, "u1", null);
 		expect((await getUserById(db, "u1"))?.bio).toBeNull();
 		expect((await listUsers(db, { id: "u1" })).total).toBe(1);
+	});
+
+	test("la administración no ve el «Sobre mí» que solo viene de la importación; su dueño sí", async () => {
+		// Como lo deja el importador de usuarios (#488): fila sin editar.
+		await db
+			.insert(schema.userProfile)
+			.values({ userId: "u1", about: "Importado", locality: "Soria" });
+
+		expect((await getUserById(db, "u1"))?.bio).toBeNull();
+		expect((await listUsers(db, { id: "u1" })).data[0]?.bio).toBeNull();
+		expect(await getUserAbout(db, "u1")).toBe("Importado");
+
+		// En cuanto se edita en la plataforma nueva, lo ve como antes de #533.
+		await updateUser(db, "u1", { bio: "Escrito aquí" });
+		expect((await getUserById(db, "u1"))?.bio).toBe("Escrito aquí");
+	});
+
+	test("updateOwnProfile guarda nombre, «Sobre mí» y datos ampliados en una transacción", async () => {
+		await updateOwnProfile(db, "u1", {
+			name: "Ana",
+			bio: "Antes",
+			profile: { locality: "Burgos" },
+		});
+
+		// Fuerza el fallo de la última escritura: country_code es VARCHAR(2).
+		await expect(
+			updateOwnProfile(db, "u1", {
+				name: "Otra",
+				bio: "Después",
+				profile: { locality: "Soria", countryCode: "XYZ" },
+			}),
+		).rejects.toThrow();
+
+		expect((await getUserById(db, "u1"))?.name).toBe("Ana");
+		expect(await getUserAbout(db, "u1")).toBe("Antes");
+		expect((await getUserProfileDetails(db, "u1")).locality).toBe("Burgos");
 	});
 
 	test("sin campos no crea una fila vacía", async () => {
