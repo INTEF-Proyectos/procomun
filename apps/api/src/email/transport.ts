@@ -198,6 +198,36 @@ export function getEmailTransport(env: RuntimeEnv = process.env): EmailPort {
 }
 
 /**
+ * Envía sin que la respuesta HTTP espere al SMTP (revisión de #552).
+ *
+ * En `/change-email` Better Auth solo llama al envío cuando el destino está
+ * libre: si la respuesta esperase al SMTP, su latencia delataría qué correos
+ * tienen cuenta. El transporte se resuelve antes, así que una configuración
+ * sin SMTP sigue fallando en el momento. Un fallo del envío se registra con un
+ * resumen saneado: el error de nodemailer puede llevar destinatarios y el
+ * mensaje lleva el enlace con el token.
+ */
+export function sendWithoutWaiting(
+	port: EmailPort,
+	message: EmailMessage,
+	log: (line: string, summary: Record<string, unknown>) => void = console.error,
+): void {
+	port.sendEmail(message).catch((error: unknown) => {
+		const { name, code, responseCode } = (error ?? {}) as {
+			name?: unknown;
+			code?: unknown;
+			responseCode?: unknown;
+		};
+		log("[email] No se pudo enviar un correo", {
+			subject: message.subject,
+			...(typeof name === "string" ? { name } : {}),
+			...(typeof code === "string" ? { code } : {}),
+			...(typeof responseCode === "number" ? { responseCode } : {}),
+		});
+	});
+}
+
+/**
  * Opciones `emailVerification` de Better Auth derivadas del flag único.
  *
  * `sendOnSignIn` reenvía la verificación cuando alguien sin verificar acierta
@@ -219,7 +249,9 @@ export function buildEmailVerificationOptions(
 			user: { email: string };
 			url: string;
 		}): Promise<void> => {
-			await getEmailTransport(env).sendEmail(
+			// También verifica el correo nuevo de un cambio (#532): sin esperar.
+			sendWithoutWaiting(
+				getEmailTransport(env),
 				buildVerificationEmail({ email: user.email, url }),
 			);
 		},
@@ -298,7 +330,8 @@ export function buildChangeEmailOptions(
 			newEmail: string;
 			url: string;
 		}): Promise<void> => {
-			await transport(env).sendEmail(
+			sendWithoutWaiting(
+				transport(env),
 				buildChangeEmailConfirmationEmail({
 					email: user.email,
 					newEmail,

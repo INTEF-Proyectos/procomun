@@ -12,6 +12,7 @@ import {
 	resolveEmailVerificationConfig,
 	resolveSmtpConfig,
 	SmtpEmailTransport,
+	sendWithoutWaiting,
 } from "./transport.ts";
 
 describe("buildVerificationEmail", () => {
@@ -464,5 +465,53 @@ describe("hasEmailTransport (#552)", () => {
 		expect(buildChangeEmailOptions({ NODE_ENV: "production" }).enabled).toBe(
 			false,
 		);
+	});
+});
+
+// Revisión de #552 (P2): la respuesta no espera al SMTP y un fallo no deja en
+// el log ni destinatarios ni el enlace con el token.
+describe("sendWithoutWaiting (#552)", () => {
+	const message = buildVerificationEmail({
+		email: "alguien@example.com",
+		url: "https://procomun.test/verify?token=secreto",
+	});
+
+	test("no espera a que el SMTP termine", () => {
+		let started = false;
+		sendWithoutWaiting(
+			{
+				sendEmail: () => {
+					started = true;
+					return new Promise<void>(() => {});
+				},
+			},
+			message,
+		);
+		expect(started).toBe(true);
+	});
+
+	test("un fallo se registra saneado, sin destinatario ni token", async () => {
+		const logged: unknown[] = [];
+		const error = Object.assign(
+			new Error("550 alguien@example.com rejected token=secreto"),
+			{ code: "EENVELOPE", responseCode: 550 },
+		);
+		sendWithoutWaiting(
+			{ sendEmail: () => Promise.reject(error) },
+			message,
+			(line, summary) => logged.push(line, summary),
+		);
+		await Bun.sleep(0);
+
+		expect(logged).toHaveLength(2);
+		expect(logged[1]).toEqual({
+			subject: message.subject,
+			name: "Error",
+			code: "EENVELOPE",
+			responseCode: 550,
+		});
+		const dump = JSON.stringify(logged);
+		expect(dump).not.toContain("alguien@example.com");
+		expect(dump).not.toContain("secreto");
 	});
 });

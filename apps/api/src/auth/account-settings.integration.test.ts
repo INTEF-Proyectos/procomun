@@ -2,6 +2,7 @@ import { afterEach, describe, expect, spyOn, test } from "bun:test";
 import { account, user } from "@procomun/db/schema";
 import { eq } from "drizzle-orm";
 import { getDb } from "../db.ts";
+import { LogEmailTransport } from "../email/transport.ts";
 import { auth, createAuth } from "./config.ts";
 import { isLegacyPasswordHash } from "./legacy-password.ts";
 import { getAuthBaseUrl, getFrontendUrl } from "./urls.ts";
@@ -278,6 +279,65 @@ describe("cambiar el correo (#532)", () => {
 		expect(aOcupado.status).toBe(aLibre.status);
 		expect(await aOcupado.text()).toBe(await aLibre.text());
 	});
+});
+
+// Revisión de #552 (P2): con el destino libre, la respuesta esperaba al SMTP;
+// con el destino ocupado, no. El tiempo delataba qué correos tienen cuenta.
+describe("el tiempo de respuesta no delata correos registrados (#552)", () => {
+	/** SMTP que no responde hasta que se le libera. */
+	function pendingSmtp() {
+		let release = () => {};
+		const pending = new Promise<void>((resolve) => {
+			release = resolve;
+		});
+		const spy = spyOn(
+			LogEmailTransport.prototype,
+			"sendEmail",
+		).mockImplementation(() => pending);
+		return () => {
+			release();
+			spy.mockRestore();
+		};
+	}
+
+	/** «pendiente» si la respuesta no llega en medio segundo. */
+	async function settles(res: Promise<Response>) {
+		const outcome = await Promise.race([
+			res.then((r) => r.status),
+			Bun.sleep(500).then(() => "pendiente" as const),
+		]);
+		return outcome;
+	}
+
+	for (const verified of [true, false]) {
+		const aviso = verified
+			? "confirmación a la dirección antigua"
+			: "verificación de la nueva";
+		test(`con la ${aviso}, ocupado y libre responden sin esperar al SMTP`, async () => {
+			const ocupado = await signedUp("tiempo-ocupado");
+			const { cookie } = await signedUp("tiempo-intruso", { verified });
+			restore = pendingSmtp();
+
+			const aOcupado = await settles(
+				authRequest("/change-email", {
+					cookie,
+					body: { newEmail: ocupado.email, callbackURL: "/perfil" },
+				}),
+			);
+			const aLibre = await settles(
+				authRequest("/change-email", {
+					cookie,
+					body: {
+						newEmail: freshEmail("tiempo-libre"),
+						callbackURL: "/perfil",
+					},
+				}),
+			);
+
+			expect(aOcupado).toBe(200);
+			expect(aLibre).toBe(200);
+		});
+	}
 });
 
 // Revisión de #552: sin transporte de correo no se puede verificar la
