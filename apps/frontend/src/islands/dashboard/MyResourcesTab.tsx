@@ -483,6 +483,7 @@ export function MyResourcesTab({
 	useEffect(() => {
 		if (searchText === filters.query) return;
 		const handle = setTimeout(() => {
+			setLoading(true);
 			setFilters((prev) => ({ ...prev, query: searchText }));
 			setPage(1);
 		}, 300);
@@ -542,6 +543,7 @@ export function MyResourcesTab({
 			await api.deleteResource(target.id);
 			setNotice(m.my_resources_deleted({ title: target.title }));
 			focusNoticeRef.current = true;
+			setLoading(true);
 			setPage((current) => pageAfterDelete(current, resources.length));
 			setReloadKey((key) => key + 1);
 			onChanged?.();
@@ -587,6 +589,9 @@ export function MyResourcesTab({
 				}}
 				onFiltersChange={(next) => {
 					setNotice("");
+					// Los contadores aún corresponden a los filtros anteriores.
+					// Mantén el panel montado hasta que llegue la nueva respuesta.
+					setLoading(true);
 					// «Limpiar filtros» también vacía la caja de búsqueda, aunque lo
 					// escrito no se haya aplicado aún.
 					if (next.query !== searchText) setSearchText(next.query);

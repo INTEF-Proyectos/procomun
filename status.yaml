@@ -4205,6 +4205,62 @@ tasks:
       antes: guarda en PublicCollectionsIsland, tipo string | null en
       api-client y test de regresion. Test ajustado: el toEqual de totals en
       el caso en seco incluye la clave nueva reindexFailed.
+  T-2026-11-10-20595617:
+    date: 2026-11-10
+    agent: "seguridad-privacidad-legal + backend-api-servicios + frontend-ux-accesibilidad"
+    task: "Revision de #551: recuperacion de contrasena"
+    status: Done
+    related: ["#531", "#551", "ADR-0007", "ADR-0031"]
+    notes: >
+      sendResetPassword ya no espera al SMTP: better-auth solo lo llama si la
+      cuenta existe, asi que el tiempo de respuesta (o un 500 sin transporte)
+      delataba que correos estan registrados. El envio se lanza con void y un
+      fallo se registra con console.error. revokeSessionsOnPasswordReset: true
+      para que restablecer cierre las sesiones abiertas. Sin transporte de
+      correo (produccion sin SMTP_HOST) no se configura sendResetPassword, el
+      /api/v1/config expone emailDeliveryEnabled y el acceso esconde el enlace;
+      se elige apagar el flujo en vez de exigir SMTP al arrancar porque la
+      imagen va con NODE_ENV=production y el docker-compose no trae SMTP: el
+      arranque obligatorio tumbaria despliegues que hoy funcionan. Como la
+      respuesta ya es la misma exista o no la cuenta, el cliente cuenta un
+      error del servidor como fallo (antes devolvia ok y la pantalla decia
+      enviado). redirectTo usa url() para respetar ruta base e idioma. Los
+      fallos de red de resetPassword dan un mensaje traducido en vez de una
+      promesa rechazada sin aviso.
+  T-2026-11-04-17363145:
+    date: 2026-11-04
+    agent: "backend-api-servicios + frontend-ux-accesibilidad + seguridad-privacidad-legal"
+    task: "Recuperar la contrasena olvidada desde la pantalla de acceso"
+    status: Done
+    related: ["#531", "#494", "#488", "#524", "ADR-0007", "ADR-0031"]
+    notes: >
+      ADR-0007 daba la recuperacion por disponible sin desarrollo adicional
+      porque better-auth la trae, pero sendResetPassword no estaba configurado:
+      request-password-reset no enviaba nada y no habia ni enlace en el acceso
+      ni pantalla para la contrasena nueva. Era la unica via de entrada de los
+      importados cuya contrasena no se pudo traer (#488). Se conecta con la
+      capa de correo de ADR-0031: buildPasswordResetOptions aporta
+      sendResetPassword y resetPasswordTokenExpiresIn, con caducidad de 1 hora
+      por defecto y PASSWORD_RESET_EXPIRES_IN entre 60 s y 24 h (tope
+      deliberado: mientras vale, el enlace equivale a la contrasena). Pantallas
+      /recuperar y /restablecer, con enlace bajo el boton de acceso. La
+      peticion responde siempre lo mismo exista o no la cuenta: en el cliente
+      requestPasswordReset devuelve ok salvo fallo de red, porque un error del
+      servidor solo puede delatar que esa cuenta no existe y convertiria la
+      pantalla en un comprobador de correos registrados. Test de integracion
+      que compara codigo y cuerpo de las dos respuestas. El endpoint de
+      better-auth 1.7 se llama requestPasswordReset, no forgetPassword: se
+      comprobo sobre la instancia real. El token va en la query de
+      /restablecer, asi que depende de #524 para no quedar en el access_log de
+      nginx. El correo no repite el destinatario en el cuerpo.
+      Fallo propio que conviene recordar: el primer test del cliente sustituia
+      globalThis.fetch y no lo restauraba. Los ficheros de bun test comparten
+      proceso, asi que el flujo OIDC de #515, que habla con un proveedor de
+      prueba real, se comia ese stub y /sign-in/social devolvia 404: 2 tests
+      ajenos en rojo solo en la suite completa. No se reproduce ejecutando los
+      ficheros por separado. Se adopta el patron que ya usa
+      http-api-client-signup.unit.test.ts: guardar el fetch original y
+      restaurarlo en afterEach.
   T-2026-11-04-16215488:
     date: 2026-11-04
     agent: "ingestas-y-migraciones + seguridad-privacidad-legal"
@@ -4541,6 +4597,54 @@ tasks:
       filtros, paginacion de 12 y editar o eliminar en la tarjeta con el
       ConfirmDialog accesible. Sin migracion: created_by sigue sin indice
       (riesgo anotado en docs/epics/epic-003/design.md).
+  T-2026-11-16-15015380:
+    date: 2026-11-16
+    agent: "seguridad-privacidad-legal + documentacion-y-roadmap"
+    task: "Abrir la épica 007 de protección de datos y ADR-0051 (#504)"
+    status: In Progress
+    related: ["#504", "#533", "#493", "#488", "#456", "#540", "ADR-0051", "ADR-0037", "ADR-0044"]
+    notes: >
+      Diseño sin código en docs/epics/epic-007-proteccion-de-datos/ con las
+      respuestas del INTEF del 03-nov y del 16-nov: base 6.1.e, aceptación que
+      no es consentimiento, primer acceso de importados y OIDC, enlaces a los
+      textos legales de procomun.intef.es, derechos en la sede, baja con
+      elección sobre los recursos y purga a los 30 días, visibilidad del perfil
+      (#533), miembros de comunidades (#493), inventario de cookies sin
+      Gravatar y registro de bajas minimizado. ADR-0051 Propuesto. Pendiente
+      del INTEF: menores, recursos tras la baja, aceptación de los importados
+      y conservación del registro de bajas.
+  T-2026-11-18-13275910:
+    date: 2026-11-18
+    agent: "seguridad-privacidad-legal + documentacion-y-roadmap"
+    task: "Atender la revisión de #577 (épica 007 y ADR-0051)"
+    status: In Progress
+    related: ["#577", "#578", "#504", "#493", "ADR-0051", "ADR-0050", "ADR-0044"]
+    notes: >
+      design.md §12: la baja solo desvincula la cuenta que publica y la
+      retirada de atribución es otra solicitud (RF-014, casos CA-1 a CA-6);
+      catálogo con el texto recuperable de cada versión aceptada (RF-003);
+      banner condicionado a la decisión sobre el contador de visitas (RF-011);
+      regla común con #578: el público ve el recuento y quién administra,
+      invitaciones a 14 días y borrado del correo y la solicitud en cualquier
+      cierre. Pendiente: URLs versionadas o copia autorizada (INTEF) y
+      consultas a la responsable legal.
+  T-2026-11-16-12092093:
+    date: 2026-11-16
+    agent: "backend-api-servicios + seguridad-privacidad-legal"
+    task: "Poner #551 al dia con main tras #488: hash heredado y log del restablecimiento"
+    status: Done
+    related: ["#551", "#531", "#488"]
+    notes: >
+      Conflicto en emailAndPassword de apps/api/src/auth/config.ts: se
+      conservan sendResetPassword y revokeSessionsOnPasswordReset (#551) y
+      password: legacyAwarePasswordOptions (#488). El restablecimiento escribe
+      con internalAdapter.updatePassword y el UPDATE condicional de #488 ya
+      no lo pisa (test de main). Test nuevo en
+      password-reset.integration.test.ts: tras restablecer, la contrasena
+      heredada da 401 y el hash deja de ser heredado. El fallo de envio del
+      correo de restablecimiento registraba el error entero (el de SMTP
+      puede llevar destinatario y respuesta del servidor); ahora solo
+      summarizeEmailError (clase, codigo, codigo SMTP), con test.
   T-2026-11-16-15172341:
     date: 2026-11-16
     agent: "backend-api-servicios + frontend-ux-accesibilidad"
@@ -4637,3 +4741,48 @@ tasks:
       toString y hasOwnProperty. Los demas mapas *_LABELS[...] del frontend
       (HeroIsland, ResourceEditorIsland, AdminReportsSection, los CRUD y
       EditarPageBase) quedan fuera del alcance de este PR.
+  T-2026-11-18-13292158:
+    date: 2026-11-18
+    agent: "seguridad-privacidad-legal + backend-api-servicios"
+    task: "Revision de #551: el token de recuperacion en la ruta no se tapaba en los logs"
+    status: Done
+    related: ["#551", "#531", "#524", "#536", "ADR-0007"]
+    notes: >
+      El enlace del correo es /api/auth/reset-password/<token>?callbackURL=...
+      (Better Auth valida y redirige a /restablecer?token=...). El token iba en
+      la ruta y llegaba entero al access_log de nginx (ruta y Referer) y a
+      api_access_logs. Se tapa como :token en redactAuditPath y en los map de
+      nginx.conf. Tests rojo -> verde en audit.unit.test.ts,
+      nginx-log-redaction.unit.test.ts (con %xx y Referer) y un test de
+      integracion que captura el enlace real de requestPasswordReset. Adenda
+      de ADR-0007 del 18-nov y docs/operaciones/operaciones.md.
+  T-2026-11-18-15224663:
+    date: 2026-11-18
+    agent: "seguridad-privacidad-legal + backend-api-servicios"
+    task: "Segunda revision de #551: el token de recuperacion en el error_log de nginx"
+    status: Done
+    related: ["#551", "#531", "ADR-0007"]
+    notes: >
+      El error_log de nginx no admite formato y en un 502 escribe la peticion
+      y el Referer enteros. El correo ya no lleva /api/auth/reset-password/
+      <token> sino el destino final /restablecer?token=... (directResetLink en
+      transport.ts), que nginx sirve sin proxy; el token vuelve a la API solo
+      en el cuerpo del POST. La pantalla sale con Referrer-Policy: no-referrer
+      (map sobre $request_uri y add_header del server; una location propia la
+      perdia por el try_files). Descartado error_log crit en una location: no
+      cubria el Referer. Tests rojo -> verde en transport.unit.test.ts,
+      password-reset.integration.test.ts y nginx-log-redaction.unit.test.ts;
+      comprobado con nginx:alpine. Adenda de ADR-0007 y operaciones.md.
+  T-2026-11-18-21590222:
+    date: 2026-11-18
+    agent: "frontend-ux-accesibilidad + qa-validacion"
+    task: "Corregir el fallo de Chromium al limpiar filtros en la PR #580"
+    status: Done
+    related: ["#580", "#530"]
+    notes: >
+      Al limpiar una búsqueda sin resultados, los contadores anteriores
+      desmontaban el panel y se perdía el foco. Se mantiene el panel durante
+      la recarga. El E2E crea su propio borrador, espera el resultado vacío
+      y comprueba la reapertura de resultados con el panel abierto y enfocado.
+      Validación local: ambos E2E en Chromium repetidos tres veces, 18 pruebas
+      unitarias, 180 pruebas de interfaz, lint y tipos.

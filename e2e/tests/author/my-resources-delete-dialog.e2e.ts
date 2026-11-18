@@ -35,7 +35,16 @@ test.describe("Author - Diálogo de borrado en «Mis recursos» (#580)", () => {
 		await createDraft(page, title);
 
 		await page.goto("/perfil");
+		const filtered = page.waitForResponse((response) => {
+			const url = new URL(response.url());
+			return (
+				url.pathname === "/api/v1/users/me/resources" &&
+				url.searchParams.get("q") === title &&
+				response.ok()
+			);
+		});
 		await page.getByLabel("Buscar en mis recursos").fill(title);
+		await filtered;
 		const trigger = page.getByRole("button", { name: `Eliminar ${title}` });
 		await expect(trigger).toBeVisible();
 		await trigger.click();
@@ -73,19 +82,34 @@ test.describe("Author - «Limpiar filtros» en «Mis recursos» (#580)", () => {
 		page,
 	}) => {
 		await loginAs(page, "author");
-		await page.goto("/perfil");
+		const title = `Borrador para limpiar filtros ${Date.now()}`;
+		const draftId = await createDraft(page, title);
+		try {
+			await page.goto("/perfil");
+			const resource = page.getByRole("heading", { name: title });
+			await expect(resource).toBeVisible();
 
-		const panel = page.locator("details.my-resources-filters");
-		const summary = panel.locator("summary");
-		await summary.click();
-		await panel.getByRole("combobox").first().selectOption({ index: 1 });
+			const panel = page.locator("details.my-resources-filters");
+			const summary = panel.locator("summary");
+			await summary.click();
+			await page
+				.getByLabel("Buscar en mis recursos")
+				.fill(`Sin coincidencias ${title}`);
+			await expect(
+				page.getByRole("heading", {
+					name: "Ningún recurso coincide con la búsqueda",
+				}),
+			).toBeVisible();
 
-		const clear = page.getByRole("button", { name: "Limpiar filtros" });
-		await clear.focus();
-		await page.keyboard.press("Enter");
+			const clear = panel.getByRole("button", { name: "Limpiar filtros" });
+			await clear.press("Enter");
 
-		await expect(clear).toHaveCount(0);
-		await expect(panel).toHaveAttribute("open", "");
-		await expect(summary).toBeFocused();
+			await expect(clear).toHaveCount(0);
+			await expect(resource).toBeVisible();
+			await expect(panel).toHaveAttribute("open", "");
+			await expect(summary).toBeFocused();
+		} finally {
+			await page.request.delete(`/api/admin/resources/${draftId}`);
+		}
 	});
 });
