@@ -922,9 +922,11 @@ describe("migración 0023_user_bio_to_profile", () => {
 				CREATE TABLE "user_profile" (user_id text PRIMARY KEY, locality text, about text,
 					created_at timestamp NOT NULL DEFAULT now(), updated_at timestamp NOT NULL DEFAULT now());
 				INSERT INTO "user" (id, bio) VALUES
-					('u1', 'Nueva 1'), ('u2', 'Nueva 2'), ('u3', '  '), ('u4', NULL), ('u5', 'Nueva 5');
+					('u1', 'Nueva 1'), ('u2', 'Nueva 2'), ('u3', '  '), ('u4', NULL), ('u5', 'Nueva 5'),
+					('u6', E'\\t\\n \\r\\n');
 				INSERT INTO "user_profile" (user_id, locality, about) VALUES
-					('u2', 'Burgos', 'Antiguo 2'), ('u3', NULL, 'Antiguo 3'), ('u5', 'Soria', NULL);`);
+					('u2', 'Burgos', 'Antiguo 2'), ('u3', NULL, 'Antiguo 3'), ('u5', 'Soria', NULL),
+					('u6', NULL, 'Antiguo 6');`);
 			await db.exec(migration);
 			await db.exec(migration);
 
@@ -945,6 +947,8 @@ describe("migración 0023_user_bio_to_profile", () => {
 				// sin marcar como editado: la administración no lo ve (#586).
 				{ user_id: "u3", locality: null, about: "Antiguo 3", edited: false },
 				{ user_id: "u5", locality: "Soria", about: "Nueva 5", edited: true },
+				// Tabuladores y saltos de línea tampoco cuentan como contenido (#586).
+				{ user_id: "u6", locality: null, about: "Antiguo 6", edited: false },
 			]);
 			const columns = await db.query<{ column_name: string }>(
 				"SELECT column_name FROM information_schema.columns WHERE table_name = 'user'",

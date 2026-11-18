@@ -9,7 +9,7 @@ DO $$ BEGIN
 			AND table_name = 'user' AND column_name = 'bio'
 	) THEN
 		INSERT INTO "user_profile" (user_id, about, about_edited_at)
-		SELECT id, bio, now() FROM "user" WHERE bio IS NOT NULL AND btrim(bio) <> ''
+		SELECT id, bio, now() FROM "user" WHERE bio ~ '\S'
 		ON CONFLICT (user_id) DO UPDATE SET about = EXCLUDED.about,
 			about_edited_at = EXCLUDED.about_edited_at, updated_at = now();
 		ALTER TABLE "user" DROP COLUMN "bio";
