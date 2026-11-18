@@ -4,8 +4,18 @@ import { eq } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/pglite";
 import * as schema from "../schema/index.ts";
 import { createTables } from "../setup.ts";
+import {
+	addResourceToCollection,
+	listCollectionResources,
+} from "./collection-resources.ts";
+import { createCollection } from "./collections.ts";
 import { getPublicAuthor } from "./public-authors.ts";
-import { createResource, deleteResource, listResources } from "./resources.ts";
+import {
+	createResource,
+	deleteResource,
+	getResourceBySlug,
+	listResources,
+} from "./resources.ts";
 import type { DrizzleDB } from "./shared.ts";
 
 let db: DrizzleDB;
@@ -115,5 +125,63 @@ describe("ficha pública de quien publica (#458)", () => {
 		});
 		expect(listed.total).toBe(1);
 		expect(listed.data).toHaveLength(1);
+	});
+});
+
+describe("cuenta creadora activa o dada de baja (#541)", () => {
+	test("listResources indica si la cuenta creadora sigue activa", async () => {
+		const active = await listResources(db, { createdBy: "publicadora" });
+		const gone = await listResources(db, { createdBy: "baja" });
+		expect(active.data.map((r) => r.createdByActive)).toEqual([true]);
+		expect(gone.data.map((r) => r.createdByActive)).toEqual([false]);
+	});
+
+	test("getResourceBySlug indica si la cuenta creadora sigue activa", async () => {
+		const [active] = (await listResources(db, { createdBy: "publicadora" }))
+			.data;
+		const [gone] = (await listResources(db, { createdBy: "baja" })).data;
+		if (!active || !gone) throw new Error("faltan los recursos de la semilla");
+		expect((await getResourceBySlug(db, active.slug))?.createdByActive).toBe(
+			true,
+		);
+		expect((await getResourceBySlug(db, gone.slug))?.createdByActive).toBe(
+			false,
+		);
+	});
+
+	test("un recurso sin cuenta creadora no tiene cuenta activa", async () => {
+		const orphan = await createResource(db, {
+			title: "Recurso importado sin cuenta",
+			description: "Descripción",
+			language: "es",
+			license: "cc-by",
+			resourceType: "documento",
+			editorialStatus: "published",
+		});
+		const found = await getResourceBySlug(db, orphan.slug);
+		expect(found?.createdBy).toBeNull();
+		expect(found?.createdByActive).toBe(false);
+		await deleteResource(db, orphan.id);
+	});
+
+	test("listCollectionResources indica si la cuenta creadora sigue activa", async () => {
+		const collection = await createCollection(db, {
+			title: "Colección con una baja",
+			description: "D",
+			curatorId: "publicadora",
+		});
+		const [active] = (await listResources(db, { createdBy: "publicadora" }))
+			.data;
+		const [gone] = (await listResources(db, { createdBy: "baja" })).data;
+		if (!active || !gone) throw new Error("faltan los recursos de la semilla");
+		await addResourceToCollection(db, collection.id, active.id, 1);
+		await addResourceToCollection(db, collection.id, gone.id, 2);
+		const items = await listCollectionResources(db, collection.id);
+		expect(items.map((item) => [item.createdBy, item.createdByActive])).toEqual(
+			[
+				["publicadora", true],
+				["baja", false],
+			],
+		);
 	});
 });
