@@ -112,6 +112,7 @@ export function AuthorProfileContent({
 									author: resource.author ?? null,
 									createdBy: resource.createdBy,
 									createdByName: resource.createdByName,
+									createdByActive: resource.createdByActive ?? null,
 									thumbnailUrl: resource.thumbnailUrl ?? null,
 									elpxPreview: resource.elpxPreview ?? null,
 									rating: resource.rating,

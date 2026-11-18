@@ -4556,6 +4556,24 @@ tasks:
       invitaciones a 14 días y borrado del correo y la solicitud en cualquier
       cierre. Pendiente: URLs versionadas o copia autorizada (INTEF) y
       consultas a la responsable legal.
+  T-2026-11-16-15172341:
+    date: 2026-11-16
+    agent: "backend-api-servicios + frontend-ux-accesibilidad"
+    task: "Sin enlace a la ficha de autor de una cuenta dada de baja (#541)"
+    status: Done
+    related: ["#541", "#487", "#458", "#504", "#577"]
+    notes: >
+      listResources, getResourceBySlug y listCollectionResources devuelven
+      createdByActive (la cuenta creadora existe y no tiene deleted_at). El
+      frontend enlaza a /autor/<id> solo si createdByActive no es false
+      (publisherProfileId en lib/author-links.ts): ResourceByline (tarjetas
+      del catalogo, colecciones, etiquetas, portada y ficha de autor) y la
+      ficha del recurso, que ya pintaba el nombre sin enlace para los no
+      publicados (#487). Se sigue mostrando el nombre de la cuenta: que nombre
+      se muestra tras la baja depende de #504 (propuesta de #577: la purga
+      pasa los recursos a una cuenta de sistema y el nombre sale de author).
+      Tests: public-authors.integration.test.ts (4 casos),
+      author-links.unit.test.ts y AuthorLinks.unit.test.tsx, en rojo antes.
   T-2026-11-16-15050452:
     date: 2026-11-16
     agent: "frontend-ux-accesibilidad"
