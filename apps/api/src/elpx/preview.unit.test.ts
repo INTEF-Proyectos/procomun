@@ -1,4 +1,5 @@
 import { describe, expect, test } from "bun:test";
+import { verifyThumbnailToken } from "../thumbnails/access.ts";
 import { buildElpxMap, buildElpxPreview } from "./preview.ts";
 import { verifyElpxPreviewToken } from "./preview-token.ts";
 
@@ -14,6 +15,7 @@ describe("elpx preview helpers", () => {
 			hash: "abc123",
 			previewUrl: "/api/v1/elpx/abc123/",
 			screenshotUrl: null,
+			thumbnailUrl: null,
 		});
 	});
 
@@ -29,6 +31,7 @@ describe("elpx preview helpers", () => {
 			hash: "abc123",
 			previewUrl: "/api/v1/elpx/abc123/",
 			screenshotUrl: "/api/v1/elpx/abc123/screenshot.png",
+			thumbnailUrl: null,
 		});
 	});
 
@@ -79,6 +82,36 @@ describe("miniaturas y estado editorial (#471, #483)", () => {
 	});
 });
 
+// #470: miniatura generada en el servidor para los paquetes sin imagen.
+describe("miniatura generada (#470)", () => {
+	const FILE = `${"b".repeat(64)}.jpg`;
+
+	test("añade la URL del almacén de miniaturas", () => {
+		expect(
+			buildElpxPreview({
+				hash: "abc123",
+				hasPreview: true,
+				thumbnailFile: FILE,
+			})?.thumbnailUrl,
+		).toBe(`/api/v1/thumbnails/${FILE}`);
+	});
+
+	test("no interpola un nombre que no es del almacén", () => {
+		for (const thumbnailFile of [
+			"../../etc/passwd",
+			"x.jpg",
+			`${"b".repeat(64)}.svg`,
+			"",
+			null,
+		]) {
+			expect(
+				buildElpxPreview({ hash: "abc123", hasPreview: true, thumbnailFile })
+					?.thumbnailUrl,
+			).toBeNull();
+		}
+	});
+});
+
 // Revisión de #471: la miniatura no depende del visor. Un paquete con
 // screenshot.png en la raíz y sin index.html tiene miniatura, pero no visor.
 describe("miniatura sin visor HTML (#471)", () => {
@@ -93,6 +126,8 @@ describe("miniatura sin visor HTML (#471)", () => {
 			hash: "abc123",
 			previewUrl: null,
 			screenshotUrl: "/api/v1/elpx/abc123/screenshot.png",
+			// #470 solo encola la captura si hay index.html: aquí no hay generada.
+			thumbnailUrl: null,
 		});
 	});
 
@@ -118,7 +153,57 @@ describe("miniatura sin visor HTML (#471)", () => {
 				hash: "abc123",
 				hasPreview: false,
 				hasScreenshot: false,
+				thumbnailFile: null,
 			}),
 		).toBeNull();
+	});
+
+	// #470: la miniatura generada tampoco depende de que haya visor.
+	test("una miniatura generada sin visor no ofrece previewUrl", () => {
+		const file = `${"c".repeat(64)}.jpg`;
+		expect(
+			buildElpxPreview({
+				hash: "abc123",
+				hasPreview: false,
+				hasScreenshot: false,
+				thumbnailFile: file,
+			}),
+		).toEqual({
+			hash: "abc123",
+			previewUrl: null,
+			screenshotUrl: null,
+			thumbnailUrl: `/api/v1/thumbnails/${file}`,
+		});
+	});
+});
+
+// Revisión de #481 (adenda 2026-11-03 de ADR-0046): la miniatura generada de
+// un recurso no publicado solo sale con un enlace firmado.
+describe("miniatura generada según el estado editorial (#481)", () => {
+	const FILE = `${"d".repeat(64)}.jpg`;
+	const elpx = { hash: "abc123", hasPreview: true, thumbnailFile: FILE };
+
+	test("publicado: la URL estable del almacén", () => {
+		expect(buildElpxPreview(elpx, "published")?.thumbnailUrl).toBe(
+			`/api/v1/thumbnails/${FILE}`,
+		);
+	});
+
+	for (const status of ["draft", "review", "archived", null]) {
+		test(`${status}: el enlace firmado del fichero, nunca la URL estable`, () => {
+			const url = buildElpxPreview(elpx, status)?.thumbnailUrl ?? "";
+			const match = /^\/api\/v1\/thumbnails\/signed\/([^/]+)\/(.+)$/.exec(url);
+			expect(match?.[2]).toBe(FILE);
+			expect(verifyThumbnailToken(FILE, match?.[1] ?? "")).toBe(true);
+		});
+	}
+
+	test("una miniatura generada sin visor de un borrador también se firma (#471)", () => {
+		const preview = buildElpxPreview(
+			{ hash: "abc123", hasPreview: false, thumbnailFile: FILE },
+			"draft",
+		);
+		expect(preview?.previewUrl).toBeNull();
+		expect(preview?.thumbnailUrl).toStartWith("/api/v1/thumbnails/signed/");
 	});
 });
