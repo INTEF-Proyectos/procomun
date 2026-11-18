@@ -179,6 +179,50 @@ describe("importLegacyUser", () => {
 		expect(await db.select().from(schema.userProfile)).toHaveLength(1);
 	});
 
+	// Revisión de #586: la 0023 crea una fila con solo la bio para una cuenta
+	// legacy sin perfil; reimportar completa lo vacío y conserva lo demás.
+	test("completa país y localidad de un perfil creado por la 0023 y conserva la bio", async () => {
+		const { readFile } = await import("node:fs/promises");
+		await pglite.exec(
+			'ALTER TABLE "user" ADD COLUMN bio TEXT; ALTER TABLE "user_profile" DROP COLUMN about_edited_at;',
+		);
+		await db.insert(schema.user).values({
+			id: "legacy-procomun:user:1",
+			email: "legacy@example.test",
+			role: "editor",
+		});
+		await pglite.exec(
+			`UPDATE "user" SET bio = 'Bio escrita en la nueva' WHERE id = 'legacy-procomun:user:1'`,
+		);
+		await pglite.exec(
+			await readFile(
+				new URL(
+					"../../migrations/0023_user_bio_to_profile.sql",
+					import.meta.url,
+				),
+				"utf8",
+			),
+		);
+
+		expect(await importLegacyUser(db, fullLegacy())).toMatchObject({
+			outcome: "skipped_existing_id",
+			completed: ["password", "profile"],
+		});
+		const [profile] = await db.select().from(schema.userProfile);
+		expect(profile).toMatchObject({
+			about: "Bio escrita en la nueva",
+			countryCode: "ES",
+			locality: "Burgos",
+			educationalCenter: "CEIP Ejemplo",
+		});
+		expect(profile?.aboutEditedAt).not.toBeNull();
+		// Segunda pasada: nada que completar.
+		expect(await importLegacyUser(db, fullLegacy())).toEqual({
+			outcome: "skipped_existing_id",
+			id: "legacy-procomun:user:1",
+		});
+	});
+
 	test("no añade el hash antiguo si la persona ya tiene otra contraseña", async () => {
 		await db.insert(schema.user).values({
 			id: "legacy-procomun:user:1",
