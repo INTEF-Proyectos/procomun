@@ -77,6 +77,8 @@ PK (`community_id`, `user_id`); índice por `user_id` para «Mis comunidades».
 ### `community_invitations`
 `id`, `community_id`, `email` (normalizado) o `user_id`, `role` (`member` por defecto; ver Q-4), `token_hash` (SHA-256; el token en claro solo va en el enlace), `status` (`pending` \| `accepted` \| `declined` \| `revoked` \| `expired`), `invited_by`, `expires_at`, `created_at`, `decided_at`. Al aceptarse, caducar o revocarse se borra el correo (minimización).
 
+> **Revisado el 2026-11-18 (#578):** las solicitudes se borran en cualquier cierre y el correo de las invitaciones también al rechazarlas. Ver «Revisión del 2026-11-18», R-3.
+
 ### `community_resources`
 `community_id`, `resource_id` FK `on delete cascade`, `added_by`, `added_at`. PK compuesta. No guarda orden: el contenido se lista por fecha o relevancia (las comunidades no son secuencias, a diferencia de los itinerarios).
 
@@ -152,7 +154,7 @@ Una cuenta bloqueada no actúa en comunidades. Si un AC está bloqueado, sigue c
 Errores: alias repetido (409), metadatos inválidos (400), aprobar algo que no está en `pending` (409), quien no es `admin` (403).
 
 ### Unirse
-- Pública: `POST …/membership` crea la membresía `member` al momento.
+- Pública: `POST …/membership` crea la membresía `member` al momento. **Provisional** hasta que se confirme en #493 (R-4).
 - Privada: el mismo `POST` crea una solicitud `pending` (409 si ya hay una). Los AC la ven en su panel; aceptar crea la membresía y cierra la solicitud en la misma transacción.
 
 ### Invitar
@@ -166,6 +168,8 @@ Errores: alias repetido (409), metadatos inválidos (400), aprobar algo que no e
 
 ### Quedarse sin administrador
 Borrar una cuenta borra sus membresías por cascada. Tras borrar una cuenta, el servicio de usuarios pasa a `draft` las comunidades publicadas que se han quedado sin administrador y lo registra en `activity_events`. Además, un comando de diagnóstico (`communities:check`, feature F1) lista cualquier comunidad publicada sin administrador.
+
+> **Revisado el 2026-11-18 (#578):** la baja actual es lógica (`softDeleteUser` conserva la fila y la membresía) y la purga de #577 llega a los 30 días. El cambio a `draft` tiene que ocurrir en la baja lógica, no en el borrado físico. Ver R-2.
 
 ## Contratos API (propuestos)
 
@@ -225,6 +229,8 @@ Reglas:
 - Lo que no se resuelve se guarda en `community_legacy_relations` y sale en el informe. Reimportar reintenta lo pendiente.
 - Una comunidad falla sola (registro inválido o error de base de datos) sin parar el lote; cada comunidad va en su propia transacción.
 - Idempotencia: por (`import_source`, `external_id`). Reimportar actualiza título, descripción y fechas, añade relaciones nuevas y no borra las añadidas a mano. No toca el alias, el estado cambiado a mano ni los administradores asignados a mano.
+
+> **Revisado el 2026-11-18 (#578):** estas reglas no impiden que una reimportación devuelva a alguien expulsado o restaure un rol degradado, y chocan con el flujo de estados en el caso 607. Las reglas que valen son las de R-1.
 - Sin administrador resuelto: `draft`, `created_by` nulo y aviso `no_admin` en el informe. Se lista en «Sin administrador» del panel.
 - Informe sin correos ni nombres (#543); los errores de base de datos pasan por `summarizeDbStepError`.
 
@@ -293,3 +299,74 @@ Resultado esperado con `Prueba_montar_comunidades.json` (depende de lo importado
 - Q-10: `metadata.communityAdminSupsStr` trae 25 correos en la 607 (tantos como miembros) y un nombre de usuario en la 654: ¿qué es?
 - Q-11: el exportador da los ODE y artículos por ID Drupal; ¿puede dar `idODE` y el ID de Elasticsearch, como los itinerarios de #573?
 - Q-12: faltan en la exportación imagen, áreas de conocimiento, contexto educativo y visitas.
+
+## Revisión del 2026-11-18 (#578)
+
+Ajustes tras la revisión de #578. Prevalecen sobre lo anterior donde lo contradigan; el texto previo se conserva para que quede la trazabilidad.
+
+### R-1. Reimportación: respetar lo decidido en la plataforma
+
+**Una sola regla de estado**: la importación solo decide el estado al **crear** la comunidad (`published` = 1 y administrador resuelto → `published`; si no, `draft`). Al reimportar una comunidad que ya existe, nunca cambia `status`. Coincide con el flujo de estados y con la propuesta de Q-7: un borrador que recibe administrador no se publica solo.
+
+**Relaciones ya aplicadas.** `community_legacy_relations` deja de guardar solo lo no resuelto y pasa a registrar todas las relaciones del JSON (`member`, `admin`, `ode`, `post`), cada una con un estado:
+
+| Estado | Significado |
+|---|---|
+| `pending` | No se pudo resolver (cuenta o recurso aún no importado). Se reintenta en cada reimportación |
+| `applied` | Se aplicó una vez. No se vuelve a aplicar aunque la membresía o el enlace ya no existan |
+
+Siguen sin guardarse correos ni nombres: solo IDs legacy y el ID interno resuelto.
+
+Reglas de la reimportación:
+
+1. Una relación `applied` no se vuelve a aplicar. Respeta así las expulsiones, los abandonos, los recursos desenlazados y las cuentas borradas después de la primera importación.
+2. Nunca cambia el rol de una membresía que ya existe. Respeta las degradaciones y los ascensos hechos en la plataforma.
+3. Solo intenta las relaciones `pending` y las que aparezcan nuevas en el JSON.
+4. Un administrador `pending` que se resuelve (caso 607) entra como administrador de la comunidad, pero la comunidad sigue en `draft`. El informe lo señala con el aviso `admin_resolved_draft` y la comunidad pasa de la lista «Sin administrador» a los borradores de su administrador, que la publica (o la publica un `admin`).
+
+Pruebas de integración que se añaden a F4:
+
+- Reimportar tras expulsar a un miembro importado: no vuelve.
+- Reimportar tras degradar a `member` a un administrador importado: sigue siendo `member`.
+- Reimportar tras abandonar la comunidad o desenlazar un recurso: no vuelve.
+- Caso 607: la primera importación deja `draft` sin administrador. Se importa después la cuenta del administrador y se reimporta: queda como administrador, la comunidad sigue en `draft` y aparece el aviso `admin_resolved_draft`.
+- Reimportar dos veces sin cambios: ninguna escritura.
+
+### R-2. Baja lógica del último administrador
+
+La baja actual (`softDeleteUser`) marca `deleted_at`, desactiva la cuenta, la banea y borra sus sesiones, pero conserva la fila de `user` y por tanto la membresía. Con la purga a los 30 días de #577, una comunidad podría seguir publicada todo ese tiempo sin nadie que la gestione.
+
+- **Cuándo deja de contar**: un administrador cuenta para la invariante mientras su cuenta no esté dada de baja (`user.deleted_at IS NULL`). Deja de contar en el momento de la baja lógica, no en la purga.
+- La invariante pasa a ser «publicada ⇒ al menos un administrador con cuenta no dada de baja». `communities:check` usa la misma condición.
+- **Misma transacción**: la baja lógica (la de administración que ya existe y la del propio usuario de #577) marca `deleted_at` y, en la misma transacción, bloquea las filas de las comunidades donde la cuenta es administradora. Las publicadas que se quedan sin administrador pasan a `draft` y lo registran en `activity_events`. Si algo falla, no se aplica ni la baja ni el cambio de estado. Hoy `softDeleteUser` hace dos escrituras sin transacción; hay que envolverlas.
+- La membresía se conserva hasta la purga, que la borra en cascada. La purga ya no cambia el estado de ninguna comunidad.
+- Si un `admin` deshace la baja dentro de los 30 días (#577), la persona recupera el rol, pero la comunidad sigue en `draft` hasta que alguien la publique, igual que en R-1.
+- **Pruebas**: baja lógica sin purga del único administrador → la comunidad pasa a `draft` y la fila de membresía sigue; baja de un administrador cuando hay otro → la comunidad sigue publicada; fallo forzado en el cambio de estado → la cuenta no queda dada de baja; deshacer la baja → sigue en `draft`.
+
+**Cuenta bloqueada (Q-8, revisada).** Bloquear (`is_active = false`, sin `deleted_at`) es distinto de dar de baja. En el Procomún antiguo, bloquear solo impide entrar y el contenido sigue igual (#504). Hay dos opciones:
+
+- **A (propuesta)**: el administrador bloqueado no puede actuar, pero sigue contando para la invariante. La comunidad sigue publicada y aparece en una lista «Con administración bloqueada» del panel para que un `admin` asigne a otra persona. Es lo más parecido al antiguo.
+- **B**: el bloqueo cuenta como una baja para la invariante. En la misma transacción del bloqueo, las comunidades publicadas que se quedan sin administrador activo pasan a `draft`.
+
+Hace falta decisión de negocio. Si se elige B, se aplican al bloqueo las mismas pruebas que a la baja.
+
+### R-3. Regla común con #577 (épica 007)
+
+**Propuesta pendiente de validar con negocio y con la responsable legal (DPD).** Se aplica igual en #577 (`design.md` §12.4 de la épica 007) y en #578:
+
+- **Visibilidad**: el público, también en las comunidades públicas, ve el número de miembros y el nombre para mostrar de quienes administran, para saber a quién pedir el ingreso. La lista nominal de miembros solo la ven los miembros, los administradores de la comunidad y los `admin`. El correo no se muestra nunca. Al aceptar el rol de administrador se avisa de que su nombre se verá en la ficha.
+- **Invitaciones**: caducan a los **14 días**.
+- **Correo de la invitación**: se borra en cualquier estado de cierre (`accepted`, `declined`, `expired` o `revoked`), junto con `token_hash`. La fila queda sin correo, con el estado y las fechas. Las caducadas las limpia el proceso programado de la purga de #577.
+- **Solicitudes de ingreso**: `community_join_requests` solo guarda solicitudes pendientes. Al aceptar, rechazar o retirar la solicitud se borra la fila, con su mensaje, en la misma transacción. Si se acepta, se crea la pertenencia. La decisión queda en `activity_events` sin el mensaje. Así desaparecen `accepted`, `rejected` y `cancelled` del modelo y la contradicción con el apartado «Datos personales».
+- El contador de visitas de las comunidades (RF-026) depende de la misma decisión que el de recursos en #577 (§12.3 de la épica 007).
+
+**Pruebas**: un test de integración por cada estado de cierre de la invitación (aceptada, rechazada, caducada y revocada) que compruebe que no quedan ni el correo ni el hash del token. Otro por cada cierre de la solicitud (aceptada, rechazada y retirada) que compruebe que no queda la fila ni el mensaje.
+
+### R-4. Incorporación directa a las comunidades públicas: provisional
+
+RF-014 (unirse sin aprobación a una pública, como en el antiguo) está **pendiente de confirmar** en [#493](https://github.com/INTEF-Proyectos/procomun/issues/493#issuecomment-6920285810). Hasta que haya respuesta se trata como provisional en los requisitos, en la ADR-0050 y en la validación. Si la respuesta es que también necesitan aprobación, las públicas usan el mismo flujo de solicitud que las privadas (RF-015): `POST …/membership` crea una solicitud y el modelo no cambia.
+
+### Preguntas abiertas que se añaden o cambian (2026-11-18)
+- Q-8 (revisada): cuenta bloqueada de un administrador, opción A o B de R-2.
+- Q-13: ¿se confirma la incorporación directa a las comunidades públicas (R-4)?
+- Q-14: ¿se valida con negocio y con la responsable legal la regla común de R-3 (visibilidad de quienes administran, 14 días y borrado al cerrar)?

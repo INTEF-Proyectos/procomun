@@ -44,7 +44,7 @@ Recuperar las comunidades del Procomún antiguo, sin funciones que no existían,
 
 ### Ficha de la comunidad
 - RF-005: la ficha muestra los nueve metadatos de #493: título, fecha, usuario creador, imagen, texto, etiquetas, áreas de conocimiento, contexto educativo y número de visitas.
-- RF-006: la ficha muestra el número de miembros y de recursos, y los administradores.
+- RF-006: la ficha muestra el número de miembros y de recursos, y el nombre para mostrar de los administradores. La lista de miembros no se muestra al público (regla común con #577, `design.md` R-3, pendiente de validar con negocio y la responsable legal).
 - RF-007: en una comunidad privada, quien no es miembro ve la información descriptiva (RF-005 y RF-006) y la opción de solicitar el ingreso, pero no el contenido interno (ver Q-1 en `design.md`).
 - RF-008: el contenido de la comunidad es la lista de recursos y artículos enlazados que estén publicados, con buscador interno y filtro por tipo de recurso con su recuento.
 - RF-009: las restricciones de acceso se aplican en el servidor, no solo ocultando elementos de la interfaz.
@@ -56,9 +56,9 @@ Recuperar las comunidades del Procomún antiguo, sin funciones que no existían,
 - RF-013: no se puede activar una comunidad sin aprobación, tampoco con llamadas directas a la API.
 
 ### Membresía
-- RF-014: en una comunidad pública, un usuario autenticado se une directamente (comportamiento del Procomún antiguo).
-- RF-015: en una comunidad privada, un usuario autenticado solicita el ingreso; un administrador de la comunidad, o un `admin` de la plataforma, lo acepta o lo rechaza.
-- RF-016: un administrador de la comunidad, o un `admin` de la plataforma, invita a una persona; la invitación se acepta o se rechaza y caduca.
+- RF-014: en una comunidad pública, un usuario autenticado se une directamente (comportamiento del Procomún antiguo). **Provisional**: pendiente de confirmar en #493 (Q-13, `design.md` R-4). Si se pide aprobación, las públicas siguen el flujo de RF-015.
+- RF-015: en una comunidad privada, un usuario autenticado solicita el ingreso; un administrador de la comunidad, o un `admin` de la plataforma, lo acepta o lo rechaza. Al cerrarse (aceptada, rechazada o retirada), la solicitud se borra con su mensaje (`design.md` R-3).
+- RF-016: un administrador de la comunidad, o un `admin` de la plataforma, invita a una persona; la invitación se acepta o se rechaza y caduca a los 14 días. El correo se borra en cualquier estado de cierre: aceptada, rechazada, caducada o revocada (`design.md` R-3, regla común con #577 pendiente de validar).
 - RF-017: un administrador de la comunidad nombra y retira administradores y expulsa miembros. No se puede quitar ni expulsar al último administrador de una comunidad publicada.
 - RF-018: un miembro puede abandonar la comunidad. El último administrador no puede hacerlo sin nombrar antes a otro.
 - RF-019: los roles de comunidad (`admin`, `member`) no cambian los roles globales de la plataforma.
@@ -70,7 +70,7 @@ Recuperar las comunidades del Procomún antiguo, sin funciones que no existían,
 
 ### Estados y administrador obligatorio
 - RF-023: los estados son `pending`, `rejected`, `draft` y `published`. La modalidad (`public`/`private`) es independiente del estado.
-- RF-024: una comunidad sin administrador queda o pasa a `draft`. No se puede publicar sin al menos un administrador.
+- RF-024: una comunidad sin administrador queda o pasa a `draft`. No se puede publicar sin al menos un administrador. Un administrador deja de contar en cuanto su cuenta se da de baja (baja lógica, `deleted_at`), sin esperar a la purga, y el cambio a `draft` se hace en la misma transacción que la baja (`design.md` R-2). El caso de la cuenta bloqueada depende de Q-8.
 - RF-025: un `admin` de la plataforma puede asignar administradores a cualquier comunidad, despublicarla y publicarla si tiene administrador.
 
 ### Visitas
@@ -84,6 +84,7 @@ Recuperar las comunidades del Procomún antiguo, sin funciones que no existían,
 - RF-031: asocia miembros, administradores, recursos y artículos ya importados, y registra uno a uno los que no encuentra, sin abortar la comunidad ni el lote.
 - RF-032: sin administrador resuelto, la comunidad queda en `draft` (D5), aunque `published` sea 1.
 - RF-033: es idempotente: reimportar no duplica comunidades ni relaciones.
+- RF-037: reimportar respeta lo decidido en la plataforma: no cambia el estado de una comunidad ya importada, no vuelve a añadir miembros expulsados o que se fueron ni recursos desenlazados, y no cambia el rol de una membresía existente. Un administrador que aparece después (caso 607) entra como administrador y la comunidad sigue en `draft` (`design.md` R-1).
 - RF-034: genera un informe por comunidad (creada, actualizada, sin cambios o fallida; miembros, administradores, recursos y artículos asociados y no resueltos; advertencias y errores) con detalle suficiente para reintentar.
 - RF-035: admite `--dry-run`, `--limit`, `--only <id>` y `--report-dir`, como los demás importadores legacy.
 - RF-036: se ejecuta a mano; no hay importación programada.

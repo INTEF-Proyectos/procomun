@@ -54,14 +54,15 @@ El modelo:
 1. `communities` con los nueve metadatos de #493 más los campos técnicos justificados en el diseño: `slug`, `visibility` (`public`/`private`), `status` (`pending`/`rejected`/`draft`/`published`), datos de revisión y trazabilidad legacy (`import_source`, `external_id`, `legacy_search_id`, `legacy_urls`).
 2. Modalidad y estado son independientes: «privada» no es «no publicada».
 3. `community_members` con rol de comunidad `admin` o `member`, independiente de los roles globales. Solo el `admin` global actúa sobre cualquier comunidad.
-4. `community_join_requests` y `community_invitations` para el acceso a las privadas; las públicas se unen al momento.
+4. `community_join_requests` y `community_invitations` para el acceso a las privadas; las públicas se unen al momento (**provisional**, pendiente de confirmar en #493; si se pide aprobación, usan el mismo flujo de solicitud). Las invitaciones caducan a los 14 días. El correo de la invitación y la solicitud con su mensaje se borran en cualquier estado de cierre.
 5. `community_resources` enlaza recursos publicados, artículos incluidos (son recursos de tipo «Artículo» desde #517). Enlazar no cambia la visibilidad ni el estado del recurso.
-6. Invariante: una comunidad publicada tiene al menos un administrador. Sin él, `draft`. Lo garantiza el servicio en transacción, con comprobación de diagnóstico.
+6. Invariante: una comunidad publicada tiene al menos un administrador con cuenta no dada de baja. Sin él, `draft`. Lo garantiza el servicio en transacción, con comprobación de diagnóstico. La baja lógica de una cuenta pasa a `draft`, en la misma transacción, las comunidades que se quedan sin administrador; no se espera a la purga. Qué pasa con una cuenta bloqueada depende de Q-8.
 7. La creación pasa por `pending` y solo un `admin` la aprueba; al aprobar, el creador es su primer administrador.
 8. Etiquetas, áreas, contexto educativo y visitas con tablas de unión a las taxonomías existentes.
-9. Importador `import:legacy-communities` de ejecución manual, idempotente por (`import_source`, `external_id`) y con las relaciones no resueltas en `community_legacy_relations`.
+9. Importador `import:legacy-communities` de ejecución manual, idempotente por (`import_source`, `external_id`). `community_legacy_relations` registra cada relación del JSON como pendiente o aplicada. Reimportar no vuelve a aplicar las ya aplicadas, no cambia roles existentes y no cambia el estado de una comunidad ya importada: un administrador que aparece después entra, pero la comunidad sigue en borrador.
+10. Datos personales, regla común con ADR-0051 (#577) y pendiente de validar con negocio y la responsable legal: el público ve el número de miembros y el nombre de quienes administran; la lista de miembros, solo los miembros, sus administradores y los `admin`.
 
-Detalle en `docs/epics/epic-006-comunidades/design.md`.
+Detalle en `docs/epics/epic-006-comunidades/design.md`. Revisión del 2026-11-18 (#578): puntos 4, 6, 9 y 10; detalle en el apartado «Revisión del 2026-11-18» del diseño.
 
 ## Consecuencias
 
@@ -82,4 +83,4 @@ Detalle en `docs/epics/epic-006-comunidades/design.md`.
 * Features F1 (modelo y API), F2 (interfaz), F3 (solicitudes e invitaciones) y F4 (importador) en `docs/epics/epic-006-comunidades/tasks.md`.
 * Migración con el siguiente número libre al implementar; revisar antes los PR abiertos.
 * Al implementar F1, adenda fechada en ADR-0008 con las funciones de autorización de comunidad.
-* Esta ADR pasa a «Aceptado» cuando INTEF responda las preguntas abiertas del diseño (Q-1 a Q-12), o se actualiza con lo que respondan.
+* Esta ADR pasa a «Aceptado» cuando INTEF responda las preguntas abiertas del diseño (Q-1 a Q-14), o se actualiza con lo que respondan.

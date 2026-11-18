@@ -59,3 +59,13 @@ Depende de F1, de #488 (usuarios), #517 (artículos) y de Q-11 (correspondencia 
 - [ ] Denuncias de comunidades (fuera de alcance; Q-5).
 - [ ] Comunidades en la búsqueda general y faceta «comunidad» en el catálogo.
 - [ ] Redirecciones desde las URL antiguas (`/comunidades/<id>`) con `legacy_urls`.
+
+## Revisión de #578 — 2026-11-18
+- [x] Reimportación que respeta expulsiones, degradaciones, abandonos y enlaces quitados, y regla única de estado para el caso 607 (`design.md` R-1, RF-037).
+- [x] Baja lógica del último administrador: deja de contar en la baja, no en la purga, y el cambio a `draft` va en la misma transacción (`design.md` R-2, RF-024). Q-8 revisada con las opciones para la cuenta bloqueada.
+- [x] Regla común con #577: el público ve el recuento y quién administra, invitaciones a 14 días y borrado del correo y de la solicitud en cualquier cierre (`design.md` R-3). Propuesta pendiente de validar con negocio y la responsable legal.
+- [x] Incorporación directa a las públicas marcada como provisional en requisitos, ADR-0050 y validación (`design.md` R-4).
+- [ ] Resolver Q-8, Q-13 y Q-14 con negocio (y Q-14 con la responsable legal).
+- [ ] F1: envolver `softDeleteUser` en una transacción que también pase a `draft` las comunidades sin administrador, con sus pruebas.
+- [ ] F3: borrado del correo y del token en cada estado de cierre de las invitaciones, y de la solicitud al cerrarse, con sus pruebas.
+- [ ] F4: `community_legacy_relations` con estado `pending`/`applied` y pruebas de reimportación de R-1.

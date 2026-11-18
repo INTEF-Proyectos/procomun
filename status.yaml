@@ -4542,6 +4542,21 @@ tasks:
       jacoboAlcantara del 2026-11-16 y deja doce preguntas abiertas (Q-1 a
       Q-12), entre ellas qué ve un no miembro de una privada, si los miembros
       enlazan recursos y la correspondencia de IDs Drupal de ODE y artículos.
+  T-2026-11-18-13314794:
+    date: 2026-11-18
+    agent: "arquitectura-solucion + seguridad-privacidad-legal + documentacion-y-roadmap"
+    task: "Atender la revisión de #578 (épica 006 y ADR-0050)"
+    status: In Progress
+    related: ["#578", "#577", "#493", "#495", "#504", "ADR-0050", "ADR-0051"]
+    notes: >
+      Apartado «Revisión del 2026-11-18» del diseño: R-1 reimportación que
+      respeta expulsiones, degradaciones y el estado (caso 607 sigue en
+      draft); R-2 la baja lógica del último administrador pasa la comunidad a
+      draft en la misma transacción y Q-8 revisada para la cuenta bloqueada;
+      R-3 regla común con #577 (recuento y administradores públicos,
+      invitaciones a 14 días, correo y solicitud borrados en cualquier
+      cierre); R-4 unirse sin aprobación a una pública, provisional.
+      Pendiente: Q-8, Q-13 y Q-14.
   T-2026-11-16-12204258:
     date: 2026-11-16
     agent: "backend-api-servicios"
