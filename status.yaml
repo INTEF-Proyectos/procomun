@@ -4543,6 +4543,39 @@ tasks:
       pasa los recursos a una cuenta de sistema y el nombre sale de author).
       Tests: public-authors.integration.test.ts (4 casos),
       author-links.unit.test.ts y AuthorLinks.unit.test.tsx, en rojo antes.
+  T-2026-11-16-15050452:
+    date: 2026-11-16
+    agent: "frontend-ux-accesibilidad"
+    task: "Los mapas de etiquetas del frontend solo usan sus claves propias (#576)"
+    status: Done
+    related: ["#576", "#545"]
+    notes: >
+      Nueva utilidad labelFor(map, key, fallback) en
+      apps/frontend/src/lib/labels.ts: solo usa las claves propias del mapa
+      (Object.hasOwn), asi que constructor, toString o __proto__ dan el
+      respaldo y no una funcion del prototipo. Se aplica en
+      AdminReportsSection (REASON_LABELS), CollectionsCrudIsland y
+      ResourcesTableIsland (STATUS_LABELS), TaxonomyCrudIsland
+      (TAXONOMY_LABELS), ResourceEditorIsland (STEP_LABELS y
+      TRANSITION_LABELS), EditarPageBase (STATUS_LABELS) y PublicNavIsland
+      (LOCALE_LABELS). HeroIsland usa claves fijas y no cambia. Test:
+      labels.unit.test.ts (claves heredadas en rojo con map[key] ?? fallback,
+      verde con labelFor).
+  T-2026-11-16-15005986:
+    date: 2026-11-16
+    agent: "ingestas-y-migraciones + seguridad-privacidad-legal"
+    task: "import:legacy-procomun --fix-language sin el error de la base de datos en el informe (#572)"
+    status: Done
+    related: ["#572", "#543", "#488"]
+    notes: >
+      runFixLegacyLanguage copiaba err.message al informe y a la consola; el
+      error de Drizzle lleva la consulta y sus parametros. Ahora pasa por
+      summarizeDbStepError (@procomun/db/db-errors) y formatImportError, como
+      --fix-published y la importacion. El registro de error lleva code,
+      message y sqlState; el JSON ilegible queda como invalid_record. Test:
+      "--fix-language tampoco copia el error de la base de datos (#572)" en
+      import-legacy-procomun.unit.test.ts, con un error real de Drizzle sobre
+      PGlite que lleva un correo en los parametros (rojo antes, verde despues).
   T-2026-11-16-12204258:
     date: 2026-11-16
     agent: "backend-api-servicios"
