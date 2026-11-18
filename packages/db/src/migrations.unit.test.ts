@@ -553,8 +553,6 @@ describe("migración 0016_resource_language_nullable", () => {
 // Issue #456: perfil migrado del Procomún anterior. Era la 0017, pero la 0018
 // de #471 llegó antes a main: pasa a 0019 para ir detrás con un `when` mayor.
 describe("migración 0019_user_profile", () => {
-	// Era la última hasta la 0022 de #432, que va detrás.
-	test("va detrás de las 0012–0018 en el journal", async () => {
 	// Era la última; con #470 detrás van las de la cola de miniaturas (0020 y
 	// 0021), así que se comprueba que va detrás de todo lo anterior a ellas.
 	test("va detrás de todas las anteriores, hasta la 0018", async () => {
@@ -568,7 +566,6 @@ describe("migración 0019_user_profile", () => {
 		const previous = journal.entries.filter(
 			(item) => item.tag < "0019_user_profile",
 		);
-		expect(entry?.when ?? 0).toBeGreaterThan(
 		expect(entry?.when).toBeGreaterThan(
 			Math.max(...previous.map((item) => item.when)),
 		);
@@ -617,69 +614,6 @@ describe("journal combinado de areas y miniaturas (#471)", () => {
 		// propio idx y su propio when, y que 0014 se conserva.
 		expect(screenshots?.idx ?? -1).toBeGreaterThan(areas?.idx ?? 0);
 		expect(screenshots?.when ?? 0).toBeGreaterThan(areas?.when ?? 0);
-		// Detras va la 0019_user_profile de #488, que se mezclo despues (y,
-		// desde #432, la 0022 de las colecciones importadas).
-		const tags = journal.entries.map((entry) => entry.tag);
-		expect(tags.indexOf("0019_user_profile")).toBeGreaterThan(
-			tags.indexOf("0018_elpx_has_screenshot"),
-		);
-	});
-});
-
-// Issue #432: los itinerarios del Procomún antiguo se importan como colecciones.
-// La clave de importación es (import_source, external_id), como en resources.
-// #512 tiene reservadas la 0020 y la 0021: esta es la 0022.
-describe("migración 0022_collections_legacy_import", () => {
-	const OLD_COLLECTIONS = `CREATE TABLE "collections" (
-		id TEXT PRIMARY KEY,
-		slug VARCHAR(512) NOT NULL UNIQUE,
-		title TEXT NOT NULL
-	)`;
-	const COLUMNS_QUERY = `SELECT column_name FROM information_schema.columns
-		WHERE table_name = 'collections'
-		AND column_name IN ('import_source', 'external_id', 'published_at')
-		ORDER BY column_name`;
-	const insert = (id: string, externalId: string | null) =>
-		`INSERT INTO "collections" (id, slug, title, import_source, external_id)
-		VALUES ('${id}', '${id}', 'T', 'legacy-procomun', ${externalId ? `'${externalId}'` : "NULL"})`;
-
-	test("va la última en el journal, con un when mayor que el de 0019", async () => {
-		const journal = JSON.parse(
-			await readFile(path.join(migrationsDir, "meta/_journal.json"), "utf8"),
-		) as { entries: Array<{ idx: number; tag: string; when: number }> };
-		const last = journal.entries.at(-1);
-		expect(last?.tag).toBe("0022_collections_legacy_import");
-		expect(last?.idx).toBe(journal.entries.length - 1);
-		expect(last?.when ?? 0).toBeGreaterThan(1793500000000);
-	});
-
-	async function assertSchema(db: PGlite) {
-		expect((await db.query(COLUMNS_QUERY)).rows).toEqual([
-			{ column_name: "external_id" },
-			{ column_name: "import_source" },
-			{ column_name: "published_at" },
-		]);
-		await db.exec(insert("c1", "it-1"));
-		// Dos colecciones con la misma clave de importación no pueden existir.
-		await expect(db.exec(insert("c2", "it-1"))).rejects.toThrow();
-		// Las que no vienen de una importación no se restringen entre sí.
-		await db.exec(insert("c3", null));
-		await db.exec(insert("c4", null));
-	}
-
-	test("añade las columnas y el índice único parcial, y se puede aplicar dos veces", async () => {
-		const migration = (
-			await readFile(
-				path.join(migrationsDir, "0022_collections_legacy_import.sql"),
-				"utf8",
-			)
-		).replaceAll("--> statement-breakpoint", "");
-		const db = new PGlite();
-		try {
-			await db.exec(OLD_COLLECTIONS);
-			await db.exec(migration);
-			await db.exec(migration);
-			await assertSchema(db);
 		// Ya no es la ultima: detras van la 0019_user_profile de #488 y las de
 		// la cola de miniaturas de #470.
 	});
@@ -764,40 +698,6 @@ describe("migración 0020_elpx_thumbnail_queue", () => {
 			await db.close();
 		}
 	});
-
-	test("createTables deja el mismo esquema en una base nueva y en una previa", async () => {
-		const { createTables } = await import("./setup.ts");
-		const fresh = new PGlite();
-		try {
-			await createTables(fresh);
-			await fresh.exec(
-				`INSERT INTO "user" (id, email, name) VALUES ('u1', 'u1@ejemplo.test', 'U')`,
-			);
-			expect((await fresh.query(COLUMNS_QUERY)).rows).toHaveLength(3);
-			const insertWithCurator = (id: string, externalId: string) =>
-				`INSERT INTO "collections" (id, slug, title, description, curator_id, import_source, external_id)
-				VALUES ('${id}', '${id}', 'T', 'D', 'u1', 'legacy-procomun', '${externalId}')`;
-			await fresh.exec(insertWithCurator("c1", "it-1"));
-			await expect(
-				fresh.exec(insertWithCurator("c2", "it-1")),
-			).rejects.toThrow();
-		} finally {
-			await fresh.close();
-		}
-
-		const previous = new PGlite();
-		try {
-			await previous.exec(OLD_COLLECTIONS);
-			for (const statement of SCHEMA_STATEMENTS.filter(
-				(s) =>
-					/collections/i.test(s) &&
-					/import_source|external_id|published_at/.test(s),
-			)) {
-				await previous.exec(statement);
-			}
-			await assertSchema(previous);
-		} finally {
-			await previous.close();
 });
 
 // Revisión de #481 (adenda 2026-11-03 de ADR-0046): la ruta de miniaturas
@@ -987,6 +887,102 @@ describe("actualización con el migrador de drizzle (#512)", () => {
 			);
 		} finally {
 			await db.close();
+		}
+	});
+});
+
+// Issue #432: los itinerarios del Procomún antiguo se importan como colecciones.
+// La clave de importación es (import_source, external_id), como en resources.
+// #512 tiene reservadas la 0020 y la 0021: esta es la 0022.
+describe("migración 0022_collections_legacy_import", () => {
+	const OLD_COLLECTIONS = `CREATE TABLE "collections" (
+		id TEXT PRIMARY KEY,
+		slug VARCHAR(512) NOT NULL UNIQUE,
+		title TEXT NOT NULL
+	)`;
+	const COLUMNS_QUERY = `SELECT column_name FROM information_schema.columns
+		WHERE table_name = 'collections'
+		AND column_name IN ('import_source', 'external_id', 'published_at')
+		ORDER BY column_name`;
+	const insert = (id: string, externalId: string | null) =>
+		`INSERT INTO "collections" (id, slug, title, import_source, external_id)
+		VALUES ('${id}', '${id}', 'T', 'legacy-procomun', ${externalId ? `'${externalId}'` : "NULL"})`;
+
+	test("va la última en el journal, con un when mayor que el de 0019", async () => {
+		const journal = JSON.parse(
+			await readFile(path.join(migrationsDir, "meta/_journal.json"), "utf8"),
+		) as { entries: Array<{ idx: number; tag: string; when: number }> };
+		const last = journal.entries.at(-1);
+		expect(last?.tag).toBe("0022_collections_legacy_import");
+		expect(last?.idx).toBe(journal.entries.length - 1);
+		expect(last?.when ?? 0).toBeGreaterThan(1793500000000);
+	});
+
+	async function assertSchema(db: PGlite) {
+		expect((await db.query(COLUMNS_QUERY)).rows).toEqual([
+			{ column_name: "external_id" },
+			{ column_name: "import_source" },
+			{ column_name: "published_at" },
+		]);
+		await db.exec(insert("c1", "it-1"));
+		// Dos colecciones con la misma clave de importación no pueden existir.
+		await expect(db.exec(insert("c2", "it-1"))).rejects.toThrow();
+		// Las que no vienen de una importación no se restringen entre sí.
+		await db.exec(insert("c3", null));
+		await db.exec(insert("c4", null));
+	}
+
+	test("añade las columnas y el índice único parcial, y se puede aplicar dos veces", async () => {
+		const migration = (
+			await readFile(
+				path.join(migrationsDir, "0022_collections_legacy_import.sql"),
+				"utf8",
+			)
+		).replaceAll("--> statement-breakpoint", "");
+		const db = new PGlite();
+		try {
+			await db.exec(OLD_COLLECTIONS);
+			await db.exec(migration);
+			await db.exec(migration);
+			await assertSchema(db);
+		} finally {
+			await db.close();
+		}
+	});
+
+	test("createTables deja el mismo esquema en una base nueva y en una previa", async () => {
+		const { createTables } = await import("./setup.ts");
+		const fresh = new PGlite();
+		try {
+			await createTables(fresh);
+			await fresh.exec(
+				`INSERT INTO "user" (id, email, name) VALUES ('u1', 'u1@ejemplo.test', 'U')`,
+			);
+			expect((await fresh.query(COLUMNS_QUERY)).rows).toHaveLength(3);
+			const insertWithCurator = (id: string, externalId: string) =>
+				`INSERT INTO "collections" (id, slug, title, description, curator_id, import_source, external_id)
+				VALUES ('${id}', '${id}', 'T', 'D', 'u1', 'legacy-procomun', '${externalId}')`;
+			await fresh.exec(insertWithCurator("c1", "it-1"));
+			await expect(
+				fresh.exec(insertWithCurator("c2", "it-1")),
+			).rejects.toThrow();
+		} finally {
+			await fresh.close();
+		}
+
+		const previous = new PGlite();
+		try {
+			await previous.exec(OLD_COLLECTIONS);
+			for (const statement of SCHEMA_STATEMENTS.filter(
+				(s) =>
+					/collections/i.test(s) &&
+					/import_source|external_id|published_at/.test(s),
+			)) {
+				await previous.exec(statement);
+			}
+			await assertSchema(previous);
+		} finally {
+			await previous.close();
 		}
 	});
 });
