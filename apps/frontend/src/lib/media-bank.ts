@@ -3,14 +3,16 @@
  * `/api/v1/config` (`MEDIA_BANK_URL`); si falta, no se muestra el enlace.
  */
 
-/** Devuelve la URL solo si es http(s) absoluta; si no, `null`. */
+/**
+ * Devuelve la URL normalizada solo si empieza por `http://` o `https://`; si
+ * no, `null`. `new URL` acepta `https:banco.example.org` sin doble barra.
+ */
 export function safeMediaBankUrl(
 	value: string | null | undefined,
 ): string | null {
-	if (!value) return null;
+	if (!value || !/^https?:\/\//i.test(value)) return null;
 	try {
-		const { protocol } = new URL(value);
-		return protocol === "http:" || protocol === "https:" ? value : null;
+		return new URL(value).href;
 	} catch {
 		return null;
 	}

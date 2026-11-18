@@ -30,4 +30,16 @@ describe("resolveMediaBankUrl (#569)", () => {
 			expect(resolveMediaBankUrl({ MEDIA_BANK_URL: value })).toBeNull();
 		}
 	});
+
+	test("exige la doble barra y devuelve la URL normalizada", () => {
+		for (const value of [
+			"https:banco.example.org",
+			"http:/banco.example.org",
+		]) {
+			expect(resolveMediaBankUrl({ MEDIA_BANK_URL: value })).toBeNull();
+		}
+		expect(
+			resolveMediaBankUrl({ MEDIA_BANK_URL: "HTTPS://Banco.Example.org" }),
+		).toBe("https://banco.example.org/");
+	});
 });

@@ -22,6 +22,14 @@ describe("URL del banco multimedia (#569)", () => {
 		expect(safeMediaBankUrl(null)).toBeNull();
 	});
 
+	test("exige la doble barra y devuelve la URL normalizada", () => {
+		expect(safeMediaBankUrl("https:banco.example.org")).toBeNull();
+		expect(safeMediaBankUrl("http:/banco.example.org")).toBeNull();
+		expect(safeMediaBankUrl("HTTPS://Banco.Example.org")).toBe(
+			"https://banco.example.org/",
+		);
+	});
+
 	test("lee la URL de /api/v1/config una sola vez", async () => {
 		let calls = 0;
 		const getConfig = async () => {
