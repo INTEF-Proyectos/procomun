@@ -235,3 +235,28 @@ describe("redactAuditPath: otras URL con permiso en la ruta", () => {
 		}
 	});
 });
+
+// Revisión de #551: el enlace del correo de recuperación lleva el token en la
+// ruta (/api/auth/reset-password/<token>?callbackURL=…). Better Auth lo valida
+// y redirige a /restablecer?token=…, pero esa primera petición pasa por aquí.
+describe("redactAuditPath: enlace de recuperación de contraseña (#551)", () => {
+	const token = "Xy7kQ2mN9pR4sT6vW8zA1bC3";
+
+	test("tapa el token de la ruta", () => {
+		expect(redactAuditPath(`/api/auth/reset-password/${token}`)).toBe(
+			"/api/auth/reset-password/:token",
+		);
+		expect(redactAuditPath(`/API/Auth/Reset-Password/${token}`)).toBe(
+			"/API/Auth/Reset-Password/:token",
+		);
+	});
+
+	test("deja igual las rutas de recuperación que no llevan token", () => {
+		for (const path of [
+			"/api/auth/reset-password",
+			"/api/auth/request-password-reset",
+		]) {
+			expect(redactAuditPath(path)).toBe(path);
+		}
+	});
+});
