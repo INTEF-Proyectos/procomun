@@ -53,13 +53,29 @@ export function allowsLogEmailTransport(env: RuntimeEnv): boolean {
 
 /** Development/test transport. Never selected automatically outside dev/test/CI. */
 export class LogEmailTransport implements EmailPort {
-	constructor(private readonly log: (line: string) => void = console.log) {}
+	/**
+	 * Los enlaces de los correos (verificación, recuperación) dan acceso a la
+	 * cuenta y los logs de CI se publican: por defecto se tachan los tokens.
+	 * `EMAIL_LOG_LINKS=true` los deja en claro para probar a mano en local.
+	 */
+	constructor(
+		private readonly log: (line: string) => void = console.log,
+		private readonly showLinks = false,
+	) {}
 
 	async sendEmail(message: EmailMessage): Promise<void> {
+		const body = this.showLinks ? message.text : redactTokens(message.text);
 		this.log(
-			`[email] to=${message.to} subject="${message.subject}" body=${message.text}`,
+			`[email] to=${message.to} subject="${message.subject}" body=${body}`,
 		);
 	}
+}
+
+/** Tacha `token=…` (query o fragmento) y `/reset-password/<token>`. */
+export function redactTokens(text: string): string {
+	return text
+		.replace(/(token=)[^&\s#]+/g, "$1[REDACTED]")
+		.replace(/(\/reset-password\/)[^/?#\s]+/g, "$1[REDACTED]");
 }
 
 export class SmtpEmailTransport implements EmailPort {
@@ -193,7 +209,9 @@ export function hasEmailTransport(env: RuntimeEnv = process.env): boolean {
 export function getEmailTransport(env: RuntimeEnv = process.env): EmailPort {
 	const smtp = resolveSmtpConfig(env);
 	if (smtp) return new SmtpEmailTransport(smtp);
-	if (allowsLogEmailTransport(env)) return new LogEmailTransport();
+	if (allowsLogEmailTransport(env)) {
+		return new LogEmailTransport(console.log, env.EMAIL_LOG_LINKS === "true");
+	}
 	throw new Error("No hay transporte SMTP configurado para enviar correo");
 }
 
@@ -346,8 +364,8 @@ export function summarizeEmailError(error: unknown): EmailErrorSummary {
  * token y redirige a `callbackURL?token=…`. Ese primer salto lleva el token en
  * la ruta de una petición a la API, y si el proxy falla el `error_log` de
  * nginx la escribe entera (no admite formato). Se manda directamente al
- * destino de la redirección: la pantalla es estática y el token solo vuelve a
- * la API en el cuerpo del POST, que también lo valida. La URL de retorno se
+ * destino de la redirección, con el token en el fragmento (`#token=…`): la
+ * pantalla es estática y el token solo vuelve a la API en el cuerpo del POST, que también lo valida. La URL de retorno se
  * resuelve igual que la redirección de Better Auth, que ya la comprueba contra
  * `trustedOrigins`. Lo que no tenga esa forma se deja tal cual.
  */
@@ -364,7 +382,11 @@ export function directResetLink(url: string): string {
 		link.searchParams.get("callbackURL") || "/restablecer",
 		link.origin,
 	);
-	target.searchParams.set("token", decodeURIComponent(token));
+	// En el fragmento: el navegador no lo manda en la petición HTTP, así que
+	// no llega a ningún proxy ni log (tercera revisión de #551).
+	target.hash = new URLSearchParams({
+		token: decodeURIComponent(token),
+	}).toString();
 	return target.href;
 }
 

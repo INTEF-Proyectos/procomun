@@ -1,4 +1,4 @@
-import { type FormEvent, useState } from "react";
+import { type FormEvent, useEffect, useState } from "react";
 import "../../lib/paraglide-client.ts";
 import { getApiClient } from "../../lib/get-api-client.ts";
 import { url } from "../../lib/paths.ts";
@@ -17,9 +17,15 @@ import "./LoginIsland.css";
  * comprobador de correos registrados.
  */
 
-/** Token del enlace, o `null` si no viene (enlace caducado, ya usado o roto). */
-export function readResetToken(search: string): string | null {
-	const token = new URLSearchParams(search).get("token");
+/**
+ * Token del enlace, o `null` si no viene (enlace caducado, ya usado o roto).
+ * Va en el fragmento (`#token=…`), que el navegador no manda en la petición
+ * HTTP; la query se acepta solo para los correos enviados antes del cambio.
+ */
+export function readResetToken(hash: string, search = ""): string | null {
+	const token =
+		new URLSearchParams(hash.replace(/^#/, "")).get("token") ||
+		new URLSearchParams(search).get("token");
 	return token && token.length > 0 ? token : null;
 }
 
@@ -113,11 +119,20 @@ export function ForgotPasswordIsland() {
 }
 
 export function ResetPasswordIsland({
+	hash = typeof window === "undefined" ? "" : window.location.hash,
 	search = typeof window === "undefined" ? "" : window.location.search,
 }: {
+	hash?: string;
 	search?: string;
 }) {
-	const token = readResetToken(search);
+	// Se lee una vez: tras quitarlo de la URL ya no se podría volver a leer.
+	const [token] = useState(() => readResetToken(hash, search));
+	useEffect(() => {
+		// Fuera de la URL para que no quede en el historial ni en un marcador.
+		if (token && (window.location.hash || window.location.search)) {
+			history.replaceState(null, "", window.location.pathname);
+		}
+	}, [token]);
 	const [password, setPassword] = useState("");
 	const [repeated, setRepeated] = useState("");
 	const [error, setError] = useState("");

@@ -14,19 +14,23 @@ import {
  * (#488).
  */
 describe("readResetToken (#531)", () => {
-	test("lee el token de la query", () => {
-		expect(readResetToken("?token=abc123")).toBe("abc123");
+	test("lee el token del fragmento", () => {
+		expect(readResetToken("#token=abc123")).toBe("abc123");
+	});
+
+	test("acepta la query de los correos enviados antes del cambio", () => {
+		expect(readResetToken("", "?token=abc123")).toBe("abc123");
 	});
 
 	test("sin token devuelve null, para no enseñar el formulario", () => {
-		expect(readResetToken("")).toBeNull();
-		expect(readResetToken("?otra=cosa")).toBeNull();
-		expect(readResetToken("?token=")).toBeNull();
+		expect(readResetToken("", "")).toBeNull();
+		expect(readResetToken("#otra=cosa", "?otra=cosa")).toBeNull();
+		expect(readResetToken("#token=")).toBeNull();
 	});
 
 	test("better-auth puede devolver el error en la query en vez del token", () => {
 		// Enlace caducado o ya usado: better-auth redirige con ?error=...
-		expect(readResetToken("?error=INVALID_TOKEN")).toBeNull();
+		expect(readResetToken("", "?error=INVALID_TOKEN")).toBeNull();
 	});
 });
 
@@ -66,7 +70,9 @@ describe("ForgotPasswordIsland (#531)", () => {
 
 describe("ResetPasswordIsland (#531)", () => {
 	test("sin token no enseña el formulario y dice como pedir otro enlace", () => {
-		const html = renderToStaticMarkup(<ResetPasswordIsland search="" />);
+		const html = renderToStaticMarkup(
+			<ResetPasswordIsland hash="" search="" />,
+		);
 
 		expect(html).not.toContain('type="password"');
 		expect(html).toContain("login");
@@ -74,7 +80,7 @@ describe("ResetPasswordIsland (#531)", () => {
 
 	test("con token pide la contraseña dos veces", () => {
 		const html = renderToStaticMarkup(
-			<ResetPasswordIsland search="?token=abc" />,
+			<ResetPasswordIsland hash="#token=abc" />,
 		);
 
 		const campos = html.split('type="password"').length - 1;
@@ -84,7 +90,7 @@ describe("ResetPasswordIsland (#531)", () => {
 	test("el token no se pinta en el HTML", () => {
 		// Da acceso a la cuenta: no tiene que acabar en el DOM ni en una captura.
 		const html = renderToStaticMarkup(
-			<ResetPasswordIsland search="?token=secreto-de-un-solo-uso" />,
+			<ResetPasswordIsland hash="#token=secreto-de-un-solo-uso" />,
 		);
 
 		expect(html).not.toContain("secreto-de-un-solo-uso");

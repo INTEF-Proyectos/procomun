@@ -133,7 +133,7 @@ describe("recuperar la contraseña olvidada (#531)", () => {
 // a /api/auth/reset-password/<token>: lleva a la pantalla, que es estática, y
 // el token solo vuelve a la API en el cuerpo del POST.
 describe("el correo de recuperación no pasa el token por la API en la URL (#551)", () => {
-	test("el enlace va a /restablecer y su token restablece la contraseña", async () => {
+	test("el enlace va a /restablecer con el token en el fragmento y lo restablece la contraseña", async () => {
 		const auth = createAuth(process.env);
 		const email = `enlace-${crypto.randomUUID()}@issue531.test`;
 		await auth.api.signUpEmail({
@@ -170,7 +170,9 @@ describe("el correo de recuperación no pasa el token por la API en la URL (#551
 		const link = new URL(sent[0]?.text.match(/https?:\/\/\S+/)?.[0] ?? "");
 		expect(link.pathname).toBe("/en/restablecer");
 		expect(sent[0]?.text).not.toContain("/api/");
-		const token = link.searchParams.get("token") ?? "";
+		// El token va en el fragmento: no viaja en la petición HTTP inicial.
+		expect(link.search).toBe("");
+		const token = new URLSearchParams(link.hash.slice(1)).get("token") ?? "";
 		expect(token.length).toBeGreaterThan(10);
 
 		const res = await auth.api.resetPassword({
@@ -293,5 +295,86 @@ describe("restablecer deja inservible el hash heredado (#551, #488)", () => {
 			asResponse: true,
 		});
 		expect(newSignIn.status).toBe(200);
+	});
+});
+
+// Tercera revisión de #551: una cuenta importada sin credencial fija su
+// primera contraseña con el enlace del correo, entra, y el enlace no sirve dos
+// veces.
+describe("cuenta importada sin credencial (#551)", () => {
+	test("fija su primera contraseña, inicia sesión y el enlace no se reutiliza", async () => {
+		await waitForDb();
+		const auth = createAuth(process.env);
+		const { db } = getDb();
+		const id = `legacy-procomun:user:${crypto.randomUUID()}`;
+		const email = `sincredencial-${crypto.randomUUID()}@issue531.test`;
+		const now = new Date();
+		await db.insert(user).values({
+			id,
+			email,
+			emailVerified: false,
+			name: "Sin credencial",
+			role: "author",
+			isActive: true,
+			createdAt: now,
+			updatedAt: now,
+		});
+		expect(
+			await db.select().from(account).where(eq(account.userId, id)),
+		).toHaveLength(0);
+
+		const sent: EmailMessage[] = [];
+		const ctx = await auth.$context;
+		const options = ctx.options.emailAndPassword as {
+			sendResetPassword: (data: {
+				user: { email: string };
+				url: string;
+			}) => Promise<void>;
+		};
+		const original = options.sendResetPassword;
+		options.sendResetPassword = buildPasswordResetOptions(
+			{ expiresIn: 3600 },
+			process.env,
+			() => ({
+				sendEmail: async (message: EmailMessage) => {
+					sent.push(message);
+				},
+			}),
+		).sendResetPassword;
+		try {
+			await auth.api.requestPasswordReset({
+				body: { email, redirectTo: "/restablecer" },
+			});
+			await new Promise((resolve) => setTimeout(resolve, 0));
+		} finally {
+			options.sendResetPassword = original;
+		}
+
+		const link = new URL(sent[0]?.text.match(/https?:\/\/\S+/)?.[0] ?? "");
+		const token = new URLSearchParams(link.hash.slice(1)).get("token") ?? "";
+		expect(token.length).toBeGreaterThan(10);
+
+		const first = await auth.api.resetPassword({
+			body: { token, newPassword: "primera-contrasena-551" },
+			asResponse: true,
+		});
+		expect(first.status).toBe(200);
+
+		const signIn = await auth.api.signInEmail({
+			body: { email, password: "primera-contrasena-551" },
+			asResponse: true,
+		});
+		expect(signIn.status).toBe(200);
+
+		const again = await auth.api.resetPassword({
+			body: { token, newPassword: "otra-contrasena-551" },
+			asResponse: true,
+		});
+		expect(again.status).toBe(400);
+		const stillFirst = await auth.api.signInEmail({
+			body: { email, password: "primera-contrasena-551" },
+			asResponse: true,
+		});
+		expect(stillFirst.status).toBe(200);
 	});
 });

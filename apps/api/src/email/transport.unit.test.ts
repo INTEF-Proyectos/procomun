@@ -32,7 +32,7 @@ describe("buildVerificationEmail", () => {
 describe("LogEmailTransport", () => {
 	test("registra el mensaje fuera de producción", async () => {
 		const lines: string[] = [];
-		const transport = new LogEmailTransport((line) => lines.push(line));
+		const transport = new LogEmailTransport((line) => lines.push(line), true);
 		await transport.sendEmail({
 			to: "dev@example.com",
 			subject: "Verifica tu correo",
@@ -40,6 +40,34 @@ describe("LogEmailTransport", () => {
 		});
 		expect(lines).toHaveLength(1);
 		expect(lines[0]).toContain("token=xyz");
+	});
+});
+
+describe("LogEmailTransport sin enlaces en claro (#551)", () => {
+	const text =
+		"https://x.test/restablecer#token=SECRETO y https://x.test/v?token=OTRO&a=1 y /api/auth/reset-password/TERCERO?cb=1";
+
+	test("tacha los tokens por defecto", async () => {
+		const lines: string[] = [];
+		await new LogEmailTransport((l) => lines.push(l)).sendEmail({
+			to: "a@b.test",
+			subject: "s",
+			text,
+		});
+		for (const secret of ["SECRETO", "OTRO", "TERCERO"]) {
+			expect(lines[0]).not.toContain(secret);
+		}
+		expect(lines[0]).toContain("a=1");
+	});
+
+	test("EMAIL_LOG_LINKS=true los deja para probar en local", async () => {
+		const lines: string[] = [];
+		await new LogEmailTransport((l) => lines.push(l), true).sendEmail({
+			to: "a@b.test",
+			subject: "s",
+			text,
+		});
+		expect(lines[0]).toContain("SECRETO");
 	});
 });
 
@@ -266,7 +294,7 @@ describe("buildEmailVerificationOptions", () => {
 	test("sendVerificationEmail entrega el enlace por el transporte del entorno", async () => {
 		const options = buildEmailVerificationOptions(
 			{ enabled: true, expiresIn: 3600 },
-			{ NODE_ENV: "test" },
+			{ NODE_ENV: "test", EMAIL_LOG_LINKS: "true" },
 		);
 		const original = console.log;
 		const lines: string[] = [];
@@ -557,14 +585,14 @@ describe("directResetLink (#551)", () => {
 
 	test("lleva directamente a la pantalla con el token en la query", () => {
 		expect(directResetLink(`${API}/tok123?callbackURL=%2Frestablecer`)).toBe(
-			"https://procomun.test/restablecer?token=tok123",
+			"https://procomun.test/restablecer#token=tok123",
 		);
 	});
 
 	test("conserva el idioma y la ruta base de la URL de retorno", () => {
 		expect(
 			directResetLink(`${API}/tok123?callbackURL=%2Fbase%2Fen%2Frestablecer`),
-		).toBe("https://procomun.test/base/en/restablecer?token=tok123");
+		).toBe("https://procomun.test/base/en/restablecer#token=tok123");
 	});
 
 	test("una URL de retorno absoluta se respeta, como hace Better Auth", () => {
@@ -572,12 +600,12 @@ describe("directResetLink (#551)", () => {
 			directResetLink(
 				`${API}/tok123?callbackURL=${encodeURIComponent("https://web.test/restablecer?x=1")}`,
 			),
-		).toBe("https://web.test/restablecer?x=1&token=tok123");
+		).toBe("https://web.test/restablecer?x=1#token=tok123");
 	});
 
 	test("sin URL de retorno va a /restablecer", () => {
 		expect(directResetLink(`${API}/tok123`)).toBe(
-			"https://procomun.test/restablecer?token=tok123",
+			"https://procomun.test/restablecer#token=tok123",
 		);
 	});
 
@@ -601,7 +629,7 @@ describe("directResetLink (#551)", () => {
 		await new Promise((resolve) => setTimeout(resolve, 0));
 
 		expect(sent[0]?.text).toContain(
-			"https://procomun.test/restablecer?token=tok123",
+			"https://procomun.test/restablecer#token=tok123",
 		);
 		expect(sent[0]?.text).not.toContain("/api/auth/reset-password");
 	});
