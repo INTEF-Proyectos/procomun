@@ -72,3 +72,8 @@ La plataforma nueva no tiene nada de protección de datos en el área de usuario
 
 ## Decisiones pendientes
 Ver `design.md`, §11. Las preguntas al INTEF se publican en #504: menores, recursos de quien se da de baja, aceptación de los importados en su primer acceso y conservación del registro de bajas.
+
+## Ampliación del 2026-11-18 (segunda revisión de #577)
+
+- **RF-003 (ampliación).** El enlace a cada documento que se pide aceptar, en el registro, en `/condiciones` y en el primer acceso, apunta a la fuente exacta de la versión presentada. El servidor guarda las versiones presentadas y, si alguna cambia con el formulario abierto, no registra la aceptación hasta que se muestren los textos vigentes y la persona los confirme (`design.md`, §13.1).
+- **RF-014 (ampliación).** Restaurar una versión de un recurso no hace reaparecer una atribución retirada: la restauración mantiene la atribución vigente, o aplica las retiradas aprobadas antes de guardar y reindexar, respetando a los demás coautores y sin suprimir por coincidencia de nombres (`design.md`, §13.2).

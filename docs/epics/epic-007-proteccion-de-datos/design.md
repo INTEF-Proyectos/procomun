@@ -284,3 +284,33 @@ El inventario de §8 y el e2e de RF-011 se ajustan a la salida elegida. La épic
 - **Solicitudes de ingreso**: al cerrarse (aceptada, rechazada o retirada por quien la hizo) se borra la solicitud con su mensaje. Si se aceptó, queda la pertenencia. La decisión queda en `activity_events` sin el mensaje.
 
 Validación: un test de integración por cada estado de cierre que compruebe que no queda el correo ni el mensaje.
+
+## 13. Segunda revisión del 2026-11-18 (#577)
+
+Ajustes tras la segunda revisión de #577. Completan §12 y no cierran decisiones que dependan del INTEF, de la responsable legal ni de lo que se acuerde en #504 y #571.
+
+### 13.1 La aceptación se vincula al texto exacto que vio el usuario
+
+El catálogo de §12.2 no basta si el formulario enlaza a la página vigente del INTEF: esa página puede cambiar antes de actualizar la versión configurada. Se corrige la frase de §12.2 («los enlaces pueden seguir apuntando a la página vigente»):
+
+- En el registro y en `/condiciones`, el enlace de cada documento que se pide aceptar apunta a la **fuente exacta de la versión presentada** (URL versionada o copia autorizada servida por la plataforma), nunca a la página general. La página general puede enlazarse además, como información, sin que sea la que se acepta.
+- Al mostrar el formulario, el servidor devuelve las versiones presentadas (`terms` y `privacy`, con versión y huella) y el formulario las reenvía al aceptar. El servidor las compara con las vigentes del catálogo.
+- Si alguna cambió mientras el formulario estaba abierto, **no se guarda la aceptación de esa versión**: se responde con un error (`terms_version_changed`) y los textos vigentes, el formulario los vuelve a mostrar y pide confirmar de nuevo. Lo mismo vale para el primer acceso de §2.
+- Lo que se guarda en `legal_acceptances` es la versión presentada y confirmada, no la vigente en el momento de recibir la petición.
+
+**Criterio de aceptación (CA-7).** Si cambia la página general del INTEF, el enlace del formulario sigue mostrando el texto exacto de la versión presentada. Si se publica una versión nueva con el formulario abierto, enviarlo no genera una aceptación de esa versión hasta que se muestre y la persona la confirme.
+
+### 13.2 La restauración de versiones mantiene la retirada de atribución
+
+`restoreResourceVersion` (`packages/db/src/repository/resource-versions.ts`) copia `author` y `otherAuthors` del `metadata_snapshot` al recurso vigente y se reindexa. Tras una retirada aprobada (§12.1.b) eso haría reaparecer el nombre en la ficha y en la búsqueda. Como las versiones anteriores no se reescriben, la restauración tiene que respetar la retirada:
+
+- **Regla.** Al restaurar, `author` y `other_authors` **no se toman del snapshot**: se mantiene la atribución vigente del recurso. Es la opción más simple y no necesita comparar nombres. El resto de campos del snapshot se restauran como hasta ahora.
+- **Alternativa válida** si negocio quiere que la restauración pueda recuperar autores legítimos: aplicar al snapshot, antes de guardar y reindexar, las retiradas aprobadas para ese recurso (guardadas como solicitud resuelta con el recurso y la grafía exacta retirada). Se quita solo esa entrada, se respetan los coautores y no se suprime por coincidencia de nombres. Se elige entre ambas al implementar RF-014.
+- La nueva versión creada por la restauración guarda en su `metadata_snapshot` la atribución resultante, no la del snapshot restaurado.
+- La retirada no impide ver el historial: las versiones anteriores siguen mostrando en público la atribución sin el nombre retirado (§12.1.b).
+
+**Criterio de aceptación (CA-8).** Tras retirar a una persona de un recurso, se restaura una versión que la incluía como autora o coautora. El nombre sigue ausente de la ficha y de la búsqueda, y las demás atribuciones se mantienen.
+
+### 13.3 Pendiente
+
+- ADR-0051 sigue en Propuesto: depende de que se acuerden con negocio las bajas y la retirada de atribución en #504 y #571. Esta sección solo añade criterios de diseño.

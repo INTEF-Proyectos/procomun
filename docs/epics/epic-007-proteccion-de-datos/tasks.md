@@ -48,3 +48,10 @@ Cada tarea de implementación se abre como issue propia y lleva tests automatiza
 - [ ] Fase 1: catálogo de versiones de los textos legales con su huella y comprobación de la versión configurada.
 - [ ] Fase 3: tarea de administración para retirar la atribución (RF-014) y reindexación.
 - [ ] Fase 4: aplicar la salida elegida para el contador de visitas (§12.3) y ajustar el inventario y el e2e.
+
+## Segunda revisión de #577 — 2026-11-18
+- [x] Vincular la aceptación al texto exacto presentado, con criterio CA-7 (`design.md` §13.1, RF-003).
+- [x] Mantener la retirada de atribución al restaurar versiones, con criterio CA-8 (`design.md` §13.2, RF-014).
+- [ ] Fase 1: el formulario envía las versiones presentadas y el servidor devuelve `terms_version_changed` si cambian.
+- [ ] Fase 3: `restoreResourceVersion` mantiene la atribución vigente (o aplica las retiradas aprobadas) antes de guardar y reindexar.
+- [ ] Acordar con negocio las bajas y la retirada de atribución en #504 y #571 antes de pasar ADR-0051 a Aceptado.

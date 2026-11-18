@@ -78,3 +78,10 @@ Revisión del 2026-11-18 (#577): se añaden la separación entre publicador y au
 * #533 aplica la visibilidad por campo del §6 del diseño.
 * La épica de comunidades (#493) incorpora las reglas del §7 del diseño sobre los datos de los miembros.
 * Las migraciones nuevas (`legal_acceptances`, `account_removals`, visibilidad del perfil) cogen número cuando se implementen, revisando antes los PR abiertos.
+
+## Revisión del 2026-11-18 (segunda revisión de #577)
+
+Se añaden dos criterios de diseño, sin cambiar el estado (sigue Propuesto, pendiente de lo que se acuerde en #504 y #571):
+
+* **Punto 2.** La aceptación se vincula al texto exacto presentado: el enlace del formulario apunta a la fuente de la versión mostrada, el servidor guarda las versiones presentadas y, si cambian con el formulario abierto, vuelve a mostrarlas y pide confirmación antes de registrar la aceptación (`design.md` §13.1).
+* **Punto 6.** La restauración de una versión de un recurso mantiene la atribución vigente, o aplica las retiradas aprobadas antes de guardar y reindexar, para que no reaparezca un nombre retirado (`design.md` §13.2).

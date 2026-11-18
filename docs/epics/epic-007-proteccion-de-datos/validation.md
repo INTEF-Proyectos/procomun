@@ -28,3 +28,10 @@ Diseño. No hay código todavía: la tabla recoge la evidencia que tendrá que a
 - Accesibilidad: revisión con axe de registro, `/condiciones`, «Tus datos» y baja.
 - i18n: textos nuevos en es, en, ca, gl y eu.
 - Validación legal: la responsable legal del INTEF revisa los textos y las decisiones de ADR-0051 antes de abrir la plataforma a usuarios reales.
+
+## Ampliación del 2026-11-18 (segunda revisión de #577)
+
+| Requisito | Evidencia esperada |
+|---|---|
+| RF-003 Texto exacto presentado (CA-7) | Test de integración: el formulario devuelve las versiones presentadas y el enlace de cada una es su fuente exacta, no la página general. Si se publica una versión nueva con el formulario abierto, el envío devuelve `terms_version_changed` y no crea aceptación de esa versión; tras mostrar y confirmar los textos vigentes, se guarda la nueva |
+| RF-014 Restauración (CA-8) | Test de integración de `restoreResourceVersion`: tras una retirada aprobada, restaurar una versión que incluía a la persona deja su nombre fuera de la ficha y de la búsqueda (reindexado) y mantiene a los demás coautores. Un autor con nombre parecido que no fue retirado no se suprime |
