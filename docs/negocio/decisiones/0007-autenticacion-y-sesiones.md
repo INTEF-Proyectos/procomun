@@ -185,3 +185,11 @@ Better Auth 1.7 (#362, 2026-09-22) rehízo el plugin `genericOAuth` sobre el flu
 * **Restablecer cierra todas las sesiones** (`revokeSessionsOnPasswordReset: true`): quien lo hace suele temer que otro tenga la contraseña vieja.
 * **Sin transporte de correo no hay recuperación.** En producción sin `SMTP_HOST` no se configura `sendResetPassword`, `/api/v1/config` devuelve `emailDeliveryEnabled: false` y el acceso esconde el enlace. Se descarta exigir SMTP al arrancar: la imagen corre con `NODE_ENV=production` y el `docker-compose.yml` no trae SMTP, así que tumbaría despliegues que hoy funcionan.
 * La URL de retorno se construye con `url()`: respeta la ruta base y el prefijo de idioma.
+
+## Adenda 2026-11-18 — el token de recuperación también va en la ruta (revisión de #551)
+
+**Problema.** La adenda del 2026-11-04 da por cubierto el enlace porque el token viaja en la query de `/restablecer?token=…`. No es el primer salto: el correo lleva la URL que genera Better Auth, `/api/auth/reset-password/<token>?callbackURL=…`, que valida el token y **después** redirige a `/restablecer?token=…`. En esa primera petición el token va en la **ruta**, y ni los `map` de `nginx.conf` (ruta y Referer) ni `redactAuditPath` (`api_access_logs`) la tapaban. Quien pudiera leer cualquiera de los dos registros podía restablecer la contraseña mientras el token siguiera vigente y sin usar. Quitar la query (#524) no basta.
+
+**Decisión.** `/api/auth/reset-password/<token>` pasa a ser una ruta con capacidad, como el enlace firmado del `.elpx` (#466) o la miniatura firmada (#512): el segmento se sustituye por `:token`, sin distinguir mayúsculas, en `redactAuditPath` y en los `map` de la ruta y del Referer de `nginx.conf`. `POST /api/auth/reset-password` (sin segmento, el token va en el cuerpo) se registra tal cual. Las defensas de #524 para rutas con `%xx` o no canónicas se aplican también a esta.
+
+**Validación.** `apps/api/src/auth/audit.unit.test.ts` (la ruta con token se tapa y las de recuperación sin token no cambian), `scripts/nginx-log-redaction.unit.test.ts` (la ruta y el Referer, con y sin query, y con `%xx` en el prefijo) y `apps/api/src/auth/password-reset.integration.test.ts`, que captura el enlace que Better Auth genera de verdad en `requestPasswordReset` y comprueba su forma y que `redactAuditPath` le quita el token.

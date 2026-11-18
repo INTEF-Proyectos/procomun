@@ -49,7 +49,8 @@ En algunas URL el permiso va en la propia URL. Quien lea un log con esas URL ent
 - el enlace firmado de un recurso no publicado (#466): `/api/v1/elpx/preview/<hash>/<token>/…`, válido 2 h;
 - la miniatura firmada de un recurso no publicado (#512): `/api/v1/thumbnails/signed/<token>/<fichero>`, válida 2 h;
 - la instantánea de la vista previa del editor (#317): `/api/v1/preview/<id>/…` y `/api/v1/preview-session/<id>`;
-- el `?token=` de la verificación de correo de Better Auth (`/api/auth/verify-email?token=…`).
+- el `?token=` de la verificación de correo de Better Auth (`/api/auth/verify-email?token=…`);
+- el enlace del correo de recuperación de contraseña (#551): `/api/auth/reset-password/<token>?callbackURL=…`, válido 1 h por defecto. El token va en la ruta y se tapa como `:token` en el `access_log` de nginx (ruta y Referer) y en `api_access_logs`.
 
 El Referer también las lleva: el HTML del `.elpx` sale con `Referrer-Policy: same-origin`, así que los CSS, JS e imágenes del paquete se piden con la URL firmada en el Referer.
 

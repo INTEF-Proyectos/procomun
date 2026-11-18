@@ -4613,3 +4613,18 @@ tasks:
       toString y hasOwnProperty. Los demas mapas *_LABELS[...] del frontend
       (HeroIsland, ResourceEditorIsland, AdminReportsSection, los CRUD y
       EditarPageBase) quedan fuera del alcance de este PR.
+  T-2026-11-18-13292158:
+    date: 2026-11-18
+    agent: "seguridad-privacidad-legal + backend-api-servicios"
+    task: "Revision de #551: el token de recuperacion en la ruta no se tapaba en los logs"
+    status: Done
+    related: ["#551", "#531", "#524", "#536", "ADR-0007"]
+    notes: >
+      El enlace del correo es /api/auth/reset-password/<token>?callbackURL=...
+      (Better Auth valida y redirige a /restablecer?token=...). El token iba en
+      la ruta y llegaba entero al access_log de nginx (ruta y Referer) y a
+      api_access_logs. Se tapa como :token en redactAuditPath y en los map de
+      nginx.conf. Tests rojo -> verde en audit.unit.test.ts,
+      nginx-log-redaction.unit.test.ts (con %xx y Referer) y un test de
+      integracion que captura el enlace real de requestPasswordReset. Adenda
+      de ADR-0007 del 18-nov y docs/operaciones/operaciones.md.

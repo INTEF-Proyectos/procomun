@@ -373,6 +373,16 @@ const URI_CASES: [string, string, string][] = [
 		`/api/v1/thumbnails/signed/:token/${HASH}.jpg`,
 	],
 	[
+		"enlace de recuperación de contraseña de Better Auth (#551)",
+		`/api/auth/reset-password/${TOKEN}?callbackURL=%2Frestablecer`,
+		"/api/auth/reset-password/:token?:query",
+	],
+	[
+		"enlace de recuperación sin query (#551)",
+		`/api/auth/reset-password/${TOKEN}`,
+		"/api/auth/reset-password/:token",
+	],
+	[
 		"verificación de correo de Better Auth (?token=)",
 		`/api/auth/verify-email?token=${VERIFY_JWT}&callbackURL=%2F`,
 		"/api/auth/verify-email?:query",
@@ -394,6 +404,7 @@ const UNCHANGED: [string, string][] = [
 	[`/api/v1/elpx/${HASH}/index.html`, `/api/v1/elpx/${HASH}/index.html`],
 	[`/api/v1/elpx/preview/${HASH}`, `/api/v1/elpx/preview/${HASH}`],
 	["/api/v1/preview-session", "/api/v1/preview-session"],
+	["/api/auth/reset-password", "/api/auth/reset-password"],
 	["/api/v1/previews/42", "/api/v1/previews/42"],
 	[`/api/v1/thumbnails/${HASH}.jpg`, `/api/v1/thumbnails/${HASH}.jpg`],
 	["/api/v1/search?q=token", "/api/v1/search?:query"],
@@ -430,6 +441,11 @@ const ENCODED_CASES: [string, string, string][] = [
 		"prefijo /api con %xx: la location de nginx también decodifica",
 		`/%61pi/v1/elpx/preview/${HASH}/${TOKEN}/index.html`,
 		`/api/v1/elpx/preview/${HASH}/:token/index.html`,
+	],
+	[
+		"enlace de recuperación con %xx (#551)",
+		`/api/auth/reset-p%61ssword/${TOKEN}?callbackURL=%2Frestablecer`,
+		"/api/auth/reset-password/:token?:query",
 	],
 	[
 		"miniatura firmada con %xx",

@@ -6,6 +6,7 @@ import {
 	buildPasswordResetOptions,
 	type EmailMessage,
 } from "../email/transport.ts";
+import { redactAuditPath } from "./audit.ts";
 import { createAuth } from "./config.ts";
 import { isLegacyPasswordHash } from "./legacy-password.ts";
 
@@ -72,6 +73,37 @@ describe("recuperar la contraseña olvidada (#531)", () => {
 		// Mismo codigo y mismo cuerpo: no se puede deducir que correos hay.
 		expect(existente.status).toBe(inexistente.status);
 		expect(await existente.text()).toBe(await inexistente.text());
+	});
+
+	// Revisión de #551: los tests de arriba usan una URL sintética. La que
+	// genera Better Auth lleva el token en la RUTA, y esa petición pasa por la
+	// auditoría antes de redirigir a /restablecer?token=…
+	test("el enlace real del correo no deja el token en la auditoría", async () => {
+		const ctx = await auth.$context;
+		const options = ctx.options.emailAndPassword as {
+			sendResetPassword: (data: {
+				user: { email: string };
+				url: string;
+			}) => Promise<void>;
+		};
+		const original = options.sendResetPassword;
+		let url = "";
+		options.sendResetPassword = async (data) => {
+			url = data.url;
+		};
+		try {
+			await auth.api.requestPasswordReset({
+				body: { email: EMAIL, redirectTo: "/restablecer" },
+			});
+		} finally {
+			options.sendResetPassword = original;
+		}
+
+		const { pathname } = new URL(url);
+		const token = pathname.split("/").pop() ?? "";
+		expect(pathname).toBe(`/api/auth/reset-password/${token}`);
+		expect(token.length).toBeGreaterThan(10);
+		expect(redactAuditPath(pathname)).toBe("/api/auth/reset-password/:token");
 	});
 
 	test("el restablecimiento esta habilitado en la configuracion", () => {
