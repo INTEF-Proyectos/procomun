@@ -6,6 +6,9 @@ const HomePage = lazy(() => import("./pages/HomePage.tsx"));
 const ExplorarPage = lazy(() => import("./pages/ExplorarPage.tsx"));
 const LoginPage = lazy(() => import("./pages/LoginPage.tsx"));
 const RegistroPage = lazy(() => import("./pages/RegistroPage.tsx"));
+// #531: recuperar la contraseña olvidada.
+const RecuperarPage = lazy(() => import("./pages/RecuperarPage.tsx"));
+const RestablecerPage = lazy(() => import("./pages/RestablecerPage.tsx"));
 const PerfilPage = lazy(() => import("./pages/PerfilPage.tsx"));
 const AdminPage = lazy(() => import("./pages/AdminPage.tsx"));
 const RecursoPage = lazy(() => import("./pages/RecursoPage.tsx"));
@@ -43,6 +46,8 @@ function AppRoutes() {
 			<Route path="buscar" element={<Navigate to="explorar" replace />} />
 			<Route path="login" element={<LoginPage />} />
 			<Route path="registro" element={<RegistroPage />} />
+			<Route path="recuperar" element={<RecuperarPage />} />
+			<Route path="restablecer" element={<RestablecerPage />} />
 			<Route path="perfil" element={<PerfilPage />} />
 			<Route path="admin/*" element={<AdminPage />} />
 			<Route path="recurso" element={<RecursoPage />} />
