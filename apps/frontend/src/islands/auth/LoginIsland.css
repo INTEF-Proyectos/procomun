@@ -304,3 +304,21 @@
 	color: var(--color-on-surface-variant);
 	font-family: monospace;
 }
+
+/* Enlace de recuperación de contraseña bajo el botón de acceso (#531) */
+.login-forgot {
+	margin-top: 0.75rem;
+	font-family: var(--font-body);
+	font-size: 0.8125rem;
+	text-align: center;
+}
+
+.login-forgot a {
+	color: var(--color-primary);
+	/* Subrayado siempre: va dentro de un bloque de texto (#529). */
+	text-decoration: underline;
+}
+
+.login-forgot a:hover {
+	color: var(--color-on-surface);
+}
