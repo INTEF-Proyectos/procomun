@@ -66,3 +66,26 @@ test.describe("Author - Diálogo de borrado en «Mis recursos» (#580)", () => {
 		await expect(notice).toBeFocused();
 	});
 });
+
+// #580: «Limpiar filtros» no debe dejar el foco en `body` al retirarse el botón.
+test.describe("Author - «Limpiar filtros» en «Mis recursos» (#580)", () => {
+	test("el foco pasa a «Más filtros» y el panel sigue abierto", async ({
+		page,
+	}) => {
+		await loginAs(page, "author");
+		await page.goto("/perfil");
+
+		const panel = page.locator("details.my-resources-filters");
+		const summary = panel.locator("summary");
+		await summary.click();
+		await panel.getByRole("combobox").first().selectOption({ index: 1 });
+
+		const clear = page.getByRole("button", { name: "Limpiar filtros" });
+		await clear.focus();
+		await page.keyboard.press("Enter");
+
+		await expect(clear).toHaveCount(0);
+		await expect(panel).toHaveAttribute("open", "");
+		await expect(summary).toBeFocused();
+	});
+});

@@ -153,6 +153,7 @@ export function MyResourcesView({
 }: MyResourcesViewProps) {
 	const searchId = useId();
 	const typeId = useId();
+	const summaryRef = useRef<HTMLElement>(null);
 	const pagination = getPaginationState(
 		total,
 		MY_RESOURCES_PAGE_SIZE,
@@ -254,7 +255,7 @@ export function MyResourcesView({
 				className="my-resources-filters"
 				open={filtersOpenOnMount || undefined}
 			>
-				<summary>{m.my_resources_filters()}</summary>
+				<summary ref={summaryRef}>{m.my_resources_filters()}</summary>
 				<div className="my-resources-filters-body">
 					<div className="filter-group">
 						<label htmlFor={typeId}>{m.catalog_resource_type()}</label>
@@ -322,12 +323,15 @@ export function MyResourcesView({
 						<button
 							type="button"
 							className="my-resources-clear"
-							onClick={() =>
+							onClick={() => {
+								// El botón se desmonta al limpiar: el foco pasa antes al
+								// encabezado del panel, que sigue abierto y montado.
+								summaryRef.current?.focus();
 								onFiltersChange({
 									...EMPTY_MY_RESOURCES_FILTERS,
 									status: filters.status,
-								})
-							}
+								});
+							}}
 						>
 							{m.catalog_clear_filters()}
 						</button>
