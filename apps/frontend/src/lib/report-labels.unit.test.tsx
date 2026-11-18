@@ -21,6 +21,12 @@ describe("etiquetas de denuncias (#539)", () => {
 		expect(reportStatusLabel("raro")).toBe("raro");
 	});
 
+	// #576: una clave heredada del prototipo no es una etiqueta.
+	test("una clave del prototipo se muestra tal cual", () => {
+		expect(reportReasonLabel("constructor")).toBe("constructor");
+		expect(reportStatusLabel("toString")).toBe("toString");
+	});
+
 	test("una denuncia con colección es de colección; si no, de recurso", () => {
 		expect(reportTarget({ collectionId: "c1", resourceId: null })).toBe(
 			"collection",

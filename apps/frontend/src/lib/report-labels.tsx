@@ -5,6 +5,7 @@
  */
 import "./paraglide-client.ts";
 import * as m from "../paraglide/messages.js";
+import { labelFor } from "./labels.ts";
 
 /** Los mismos valores que `REPORT_REASONS` en `@procomun/db`. */
 export const REPORT_REASON_VALUES = [
@@ -35,11 +36,11 @@ const STATUS_LABELS: Record<string, () => string> = {
 };
 
 export function reportReasonLabel(reason: string): string {
-	return REASON_LABELS[reason]?.() ?? reason;
+	return labelFor(REASON_LABELS, reason)?.() ?? reason;
 }
 
 export function reportStatusLabel(status: string): string {
-	return STATUS_LABELS[status]?.() ?? status;
+	return labelFor(STATUS_LABELS, status)?.() ?? status;
 }
 
 export function reportTarget(report: {
