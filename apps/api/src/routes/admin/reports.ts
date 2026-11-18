@@ -1,13 +1,13 @@
 import * as repo from "@procomun/db/repository";
 import { Hono } from "hono";
 import { type AuthEnv, requireRole } from "../../auth/middleware.ts";
-import { getCurrentUser } from "../../auth/roles.ts";
+import {
+	canManageCollection,
+	canManageResource,
+	getCurrentUser,
+} from "../../auth/roles.ts";
 import { getDb } from "../../db.ts";
 import { parsePagination } from "../../http/pagination.ts";
-import {
-	requireManageableCollection,
-	requireManageableResource,
-} from "./guards.ts";
 
 const reportRoutes = new Hono<AuthEnv>();
 
@@ -107,20 +107,24 @@ reportRoutes.patch("/:id", async (c) => {
 		);
 	}
 
-	// Review de #585: la colección o el recurso pueden haber cambiado desde la
-	// denuncia (p. ej. volver a borrador). Se comprueba sobre su estado actual
-	// con la misma regla que sus propias rutas de gestión.
-	if (body.actionTaken && report.collectionId) {
-		const check = await requireManageableCollection(c, report.collectionId);
-		if ("response" in check) return check.response;
-	} else if (body.actionTaken && report.resourceId) {
-		const check = await requireManageableResource(c, report.resourceId);
-		if ("response" in check) return check.response;
-	}
-
 	// La resolución y la acción van en una transacción: si falla la acción, la
 	// denuncia no queda resuelta con el contenido intacto.
 	const resolved = await getDb().db.transaction(async (tx: repo.DrizzleDB) => {
+		// Review de #585: se lee y se bloquea el contenido dentro de la
+		// transacción y se comprueba el permiso sobre su estado actual (puede
+		// haber vuelto a borrador desde la denuncia). Sin permiso no se escribe nada.
+		if (body.actionTaken) {
+			const locked = report.collectionId
+				? await repo.lockCollectionForUpdate(tx, report.collectionId)
+				: report.resourceId
+					? await repo.lockResourceForUpdate(tx, report.resourceId)
+					: null;
+			if (!locked) return "not_found" as const;
+			const allowed = report.collectionId
+				? canManageCollection(currentUser, locked)
+				: canManageResource(currentUser, locked);
+			if (!allowed) return "forbidden" as const;
+		}
 		await repo.updateReport(tx, id, {
 			status: body.status as repo.ReportStatus | undefined,
 			moderatorId: currentUser.id,
@@ -156,6 +160,12 @@ reportRoutes.patch("/:id", async (c) => {
 		return updated;
 	});
 
+	if (resolved === "not_found") {
+		return c.json({ error: "Contenido no encontrado" }, 404);
+	}
+	if (resolved === "forbidden") {
+		return c.json({ error: "Permisos insuficientes" }, 403);
+	}
 	return c.json(resolved);
 });
 

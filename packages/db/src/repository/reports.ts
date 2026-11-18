@@ -1,4 +1,4 @@
-import { and, desc, eq, sql } from "drizzle-orm";
+import { and, desc, eq, isNull, sql } from "drizzle-orm";
 import { user } from "../schema/auth.ts";
 import { collections } from "../schema/collections.ts";
 import { reports } from "../schema/reports.ts";
@@ -98,6 +98,7 @@ const reportListSelection = {
 	collectionId: reports.collectionId,
 	collectionTitle: collections.title,
 	collectionSlug: collections.slug,
+	collectionStatus: collections.editorialStatus,
 	reporterId: reports.reporterId,
 	reason: reports.reason,
 	description: reports.description,
@@ -214,4 +215,27 @@ export async function getReportCountByResource(
 		);
 
 	return Number(result[0]?.count ?? 0);
+}
+
+/**
+ * Lee y bloquea (FOR UPDATE) la fila de una colección dentro de una
+ * transacción, para decidir sobre su estado actual sin carreras (#585).
+ */
+export async function lockCollectionForUpdate(tx: DrizzleDB, id: string) {
+	const rows = await tx
+		.select()
+		.from(collections)
+		.where(eq(collections.id, id))
+		.for("update");
+	return rows[0] ?? null;
+}
+
+/** Igual que `lockCollectionForUpdate`, para un recurso no borrado. */
+export async function lockResourceForUpdate(tx: DrizzleDB, id: string) {
+	const rows = await tx
+		.select()
+		.from(resources)
+		.where(and(eq(resources.id, id), isNull(resources.deletedAt)))
+		.for("update");
+	return rows[0] ?? null;
 }

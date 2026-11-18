@@ -247,6 +247,8 @@ export interface ReportRecord {
 	collectionId?: string | null;
 	collectionTitle?: string | null;
 	collectionSlug?: string | null;
+	/** Estado editorial de la colección: solo la publicada tiene ficha pública. */
+	collectionStatus?: string | null;
 	reporterId?: string | null;
 	reporterName?: string | null;
 	reason: string;

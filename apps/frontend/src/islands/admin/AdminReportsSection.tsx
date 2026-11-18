@@ -39,9 +39,13 @@ export function ReportTargetCell({ report }: { report: ReportRecord }) {
 	const isCollection = reportTarget(report) === "collection";
 	const title = isCollection ? report.collectionTitle : report.resourceTitle;
 	const slug = isCollection ? report.collectionSlug : report.resourceSlug;
-	const href = slug
-		? url(isCollection ? `colecciones?slug=${slug}` : `recurso?slug=${slug}`)
-		: null;
+	// La ficha pública de una colección solo existe si está publicada (#585).
+	const hasPublicPage =
+		!isCollection || report.collectionStatus === "published";
+	const href =
+		slug && hasPublicPage
+			? url(isCollection ? `colecciones?slug=${slug}` : `recurso?slug=${slug}`)
+			: null;
 	return (
 		<div>
 			<span className="admin-status-badge">

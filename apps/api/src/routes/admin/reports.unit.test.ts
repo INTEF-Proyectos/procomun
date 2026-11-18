@@ -510,4 +510,52 @@ describe("Reports — Colecciones", () => {
 			((await after.json()) as { editorialStatus: string }).editorialStatus,
 		).toBe("published");
 	});
+
+	// Review de #585 (P1): el permiso se comprueba dentro de la transacción, con
+	// la fila bloqueada. Si la colección pasa a borrador justo tras leer la
+	// denuncia, la acción no se aplica.
+	test("si la colección vuelve a borrador durante la resolución, 403 sin cambios", async () => {
+		const collection = await createCollection(adminApp, "published");
+		const submitRes = await reportCollection(authorApp, collection.slug, {
+			reason: "spam",
+		});
+		const { id: reportId } = (await submitRes.json()) as { id: string };
+
+		const real = repo.getReportById;
+		const spy = spyOn(repo, "getReportById").mockImplementationOnce(
+			async (db, id) => {
+				const r = await real(db, id);
+				await repo.updateCollection(db, collection.id, {
+					editorialStatus: "draft",
+				});
+				return r;
+			},
+		);
+		const otherCurator = createApp({
+			id: "otro-curator",
+			role: "curator",
+			name: "Otro curator",
+		});
+		try {
+			const res = await otherCurator.request(`/api/admin/reports/${reportId}`, {
+				method: "PATCH",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify({
+					status: "resolved",
+					actionTaken: "collection_deleted",
+				}),
+			});
+			expect(res.status).toBe(403);
+		} finally {
+			spy.mockRestore();
+		}
+		const report = await curatorApp.request(`/api/admin/reports/${reportId}`);
+		expect(((await report.json()) as { status: string }).status).toBe(
+			"pending",
+		);
+		const after = await adminApp.request(
+			`/api/admin/collections/${collection.id}`,
+		);
+		expect(after.status).toBe(200);
+	});
 });

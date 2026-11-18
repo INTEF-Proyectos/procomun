@@ -27,12 +27,28 @@ describe("AdminReportsSection (#539)", () => {
 					collectionId: "col-1",
 					collectionTitle: "Mi colección",
 					collectionSlug: "mi-coleccion",
+					collectionStatus: "published",
 				})}
 			/>,
 		);
 		expect(html).toContain("Colección");
 		expect(html).toContain("Mi colección");
 		expect(html).toContain(`href="${url("colecciones?slug=mi-coleccion")}"`);
+	});
+
+	test("una colección archivada sigue en la cola pero su título no enlaza", () => {
+		const html = renderToStaticMarkup(
+			<ReportTargetCell
+				report={report({
+					collectionId: "col-1",
+					collectionTitle: "Mi colección",
+					collectionSlug: "mi-coleccion",
+					collectionStatus: "archived",
+				})}
+			/>,
+		);
+		expect(html).toContain("Mi colección");
+		expect(html).not.toContain("<a ");
 	});
 
 	test("y si es un recurso, enlaza a la ficha del recurso", () => {
