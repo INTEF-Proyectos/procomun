@@ -1,6 +1,7 @@
 import { copyFile, mkdir, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
+import { DEFAULT_LICENSE } from "@procomun/db/validation";
 import { sanitizeFilename } from "../uploads/config.ts";
 
 export type GeneratorFileEntry = {
@@ -212,7 +213,7 @@ function sanitizeAndDeduplicateFilenames(
  * @param opts.author     Resource author (optional)
  * @param opts.language   ISO 639-1 language code; sin él, lom_general_language
  *                        queda vacío en lugar de suponer «es» (#473)
- * @param opts.license    License identifier, defaults to "cc-by"
+ * @param opts.license    License identifier, defaults to DEFAULT_LICENSE (#522)
  * @param opts.files      List of files to bundle (each must have a local filePath)
  * @param opts.outputPath Absolute path where the resulting .elpx ZIP will be written
  */
@@ -224,7 +225,13 @@ export async function generateElpxFromFiles(opts: {
 	files: GeneratorFileEntry[];
 	outputPath: string;
 }): Promise<void> {
-	const { title, author = "", language, license = "cc-by", outputPath } = opts;
+	const {
+		title,
+		author = "",
+		language,
+		license = DEFAULT_LICENSE,
+		outputPath,
+	} = opts;
 	const files = sanitizeAndDeduplicateFilenames(opts.files);
 
 	const workDir = path.join(
