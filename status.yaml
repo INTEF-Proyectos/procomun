@@ -4541,6 +4541,21 @@ tasks:
       Gravatar y registro de bajas minimizado. ADR-0051 Propuesto. Pendiente
       del INTEF: menores, recursos tras la baja, aceptación de los importados
       y conservación del registro de bajas.
+  T-2026-11-18-13275910:
+    date: 2026-11-18
+    agent: "seguridad-privacidad-legal + documentacion-y-roadmap"
+    task: "Atender la revisión de #577 (épica 007 y ADR-0051)"
+    status: In Progress
+    related: ["#577", "#578", "#504", "#493", "ADR-0051", "ADR-0050", "ADR-0044"]
+    notes: >
+      design.md §12: la baja solo desvincula la cuenta que publica y la
+      retirada de atribución es otra solicitud (RF-014, casos CA-1 a CA-6);
+      catálogo con el texto recuperable de cada versión aceptada (RF-003);
+      banner condicionado a la decisión sobre el contador de visitas (RF-011);
+      regla común con #578: el público ve el recuento y quién administra,
+      invitaciones a 14 días y borrado del correo y la solicitud en cualquier
+      cierre. Pendiente: URLs versionadas o copia autorizada (INTEF) y
+      consultas a la responsable legal.
   T-2026-11-16-12204258:
     date: 2026-11-16
     agent: "backend-api-servicios"

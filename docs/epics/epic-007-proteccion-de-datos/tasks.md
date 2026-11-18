@@ -5,7 +5,7 @@
 - [x] Comprobar en el código el estado actual: registro, baja lógica, `user_profile`, Gravatar y almacenamiento en el navegador.
 - [x] Redactar `requirements.md`, `design.md` y `validation.md`.
 - [x] ADR-0051 «Tratamiento de datos personales y baja de cuentas» (Propuesto).
-- [ ] Publicar en #504 las preguntas pendientes (menores, recursos tras la baja, primer acceso de los importados y conservación del registro de bajas).
+- [x] Publicar en #504 las preguntas pendientes (menores, recursos tras la baja, primer acceso de los importados y conservación del registro de bajas). Publicadas el 2026-11-16 en el comentario 6920218373.
 - [ ] Pasar a la responsable legal la redacción de la casilla, la consulta sobre el UUID del contador y la del art. 17.3.b.
 - [ ] Aceptar o ajustar ADR-0051 con las respuestas.
 
@@ -37,3 +37,14 @@ Cada tarea de implementación se abre como issue propia y lleva tests automatiza
 ## Posterior
 - [ ] Páginas legales propias (`/aviso-legal`, `/privacidad`, `/cookies`) cuando el INTEF entregue los textos adaptados.
 - [ ] «Descargar mis datos» como autoservicio.
+
+## Revisión de #577 — 2026-11-18
+- [x] Separar la desvinculación de la cuenta de la retirada de la atribución, con casos de aceptación (`design.md` §12.1, RF-008 y RF-014).
+- [x] Hacer recuperable el texto de cada versión aceptada y ampliar RF-003 (`design.md` §12.2).
+- [x] Condicionar la ausencia de banner a la decisión sobre el contador de visitas, con criterio de validación (`design.md` §12.3, RF-011).
+- [x] Unificar con la épica 006 la visibilidad de los administradores, la caducidad de las invitaciones (14 días) y el borrado al cerrar solicitudes e invitaciones (`design.md` §12.4). Propuesta pendiente de validar con negocio y la responsable legal.
+- [ ] Preguntar al INTEF si publica URLs versionadas de los textos legales o autoriza guardar una copia.
+- [ ] Pasar a la responsable legal: retirada de atribución cuando autor y publicador coinciden en una supresión por la sede; borrado de recursos cuyo autor es un tercero; regla común de comunidades.
+- [ ] Fase 1: catálogo de versiones de los textos legales con su huella y comprobación de la versión configurada.
+- [ ] Fase 3: tarea de administración para retirar la atribución (RF-014) y reindexación.
+- [ ] Fase 4: aplicar la salida elegida para el contador de visitas (§12.3) y ajustar el inventario y el e2e.

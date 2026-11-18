@@ -369,3 +369,10 @@ ADR-0051:
     el usuario elige si sus recursos publicados se quedan con su nombre, sin él
     o se borran. Registro de bajas sin nombre ni correo, 3 años. Sin Gravatar ni
     terceros. Pendiente de confirmar por el INTEF en #504.
+    Revisión 2026-11-18 (#577): la baja solo desvincula la cuenta que publica
+    (conservar o borrar) y no toca resources.author; retirar la atribución es
+    otra solicitud del autor. Cada versión aceptada tiene texto recuperable
+    (URL versionada o copia autorizada). Sin banner solo si se confirma la
+    exención del contador de visitas o se adapta. Regla común de comunidades
+    con ADR-0050: recuento y administradores públicos, invitaciones a 14 días,
+    correo y solicitud borrados en cualquier cierre.

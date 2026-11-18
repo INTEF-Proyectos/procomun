@@ -42,25 +42,29 @@ Sobre el registro de bajas:
 ## Decisión
 
 1. **Base jurídica y aceptación.** El tratamiento se basa en el art. 6.1.e del RGPD. El registro informa en dos capas y exige aceptar las condiciones de uso; esa aceptación no es un consentimiento al tratamiento. Solo lo que se base en el consentimiento (hoy, la foto de perfil) lleva una casilla aparte, opcional y revocable.
-2. **Aceptaciones versionadas.** Se guarda usuario, documento, versión, fecha y canal, sin IP. Un cambio de versión vuelve a pedir la aceptación.
+2. **Aceptaciones versionadas.** Se guarda usuario, documento, versión, fecha y canal, sin IP. Un cambio de versión vuelve a pedir la aceptación. Cada versión tiene su texto recuperable en un catálogo del repositorio: una URL versionada del INTEF o una copia autorizada, con su huella SHA-256.
 3. **Primer acceso.** Las cuentas importadas y las creadas por OIDC aceptan en su primer acceso. No aceptar no borra nada: impide usar la cuenta.
 4. **Páginas legales.** Se enlazan los textos vigentes del INTEF; cuando el INTEF los adapte, se publican como páginas propias versionadas en el repositorio.
 5. **Derechos.** Se ejercen en la sede. La plataforma explica cómo en «Tus datos», ofrece lo que el usuario ya puede hacer solo y da a los administradores la exportación de datos y la baja para atender las solicitudes.
-6. **Baja.** Baja lógica inmediata y purga a los 30 días. Se borra siempre todo lo que no está publicado; con lo publicado se aplica la opción C, y si la baja llega por la sede sin elección, se conservan los recursos sin nombre. Los recursos conservados pasan a una cuenta de sistema.
+6. **Baja.** Baja lógica inmediata y purga a los 30 días. Se borra siempre todo lo que no está publicado. Con lo publicado, el usuario elige conservarlo o borrarlo (opción C); si la baja llega por la sede sin elección, se conserva. La baja solo desvincula la cuenta que publicó: los recursos conservados pasan a una cuenta de sistema y la autoría en texto (`resources.author`), que puede ser de otra persona, no cambia.
+   * **Retirada de la atribución.** Es una solicitud distinta de la baja: la hace quien figura como autor, tenga cuenta o no (CC BY 4.0, §3(a)(3)). La administración comprueba la identidad y quita solo ese nombre de la autoría de los recursos indicados.
 7. **Registro de bajas.** Sin nombre ni correo, con borrado automático al cumplirse el plazo (propuesta: 3 años).
 8. **Perfil.** Campos privados por defecto, públicos solo por acción expresa y filtrados en el servidor (ADR-0037). El correo nunca es público.
-9. **Cookies y terceros.** Solo almacenamiento técnico o de preferencias; sin peticiones a terceros al cargar las páginas. Se quita Gravatar. Sin banner de consentimiento.
+9. **Cookies y terceros.** Solo almacenamiento técnico o de preferencias; sin peticiones a terceros al cargar las páginas. Se quita Gravatar. Prescindir del banner depende del contador de visitas (ADR-0044): o la responsable legal confirma que su identificador en `sessionStorage` está exento, o el contador deja de usar almacenamiento en el navegador; si no, se pide consentimiento para el contador.
+10. **Comunidades.** Regla común con ADR-0050 (#578), propuesta pendiente de validar con negocio y la responsable legal: el público ve el número de miembros y el nombre de quienes administran; la lista de miembros, solo los miembros y quienes gestionan; las invitaciones caducan a los 14 días; el correo de una invitación y la solicitud de ingreso con su mensaje se borran en cualquier estado de cierre.
 
-Los puntos 3, 6 y 7, y la edad mínima para registrarse, están pendientes de confirmación del INTEF en #504. Esta ADR pasa a Aceptado cuando se confirmen.
+Los puntos 3, 6, 7 y 10, y la edad mínima para registrarse, están pendientes de confirmación del INTEF en #504. También lo está el punto 9, que depende de la decisión sobre el contador, y la fuente de las versiones del punto 2 (URL versionada o copia autorizada). Esta ADR pasa a Aceptado cuando se confirmen.
+
+Revisión del 2026-11-18 (#577): se añaden la separación entre publicador y autor (punto 6), el texto recuperable de cada versión (punto 2), la condición del banner (punto 9) y la regla común de comunidades (punto 10). Detalle en `design.md` §12.
 
 ## Consecuencias
 
 ### Positivas
 * El texto del registro deja de presentar como consentimiento algo que no lo es, y la base jurídica no depende de que el usuario lo retire.
 * Las aceptaciones versionadas permiten demostrar qué texto vio cada usuario.
-* Los recursos abiertos que otros reutilizan no desaparecen con la cuenta de su autor, salvo que el autor lo pida.
+* Los recursos abiertos que otros reutilizan no desaparecen con la cuenta que los publicó, salvo que esa persona lo pida, y la atribución a su autor se mantiene salvo que el propio autor pida retirarla.
 * El registro de bajas cumple la minimización y tiene fecha de caducidad.
-* Sin terceros ni banner de cookies.
+* Sin terceros; sin banner de cookies si se confirma la exención del contador de visitas o se adapta.
 
 ### Negativas / Riesgos
 * La baja con elección y la purga programada son más trabajo que el borrado del Procomún antiguo, y hay que proteger las subidas de los recursos conservados frente al `ON DELETE CASCADE` de `upload_sessions.owner_id`.

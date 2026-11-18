@@ -36,6 +36,8 @@ Tabla nueva `legal_acceptances`:
 
 No se guarda la IP ni el agente de usuario: no hacen falta para demostrar que se informó, y la fecha y la versión ya lo prueban. La versión vigente de cada documento vive en configuración del servidor (`LEGAL_TERMS_VERSION`, `LEGAL_PRIVACY_VERSION`), de modo que publicar un texto nuevo y pedir de nuevo la aceptación es un cambio de configuración.
 
+> **Revisado el 2026-11-18 (#577):** el identificador de versión no basta para saber qué texto se mostró. Cada versión se vincula a un texto recuperable; ver §12.2.
+
 La API de registro rechaza el alta sin la aceptación (no basta con la casilla del formulario).
 
 ### Foto de perfil
@@ -105,6 +107,8 @@ Borrar los recursos tiene impacto educativo: otros docentes los han enlazado, lo
 - Las colecciones propias siguen la misma elección que los recursos.
 - Cuando la baja llega por la sede sin elección expresa del interesado, se aplica la opción 2 (mantener sin nombre), salvo que pida borrarlos.
 
+> **Revisado el 2026-11-18 (#577):** estas reglas confunden la cuenta que publica con el autor del recurso. `resources.author` es un texto que puede nombrar al autor original del ODE, que no tiene por qué ser quien publicó (#504, #456). La baja solo desvincula la cuenta; retirar el nombre de la atribución es otra solicitud. Las reglas que valen son las de §12.1.
+
 La excepción del art. 17.3.b del RGPD (cumplimiento de una misión de interés público) podría amparar conservar los recursos aunque el autor pida la supresión, pero eso lo tiene que decidir la responsable legal. Pendiente (§11).
 
 ### Cómo se ejecuta
@@ -145,6 +149,8 @@ La épica de comunidades se está diseñando en paralelo. Desde protección de d
 - **Baja de la plataforma**: se borra la pertenencia y lo que haya aportado a la comunidad sigue la regla de §5.
 - **Salir de una comunidad**: borra la pertenencia y la solicitud, si la había.
 
+> **Revisado el 2026-11-18 (#577 y #578):** la visibilidad de los administradores, la caducidad de las invitaciones y el borrado al cerrar solicitudes e invitaciones se unifican con la épica 006 en §12.4.
+
 ## 8. Cookies y almacenamiento en el navegador
 
 Inventario a 2026-11-16:
@@ -158,6 +164,8 @@ Inventario a 2026-11-16:
 | Contenido embebido en un `.elpx` | Tercero | Vídeo o documento externo | Solo se carga tras pulsar la fachada (ADR-0027). La política de cookies tiene que explicarlo |
 
 Con Gravatar fuera, la plataforma no necesita banner de consentimiento. La política de cookies, que ahora describe el Procomún antiguo, tiene que actualizarse con este inventario. Para que no se cuele un tercero sin darse cuenta, se añade un e2e que carga las páginas principales y falla si hay peticiones a otros orígenes o cookies no inventariadas.
+
+> **Revisado el 2026-11-18 (#577):** quitar Gravatar no basta para prescindir del banner. Depende de lo que se decida sobre el contador de visitas; ver §12.3.
 
 ## 9. Registro de bajas
 
@@ -198,3 +206,81 @@ Se publican en #504 como preguntas, cada una con su propuesta:
 4. **Conservación del registro de bajas**: 3 años, sin nombre ni correo (§9).
 
 Además, para la responsable legal: la redacción de la casilla (§1), si el UUID del contador es técnico (§8) y si el art. 17.3.b ampara conservar recursos tras una supresión (§5).
+
+## 12. Revisión del 2026-11-18 (#577)
+
+Ajustes tras la revisión de #577. Prevalecen sobre lo anterior donde lo contradigan; el texto previo se conserva para que quede la trazabilidad.
+
+### 12.1 Publicador y autor en la baja
+
+En la plataforma nueva hay dos datos distintos (#504, #456, #458):
+
+- **Publicador**: la cuenta que subió el recurso (`resources.created_by`, `resource_versions.created_by`). La ficha muestra su nombre para mostrar y enlaza a su perfil.
+- **Autor**: texto libre en `resources.author` y `resources.other_authors`, que suele venir del ODE. Puede nombrar a una persona sin cuenta en la plataforma y no se liga a ninguna.
+
+Son dos operaciones separadas:
+
+**a) Desvinculación de la cuenta (la baja).** Solo toca el publicador.
+
+- La persona que se da de baja elige qué pasa con sus recursos publicados: **conservarlos** (opción preseleccionada) o **borrarlos**. Lo no publicado se borra siempre, como en §5.
+- Si se conservan, en la purga `created_by` pasa a la cuenta de sistema «Cuenta dada de baja». La ficha deja de mostrar el nombre de la cuenta y de enlazar a su perfil, y en su lugar muestra «Cuenta dada de baja».
+- `resources.author`, `resources.other_authors` y el `metadata_snapshot` de las versiones **no cambian**. La atribución que exige la licencia se mantiene.
+- Esto sustituye las opciones 1 y 2 de §5 («con su nombre» y «sin su nombre»). Al purgarse la cuenta, el nombre del publicador desaparece siempre, porque ya no hay cuenta. Lo que la persona puede pedir, además, es lo del punto b.
+- `account_removals.resources_choice` (§9) queda como `keep` o `delete`, con un campo aparte `attribution_withdrawal_requested` (sí o no).
+- Si la baja llega por la sede sin elección expresa, los recursos se conservan y la atribución no se toca, salvo que el escrito pida retirarla.
+
+**b) Retirada de la atribución.** Solo toca la autoría en texto, y solo a petición de quien figura como autor. Las licencias CC 4.0 obligan a retirar la atribución, en la medida en que sea razonablemente posible, cuando el licenciante lo pide ([CC BY 4.0, §3(a)(3)](https://creativecommons.org/licenses/by/4.0/legalcode.en#s3)).
+
+- La puede pedir cualquier persona que figure como autor, tenga cuenta o no y se dé de baja o no. Sin cuenta, por la sede. Con cuenta, desde la pantalla de baja (casilla opcional «Figuro como autor en alguno de estos recursos y pido que se retire mi nombre») o desde «Tus datos».
+- No se aplica sola por coincidencia de nombres. Dos personas pueden llamarse igual y el texto puede venir con otra grafía. La solicitud abre una tarea para la administración, que comprueba la identidad y marca los recursos afectados.
+- Al resolverla se quita ese nombre de `author` y de `other_authors` en los recursos indicados y se reindexan. Los demás coautores se quedan. Si el campo queda vacío, se muestra «Autoría retirada». Las versiones anteriores no se reescriben, pero dejan de mostrarse en público con ese nombre.
+- Queda en `activity_events` con el identificador del recurso y sin el nombre retirado.
+
+**Casos de aceptación**
+
+| Caso | Situación | Resultado esperado |
+|---|---|---|
+| CA-1 | La cuenta P publica un recurso con autor «Ana Autora» (otra persona). P se da de baja y conserva sus recursos | Tras la purga, `created_by` es la cuenta de sistema y la ficha dice «Cuenta dada de baja». El autor sigue siendo «Ana Autora» y la búsqueda por ese nombre sigue encontrando el recurso |
+| CA-2 | P publica un recurso con autor «P». Se da de baja, lo conserva y no pide retirar la atribución | Publicador «Cuenta dada de baja». El autor sigue siendo «P», como pide la licencia |
+| CA-3 | P publica un recurso con autor «P, Luis Coautor». Se da de baja, lo conserva y pide retirar la atribución | Tras resolver la tarea: autor «Luis Coautor», la búsqueda por «P» ya no lo encuentra y el evento no guarda el nombre |
+| CA-4 | Mismo caso que CA-3, pero el único autor es «P» | Autor vacío y la ficha muestra «Autoría retirada» |
+| CA-5 | «Ana Autora», sin cuenta, pide por la sede retirar su nombre de un recurso que publicó P (activa) | Se quita el nombre del campo de autor. La cuenta P y su vínculo con el recurso no cambian |
+| CA-6 | P se da de baja y elige borrar sus recursos | Se borran los recursos aunque el autor en texto sea otra persona. Las colecciones y comunidades muestran «Recurso retirado» |
+
+**Abierto para la responsable legal** (sigue la pregunta hecha en #504): si, cuando autor y publicador coinciden y la persona pide la supresión de sus datos por la sede sin decir nada de la atribución, basta con desvincular la cuenta o hay que retirar también la atribución. Y si CA-6 es aceptable cuando el autor es un tercero que no ha pedido nada.
+
+### 12.2 Texto recuperable de cada versión aceptada
+
+Guardar el identificador de versión no prueba qué texto se mostró si la página del INTEF cambia sin cambiar de URL.
+
+- Catálogo de versiones en el repositorio, por documento (`terms`, `privacy`): versión, fecha de entrada en vigor, fuente y huella SHA-256 del texto.
+- La fuente es una de dos:
+  1. **URL versionada del INTEF**, que no cambia una vez publicada (una URL por versión).
+  2. **Copia autorizada**: el texto de esa versión guardado en el repositorio, con la autorización del INTEF.
+- Los enlaces que ve el usuario pueden seguir apuntando a la página vigente del INTEF (§3). El catálogo sirve como prueba y para recuperar versiones anteriores.
+- `LEGAL_TERMS_VERSION` y `LEGAL_PRIVACY_VERSION` solo admiten versiones del catálogo. El arranque falla si la versión configurada no tiene fuente.
+- Si la fuente es una URL del INTEF, una comprobación programada compara la huella de la página con la del catálogo y avisa si cambió sin versión nueva.
+- **Abierto para el INTEF**: si publica URLs versionadas o autoriza guardar copia de los textos. Sin una de las dos, no se puede cumplir RF-003 y la fase 1 no puede abrirse a usuarios reales.
+
+### 12.3 Banner de cookies y contador de visitas
+
+La conclusión de §8 («no hace falta banner») queda condicionada. El contador de visitas (ADR-0044) guarda en `sessionStorage` `procomun:view-session` (un UUID por pestaña) y `procomun:viewed:<slug>` (recursos ya contados). La [guía de la AEPD sobre cookies analíticas](https://www.aepd.es/guias/guia-cookies-analiticas-externas.pdf) no da por exento ese uso de forma automática.
+
+Antes de abrir la plataforma se aplica una de estas tres salidas:
+
+1. **La responsable legal confirma por escrito que está exento.** La confirmación se enlaza desde la épica y desde el inventario de §8. No hay banner.
+2. **Se adapta el contador** para que no use almacenamiento en el navegador. Por ejemplo, contar cada apertura sin deduplicar en el cliente; no se recurre a la huella del navegador ni a la IP. No hay banner.
+3. **Se pide consentimiento**: el contador solo escribe en `sessionStorage` y llama a la API después de aceptar. En ese caso sí hay aviso.
+
+El inventario de §8 y el e2e de RF-011 se ajustan a la salida elegida. La épica 006 reutiliza el mismo contador en las comunidades, así que la decisión vale para las dos.
+
+### 12.4 Regla común con la épica 006 (comunidades, #578)
+
+**Propuesta pendiente de validar con negocio y con la responsable legal (DPD).** Se aplica igual en #577 y en #578, y sustituye lo que difiera en §7:
+
+- **Visibilidad**: el público, también en las comunidades públicas, ve el número de miembros y el nombre para mostrar de quienes administran la comunidad, para saber a quién pedir el ingreso. La lista nominal de miembros solo la ven los miembros, los administradores de la comunidad y los `admin` de la plataforma. El correo no se muestra nunca. Aceptar el rol de administrador de una comunidad implica que su nombre para mostrar se vea en la ficha de esa comunidad, y la pantalla lo avisa.
+- **Invitaciones**: caducan a los **14 días**.
+- **Correo de la invitación**: se borra en cualquier estado de cierre (aceptada, rechazada, caducada o revocada), junto con el hash del token. La fila queda sin correo, con el estado y las fechas. Las caducadas las limpia el mismo proceso programado que la purga de §5.
+- **Solicitudes de ingreso**: al cerrarse (aceptada, rechazada o retirada por quien la hizo) se borra la solicitud con su mensaje. Si se aceptó, queda la pertenencia. La decisión queda en `activity_events` sin el mensaje.
+
+Validación: un test de integración por cada estado de cierre que compruebe que no queda el correo ni el mensaje.

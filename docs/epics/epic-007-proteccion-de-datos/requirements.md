@@ -44,17 +44,18 @@ La plataforma nueva no tiene nada de protección de datos en el área de usuario
 ## Requisitos funcionales
 - **RF-001** El registro muestra una primera capa informativa (responsable, finalidad, base jurídica, derechos y enlace a la política de privacidad) antes de enviar el formulario.
 - **RF-002** El registro exige marcar «He leído la información sobre protección de datos y acepto las condiciones de uso». Es una aceptación de las condiciones y un acuse de la información, no un consentimiento al tratamiento.
-- **RF-003** Cada aceptación se guarda con usuario, documento, versión y fecha. Cuando cambia la versión de un documento, se vuelve a pedir en el siguiente acceso.
+- **RF-003** Cada aceptación se guarda con usuario, documento, versión y fecha. Cuando cambia la versión de un documento, se vuelve a pedir en el siguiente acceso. Cada versión registrada tiene su texto recuperable: una URL versionada del INTEF que no cambia, o una copia autorizada guardada con su huella SHA-256. Publicar una versión nueva no impide recuperar el texto exacto de las anteriores (`design.md`, §12.2).
 - **RF-004** Las cuentas creadas sin pasar por el formulario (importadas del Procomún antiguo o creadas al entrar por OIDC) ven la información y aceptan en su primer acceso, antes de poder usar la plataforma.
 - **RF-005** Todas las páginas enlazan en el pie al aviso legal, la política de privacidad y la política de cookies.
 - **RF-006** El área de usuario tiene una sección «Tus datos» que explica qué datos se guardan, remite a la sede para ejercer los derechos y ofrece lo que ya se puede hacer en la plataforma (editar el perfil, cambiar visibilidad, darse de baja).
 - **RF-007** El usuario puede darse de baja desde su cuenta, con confirmación y reautenticación. La baja también la puede ejecutar un administrador cuando la solicitud llega por la sede.
-- **RF-008** La baja aplica a los recursos de la cuenta la política que fije la ADR-0051 (ver `design.md`, §5).
+- **RF-008** La baja aplica a los recursos de la cuenta la política que fije la ADR-0051 (ver `design.md`, §5 y §12.1). La baja solo desvincula la cuenta que publicó (`created_by`); no cambia la autoría en texto (`resources.author` y `resources.other_authors`), que puede ser de otra persona.
 - **RF-009** Los campos del perfil (#533) son privados por defecto y cada uno se hace público solo por acción expresa del usuario. El correo nunca es público.
-- **RF-010** En las comunidades (#493), los datos de los miembros solo los ven quienes los necesitan (ver `design.md`, §7).
-- **RF-011** La plataforma solo usa almacenamiento técnico o de preferencias en el navegador y no envía datos a terceros sin una acción del usuario. Con eso no hace falta banner de cookies.
+- **RF-010** En las comunidades (#493), los datos de los miembros solo los ven quienes los necesitan (ver `design.md`, §7, y la regla común con la épica 006 en §12.4).
+- **RF-011** La plataforma solo usa almacenamiento técnico o de preferencias en el navegador y no envía datos a terceros sin una acción del usuario. Prescindir del banner de cookies depende de una condición: que la responsable legal confirme que el identificador del contador de visitas en `sessionStorage` (ADR-0044) está exento, o que el contador se adapte para no usar almacenamiento en el navegador. Si no se cumple ninguna de las dos, el contador solo funciona tras un consentimiento y sí hace falta aviso (`design.md`, §12.3).
 - **RF-012** La foto de perfil solo se usa con el consentimiento del usuario, que puede retirarlo.
 - **RF-013** Cada baja deja un registro mínimo, con un plazo de conservación definido y borrado automático al cumplirse.
+- **RF-014** Quien figura como autor en `resources.author` o `resources.other_authors` puede pedir que se retire su nombre de la atribución (licencias CC 4.0, §3(a)(3)), tenga o no cuenta y se dé o no de baja. Es una solicitud distinta de la baja de la cuenta (`design.md`, §12.1).
 
 ## Requisitos no funcionales
 - Accesibilidad WCAG 2.1 AA en la capa informativa, la pantalla de aceptación, la sección «Tus datos» y el flujo de baja.
