@@ -1,4 +1,5 @@
 import {
+	DEFAULT_LICENSE,
 	MAX_OTHER_AUTHORS_LENGTH,
 	validateCreateResource,
 	validateUpdateResource,
@@ -419,7 +420,7 @@ export default function EditarPage() {
 			description: descriptionRef.current?.value ?? "",
 			// Vacío = «Sin indicar»: se omite para no asignar un idioma (#473).
 			language: languageRef.current?.value || undefined,
-			license: licenseRef.current?.value ?? "cc-by",
+			license: licenseRef.current?.value ?? DEFAULT_LICENSE,
 			resourceType: resourceTypeRef.current?.value ?? "documento",
 			// Al crear el autor es obligatorio y uno existente no se puede borrar,
 			// pero un recurso antiguo sin autor se sigue guardando sin él.
@@ -921,7 +922,7 @@ export default function EditarPage() {
 										<select
 											id="ed-license"
 											ref={licenseRef}
-											defaultValue="cc-by"
+											defaultValue={DEFAULT_LICENSE}
 										>
 											<option value="cc-by">CC BY</option>
 											<option value="cc-by-sa">CC BY-SA</option>
@@ -1111,7 +1112,7 @@ export default function EditarPage() {
 									<select
 										id="ed-license"
 										ref={licenseRef}
-										defaultValue={res.license ?? "cc-by"}
+										defaultValue={res.license ?? DEFAULT_LICENSE}
 									>
 										<option value="cc-by">CC BY</option>
 										<option value="cc-by-sa">CC BY-SA</option>
