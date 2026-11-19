@@ -387,3 +387,7 @@ Un publicado sin sello se sigue abriendo por su enlace directo, y su creador lo 
 * **Pérdida del sello.** Como la regla se evalúa en cada consulta, un recurso que pierde el sello (#420) desaparece de inmediato de esas superficies y sigue accesible por enlace.
 
 **Validación.** `apps/api/src/public/validated-discovery.unit.test.ts` (listado y total, texto completo, feed general, relacionados, pérdida del sello, enlace directo, autor y su feed, colección) y el caso nuevo de `apps/cli/src/commands/seed.unit.test.ts`.
+
+## Renumeración de la migración — 2026-11-19
+
+`0026_resource_validation_seal` pasa a `0031_resource_validation_seal` tras integrar la 0027 de «Artículo». Se conserva el orden de integración #586, #585 y #587.

@@ -2,6 +2,7 @@ import { mkdir, unlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import * as repo from "@procomun/db/repository";
+import { DEFAULT_LICENSE } from "@procomun/db/validation";
 import { Hono } from "hono";
 import { type AuthEnv, requireRole } from "../../auth/middleware.ts";
 import { canManageResource, getCurrentUser } from "../../auth/roles.ts";
@@ -322,7 +323,7 @@ elpxAdminRoutes.post(
 				author: resource.author ?? "",
 				// Sin idioma no se declara ninguno en el paquete (#473).
 				language: resource.language ?? undefined,
-				license: resource.license ?? "cc-by",
+				license: resource.license ?? DEFAULT_LICENSE,
 				files: filesToBundle,
 				outputPath: tempOutput,
 			});

@@ -1,4 +1,5 @@
 import {
+	DEFAULT_LICENSE,
 	MAX_OTHER_AUTHORS_LENGTH,
 	validateCreateResource,
 	validateUpdateResource,
@@ -37,6 +38,7 @@ import {
 import { EditorialActions } from "./EditorialActions.tsx";
 import { ResourceVersionPanel } from "./ResourceVersionPanel.tsx";
 import "../styles/editar.css";
+import { labelFor } from "../lib/labels.ts";
 
 const STATUS_LABELS: Record<string, { label: string; cssClass: string }> = {
 	draft: { label: "Borrador", cssClass: "edit-badge-draft" },
@@ -419,7 +421,7 @@ export default function EditarPage() {
 			description: descriptionRef.current?.value ?? "",
 			// Vacío = «Sin indicar»: se omite para no asignar un idioma (#473).
 			language: languageRef.current?.value || undefined,
-			license: licenseRef.current?.value ?? "cc-by",
+			license: licenseRef.current?.value ?? DEFAULT_LICENSE,
 			resourceType: resourceTypeRef.current?.value ?? "documento",
 			// Al crear el autor es obligatorio y uno existente no se puede borrar,
 			// pero un recurso antiguo sin autor se sigue guardando sin él.
@@ -497,7 +499,7 @@ export default function EditarPage() {
 			const api = await getApiClient();
 			await api.updateResourceStatus(resource.id, newStatus);
 			setSuccessMsg(
-				`Estado actualizado a "${STATUS_LABELS[newStatus]?.label ?? newStatus}"`,
+				`Estado actualizado a "${labelFor(STATUS_LABELS, newStatus)?.label ?? newStatus}"`,
 			);
 			// #460: un curator que devuelve a borrador un recurso ajeno deja de
 			// poder verlo; vuelve al listado de Administrar en vez de recargar.
@@ -665,7 +667,7 @@ export default function EditarPage() {
 	);
 	const authorRequired = isNew || Boolean(res.author);
 	const st =
-		STATUS_LABELS[res.editorialStatus] ??
+		labelFor(STATUS_LABELS, res.editorialStatus) ??
 		STATUS_LABELS.draft ??
 		({ label: res.editorialStatus, cssClass: "" } as const);
 	const date = formatDate(res.updatedAt || res.createdAt);
@@ -923,7 +925,7 @@ export default function EditarPage() {
 										<select
 											id="ed-license"
 											ref={licenseRef}
-											defaultValue="cc-by"
+											defaultValue={DEFAULT_LICENSE}
 										>
 											<option value="cc-by">CC BY</option>
 											<option value="cc-by-sa">CC BY-SA</option>
@@ -1113,7 +1115,7 @@ export default function EditarPage() {
 									<select
 										id="ed-license"
 										ref={licenseRef}
-										defaultValue={res.license ?? "cc-by"}
+										defaultValue={res.license ?? DEFAULT_LICENSE}
 									>
 										<option value="cc-by">CC BY</option>
 										<option value="cc-by-sa">CC BY-SA</option>

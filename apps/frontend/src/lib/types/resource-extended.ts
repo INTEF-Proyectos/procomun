@@ -22,6 +22,8 @@ export interface ResourceSummary {
 	/** Cuenta que publica: su nombre enlaza a su ficha (#458). */
 	createdBy?: string | null;
 	createdByName?: string | null;
+	/** `false` si la cuenta está dada de baja: sin enlace a su ficha (#541). */
+	createdByActive?: boolean | null;
 	thumbnailUrl?: string | null;
 	elpxPreview?: ElpxCardPreview | null;
 	rating?: { average: number; count: number };
