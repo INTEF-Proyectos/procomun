@@ -890,3 +890,26 @@ describe("actualización con el migrador de drizzle (#512)", () => {
 		}
 	});
 });
+
+describe("0027_taxonomy_articulo (#595)", () => {
+	test("añade «Artículo» a resource-type y es idempotente", async () => {
+		const migration = await readFile(
+			path.join(migrationsDir, "0027_taxonomy_articulo.sql"),
+			"utf8",
+		);
+		const db = new PGlite();
+		try {
+			await db.exec(
+				`CREATE TABLE "taxonomies" (id TEXT PRIMARY KEY, slug VARCHAR(255) NOT NULL UNIQUE, name TEXT NOT NULL, type VARCHAR(100) NOT NULL, created_at TIMESTAMP NOT NULL DEFAULT NOW(), updated_at TIMESTAMP NOT NULL DEFAULT NOW())`,
+			);
+			await db.exec(migration);
+			await db.exec(migration);
+			const rows = await db.query<{ name: string }>(
+				`SELECT name FROM taxonomies WHERE type = 'resource-type' AND slug = 'articulo'`,
+			);
+			expect(rows.rows).toEqual([{ name: "Artículo" }]);
+		} finally {
+			await db.close();
+		}
+	});
+});
