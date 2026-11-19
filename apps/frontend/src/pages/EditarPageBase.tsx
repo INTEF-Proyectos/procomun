@@ -12,7 +12,10 @@ import {
 	KnowledgeAreaField,
 	ProfessionalFamilyField,
 } from "../islands/resources/KnowledgeClassificationFields.tsx";
-import { getResourceTypeOptions } from "../islands/resources/resource-form-options.ts";
+import {
+	getResourceTypeOptions,
+	LICENSE_OPTIONS,
+} from "../islands/resources/resource-form-options.ts";
 import type {
 	CatalogKeyword,
 	PublicKnowledgeAreaCatalog,
@@ -924,11 +927,11 @@ export default function EditarPage() {
 											ref={licenseRef}
 											defaultValue={DEFAULT_LICENSE}
 										>
-											<option value="cc-by">CC BY</option>
-											<option value="cc-by-sa">CC BY-SA</option>
-											<option value="cc-by-nc">CC BY-NC</option>
-											<option value="cc-by-nc-sa">CC BY-NC-SA</option>
-											<option value="cc0">CC0</option>
+											{LICENSE_OPTIONS.map(({ value, label }) => (
+												<option key={value} value={value}>
+													{label}
+												</option>
+											))}
 										</select>
 									</div>
 								</div>
@@ -1114,11 +1117,11 @@ export default function EditarPage() {
 										ref={licenseRef}
 										defaultValue={res.license ?? DEFAULT_LICENSE}
 									>
-										<option value="cc-by">CC BY</option>
-										<option value="cc-by-sa">CC BY-SA</option>
-										<option value="cc-by-nc">CC BY-NC</option>
-										<option value="cc-by-nc-sa">CC BY-NC-SA</option>
-										<option value="cc0">CC0</option>
+										{LICENSE_OPTIONS.map(({ value, label }) => (
+											<option key={value} value={value}>
+												{label}
+											</option>
+										))}
 									</select>
 								</div>
 

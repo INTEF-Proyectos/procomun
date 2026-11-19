@@ -4886,3 +4886,10 @@ tasks:
       reutiliza el resumen saneado de errores SMTP. Validación local:
       98 pruebas de los flujos de autenticación y correo, 180 pruebas de
       interfaz, tipos y paridad de archivos de prueba.
+  T-2026-11-19-15141737:
+    date: 2026-11-19
+    agent: "frontend-ux-accesibilidad"
+    task: "Conserva las licencias sin derivadas al editar recursos"
+    status: In Progress
+    related: ["#597", "#522"]
+    notes: "Los selectores de alta y edición comparten VALID_LICENSES. Regresión del catálogo y del guardado."

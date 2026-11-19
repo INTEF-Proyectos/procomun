@@ -1,4 +1,6 @@
 import { RESOURCE_TYPES } from "@procomun/db/resource-types";
+import { VALID_LICENSES } from "@procomun/db/validation";
+import { m } from "../../paraglide/messages.js";
 
 export const LANGUAGE_OPTIONS = [
 	{ value: "es", label: "Español" },
@@ -8,13 +10,21 @@ export const LANGUAGE_OPTIONS = [
 	{ value: "gl", label: "Gallego" },
 ] as const;
 
-export const LICENSE_OPTIONS = [
-	{ value: "cc-by", label: "CC BY" },
-	{ value: "cc-by-sa", label: "CC BY-SA" },
-	{ value: "cc-by-nc", label: "CC BY-NC" },
-	{ value: "cc-by-nc-sa", label: "CC BY-NC-SA" },
-	{ value: "cc0", label: "CC0 (Dominio público)" },
-] as const;
+export const LICENSE_OPTIONS = VALID_LICENSES.map((value) => ({
+	value,
+	get label() {
+		switch (value) {
+			case "cc-by-nd":
+				return m.license_no_derivatives();
+			case "cc-by-nc-nd":
+				return m.license_noncommercial_no_derivatives();
+			case "cc0":
+				return m.license_public_domain();
+			default:
+				return value.toUpperCase().replace("CC-", "CC ");
+		}
+	},
+}));
 
 // Derived from RESOURCE_TYPES (packages/db/src/resource-types.ts), the single
 // source of truth for canonical resource types.

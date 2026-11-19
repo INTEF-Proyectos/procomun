@@ -516,11 +516,11 @@ export default function NuevoPage() {
 									setFieldValue("license", event.currentTarget.value)
 								}
 							>
-								<option value="cc-by">CC BY</option>
-								<option value="cc-by-sa">CC BY-SA</option>
-								<option value="cc-by-nc">CC BY-NC</option>
-								<option value="cc-by-nc-sa">CC BY-NC-SA</option>
-								<option value="cc0">CC0 (Dominio público)</option>
+								{LICENSE_OPTIONS.map(({ value, label }) => (
+									<option key={value} value={value}>
+										{label}
+									</option>
+								))}
 							</select>
 							<span id="license-error" className="field-error" role="alert">
 								{fieldErrors.license ?? ""}

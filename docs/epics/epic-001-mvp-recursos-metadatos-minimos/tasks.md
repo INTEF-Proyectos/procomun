@@ -111,3 +111,8 @@ En desarrollo
 
 ### Cierre
 - [x] Registrar validación final y cierre de la iteración.
+
+## Licencias de alta y edición — 2026-11-19 (#597)
+
+- [x] Derivar las opciones de alta y edición de las licencias válidas de la API.
+- [x] Cubrir que editar el título conserva las licencias CC BY-ND y CC BY-NC-ND.
