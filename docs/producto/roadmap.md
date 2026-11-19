@@ -413,3 +413,13 @@ Se entrega la fase 1+2 del sistema de recomendación en ficha de recurso:
 - Collaborative filtering / «Recomendados para ti» queda diferido (fase 3 de ADR-0036)
 
 Trazabilidad: `docs/epics/epic-003/features/feature-recomendacion-recursos-relacionados/`, ADR-0036.
+
+## Actualización 2026-11-16 — Épica 006: comunidades (#493, #495 / ADR-0050)
+
+Se abre la épica de comunidades (decisión F2-18 de la matriz funcional: se replican). Con las respuestas de INTEF del 2026-11-16: sin foros ni comentarios, recursos siempre públicos y solo enlazados, administrador obligatorio (sin él, borrador), creación con aprobación del `admin` y migración manual por terminal con el importador de #495.
+
+- ADR-0050 (Propuesta): tablas propias de comunidad, reutilizando etiquetas, áreas, contexto educativo y visitas.
+- Features: F1 modelo y API, F2 interfaz y navegación «Comunidades», F3 solicitudes e invitaciones, F4 importador.
+- Pendiente: preguntas Q-1 a Q-12 del diseño y la protección de datos de #504.
+
+Trazabilidad: `docs/epics/epic-006-comunidades/`, ADR-0050.
