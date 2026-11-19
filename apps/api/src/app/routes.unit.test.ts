@@ -18,6 +18,27 @@ describe("registerRoutes", () => {
 		expect(typeof config.oidcEnabled).toBe("boolean");
 		expect(typeof config.emailVerificationRequired).toBe("boolean");
 		expect("oidcEndSessionUrl" in config).toBe(true);
+		// #551: la interfaz esconde la recuperación si no se puede mandar correo.
+		expect(config.emailDeliveryEnabled).toBe(true);
+	});
+
+	test("expone mediaBankUrl desde MEDIA_BANK_URL (#569)", async () => {
+		const previous = process.env.MEDIA_BANK_URL;
+		try {
+			const app = new Hono<AuthEnv>();
+			registerRoutes(app);
+
+			delete process.env.MEDIA_BANK_URL;
+			let config = await (await app.request("/api/v1/config")).json();
+			expect(config.mediaBankUrl).toBeNull();
+
+			process.env.MEDIA_BANK_URL = "https://multimedia.example.es/";
+			config = await (await app.request("/api/v1/config")).json();
+			expect(config.mediaBankUrl).toBe("https://multimedia.example.es/");
+		} finally {
+			if (previous === undefined) delete process.env.MEDIA_BANK_URL;
+			else process.env.MEDIA_BANK_URL = previous;
+		}
 	});
 
 	test("expone el catálogo de áreas de conocimiento sin sesión (#448)", async () => {

@@ -29,6 +29,7 @@ import type {
 	UploadSessionRecord,
 	UserRecord,
 } from "./api-client.ts";
+import { url } from "./paths.ts";
 
 /**
  * Cliente HTTP que llama al servidor API real.
@@ -262,6 +263,55 @@ export class HttpApiClient implements ApiClient {
 		return typeof data?.code === "string"
 			? { ok: false, code: data.code, error }
 			: { ok: false, error };
+	}
+
+	/**
+	 * Pide el correo de recuperación (#531). better-auth responde lo mismo
+	 * exista o no la cuenta y no espera al envío (#551), así que un error aquí
+	 * no delata nada: es la recuperación apagada (sin SMTP) o el límite de
+	 * peticiones, y la interfaz no debe decir «enviado». Sin `error`: el
+	 * mensaje lo pone la isla, traducido.
+	 */
+	async requestPasswordReset(email: string): Promise<SignInResult> {
+		try {
+			const res = await fetch("/api/auth/request-password-reset", {
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				credentials: "include",
+				// url(): respeta la ruta base y el prefijo de idioma (#551).
+				body: JSON.stringify({ email, redirectTo: url("restablecer") }),
+			});
+			return res.ok ? { ok: true } : { ok: false };
+		} catch {
+			return { ok: false };
+		}
+	}
+
+	/** Fija la contraseña nueva con el token del enlace (#531). */
+	async resetPassword(
+		token: string,
+		newPassword: string,
+	): Promise<SignInResult> {
+		let res: Response;
+		try {
+			res = await fetch("/api/auth/reset-password", {
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				credentials: "include",
+				body: JSON.stringify({ token, newPassword }),
+			});
+		} catch {
+			// Fallo de red (#551): la isla enseña el error de conexión.
+			return { ok: false };
+		}
+		if (res.ok) return { ok: true };
+		const data = await res.json().catch(() => null);
+		return {
+			ok: false,
+			error:
+				data?.message ??
+				"El enlace no vale: puede haber caducado o haberse usado ya.",
+		};
 	}
 
 	async signInOidc(): Promise<SignInResult> {

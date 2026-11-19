@@ -127,6 +127,13 @@
 			"when": 1793500000000,
 			"tag": "0021_thumbnail_owner_indexes",
 			"breakpoints": true
+		},
+		{
+			"idx": 18,
+			"version": "7",
+			"when": 1793600000000,
+			"tag": "0027_taxonomy_articulo",
+			"breakpoints": true
 		}
 	]
 }

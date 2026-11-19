@@ -2,7 +2,10 @@ import type { Context, Hono, Next } from "hono";
 import type { AuthEnv } from "../auth/middleware.ts";
 import { getCachedOidcEndSessionUrl } from "../auth/oidc-discovery.ts";
 import { tokenAuthMiddleware } from "../auth/token-auth.ts";
-import { resolveEmailVerificationConfig } from "../email/transport.ts";
+import {
+	hasEmailTransport,
+	resolveEmailVerificationConfig,
+} from "../email/transport.ts";
 import { adminRoutes } from "../routes/admin/index.ts";
 import { apiResourceRoutes } from "../routes/api-resources.ts";
 import { apiTokenRoutes } from "../routes/api-tokens.ts";
@@ -19,6 +22,7 @@ import { tagRoutes } from "../routes/tags.ts";
 import { thumbnailRoutes } from "../routes/thumbnails.ts";
 import { uploadRoutes } from "../routes/uploads.ts";
 import { getLimits as getPreviewLimits } from "../services/preview-snapshot-store.ts";
+import { resolveMediaBankUrl } from "./media-bank.ts";
 
 export const PREVIEW_MULTIPART_OVERHEAD_BYTES = 2 * 1024 * 1024;
 
@@ -74,10 +78,12 @@ export function registerRoutes(app: Hono<AuthEnv>) {
 			oidcEnabled: process.env.OIDC_ENABLED === "true",
 			emailVerificationRequired: resolveEmailVerificationConfig(process.env)
 				.enabled,
+			emailDeliveryEnabled: hasEmailTransport(process.env),
 			// #542: sale de end_session_endpoint del documento de descubrimiento,
 			// no de la ruta de Duende. Se lee de la caché y nunca se espera a la
 			// red aquí: el calentado va en segundo plano (ver oidc-discovery.ts).
 			oidcEndSessionUrl: getCachedOidcEndSessionUrl(process.env),
+			mediaBankUrl: resolveMediaBankUrl(process.env),
 		}),
 	);
 

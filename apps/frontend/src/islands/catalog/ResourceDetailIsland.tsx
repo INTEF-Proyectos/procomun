@@ -6,7 +6,10 @@ import type {
 	Resource,
 	SessionData,
 } from "../../lib/api-client.ts";
-import { splitAuthorNames } from "../../lib/author-links.ts";
+import {
+	publisherProfileId,
+	splitAuthorNames,
+} from "../../lib/author-links.ts";
 import { getApiClient } from "../../lib/get-api-client.ts";
 import {
 	knowledgeAreaHref,
@@ -333,9 +336,10 @@ export function ResourceDetailContent({
 	// La ficha de autor solo existe con algún recurso publicado (#487): en la
 	// vista previa de uno sin publicar el nombre va sin enlace, porque la cuenta
 	// puede no tener ninguno y el enlace daría 404.
+	// Tampoco con la cuenta dada de baja (#541): su ficha no existe.
 	const publisherHref =
-		publisherId && resource.editorialStatus === "published"
-			? publisherId
+		resource.editorialStatus === "published"
+			? publisherProfileId(resource)
 			: null;
 	const authorNames = splitAuthorNames(resource.author);
 	// Sin cuenta (p. ej. importados) va primero el publicador y la lista de
