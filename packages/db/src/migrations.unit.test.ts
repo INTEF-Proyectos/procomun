@@ -891,22 +891,43 @@ describe("actualización con el migrador de drizzle (#512)", () => {
 	});
 });
 
-// Issue #420, ADR-0049 (adenda 2026-11-16): sello «Validado». La 0026 la fija
-// el reparto de números entre PR abiertos (0020–0025 ya están cogidas).
-describe("migración 0026_resource_validation_seal", () => {
+describe("0027_taxonomy_articulo (#595)", () => {
+	test("añade «Artículo» a resource-type y es idempotente", async () => {
+		const migration = await readFile(
+			path.join(migrationsDir, "0027_taxonomy_articulo.sql"),
+			"utf8",
+		);
+		const db = new PGlite();
+		try {
+			await db.exec(
+				`CREATE TABLE "taxonomies" (id TEXT PRIMARY KEY, slug VARCHAR(255) NOT NULL UNIQUE, name TEXT NOT NULL, type VARCHAR(100) NOT NULL, created_at TIMESTAMP NOT NULL DEFAULT NOW(), updated_at TIMESTAMP NOT NULL DEFAULT NOW())`,
+			);
+			await db.exec(migration);
+			await db.exec(migration);
+			const rows = await db.query<{ name: string }>(
+				`SELECT name FROM taxonomies WHERE type = 'resource-type' AND slug = 'articulo'`,
+			);
+			expect(rows.rows).toEqual([{ name: "Artículo" }]);
+		} finally {
+			await db.close();
+		}
+	});
+});
+
+// Issue #420, ADR-0049 (adenda 2026-11-16): sello «Validado».
+describe("migración 0031_resource_validation_seal", () => {
 	const OLD_SCHEMA = `CREATE TABLE "user" (id TEXT PRIMARY KEY);
 		CREATE TABLE "resources" (id TEXT PRIMARY KEY, title TEXT NOT NULL)`;
 
-	// Detrás de todas las anteriores, no la última: si no, la 0027 rompería el test.
 	test("va detrás de las anteriores con el when reservado", async () => {
 		const journal = JSON.parse(
 			await readFile(path.join(migrationsDir, "meta/_journal.json"), "utf8"),
 		) as { entries: Array<{ tag: string; when: number }> };
 		const entry = journal.entries.find(
-			(item) => item.tag === "0026_resource_validation_seal",
+			(item) => item.tag === "0031_resource_validation_seal",
 		);
 		const previous = journal.entries.filter(
-			(item) => item.tag < "0026_resource_validation_seal",
+			(item) => item.tag < "0031_resource_validation_seal",
 		);
 		expect(entry?.when).toBe(1794000000000);
 		expect(entry?.when ?? 0).toBeGreaterThan(
@@ -917,7 +938,7 @@ describe("migración 0026_resource_validation_seal", () => {
 	test("es idempotente, solo admite los orígenes conocidos y suelta al validador borrado", async () => {
 		const migration = (
 			await readFile(
-				path.join(migrationsDir, "0026_resource_validation_seal.sql"),
+				path.join(migrationsDir, "0031_resource_validation_seal.sql"),
 				"utf8",
 			)
 		).replaceAll("--> statement-breakpoint", "");

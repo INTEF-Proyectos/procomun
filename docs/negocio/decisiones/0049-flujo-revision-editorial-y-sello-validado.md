@@ -358,3 +358,7 @@ Es la parte del sello de la fase 1b y el distintivo de la fase 1c, sobre el fluj
 * La validación de lo publicado (H2 y H3), pendiente de R1 a R4.
 * El filtro «Solo validados» y la regla de visibilidad de #568.
 * `validated` en los feeds.
+
+## Renumeración de la migración — 2026-11-19
+
+`0026_resource_validation_seal` pasa a `0031_resource_validation_seal` tras integrar la 0027 de «Artículo». Se conserva el orden de integración #586, #585 y #587.

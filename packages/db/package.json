@@ -29,12 +29,12 @@
 		"test": "bun test"
 	},
 	"dependencies": {
-		"@electric-sql/pglite": "0.5.15",
+		"@electric-sql/pglite": "0.5.16",
 		"@faker-js/faker": "10.6.0",
 		"drizzle-orm": "0.45.4"
 	},
 	"devDependencies": {
 		"drizzle-kit": "0.31.11",
-		"postgres": "4.1.0"
+		"postgres": "4.1.1"
 	}
 }

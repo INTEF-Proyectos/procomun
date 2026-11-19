@@ -38,6 +38,8 @@ export interface Resource {
 	editorialStatus: string;
 	createdBy: string | null;
 	createdByName: string | null;
+	/** La cuenta creadora existe y no está dada de baja (#541). */
+	createdByActive?: boolean;
 	assignedCuratorId?: string | null;
 	/** Sello «Validado» (#420): fecha y origen («review» o «legacy»). */
 	validatedAt?: string | null;
@@ -140,6 +142,8 @@ export interface CollectionResourceRecord {
 	author: string | null;
 	createdBy?: string | null;
 	createdByName?: string | null;
+	/** La cuenta creadora existe y no está dada de baja (#541). */
+	createdByActive?: boolean;
 	editorialStatus: string;
 	thumbnailUrl?: string | null;
 	elpxPreview?: ElpxCardPreview | null;
@@ -361,6 +365,8 @@ export interface AppConfig {
 	oidcEnabled: boolean;
 	oidcEndSessionUrl: string | null;
 	emailVerificationRequired: boolean;
+	/** Hay transporte de correo; sin él se esconde la recuperación (#551). */
+	emailDeliveryEnabled: boolean;
 }
 
 export interface BadgeConfig {
@@ -467,6 +473,9 @@ export interface ApiClient {
 		callbackURL?: string,
 	): Promise<SignInResult>;
 	signIn(email: string, password: string): Promise<SignInResult>;
+	/** #531: siempre ok salvo fallo de red, para no revelar qué correos hay. */
+	requestPasswordReset(email: string): Promise<SignInResult>;
+	resetPassword(token: string, newPassword: string): Promise<SignInResult>;
 	signInOidc(): Promise<SignInResult>;
 	signOut(): Promise<void>;
 

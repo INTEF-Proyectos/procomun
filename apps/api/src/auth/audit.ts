@@ -16,6 +16,9 @@ import type { AuthEnv } from "./middleware.ts";
  *   `/api/v1/elpx/preview/<hash>/<token>/…`. El token pasa a `:token`.
  * - Miniatura firmada de un recurso no publicado (#512):
  *   `/api/v1/thumbnails/signed/<token>/<fichero>`. El token pasa a `:token`.
+ * - Enlace del correo de recuperación de contraseña (#551):
+ *   `/api/auth/reset-password/<token>?callbackURL=…`. Better Auth valida el
+ *   token y redirige a `/restablecer?token=…`. El token pasa a `:token`.
  * - Instantánea de la vista previa del editor (#317): `/api/v1/preview/<id>/…`
  *   y `/api/v1/preview-session/<id>/…`. El UUID pasa a `:previewId`.
  *
@@ -28,6 +31,7 @@ import type { AuthEnv } from "./middleware.ts";
 const CAPABILITY_PATHS: ReadonlyArray<readonly [RegExp, string]> = [
 	[new RegExp(`^(${ELPX_PREVIEW_PREFIX}/[^/]+/)[^/]+`, "i"), "$1:token"],
 	[/^(\/api\/v1\/thumbnails\/signed\/)[^/]+/i, "$1:token"],
+	[/^(\/api\/auth\/reset-password\/)[^/]+/i, "$1:token"],
 	[
 		/^(\/api\/v1\/preview(?:-session)?\/)[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i,
 		"$1:previewId",
