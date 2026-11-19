@@ -335,6 +335,85 @@ export class HttpApiClient implements ApiClient {
 		};
 	}
 
+	/**
+	 * Cambia la contraseña (#532). Cierra las demás sesiones: quien la cambia
+	 * porque sospecha que se la han robado necesita que la otra deje de valer.
+	 * Con la contraseña actual equivocada devuelve el código
+	 * `wrong_current_password`, que la isla traduce.
+	 */
+	async changePassword(
+		currentPassword: string,
+		newPassword: string,
+	): Promise<SignInResult> {
+		let res: Response;
+		try {
+			res = await fetch("/api/auth/change-password", {
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				credentials: "include",
+				body: JSON.stringify({
+					currentPassword,
+					newPassword,
+					revokeOtherSessions: true,
+				}),
+			});
+		} catch {
+			// Fallo de red (#552): la isla enseña el error de conexión.
+			return { ok: false };
+		}
+		if (res.ok) return { ok: true };
+		const data = await res.json().catch(() => null);
+		if (data?.code === "INVALID_PASSWORD") {
+			return { ok: false, error: "wrong_current_password" };
+		}
+		return { ok: false, error: data?.message ?? "No se ha podido cambiar" };
+	}
+
+	/**
+	 * Pide el cambio de correo (#532). No cambia nada al momento: con el correo
+	 * verificado, Better Auth avisa antes a la dirección antigua; en todo caso
+	 * hay que verificar la nueva.
+	 */
+	async changeEmail(newEmail: string): Promise<SignInResult> {
+		let res: Response;
+		try {
+			res = await fetch("/api/auth/change-email", {
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				credentials: "include",
+				// url(): respeta la ruta base y el prefijo de idioma (#552).
+				body: JSON.stringify({
+					newEmail,
+					callbackURL: url("perfil?tab=account"),
+				}),
+			});
+		} catch {
+			return { ok: false };
+		}
+		if (res.ok) return { ok: true };
+		const data = await res.json().catch(() => null);
+		return { ok: false, error: data?.message ?? "No se ha podido cambiar" };
+	}
+
+	/**
+	 * ¿La cuenta tiene contraseña propia? Las de acceso institucional (OIDC)
+	 * no: su contraseña y su correo se gestionan en el proveedor de identidad.
+	 * Si no se puede saber, `false`: ofrecer cambiar una contraseña que no
+	 * existe acaba en error.
+	 */
+	async hasPasswordAccount(): Promise<boolean> {
+		try {
+			const res = await fetch("/api/auth/list-accounts", {
+				credentials: "include",
+			});
+			if (!res.ok) return false;
+			const accounts = (await res.json()) as Array<{ providerId?: string }>;
+			return accounts.some((a) => a.providerId === "credential");
+		} catch {
+			return false;
+		}
+	}
+
 	async signInOidc(): Promise<SignInResult> {
 		// Desde Better Auth 1.7 el proveedor genérico usa el flujo social: no
 		// existe /sign-in/oauth2 y la vuelta llega a /api/auth/callback/oidc

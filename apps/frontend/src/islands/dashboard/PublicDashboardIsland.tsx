@@ -19,6 +19,7 @@ import { ResourceGrid } from "../../ui/ResourceGrid.tsx";
 import { Skeleton } from "../../ui/Skeleton.tsx";
 import { Tabs } from "../../ui/Tabs.tsx";
 import { UserAvatar } from "../../ui/UserAvatar.tsx";
+import { AccountTab } from "./AccountTab.tsx";
 import { ApiKeysTab } from "./ApiKeysTab.tsx";
 import { MyResourcesTab } from "./MyResourcesTab.tsx";
 import "./PublicDashboardIsland.css";
@@ -82,6 +83,20 @@ export function profileAvatarUrl(
 ): Promise<string | null> {
 	return gravatarUrl(user.email, PROFILE_AVATAR_SIZE);
 }
+
+/**
+ * Pestañas a las que se puede entrar con `?tab=`. #532: el enlace que verifica
+ * un correo nuevo vuelve a `/perfil?tab=account`; si `account` no estuviera
+ * aquí, caería en la pestaña por defecto sin avisar.
+ */
+export const PROFILE_TABS: readonly string[] = [
+	"resources",
+	"favorites",
+	"ratings",
+	"activity",
+	"api-keys",
+	"account",
+];
 
 export function hasEmailVerificationSuccess(search: string): boolean {
 	return new URLSearchParams(search).get("verified") === "1";
@@ -428,6 +443,9 @@ export function PublicDashboardIsland() {
 	const [saveMessage, setSaveMessage] = useState("");
 	const [emailVerificationSuccess, setEmailVerificationSuccess] =
 		useState(false);
+	// #532: el correo de la sesión, para la pestaña «Cuenta». El perfil público
+	// (dashboard.user) no lo lleva, a propósito.
+	const [sessionEmail, setSessionEmail] = useState("");
 	const [badgeConfig, setBadgeConfig] =
 		useState<import("../../lib/api-client.ts").BadgeConfig>(
 			DEFAULT_BADGE_CONFIG,
@@ -448,6 +466,7 @@ export function PublicDashboardIsland() {
 			}
 
 			const { user } = session;
+			setSessionEmail(user.email);
 			if (hasEmailVerificationSuccess(window.location.search)) {
 				setEmailVerificationSuccess(true);
 				window.history.replaceState({}, "", url("perfil"));
@@ -627,13 +646,7 @@ export function PublicDashboardIsland() {
 		typeof window !== "undefined"
 			? new URLSearchParams(window.location.search).get("tab")
 			: null;
-	const validTabs = [
-		"resources",
-		"favorites",
-		"ratings",
-		"activity",
-		"api-keys",
-	];
+	const validTabs = PROFILE_TABS;
 	const defaultTab =
 		tabParam && validTabs.includes(tabParam)
 			? tabParam === "api-keys" && !hasMinRole(user.role, "author")
@@ -694,6 +707,15 @@ export function PublicDashboardIsland() {
 			content: <ApiKeysTab />,
 		});
 	}
+
+	// #532: la última, para todos los roles. La propia pestaña decide si
+	// ofrece los formularios (no en las cuentas de acceso institucional).
+	tabs.push({
+		id: "account",
+		label: m.account_tab_title(),
+		icon: "manage_accounts",
+		content: <AccountTab email={sessionEmail} />,
+	});
 
 	return (
 		<div className="dashboard-public">

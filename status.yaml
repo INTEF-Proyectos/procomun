@@ -3805,6 +3805,21 @@ tasks:
       publicado sigue firmada. Pruebas nuevas de buildElpxPreview, de la API
       (ficha, listado, borrador firmado), de la tarjeta y de la ficha.
       Detalle en docs/hotfixes/pr-471-conflictos/validation.md.
+  T-2026-11-10-21031689:
+    date: 2026-11-10
+    agent: "seguridad-privacidad-legal + backend-api-servicios + frontend-ux-accesibilidad"
+    task: "Revision de #552: pestana Cuenta"
+    status: Done
+    related: ["#532", "#552", "#551", "ADR-0007", "ADR-0031"]
+    notes: >
+      Sin transporte de correo (produccion sin SMTP_HOST) changeEmail queda
+      apagado y la pestana esconde el formulario de correo segun
+      emailDeliveryEnabled de /api/v1/config; mismo criterio que #551 (apagar
+      el flujo en vez de exigir SMTP al arrancar, porque la imagen va con
+      NODE_ENV=production y el docker-compose no trae SMTP). callbackURL usa
+      url() para respetar ruta base e idioma. changePassword y changeEmail
+      devuelven ok false ante un fallo de red y la pestana ensena
+      auth_connection_error en vez de quedarse muda.
   T-2026-11-03-12090790:
     date: 2026-11-03
     agent: "backend-api-servicios"
@@ -4205,6 +4220,34 @@ tasks:
       antes: guarda en PublicCollectionsIsland, tipo string | null en
       api-client y test de regresion. Test ajustado: el toEqual de totals en
       el caso en seco incluye la clave nueva reindexFailed.
+  T-2026-11-04-18140988:
+    date: 2026-11-04
+    agent: "backend-api-servicios + frontend-ux-accesibilidad + seguridad-privacidad-legal"
+    task: "Pestaña Cuenta: cambiar la contraseña y el correo"
+    status: Done
+    related: ["#532", "#494", "#508", "#517", "#488", "ADR-0007", "ADR-0031"]
+    notes: >
+      Pestaña «Cuenta» en /perfil con cambio de contraseña (actual, nueva,
+      repeticion e indicador de fortaleza) y de correo. Decision de la issue:
+      se permite cambiar el correo. No desvincula nada de lo importado porque
+      #508 fija created_by y nunca pisa un creador real, y #488 identifica la
+      cuenta antigua por legacy-procomun:user:<uid> y no por el correo; solo
+      afecta a importaciones futuras con el correo antiguo, que caen en el
+      usuario de sistema y salen en el informe. Flujo de Better Auth 1.7
+      leido en su codigo, no supuesto: con el correo verificado avisa primero
+      a la direccion antigua y despues verifica la nueva; sin verificar va
+      directo a la nueva; updateEmailWithoutVerification desactivado; cambiar
+      a un correo ocupado responde igual que a uno libre. El correo de
+      verificacion se reescribe porque decia «activar tu cuenta» tambien al
+      cambiar de correo. changePassword con revokeOtherSessions. Indicador de
+      fortaleza sin dependencias. En las cuentas solo OIDC (sin credential en
+      /list-accounts) la pestaña no ofrece nada. El codigo INVALID_PASSWORD se
+      fija contra la instancia real porque el cliente se fia de el. Faltaba
+      «account» en la lista blanca de ?tab= del perfil, asi que el enlace de
+      verificacion habria caido en otra pestaña: se extrae PROFILE_TABS y se
+      prueba. Sin el arreglo fallan los dos tests de integracion que prueban la
+      funcionalidad, por CHANGE_EMAIL_DISABLED. Los tests del cliente
+      restauran globalThis.fetch desde el principio (leccion de #531).
   T-2026-11-10-20595617:
     date: 2026-11-10
     agent: "seguridad-privacidad-legal + backend-api-servicios + frontend-ux-accesibilidad"
@@ -4597,6 +4640,20 @@ tasks:
       filtros, paginacion de 12 y editar o eliminar en la tarjeta con el
       ConfirmDialog accesible. Sin migracion: created_by sigue sin indice
       (riesgo anotado en docs/epics/epic-003/design.md).
+  T-2026-11-16-12140710:
+    date: 2026-11-16
+    agent: "backend-api-servicios"
+    task: "Poner #552 al dia con main tras #488: cambio de contrasena y hash heredado"
+    status: Done
+    related: ["#552", "#532", "#488"]
+    notes: >
+      El merge con main no tuvo conflictos en local: config.ts conserva
+      password: legacyAwarePasswordOptions (#488) y user.changeEmail (#552).
+      /change-password verifica la actual con el verificador de #488 y
+      escribe con internalAdapter.updatePassword; el UPDATE condicional de
+      #488 no la pisa. Test nuevo en account-settings.integration.test.ts:
+      con el hash heredado aun guardado, la contrasena heredada vale como
+      actual, el hash deja de ser heredado y la antigua ya no entra.
   T-2026-11-16-15031596:
     date: 2026-11-16
     agent: "frontend-ux-accesibilidad + backend-api-servicios"
@@ -4773,6 +4830,19 @@ tasks:
       toString y hasOwnProperty. Los demas mapas *_LABELS[...] del frontend
       (HeroIsland, ResourceEditorIsland, AdminReportsSection, los CRUD y
       EditarPageBase) quedan fuera del alcance de este PR.
+  T-2026-11-18-18122409:
+    date: 2026-11-18
+    agent: "ingestas-y-migraciones + seguridad-privacidad-legal"
+    task: "Revision de #552 (P1): la autoria historica no depende del correo actual"
+    status: Done
+    related: ["#552", "#532", "#456"]
+    notes: >
+      import:legacy-procomun acepta --users-file (volcado de usuarios) y
+      resuelve el correo del recurso al UID legacy-procomun:user:<uid> por id,
+      no por el titular actual de la direccion. UID sin cuenta: no_account sin
+      caer al correo; correo con varios UID: ambiguous_account (revision
+      manual, sin correo en el informe). Test de cambio de titular del correo.
+      ADR-0007 con adenda fechada. Sin --users-file queda el comportamiento de #456.
   T-2026-11-18-18142430:
     date: 2026-11-18
     agent: "backend-api-servicios + qa-validacion"
@@ -4843,3 +4913,15 @@ tasks:
       Integrado main. Los cinco catálogos conservan los mensajes de Mis
       recursos y del banco multimedia. Se conserva una única exclusión de la
       caché generada de Inlang.
+  T-2026-11-18-21315926:
+    date: 2026-11-18
+    agent: "backend-api-servicios + qa-validacion"
+    task: "Resolver los conflictos de la PR #552 tras integrar la recuperación de contraseña"
+    status: Done
+    related: ["#552", "#551", "#532", "ADR-0007"]
+    notes: >
+      Se conservan las opciones y traducciones de Cuenta y recuperación,
+      sus pruebas y las adendas de ADR-0007. El aviso de cambio de correo
+      reutiliza el resumen saneado de errores SMTP. Validación local:
+      98 pruebas de los flujos de autenticación y correo, 180 pruebas de
+      interfaz, tipos y paridad de archivos de prueba.

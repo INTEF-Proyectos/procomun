@@ -4,6 +4,7 @@ import type { DashboardSummary } from "../../lib/types/user-extended.ts";
 import {
 	dashboardResourceCounts,
 	hasEmailVerificationSuccess,
+	PROFILE_TABS,
 	PublicDashboardIsland,
 	profileAvatarUrl,
 	roleLabel,
@@ -96,6 +97,16 @@ describe("dashboardResourceCounts (#530)", () => {
 			dashboardResourceCounts({ draftCount: 1, resourceCount: 7 })
 				.resourceCount,
 		).toBe(7);
+	});
+});
+
+// #532: el enlace que verifica un correo nuevo vuelve a /perfil?tab=account
+// (lo fija changeEmail en http-api-client.ts). Si la pestaña no estuviera en la
+// lista, el usuario caería en otra sin saber si el cambio ha ido bien.
+describe("vuelta a la pestaña Cuenta (#532)", () => {
+	test("?tab=account abre la pestaña Cuenta", () => {
+		const tab = new URLSearchParams("?tab=account").get("tab") ?? "";
+		expect(PROFILE_TABS).toContain(tab);
 	});
 });
 
