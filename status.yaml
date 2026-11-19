@@ -4597,6 +4597,20 @@ tasks:
       filtros, paginacion de 12 y editar o eliminar en la tarjeta con el
       ConfirmDialog accesible. Sin migracion: created_by sigue sin indice
       (riesgo anotado en docs/epics/epic-003/design.md).
+  T-2026-11-16-15031596:
+    date: 2026-11-16
+    agent: "frontend-ux-accesibilidad + backend-api-servicios"
+    task: "Enlace configurable al banco multimedia externo (#569)"
+    status: Done
+    related: ["#569", "#494"]
+    notes: >
+      Decision 1 de #494: no hay banco multimedia propio, solo un enlace a su
+      aplicacion. MEDIA_BANK_URL (http/https absoluta) se publica en
+      /api/v1/config como mediaBankUrl; sin ella vale null y no se muestra.
+      Enlace en la cabecera junto a Explorar y aviso en /nuevo, misma pestana,
+      textos en es/en/ca/gl/eu. Pendiente en #569: la URL real y confirmar la
+      ubicacion. Documentado en .env.example, README y
+      docs/operaciones/instalacion.md. Sin migracion ni ADR.
   T-2026-11-16-15104033:
     date: 2026-11-16
     agent: "backend-api-servicios + frontend-ux-accesibilidad"
@@ -4759,6 +4773,21 @@ tasks:
       toString y hasOwnProperty. Los demas mapas *_LABELS[...] del frontend
       (HeroIsland, ResourceEditorIsland, AdminReportsSection, los CRUD y
       EditarPageBase) quedan fuera del alcance de este PR.
+  T-2026-11-18-18142430:
+    date: 2026-11-18
+    agent: "backend-api-servicios + qa-validacion"
+    task: "Filtro «Artículo» en la taxonomía resource-type (#595)"
+    status: Done
+    related: ["#595", "#593"]
+    notes: >
+      La taxonomía resource-type que devuelve la API no tenía articulo, así
+      que el selector de Explorar no mostraba «Artículo» aunque el importador
+      ya asigna ese tipo. Migración 0027_taxonomy_articulo (idempotente) para
+      instalaciones existentes y semilla de setup.ts para las nuevas. Tests:
+      migrations.unit.test.ts (PGlite, doble aplicación) y un caso en
+      import-legacy-procomun.integration.test.ts que lee la taxonomía.
+      Número 0027 elegido tras revisar los PR abiertos (0022, 0023, 0025 y
+      0026 ocupados).
   T-2026-11-18-13292158:
     date: 2026-11-18
     agent: "seguridad-privacidad-legal + backend-api-servicios"
@@ -4804,3 +4833,13 @@ tasks:
       y comprueba la reapertura de resultados con el panel abierto y enfocado.
       Validación local: ambos E2E en Chromium repetidos tres veces, 18 pruebas
       unitarias, 180 pruebas de interfaz, lint y tipos.
+  T-2026-11-19-08305810:
+    date: 2026-11-19
+    agent: "integración"
+    task: "Resolver los conflictos de Mis recursos con main (#580)"
+    status: Done
+    related: ["#580", "#530", "#579"]
+    notes: >
+      Integrado main. Los cinco catálogos conservan los mensajes de Mis
+      recursos y del banco multimedia. Se conserva una única exclusión de la
+      caché generada de Inlang.

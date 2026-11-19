@@ -386,6 +386,8 @@ export interface AppConfig {
 	oidcEnabled: boolean;
 	oidcEndSessionUrl: string | null;
 	emailVerificationRequired: boolean;
+	/** URL del banco multimedia externo (#569); `null` si no está configurada. */
+	mediaBankUrl?: string | null;
 	/** Hay transporte de correo; sin él se esconde la recuperación (#551). */
 	emailDeliveryEnabled: boolean;
 }

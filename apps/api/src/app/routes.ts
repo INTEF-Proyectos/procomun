@@ -20,6 +20,7 @@ import { socialRoutes } from "../routes/social.ts";
 import { tagRoutes } from "../routes/tags.ts";
 import { thumbnailRoutes } from "../routes/thumbnails.ts";
 import { uploadRoutes } from "../routes/uploads.ts";
+import { resolveMediaBankUrl } from "./media-bank.ts";
 
 export function registerRoutes(app: Hono<AuthEnv>) {
 	app.get("/health", (c) => c.json({ status: "ok" }));
@@ -33,6 +34,7 @@ export function registerRoutes(app: Hono<AuthEnv>) {
 			// no de la ruta de Duende. Se lee de la caché y nunca se espera a la
 			// red aquí: el calentado va en segundo plano (ver oidc-discovery.ts).
 			oidcEndSessionUrl: getCachedOidcEndSessionUrl(process.env),
+			mediaBankUrl: resolveMediaBankUrl(process.env),
 		}),
 	);
 

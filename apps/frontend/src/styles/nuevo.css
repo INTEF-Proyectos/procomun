@@ -246,6 +246,18 @@
 	text-decoration: underline;
 }
 
+/* #569: enlace al banco multimedia externo. */
+.new-resource-media-bank {
+	color: var(--color-on-surface-variant);
+	font-size: 0.8125rem;
+	margin-top: 1rem;
+}
+.new-resource-media-bank a {
+	color: var(--color-primary);
+	font-weight: 500;
+	text-decoration: underline;
+}
+
 .elpx-success-banner {
 	background: var(--color-secondary-fixed);
 	color: var(--color-on-secondary-fixed);
