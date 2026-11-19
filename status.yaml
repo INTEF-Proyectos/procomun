@@ -4638,6 +4638,24 @@ tasks:
       #488 no la pisa. Test nuevo en account-settings.integration.test.ts:
       con el hash heredado aun guardado, la contrasena heredada vale como
       actual, el hash deja de ser heredado y la antigua ya no entra.
+  T-2026-11-16-15104033:
+    date: 2026-11-16
+    agent: "backend-api-servicios + frontend-ux-accesibilidad"
+    task: "Una unica constante para la licencia por defecto (#522)"
+    status: Done
+    related: ["#522", "#517", "#446"]
+    notes: >
+      DEFAULT_LICENSE en packages/db/src/validation.ts, con el mismo texto que
+      la define #517 (aun abierto), para que los dos PR mezclen sin
+      conflicto. La usan el borrador de POST /admin/resources/draft, la
+      generacion del .elpx (routes/admin/elpx.ts y elpx-generator.ts) y los
+      formularios del frontend (NuevoPage, EditarPageBase, ResourceFormIsland
+      y ResourceEditorIsland). El literal sigue en las listas de opciones,
+      en las claves de los mapas de etiquetas, en VALID_LICENSES, en la
+      clasificacion de normalize-license y en los datos de ejemplo (seed,
+      mocks, fixtures). Test: packages/db/src/default-license.unit.test.ts
+      recorre apps/*/src y packages/db/src y falla si aparece "cc-by" como
+      valor por defecto; en main encontraba 11 usos y ahora ninguno.
   T-2026-11-16-15015380:
     date: 2026-11-16
     agent: "seguridad-privacidad-legal + documentacion-y-roadmap"
