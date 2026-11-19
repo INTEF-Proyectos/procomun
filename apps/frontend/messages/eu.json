@@ -3,6 +3,7 @@
 	"main_navigation": "Nabigazio nagusia",
 	"nav_home": "Hasiera",
 	"nav_explore": "Esploratu",
+	"nav_media_bank": "Multimedia bankua",
 	"nav_articles": "Artikuluak",
 	"nav_itineraries": "Ibilbideak",
 	"nav_login": "Sartu",
@@ -339,5 +340,7 @@
 	"professional_families_help": "Aukerakoa. Hainbat aukera ditzakezu.",
 	"professional_families_filter_help": "Aukeratutako familietako edozein duten LHko baliabideak.",
 	"professional_families_will_be_removed": "Lanbide Heziketa kendu duzu: gordetzean, lanbide-familia hauek ezabatuko dira: {families}.",
-	"detail_professional_families": "Lanbide-familiak"
+	"detail_professional_families": "Lanbide-familiak",
+	"new_resource_media_bank_hint": "Irudiak, bideoak edo audioak partekatuko dituzu?",
+	"new_resource_media_bank_link": "Joan multimedia bankura"
 }

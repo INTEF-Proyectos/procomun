@@ -4581,6 +4581,20 @@ tasks:
       La revision del 08-nov ya estaba resuelta en 733e4fe0; se ha
       verificado el journal y el migrador real de Drizzle sobre una base en
       main.
+  T-2026-11-16-15031596:
+    date: 2026-11-16
+    agent: "frontend-ux-accesibilidad + backend-api-servicios"
+    task: "Enlace configurable al banco multimedia externo (#569)"
+    status: Done
+    related: ["#569", "#494"]
+    notes: >
+      Decision 1 de #494: no hay banco multimedia propio, solo un enlace a su
+      aplicacion. MEDIA_BANK_URL (http/https absoluta) se publica en
+      /api/v1/config como mediaBankUrl; sin ella vale null y no se muestra.
+      Enlace en la cabecera junto a Explorar y aviso en /nuevo, misma pestana,
+      textos en es/en/ca/gl/eu. Pendiente en #569: la URL real y confirmar la
+      ubicacion. Documentado en .env.example, README y
+      docs/operaciones/instalacion.md. Sin migracion ni ADR.
   T-2026-11-16-15104033:
     date: 2026-11-16
     agent: "backend-api-servicios + frontend-ux-accesibilidad"
