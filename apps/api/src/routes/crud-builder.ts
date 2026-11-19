@@ -82,10 +82,14 @@ export interface CrudRouteConfig<TEntity> {
 
 	validateCreate?: (body: unknown) => ValidationResult;
 	validateUpdate?: (body: unknown) => ValidationResult;
-	/** Reglas de la edición que dependen de lo guardado (p. ej. el estado). */
+	/**
+	 * Reglas de la edición que dependen de lo guardado (p. ej. el estado) o de
+	 * quién edita (#432: el propietario no curator de una colección).
+	 */
 	validateUpdateWith?: (
 		entity: TEntity,
 		body: Record<string, unknown>,
+		user: User,
 	) => ValidationResult;
 	mergeOnUpdate?: boolean;
 
@@ -222,7 +226,7 @@ export function buildCrudRoutes<TEntity>(
 					);
 			}
 			if (config.validateUpdateWith) {
-				const v = config.validateUpdateWith(entity, body);
+				const v = config.validateUpdateWith(entity, body, user);
 				if (!v.valid)
 					return c.json(
 						{ error: "Validación fallida", details: v.errors },

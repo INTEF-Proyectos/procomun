@@ -193,4 +193,30 @@ describe("auth roles helpers", () => {
 			),
 		).toBe(false);
 	});
+
+	// #432: el autor de un itinerario importado gestiona su colección.
+	test("canManageCollection deja al propietario author o editor, en cualquier estado", () => {
+		for (const role of ["author", "editor"]) {
+			for (const editorialStatus of ["draft", "review", "published"]) {
+				expect(
+					canManageCollection(
+						{ id: "owner-1", role },
+						{ curatorId: "owner-1", editorialStatus },
+					),
+				).toBe(true);
+			}
+			expect(
+				canManageCollection(
+					{ id: "other-1", role },
+					{ curatorId: "owner-1", editorialStatus: "published" },
+				),
+			).toBe(false);
+		}
+		expect(
+			canManageCollection(
+				{ id: "reader-1", role: "reader" },
+				{ curatorId: "reader-1", editorialStatus: "draft" },
+			),
+		).toBe(false);
+	});
 });
