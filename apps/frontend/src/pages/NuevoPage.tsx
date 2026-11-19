@@ -1,4 +1,5 @@
 import {
+	DEFAULT_LICENSE,
 	MAX_OTHER_AUTHORS_LENGTH,
 	validateCreateResource,
 } from "@procomun/db/validation";
@@ -53,7 +54,7 @@ const EMPTY_FORM: ResourceFormState = {
 	author: "",
 	otherAuthors: "",
 	language: "es",
-	license: "cc-by",
+	license: DEFAULT_LICENSE,
 	resourceType: "documento",
 };
 
