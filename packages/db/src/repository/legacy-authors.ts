@@ -1,4 +1,4 @@
-import { and, eq, isNull, ne, or } from "drizzle-orm";
+import { and, eq, isNotNull, isNull, ne, or } from "drizzle-orm";
 import { normalizeLegacyPublicatorEmail } from "../legacy-import/publicator-email.ts";
 import { LEGACY_IMPORT_SYSTEM_USER_ID } from "../legacy-import/system-user.ts";
 import { lowerEmail, user } from "../schema/auth.ts";
@@ -59,7 +59,12 @@ export async function findLegacyAccountById(
 			emailVerified: user.emailVerified,
 		})
 		.from(user)
-		.where(eq(user.id, id))
+		.where(
+			and(
+				eq(user.id, id),
+				or(eq(user.isActive, true), isNotNull(user.deletedAt)),
+			),
+		)
 		.limit(1);
 	return row
 		? {

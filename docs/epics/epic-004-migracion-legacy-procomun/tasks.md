@@ -200,3 +200,8 @@ Los JSON/`.elpx` de `ode-export/` contienen datos personales reales (nombres y e
 - [x] `skipped_without_author` sin `email` en el informe general; el correo va a la lista restringida con `list: "skipped_without_author"`.
 - [x] Test con un error real de Drizzle cuyos parámetros llevan el texto del artículo y el correo: el informe y la consola no los llevan.
 - [x] README y diseño actualizados.
+
+## Atribución histórica por UID — 2026-11-19 (#600)
+
+- [x] Exigir el volcado en importación y reenlace, resolver por UID y registrar el motivo sin correo en el informe general.
+- [x] Documentar el tratamiento de los artículos pendientes y cubrir con pruebas el correo reasignado fuera del volcado.

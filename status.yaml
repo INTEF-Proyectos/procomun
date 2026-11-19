@@ -4886,3 +4886,10 @@ tasks:
       reutiliza el resumen saneado de errores SMTP. Validación local:
       98 pruebas de los flujos de autenticación y correo, 180 pruebas de
       interfaz, tipos y paridad de archivos de prueba.
+  T-2026-11-19-13274237:
+    date: 2026-11-19
+    agent: "ingestas-y-migraciones"
+    task: "Resuelve la autoría histórica exclusivamente por UID (#600)"
+    status: In Progress
+    related: ["#600", "#552", "ADR-0029"]
+    notes: "Volcado obligatorio para importar y reenlazar. Los casos sin correspondencia válida quedan para revisión. Validación con datos sintéticos."
