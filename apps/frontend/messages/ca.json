@@ -3,6 +3,7 @@
 	"main_navigation": "Navegació principal",
 	"nav_home": "Inici",
 	"nav_explore": "Explorar",
+	"nav_media_bank": "Banc multimèdia",
 	"nav_articles": "Articles",
 	"nav_itineraries": "Itineraris",
 	"nav_login": "Accedir",
@@ -357,5 +358,7 @@
 	"professional_families_help": "Opcional. En pots triar diverses.",
 	"professional_families_filter_help": "Recursos d'FP amb qualsevol de les famílies triades.",
 	"professional_families_will_be_removed": "Has tret Formació Professional: en desar s'eliminaran aquestes famílies professionals: {families}.",
-	"detail_professional_families": "Famílies professionals"
+	"detail_professional_families": "Famílies professionals",
+	"new_resource_media_bank_hint": "Compartiràs imatges, vídeo o àudio?",
+	"new_resource_media_bank_link": "Ves al banc multimèdia"
 }

@@ -3,6 +3,7 @@
 	"main_navigation": "Main navigation",
 	"nav_home": "Home",
 	"nav_explore": "Explore",
+	"nav_media_bank": "Media bank",
 	"nav_articles": "Articles",
 	"nav_itineraries": "Itineraries",
 	"nav_login": "Sign in",
@@ -357,5 +358,7 @@
 	"professional_families_help": "Optional. You can choose several.",
 	"professional_families_filter_help": "Vocational training resources with any of the chosen families.",
 	"professional_families_will_be_removed": "You have removed Vocational Training: saving will remove these professional families: {families}.",
-	"detail_professional_families": "Professional families"
+	"detail_professional_families": "Professional families",
+	"new_resource_media_bank_hint": "Sharing images, video or audio?",
+	"new_resource_media_bank_link": "Go to the media bank"
 }
