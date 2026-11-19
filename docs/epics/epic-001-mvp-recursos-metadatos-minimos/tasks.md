@@ -120,3 +120,7 @@ En desarrollo
 - [x] Botón «Reportar» en la ficha pública de la colección y columna «Contenido» en la cola de administración.
 - [x] Textos de `ReportButton` y `AdminReportsSection` con Paraglide (es, en, ca, gl, eu).
 - [ ] Pendiente de producto: motivos propios para colecciones y si un curator puede resolver denuncias de sus propias colecciones.
+
+## Renumeración de la migración — 2026-11-19
+
+`0025_reports_collections` pasa a `0030_reports_collections` tras integrar la 0027 de «Artículo». Se conserva el orden de integración #586, #585 y #587.

@@ -891,10 +891,32 @@ describe("actualización con el migrador de drizzle (#512)", () => {
 	});
 });
 
+describe("0027_taxonomy_articulo (#595)", () => {
+	test("añade «Artículo» a resource-type y es idempotente", async () => {
+		const migration = await readFile(
+			path.join(migrationsDir, "0027_taxonomy_articulo.sql"),
+			"utf8",
+		);
+		const db = new PGlite();
+		try {
+			await db.exec(
+				`CREATE TABLE "taxonomies" (id TEXT PRIMARY KEY, slug VARCHAR(255) NOT NULL UNIQUE, name TEXT NOT NULL, type VARCHAR(100) NOT NULL, created_at TIMESTAMP NOT NULL DEFAULT NOW(), updated_at TIMESTAMP NOT NULL DEFAULT NOW())`,
+			);
+			await db.exec(migration);
+			await db.exec(migration);
+			const rows = await db.query<{ name: string }>(
+				`SELECT name FROM taxonomies WHERE type = 'resource-type' AND slug = 'articulo'`,
+			);
+			expect(rows.rows).toEqual([{ name: "Artículo" }]);
+		} finally {
+			await db.close();
+		}
+	});
+});
+
 // Issue #539: las colecciones también se pueden denunciar. Una denuncia apunta
 // a un recurso o a una colección, nunca a los dos ni a ninguno.
-// #512 tiene la 0020 y la 0021, #573 la 0022: esta es la 0025.
-describe("migración 0025_reports_collections", () => {
+describe("migración 0030_reports_collections", () => {
 	const OLD_SCHEMA = `CREATE TABLE "user" (id TEXT PRIMARY KEY);
 		CREATE TABLE "resources" (id TEXT PRIMARY KEY);
 		CREATE TABLE "collections" (id TEXT PRIMARY KEY);
@@ -922,7 +944,7 @@ describe("migración 0025_reports_collections", () => {
 			await readFile(path.join(migrationsDir, "meta/_journal.json"), "utf8"),
 		) as { entries: Array<{ idx: number; tag: string; when: number }> };
 		const entry = journal.entries.find(
-			(item) => item.tag === "0025_reports_collections",
+			(item) => item.tag === "0030_reports_collections",
 		);
 		const profile = journal.entries.find(
 			(item) => item.tag === "0019_user_profile",
@@ -951,7 +973,7 @@ describe("migración 0025_reports_collections", () => {
 	test("es idempotente y admite denuncias de colecciones", async () => {
 		const migration = (
 			await readFile(
-				path.join(migrationsDir, "0025_reports_collections.sql"),
+				path.join(migrationsDir, "0030_reports_collections.sql"),
 				"utf8",
 			)
 		).replaceAll("--> statement-breakpoint", "");
@@ -976,7 +998,7 @@ describe("migración 0025_reports_collections", () => {
 			await readFile(path.join(migrationsDir, "meta/_journal.json"), "utf8"),
 		) as { entries: Array<{ tag: string; when: number }> };
 		const at = journal.entries.findIndex(
-			(item) => item.tag === "0025_reports_collections",
+			(item) => item.tag === "0030_reports_collections",
 		);
 		expect(at).toBeGreaterThan(0);
 		const db = new PGlite();

@@ -4779,6 +4779,21 @@ tasks:
       toString y hasOwnProperty. Los demas mapas *_LABELS[...] del frontend
       (HeroIsland, ResourceEditorIsland, AdminReportsSection, los CRUD y
       EditarPageBase) quedan fuera del alcance de este PR.
+  T-2026-11-18-18142430:
+    date: 2026-11-18
+    agent: "backend-api-servicios + qa-validacion"
+    task: "Filtro «Artículo» en la taxonomía resource-type (#595)"
+    status: Done
+    related: ["#595", "#593"]
+    notes: >
+      La taxonomía resource-type que devuelve la API no tenía articulo, así
+      que el selector de Explorar no mostraba «Artículo» aunque el importador
+      ya asigna ese tipo. Migración 0027_taxonomy_articulo (idempotente) para
+      instalaciones existentes y semilla de setup.ts para las nuevas. Tests:
+      migrations.unit.test.ts (PGlite, doble aplicación) y un caso en
+      import-legacy-procomun.integration.test.ts que lee la taxonomía.
+      Número 0027 elegido tras revisar los PR abiertos (0022, 0023, 0025 y
+      0026 ocupados).
   T-2026-11-18-13292158:
     date: 2026-11-18
     agent: "seguridad-privacidad-legal + backend-api-servicios"
@@ -4811,3 +4826,10 @@ tasks:
       cubria el Referer. Tests rojo -> verde en transport.unit.test.ts,
       password-reset.integration.test.ts y nginx-log-redaction.unit.test.ts;
       comprobado con nginx:alpine. Adenda de ADR-0007 y operaciones.md.
+  T-2026-11-19-07271197:
+    date: 2026-11-19
+    agent: "ingestas-y-migraciones"
+    task: "Renumera la migración de #585 tras integrar la 0027"
+    status: In Progress
+    related: ["#585", "#596"]
+    notes: "La migración 0025_reports_collections pasa a 0030_reports_collections. Se conserva su marca temporal y se actualiza el journal."
