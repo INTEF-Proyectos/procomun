@@ -26,8 +26,11 @@ adminRoutes.use("*", requireAuth);
 // defensa adicional al control de acceso interno de cada sub-router.
 adminRoutes.use("*", requireRole("author"));
 
-adminRoutes.use("/collections", requireRole("curator"));
-adminRoutes.use("/collections/*", requireRole("curator"));
+// #432: author+ para que el autor de un itinerario importado gestione su
+// colección. collectionRoutes deja crear y borrar solo al curator y
+// canManageCollection limita el resto a las suyas.
+adminRoutes.use("/collections", requireRole("author"));
+adminRoutes.use("/collections/*", requireRole("author"));
 adminRoutes.use("/taxonomies", requireRole("curator"));
 adminRoutes.use("/taxonomies/*", requireRole("curator"));
 // Alta en el catálogo de palabras clave (ADR-0042)

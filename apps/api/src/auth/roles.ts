@@ -34,7 +34,32 @@ export function canManageCollection(
 	if (hasMinRole(user.role, "curator")) {
 		return !isOthersPrivateCollectionDraft(user, collection);
 	}
+	// #432: los itinerarios importados conservan a su autor como propietario,
+	// aunque sea author o editor. Gestiona la suya en cualquier estado, como el
+	// creador de un recurso (`canManageResource`). Crear, borrar y publicar
+	// siguen siendo del curator: ver las rutas de colecciones y
+	// `collectionStatusChangeError`.
+	if (hasMinRole(user.role, "author")) {
+		return collection.curatorId === user.id;
+	}
 	return false;
+}
+
+/**
+ * #432: el propietario que no es curator edita el contenido de su colección,
+ * pero el estado editorial es del curator: solo puede mandar su borrador a
+ * revisión, igual que el autor de un recurso. Publicar, archivar o devolver a
+ * borrador lo hace el curator desde la cola. Devuelve el error, o null.
+ */
+export function collectionStatusChangeError(
+	user: { role?: string },
+	from: string,
+	to: string | undefined,
+): string | null {
+	if (to === undefined || to === from) return null;
+	if (hasMinRole(user.role, "curator")) return null;
+	if (from === "draft" && to === "review") return null;
+	return `Solo un curator puede cambiar el estado de una colección de ${from} a ${to}`;
 }
 
 /** Borrador de colección de otra persona (#538). */

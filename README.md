@@ -169,6 +169,14 @@ Los artículos del Procomún antiguo (`"type": "POST"` en el JSON, issue #446) e
 
 Al terminar escribe un `informe_ingesta-<runId>.json` con el desglose (importados, omitidos por ya existir, bloqueados por licencia no reconocida u otros motivos, y warnings tolerables).
 
+Los itinerarios del Procomún antiguo se importan como colecciones (#432), después de los usuarios y los recursos:
+
+```bash
+make cli ARGS="import:legacy-itineraries --source-file <itinerarios.json> --dry-run"
+make cli ARGS="import:legacy-itineraries --source-file <itinerarios.json>"
+```
+
+Flags: `--source-file <ruta>` (obligatorio), `--dry-run`, `--limit <n>`, `--only <id del itinerario>` y `--report-dir <ruta>`. Cada colección queda a nombre de la cuenta con el correo de `publicatorEmailStr`. Si no hay cuenta, queda en borrador a nombre del usuario de sistema. Los recursos que aún no estén importados se omiten. Es idempotente. El informe `informe_itinerarios-<runId>.json` no lleva correos. Detalle en el `design.md` de la épica (sección del 2026-11-16).
 **Datos personales en los informes (#543).** Los informes generales (`informe_*.json` en `--report-dir`) y la consola no llevan datos personales: ni correos ni el texto de los errores de la base de datos, que llevan la consulta y sus parámetros. De un recurso sin cuenta de autor solo dan el identificador, el resultado y el motivo. Para localizar las cuentas que faltan, la importación y `--link-authors` admiten `--restricted-report <ruta>`: escribe aparte el identificador, el correo de origen y el motivo. Sí lleva datos personales, y es solo para quien resuelve las incidencias de la migración. La ruta la elige el operador, tiene que estar fuera de `--report-dir`, el fichero se crea nuevo (no pisa otro) con permisos `0600` y hay que borrarlo al terminar. Sin la opción, el correo no se guarda en ningún sitio.
 
 **Con PGlite (por defecto, sin `DATABASE_URL`)**: detén el servidor de desarrollo (`make up` / `make up-api`) antes de lanzar el import — PGlite es una base de datos embebida de un solo proceso y no soporta que dos procesos abran el mismo directorio de datos a la vez. Con PostgreSQL real (`make up-postgres` o `DATABASE_URL` configurada) no hace falta parar nada, ya que Postgres sí admite conexiones concurrentes de varios procesos.

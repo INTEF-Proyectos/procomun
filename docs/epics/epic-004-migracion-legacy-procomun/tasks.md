@@ -186,6 +186,19 @@ Los JSON/`.elpx` de `ode-export/` contienen datos personales reales (nombres y e
 - [x] `describeDbError` y `summarizeDbStepError` pasan a `@procomun/db/db-errors`, compartidas por la API y los importadores; `apps/cli/src/import-errors.ts` las reexporta.
 - [x] Revisión del 2026-11-08 (journal con la 0017 y la 0018 fundidas, test de migraciones sin cerrar): resuelta en 733e4fe0. Verificado en la punta: el journal no tiene claves repetidas, los idx son únicos y la 0019 tiene el `when` mayor, y el migrador de Drizzle aplica solo la 0019 sobre una base con las 15 migraciones de main registradas.
 
+## Importador de itinerarios como colecciones — 2026-11-16 (#432)
+
+- [x] Migración `0022_collections_legacy_import`: `collections.import_source`, `external_id` y `published_at`, con índice único parcial `(import_source, external_id)`. Esquema Drizzle, `createTables` y tests de migraciones (journal, idempotencia, base previa).
+- [x] Mapeo puro `mapLegacyItinerary` y limpieza de la descripción `cleanLegacyItineraryDescription` (`packages/db/src/legacy-import/itinerary.ts`).
+- [x] `normalizeLegacyPublicatorEmail` copiado tal cual de #508 (`publicator-email.ts` y su test), para que el merge con #508 no choque.
+- [x] Repositorio `legacy-collections.ts`: `findLegacyCollectionOwnerAccount` e `importLegacyCollection` (crear, actualizar sin duplicar, `unchanged`, propietario reasignado a mano respetado, enlace al aparecer la cuenta, recursos omitidos con motivo).
+- [x] CLI `import:legacy-itineraries --source-file <itinerarios.json> [--dry-run] [--limit <n>] [--only <id>] [--report-dir <ruta>]`, registrado en `apps/cli/src/index.ts` y en la ayuda.
+- [x] Informe sin correos ni nombres, con el recuento de metadatos descartados.
+- [x] Permisos de la API para el propietario author o editor (adenda de la ADR-0008).
+- [x] Test de integración con el `itinerarios.json` real (anonimizado) en `apps/cli/src/test-fixtures/legacy-itineraries/`.
+- [ ] Cuando #508 llegue a main: sustituir `findLegacyCollectionOwnerAccount` por `findLegacyAuthorAccount` y valorar `--restricted-report` para los itinerarios sin cuenta.
+- [ ] Issue aparte: visitas de los itinerarios (el exportador no las trae).
+- [ ] Issue aparte: pantalla «Mis colecciones» para el autor no curator.
 ## Informes sin correos e informe restringido — 2026-11-16 (issue #543)
 
 - [x] `authorsWithoutAccount` y `sourceEmailWithoutAccount` sin `email` en el informe general de la importación y de `--link-authors`.
@@ -200,6 +213,12 @@ Los JSON/`.elpx` de `ode-export/` contienen datos personales reales (nombres y e
 - [x] `skipped_without_author` sin `email` en el informe general; el correo va a la lista restringida con `list: "skipped_without_author"`.
 - [x] Test con un error real de Drizzle cuyos parámetros llevan el texto del artículo y el correo: el informe y la consola no los llevan.
 - [x] README y diseño actualizados.
+
+## Revisión de #573 — 2026-11-19
+
+- [x] El listado de recursos de la colección aplica los permisos de lectura antes de paginar.
+- [x] El importador conserva entidades numéricas inválidas, aísla fallos de mapeo y omite los valores de publicación inválidos del informe.
+- [x] La migración de itinerarios se renumera de 0022 a 0028 y se aplica después de la 0027 ya integrada en main. Prueba con el migrador sobre una base que ya tiene la 0027.
 
 ## Atribución histórica por UID — 2026-11-19 (#600)
 
