@@ -622,6 +622,7 @@ INSERT INTO taxonomies (id, slug, name, type, created_at, updated_at) VALUES
   ('rt-ejercicio', 'ejercicio', 'Ejercicio', 'resource-type', NOW(), NOW()),
   ('rt-evaluacion', 'evaluacion', 'Evaluacion', 'resource-type', NOW(), NOW()),
   ('rt-proyecto', 'proyecto', 'Proyecto', 'resource-type', NOW(), NOW()),
+  ('rt-articulo', 'articulo', 'Artículo', 'resource-type', NOW(), NOW()),
   ('lang-es', 'es', 'Espanol', 'language', NOW(), NOW()),
   ('lang-en', 'en', 'Ingles', 'language', NOW(), NOW()),
   ('lang-ca', 'ca', 'Catalan', 'language', NOW(), NOW()),
