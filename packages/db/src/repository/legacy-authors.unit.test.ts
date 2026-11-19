@@ -10,6 +10,7 @@ import {
 import * as schema from "../schema/index.ts";
 import { createTables } from "../setup.ts";
 import {
+	findLegacyAccountById,
 	findLegacyAuthorAccount,
 	linkLegacyResourceAuthor,
 } from "./legacy-authors.ts";
@@ -243,5 +244,24 @@ describe("autoría de los recursos legacy (issue #456)", () => {
 				}),
 			).toEqual({ outcome: "not_found" });
 		});
+	});
+
+	test("findLegacyAccountById busca por id aunque el correo haya cambiado (#552)", async () => {
+		await insertUser(
+			"legacy-procomun:user:7",
+			"nuevo-correo@ejemplo.test",
+			false,
+		);
+		expect(await findLegacyAccountById(db, "legacy-procomun:user:7")).toEqual({
+			id: "legacy-procomun:user:7",
+			deleted: false,
+			emailVerified: false,
+		});
+		expect(
+			await findLegacyAccountById(db, "legacy-procomun:user:8"),
+		).toBeNull();
+		expect(
+			await findLegacyAccountById(db, LEGACY_IMPORT_SYSTEM_USER_ID),
+		).toBeNull();
 	});
 });

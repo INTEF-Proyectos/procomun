@@ -218,3 +218,50 @@ Better Auth 1.7 (#362, 2026-09-22) rehízo el plugin `genericOAuth` sobre el flu
 * `LogEmailTransport` tacha los tokens (`token=…` y `/reset-password/<token>`) en el log. `EMAIL_LOG_LINKS=true` los deja en claro para probar a mano en local; CI no lo activa.
 
 **Validación.** `transport.unit.test.ts` (`directResetLink` con fragmento y `LogEmailTransport` sin tokens), `PasswordResetIslands.unit.test.tsx` (lectura del fragmento y de la query antigua) y `password-reset.integration.test.ts` (el enlace real no lleva query y su token del fragmento restablece; una cuenta importada sin credencial fija su primera contraseña, inicia sesión y el mismo enlace se rechaza con 400 al reutilizarlo).
+
+## Adenda 2026-11-04 — la pestaña «Cuenta»: cambiar la contraseña y el correo (#532)
+
+**Problema.** No había pantalla para cambiar la contraseña ni el correo. Better Auth trae el cambio de contraseña, y el de correo estaba desactivado (`/change-email` respondía `CHANGE_EMAIL_DISABLED`).
+
+**Decisión sobre el correo: se permite cambiarlo.** La issue lo dejaba abierto porque el correo identifica al autor en las importaciones (#508, #517). Se permite, por tres motivos:
+
+1. **No desvincula nada de lo ya importado.** #508 fija `resources.created_by` al importar y `linkExistingResourceAuthor` **nunca pisa un creador real**. Los recursos ya asignados siguen siendo de la cuenta aunque cambie el correo.
+2. **#488 no identifica la cuenta antigua por el correo** sino por `legacy-procomun:user:<uid>`, así que reimportar usuarios tampoco depende de él.
+3. **Lo único que cambia es la importación futura.** Un recurso que se importe más adelante con el correo antiguo en `publicatorEmailStr` no encontrará la cuenta, quedará a nombre del usuario de sistema y saldrá en `authorsWithoutAccount` del informe. Es visible y recuperable reasignándolo; impedir que la gente cambie de correo para siempre (quien cambia de centro, de proveedor) es peor.
+
+**Cómo cambia el correo, tal como lo hace Better Auth 1.7:**
+
+* **con el correo actual verificado**, primero un aviso a la dirección **antigua** para confirmar el cambio; después la verificación de la nueva; y solo entonces cambia. Protege la cuenta si alguien ha robado la sesión: el cambio no sigue sin que el dueño lo confirme desde su buzón;
+* **sin verificar** (la mayoría de cuentas importadas, #488 deja `email_verified = false`), directo a verificar la nueva;
+* **`updateEmailWithoutVerification` queda desactivado**: con él, una cuenta sin verificar podría pasar a otro correo sin demostrar que lo controla;
+* **cambiar a un correo que ya tiene cuenta no lo delata**: Better Auth responde lo mismo que con uno libre.
+
+El correo de verificación de Better Auth es el mismo para el alta y para el correo nuevo de un cambio. Decía «Para activar tu cuenta», que es falso en el segundo caso, así que se reescribe para que sirva en los dos.
+
+**Contraseña.** `changePassword` con `revokeOtherSessions: true`: quien la cambia porque sospecha que se la han robado necesita que la otra sesión deje de valer. Indicador de fortaleza orientativo, sin dependencias (zxcvbn pesa unos 800 kB): lo que se exige sigue siendo la longitud mínima de 8.
+
+**Cuentas de acceso institucional.** Si la cuenta no tiene credencial propia (`/list-accounts` sin `credential`), la pestaña no ofrece ninguna de las dos cosas: la contraseña y el correo se gestionan en el proveedor de identidad, y un correo cambiado aquí se desalinearía con el suyo. Si no se puede averiguar, tampoco: ofrecer cambiar una contraseña que no existe acaba en error.
+
+**Validación.** `apps/api/src/auth/account-settings.integration.test.ts`, contra la instancia real de Better Auth: la contraseña nueva sustituye a la vieja; con la actual equivocada no cambia nada y el código es `INVALID_PASSWORD` (el cliente se fía de él); se cierran las demás sesiones; el cambio de correo está activado; sin verificar la dirección nueva el correo no cambia; con el correo verificado el aviso va a la antigua; y cambiar a un correo ocupado no lo delata. Sin el arreglo fallan los dos tests que prueban la funcionalidad, por `CHANGE_EMAIL_DISABLED`.
+
+## Adenda 2026-11-10 — revisión de la pestaña Cuenta (#552)
+
+* **Sin transporte de correo no hay cambio de correo.** En producción sin `SMTP_HOST`, `user.changeEmail.enabled` queda en `false`, `/api/v1/config` devuelve `emailDeliveryEnabled: false` y la pestaña Cuenta esconde el formulario de correo; la contraseña se sigue pudiendo cambiar. Mismo criterio que la recuperación (#551): se descarta exigir SMTP al arrancar porque la imagen corre con `NODE_ENV=production` y el `docker-compose.yml` no trae SMTP.
+* La URL de vuelta del cambio de correo se construye con `url()`: respeta la ruta base y el prefijo de idioma.
+* Un fallo de red al cambiar la contraseña o el correo enseña el error de conexión traducido.
+
+## Adenda 2026-11-18 — la autoría histórica no depende del correo actual (#552)
+
+**Problema (revisión de #552, P1).** El importador resolvía `publicatorEmailStr` contra el correo **actual** de las cuentas. Si una persona cambia de correo y su dirección antigua se reasigna a otra persona que la verifica en Procomún, los recursos históricos pendientes de importar (o aún a nombre del sistema) se le atribuían. Y si la dirección antigua quedaba sin cuenta, los artículos pendientes se perdían como `skipped_without_author`. Esto corrige el punto 3 de la adenda del #532, que lo daba por «visible y recuperable»: no lo era, porque la atribución errónea no se ve.
+
+**Decisión.** La autoría se resuelve con un identificador estable. El `.json` de cada recurso solo trae el correo (no el UID de quien publicó), así que el vínculo correo -> UID sale del volcado de usuarios del Procomún antiguo, que ya usa `import:legacy-users`:
+
+* Nueva opción `--users-file <usuarios.json>` en `import:legacy-procomun` (importación y `--link-authors`). Con ella, un correo presente en el volcado se resuelve al UID y de ahí a la cuenta `legacy-procomun:user:<uid>` por **id** (`findLegacyAccountById`), aunque esa cuenta haya cambiado de correo. **Nunca** se cae al titular actual de la dirección.
+* Si el UID no tiene cuenta, queda `no_account`: no se usa el correo como alternativa.
+* Un correo con **varios UID** en el volcado es ambiguo: motivo `ambiguous_account`, sin asignar nada y para revisión manual. El informe general sigue sin llevar correos (#543); no se guarda el correo en la base de datos.
+* Un correo que no aparece en el volcado nunca tuvo cuenta legada, y se busca por el correo actual como en #456.
+* Los artículos pendientes cuyo correo antiguo ya no tiene cuenta se importan a la cuenta del UID, en vez de quedar `skipped_without_author`.
+
+**Límite.** Sin `--users-file` el comportamiento es el de #456 (por correo actual), y el riesgo descrito sigue existiendo. Para los lotes reales, pasarlo siempre.
+
+**Validación.** `import-legacy-procomun.unit.test.ts` (cambio de titular del correo, UID sin cuenta, UID ambiguo sin correo en el informe, índice) y `legacy-authors.unit.test.ts` (búsqueda por id con el correo cambiado).
