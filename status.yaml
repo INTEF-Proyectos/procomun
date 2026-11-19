@@ -4624,6 +4624,26 @@ tasks:
       La revision del 08-nov ya estaba resuelta en 733e4fe0; se ha
       verificado el journal y el migrador real de Drizzle sobre una base en
       main.
+  T-2026-11-16-13581092:
+    date: 2026-11-16
+    agent: "ingestas-y-migraciones + backend-api-servicios"
+    task: "Importador de itinerarios legacy como colecciones (#432)"
+    status: Done
+    related: ["#432", "#548", "#538", "#508", "#543", "ADR-0008", "ADR-0029"]
+    notes: >
+      import:legacy-itineraries importa el JSON de itinerarios como
+      colecciones. Clave (import_source, external_id) con indice unico
+      parcial (migracion 0022; la 0020 y la 0021 son de #512). Propietario:
+      la cuenta del correo de publicatorEmailStr (regla de #508); sin cuenta,
+      borrador a nombre del usuario de sistema. Recursos: ODE y luego
+      articulos, en el orden del JSON; los no importados se omiten y salen en
+      el informe, que no lleva correos (#543). isOrdered = true. Se descartan
+      knowledgeArea, labelsStr, learningContext y educationalDescription.
+      API: el propietario author o editor ve, lista y edita sus colecciones y
+      las manda a revision; no crea, no borra, no publica ni archiva
+      (adenda de ADR-0008). Apilado sobre #548. Pendiente: visitas e
+      interfaz «Mis colecciones» (issues aparte), y cambiar a
+      findLegacyAuthorAccount y --restricted-report cuando #508 llegue a main.
   T-2026-11-16-15033420:
     date: 2026-11-16
     agent: "empresa-y-producto + arquitectura-solucion + documentacion-y-roadmap"
@@ -4926,6 +4946,27 @@ tasks:
     status: Done
     related: ["#598", "#599"]
     notes: "Caché fuera del control de versiones. Paraglide recompila desde una copia limpia y pasan 49 pruebas de correo."
+  T-2026-11-18-21443119:
+    date: 2026-11-18
+    agent: "devops-sre + qa-validacion"
+    task: "Corregir el fallo de Biome en la PR #573"
+    status: Done
+    related: ["#573", "#432"]
+    notes: >
+      Se integra main y se ordenan las exportaciones de repository.ts.
+      Se comprueba que el journal añade la 0022 al final sin alterar las
+      entradas anteriores. Validación local: make lint, tipos, seguimiento,
+      paridad de pruebas y 174 pruebas de migraciones, importación y API.
+  T-2026-11-19-07095854:
+    date: 2026-11-19
+    agent: "ingestas-y-migraciones"
+    task: "Revisión del importador de itinerarios en #573"
+    status: In Progress
+    related: ["#573", "#432"]
+    notes: >
+      Filtrado de visibilidad antes de paginar, mapeo aislado por registro e
+      informe sin valores de publicación inválidos. Journal alineado con la
+      migración 0027 ya integrada en main.
   T-2026-11-18-22482034:
     date: 2026-11-18
     agent: "ingestas-y-migraciones + seguridad-privacidad-legal"
