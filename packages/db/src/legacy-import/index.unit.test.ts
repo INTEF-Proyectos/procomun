@@ -10,4 +10,12 @@ describe("legacy-import barrel", () => {
 		expect(typeof legacyImport.ensureLegacyImportSystemUser).toBe("function");
 		expect(typeof legacyImport.LEGACY_IMPORT_SYSTEM_USER_ID).toBe("string");
 	});
+
+	it("re-exports the itinerary mapper (#432)", () => {
+		expect(typeof legacyImport.mapLegacyItinerary).toBe("function");
+		expect(typeof legacyImport.cleanLegacyItineraryDescription).toBe(
+			"function",
+		);
+		expect(legacyImport.LEGACY_ITINERARY_DISCARDED_FIELDS).toHaveLength(4);
+	});
 });
