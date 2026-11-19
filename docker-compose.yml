@@ -31,6 +31,8 @@ services:
       # marcador del tipo de recurso.
       THUMBNAILER_URL: http://thumbnailer:3100
       THUMBNAILER_CONCURRENCY: ${THUMBNAILER_CONCURRENCY:-2}
+      # Enlace al banco multimedia externo (#569). Vacía, no se muestra.
+      MEDIA_BANK_URL: ${MEDIA_BANK_URL:-}
     volumes:
       # Lo comparte, en solo lectura, el servicio de miniaturas.
       - uploads:/app/local-data/uploads
