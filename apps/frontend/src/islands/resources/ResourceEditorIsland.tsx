@@ -1,4 +1,8 @@
-import { canTransition, TRANSITION_RULES } from "@procomun/db/validation";
+import {
+	canTransition,
+	DEFAULT_LICENSE,
+	TRANSITION_RULES,
+} from "@procomun/db/validation";
 import { type FormEvent, Fragment, useEffect, useRef, useState } from "react";
 import type { Resource, UpdateResourceInput } from "../../lib/api-client.ts";
 import { getApiClient } from "../../lib/get-api-client.ts";
@@ -27,7 +31,7 @@ const EMPTY_FORM: ResourceFormState = {
 	title: "",
 	description: "",
 	language: "es",
-	license: "cc-by",
+	license: DEFAULT_LICENSE,
 	resourceType: "documento",
 	author: "",
 	keywords: "",
@@ -65,7 +69,7 @@ function toFormState(resource: Resource): ResourceFormState {
 		title: resource.title ?? "",
 		description: resource.description ?? "",
 		language: resource.language ?? "es",
-		license: resource.license ?? "cc-by",
+		license: resource.license ?? DEFAULT_LICENSE,
 		resourceType: resource.resourceType ?? "documento",
 		author: resource.author ?? "",
 		keywords: resource.keywords ?? "",
