@@ -307,24 +307,24 @@ export async function runImportLegacyItineraries(
 			});
 			continue;
 		}
-		const { mapped, blockingErrors } = deps.mapLegacyItinerary(
-			legacy as LegacyItineraryJson,
-		);
-		if (!mapped) {
-			totals.blocked++;
-			records.push({
-				outcome: "blocked",
-				index,
-				...(itineraryId ? { itineraryId } : {}),
-				errors: blockingErrors,
-			});
-			console.warn(
-				`[bloqueado] registro ${index}${itineraryId ? ` (${itineraryId})` : ""}: ${blockingErrors.join("; ")}`,
-			);
-			continue;
-		}
-
 		try {
+			const { mapped, blockingErrors } = deps.mapLegacyItinerary(
+				legacy as LegacyItineraryJson,
+			);
+			if (!mapped) {
+				totals.blocked++;
+				records.push({
+					outcome: "blocked",
+					index,
+					...(itineraryId ? { itineraryId } : {}),
+					errors: blockingErrors,
+				});
+				console.warn(
+					`[bloqueado] registro ${index}${itineraryId ? ` (${itineraryId})` : ""}: ${blockingErrors.join("; ")}`,
+				);
+				continue;
+			}
+
 			const owner = await resolveOwner(mapped.publicatorEmail);
 			const result = await deps.importLegacyCollection(
 				db,
@@ -369,17 +369,17 @@ export async function runImportLegacyItineraries(
 				);
 			}
 		} catch (error) {
-			// Solo hay pasos de base de datos: nunca se copia su mensaje (#488).
+			// El mapeo y la base de datos pueden incluir datos de origen en el error.
 			const summary = summarizeDbStepError(error);
 			totals.errored++;
 			records.push({
 				outcome: "error",
 				index,
-				itineraryId: mapped.externalId,
+				...(itineraryId ? { itineraryId } : {}),
 				...summary,
 			});
 			console.error(
-				`[error] registro ${index} (${mapped.externalId}): ${formatImportError(summary)}`,
+				`[error] registro ${index} ${itineraryId ? ` (${itineraryId})` : ""}: ${formatImportError(summary)}`,
 			);
 		}
 	}

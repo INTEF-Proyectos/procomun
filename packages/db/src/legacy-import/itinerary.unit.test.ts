@@ -147,9 +147,7 @@ describe("mapLegacyItinerary (#432)", () => {
 			publicationDate: "no es una fecha",
 		}).mapped;
 		expect(mapped?.publishedAt).toBeNull();
-		expect(mapped?.warnings).toContain(
-			'publicationDate no válida ("no es una fecha"): se ignora',
-		);
+		expect(mapped?.warnings).toContain("publicationDate no válida: se ignora");
 	});
 });
 

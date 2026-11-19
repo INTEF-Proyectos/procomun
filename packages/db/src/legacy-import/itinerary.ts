@@ -112,9 +112,12 @@ export function cleanLegacyItineraryDescription(value: unknown): string {
 		.replace(/&(amp|lt|gt|quot|apos|nbsp);/g, (_, name: string) => {
 			return HTML_ENTITIES[name] ?? "";
 		})
-		.replace(/&#(\d+);/g, (_, code: string) =>
-			String.fromCodePoint(Number(code)),
-		)
+		.replace(/&#(\d+);/g, (entity, code: string) => {
+			const point = Number(code);
+			return point > 0x10ffff || (point >= 0xd800 && point <= 0xdfff)
+				? entity
+				: String.fromCodePoint(point);
+		})
 		.replace(/[\t ]/g, " ");
 	return text
 		.split("\n")
@@ -193,16 +196,12 @@ export function mapLegacyItinerary(
 
 	const status = resolveLegacyPublicationStatus(json.published);
 	if (!status.recognized && json.published != null) {
-		warnings.push(
-			`published con valor desconocido (${JSON.stringify(json.published)}): entra como borrador`,
-		);
+		warnings.push("published con valor desconocido: entra como borrador");
 	}
 
 	const publicationDate = parsePublicationDate(json.publicationDate);
 	if (publicationDate === "invalid") {
-		warnings.push(
-			`publicationDate no válida (${JSON.stringify(json.publicationDate)}): se ignora`,
-		);
+		warnings.push("publicationDate no válida: se ignora");
 	}
 
 	// Primero los ODE y luego los artículos: el exportador los da en dos

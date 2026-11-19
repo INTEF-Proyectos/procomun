@@ -132,13 +132,11 @@ collectionRoutes.get("/:id/resources", async (c) => {
 	const check = await requireManageableCollection(c, id);
 	if ("response" in check) return check.response;
 
+	const user = getCurrentUser(c);
 	const resources = await repo.listCollectionResources(getDb().db, id, {
 		limit: 100,
+		viewer: user,
 	});
-	// Revisión de #481: la colección puede tener recursos no publicados, también
-	// borradores ajenos (#460). Su preview legacy sale firmada si el usuario
-	// puede verlos y no sale si no.
-	const user = getCurrentUser(c);
 	return c.json(
 		resources.map((resource) => ({
 			...resource,

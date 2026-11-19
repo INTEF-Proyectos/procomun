@@ -191,6 +191,57 @@ describe("runImportLegacyItineraries", () => {
 		expect(systemUser).toBe(1);
 	});
 
+	test("preserva entidades inválidas y omite valores de origen en el informe", async () => {
+		const report = await runImportLegacyItineraries(
+			{
+				sourceFile: await source([
+					{
+						id: "a",
+						titleStr: "A",
+						descriptionStr: "&#1114112;",
+						published: "privado@ejemplo.test",
+						publicationDate: "privado@ejemplo.test",
+					},
+					{ id: "b", titleStr: "B" },
+				]),
+				dryRun: false,
+			},
+			buildDeps({
+				importLegacyCollection: async (_db, { itinerary }) => {
+					if (itinerary.externalId === "a")
+						expect(itinerary.description).toBe("&#1114112;");
+					return {
+						outcome: "created",
+						collectionId: itinerary.externalId,
+						owner: "system",
+						linkedResources: 0,
+						missingResources: [],
+					};
+				},
+			}),
+		);
+		expect(report.totals.created).toBe(2);
+		expect(JSON.stringify(report)).not.toContain("privado@ejemplo.test");
+	});
+
+	test("continúa el lote si falla el mapeo de un registro", async () => {
+		const report = await runImportLegacyItineraries(
+			{
+				sourceFile: await source([{ id: "a" }, { id: "b", titleStr: "B" }]),
+				dryRun: false,
+			},
+			buildDeps({
+				mapLegacyItinerary: (record) => {
+					if (record.id === "a") throw new Error("privado@ejemplo.test");
+					return mapLegacyItinerary(record);
+				},
+			}),
+		);
+		expect(report.totals.errored).toBe(1);
+		expect(report.totals.created).toBe(1);
+		expect(JSON.stringify(report)).not.toContain("privado@ejemplo.test");
+	});
+
 	test("un error que no es de la base de datos no copia su mensaje", async () => {
 		const deps = buildDeps({
 			importLegacyCollection: async () => {

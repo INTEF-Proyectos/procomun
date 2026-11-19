@@ -908,14 +908,21 @@ describe("migración 0022_collections_legacy_import", () => {
 		`INSERT INTO "collections" (id, slug, title, import_source, external_id)
 		VALUES ('${id}', '${id}', 'T', 'legacy-procomun', ${externalId ? `'${externalId}'` : "NULL"})`;
 
-	test("va la última en el journal, con un when mayor que el de 0019", async () => {
+	test("va después de la 0021 en el journal", async () => {
 		const journal = JSON.parse(
 			await readFile(path.join(migrationsDir, "meta/_journal.json"), "utf8"),
 		) as { entries: Array<{ idx: number; tag: string; when: number }> };
-		const last = journal.entries.at(-1);
-		expect(last?.tag).toBe("0022_collections_legacy_import");
-		expect(last?.idx).toBe(journal.entries.length - 1);
-		expect(last?.when ?? 0).toBeGreaterThan(1793500000000);
+		const previous = journal.entries.findIndex(
+			(entry) => entry.tag === "0021_thumbnail_owner_indexes",
+		);
+		const current = journal.entries.findIndex(
+			(entry) => entry.tag === "0022_collections_legacy_import",
+		);
+		expect(previous).toBeGreaterThanOrEqual(0);
+		expect(current).toBeGreaterThan(previous);
+		expect(journal.entries[current]?.when ?? 0).toBeGreaterThan(
+			journal.entries[previous]?.when ?? Infinity,
+		);
 	});
 
 	async function assertSchema(db: PGlite) {
