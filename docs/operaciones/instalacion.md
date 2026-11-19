@@ -77,6 +77,14 @@ Procomún no tiene banco multimedia propio: enlaza con la aplicación del banco 
 |----------|-------------|-------------------|
 | `MEDIA_BANK_URL` | URL absoluta `http://` o `https://` de la aplicación del banco multimedia | Sin definir |
 
+La URL oficial es la misma en producción y en local (#601). Añade esta línea al `.env` del despliegue:
+
+```dotenv
+MEDIA_BANK_URL=https://procomun.intef.es/bm/buscador/media/todos
+```
+
+Tras recrear el servicio, comprueba que `GET /api/v1/config` devuelve esa URL en `mediaBankUrl` y que los enlaces de la cabecera de escritorio y de `/nuevo` abren el Banco Multimedia.
+
 - La lee la API y la publica en `GET /api/v1/config` como `mediaBankUrl`, así que no hay que reconstruir el frontend. Con Docker Compose, el servicio `app` la toma de `.env`; tras cambiarla, recrea el contenedor con `docker compose up -d app`. `docker compose restart app` no basta: conserva el entorno con el que se creó el contenedor.
 - Con valor, aparece el enlace «Banco multimedia» en la cabecera, junto a «Explorar», y un aviso con «Ir al banco multimedia» en `/nuevo`. Se abre en la misma pestaña.
 - Sin definir, vacía, sin `//` tras el esquema (`https:banco.example.org`) o con otro esquema (`javascript:`, `ftp:`, una ruta relativa…), `mediaBankUrl` vale `null` y el enlace no aparece. Si es válida, se publica normalizada (`HTTPS://Banco.Example.org` → `https://banco.example.org/`).
