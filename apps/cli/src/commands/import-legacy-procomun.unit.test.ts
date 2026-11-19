@@ -35,6 +35,7 @@ import { extractTextFromHtml } from "../../../api/src/fts/extract.ts";
 import { isAllowedPreviewImageUrl } from "../../../api/src/services/legacy-preview-image.ts";
 import type { RestrictedReportEntry } from "../restricted-report.ts";
 import {
+	buildLegacyUidIndex,
 	findLegacyJsonFiles,
 	findLegacySourcePairs,
 	importLegacyProcomun,
@@ -200,6 +201,7 @@ function buildMockDeps(
 		})) as Deps["mapLegacyRecord"],
 		// #456: por defecto ninguna cuenta coincide con publicatorEmailStr.
 		findLegacyAuthorAccount: async () => null,
+		findLegacyAccountById: async () => null,
 		linkLegacyResourceAuthor: async () => ({ outcome: "not_found" }),
 		ensureLegacyImportSystemUser: async () => ({
 			id: "system-user",
@@ -1341,6 +1343,114 @@ describe("runImportLegacyProcomun — autoría (issue #456)", () => {
 		expect(report.sourceEmailWithoutAccount).toEqual([]);
 		expect(report.authorsWithoutAccount).toHaveLength(1);
 		expect(report.totals.authorWithoutAccount).toBe(1);
+	});
+
+	// P1 de la revisión de #552: el correo actual no identifica a quien publicó
+	// hace años; si la dirección se reasigna, el nuevo titular no hereda nada.
+	describe("autoría por UID legado, no por el correo actual (#552)", () => {
+		const oldEmail = "antiguo@ejemplo.test";
+		const legacyAccount = {
+			id: "legacy-procomun:user:7",
+			deleted: false,
+			emailVerified: false,
+		};
+
+		test("cambio de titular del correo: el recurso va a la cuenta del UID", async () => {
+			const byEmail: string[] = [];
+			const byId: string[] = [];
+			const { calls, repo } = captureImports();
+			const deps = buildMockDeps(storageDir, {
+				mapLegacyRecord: mapWithEmail(oldEmail),
+				// El nuevo titular del correo, verificado, NO debe recibirlo.
+				findLegacyAuthorAccount: async (_db, email) => {
+					byEmail.push(email);
+					return { id: "nuevo-titular", deleted: false, emailVerified: true };
+				},
+				findLegacyAccountById: async (_db, id) => {
+					byId.push(id);
+					return legacyAccount;
+				},
+				repo,
+			});
+
+			const report = await runImportLegacyProcomun(
+				{
+					sourceDir: dir,
+					dryRun: false,
+					legacyUidsByEmail: new Map([[oldEmail, ["7"]]]),
+				},
+				deps,
+			);
+
+			expect(byEmail).toEqual([]);
+			expect(byId).toEqual(["legacy-procomun:user:7"]);
+			expect(calls[0]?.resource.createdBy).toBe("legacy-procomun:user:7");
+			expect(report.totals.authorWithoutAccount).toBe(0);
+		});
+
+		test("el UID sin cuenta no cae al correo: queda sin autor", async () => {
+			const { calls, repo } = captureImports();
+			const deps = buildMockDeps(storageDir, {
+				mapLegacyRecord: mapWithEmail(oldEmail),
+				findLegacyAuthorAccount: async () => ({
+					id: "nuevo-titular",
+					deleted: false,
+					emailVerified: true,
+				}),
+				repo,
+			});
+
+			const report = await runImportLegacyProcomun(
+				{
+					sourceDir: dir,
+					dryRun: false,
+					legacyUidsByEmail: new Map([[oldEmail, ["7"]]]),
+				},
+				deps,
+			);
+
+			expect(calls[0]?.resource.createdBy).toBeNull();
+			expect(report.authorsWithoutAccount).toEqual([
+				expect.objectContaining({ reason: "no_account" }),
+			]);
+		});
+
+		test("un correo con varios UID va a revisión manual, sin guardar el correo", async () => {
+			const { repo } = captureImports();
+			const deps = buildMockDeps(storageDir, {
+				mapLegacyRecord: mapWithEmail(oldEmail),
+				findLegacyAuthorAccount: async () => legacyAccount,
+				findLegacyAccountById: async () => legacyAccount,
+				repo,
+			});
+
+			const report = await runImportLegacyProcomun(
+				{
+					sourceDir: dir,
+					dryRun: false,
+					legacyUidsByEmail: new Map([[oldEmail, ["7", "8"]]]),
+				},
+				deps,
+			);
+
+			expect(report.authorsWithoutAccount).toEqual([
+				expect.objectContaining({ reason: "ambiguous_account" }),
+			]);
+			expect(JSON.stringify(report)).not.toContain(oldEmail);
+		});
+
+		test("buildLegacyUidIndex agrupa por correo normalizado, sin duplicar UID", () => {
+			const index = buildLegacyUidIndex([
+				{ uid: 7, mail: " Antiguo@Ejemplo.test " },
+				{ uid: "7", mail: "antiguo@ejemplo.test" },
+				{ uid: "9", mail: "otro@ejemplo.test" },
+				{ uid: "10", mail: "otro@ejemplo.test" },
+				{ uid: "11" },
+			]);
+			expect(index.get("antiguo@ejemplo.test")).toEqual(["7"]);
+			expect(index.get("otro@ejemplo.test")).toEqual(["9", "10"]);
+			expect(index.size).toBe(2);
+		});
 	});
 
 	test("un recurso nuevo pasa a la cuenta con ese correo", async () => {

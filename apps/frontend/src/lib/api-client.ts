@@ -475,9 +475,18 @@ export interface ApiClient {
 		callbackURL?: string,
 	): Promise<SignInResult>;
 	signIn(email: string, password: string): Promise<SignInResult>;
-	/** #531: siempre ok salvo fallo de red, para no revelar qué correos hay. */
+	/** #531: respuesta genérica, exista o no una cuenta con ese correo. */
 	requestPasswordReset(email: string): Promise<SignInResult>;
 	resetPassword(token: string, newPassword: string): Promise<SignInResult>;
+	/** #532: cierra las demás sesiones al cambiarla. */
+	changePassword(
+		currentPassword: string,
+		newPassword: string,
+	): Promise<SignInResult>;
+	/** #532: no cambia al momento; hay que verificar el correo nuevo. */
+	changeEmail(newEmail: string): Promise<SignInResult>;
+	/** #532: false en las cuentas solo de acceso institucional (OIDC). */
+	hasPasswordAccount(): Promise<boolean>;
 	signInOidc(): Promise<SignInResult>;
 	signOut(): Promise<void>;
 
