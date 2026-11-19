@@ -1,9 +1,27 @@
 import { describe, expect, test } from "bun:test";
 import { validateCreateResource } from "@procomun/db/validation";
+import { renderToStaticMarkup } from "react-dom/server";
 import {
 	applyElpxMetadataToForm,
 	buildCreateResourceBody,
+	MediaBankHint,
 } from "./NuevoPage.tsx";
+
+describe("enlace al banco multimedia en /nuevo (#569)", () => {
+	test("sin URL configurada no aparece", () => {
+		expect(renderToStaticMarkup(<MediaBankHint href={null} />)).toBe("");
+	});
+
+	test("con URL ofrece el banco a quien sube imágenes, vídeo o audio", () => {
+		const html = renderToStaticMarkup(
+			<MediaBankHint href="https://multimedia.example.es/" />,
+		);
+		expect(html).toContain("imágenes, vídeo o audio");
+		expect(html).toContain(
+			'<a href="https://multimedia.example.es/">Ir al banco multimedia</a>',
+		);
+	});
+});
 
 describe("NuevoPage helpers", () => {
 	test("applyElpxMetadataToForm precarga los campos extraidos del .elpx", () => {
