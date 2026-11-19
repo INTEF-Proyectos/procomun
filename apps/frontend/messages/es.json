@@ -3,6 +3,7 @@
 	"main_navigation": "Navegación principal",
 	"nav_home": "Inicio",
 	"nav_explore": "Explorar",
+	"nav_media_bank": "Banco multimedia",
 	"nav_articles": "Artículos",
 	"nav_itineraries": "Itinerarios",
 	"nav_login": "Acceder",
@@ -339,5 +340,7 @@
 	"professional_families_help": "Opcional. Puedes elegir varias.",
 	"professional_families_filter_help": "Recursos de FP con cualquiera de las familias elegidas.",
 	"professional_families_will_be_removed": "Has quitado Formación Profesional: al guardar se eliminarán estas familias profesionales: {families}.",
-	"detail_professional_families": "Familias profesionales"
+	"detail_professional_families": "Familias profesionales",
+	"new_resource_media_bank_hint": "¿Vas a compartir imágenes, vídeo o audio?",
+	"new_resource_media_bank_link": "Ir al banco multimedia"
 }
