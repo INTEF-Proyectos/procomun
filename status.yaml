@@ -4638,6 +4638,51 @@ tasks:
       nombre obligatorio y longitudes, tambien en la administracion de
       usuarios. Adenda en ADR-0037. Fuera: la ficha publica del autor (#487).
 
+  T-2026-11-16-15033420:
+    date: 2026-11-16
+    agent: "empresa-y-producto + arquitectura-solucion + documentacion-y-roadmap"
+    task: "Abrir la épica 006 de comunidades y la ADR-0050 (modelo de comunidades)"
+    status: Done
+    related: ["#493", "#495", "#504", "ADR-0050"]
+    notes: >
+      Solo documentación, sin código. docs/epics/epic-006-comunidades/ con
+      requirements, design (modelo de datos, permisos, estados con el
+      borrador sin administrador, navegación, importador, búsqueda,
+      moderación y datos personales), tasks (F1 modelo y API, F2 interfaz,
+      F3 solicitudes e invitaciones, F4 importador) y validation. ADR-0050
+      Propuesta: tablas propias frente a plataforma externa, colecciones y
+      el plugin organization de Better Auth. Recoge las decisiones de
+      jacoboAlcantara del 2026-11-16 y deja doce preguntas abiertas (Q-1 a
+      Q-12), entre ellas qué ve un no miembro de una privada, si los miembros
+      enlazan recursos y la correspondencia de IDs Drupal de ODE y artículos.
+  T-2026-11-18-13314794:
+    date: 2026-11-18
+    agent: "arquitectura-solucion + seguridad-privacidad-legal + documentacion-y-roadmap"
+    task: "Atender la revisión de #578 (épica 006 y ADR-0050)"
+    status: In Progress
+    related: ["#578", "#577", "#493", "#495", "#504", "ADR-0050", "ADR-0051"]
+    notes: >
+      Apartado «Revisión del 2026-11-18» del diseño: R-1 reimportación que
+      respeta expulsiones, degradaciones y el estado (caso 607 sigue en
+      draft); R-2 la baja lógica del último administrador pasa la comunidad a
+      draft en la misma transacción y Q-8 revisada para la cuenta bloqueada;
+      R-3 regla común con #577 (recuento y administradores públicos,
+      invitaciones a 14 días, correo y solicitud borrados en cualquier
+      cierre); R-4 unirse sin aprobación a una pública, provisional.
+      Pendiente: Q-8, Q-13 y Q-14.
+  T-2026-11-18-18095901:
+    date: 2026-11-18
+    agent: "arquitectura-solucion + seguridad-privacidad-legal + documentacion-y-roadmap"
+    task: "Segunda revisión de #578: identidad por UID legado e invitaciones con correo verificado"
+    status: In Progress
+    related: ["#578", "#577", "#493", "#495", "ADR-0050"]
+    notes: >
+      Apartado «Segunda revisión del 2026-11-18» del diseño: R-5 el importador
+      resuelve por UID legado y un conflicto UID/correo queda pendiente de
+      revisión sin guardar el correo (RF-038); R-6 las invitaciones solo se ven
+      y aceptan desde una cuenta activa con el correo verificado, en el servidor
+      y en ambas vías (RF-039). Pruebas previstas en validation.md. Pendiente
+      Q-15 (regla común de identidad con #577).
   T-2026-11-16-12140710:
     date: 2026-11-16
     agent: "backend-api-servicios"
@@ -4895,6 +4940,30 @@ tasks:
     status: In Progress
     related: ["#586", "#596"]
     notes: "La migración 0023_user_bio_to_profile pasa a 0029_user_bio_to_profile. Se conserva su marca temporal y se actualiza el journal."
+  T-2026-11-18-22482034:
+    date: 2026-11-18
+    agent: "ingestas-y-migraciones + seguridad-privacidad-legal"
+    task: "Tercera revisión de #578: resolución manual de identity_conflict"
+    status: In Progress
+    related: ["#578", "#493", "#495", "ADR-0050"]
+    notes: >
+      Apartado «Tercera revisión del 2026-11-18» del diseño (R-7, RF-040): un
+      admin registra en community_legacy_resolutions que la cuenta vinculada al
+      UID es la correcta (sin correo, auditado en activity_events); el
+      importador la usa en la siguiente ejecución, aplica la relación una sola
+      vez a la cuenta del UID y la comunidad sigue en draft hasta publicación
+      explícita. Caso añadido a validation.md. Pendiente Q-16. Implementación
+      en F4.
+  T-2026-11-19-07055121:
+    date: 2026-11-19
+    agent: "documentacion-y-roadmap"
+    task: "Cuarta revisión de #578: tarea vigente y validación de R-7"
+    status: Done
+    related: ["#578", "#493", "#495", "ADR-0050"]
+    notes: >
+      Marcada como sustituida la tarea histórica de F4 que priorizaba el correo.
+      El plan distingue la revocación pendiente, la aplicada y la invalidación
+      por cambio o baja de la cuenta antes de aplicar. Implementación en F4.
   T-2026-11-18-21315926:
     date: 2026-11-18
     agent: "backend-api-servicios + qa-validacion"
