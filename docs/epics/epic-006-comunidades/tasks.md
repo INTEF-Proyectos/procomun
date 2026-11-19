@@ -45,7 +45,7 @@ Depende de F1; la interfaz se apoya en F2.
 ## F4 — Importador de comunidades (#495)
 Depende de F1, de #488 (usuarios), #517 (artículos) y de Q-11 (correspondencia de IDs Drupal).
 - [ ] Mapeo puro `packages/db/src/legacy-import/community.ts` con las reglas del diseño: modalidad, estado por `published` del nivel superior, `-` como vacío, HTML a texto, fechas y etiquetas.
-- [ ] Resolución de usuarios por correo (regla de #508) y, si no hay correo, por `legacy-procomun:user:<uid>`.
+- **Sustituida por la tarea de F4 de la segunda revisión (R-5).** Resolución de usuarios por correo (regla de #508) y, si no hay correo, por `legacy-procomun:user:<uid>`.
 - [ ] Resolución de ODE y artículos según la respuesta a Q-11.
 - [ ] `community_legacy_relations` para lo no resuelto y reintento al reimportar.
 - [ ] Sin administrador resuelto: `draft` y aviso `no_admin`.
@@ -81,3 +81,8 @@ Depende de F1, de #488 (usuarios), #517 (artículos) y de Q-11 (correspondencia 
 - [x] Resolución manual autorizada de `identity_conflict`: registro, auditoría sin correo y uso por el importador (`design.md` R-7, RF-040).
 - [ ] F4: tabla `community_legacy_resolutions`, endpoint o subcomando `resolve`, uso en el importador y las pruebas de «Resolución manual de `identity_conflict`» de `validation.md`.
 - [ ] Q-16: confirmar quién puede registrar resoluciones.
+
+## Cuarta revisión de #578 — 2026-11-19
+
+- [x] La tarea vigente de F4 resuelve por UID (R-5, RF-038). Si el correo apunta a otra cuenta, la relación queda en `identity_conflict` sin conceder membresía ni administración automáticamente.
+- [ ] F4: ejecutar los escenarios independientes de revocación e invalidación de R-7 en `validation.md`.

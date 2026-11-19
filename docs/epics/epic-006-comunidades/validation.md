@@ -55,8 +55,18 @@ Caso: el UID legado `legacy-procomun:user:<uid>` ya está vinculado a la cuenta 
 | 6 | Reimportar el mismo JSON (UID ya vinculado, correo todavía en B) | A recibe el rol de administrador **una sola vez**; B no recibe nada; relación `applied`; informe `applied_by_resolution` sin correo; la comunidad **sigue en `draft`** con `admin_resolved_draft` |
 | 7 | Reimportar de nuevo | Sin cambios: no hay segundo rol ni segundo evento; la comunidad sigue en `draft` |
 | 8 | Un administrador publica la comunidad de forma explícita | Pasa a `published`; solo entonces |
-| 9 | Resolución revocada antes de reimportar | Vuelve `identity_conflict`; no se asigna |
-| 10 | La cuenta del UID cambia o se da de baja tras la resolución | La resolución no vale: `identity_conflict` otra vez |
+| 9 (sustituido) | Resolución revocada antes de reimportar (ver los casos independientes de abajo) | Vuelve `identity_conflict`; no se asigna |
+| 10 (sustituido) | La cuenta del UID cambia o se da de baja tras la resolución (ver el caso independiente de abajo) | La resolución no vale: `identity_conflict` otra vez |
 | 11 | Inspección de tablas, informe y logs | Ningún correo del JSON aparece en `community_legacy_resolutions`, `community_legacy_relations`, `activity_events`, informe ni logs |
 
 El mismo escenario con `kind = member` asigna la membresía de miembro a A una sola vez y no cambia el estado de la comunidad.
+
+### Revocación e invalidación de R-7 — revisión del 2026-11-19
+
+Cada caso usa sus propios datos. El UID identifica a A y el correo del mismo JSON sigue apuntando a B.
+
+| Estado inicial | Acción | Resultado al reimportar el mismo JSON |
+|---|---|---|
+| Relación pendiente en `identity_conflict`, con resolución vigente registrada y aún sin aplicar | Revocar la resolución | Sigue en `identity_conflict`. A y B siguen sin el rol |
+| Relación `applied`, con el rol ya concedido a A por la resolución | Revocar la resolución | A conserva el rol y B sigue sin él. La relación sigue en `applied`, sin segunda aplicación ni nuevo conflicto |
+| Relación pendiente, con resolución vigente aún sin aplicar | Cambiar la cuenta vinculada al UID o dar de baja a A (una prueba por cada acción) | La resolución previa queda invalidada. La relación queda pendiente en `identity_conflict` sin conceder el rol |

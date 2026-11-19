@@ -4834,3 +4834,13 @@ tasks:
       vez a la cuenta del UID y la comunidad sigue en draft hasta publicación
       explícita. Caso añadido a validation.md. Pendiente Q-16. Implementación
       en F4.
+  T-2026-11-19-07055121:
+    date: 2026-11-19
+    agent: "documentacion-y-roadmap"
+    task: "Cuarta revisión de #578: tarea vigente y validación de R-7"
+    status: Done
+    related: ["#578", "#493", "#495", "ADR-0050"]
+    notes: >
+      Marcada como sustituida la tarea histórica de F4 que priorizaba el correo.
+      El plan distingue la revocación pendiente, la aplicada y la invalidación
+      por cambio o baja de la cuenta antes de aplicar. Implementación en F4.
