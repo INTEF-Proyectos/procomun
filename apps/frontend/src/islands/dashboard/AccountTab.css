@@ -1,0 +1,79 @@
+/* Pestaña «Cuenta» del perfil (#532) */
+.account-tab {
+	display: grid;
+	gap: var(--space-8, 2rem);
+	max-width: 32rem;
+}
+
+.account-section {
+	display: grid;
+	gap: var(--space-3, 0.75rem);
+}
+
+.account-section h3 {
+	font-family: var(--font-display);
+	font-size: 1.125rem;
+	color: var(--color-on-surface);
+}
+
+.account-field {
+	display: grid;
+	gap: 0.25rem;
+	font-family: var(--font-body);
+	font-size: 0.875rem;
+	color: var(--color-on-surface);
+}
+
+.account-field input {
+	padding: 0.625rem 0.75rem;
+	border: 1px solid var(--color-outline);
+	border-radius: 0.5rem;
+	font: inherit;
+}
+
+.account-field input:focus-visible {
+	outline: 2px solid var(--color-primary);
+	outline-offset: 2px;
+}
+
+.account-current,
+.account-oidc {
+	font-family: var(--font-body);
+	font-size: 0.875rem;
+	color: var(--color-on-surface-variant);
+}
+
+.account-strength {
+	min-height: 1.25rem;
+	margin: 0;
+	font-family: var(--font-body);
+	font-size: 0.8125rem;
+	color: var(--color-on-surface-variant);
+}
+
+.account-error {
+	color: var(--color-error, #ba1a1a);
+	font-size: 0.875rem;
+}
+
+.account-done {
+	color: var(--color-success);
+	font-size: 0.875rem;
+}
+
+.account-submit {
+	justify-self: start;
+	padding: 0.625rem 1.25rem;
+	border: none;
+	border-radius: 0.5rem;
+	background: var(--color-primary);
+	color: var(--color-on-primary);
+	font: inherit;
+	font-weight: 600;
+	cursor: pointer;
+}
+
+.account-submit:disabled {
+	opacity: 0.6;
+	cursor: wait;
+}

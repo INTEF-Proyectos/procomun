@@ -43,6 +43,33 @@ export async function findLegacyAuthorAccount(
 		: null;
 }
 
+/**
+ * Cuenta por su id estable `legacy-procomun:user:<uid>` (#552), sin mirar el
+ * correo: el titular actual de una dirección puede no ser quien publicó.
+ */
+export async function findLegacyAccountById(
+	db: DrizzleDB,
+	id: string,
+): Promise<{ id: string; deleted: boolean; emailVerified: boolean } | null> {
+	if (id === LEGACY_IMPORT_SYSTEM_USER_ID) return null;
+	const [row] = await db
+		.select({
+			id: user.id,
+			deletedAt: user.deletedAt,
+			emailVerified: user.emailVerified,
+		})
+		.from(user)
+		.where(eq(user.id, id))
+		.limit(1);
+	return row
+		? {
+				id: row.id,
+				deleted: row.deletedAt !== null,
+				emailVerified: row.emailVerified,
+			}
+		: null;
+}
+
 export type LinkLegacyAuthorResult =
 	| { outcome: "not_found" | "linked" | "already_linked" }
 	| { outcome: "kept_creator"; createdBy: string };
