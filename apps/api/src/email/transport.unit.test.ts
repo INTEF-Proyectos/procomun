@@ -1,6 +1,8 @@
 import { describe, expect, test } from "bun:test";
 import {
 	allowsLogEmailTransport,
+	buildChangeEmailConfirmationEmail,
+	buildChangeEmailOptions,
 	buildEmailVerificationOptions,
 	buildPasswordResetEmail,
 	buildPasswordResetOptions,
@@ -14,6 +16,7 @@ import {
 	resolvePasswordResetConfig,
 	resolveSmtpConfig,
 	SmtpEmailTransport,
+	sendWithoutWaiting,
 	summarizeEmailError,
 } from "./transport.ts";
 
@@ -666,5 +669,141 @@ describe("hasEmailTransport (#551)", () => {
 
 	test("no hay transporte en producción sin SMTP_HOST", () => {
 		expect(hasEmailTransport({ NODE_ENV: "production" })).toBe(false);
+	});
+});
+
+// #532: Better Auth usa el mismo `sendVerificationEmail` para el alta y para
+// verificar el correo nuevo de un cambio. El texto decia «Para activar tu
+// cuenta», que es falso en el segundo caso: quien cambia de correo ya tiene
+// cuenta y se asustaria pensando que alguien ha abierto una a su nombre.
+describe("buildVerificationEmail sirve para alta y para cambio de correo (#532)", () => {
+	const message = buildVerificationEmail({
+		email: "nuevo@ejemplo.test",
+		url: "https://procomun.test/verify?token=abc",
+	});
+
+	test("no habla solo de activar una cuenta", () => {
+		expect(message.text).not.toContain("activar tu cuenta");
+	});
+
+	test("cubre los dos casos al explicar qué hacer si no lo has pedido", () => {
+		expect(message.text).toContain("cuenta");
+		expect(message.text).toContain("cambiar tu correo");
+	});
+});
+
+// #532: con el correo verificado, Better Auth avisa primero a la direccion
+// ANTIGUA antes de cambiar nada. Es lo que protege al dueño si alguien le ha
+// robado la sesion: el cambio no sigue sin que el lo confirme desde su buzon.
+describe("buildChangeEmailConfirmationEmail (#532)", () => {
+	const message = buildChangeEmailConfirmationEmail({
+		email: "antiguo@ejemplo.test",
+		newEmail: "nuevo@ejemplo.test",
+		url: "https://procomun.test/verify?token=conf",
+	});
+
+	test("va a la direccion antigua, no a la nueva", () => {
+		expect(message.to).toBe("antiguo@ejemplo.test");
+	});
+
+	test("dice a que correo se quiere cambiar y lleva el enlace", () => {
+		expect(message.text).toContain("nuevo@ejemplo.test");
+		expect(message.text).toContain("token=conf");
+	});
+
+	test("explica que todavia no ha cambiado nada", () => {
+		// Si no, el dueño cree que ya ha perdido la cuenta.
+		expect(message.text.toLowerCase()).toContain("todavía no");
+	});
+
+	test("si no lo ha pedido, le dice que cambie la contraseña", () => {
+		// Que alguien pida el cambio desde su sesion significa que la tiene.
+		expect(message.text.toLowerCase()).toContain("no has pedido");
+		expect(message.text.toLowerCase()).toContain("contraseña");
+	});
+});
+
+describe("buildChangeEmailOptions (#532)", () => {
+	test("activa el cambio de correo con confirmacion al correo antiguo", async () => {
+		const sent: EmailMessage[] = [];
+		const options = buildChangeEmailOptions({ NODE_ENV: "test" }, () => ({
+			sendEmail: async (message: EmailMessage) => {
+				sent.push(message);
+			},
+		}));
+
+		expect(options.enabled).toBe(true);
+		await options.sendChangeEmailConfirmation({
+			user: { email: "antiguo@ejemplo.test" },
+			newEmail: "nuevo@ejemplo.test",
+			url: "https://procomun.test/verify?token=conf",
+		});
+
+		expect(sent).toHaveLength(1);
+		expect(sent[0]?.to).toBe("antiguo@ejemplo.test");
+	});
+
+	test("nunca cambia el correo sin verificar el nuevo", () => {
+		// Con updateEmailWithoutVerification una cuenta sin verificar podria
+		// pasar a otro correo sin demostrar que lo controla.
+		expect(buildChangeEmailOptions({}).updateEmailWithoutVerification).toBe(
+			false,
+		);
+	});
+});
+
+describe("cambio de correo sin SMTP (#552)", () => {
+	test("sin transporte, el cambio de correo queda apagado", () => {
+		expect(buildChangeEmailOptions({ NODE_ENV: "production" }).enabled).toBe(
+			false,
+		);
+	});
+});
+
+// Revisión de #552 (P2): la respuesta no espera al SMTP y un fallo no deja en
+// el log ni destinatarios ni el enlace con el token.
+describe("sendWithoutWaiting (#552)", () => {
+	const message = buildVerificationEmail({
+		email: "alguien@example.com",
+		url: "https://procomun.test/verify?token=secreto",
+	});
+
+	test("no espera a que el SMTP termine", () => {
+		let started = false;
+		sendWithoutWaiting(
+			{
+				sendEmail: () => {
+					started = true;
+					return new Promise<void>(() => {});
+				},
+			},
+			message,
+		);
+		expect(started).toBe(true);
+	});
+
+	test("un fallo se registra saneado, sin destinatario ni token", async () => {
+		const logged: unknown[] = [];
+		const error = Object.assign(
+			new Error("550 alguien@example.com rejected token=secreto"),
+			{ code: "EENVELOPE", responseCode: 550, response: "token=secreto" },
+		);
+		sendWithoutWaiting(
+			{ sendEmail: () => Promise.reject(error) },
+			message,
+			(line, summary) => logged.push(line, summary),
+		);
+		await Bun.sleep(0);
+
+		expect(logged).toHaveLength(2);
+		expect(logged[1]).toEqual({
+			subject: message.subject,
+			name: "Error",
+			code: "EENVELOPE",
+			responseCode: 550,
+		});
+		const dump = JSON.stringify(logged);
+		expect(dump).not.toContain("alguien@example.com");
+		expect(dump).not.toContain("secreto");
 	});
 });
