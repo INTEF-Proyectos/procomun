@@ -11,6 +11,7 @@ import {
 	KnowledgeAreaField,
 	ProfessionalFamilyField,
 } from "../islands/resources/KnowledgeClassificationFields.tsx";
+import { LicenseSelectOptions } from "../islands/resources/LicenseSelectOptions.tsx";
 import {
 	LANGUAGE_OPTIONS,
 	LICENSE_OPTIONS,
@@ -516,11 +517,7 @@ export default function NuevoPage() {
 									setFieldValue("license", event.currentTarget.value)
 								}
 							>
-								{LICENSE_OPTIONS.map(({ value, label }) => (
-									<option key={value} value={value}>
-										{label}
-									</option>
-								))}
+								<LicenseSelectOptions />
 							</select>
 							<span id="license-error" className="field-error" role="alert">
 								{fieldErrors.license ?? ""}

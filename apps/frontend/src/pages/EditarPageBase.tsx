@@ -12,10 +12,7 @@ import {
 	KnowledgeAreaField,
 	ProfessionalFamilyField,
 } from "../islands/resources/KnowledgeClassificationFields.tsx";
-import {
-	getResourceTypeOptions,
-	LICENSE_OPTIONS,
-} from "../islands/resources/resource-form-options.ts";
+import { getResourceTypeOptions } from "../islands/resources/resource-form-options.ts";
 import type {
 	CatalogKeyword,
 	PublicKnowledgeAreaCatalog,
@@ -40,6 +37,7 @@ import {
 import { EditorialActions } from "./EditorialActions.tsx";
 import { ResourceVersionPanel } from "./ResourceVersionPanel.tsx";
 import "../styles/editar.css";
+import { LicenseSelectOptions } from "../islands/resources/LicenseSelectOptions.tsx";
 import { labelFor } from "../lib/labels.ts";
 
 const STATUS_LABELS: Record<string, { label: string; cssClass: string }> = {
@@ -927,11 +925,7 @@ export default function EditarPage() {
 											ref={licenseRef}
 											defaultValue={DEFAULT_LICENSE}
 										>
-											{LICENSE_OPTIONS.map(({ value, label }) => (
-												<option key={value} value={value}>
-													{label}
-												</option>
-											))}
+											<LicenseSelectOptions />
 										</select>
 									</div>
 								</div>
@@ -1117,11 +1111,7 @@ export default function EditarPage() {
 										ref={licenseRef}
 										defaultValue={res.license ?? DEFAULT_LICENSE}
 									>
-										{LICENSE_OPTIONS.map(({ value, label }) => (
-											<option key={value} value={value}>
-												{label}
-											</option>
-										))}
+										<LicenseSelectOptions />
 									</select>
 								</div>
 

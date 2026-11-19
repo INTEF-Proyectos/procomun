@@ -1,6 +1,5 @@
 import { RESOURCE_TYPES } from "@procomun/db/resource-types";
 import { VALID_LICENSES } from "@procomun/db/validation";
-import { m } from "../../paraglide/messages.js";
 
 export const LANGUAGE_OPTIONS = [
 	{ value: "es", label: "Español" },
@@ -12,18 +11,7 @@ export const LANGUAGE_OPTIONS = [
 
 export const LICENSE_OPTIONS = VALID_LICENSES.map((value) => ({
 	value,
-	get label() {
-		switch (value) {
-			case "cc-by-nd":
-				return m.license_no_derivatives();
-			case "cc-by-nc-nd":
-				return m.license_noncommercial_no_derivatives();
-			case "cc0":
-				return m.license_public_domain();
-			default:
-				return value.toUpperCase().replace("CC-", "CC ");
-		}
-	},
+	label: value.toUpperCase().replace("CC-", "CC "),
 }));
 
 // Derived from RESOURCE_TYPES (packages/db/src/resource-types.ts), the single
