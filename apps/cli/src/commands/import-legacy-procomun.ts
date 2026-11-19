@@ -5,12 +5,12 @@
  * "POST"`) llegan en el mismo formato y entran por el mismo comando (#446).
  *
  * Uso:
- *   bun run apps/cli/src/index.ts import:legacy-procomun --source-dir <ruta> [--dry-run] [--limit <n>] [--only <externalId>] [--report-dir <ruta>] [--restricted-report <ruta>]
+ *   bun run apps/cli/src/index.ts import:legacy-procomun --source-dir <ruta> [--dry-run] [--limit <n>] [--only <externalId>] [--report-dir <ruta>] [--restricted-report <ruta>] [--users-file <usuarios.json>]
  *   bun run apps/cli/src/index.ts import:legacy-procomun --backfill-categories [--dry-run] [--report-dir <ruta>]
  *   bun run apps/cli/src/index.ts import:legacy-procomun --fix-published --source-dir <ruta> [--dry-run] [--report-dir <ruta>]
  *   bun run apps/cli/src/index.ts import:legacy-procomun --copy-previews [--dry-run] [--report-dir <ruta>]
  *   bun run apps/cli/src/index.ts import:legacy-procomun --fix-language --source-dir <ruta> [--dry-run] [--report-dir <ruta>]
- *   bun run apps/cli/src/index.ts import:legacy-procomun --link-authors --source-dir <ruta> [--dry-run] [--report-dir <ruta>] [--restricted-report <ruta>]
+ *   bun run apps/cli/src/index.ts import:legacy-procomun --link-authors --source-dir <ruta> [--dry-run] [--report-dir <ruta>] [--restricted-report <ruta>] [--users-file <usuarios.json>]
  *
  * El informe general no lleva datos personales. `--restricted-report <ruta>`
  * escribe aparte, con permisos 0600 y fuera de --report-dir, el correo de los
@@ -88,6 +88,7 @@ export async function loadImportLegacyProcomunDependencies() {
 		listLegacyRemoteThumbnails: repo.listLegacyRemoteThumbnails,
 		setResourceThumbnailUrl: repo.setResourceThumbnailUrl,
 		findLegacyAuthorAccount: repo.findLegacyAuthorAccount,
+		findLegacyAccountById: repo.findLegacyAccountById,
 		linkLegacyResourceAuthor: repo.linkLegacyResourceAuthor,
 		mapLegacyRecord: legacyImport.mapLegacyRecord,
 		normalizeLanguage: legacyImport.normalizeLanguage,
@@ -229,7 +230,13 @@ export interface AuthorWithoutAccount {
 	 * Sin correo, sin cuenta con ese correo, con una cuenta dada de baja o con
 	 * una cuenta que no ha verificado el correo.
 	 */
-	reason: "no_email" | "no_account" | "deleted_account" | "unverified_account";
+	reason:
+		| "no_email"
+		| "no_account"
+		| "deleted_account"
+		| "unverified_account"
+		/** El correo del origen pertenece a varios UID legados: revisión manual. */
+		| "ambiguous_account";
 }
 
 /**
@@ -356,6 +363,7 @@ function parseCliArgs(args: string[]) {
 			only: { type: "string" },
 			"report-dir": { type: "string" },
 			"restricted-report": { type: "string" },
+			"users-file": { type: "string" },
 		},
 		strict: true,
 	});
@@ -430,6 +438,7 @@ function parseCliArgs(args: string[]) {
 		only: values.only,
 		reportDir,
 		restrictedReport,
+		usersFile: values["users-file"],
 	};
 }
 
@@ -465,10 +474,14 @@ async function runImportLegacyProcomunCommand(
 		return;
 	}
 
+	const legacyUidsByEmail = options.usersFile
+		? buildLegacyUidIndex(await Bun.file(options.usersFile).json())
+		: undefined;
+
 	if (options.linkAuthors) {
 		const restrictedEntries = options.restrictedReport ? [] : undefined;
 		const linkReport = await runLinkLegacyAuthors(
-			{ ...options, restrictedEntries },
+			{ ...options, restrictedEntries, legacyUidsByEmail },
 			deps,
 		);
 		await writeReport(options, "enlace-autores", linkReport);
@@ -519,7 +532,10 @@ async function runImportLegacyProcomunCommand(
 	const restrictedEntries = options.restrictedReport ? [] : undefined;
 	const report = options.backfillCategories
 		? await runBackfillLegacyEducationalAreas(options, deps)
-		: await runImportLegacyProcomun({ ...options, restrictedEntries }, deps);
+		: await runImportLegacyProcomun(
+				{ ...options, restrictedEntries, legacyUidsByEmail },
+				deps,
+			);
 
 	await writeReport(
 		options,
@@ -1035,21 +1051,64 @@ type LegacyAuthor =
 	| { userId: string }
 	| { userId: null; reason: AuthorWithoutAccount["reason"] };
 
+/** Correo normalizado -> UIDs del Procomún antiguo que lo tenían (#552). */
+export type LegacyUidsByEmail = Map<string, string[]>;
+
 /**
- * #456: resuelve `publicatorEmailStr` a la cuenta con ese correo. Una misma
- * persona publica muchos recursos, así que cada correo se busca una sola vez
- * por ejecución.
+ * Índice correo -> UID a partir del volcado de usuarios (`--users-file`).
+ * El `.json` de cada recurso solo trae el correo, no el UID de quien lo
+ * publicó; el volcado de usuarios es la única fuente estable que une ambos.
+ */
+export function buildLegacyUidIndex(
+	records: { uid?: string | number | null; mail?: string | null }[],
+): LegacyUidsByEmail {
+	const index: LegacyUidsByEmail = new Map();
+	for (const record of records) {
+		const email = normalizeLegacyPublicatorEmail(record.mail);
+		const uid = record.uid == null ? "" : String(record.uid).trim();
+		if (!email || !uid) continue;
+		const uids = index.get(email) ?? [];
+		if (!uids.includes(uid)) uids.push(uid);
+		index.set(email, uids);
+	}
+	return index;
+}
+
+/**
+ * #456: resuelve `publicatorEmailStr` a una cuenta. Una misma persona publica
+ * muchos recursos, así que cada correo se busca una sola vez por ejecución.
+ *
+ * #552: si el volcado de usuarios conoce el correo, la autoría va al UID
+ * `legacy-procomun:user:<uid>` y nunca al titular actual de la dirección
+ * (puede haberse reasignado). Un correo con varios UID es ambiguo y se deja
+ * para revisión manual. Solo un correo ausente del volcado, que nunca tuvo
+ * cuenta legada, se busca por el correo actual.
  */
 function createLegacyAuthorResolver(
 	deps: Deps,
 	db: ReturnType<Deps["getDb"]>["db"],
+	uidsByEmail?: LegacyUidsByEmail,
 ) {
 	const cache = new Map<string, LegacyAuthor>();
 	return async (email: string | null): Promise<LegacyAuthor> => {
 		if (!email) return { userId: null, reason: "no_email" };
 		const cached = cache.get(email);
 		if (cached) return cached;
-		const account = await deps.findLegacyAuthorAccount(db, email);
+		const uids = uidsByEmail?.get(email);
+		if (uids && uids.length > 1) {
+			const ambiguous: LegacyAuthor = {
+				userId: null,
+				reason: "ambiguous_account",
+			};
+			cache.set(email, ambiguous);
+			return ambiguous;
+		}
+		const account = uids?.[0]
+			? await deps.findLegacyAccountById(
+					db,
+					`${LEGACY_USER_ID_PREFIX}${uids[0]}`,
+				)
+			: await deps.findLegacyAuthorAccount(db, email);
 		const author: LegacyAuthor = !account
 			? { userId: null, reason: "no_account" }
 			: account.deleted
@@ -1142,13 +1201,19 @@ export async function runLinkLegacyAuthors(
 		dryRun: boolean;
 		/** Solo con --restricted-report: aquí van los correos (#543). */
 		restrictedEntries?: RestrictedReportEntry[];
+		/** Índice del volcado de usuarios (--users-file, #552). */
+		legacyUidsByEmail?: LegacyUidsByEmail;
 	},
 	deps: Deps,
 ): Promise<LinkLegacyAuthorsReport> {
 	const startedAt = new Date().toISOString();
 	await deps.waitForDb();
 	const db = deps.getDb().db;
-	const resolveAuthor = createLegacyAuthorResolver(deps, db);
+	const resolveAuthor = createLegacyAuthorResolver(
+		deps,
+		db,
+		options.legacyUidsByEmail,
+	);
 	const sources = await findLegacyJsonFiles(options.sourceDir);
 
 	const totals = {
@@ -1271,6 +1336,8 @@ export async function runImportLegacyProcomun(
 		only?: string;
 		/** Solo con --restricted-report: aquí van los correos (#543). */
 		restrictedEntries?: RestrictedReportEntry[];
+		/** Índice del volcado de usuarios (--users-file, #552). */
+		legacyUidsByEmail?: LegacyUidsByEmail;
 	},
 	deps: Deps,
 ): Promise<ImportLegacyProcomunReport> {
@@ -1319,7 +1386,11 @@ export async function runImportLegacyProcomun(
 	let skippedWithoutAuthor = 0;
 	const authorsWithoutAccount: AuthorWithoutAccount[] = [];
 	const sourceEmailWithoutAccount: SourceEmailWithoutAccount[] = [];
-	const resolveAuthor = createLegacyAuthorResolver(deps, db);
+	const resolveAuthor = createLegacyAuthorResolver(
+		deps,
+		db,
+		options.legacyUidsByEmail,
+	);
 
 	// Streaming: se itera par a par (ver iterateResolvedPairs) y se corta en
 	// cuanto --only encuentra su objetivo o --limit alcanza su cupo, sin haber
