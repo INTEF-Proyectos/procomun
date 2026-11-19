@@ -7,6 +7,7 @@ import {
 	getElpxProjectByResourceId,
 	listMediaItemsForResource,
 	listResources,
+	listTaxonomies,
 } from "@procomun/db/repository";
 import {
 	resourceEducationalAreas,
@@ -1259,6 +1260,16 @@ describe("import:legacy-procomun — artículos (issue #446)", () => {
 			editorialStatus: "published",
 			extractedText: "Descripción del aula invertida para quien empieza.",
 		});
+	});
+
+	test("la taxonomía resource-type que sirve la API incluye «Artículo» (#595)", async () => {
+		const types = await listTaxonomies(deps.getDb().db, {
+			type: "resource-type",
+			limit: 100,
+		});
+		expect(types.data).toContainEqual(
+			expect.objectContaining({ slug: "articulo", name: "Artículo" }),
+		);
 	});
 
 	test("el texto del artículo se encuentra en la búsqueda, aunque no esté en la descripción", async () => {

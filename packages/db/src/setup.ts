@@ -60,7 +60,7 @@ export const THUMBNAIL_OWNER_INDEXES_SCHEMA = [
  * del perfil (ADR-0037). Le pasa el `user.bio` escrito en la plataforma nueva
  * (prevalece sobre el importado) y borra esa columna. `about_edited_at` marca
  * lo escrito en la plataforma nueva: lo importado sin editar no lo ve la
- * administración (revisión de #586). La migración 0023_user_bio_to_profile
+ * administración (revisión de #586). La migración 0029_user_bio_to_profile
  * contiene esta misma sentencia.
  */
 export const USER_BIO_TO_PROFILE = `DO $$ BEGIN
@@ -642,6 +642,7 @@ INSERT INTO taxonomies (id, slug, name, type, created_at, updated_at) VALUES
   ('rt-ejercicio', 'ejercicio', 'Ejercicio', 'resource-type', NOW(), NOW()),
   ('rt-evaluacion', 'evaluacion', 'Evaluacion', 'resource-type', NOW(), NOW()),
   ('rt-proyecto', 'proyecto', 'Proyecto', 'resource-type', NOW(), NOW()),
+  ('rt-articulo', 'articulo', 'Artículo', 'resource-type', NOW(), NOW()),
   ('lang-es', 'es', 'Espanol', 'language', NOW(), NOW()),
   ('lang-en', 'en', 'Ingles', 'language', NOW(), NOW()),
   ('lang-ca', 'ca', 'Catalan', 'language', NOW(), NOW()),

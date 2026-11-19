@@ -197,7 +197,7 @@ describe("importLegacyUser", () => {
 		await pglite.exec(
 			await readFile(
 				new URL(
-					"../../migrations/0023_user_bio_to_profile.sql",
+					"../../migrations/0029_user_bio_to_profile.sql",
 					import.meta.url,
 				),
 				"utf8",

@@ -891,23 +891,46 @@ describe("actualización con el migrador de drizzle (#512)", () => {
 	});
 });
 
+describe("0027_taxonomy_articulo (#595)", () => {
+	test("añade «Artículo» a resource-type y es idempotente", async () => {
+		const migration = await readFile(
+			path.join(migrationsDir, "0027_taxonomy_articulo.sql"),
+			"utf8",
+		);
+		const db = new PGlite();
+		try {
+			await db.exec(
+				`CREATE TABLE "taxonomies" (id TEXT PRIMARY KEY, slug VARCHAR(255) NOT NULL UNIQUE, name TEXT NOT NULL, type VARCHAR(100) NOT NULL, created_at TIMESTAMP NOT NULL DEFAULT NOW(), updated_at TIMESTAMP NOT NULL DEFAULT NOW())`,
+			);
+			await db.exec(migration);
+			await db.exec(migration);
+			const rows = await db.query<{ name: string }>(
+				`SELECT name FROM taxonomies WHERE type = 'resource-type' AND slug = 'articulo'`,
+			);
+			expect(rows.rows).toEqual([{ name: "Artículo" }]);
+		} finally {
+			await db.close();
+		}
+	});
+});
+
 // #533: el «Sobre mí» queda solo en user_profile.about, privado como el resto
-// del perfil (ADR-0037). La 0023 le pasa el user.bio que se escribió en la
+// del perfil (ADR-0037). La 0029 le pasa el user.bio que se escribió en la
 // plataforma nueva y borra esa columna. setup.ts aplica la misma sentencia.
-describe("migración 0023_user_bio_to_profile", () => {
+describe("migración 0029_user_bio_to_profile", () => {
 	test("va en el journal con su when reservado", async () => {
 		const journal = JSON.parse(
 			await readFile(path.join(migrationsDir, "meta/_journal.json"), "utf8"),
 		) as { entries: Array<{ tag: string; when: number }> };
 		const entry = journal.entries.find(
-			(item) => item.tag === "0023_user_bio_to_profile",
+			(item) => item.tag === "0029_user_bio_to_profile",
 		);
 		expect(entry?.when).toBe(1793700000000);
 	});
 
 	test("coincide con setup.ts, mueve la bio sin perder el «Sobre mí» importado y es idempotente", async () => {
 		const migration = await readFile(
-			path.join(migrationsDir, "0023_user_bio_to_profile.sql"),
+			path.join(migrationsDir, "0029_user_bio_to_profile.sql"),
 			"utf8",
 		);
 		const { USER_BIO_TO_PROFILE } = await import("./setup.ts");
@@ -981,7 +1004,7 @@ describe("migración 0023_user_bio_to_profile", () => {
 				await readFile(path.join(migrationsDir, "meta/_journal.json"), "utf8"),
 			) as { entries: Array<{ tag: string; when: number }> };
 			const at = journal.entries.findIndex(
-				(entry) => entry.tag === "0023_user_bio_to_profile",
+				(entry) => entry.tag === "0029_user_bio_to_profile",
 			);
 			for (const entry of journal.entries.slice(0, at)) {
 				await db.query(

@@ -259,3 +259,7 @@ La validación está en `@procomun/db/user-profile` y la comparten la API y el f
 - La administración de usuarios ve el «Sobre mí» como antes de #533: solo el escrito en la plataforma nueva. `user_profile.about_edited_at` lo marca (la 0023 lo rellena al pasar `user.bio`, y cada edición lo actualiza). El importado sin editar solo lo ve su dueño en `/perfil`. Si la administración debe verlo, se decide en #504.
 - `PATCH /api/v1/users/me/profile` guarda nombre, «Sobre mí» y datos ampliados en una transacción.
 - El formulario de `/perfil` envía solo los campos que cambian. Si no se pudo leer el perfil, avisa y no vacía lo guardado; un país importado que no está en la lista (`XK`) no impide editar el resto.
+
+## Renumeración de la migración — 2026-11-19
+
+`0023_user_bio_to_profile` pasa a `0029_user_bio_to_profile` tras integrar la 0027 de «Artículo». Se conserva el orden de integración #586, #585 y #587.
