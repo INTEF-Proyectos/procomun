@@ -72,3 +72,4 @@ apps/frontend/public/api/v1/elpx/
 .grok/
 .playwright-mcp/
 CLAUDE.local.md
+apps/frontend/project.inlang/cache/

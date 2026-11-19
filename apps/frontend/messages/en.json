@@ -3,6 +3,7 @@
 	"main_navigation": "Main navigation",
 	"nav_home": "Home",
 	"nav_explore": "Explore",
+	"nav_media_bank": "Media bank",
 	"nav_articles": "Articles",
 	"nav_itineraries": "Itineraries",
 	"nav_login": "Sign in",
@@ -390,5 +391,7 @@
 	"admin_reports_resolution_label": "Resolution notes (optional)",
 	"admin_reports_resolution_placeholder": "Describe the resolution...",
 	"admin_reports_confirm": "Confirm resolution",
-	"admin_reports_processing": "Processing..."
+	"admin_reports_processing": "Processing...",
+	"new_resource_media_bank_hint": "Sharing images, video or audio?",
+	"new_resource_media_bank_link": "Go to the media bank"
 }

@@ -3,6 +3,7 @@
 	"main_navigation": "Navegación principal",
 	"nav_home": "Inicio",
 	"nav_explore": "Explorar",
+	"nav_media_bank": "Banco multimedia",
 	"nav_articles": "Artigos",
 	"nav_itineraries": "Itinerarios",
 	"nav_login": "Acceder",
@@ -390,5 +391,7 @@
 	"admin_reports_resolution_label": "Notas de resolución (opcional)",
 	"admin_reports_resolution_placeholder": "Describe a resolución...",
 	"admin_reports_confirm": "Confirmar resolución",
-	"admin_reports_processing": "Procesando..."
+	"admin_reports_processing": "Procesando...",
+	"new_resource_media_bank_hint": "Vas compartir imaxes, vídeo ou audio?",
+	"new_resource_media_bank_link": "Ir ao banco multimedia"
 }
