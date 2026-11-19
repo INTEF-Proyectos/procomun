@@ -138,6 +138,13 @@
 		{
 			"idx": 19,
 			"version": "7",
+			"when": 1793600000001,
+			"tag": "0028_collections_legacy_import",
+			"breakpoints": true
+		},
+		{
+			"idx": 20,
+			"version": "7",
 			"when": 1793700000000,
 			"tag": "0029_user_bio_to_profile",
 			"breakpoints": true
