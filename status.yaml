@@ -3822,6 +3822,21 @@ tasks:
       publicado sigue firmada. Pruebas nuevas de buildElpxPreview, de la API
       (ficha, listado, borrador firmado), de la tarjeta y de la ficha.
       Detalle en docs/hotfixes/pr-471-conflictos/validation.md.
+  T-2026-11-10-21031689:
+    date: 2026-11-10
+    agent: "seguridad-privacidad-legal + backend-api-servicios + frontend-ux-accesibilidad"
+    task: "Revision de #552: pestana Cuenta"
+    status: Done
+    related: ["#532", "#552", "#551", "ADR-0007", "ADR-0031"]
+    notes: >
+      Sin transporte de correo (produccion sin SMTP_HOST) changeEmail queda
+      apagado y la pestana esconde el formulario de correo segun
+      emailDeliveryEnabled de /api/v1/config; mismo criterio que #551 (apagar
+      el flujo en vez de exigir SMTP al arrancar, porque la imagen va con
+      NODE_ENV=production y el docker-compose no trae SMTP). callbackURL usa
+      url() para respetar ruta base e idioma. changePassword y changeEmail
+      devuelven ok false ante un fallo de red y la pestana ensena
+      auth_connection_error en vez de quedarse muda.
   T-2026-11-03-12090790:
     date: 2026-11-03
     agent: "backend-api-servicios"
@@ -4222,6 +4237,34 @@ tasks:
       antes: guarda en PublicCollectionsIsland, tipo string | null en
       api-client y test de regresion. Test ajustado: el toEqual de totals en
       el caso en seco incluye la clave nueva reindexFailed.
+  T-2026-11-04-18140988:
+    date: 2026-11-04
+    agent: "backend-api-servicios + frontend-ux-accesibilidad + seguridad-privacidad-legal"
+    task: "Pestaña Cuenta: cambiar la contraseña y el correo"
+    status: Done
+    related: ["#532", "#494", "#508", "#517", "#488", "ADR-0007", "ADR-0031"]
+    notes: >
+      Pestaña «Cuenta» en /perfil con cambio de contraseña (actual, nueva,
+      repeticion e indicador de fortaleza) y de correo. Decision de la issue:
+      se permite cambiar el correo. No desvincula nada de lo importado porque
+      #508 fija created_by y nunca pisa un creador real, y #488 identifica la
+      cuenta antigua por legacy-procomun:user:<uid> y no por el correo; solo
+      afecta a importaciones futuras con el correo antiguo, que caen en el
+      usuario de sistema y salen en el informe. Flujo de Better Auth 1.7
+      leido en su codigo, no supuesto: con el correo verificado avisa primero
+      a la direccion antigua y despues verifica la nueva; sin verificar va
+      directo a la nueva; updateEmailWithoutVerification desactivado; cambiar
+      a un correo ocupado responde igual que a uno libre. El correo de
+      verificacion se reescribe porque decia «activar tu cuenta» tambien al
+      cambiar de correo. changePassword con revokeOtherSessions. Indicador de
+      fortaleza sin dependencias. En las cuentas solo OIDC (sin credential en
+      /list-accounts) la pestaña no ofrece nada. El codigo INVALID_PASSWORD se
+      fija contra la instancia real porque el cliente se fia de el. Faltaba
+      «account» en la lista blanca de ?tab= del perfil, asi que el enlace de
+      verificacion habria caido en otra pestaña: se extrae PROFILE_TABS y se
+      prueba. Sin el arreglo fallan los dos tests de integracion que prueban la
+      funcionalidad, por CHANGE_EMAIL_DISABLED. Los tests del cliente
+      restauran globalThis.fetch desde el principio (leccion de #531).
   T-2026-11-10-20595617:
     date: 2026-11-10
     agent: "seguridad-privacidad-legal + backend-api-servicios + frontend-ux-accesibilidad"
@@ -4598,6 +4641,99 @@ tasks:
       La revision del 08-nov ya estaba resuelta en 733e4fe0; se ha
       verificado el journal y el migrador real de Drizzle sobre una base en
       main.
+  T-2026-11-16-13581092:
+    date: 2026-11-16
+    agent: "ingestas-y-migraciones + backend-api-servicios"
+    task: "Importador de itinerarios legacy como colecciones (#432)"
+    status: Done
+    related: ["#432", "#548", "#538", "#508", "#543", "ADR-0008", "ADR-0029"]
+    notes: >
+      import:legacy-itineraries importa el JSON de itinerarios como
+      colecciones. Clave (import_source, external_id) con indice unico
+      parcial (migracion 0022; la 0020 y la 0021 son de #512). Propietario:
+      la cuenta del correo de publicatorEmailStr (regla de #508); sin cuenta,
+      borrador a nombre del usuario de sistema. Recursos: ODE y luego
+      articulos, en el orden del JSON; los no importados se omiten y salen en
+      el informe, que no lleva correos (#543). isOrdered = true. Se descartan
+      knowledgeArea, labelsStr, learningContext y educationalDescription.
+      API: el propietario author o editor ve, lista y edita sus colecciones y
+      las manda a revision; no crea, no borra, no publica ni archiva
+      (adenda de ADR-0008). Apilado sobre #548. Pendiente: visitas e
+      interfaz «Mis colecciones» (issues aparte), y cambiar a
+      findLegacyAuthorAccount y --restricted-report cuando #508 llegue a main.
+  T-2026-11-16-15033420:
+    date: 2026-11-16
+    agent: "empresa-y-producto + arquitectura-solucion + documentacion-y-roadmap"
+    task: "Abrir la épica 006 de comunidades y la ADR-0050 (modelo de comunidades)"
+    status: Done
+    related: ["#493", "#495", "#504", "ADR-0050"]
+    notes: >
+      Solo documentación, sin código. docs/epics/epic-006-comunidades/ con
+      requirements, design (modelo de datos, permisos, estados con el
+      borrador sin administrador, navegación, importador, búsqueda,
+      moderación y datos personales), tasks (F1 modelo y API, F2 interfaz,
+      F3 solicitudes e invitaciones, F4 importador) y validation. ADR-0050
+      Propuesta: tablas propias frente a plataforma externa, colecciones y
+      el plugin organization de Better Auth. Recoge las decisiones de
+      jacoboAlcantara del 2026-11-16 y deja doce preguntas abiertas (Q-1 a
+      Q-12), entre ellas qué ve un no miembro de una privada, si los miembros
+      enlazan recursos y la correspondencia de IDs Drupal de ODE y artículos.
+  T-2026-11-18-13314794:
+    date: 2026-11-18
+    agent: "arquitectura-solucion + seguridad-privacidad-legal + documentacion-y-roadmap"
+    task: "Atender la revisión de #578 (épica 006 y ADR-0050)"
+    status: In Progress
+    related: ["#578", "#577", "#493", "#495", "#504", "ADR-0050", "ADR-0051"]
+    notes: >
+      Apartado «Revisión del 2026-11-18» del diseño: R-1 reimportación que
+      respeta expulsiones, degradaciones y el estado (caso 607 sigue en
+      draft); R-2 la baja lógica del último administrador pasa la comunidad a
+      draft en la misma transacción y Q-8 revisada para la cuenta bloqueada;
+      R-3 regla común con #577 (recuento y administradores públicos,
+      invitaciones a 14 días, correo y solicitud borrados en cualquier
+      cierre); R-4 unirse sin aprobación a una pública, provisional.
+      Pendiente: Q-8, Q-13 y Q-14.
+  T-2026-11-18-18095901:
+    date: 2026-11-18
+    agent: "arquitectura-solucion + seguridad-privacidad-legal + documentacion-y-roadmap"
+    task: "Segunda revisión de #578: identidad por UID legado e invitaciones con correo verificado"
+    status: In Progress
+    related: ["#578", "#577", "#493", "#495", "ADR-0050"]
+    notes: >
+      Apartado «Segunda revisión del 2026-11-18» del diseño: R-5 el importador
+      resuelve por UID legado y un conflicto UID/correo queda pendiente de
+      revisión sin guardar el correo (RF-038); R-6 las invitaciones solo se ven
+      y aceptan desde una cuenta activa con el correo verificado, en el servidor
+      y en ambas vías (RF-039). Pruebas previstas en validation.md. Pendiente
+      Q-15 (regla común de identidad con #577).
+  T-2026-11-16-12140710:
+    date: 2026-11-16
+    agent: "backend-api-servicios"
+    task: "Poner #552 al dia con main tras #488: cambio de contrasena y hash heredado"
+    status: Done
+    related: ["#552", "#532", "#488"]
+    notes: >
+      El merge con main no tuvo conflictos en local: config.ts conserva
+      password: legacyAwarePasswordOptions (#488) y user.changeEmail (#552).
+      /change-password verifica la actual con el verificador de #488 y
+      escribe con internalAdapter.updatePassword; el UPDATE condicional de
+      #488 no la pisa. Test nuevo en account-settings.integration.test.ts:
+      con el hash heredado aun guardado, la contrasena heredada vale como
+      actual, el hash deja de ser heredado y la antigua ya no entra.
+  T-2026-11-16-15031596:
+    date: 2026-11-16
+    agent: "frontend-ux-accesibilidad + backend-api-servicios"
+    task: "Enlace configurable al banco multimedia externo (#569)"
+    status: Done
+    related: ["#569", "#494"]
+    notes: >
+      Decision 1 de #494: no hay banco multimedia propio, solo un enlace a su
+      aplicacion. MEDIA_BANK_URL (http/https absoluta) se publica en
+      /api/v1/config como mediaBankUrl; sin ella vale null y no se muestra.
+      Enlace en la cabecera junto a Explorar y aviso en /nuevo, misma pestana,
+      textos en es/en/ca/gl/eu. Pendiente en #569: la URL real y confirmar la
+      ubicacion. Documentado en .env.example, README y
+      docs/operaciones/instalacion.md. Sin migracion ni ADR.
   T-2026-11-16-15104033:
     date: 2026-11-16
     agent: "backend-api-servicios + frontend-ux-accesibilidad"
@@ -4760,6 +4896,19 @@ tasks:
       toString y hasOwnProperty. Los demas mapas *_LABELS[...] del frontend
       (HeroIsland, ResourceEditorIsland, AdminReportsSection, los CRUD y
       EditarPageBase) quedan fuera del alcance de este PR.
+  T-2026-11-18-18122409:
+    date: 2026-11-18
+    agent: "ingestas-y-migraciones + seguridad-privacidad-legal"
+    task: "Revision de #552 (P1): la autoria historica no depende del correo actual"
+    status: Done
+    related: ["#552", "#532", "#456"]
+    notes: >
+      import:legacy-procomun acepta --users-file (volcado de usuarios) y
+      resuelve el correo del recurso al UID legacy-procomun:user:<uid> por id,
+      no por el titular actual de la direccion. UID sin cuenta: no_account sin
+      caer al correo; correo con varios UID: ambiguous_account (revision
+      manual, sin correo en el informe). Test de cambio de titular del correo.
+      ADR-0007 con adenda fechada. Sin --users-file queda el comportamiento de #456.
   T-2026-11-18-18142430:
     date: 2026-11-18
     agent: "backend-api-servicios + qa-validacion"
@@ -4807,3 +4956,60 @@ tasks:
       cubria el Referer. Tests rojo -> verde en transport.unit.test.ts,
       password-reset.integration.test.ts y nginx-log-redaction.unit.test.ts;
       comprobado con nginx:alpine. Adenda de ADR-0007 y operaciones.md.
+  T-2026-11-18-21443119:
+    date: 2026-11-18
+    agent: "devops-sre + qa-validacion"
+    task: "Corregir el fallo de Biome en la PR #573"
+    status: Done
+    related: ["#573", "#432"]
+    notes: >
+      Se integra main y se ordenan las exportaciones de repository.ts.
+      Se comprueba que el journal añade la 0022 al final sin alterar las
+      entradas anteriores. Validación local: make lint, tipos, seguimiento,
+      paridad de pruebas y 174 pruebas de migraciones, importación y API.
+  T-2026-11-19-07095854:
+    date: 2026-11-19
+    agent: "ingestas-y-migraciones"
+    task: "Revisión del importador de itinerarios en #573"
+    status: In Progress
+    related: ["#573", "#432"]
+    notes: >
+      Filtrado de visibilidad antes de paginar, mapeo aislado por registro e
+      informe sin valores de publicación inválidos. Journal alineado con la
+      migración 0027 ya integrada en main.
+  T-2026-11-18-22482034:
+    date: 2026-11-18
+    agent: "ingestas-y-migraciones + seguridad-privacidad-legal"
+    task: "Tercera revisión de #578: resolución manual de identity_conflict"
+    status: In Progress
+    related: ["#578", "#493", "#495", "ADR-0050"]
+    notes: >
+      Apartado «Tercera revisión del 2026-11-18» del diseño (R-7, RF-040): un
+      admin registra en community_legacy_resolutions que la cuenta vinculada al
+      UID es la correcta (sin correo, auditado en activity_events); el
+      importador la usa en la siguiente ejecución, aplica la relación una sola
+      vez a la cuenta del UID y la comunidad sigue en draft hasta publicación
+      explícita. Caso añadido a validation.md. Pendiente Q-16. Implementación
+      en F4.
+  T-2026-11-19-07055121:
+    date: 2026-11-19
+    agent: "documentacion-y-roadmap"
+    task: "Cuarta revisión de #578: tarea vigente y validación de R-7"
+    status: Done
+    related: ["#578", "#493", "#495", "ADR-0050"]
+    notes: >
+      Marcada como sustituida la tarea histórica de F4 que priorizaba el correo.
+      El plan distingue la revocación pendiente, la aplicada y la invalidación
+      por cambio o baja de la cuenta antes de aplicar. Implementación en F4.
+  T-2026-11-18-21315926:
+    date: 2026-11-18
+    agent: "backend-api-servicios + qa-validacion"
+    task: "Resolver los conflictos de la PR #552 tras integrar la recuperación de contraseña"
+    status: Done
+    related: ["#552", "#551", "#532", "ADR-0007"]
+    notes: >
+      Se conservan las opciones y traducciones de Cuenta y recuperación,
+      sus pruebas y las adendas de ADR-0007. El aviso de cambio de correo
+      reutiliza el resumen saneado de errores SMTP. Validación local:
+      98 pruebas de los flujos de autenticación y correo, 180 pruebas de
+      interfaz, tipos y paridad de archivos de prueba.

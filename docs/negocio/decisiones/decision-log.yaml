@@ -375,6 +375,30 @@ ADR-0049:
     revisión previa queda para author. Fase 1 con edición en vivo de los
     publicados; fase 2 con cambios pendientes y published_version_id.
 
+ADR-0050:
+  title: "Modelo de comunidades"
+  status: Propuesto
+  date: 2026-11-16
+  file: 0050-modelo-de-comunidades.md
+  notes: >
+    Issues #493 y #495. Tablas propias (communities, community_members,
+    community_join_requests, community_invitations, community_resources y
+    uniones a etiquetas, áreas, contexto y visitas) frente a plataforma
+    externa, ampliar collections o el plugin organization de Better Auth.
+    Modalidad pública/privada independiente del estado
+    (pending/rejected/draft/published); publicada solo con al menos un
+    administrador. Roles de comunidad sin tocar los globales. Importador
+    manual import:legacy-communities. Preguntas abiertas en el diseño de la
+    épica 006.
+    Revisión 2026-11-18 (#578): reimportar no cambia el estado ni los roles y
+    no vuelve a aplicar relaciones ya aplicadas; la baja lógica del último
+    administrador pasa la comunidad a draft en la misma transacción; regla
+    común con ADR-0051 (recuento y administradores públicos, invitaciones a
+    14 días, correo y solicitud borrados en cualquier cierre); unirse sin
+    aprobación a una pública es provisional hasta respuesta en #493.
+    Adenda 2026-11-18 (#578): resolución manual de identity_conflict por un
+    admin (sin correo, auditada); el importador la usa una sola vez por UID y
+    la comunidad sigue en draft hasta publicación explícita.
 ADR-0051:
   title: "Tratamiento de datos personales y baja de cuentas"
   status: Propuesto

@@ -403,6 +403,12 @@ export const SCHEMA_STATEMENTS = [
 		created_at TIMESTAMP NOT NULL DEFAULT NOW(),
 		updated_at TIMESTAMP NOT NULL DEFAULT NOW()
 	)`,
+	// #432: colecciones importadas de los itinerarios del Procomún antiguo
+	// (migración 0028_collections_legacy_import).
+	`ALTER TABLE "collections" ADD COLUMN IF NOT EXISTS import_source TEXT`,
+	`ALTER TABLE "collections" ADD COLUMN IF NOT EXISTS external_id TEXT`,
+	`ALTER TABLE "collections" ADD COLUMN IF NOT EXISTS published_at TIMESTAMP`,
+	`CREATE UNIQUE INDEX IF NOT EXISTS collections_import_source_external_id_idx ON "collections" (import_source, external_id) WHERE external_id IS NOT NULL`,
 	`CREATE TABLE IF NOT EXISTS "collection_resources" (
 		collection_id TEXT NOT NULL REFERENCES "collections"(id) ON DELETE CASCADE,
 		resource_id TEXT NOT NULL REFERENCES "resources"(id) ON DELETE CASCADE,
