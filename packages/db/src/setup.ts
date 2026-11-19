@@ -404,7 +404,7 @@ export const SCHEMA_STATEMENTS = [
 		updated_at TIMESTAMP NOT NULL DEFAULT NOW()
 	)`,
 	// #432: colecciones importadas de los itinerarios del Procomún antiguo
-	// (migración 0022_collections_legacy_import).
+	// (migración 0028_collections_legacy_import).
 	`ALTER TABLE "collections" ADD COLUMN IF NOT EXISTS import_source TEXT`,
 	`ALTER TABLE "collections" ADD COLUMN IF NOT EXISTS external_id TEXT`,
 	`ALTER TABLE "collections" ADD COLUMN IF NOT EXISTS published_at TIMESTAMP`,
@@ -628,6 +628,7 @@ INSERT INTO taxonomies (id, slug, name, type, created_at, updated_at) VALUES
   ('rt-ejercicio', 'ejercicio', 'Ejercicio', 'resource-type', NOW(), NOW()),
   ('rt-evaluacion', 'evaluacion', 'Evaluacion', 'resource-type', NOW(), NOW()),
   ('rt-proyecto', 'proyecto', 'Proyecto', 'resource-type', NOW(), NOW()),
+  ('rt-articulo', 'articulo', 'Artículo', 'resource-type', NOW(), NOW()),
   ('lang-es', 'es', 'Espanol', 'language', NOW(), NOW()),
   ('lang-en', 'en', 'Ingles', 'language', NOW(), NOW()),
   ('lang-ca', 'ca', 'Catalan', 'language', NOW(), NOW()),

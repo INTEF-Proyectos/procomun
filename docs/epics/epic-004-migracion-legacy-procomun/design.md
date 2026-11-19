@@ -385,3 +385,7 @@ Errores de los pasos de autoría (#543, punto 1): `resolveAuthor`, `linkExisting
 Sustituye, para el informe, la fila «Sin cuenta, sin correo o con la cuenta dada de baja» de «Artículos» (2026-11-03): el registro `skipped_without_author` queda `{ outcome, externalId, kind: "article", reason }`, sin `email`. Con `--restricted-report <ruta>` el correo va al informe restringido con `list: "skipped_without_author"`, en las mismas condiciones que el resto (ver «Informes sin correos e informe restringido»).
 
 Un fallo de la base de datos al guardar el artículo pasa por `summarizeImportError`: los parámetros del INSERT llevan el texto extraído del artículo y el registro de error solo deja `code`, `message` fijo y `sqlState`.
+
+## Revisión de #573 — 2026-11-19
+
+La migración de itinerarios se renumera de `0022_collections_legacy_import` a `0028_collections_legacy_import` para que el migrador la aplique también sobre bases que ya recibieron la 0027.

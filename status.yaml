@@ -4763,6 +4763,21 @@ tasks:
       toString y hasOwnProperty. Los demas mapas *_LABELS[...] del frontend
       (HeroIsland, ResourceEditorIsland, AdminReportsSection, los CRUD y
       EditarPageBase) quedan fuera del alcance de este PR.
+  T-2026-11-18-18142430:
+    date: 2026-11-18
+    agent: "backend-api-servicios + qa-validacion"
+    task: "Filtro «Artículo» en la taxonomía resource-type (#595)"
+    status: Done
+    related: ["#595", "#593"]
+    notes: >
+      La taxonomía resource-type que devuelve la API no tenía articulo, así
+      que el selector de Explorar no mostraba «Artículo» aunque el importador
+      ya asigna ese tipo. Migración 0027_taxonomy_articulo (idempotente) para
+      instalaciones existentes y semilla de setup.ts para las nuevas. Tests:
+      migrations.unit.test.ts (PGlite, doble aplicación) y un caso en
+      import-legacy-procomun.integration.test.ts que lee la taxonomía.
+      Número 0027 elegido tras revisar los PR abiertos (0022, 0023, 0025 y
+      0026 ocupados).
   T-2026-11-18-13292158:
     date: 2026-11-18
     agent: "seguridad-privacidad-legal + backend-api-servicios"
@@ -4806,3 +4821,13 @@ tasks:
       Se comprueba que el journal añade la 0022 al final sin alterar las
       entradas anteriores. Validación local: make lint, tipos, seguimiento,
       paridad de pruebas y 174 pruebas de migraciones, importación y API.
+  T-2026-11-19-07095854:
+    date: 2026-11-19
+    agent: "ingestas-y-migraciones"
+    task: "Revisión del importador de itinerarios en #573"
+    status: In Progress
+    related: ["#573", "#432"]
+    notes: >
+      Filtrado de visibilidad antes de paginar, mapeo aislado por registro e
+      informe sin valores de publicación inválidos. Journal alineado con la
+      migración 0027 ya integrada en main.

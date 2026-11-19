@@ -889,12 +889,50 @@ describe("actualización con el migrador de drizzle (#512)", () => {
 			await db.close();
 		}
 	});
+	test("una base con la 0027 aplica después la migración de itinerarios", async () => {
+		const db = await mainDatabase("0027_taxonomy_articulo");
+		try {
+			await db.exec(
+				"ALTER TABLE collections DROP COLUMN import_source, DROP COLUMN external_id, DROP COLUMN published_at",
+			);
+			const query =
+				"SELECT 1 FROM information_schema.columns WHERE table_name = 'collections' AND column_name = 'external_id'";
+			expect((await db.query(query)).rows).toHaveLength(0);
+			await migrateAll(db);
+			expect((await db.query(query)).rows).toHaveLength(1);
+		} finally {
+			await db.close();
+		}
+	});
+});
+
+describe("0027_taxonomy_articulo (#595)", () => {
+	test("añade «Artículo» a resource-type y es idempotente", async () => {
+		const migration = await readFile(
+			path.join(migrationsDir, "0027_taxonomy_articulo.sql"),
+			"utf8",
+		);
+		const db = new PGlite();
+		try {
+			await db.exec(
+				`CREATE TABLE "taxonomies" (id TEXT PRIMARY KEY, slug VARCHAR(255) NOT NULL UNIQUE, name TEXT NOT NULL, type VARCHAR(100) NOT NULL, created_at TIMESTAMP NOT NULL DEFAULT NOW(), updated_at TIMESTAMP NOT NULL DEFAULT NOW())`,
+			);
+			await db.exec(migration);
+			await db.exec(migration);
+			const rows = await db.query<{ name: string }>(
+				`SELECT name FROM taxonomies WHERE type = 'resource-type' AND slug = 'articulo'`,
+			);
+			expect(rows.rows).toEqual([{ name: "Artículo" }]);
+		} finally {
+			await db.close();
+		}
+	});
 });
 
 // Issue #432: los itinerarios del Procomún antiguo se importan como colecciones.
 // La clave de importación es (import_source, external_id), como en resources.
-// #512 tiene reservadas la 0020 y la 0021: esta es la 0022.
-describe("migración 0022_collections_legacy_import", () => {
+// La 0028 se aplica después de la 0027 ya integrada en main.
+describe("migración 0028_collections_legacy_import", () => {
 	const OLD_COLLECTIONS = `CREATE TABLE "collections" (
 		id TEXT PRIMARY KEY,
 		slug VARCHAR(512) NOT NULL UNIQUE,
@@ -916,7 +954,7 @@ describe("migración 0022_collections_legacy_import", () => {
 			(entry) => entry.tag === "0021_thumbnail_owner_indexes",
 		);
 		const current = journal.entries.findIndex(
-			(entry) => entry.tag === "0022_collections_legacy_import",
+			(entry) => entry.tag === "0028_collections_legacy_import",
 		);
 		expect(previous).toBeGreaterThanOrEqual(0);
 		expect(current).toBeGreaterThan(previous);
@@ -942,7 +980,7 @@ describe("migración 0022_collections_legacy_import", () => {
 	test("añade las columnas y el índice único parcial, y se puede aplicar dos veces", async () => {
 		const migration = (
 			await readFile(
-				path.join(migrationsDir, "0022_collections_legacy_import.sql"),
+				path.join(migrationsDir, "0028_collections_legacy_import.sql"),
 				"utf8",
 			)
 		).replaceAll("--> statement-breakpoint", "");

@@ -213,3 +213,9 @@ Los JSON/`.elpx` de `ode-export/` contienen datos personales reales (nombres y e
 - [x] `skipped_without_author` sin `email` en el informe general; el correo va a la lista restringida con `list: "skipped_without_author"`.
 - [x] Test con un error real de Drizzle cuyos parámetros llevan el texto del artículo y el correo: el informe y la consola no los llevan.
 - [x] README y diseño actualizados.
+
+## Revisión de #573 — 2026-11-19
+
+- [x] El listado de recursos de la colección aplica los permisos de lectura antes de paginar.
+- [x] El importador conserva entidades numéricas inválidas, aísla fallos de mapeo y omite los valores de publicación inválidos del informe.
+- [x] La migración de itinerarios se renumera de 0022 a 0028 y se aplica después de la 0027 ya integrada en main. Prueba con el migrador sobre una base que ya tiene la 0027.
