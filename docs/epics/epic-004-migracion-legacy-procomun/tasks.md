@@ -234,3 +234,8 @@ Los JSON/`.elpx` de `ode-export/` contienen datos personales reales (nombres y e
 - [x] El `PATCH` del perfil propio guarda todo en una transacción.
 - [x] Prueba con el migrador de drizzle: la 0023 copia la bio antes de borrar `user.bio`.
 - [x] Caché de Inlang fuera de Git (`.gitignore`).
+
+## Atribución histórica por UID — 2026-11-19 (#600)
+
+- [x] Exigir el volcado en importación y reenlace, resolver por UID y registrar el motivo sin correo en el informe general.
+- [x] Documentar el tratamiento de los artículos pendientes y cubrir con pruebas el correo reasignado fuera del volcado.

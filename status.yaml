@@ -5106,6 +5106,13 @@ tasks:
       reutiliza el resumen saneado de errores SMTP. Validación local:
       98 pruebas de los flujos de autenticación y correo, 180 pruebas de
       interfaz, tipos y paridad de archivos de prueba.
+  T-2026-11-19-13274237:
+    date: 2026-11-19
+    agent: "ingestas-y-migraciones"
+    task: "Resuelve la autoría histórica exclusivamente por UID (#600)"
+    status: In Progress
+    related: ["#600", "#552", "ADR-0029"]
+    notes: "Volcado obligatorio para importar y reenlazar. Los casos sin correspondencia válida quedan para revisión. Validación con datos sintéticos."
   T-2026-11-20-07063898:
     date: 2026-11-20
     agent: "frontend-ux-accesibilidad + qa-validacion"
@@ -5128,3 +5135,13 @@ tasks:
       las marcas temporales, los SQL y ambas suites. Se comprueba el orden
       y la aplicación con el migrador de Drizzle. Pasan 125 pruebas
       específicas, 222 pruebas de interfaz, tipos y Biome.
+  T-2026-11-20-11313838:
+    date: 2026-11-20
+    agent: "ingestas-y-migraciones + qa-validacion"
+    task: "Resolver el conflicto de la PR #602 con main"
+    status: Done
+    related: ["#602", "#600", "#586"]
+    notes: >
+      Se conservan las secciones de seguimiento del perfil ampliado y
+      de la atribución histórica por UID. Pasan 110 pruebas de importación,
+      reenlace y autoría con datos sintéticos, además de tipos y Biome.

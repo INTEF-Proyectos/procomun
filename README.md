@@ -153,8 +153,8 @@ La empresa que mantiene la plataforma Procomún actual (legacy) dispone de una h
 `import:legacy-procomun` toma un directorio con esos pares `<id>.json` + `<id>.elpx`, mapea los metadatos al perfil mínimo de procomun-ng (ADR-0009) y persiste cada recurso como `published` si su JSON trae `published: 1`, o como `draft` en cualquier otro caso (issue #447). Reutiliza el pipeline de subida/extracción `.elpx` ya existente y es idempotente: reejecutarlo sobre el mismo directorio no duplica nada.
 
 ```bash
-make cli ARGS="import:legacy-procomun --source-dir <ruta-a-los-pares .json+.elpx> --dry-run"
-make cli ARGS="import:legacy-procomun --source-dir <ruta>"
+make cli ARGS="import:legacy-procomun --source-dir <ruta-a-los-pares .json+.elpx> --users-file <usuarios.json> --dry-run"
+make cli ARGS="import:legacy-procomun --source-dir <ruta> --users-file <usuarios.json>"
 ```
 
 Flags disponibles: `--source-dir <ruta>` (obligatorio), `--dry-run` (valida y mapea sin escribir en BD), `--limit <n>`, `--only <externalId>` (reintenta un único registro), `--report-dir <ruta>` (por defecto `local-data/legacy-import-reports/`).
@@ -163,7 +163,7 @@ Para corregir lo importado antes de leer `published`: `make cli ARGS="import:leg
 
 Para corregir el idioma «es» puesto por defecto (#473): `make cli ARGS="import:legacy-procomun --fix-language --source-dir <ruta> --dry-run"` (y sin `--dry-run` para aplicarlo). Relee `generalLanguageStr` y cambia los recursos que siguen en «es» y cuyo origen no lo declara: quedan sin idioma o con el suyo (el valenciano `va` pasa a `ca`). Un idioma distinto de «es» no se toca.
 
-Cada recurso pasa a la cuenta cuyo correo coincide con su `publicatorEmailStr` (issue #456), sin distinguir mayúsculas: así sale en «Mis recursos» y en la ficha de autor, y su autor puede editarlo. Si no hay cuenta, queda a nombre del usuario de sistema y el informe lo lista en `authorsWithoutAccount`, solo con el identificador del recurso y el motivo. Para enlazar lo ya importado cuando existan las cuentas: `make cli ARGS="import:legacy-procomun --link-authors --source-dir <ruta> --dry-run"` (y sin `--dry-run` para aplicarlo). Solo lee los `.json` y nunca cambia un recurso que ya tenga otro creador.
+El volcado `--users-file <usuarios.json>` es obligatorio. El importador usa `publicatorEmailStr` para localizar un UID único en el volcado y busca la cuenta activa `legacy-procomun:user:<uid>`. Cuando la correspondencia falta, es ambigua o no tiene cuenta válida, los ODE quedan sin atribuir y los artículos quedan pendientes de importar (`skipped_without_author`). El informe general lista el ID del recurso y el motivo en `authorsWithoutAccount`. Una vez corregida la correspondencia, vuelve a importar los artículos pendientes o enlaza los ODE existentes con `make cli ARGS="import:legacy-procomun --link-authors --source-dir <ruta> --users-file <usuarios.json> --dry-run"` (quita `--dry-run` para aplicar). El reenlace conserva el creador de un recurso ya atribuido.
 
 Los artículos del Procomún antiguo (`"type": "POST"` en el JSON, issue #446) entran por el mismo comando y en el mismo formato. Reciben el tipo «Artículo», la licencia por defecto de la plataforma (`cc-by`) y la descripción «Artículo relacionado con <título>». Su contenido se ve desde el `.elpx`, que no se modifica, y su texto sirve para la búsqueda. Solo se importan si su `publicatorEmailStr` lleva a una cuenta: los demás no entran y el informe los lista como `skipped_without_author`, con el motivo. El correo solo sale en el informe restringido, si se pide con `--restricted-report` (ver abajo). Al reimportar, entran los que ya tengan cuenta.
 
