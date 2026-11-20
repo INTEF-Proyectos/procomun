@@ -5163,3 +5163,10 @@ tasks:
       Se conservan las secciones de seguimiento del perfil ampliado y
       de la atribución histórica por UID. Pasan 110 pruebas de importación,
       reenlace y autoría con datos sintéticos, además de tipos y Biome.
+  T-2026-11-20-21100482:
+    date: 2026-11-20
+    agent: "backend-api-servicios"
+    task: "Añade el contador de visitas de las colecciones públicas"
+    status: In Progress
+    related: ["#608", "ADR-0044"]
+    notes: "Deduplicación por pestaña y colección publicada, también en importadas. Migración 0032 y pruebas de API, esquema e interfaz."
