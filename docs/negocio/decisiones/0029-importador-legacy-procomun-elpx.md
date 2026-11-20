@@ -341,3 +341,7 @@ La importación de artículos (2026-11-03 (2)) listaba el correo en los registro
 
 ### Consecuencias
 * Para saber a qué correo pertenece un artículo sin importar hay que pedir el informe restringido o mirar el JSON de origen.
+
+## Adenda — 2026-11-19 (#600)
+
+La importación y el reenlace exigen `--users-file <usuarios.json>`. Se resuelve el correo histórico a un UID único del volcado y se busca la cuenta activa por su ID legado. Los correos ausentes del volcado se registran como `no_legacy_uid`, sin incluir el correo en el informe general. Si no hay una cuenta válida, el ODE queda pendiente de atribución y el artículo queda en `skipped_without_author` hasta que se corrija la correspondencia y se reimporte.

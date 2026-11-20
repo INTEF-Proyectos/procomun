@@ -257,6 +257,14 @@ describe("autoría de los recursos legacy (issue #456)", () => {
 			deleted: false,
 			emailVerified: false,
 		});
+		await db
+			.update(schema.user)
+			.set({ isActive: false })
+			.where(eq(schema.user.id, "legacy-procomun:user:7"));
+		expect(
+			await findLegacyAccountById(db, "legacy-procomun:user:7"),
+		).toBeNull();
+
 		expect(
 			await findLegacyAccountById(db, "legacy-procomun:user:8"),
 		).toBeNull();
