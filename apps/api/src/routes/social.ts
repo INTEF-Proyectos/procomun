@@ -3,7 +3,7 @@ import * as repo from "@procomun/db/repository";
 import { favorites, ratings, resources } from "@procomun/db/schema";
 import { validateProfileUpdate } from "@procomun/db/user-profile";
 import { and, desc, eq, isNull, sql } from "drizzle-orm";
-import { Hono } from "hono";
+import { type Context, Hono } from "hono";
 import { logActivity } from "../activity/log.ts";
 import { type AuthEnv, requireAuth, requireUser } from "../auth/middleware.ts";
 import { getDb } from "../db.ts";
@@ -421,6 +421,32 @@ socialRoutes.get("/resources/:slug/stats", async (c) => {
 	return c.json(await getResourceSocialStats(resource.id, currentUser?.id));
 });
 
+type ReportBody = { reason: repo.ReportReason; description: string | null };
+
+/** Valida el cuerpo de una denuncia; igual para recursos y colecciones. */
+async function parseReportBody(
+	c: Context<AuthEnv>,
+): Promise<ReportBody | { error: string }> {
+	const body = await c.req
+		.json<{ reason?: unknown; description?: unknown }>()
+		.catch(() => null);
+	if (
+		!body ||
+		typeof body.reason !== "string" ||
+		!repo.REPORT_REASONS.includes(body.reason as repo.ReportReason)
+	) {
+		return {
+			error: `Motivo inválido. Válidos: ${repo.REPORT_REASONS.join(", ")}`,
+		};
+	}
+	// Sanitize description: trim and limit length
+	const description =
+		typeof body.description === "string" && body.description.trim()
+			? body.description.trim().slice(0, 2000)
+			: null;
+	return { reason: body.reason as repo.ReportReason, description };
+}
+
 // ---------------------------------------------------------------------------
 // POST /resources/:slug/report (auth required — submit content report)
 // ---------------------------------------------------------------------------
@@ -434,28 +460,14 @@ socialRoutes.post("/resources/:slug/report", requireAuth, async (c) => {
 		return c.json({ error: "Recurso no encontrado" }, 404);
 	}
 
-	const body = await c.req.json<{ reason: string; description?: string }>();
-
-	if (
-		!body.reason ||
-		!repo.REPORT_REASONS.includes(body.reason as repo.ReportReason)
-	) {
-		return c.json(
-			{ error: `Motivo inválido. Válidos: ${repo.REPORT_REASONS.join(", ")}` },
-			400,
-		);
-	}
-
-	// Sanitize description: trim and limit length
-	const description = body.description
-		? body.description.trim().slice(0, 2000)
-		: null;
+	const body = await parseReportBody(c);
+	if ("error" in body) return c.json({ error: body.error }, 400);
 
 	const result = await repo.createReport(getDb().db, {
 		resourceId: resource.id,
 		reporterId: currentUser.id,
-		reason: body.reason as repo.ReportReason,
-		description,
+		reason: body.reason,
+		description: body.description,
 	});
 
 	await logActivity({
@@ -466,6 +478,46 @@ socialRoutes.post("/resources/:slug/report", requireAuth, async (c) => {
 		resourceSlug: resource.slug,
 		description: `Reportaste «${resource.title}» por ${body.reason}`,
 		metadata: { reason: body.reason },
+	});
+
+	return c.json(result, 201);
+});
+
+// ---------------------------------------------------------------------------
+// POST /collections/:slug/report (issue #539: auth required, solo publicadas)
+// ---------------------------------------------------------------------------
+socialRoutes.post("/collections/:slug/report", requireAuth, async (c) => {
+	const slug = c.req.param("slug");
+	if (!slug) return c.json({ error: "Falta slug" }, 400);
+	const currentUser = requireUser(c);
+
+	// Solo se denuncia lo que se ve: una colección publicada.
+	const collection = await repo.getCollectionBySlug(getDb().db, slug, {
+		status: "published",
+	});
+	if (!collection) {
+		return c.json({ error: "Colección no encontrada" }, 404);
+	}
+
+	const body = await parseReportBody(c);
+	if ("error" in body) return c.json({ error: body.error }, 400);
+
+	const result = await repo.createReport(getDb().db, {
+		collectionId: collection.id,
+		reporterId: currentUser.id,
+		reason: body.reason,
+		description: body.description,
+	});
+
+	await logActivity({
+		userId: currentUser.id,
+		type: "report_submitted",
+		description: `Reportaste la colección «${collection.title}» por ${body.reason}`,
+		metadata: {
+			reason: body.reason,
+			collectionId: collection.id,
+			collectionSlug: collection.slug,
+		},
 	});
 
 	return c.json(result, 201);

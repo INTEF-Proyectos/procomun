@@ -4624,6 +4624,42 @@ tasks:
       La revision del 08-nov ya estaba resuelta en 733e4fe0; se ha
       verificado el journal y el migrador real de Drizzle sobre una base en
       main.
+  T-2026-11-18-13305617:
+    date: 2026-11-18
+    agent: "backend-api-servicios + qa-validacion"
+    task: "Review de #585: permisos y transaccion al resolver denuncias"
+    status: Done
+    related: ["#539", "#585", "#586", "#587"]
+    notes: >
+      Al resolver una denuncia con accion se comprueba el permiso sobre la
+      coleccion (o el recurso) en su estado actual con
+      requireManageableCollection/requireManageableResource: otro curator no
+      archiva ni borra un borrador ajeno (403). La resolucion y la accion van
+      en una transaccion. Test con el migrador real de Drizzle para la 0025
+      sobre una base con las anteriores aplicadas; el journal se ajusta al
+      integrar #586 y #587. Se retira del seguimiento la cache de Inlang y se
+      ignora apps/frontend/project.inlang/cache/.
+  T-2026-11-16-15113076:
+    date: 2026-11-16
+    agent: "backend-api-servicios + frontend-ux-accesibilidad"
+    task: "Poder denunciar colecciones (#539)"
+    status: Done
+    related: ["#539", "#484"]
+    notes: >
+      Una denuncia apunta ahora a un recurso o a una coleccion, exactamente
+      uno de los dos: migracion 0025_reports_collections (resource_id pasa a
+      admitir NULL, collection_id con ON DELETE CASCADE y CHECK
+      reports_target_check), replicada en SCHEMA_STATEMENTS. Nuevo endpoint
+      POST /api/v1/collections/:slug/report (sesion obligatoria, solo
+      colecciones publicadas, mismos motivos que los recursos). La cola de
+      /api/admin/reports las incluye, filtra por collectionId y admite las
+      acciones collection_edited, collection_deactivated (archiva) y
+      collection_deleted; una accion de recurso sobre una coleccion, o al
+      reves, devuelve 400. La ficha publica de la coleccion tiene el boton
+      Reportar y la cola de administracion dice si es recurso o coleccion y
+      enlaza a su ficha. ReportButton y AdminReportsSection pasan a Paraglide
+      en los cinco idiomas. Dudas de producto (motivos y quien modera) en la
+      issue.
   T-2026-11-16-15214208:
     date: 2026-11-16
     agent: "backend-api-servicios + frontend-ux-accesibilidad"
@@ -4969,6 +5005,13 @@ tasks:
       cubria el Referer. Tests rojo -> verde en transport.unit.test.ts,
       password-reset.integration.test.ts y nginx-log-redaction.unit.test.ts;
       comprobado con nginx:alpine. Adenda de ADR-0007 y operaciones.md.
+  T-2026-11-19-07271197:
+    date: 2026-11-19
+    agent: "ingestas-y-migraciones"
+    task: "Renumera la migración de #585 tras integrar la 0027"
+    status: In Progress
+    related: ["#585", "#596"]
+    notes: "La migración 0025_reports_collections pasa a 0030_reports_collections. Se conserva su marca temporal y se actualiza el journal."
   T-2026-11-19-07271113:
     date: 2026-11-19
     agent: "ingestas-y-migraciones"
@@ -5067,3 +5110,14 @@ tasks:
       Se conserva la migración 0029. Prueba conjunta de guardado del perfil,
       listado y resumen de recursos. Validación local con 257 pruebas
       específicas, 208 pruebas de interfaz, tipos y Biome.
+  T-2026-11-20-07544209:
+    date: 2026-11-20
+    agent: "ingestas-y-migraciones + qa-validacion"
+    task: "Resolver los conflictos de migración de la PR #585 tras integrar #586"
+    status: Done
+    related: ["#585", "#586", "#539"]
+    notes: >
+      Journal con la 0029 en idx 20 y la 0030 en idx 21. Se conservan
+      las marcas temporales, los SQL y ambas suites. Se comprueba el orden
+      y la aplicación con el migrador de Drizzle. Pasan 125 pruebas
+      específicas, 222 pruebas de interfaz, tipos y Biome.

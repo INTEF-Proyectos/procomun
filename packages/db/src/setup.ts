@@ -573,6 +573,16 @@ export const SCHEMA_STATEMENTS = [
 	`CREATE INDEX IF NOT EXISTS idx_reports_resource_id ON reports(resource_id)`,
 	`CREATE INDEX IF NOT EXISTS idx_reports_status ON reports(status)`,
 	`CREATE INDEX IF NOT EXISTS idx_reports_reporter_id ON reports(reporter_id)`,
+	// Denuncias de colecciones (issue #539, migración 0025): un recurso o una
+	// colección, exactamente uno de los dos.
+	`ALTER TABLE "reports" ALTER COLUMN resource_id DROP NOT NULL`,
+	`ALTER TABLE "reports" ADD COLUMN IF NOT EXISTS collection_id TEXT REFERENCES "collections"(id) ON DELETE CASCADE`,
+	`DO $$ BEGIN
+		ALTER TABLE "reports" ADD CONSTRAINT reports_target_check
+			CHECK ((resource_id IS NULL) <> (collection_id IS NULL));
+	EXCEPTION WHEN duplicate_object THEN NULL;
+	END $$`,
+	`CREATE INDEX IF NOT EXISTS idx_reports_collection_id ON "reports"(collection_id)`,
 	// Versionado de recursos (issue #31 / ADR-0039)
 	// Un recurso puede tener varios proyectos elpx (historial): se elimina la
 	// unicidad de resource_id en BDs creadas antes de este cambio.
