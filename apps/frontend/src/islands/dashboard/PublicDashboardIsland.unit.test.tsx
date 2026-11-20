@@ -3,6 +3,7 @@ import { EMPTY_PROFILE_DETAILS } from "@procomun/db/user-profile";
 import { renderToStaticMarkup } from "react-dom/server";
 import type { DashboardSummary } from "../../lib/types/user-extended.ts";
 import {
+	dashboardResourceCounts,
 	hasEmailVerificationSuccess,
 	PROFILE_TABS,
 	PublicDashboardIsland,
@@ -27,9 +28,11 @@ const baseDashboard: DashboardSummary = {
 		favoriteCount: 1,
 		joinedAt: "",
 	},
-	recentResources: [],
 	draftCount: 1,
 	publishedCount: 1,
+	reviewCount: 0,
+	archivedCount: 0,
+	resourceCount: 2,
 	favoriteCount: 1,
 	recentActivity: [],
 };
@@ -70,6 +73,32 @@ describe("PublicDashboardIsland", () => {
 	test("muestra el shell de carga inicial del perfil", () => {
 		const html = renderToStaticMarkup(<PublicDashboardIsland />);
 		expect(html).toContain("dashboard-loading");
+	});
+});
+
+describe("dashboardResourceCounts (#530)", () => {
+	test("el total incluye los recursos en revisión y los archivados", () => {
+		expect(
+			dashboardResourceCounts({
+				draftCount: 2,
+				publishedCount: 3,
+				reviewCount: 4,
+				archivedCount: 1,
+			}),
+		).toEqual({
+			draftCount: 2,
+			publishedCount: 3,
+			reviewCount: 4,
+			archivedCount: 1,
+			resourceCount: 10,
+		});
+	});
+
+	test("usa el total de la API cuando viene", () => {
+		expect(
+			dashboardResourceCounts({ draftCount: 1, resourceCount: 7 })
+				.resourceCount,
+		).toBe(7);
 	});
 });
 

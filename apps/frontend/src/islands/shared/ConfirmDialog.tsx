@@ -7,6 +7,8 @@ interface ConfirmDialogProps {
 	message: string;
 	confirmLabel: string;
 	cancelLabel?: string;
+	/** Texto del botón mientras se confirma (por defecto, «Eliminando...»). */
+	busyLabel?: string;
 	busy?: boolean;
 	onCancel: () => void;
 	onConfirm: () => void;
@@ -18,6 +20,7 @@ export function ConfirmDialog({
 	message,
 	confirmLabel,
 	cancelLabel = "Cancelar",
+	busyLabel = "Eliminando...",
 	busy = false,
 	onCancel,
 	onConfirm,
@@ -59,7 +62,7 @@ export function ConfirmDialog({
 						className="admin-btn admin-btn--danger"
 						disabled={busy}
 					>
-						{busy ? "Eliminando..." : confirmLabel}
+						{busy ? busyLabel : confirmLabel}
 					</button>
 				</div>
 			</form>

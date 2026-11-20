@@ -13,6 +13,8 @@ import type {
 	KnowledgeAreaInput,
 	KnowledgeAreaRecord,
 	MediaItemRecord,
+	MyResourcesOptions,
+	MyResourcesResult,
 	PaginatedResult,
 	PublicAuthor,
 	PublicKnowledgeAreaCatalog,
@@ -30,6 +32,45 @@ import type {
 	UserRecord,
 } from "./api-client.ts";
 import { url } from "./paths.ts";
+
+/** Parámetros de filtrado comunes al buscador y a «Mis recursos» (#530). */
+function resourceFilterParams(opts?: {
+	status?: string;
+	q?: string;
+	limit?: number;
+	offset?: number;
+	resourceType?: string;
+	language?: string;
+	license?: string;
+	tag?: string;
+	educationalCategory?: string;
+	educationalOption?: string;
+	knowledgeAreas?: string[];
+	professionalFamilies?: string[];
+}): URLSearchParams {
+	const params = new URLSearchParams();
+	if (opts?.status) params.set("status", opts.status);
+	if (opts?.q) params.set("q", opts.q);
+	if (opts?.limit) params.set("limit", String(opts.limit));
+	if (opts?.offset) params.set("offset", String(opts.offset));
+	if (opts?.resourceType) params.set("resourceType", opts.resourceType);
+	if (opts?.language) params.set("language", opts.language);
+	if (opts?.license) params.set("license", opts.license);
+	if (opts?.tag) params.set("tag", opts.tag);
+	if (opts?.educationalCategory) {
+		params.set("educationalCategory", opts.educationalCategory);
+	}
+	if (opts?.educationalOption) {
+		params.set("educationalOption", opts.educationalOption);
+	}
+	if (opts?.knowledgeAreas?.length) {
+		params.set("knowledgeAreas", opts.knowledgeAreas.join(","));
+	}
+	if (opts?.professionalFamilies?.length) {
+		params.set("professionalFamilies", opts.professionalFamilies.join(","));
+	}
+	return params;
+}
 
 /**
  * Cliente HTTP que llama al servidor API real.
@@ -49,27 +90,7 @@ export class HttpApiClient implements ApiClient {
 		knowledgeAreas?: string[];
 		professionalFamilies?: string[];
 	}): Promise<ResourceListResult> {
-		const params = new URLSearchParams();
-		if (opts?.q) params.set("q", opts.q);
-		if (opts?.limit) params.set("limit", String(opts.limit));
-		if (opts?.offset) params.set("offset", String(opts.offset));
-		if (opts?.resourceType) params.set("resourceType", opts.resourceType);
-		if (opts?.language) params.set("language", opts.language);
-		if (opts?.license) params.set("license", opts.license);
-		if (opts?.tag) params.set("tag", opts.tag);
-		if (opts?.educationalCategory) {
-			params.set("educationalCategory", opts.educationalCategory);
-		}
-		if (opts?.educationalOption) {
-			params.set("educationalOption", opts.educationalOption);
-		}
-		if (opts?.knowledgeAreas?.length) {
-			params.set("knowledgeAreas", opts.knowledgeAreas.join(","));
-		}
-		if (opts?.professionalFamilies?.length) {
-			params.set("professionalFamilies", opts.professionalFamilies.join(","));
-		}
-		const qs = params.toString();
+		const qs = resourceFilterParams(opts).toString();
 		const res = await fetch(`/api/v1/resources${qs ? `?${qs}` : ""}`);
 		return res.json();
 	}
@@ -1090,6 +1111,18 @@ export class HttpApiClient implements ApiClient {
 		const res = await fetch(`/api/v1/users/me/ratings${qs ? `?${qs}` : ""}`, {
 			credentials: "include",
 		});
+		return res.json();
+	}
+
+	async listMyResources(opts?: MyResourcesOptions): Promise<MyResourcesResult> {
+		const qs = resourceFilterParams(opts).toString();
+		const res = await fetch(`/api/v1/users/me/resources${qs ? `?${qs}` : ""}`, {
+			credentials: "include",
+		});
+		if (!res.ok) {
+			const err = await res.json().catch(() => ({}));
+			throw new Error(err.error || "Error al cargar tus recursos");
+		}
 		return res.json();
 	}
 

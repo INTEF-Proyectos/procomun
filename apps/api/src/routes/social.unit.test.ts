@@ -587,6 +587,128 @@ describe("Social — User endpoints", () => {
 	});
 });
 
+describe("Social — Mis recursos (#530)", () => {
+	test("editar el perfil ampliado conserva el listado y el resumen de recursos (#586)", async () => {
+		const id = `perfil-y-mis-recursos-${crypto.randomUUID()}`;
+		const authorApp = createSocialApp({
+			id,
+			name: "Autora",
+			role: "author",
+			email: `${id}@test.com`,
+		});
+		const created = await authorApp.request("/api/admin/resources", {
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({ ...validResource, title: "Recurso de la autora" }),
+		});
+		expect(created.status).toBe(201);
+		const { id: resourceId } = (await created.json()) as { id: string };
+
+		const updated = await authorApp.request("/api/v1/users/me/profile", {
+			method: "PATCH",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({
+				bio: "Sobre mí de la autora",
+				profile: { locality: "Burgos" },
+			}),
+		});
+		expect(updated.status).toBe(200);
+
+		const [profile, dashboard, resources] = await Promise.all([
+			authorApp.request("/api/v1/users/me/profile"),
+			authorApp.request("/api/v1/users/me/dashboard"),
+			authorApp.request("/api/v1/users/me/resources"),
+		]);
+		expect(profile.status).toBe(200);
+		expect(await profile.json()).toMatchObject({
+			bio: "Sobre mí de la autora",
+			profile: { locality: "Burgos" },
+		});
+		expect(dashboard.status).toBe(200);
+		expect(await dashboard.json()).toMatchObject({
+			draftCount: 1,
+			resourceCount: 1,
+		});
+		expect(resources.status).toBe(200);
+		expect(await resources.json()).toMatchObject({
+			data: [{ id: resourceId, editorialStatus: "draft" }],
+			total: 1,
+		});
+	});
+
+	test("GET /users/me/resources → solo los propios, con estado y contadores", async () => {
+		const authorId = `mis-recursos-ruta-${crypto.randomUUID()}`;
+		const authorApp = createSocialApp({
+			id: authorId,
+			role: "author",
+			name: "Autora",
+			email: `${authorId}@local.invalid`,
+		});
+		const draft = await authorApp.request("/api/admin/resources", {
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({ ...validResource, title: "Ruta borrador" }),
+		});
+		expect(draft.status).toBe(201);
+		const sent = (await (
+			await authorApp.request("/api/admin/resources", {
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify({ ...validResource, title: "Ruta en revisión" }),
+			})
+		).json()) as { id: string };
+		const toReview = await authorApp.request(
+			`/api/admin/resources/${sent.id}/status`,
+			{
+				method: "PATCH",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify({ status: "review" }),
+			},
+		);
+		expect(toReview.status).toBe(200);
+		await createPublishedResource(adminApp, "ajeno-mis-recursos");
+
+		const res = await authorApp.request(
+			"/api/v1/users/me/resources?status=review&limit=10",
+		);
+		expect(res.status).toBe(200);
+		const body = (await res.json()) as {
+			data: { title: string; editorialStatus: string }[];
+			total: number;
+			limit: number;
+			offset: number;
+			statusCounts: Record<string, number>;
+		};
+		expect(body.data.map((r) => r.title)).toEqual(["Ruta en revisión"]);
+		expect(body.total).toBe(1);
+		expect(body.limit).toBe(10);
+		expect(body.statusCounts).toEqual({
+			draft: 1,
+			review: 1,
+			published: 0,
+			archived: 0,
+			total: 2,
+		});
+
+		const searched = (await (
+			await authorApp.request("/api/v1/users/me/resources?q=borrador")
+		).json()) as { data: { title: string }[] };
+		expect(searched.data.map((r) => r.title)).toEqual(["Ruta borrador"]);
+	});
+
+	test("GET /users/me/resources → 400 con un estado desconocido", async () => {
+		const res = await adminApp.request(
+			"/api/v1/users/me/resources?status=borrado",
+		);
+		expect(res.status).toBe(400);
+	});
+
+	test("GET /users/me/resources → 401 without auth", async () => {
+		const res = await anonApp.request("/api/v1/users/me/resources");
+		expect(res.status).toBe(401);
+	});
+});
+
 describe("Social — Activity Feed", () => {
 	test("GET /users/me/activity → empty initially", async () => {
 		const res = await adminApp.request("/api/v1/users/me/activity");
