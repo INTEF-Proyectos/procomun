@@ -1,7 +1,11 @@
 import * as repo from "@procomun/db/repository";
 import { Hono } from "hono";
 import { type AuthEnv, requireRole } from "../../auth/middleware.ts";
-import { getCurrentUser } from "../../auth/roles.ts";
+import {
+	canManageCollection,
+	canManageResource,
+	getCurrentUser,
+} from "../../auth/roles.ts";
 import { getDb } from "../../db.ts";
 import { parsePagination } from "../../http/pagination.ts";
 
@@ -18,6 +22,7 @@ reportRoutes.get("/", async (c) => {
 	const status = c.req.query("status");
 	const reason = c.req.query("reason");
 	const resourceId = c.req.query("resourceId");
+	const collectionId = c.req.query("collectionId");
 
 	const result = await repo.listReports(getDb().db, {
 		limit,
@@ -25,6 +30,7 @@ reportRoutes.get("/", async (c) => {
 		status: status || undefined,
 		reason: reason || undefined,
 		resourceId: resourceId || undefined,
+		collectionId: collectionId || undefined,
 	});
 
 	return c.json(result);
@@ -82,27 +88,85 @@ reportRoutes.patch("/:id", async (c) => {
 		);
 	}
 
-	await repo.updateReport(getDb().db, id, {
-		status: body.status as repo.ReportStatus | undefined,
-		moderatorId: currentUser.id,
-		resolution: body.resolution,
-		actionTaken: body.actionTaken as repo.ReportAction | undefined,
-	});
-
-	// Apply real action on the resource if applicable
-	if (body.actionTaken === "resource_deactivated" && report.resourceId) {
-		await repo.updateEditorialStatus(
-			getDb().db,
-			report.resourceId,
-			"archived",
-			currentUser.id,
+	// #539: una acción de recurso no vale para una colección, ni al revés.
+	const target: repo.ReportTarget = report.collectionId
+		? "collection"
+		: "resource";
+	if (
+		body.actionTaken &&
+		!repo.isReportActionAllowed(body.actionTaken as repo.ReportAction, target)
+	) {
+		return c.json(
+			{
+				error:
+					target === "collection"
+						? "Esa acción no se aplica a una colección"
+						: "Esa acción no se aplica a un recurso",
+			},
+			400,
 		);
-	} else if (body.actionTaken === "resource_deleted" && report.resourceId) {
-		await repo.deleteResource(getDb().db, report.resourceId);
 	}
 
-	const updated = await repo.getReportById(getDb().db, id);
-	return c.json(updated);
+	// La resolución y la acción van en una transacción: si falla la acción, la
+	// denuncia no queda resuelta con el contenido intacto.
+	const resolved = await getDb().db.transaction(async (tx: repo.DrizzleDB) => {
+		// Review de #585: se lee y se bloquea el contenido dentro de la
+		// transacción y se comprueba el permiso sobre su estado actual (puede
+		// haber vuelto a borrador desde la denuncia). Sin permiso no se escribe nada.
+		if (body.actionTaken) {
+			const locked = report.collectionId
+				? await repo.lockCollectionForUpdate(tx, report.collectionId)
+				: report.resourceId
+					? await repo.lockResourceForUpdate(tx, report.resourceId)
+					: null;
+			if (!locked) return "not_found" as const;
+			const allowed = report.collectionId
+				? canManageCollection(currentUser, locked)
+				: canManageResource(currentUser, locked);
+			if (!allowed) return "forbidden" as const;
+		}
+		await repo.updateReport(tx, id, {
+			status: body.status as repo.ReportStatus | undefined,
+			moderatorId: currentUser.id,
+			resolution: body.resolution,
+			actionTaken: body.actionTaken as repo.ReportAction | undefined,
+		});
+		// Se lee antes de la acción: con collection_deleted la denuncia se borra
+		// con la colección (ON DELETE CASCADE) y se devuelve tal como quedó.
+		const updated = await repo.getReportById(tx, id);
+
+		if (body.actionTaken === "resource_deactivated" && report.resourceId) {
+			await repo.updateEditorialStatus(
+				tx,
+				report.resourceId,
+				"archived",
+				currentUser.id,
+			);
+		} else if (body.actionTaken === "resource_deleted" && report.resourceId) {
+			await repo.deleteResource(tx, report.resourceId);
+		} else if (
+			body.actionTaken === "collection_deactivated" &&
+			report.collectionId
+		) {
+			await repo.updateCollection(tx, report.collectionId, {
+				editorialStatus: "archived",
+			});
+		} else if (
+			body.actionTaken === "collection_deleted" &&
+			report.collectionId
+		) {
+			await repo.deleteCollection(tx, report.collectionId);
+		}
+		return updated;
+	});
+
+	if (resolved === "not_found") {
+		return c.json({ error: "Contenido no encontrado" }, 404);
+	}
+	if (resolved === "forbidden") {
+		return c.json({ error: "Permisos insuficientes" }, 403);
+	}
+	return c.json(resolved);
 });
 
 export { reportRoutes };

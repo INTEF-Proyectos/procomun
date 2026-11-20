@@ -220,6 +220,21 @@ Los JSON/`.elpx` de `ode-export/` contienen datos personales reales (nombres y e
 - [x] El importador conserva entidades numéricas inválidas, aísla fallos de mapeo y omite los valores de publicación inválidos del informe.
 - [x] La migración de itinerarios se renumera de 0022 a 0028 y se aplica después de la 0027 ya integrada en main. Prueba con el migrador sobre una base que ya tiene la 0027.
 
+## Perfil ampliado editable — 2026-11-16 (issue #533)
+
+- [x] `/perfil` edita país, localidad, centro y su web, web personal y redes. Privado hasta #504: solo lo devuelve `GET /api/v1/users/me/profile` a su dueño.
+- [x] El «Sobre mí» queda solo en `user_profile.about`. La migración 0023 le pasa `user.bio` (prevalece sobre el importado) y borra la columna.
+- [x] El servidor valida nombre (obligatorio), «Sobre mí», país, webs y longitudes, también en la administración de usuarios.
+- [ ] Mostrar en la ficha pública del autor (#487) lo que decida #504.
+
+### Revisión de #586 — 2026-11-18
+
+- [x] `/perfil` envía solo lo que cambia: un fallo al leer el perfil no vacía la bio ni los datos ampliados, y un país importado como `XK` no impide guardar el nombre.
+- [x] La administración solo ve el «Sobre mí» escrito en la plataforma nueva (`about_edited_at`). Ampliarlo al importado queda para #504.
+- [x] El `PATCH` del perfil propio guarda todo en una transacción.
+- [x] Prueba con el migrador de drizzle: la 0023 copia la bio antes de borrar `user.bio`.
+- [x] Caché de Inlang fuera de Git (`.gitignore`).
+
 ## Atribución histórica por UID — 2026-11-19 (#600)
 
 - [x] Exigir el volcado en importación y reenlace, resolver por UID y registrar el motivo sin correo en el informe general.

@@ -143,6 +143,31 @@ describe("HttpApiClient.updateMyProfile (PR-234)", () => {
 		const result = await client.updateMyProfile({ name: "Nope" });
 		expect(result).toEqual({ ok: false, error: "Permisos insuficientes" });
 	});
+
+	test("envía los datos ampliados y devuelve los errores por campo (#533)", async () => {
+		const details = [
+			{ field: "profile.website", code: "invalid_url", message: "x" },
+		];
+		const { calls } = captureFetch(
+			jsonResponse({ error: "Datos inválidos", details }, 400),
+		);
+		const client = new HttpApiClient();
+
+		const result = await client.updateMyProfile({
+			name: "Ana",
+			profile: { website: "javascript:alert(1)", locality: "Burgos" },
+		});
+
+		expect(JSON.parse(getCall(calls, 0).init?.body as string)).toEqual({
+			name: "Ana",
+			profile: { website: "javascript:alert(1)", locality: "Burgos" },
+		});
+		expect(result).toEqual({
+			ok: false,
+			error: "Datos inválidos",
+			fieldErrors: [{ field: "profile.website", code: "invalid_url" }],
+		});
+	});
 });
 
 describe("HttpApiClient.deleteUser (DEF-020)", () => {

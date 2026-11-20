@@ -312,18 +312,19 @@ describe("quién recibe el enlace firmado (CA-1, CA-2, CA-4)", () => {
 		});
 	});
 
-	test("el panel de la autora firma sus recursos no publicados", async () => {
+	// #530: el panel ya no lista recursos; «Mis recursos» los pagina aparte.
+	test("«Mis recursos» de la autora firma sus recursos no publicados", async () => {
 		const body = await as(AUTHOR, async () => {
-			const res = await get("/api/v1/users/me/dashboard");
+			const res = await get("/api/v1/users/me/resources?limit=50");
 			expect(res.status).toBe(200);
 			return (await res.json()) as {
-				recentResources: Array<{
+				data: Array<{
 					id: string;
 					elpxPreview: { thumbnailUrl: string | null } | null;
 				}>;
 			};
 		});
-		const byId = new Map(body.recentResources.map((row) => [row.id, row]));
+		const byId = new Map(body.data.map((row) => [row.id, row]));
 		for (const status of ["draft", "review", "archived"] as const) {
 			const row = byId.get(seeded[status].resourceId);
 			await expectSignedServes(

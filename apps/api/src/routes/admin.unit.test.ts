@@ -711,18 +711,35 @@ describe("Rutas admin — borradores privados frente al curator (#460)", () => {
 		);
 		const search = await listIds(
 			curatorApp,
-			`&search=${encodeURIComponent(draft.title)}`,
+			`&q=${encodeURIComponent(draft.title)}`,
 		);
 		expect(search.ids).not.toContain(draft.id);
 		// La misma búsqueda lo encuentra para el admin.
 		expect(
-			(await listIds(adminApp, `&search=${encodeURIComponent(draft.title)}`))
-				.ids,
+			(await listIds(adminApp, `&q=${encodeURIComponent(draft.title)}`)).ids,
 		).toContain(draft.id);
 
 		// El autor y el admin sí lo ven.
 		expect((await listIds(authorApp, "&status=draft")).ids).toContain(draft.id);
 		expect((await listIds(adminApp, "&status=draft")).ids).toContain(draft.id);
+	});
+
+	test("el autor encuentra su recurso buscando un término que solo está en la autoría (#580)", async () => {
+		await ensureUsers();
+		const token = `autoria${crypto.randomUUID().slice(0, 8)}`;
+		const res = await authorApp.request("/api/admin/resources", {
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({
+				...validResource,
+				title: `Sin coincidencia ${crypto.randomUUID()}`,
+				author: `Autoría ${token}`,
+			}),
+		});
+		expect(res.status).toBe(201);
+		const { id } = (await res.json()) as { id: string };
+
+		expect((await listIds(authorApp, `&q=${token}`)).ids).toContain(id);
 	});
 
 	test("el curator no lee ni modifica el borrador ajeno por acceso directo", async () => {
@@ -1863,7 +1880,41 @@ describe("Rutas admin — actualización de usuarios", () => {
 
 		const getRes = await adminApp.request(`/api/admin/users/${id}`);
 		const body = await getRes.json();
-		expect(body.bio).toBe("");
+		// #533: un «Sobre mí» vacío se guarda como null.
+		expect(body.bio).toBeNull();
+	});
+
+	test("PATCH /api/admin/users/:id → rechaza nombre vacío y «Sobre mí» demasiado largo (#533)", async () => {
+		const adminApp = createAdminApp({ id: "1", role: "admin" });
+		const email = `name-check-${crypto.randomUUID()}@test.com`;
+		const createRes = await adminApp.request("/api/admin/users", {
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({
+				name: "Con Nombre",
+				email,
+				password: "supersecret8",
+			}),
+		});
+		const { id } = await createRes.json();
+
+		for (const body of [
+			{ name: "" },
+			{ name: null },
+			{ bio: "x".repeat(10_001) },
+		]) {
+			const res = await adminApp.request(`/api/admin/users/${id}`, {
+				method: "PATCH",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify(body),
+			});
+			expect(res.status).toBe(400);
+		}
+
+		const getRes = await adminApp.request(`/api/admin/users/${id}`);
+		const user = await getRes.json();
+		expect(user.name).toBe("Con Nombre");
+		expect(user.bio).toBeNull();
 	});
 });
 

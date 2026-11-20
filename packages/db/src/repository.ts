@@ -24,4 +24,5 @@ export type { AppSchema, DrizzleDB, DrizzleTX } from "./repository/shared.ts";
 export * from "./repository/tags.ts";
 export * from "./repository/taxonomies.ts";
 export * from "./repository/uploads.ts";
+export * from "./repository/user-profile.ts";
 export * from "./repository/users.ts";

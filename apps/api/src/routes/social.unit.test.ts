@@ -1,6 +1,8 @@
 import { describe, expect, test } from "bun:test";
+import * as schema from "@procomun/db/schema";
 import { Hono } from "hono";
 import type { AuthEnv } from "../auth/middleware.ts";
+import { getDb } from "../db.ts";
 import { adminRoutes } from "./admin/index.ts";
 import { socialRoutes } from "./social.ts";
 
@@ -286,6 +288,10 @@ describe("Social — My profile", () => {
 		expect(body.name).toBe("Reader Test");
 		expect(body.bio).toBeNull();
 		expect(body.role).toBe("reader");
+		expect((body as { profile?: unknown }).profile).toMatchObject({
+			locality: null,
+			educationalCenter: null,
+		});
 	});
 
 	test("PATCH /users/me/profile → reader persiste nombre y bio y reaparece tras recarga", async () => {
@@ -312,6 +318,124 @@ describe("Social — My profile", () => {
 		};
 		expect(body.name).toBe("Reader Editado");
 		expect(body.bio).toBe("Bio persistida");
+	});
+
+	test("PATCH /users/me/profile → rechaza nombre vacío y «Sobre mí» demasiado largo sin guardar nada (#533)", async () => {
+		const id = `reader-invalid-${crypto.randomUUID()}`;
+		const readerApp = createSocialApp({
+			id,
+			role: "reader",
+			name: "Nombre Válido",
+			email: `${id}@test.com`,
+		});
+		await readerApp.request("/api/v1/users/me/profile", {
+			method: "PATCH",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({ name: "Nombre Válido", bio: "Bio previa" }),
+		});
+
+		for (const body of [
+			{ name: "   " },
+			{ name: "Otro", bio: "x".repeat(10_001) },
+			{ name: "Otro", profile: { website: "javascript:alert(1)" } },
+		]) {
+			const res = await readerApp.request("/api/v1/users/me/profile", {
+				method: "PATCH",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify(body),
+			});
+			expect(res.status).toBe(400);
+			const error = (await res.json()) as {
+				details: Array<{ field: string; code: string }>;
+			};
+			expect(error.details.length).toBeGreaterThan(0);
+		}
+
+		const getRes = await readerApp.request("/api/v1/users/me/profile");
+		const profile = (await getRes.json()) as {
+			name: string;
+			bio: string;
+			profile: { website: string | null };
+		};
+		expect(profile.name).toBe("Nombre Válido");
+		expect(profile.bio).toBe("Bio previa");
+		expect(profile.profile.website).toBeNull();
+	});
+
+	test("PATCH /users/me/profile → guarda centro, localidad y redes, y solo los ve su dueño (#533)", async () => {
+		const id = `reader-details-${crypto.randomUUID()}`;
+		const readerApp = createSocialApp({
+			id,
+			role: "reader",
+			name: "Docente",
+			email: `${id}@test.com`,
+		});
+
+		const patchRes = await readerApp.request("/api/v1/users/me/profile", {
+			method: "PATCH",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({
+				name: "Docente",
+				profile: {
+					countryCode: "es",
+					locality: "Burgos",
+					educationalCenter: "CEIP Ejemplo",
+					educationalCenterUrl: "ceip-ejemplo.es",
+					website: "",
+					twitter: "@docente",
+				},
+			}),
+		});
+		expect(patchRes.status).toBe(200);
+
+		const getRes = await readerApp.request("/api/v1/users/me/profile");
+		const body = (await getRes.json()) as { profile: Record<string, unknown> };
+		expect(body.profile).toEqual({
+			countryCode: "ES",
+			locality: "Burgos",
+			educationalCenter: "CEIP Ejemplo",
+			educationalCenterUrl: "https://ceip-ejemplo.es/",
+			website: null,
+			facebook: null,
+			twitter: "@docente",
+			linkedin: null,
+		});
+
+		// Privado hasta #504: la administración de usuarios no lo devuelve.
+		const adminView = await createSocialApp({ id: "1", role: "admin" }).request(
+			`/api/admin/users/${id}`,
+		);
+		expect(await adminView.json()).not.toHaveProperty("profile");
+	});
+
+	test("el «Sobre mí» que solo viene de la importación lo ve su dueño pero no la administración (#586)", async () => {
+		const id = `reader-imported-${crypto.randomUUID()}`;
+		const readerApp = createSocialApp({
+			id,
+			role: "reader",
+			name: "Importada",
+			email: `${id}@test.com`,
+		});
+		const db = getDb().db;
+		await db
+			.insert(schema.user)
+			.values({ id, email: `${id}@test.com`, name: "Importada" });
+		// Como lo deja el importador de usuarios (#488), sin editar.
+		await db
+			.insert(schema.userProfile)
+			.values({ userId: id, about: "Del Procomún anterior" });
+
+		const own = (await (
+			await readerApp.request("/api/v1/users/me/profile")
+		).json()) as { bio: string | null };
+		expect(own.bio).toBe("Del Procomún anterior");
+
+		const adminView = (await (
+			await createSocialApp({ id: "1", role: "admin" }).request(
+				`/api/admin/users/${id}`,
+			)
+		).json()) as { bio: string | null };
+		expect(adminView.bio).toBeNull();
 	});
 
 	test("PATCH /users/me/profile → 401 without auth", async () => {
@@ -459,6 +583,128 @@ describe("Social — User endpoints", () => {
 
 	test("GET /users/me/dashboard → 401 without auth", async () => {
 		const res = await anonApp.request("/api/v1/users/me/dashboard");
+		expect(res.status).toBe(401);
+	});
+});
+
+describe("Social — Mis recursos (#530)", () => {
+	test("editar el perfil ampliado conserva el listado y el resumen de recursos (#586)", async () => {
+		const id = `perfil-y-mis-recursos-${crypto.randomUUID()}`;
+		const authorApp = createSocialApp({
+			id,
+			name: "Autora",
+			role: "author",
+			email: `${id}@test.com`,
+		});
+		const created = await authorApp.request("/api/admin/resources", {
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({ ...validResource, title: "Recurso de la autora" }),
+		});
+		expect(created.status).toBe(201);
+		const { id: resourceId } = (await created.json()) as { id: string };
+
+		const updated = await authorApp.request("/api/v1/users/me/profile", {
+			method: "PATCH",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({
+				bio: "Sobre mí de la autora",
+				profile: { locality: "Burgos" },
+			}),
+		});
+		expect(updated.status).toBe(200);
+
+		const [profile, dashboard, resources] = await Promise.all([
+			authorApp.request("/api/v1/users/me/profile"),
+			authorApp.request("/api/v1/users/me/dashboard"),
+			authorApp.request("/api/v1/users/me/resources"),
+		]);
+		expect(profile.status).toBe(200);
+		expect(await profile.json()).toMatchObject({
+			bio: "Sobre mí de la autora",
+			profile: { locality: "Burgos" },
+		});
+		expect(dashboard.status).toBe(200);
+		expect(await dashboard.json()).toMatchObject({
+			draftCount: 1,
+			resourceCount: 1,
+		});
+		expect(resources.status).toBe(200);
+		expect(await resources.json()).toMatchObject({
+			data: [{ id: resourceId, editorialStatus: "draft" }],
+			total: 1,
+		});
+	});
+
+	test("GET /users/me/resources → solo los propios, con estado y contadores", async () => {
+		const authorId = `mis-recursos-ruta-${crypto.randomUUID()}`;
+		const authorApp = createSocialApp({
+			id: authorId,
+			role: "author",
+			name: "Autora",
+			email: `${authorId}@local.invalid`,
+		});
+		const draft = await authorApp.request("/api/admin/resources", {
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({ ...validResource, title: "Ruta borrador" }),
+		});
+		expect(draft.status).toBe(201);
+		const sent = (await (
+			await authorApp.request("/api/admin/resources", {
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify({ ...validResource, title: "Ruta en revisión" }),
+			})
+		).json()) as { id: string };
+		const toReview = await authorApp.request(
+			`/api/admin/resources/${sent.id}/status`,
+			{
+				method: "PATCH",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify({ status: "review" }),
+			},
+		);
+		expect(toReview.status).toBe(200);
+		await createPublishedResource(adminApp, "ajeno-mis-recursos");
+
+		const res = await authorApp.request(
+			"/api/v1/users/me/resources?status=review&limit=10",
+		);
+		expect(res.status).toBe(200);
+		const body = (await res.json()) as {
+			data: { title: string; editorialStatus: string }[];
+			total: number;
+			limit: number;
+			offset: number;
+			statusCounts: Record<string, number>;
+		};
+		expect(body.data.map((r) => r.title)).toEqual(["Ruta en revisión"]);
+		expect(body.total).toBe(1);
+		expect(body.limit).toBe(10);
+		expect(body.statusCounts).toEqual({
+			draft: 1,
+			review: 1,
+			published: 0,
+			archived: 0,
+			total: 2,
+		});
+
+		const searched = (await (
+			await authorApp.request("/api/v1/users/me/resources?q=borrador")
+		).json()) as { data: { title: string }[] };
+		expect(searched.data.map((r) => r.title)).toEqual(["Ruta borrador"]);
+	});
+
+	test("GET /users/me/resources → 400 con un estado desconocido", async () => {
+		const res = await adminApp.request(
+			"/api/v1/users/me/resources?status=borrado",
+		);
+		expect(res.status).toBe(400);
+	});
+
+	test("GET /users/me/resources → 401 without auth", async () => {
+		const res = await anonApp.request("/api/v1/users/me/resources");
 		expect(res.status).toBe(401);
 	});
 });
