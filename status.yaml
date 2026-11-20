@@ -5005,6 +5005,13 @@ tasks:
       cubria el Referer. Tests rojo -> verde en transport.unit.test.ts,
       password-reset.integration.test.ts y nginx-log-redaction.unit.test.ts;
       comprobado con nginx:alpine. Adenda de ADR-0007 y operaciones.md.
+  T-2026-11-19-07351269:
+    date: 2026-11-19
+    agent: "documentacion-y-roadmap"
+    task: "Completa la retirada de la caché de Inlang de #598"
+    status: Done
+    related: ["#598", "#599"]
+    notes: "Caché fuera del control de versiones. Paraglide recompila desde una copia limpia y pasan 49 pruebas de correo."
   T-2026-11-19-07271197:
     date: 2026-11-19
     agent: "ingestas-y-migraciones"
