@@ -21,6 +21,7 @@ import { Tabs } from "../../ui/Tabs.tsx";
 import { UserAvatar } from "../../ui/UserAvatar.tsx";
 import { AccountTab } from "./AccountTab.tsx";
 import { ApiKeysTab } from "./ApiKeysTab.tsx";
+import { MyResourcesTab } from "./MyResourcesTab.tsx";
 import "./PublicDashboardIsland.css";
 import "../../lib/paraglide-client.ts";
 import * as m from "../../paraglide/messages.js";
@@ -38,6 +39,35 @@ export function withFavoriteCount(
 		...dashboard,
 		favoriteCount: next,
 		user: { ...dashboard.user, favoriteCount: next },
+	};
+}
+
+/**
+ * Contadores de «Mis recursos» del resumen (#530). El total es la suma de los
+ * cuatro estados: antes solo sumaba publicados y borradores.
+ */
+export function dashboardResourceCounts(data: {
+	draftCount?: number;
+	publishedCount?: number;
+	reviewCount?: number;
+	archivedCount?: number;
+	resourceCount?: number;
+}): Pick<
+	DashboardSummary,
+	"draftCount" | "publishedCount" | "reviewCount" | "archivedCount"
+> & { resourceCount: number } {
+	const draftCount = Number(data.draftCount ?? 0);
+	const publishedCount = Number(data.publishedCount ?? 0);
+	const reviewCount = Number(data.reviewCount ?? 0);
+	const archivedCount = Number(data.archivedCount ?? 0);
+	return {
+		draftCount,
+		publishedCount,
+		reviewCount,
+		archivedCount,
+		resourceCount:
+			data.resourceCount ??
+			draftCount + publishedCount + reviewCount + archivedCount,
 	};
 }
 
@@ -447,9 +477,11 @@ export function PublicDashboardIsland() {
 				api.getUserDashboard().catch(() => ({
 					draftCount: 0,
 					publishedCount: 0,
+					reviewCount: 0,
+					archivedCount: 0,
+					resourceCount: 0,
 					favoriteCount: 0,
 					ratingCount: 0,
-					recentResources: [] as Resource[],
 				})),
 				api.getBadgeConfig().catch(() => null),
 				api.getMyProfile().catch(() => null),
@@ -458,6 +490,7 @@ export function PublicDashboardIsland() {
 			if (config) setBadgeConfig(config);
 
 			const nextFavoriteCount = dashData.favoriteCount ?? 0;
+			const counts = dashboardResourceCounts(dashData);
 			setDashboard({
 				user: {
 					id: user.id,
@@ -469,20 +502,11 @@ export function PublicDashboardIsland() {
 					avatarUrl,
 					bio: profile?.bio ?? null,
 					role: user.role,
-					resourceCount:
-						(dashData.draftCount ?? 0) + (dashData.publishedCount ?? 0),
+					resourceCount: counts.resourceCount,
 					favoriteCount: nextFavoriteCount,
 					joinedAt: "",
 				},
-				recentResources: ((dashData.recentResources ?? []) as Resource[]).map(
-					(r) => ({
-						...r,
-						author: r.createdByName || r.author || null,
-						createdAt: typeof r.createdAt === "string" ? r.createdAt : "",
-					}),
-				),
-				draftCount: dashData.draftCount ?? 0,
-				publishedCount: dashData.publishedCount ?? 0,
+				...counts,
 				favoriteCount: nextFavoriteCount,
 				recentActivity: [], // loaded lazily by ActivityTab
 			});
@@ -635,64 +659,13 @@ export function PublicDashboardIsland() {
 			id: "resources",
 			label: m.profile_my_resources(),
 			icon: "library_books",
-			count: dashboard.publishedCount + dashboard.draftCount,
+			count: dashboard.resourceCount,
 			content: (
-				<div className="dashboard-tab-content">
-					<div className="dashboard-tab-header">
-						<span>
-							{m.profile_resources_count({
-								count: String(dashboard.publishedCount + dashboard.draftCount),
-							})}
-						</span>
-						<a href={url("nuevo")} className="dashboard-create-btn">
-							<span className="material-symbols-outlined" aria-hidden="true">
-								add
-							</span>
-							{m.profile_new_resource()}
-						</a>
-					</div>
-					{dashboard.recentResources.length > 0 ? (
-						<ResourceGrid>
-							{dashboard.recentResources.map((resource) => (
-								<div key={resource.id} className="dashboard-resource-wrap">
-									<ResourceCard
-										resource={resource}
-										href={url(`recurso?slug=${resource.slug}`)}
-										badges={[
-											...computeResourceBadges(resource, badgeConfig),
-											...(resource.editorialStatus === "draft"
-												? [{ text: "Borrador", variant: "draft" as const }]
-												: []),
-											...(resource.editorialStatus === "review"
-												? [{ text: "En revisión", variant: "review" as const }]
-												: []),
-										]}
-									/>
-									<a
-										href={url(`editar?id=${resource.id}`)}
-										className="dashboard-edit-icon"
-										aria-label={m.profile_edit_resource({
-											title: resource.title,
-										})}
-									>
-										<span className="material-symbols-outlined">edit</span>
-									</a>
-								</div>
-							))}
-						</ResourceGrid>
-					) : (
-						<EmptyState
-							icon="note_add"
-							title={m.profile_no_resources()}
-							description={m.profile_no_resources_desc()}
-							action={
-								<a href={url("nuevo")} className="dashboard-create-btn">
-									{m.profile_create_resource()}
-								</a>
-							}
-						/>
-					)}
-				</div>
+				<MyResourcesTab
+					user={{ id: user.id, role: user.role }}
+					badgeConfig={badgeConfig}
+					onChanged={() => void refreshDashboard({ silent: true })}
+				/>
 			),
 		},
 		{
@@ -820,6 +793,16 @@ export function PublicDashboardIsland() {
 								<span className="dashboard-stat">
 									<strong>{dashboard.draftCount}</strong> {m.profile_drafts()}
 								</span>
+								<span className="dashboard-stat">
+									<strong>{dashboard.reviewCount}</strong>{" "}
+									{m.profile_in_review()}
+								</span>
+								{dashboard.archivedCount > 0 ? (
+									<span className="dashboard-stat">
+										<strong>{dashboard.archivedCount}</strong>{" "}
+										{m.profile_archived()}
+									</span>
+								) : null}
 								<span className="dashboard-stat">
 									<strong>{dashboard.favoriteCount}</strong> {m.nav_favorites()}
 								</span>

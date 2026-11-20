@@ -1,3 +1,4 @@
+import { parseCatalogIdList } from "@procomun/db/knowledge-areas";
 import * as repo from "@procomun/db/repository";
 import { favorites, ratings, resources } from "@procomun/db/schema";
 import { and, desc, eq, isNull, sql } from "drizzle-orm";
@@ -9,6 +10,10 @@ import { parsePagination } from "../http/pagination.ts";
 import { listUserActivity } from "../social/activity-service.ts";
 import { getUserDashboardSummary } from "../social/dashboard-service.ts";
 import { toggleResourceFavorite } from "../social/favorites-service.ts";
+import {
+	listMyResources,
+	parseMyResourcesStatus,
+} from "../social/my-resources-service.ts";
 import {
 	getResourceRatingsSummary,
 	upsertResourceRating,
@@ -231,6 +236,33 @@ socialRoutes.get("/users/me/ratings", requireAuth, async (c) => {
 socialRoutes.get("/users/me/dashboard", requireAuth, async (c) => {
 	const currentUser = requireUser(c);
 	return c.json(await getUserDashboardSummary(currentUser.id));
+});
+
+// ---------------------------------------------------------------------------
+// GET /users/me/resources (auth required) — «Mis recursos» (#530)
+// Todos los recursos propios en cualquier estado, con los filtros del buscador.
+// ---------------------------------------------------------------------------
+socialRoutes.get("/users/me/resources", requireAuth, async (c) => {
+	const { limit, offset, search } = parsePagination(c);
+	const currentUser = requireUser(c);
+	const status = parseMyResourcesStatus(c.req.query("status"));
+	if (!status.ok) return c.json({ error: "Estado no válido" }, 400);
+	return c.json(
+		await listMyResources(currentUser.id, {
+			limit,
+			offset,
+			search,
+			status: status.status,
+			resourceType: c.req.query("resourceType"),
+			tag: c.req.query("tag"),
+			educationalCategory: c.req.query("educationalCategory"),
+			educationalOption: c.req.query("educationalOption"),
+			knowledgeAreaIds: parseCatalogIdList(c.req.query("knowledgeAreas")),
+			professionalFamilyIds: parseCatalogIdList(
+				c.req.query("professionalFamilies"),
+			),
+		}),
+	);
 });
 
 // ---------------------------------------------------------------------------
