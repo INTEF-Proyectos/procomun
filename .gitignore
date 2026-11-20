@@ -47,6 +47,8 @@ apps/frontend/src/paraglide/
 # caches
 .eslintcache
 .cache
+# caché de plugins que Paraglide/Inlang descarga al compilar
+apps/frontend/project.inlang/cache/
 *.tsbuildinfo
 
 # IntelliJ based IDEs
@@ -70,6 +72,4 @@ apps/frontend/public/api/v1/elpx/
 .grok/
 .playwright-mcp/
 CLAUDE.local.md
-
-# Caché de plugins de inlang (se genera al compilar Paraglide)
 apps/frontend/project.inlang/cache/

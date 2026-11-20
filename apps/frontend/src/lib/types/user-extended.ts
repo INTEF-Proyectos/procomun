@@ -1,5 +1,3 @@
-import type { ResourceSummary } from "./resource-extended.ts";
-
 /** Public-facing user profile */
 export interface PublicUserProfile {
 	id: string;
@@ -37,9 +35,13 @@ export interface ActivityItem {
 /** Summary data for the user dashboard */
 export interface DashboardSummary {
 	user: PublicUserProfile;
-	recentResources: ResourceSummary[];
 	draftCount: number;
 	publishedCount: number;
+	/** En revisión y archivados (#530): también cuentan en «Mis recursos». */
+	reviewCount: number;
+	archivedCount: number;
+	/** Todos los recursos propios: la suma de los cuatro estados. */
+	resourceCount: number;
 	favoriteCount: number;
 	recentActivity: ActivityItem[];
 }

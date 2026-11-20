@@ -226,3 +226,40 @@ Límites:
 
 - Una cuenta legacy que la administración haya puesto en `author` a propósito también pasaría a `editor`: no se distingue de una importada así. Antes de corregir hay que revisar la lista de `--dry-run`.
 - La nota de la adenda del 2026-10-27 sobre las cuentas que entraron como `editor` con la versión de #309 deja de aplicar: `editor` es ahora el rol correcto. La excepción son las cuentas cargadas con #309 cuyo origen era `administrador` o una lista de roles con `administrator`: esa versión solo reconocía `administrator` como valor único, así que quedaron en `editor`. La corrección no las sube a `admin`. Salen como `kept` con `role: editor` y `mappedRole: admin`, y hay que revisarlas a mano.
+
+## Adenda — 2026-11-16: perfil ampliado editable (issue #533)
+
+Sale de la comparativa de #494. Allí se decidió dejar fuera ocupación, estudios y provincia y mantener el nombre completo en un solo campo.
+
+### «Sobre mí» en un solo sitio
+
+Había dos: `user.bio`, que edita `/perfil`, y `user_profile.about`, donde #488 importa el del Procomún anterior. Se queda solo `user_profile.about`, como pide esta ADR para los datos de presentación. La migración 0023 (`0023_user_bio_to_profile`) le pasa el `user.bio` no vacío y borra esa columna:
+
+- Si la cuenta tiene los dos, prevalece `user.bio`, porque lo ha escrito la persona en la plataforma nueva. El importado nunca se le había mostrado.
+- Un `user.bio` en blanco no borra el «Sobre mí» importado.
+
+La API conserva el nombre `bio` en sus respuestas (`/users/me/profile` y la administración de usuarios). La adenda del 2026-10-27 decía que `user.bio` se mostraba en el perfil público. No era así: solo lo veían su dueño y la administración, y así sigue.
+
+### Edición privada
+
+En `/perfil` se editan país, localidad, centro educativo y su web, web personal, Facebook, Twitter y LinkedIn. Son privados hasta que #504 decida la visibilidad por campo: solo los devuelve `GET /api/v1/users/me/profile` a su dueño. Ni la administración de usuarios ni la ficha pública del autor (#487) los ven.
+
+### Validación en el servidor
+
+- Nombre: obligatorio, sin espacios sobrantes, hasta 255 caracteres. También en `PATCH /api/admin/users/:id`.
+- «Sobre mí»: hasta 10.000 caracteres. Vacío se guarda como null.
+- País: código ISO 3166-1 alfa-2 de la lista oficial.
+- Webs: http o https con dominio, como en el importador. Si falta el esquema se añade `https://`.
+- Localidad, centro y redes: texto de hasta 255 caracteres. Las redes se guardan como texto, porque el importador trae tanto usuarios como URL. Cuando #487 las muestre tendrá que convertirlas en enlaces seguros.
+
+La validación está en `@procomun/db/user-profile` y la comparten la API y el formulario.
+
+### Revisión de #586 — 2026-11-18
+
+- La administración de usuarios ve el «Sobre mí» como antes de #533: solo el escrito en la plataforma nueva. `user_profile.about_edited_at` lo marca (la 0023 lo rellena al pasar `user.bio`, y cada edición lo actualiza). El importado sin editar solo lo ve su dueño en `/perfil`. Si la administración debe verlo, se decide en #504.
+- `PATCH /api/v1/users/me/profile` guarda nombre, «Sobre mí» y datos ampliados en una transacción.
+- El formulario de `/perfil` envía solo los campos que cambian. Si no se pudo leer el perfil, avisa y no vacía lo guardado; un país importado que no está en la lista (`XK`) no impide editar el resto.
+
+## Renumeración de la migración — 2026-11-19
+
+`0023_user_bio_to_profile` pasa a `0029_user_bio_to_profile` tras integrar la 0027 de «Artículo». Se conserva el orden de integración #586, #585 y #587.

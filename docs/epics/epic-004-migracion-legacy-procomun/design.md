@@ -308,6 +308,60 @@ En consola: `[error] registro <n> (uid <uid>): <code> (<restricción>) [SQLSTATE
 
 Los dos comandos pasan también por `withoutDbDetails()` los errores que salen de los bucles (por ejemplo, si falla `waitForDb`). Así el manejador general del CLI (`Error: <message>`) tampoco escribe la consulta.
 
+## Importador de itinerarios como colecciones — 2026-11-16 (#432)
+
+Los itinerarios del Procomún antiguo pasan a ser colecciones. El exportador los da todos en un único JSON (un array). Cada registro trae `id`, `titleStr`, `descriptionStr`, `published`, `publicationDate`, `publicatorStr`, `publicatorEmailStr`, los ODE en `itineraryContent` (`idODE` → título) y los artículos en `interestContent` (`id` del artículo → título), además de metadatos que no se usan.
+
+**Orden de ejecución.** Primero usuarios (`import:legacy-users`), luego recursos y artículos (`import:legacy-procomun`) y al final itinerarios (`import:legacy-itineraries`). Los recursos que no estén importados se omiten.
+
+### Mapeo (`packages/db/src/legacy-import/itinerary.ts`, función pura)
+
+| Origen | Destino | Notas |
+|---|---|---|
+| `id` | `collections.external_id` | Con `import_source = "legacy-procomun"`, el mismo que los recursos. Sin `id`, el registro se bloquea. |
+| `titleStr` | `title` | Recortado a 500 caracteres (límite de `validateCollection`). Sin título, se bloquea. |
+| `descriptionStr` | `description` | En texto plano: saltos `\r\n` a `\n`, tabuladores y espacios duros a espacio, etiquetas HTML fuera (las de bloque pasan a salto de línea), entidades habituales decodificadas y como mucho una línea en blanco seguida. Recortada a 5000. Si queda vacía, se usa el título, con aviso. El importador de ODE no limpia la descripción: esta limpieza es propia de los itinerarios. |
+| `published` | `editorial_status` | `1` → `published`; cualquier otro valor → `draft` (`resolveLegacyPublicationStatus`, el mismo que los recursos). |
+| `publicationDate` | `published_at` (columna nueva) | Una fecha no válida se ignora, con aviso. |
+| `titleStr` | `slug` | `buildSlug(título)` más 8 caracteres del id, como `createCollection`. Se fija al crear y no cambia al reimportar. |
+| `itineraryContent`, `interestContent` | `collection_resources` | Primero los ODE y luego los artículos, cada bloque en el orden del JSON. Un recurso que aparezca en los dos bloques solo entra una vez. Se cruzan por el `external_id` con el que los guarda `import:legacy-procomun`: `idODE` (`es_…`) en los ODE y `id` en los artículos (#446). |
+| — | `is_ordered = true` | Ver abajo. |
+| `publicatorEmailStr` | `curator_id` | Ver «Propietario». |
+| `knowledgeArea`, `labelsStr`, `learningContext`, `educationalDescription` | — | **Se descartan**: las colecciones no tienen esos campos (decisión de #432). El registro del informe lleva en `discardedFields` los que traía con contenido, y `totals.discardedMetadata` los cuenta. |
+| `publicatorStr`, `type`, `idDrupal`, `urlDrupal`, `baseItinerary` | — | No se usan. |
+
+**`isOrdered = true`.** Un itinerario es una secuencia de aprendizaje y el exportador conserva el orden: en el itinerario 2 de la issue los ODE no salen ordenados por identificador, sino como la unidad (teoría, presentación, actividad, banco de preguntas y pódcast). Lo que se pierde es cómo estaban intercalados ODE y artículos, porque vienen en dos bloques. Se ponen primero los ODE y el propietario o un curator puede reordenarlos. Si un día hiciera falta el orden exacto, tendría que darlo el exportador. Un límite conocido: `JSON.parse` pone primero las claves que parecen un índice de array (enteros hasta 2^32 − 2). Los `idODE` (`es_…`) y los `id` de Elasticsearch de los artículos no lo son.
+
+### Propietario
+
+- Es la cuenta cuyo correo coincide con `publicatorEmailStr`, sin distinguir mayúsculas ni espacios (`normalizeLegacyPublicatorEmail`, la misma que #508). Se guarda en `collections.curatorId`.
+- Se busca con `findLegacyCollectionOwnerAccount` (`packages/db/src/repository/legacy-collections.ts`), con la misma regla que `findLegacyAuthorAccount` de #508. Nunca devuelve el usuario de sistema. Una cuenta bloqueada sí recibe la colección. Una dada de baja no. Una sin verificar tampoco, salvo las que crea el importador de usuarios (`legacy-procomun:user:<uid>`): si no, quien se registre con el correo de un autor antiguo se quedaría con sus colecciones. Cuando #508 llegue a main, esta función se sustituye por la suya.
+- Sin cuenta (o sin correo), la colección queda en `draft` a nombre del usuario de sistema del importador (`LEGACY_IMPORT_SYSTEM_USER_ID`) y sale en el informe con `owner: "system"` y el motivo (`no_email`, `no_account`, `deleted_account` o `unverified_account`).
+- No se reasigna a un curator. Los permisos del propietario están en la adenda 2026-11-16 de la [ADR-0008](../../negocio/decisiones/0008-modelo-de-autorizacion.md).
+
+### Reimportación (idempotencia)
+
+La clave es `(import_source, external_id)`, con índice único parcial `collections_import_source_external_id_idx` (migración 0022), igual que en `resources`. Al reimportar:
+
+- título, descripción, `published_at` y recursos se toman otra vez del origen. Si nada cambia, el resultado es `unchanged` y no se toca `updated_at`;
+- el slug, `is_ordered` y el estado editorial no se tocan: son trabajo editorial;
+- el propietario solo cambia si sigue a nombre del sistema y ahora hay cuenta (`owner: "linked"`). En ese caso, si seguía en el borrador forzado por la falta de cuenta, pasa al estado de origen. Un propietario reasignado a mano se respeta (`kept_owner`), con la condición en el propio UPDATE, como `linkLegacyResourceAuthor` de #508;
+- cada colección es su propia transacción.
+
+Al reimportar se sustituye la lista de recursos por la del origen. Si alguien añadió recursos a mano a una colección importada, una reimportación los quita. El importador está pensado para la ventana de migración.
+
+### Informe
+
+`informe_itinerarios-[dryrun-]<runId>.json` en `--report-dir` (por defecto `local-data/legacy-import-reports/`). Por registro: `itineraryId`, `outcome` (`created`, `updated`, `unchanged`, `would_create`, `would_update`, `blocked` o `error`), `collectionId`, `owner`, `ownerReason`, `linkedResources`, `missingResources` (`externalId`, `kind` y `reason`: `not_imported` o `deleted`), `discardedFields` y `warnings`.
+
+**Sin correos ni nombres** (decisión de #543). El motivo de «sin propietario» lleva el id del itinerario y el código, nunca el correo. En la base de este cambio no está la opción `--restricted-report` de #508: el correo de los itinerarios sin cuenta no se escribe en ningún sitio. Para buscarlos, se cruza el id del informe con el JSON de origen. Cuando #508 llegue a main, se puede añadir esa opción.
+
+Los errores de la base de datos pasan por `summarizeDbStepError` y `withoutDbDetails`: código, SQLSTATE y restricción, nunca el mensaje.
+
+### Fuera de alcance
+
+- Visitas de los itinerarios: el exportador no las trae (#432). Irán en otra issue.
+- Pantalla «Mis colecciones» para el autor: la API ya le deja listar, ver y editar las suyas. La interfaz va en otra issue.
 ## Informes sin correos e informe restringido — 2026-11-16 (issue #543)
 
 Decisión de #543 (comentario del equipo del 2026-11-16): el informe general no lleva correos. Sustituye, para el informe, lo que dicen arriba la tabla de «Autoría desde `publicatorEmailStr`» (`authorsWithoutAccount` con `email`) y el diagnóstico `sourceEmailWithoutAccount`.
@@ -331,3 +385,7 @@ Errores de los pasos de autoría (#543, punto 1): `resolveAuthor`, `linkExisting
 Sustituye, para el informe, la fila «Sin cuenta, sin correo o con la cuenta dada de baja» de «Artículos» (2026-11-03): el registro `skipped_without_author` queda `{ outcome, externalId, kind: "article", reason }`, sin `email`. Con `--restricted-report <ruta>` el correo va al informe restringido con `list: "skipped_without_author"`, en las mismas condiciones que el resto (ver «Informes sin correos e informe restringido»).
 
 Un fallo de la base de datos al guardar el artículo pasa por `summarizeImportError`: los parámetros del INSERT llevan el texto extraído del artículo y el registro de error solo deja `code`, `message` fijo y `sqlState`.
+
+## Revisión de #573 — 2026-11-19
+
+La migración de itinerarios se renumera de `0022_collections_legacy_import` a `0028_collections_legacy_import` para que el migrador la aplique también sobre bases que ya recibieron la 0027.

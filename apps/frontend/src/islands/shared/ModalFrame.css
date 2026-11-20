@@ -10,3 +10,24 @@
 	padding: 1rem;
 	z-index: 1000;
 }
+
+/* ModalFrame es un <dialog> modal (#580): ocupa la pantalla como el fondo de
+   antes y quita los estilos del navegador. El fondo ya lo pinta él mismo. */
+dialog.admin-modal-overlay {
+	width: 100%;
+	height: 100%;
+	max-width: none;
+	max-height: none;
+	margin: 0;
+	border: 0;
+	color: inherit;
+	overscroll-behavior: contain;
+}
+
+dialog.admin-modal-overlay:not([open]) {
+	display: none;
+}
+
+dialog.admin-modal-overlay::backdrop {
+	background: transparent;
+}

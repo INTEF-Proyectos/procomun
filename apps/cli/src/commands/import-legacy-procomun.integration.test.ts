@@ -901,6 +901,11 @@ describe("import:legacy-procomun — cada recurso pasa a la cuenta de su autor (
 		es_autor_cuatro: "autora.cuatro@issue456.test",
 	} as const;
 	type SourceId = keyof typeof SOURCES;
+	const legacyUidsByEmail = new Map([
+		[SOURCES.es_autor_tres, ["45601"]],
+		[SOURCES.es_autor_dos, ["45602"]],
+		[SOURCES.es_autor_cuatro, ["45604"]],
+	]);
 
 	async function insertAccount(id: string, email: string) {
 		await deps.getDb().db.insert(user).values({
@@ -965,19 +970,22 @@ describe("import:legacy-procomun — cada recurso pasa a la cuenta de su autor (
 		}
 
 		// La cuenta guarda el correo con otras mayúsculas que el JSON.
-		await insertAccount("issue456-uno", "AUTORA.uno@issue456.test");
+		await insertAccount(
+			"legacy-procomun:user:45601",
+			"AUTORA.uno@issue456.test",
+		);
 	});
 
 	test("--dry-run dice a quién pasaría cada recurso y no escribe", async () => {
 		const report = await runImportLegacyProcomun(
-			{ sourceDir, dryRun: true },
+			{ sourceDir, legacyUidsByEmail, dryRun: true },
 			deps,
 		);
 
 		const byId = new Map(report.records.map((r) => [r.externalId, r]));
 		expect(byId.get("es_autor_uno")).toMatchObject({
 			outcome: "would_import",
-			createdBy: "issue456-uno",
+			createdBy: "legacy-procomun:user:45601",
 		});
 		expect(byId.get("es_autor_dos")).toMatchObject({
 			outcome: "would_import",
@@ -989,7 +997,7 @@ describe("import:legacy-procomun — cada recurso pasa a la cuenta de su autor (
 
 	test("la importación asigna la cuenta con ese correo y deja el resto a nombre del sistema", async () => {
 		const report = await runImportLegacyProcomun(
-			{ sourceDir, dryRun: false },
+			{ sourceDir, legacyUidsByEmail, dryRun: false },
 			deps,
 		);
 
@@ -1009,12 +1017,12 @@ describe("import:legacy-procomun — cada recurso pasa a la cuenta de su autor (
 
 		const uno = await rowOf("es_autor_uno");
 		expect(uno).toMatchObject({
-			createdBy: "issue456-uno",
+			createdBy: "legacy-procomun:user:45601",
 			author: "Autora en texto",
 			publisher: "Publicadora en texto",
 		});
 		const tres = await rowOf("es_autor_tres");
-		expect(tres?.createdBy).toBe("issue456-uno");
+		expect(tres?.createdBy).toBe("legacy-procomun:user:45601");
 		expect((await rowOf("es_autor_dos"))?.createdBy).toBeNull();
 
 		// El paquete lo subió el importador: su sesión de subida no cambia.
@@ -1027,7 +1035,7 @@ describe("import:legacy-procomun — cada recurso pasa a la cuenta de su autor (
 
 		// «Mis recursos» de la autora, borradores incluidos.
 		const mine = await listResources(deps.getDb().db, {
-			createdBy: "issue456-uno",
+			createdBy: "legacy-procomun:user:45601",
 			limit: 100,
 		});
 		expect(mine.data.map((r) => r.id).sort()).toEqual(
@@ -1035,11 +1043,42 @@ describe("import:legacy-procomun — cada recurso pasa a la cuenta de su autor (
 		);
 	});
 
+	test("un correo fuera del volcado no se atribuye al titular actual al importar ni reenlazar", async () => {
+		await insertAccount("titular-actual", SOURCES.es_autor_cuatro);
+		const incompleteIndex = new Map(legacyUidsByEmail);
+		incompleteIndex.delete(SOURCES.es_autor_cuatro);
+		const only = "es_autor_cuatro";
+		const importing = await runImportLegacyProcomun(
+			{ sourceDir, dryRun: false, only, legacyUidsByEmail: incompleteIndex },
+			deps,
+		);
+		const linking = await runLinkLegacyAuthors(
+			{
+				sourceDir: jsonOnlyDir,
+				dryRun: false,
+				legacyUidsByEmail: incompleteIndex,
+			},
+			deps,
+		);
+		for (const report of [importing, linking]) {
+			expect(report.authorsWithoutAccount).toContainEqual({
+				externalId: only,
+				reason: "no_legacy_uid",
+			});
+			expect(JSON.stringify(report)).not.toContain(SOURCES.es_autor_cuatro);
+		}
+		expect((await rowOf(only))?.createdBy).toBeNull();
+		await deps.getDb().db.delete(user).where(eq(user.id, "titular-actual"));
+	});
+
 	test("--link-authors enlaza lo ya importado con solo los .json; en seco no escribe", async () => {
-		await insertAccount("issue456-dos", "autora.dos@issue456.test");
+		await insertAccount(
+			"legacy-procomun:user:45602",
+			"autora.dos@issue456.test",
+		);
 
 		const dry = await runLinkLegacyAuthors(
-			{ sourceDir: jsonOnlyDir, dryRun: true },
+			{ sourceDir: jsonOnlyDir, legacyUidsByEmail, dryRun: true },
 			deps,
 		);
 		expect(dry.totals).toMatchObject({
@@ -1052,7 +1091,7 @@ describe("import:legacy-procomun — cada recurso pasa a la cuenta de su autor (
 		expect((await rowOf("es_autor_dos"))?.createdBy).toBeNull();
 
 		const real = await runLinkLegacyAuthors(
-			{ sourceDir: jsonOnlyDir, dryRun: false },
+			{ sourceDir: jsonOnlyDir, legacyUidsByEmail, dryRun: false },
 			deps,
 		);
 		expect(real.totals.linked).toBe(1);
@@ -1060,7 +1099,7 @@ describe("import:legacy-procomun — cada recurso pasa a la cuenta de su autor (
 			externalId: "es_autor_dos",
 			outcome: "linked",
 			resourceId: (await rowOf("es_autor_dos"))?.id as string,
-			userId: "issue456-dos",
+			userId: "legacy-procomun:user:45602",
 		});
 		expect(real.authorsWithoutAccount).toEqual([
 			{
@@ -1069,16 +1108,19 @@ describe("import:legacy-procomun — cada recurso pasa a la cuenta de su autor (
 			},
 		]);
 		expect(await rowOf("es_autor_dos")).toMatchObject({
-			createdBy: "issue456-dos",
+			createdBy: "legacy-procomun:user:45602",
 			author: "Autora en texto",
 		});
 	});
 
 	test("reimportar enlaza las cuentas creadas después; repetirlo no cambia nada", async () => {
-		await insertAccount("issue456-cuatro", "autora.cuatro@issue456.test");
+		await insertAccount(
+			"legacy-procomun:user:45604",
+			"autora.cuatro@issue456.test",
+		);
 
 		const rerun = await runImportLegacyProcomun(
-			{ sourceDir, dryRun: false },
+			{ sourceDir, legacyUidsByEmail, dryRun: false },
 			deps,
 		);
 		expect(rerun.totals.imported).toBe(0);
@@ -1092,10 +1134,12 @@ describe("import:legacy-procomun — cada recurso pasa a la cuenta de su autor (
 			externalId: "es_autor_cuatro",
 			authorLink: "linked",
 		});
-		expect((await rowOf("es_autor_cuatro"))?.createdBy).toBe("issue456-cuatro");
+		expect((await rowOf("es_autor_cuatro"))?.createdBy).toBe(
+			"legacy-procomun:user:45604",
+		);
 
 		const again = await runImportLegacyProcomun(
-			{ sourceDir, dryRun: false },
+			{ sourceDir, legacyUidsByEmail, dryRun: false },
 			deps,
 		);
 		expect(again.totals.authorLinked).toBe(0);
@@ -1106,7 +1150,7 @@ describe("import:legacy-procomun — cada recurso pasa a la cuenta de su autor (
 			),
 		).toBe(true);
 		const linkAgain = await runLinkLegacyAuthors(
-			{ sourceDir: jsonOnlyDir, dryRun: false },
+			{ sourceDir: jsonOnlyDir, legacyUidsByEmail, dryRun: false },
 			deps,
 		);
 		expect(linkAgain.totals).toMatchObject({ linked: 0, alreadyLinked: 4 });
@@ -1122,7 +1166,7 @@ describe("import:legacy-procomun — cada recurso pasa a la cuenta de su autor (
 			.where(eq(resources.id, tres?.id as string));
 
 		const linked = await runLinkLegacyAuthors(
-			{ sourceDir: jsonOnlyDir, dryRun: false },
+			{ sourceDir: jsonOnlyDir, legacyUidsByEmail, dryRun: false },
 			deps,
 		);
 		expect(linked.totals.keptCreator).toBe(1);
@@ -1130,12 +1174,12 @@ describe("import:legacy-procomun — cada recurso pasa a la cuenta de su autor (
 			externalId: "es_autor_tres",
 			outcome: "kept_creator",
 			resourceId: tres?.id as string,
-			userId: "issue456-uno",
+			userId: "legacy-procomun:user:45601",
 			createdBy: "issue456-editora",
 		});
 
 		const rerun = await runImportLegacyProcomun(
-			{ sourceDir, dryRun: false },
+			{ sourceDir, legacyUidsByEmail, dryRun: false },
 			deps,
 		);
 		expect(
@@ -1157,6 +1201,10 @@ describe("import:legacy-procomun — artículos (issue #446)", () => {
 	);
 	const PUBLISHED = "1400000000001";
 	const DRAFT = "ArtBorrador000000001";
+	const legacyUidsByEmail = new Map([
+		["articulista.uno@ejemplo.test", ["44601"]],
+		["articulista.dos@ejemplo.test", ["44602"]],
+	]);
 
 	async function insertAccount(id: string, email: string) {
 		await deps.getDb().db.insert(user).values({
@@ -1211,12 +1259,15 @@ describe("import:legacy-procomun — artículos (issue #446)", () => {
 			);
 		}
 		// Solo la autora del artículo publicado tiene cuenta, con otras mayúsculas.
-		await insertAccount("issue446-uno", "ARTICULISTA.uno@ejemplo.test");
+		await insertAccount(
+			"legacy-procomun:user:44601",
+			"ARTICULISTA.uno@ejemplo.test",
+		);
 	});
 
 	test("--dry-run: el artículo con cuenta se importaría, el otro no, y no escribe nada", async () => {
 		const report = await runImportLegacyProcomun(
-			{ sourceDir, dryRun: true },
+			{ sourceDir, legacyUidsByEmail, dryRun: true },
 			deps,
 		);
 
@@ -1232,7 +1283,7 @@ describe("import:legacy-procomun — artículos (issue #446)", () => {
 
 	test("importa el artículo con cuenta como «Artículo» de su autora y deja fuera el que no la tiene", async () => {
 		const report = await runImportLegacyProcomun(
-			{ sourceDir, dryRun: false },
+			{ sourceDir, legacyUidsByEmail, dryRun: false },
 			deps,
 		);
 
@@ -1253,7 +1304,7 @@ describe("import:legacy-procomun — artículos (issue #446)", () => {
 		expect(await rowOf(DRAFT)).toBeNull();
 
 		expect(await rowOf(PUBLISHED)).toMatchObject({
-			createdBy: "issue446-uno",
+			createdBy: "legacy-procomun:user:44601",
 			resourceType: "articulo",
 			license: "cc-by",
 			description: "Artículo relacionado con Aula invertida",
@@ -1288,10 +1339,13 @@ describe("import:legacy-procomun — artículos (issue #446)", () => {
 	});
 
 	test("con la cuenta ya creada, reimportar trae el borrador como borrador de su autora; repetirlo no cambia nada", async () => {
-		await insertAccount("issue446-dos", "articulista.dos@ejemplo.test");
+		await insertAccount(
+			"legacy-procomun:user:44602",
+			"articulista.dos@ejemplo.test",
+		);
 
 		const rerun = await runImportLegacyProcomun(
-			{ sourceDir, dryRun: false },
+			{ sourceDir, legacyUidsByEmail, dryRun: false },
 			deps,
 		);
 		expect(rerun.totals).toMatchObject({
@@ -1301,13 +1355,13 @@ describe("import:legacy-procomun — artículos (issue #446)", () => {
 			skippedWithoutAuthor: 0,
 		});
 		expect(await rowOf(DRAFT)).toMatchObject({
-			createdBy: "issue446-dos",
+			createdBy: "legacy-procomun:user:44602",
 			editorialStatus: "draft",
 			resourceType: "articulo",
 		});
 		// «Mis recursos» de la autora incluye su borrador.
 		const mine = await listResources(deps.getDb().db, {
-			createdBy: "issue446-dos",
+			createdBy: "legacy-procomun:user:44602",
 			limit: 100,
 		});
 		expect(mine.data.map((r) => r.id)).toEqual([
@@ -1323,7 +1377,7 @@ describe("import:legacy-procomun — artículos (issue #446)", () => {
 		);
 
 		const again = await runImportLegacyProcomun(
-			{ sourceDir, dryRun: false },
+			{ sourceDir, legacyUidsByEmail, dryRun: false },
 			deps,
 		);
 		expect(again.totals).toMatchObject({

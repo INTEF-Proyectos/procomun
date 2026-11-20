@@ -11,6 +11,7 @@
 		"./repository": "./src/repository.ts",
 		"./validation": "./src/validation.ts",
 		"./validation-seal": "./src/validation-seal.ts",
+		"./user-profile": "./src/user-profile.ts",
 		"./seed-data": "./src/seed-data.ts",
 		"./seed-random": "./src/seed-random.ts",
 		"./elpx-metadata": "./src/elpx-metadata.ts",
