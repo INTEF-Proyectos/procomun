@@ -1,7 +1,8 @@
-import { and, asc, eq, isNull, sql } from "drizzle-orm";
+import { and, asc, eq, isNull, or, sql } from "drizzle-orm";
 import { user } from "../schema/auth.ts";
 import { collectionResources } from "../schema/collections.ts";
 import { resources } from "../schema/resources.ts";
+import { hasMinRole } from "../validation.ts";
 import { andWhere, type DrizzleDB, normalizePagination } from "./shared.ts";
 
 async function getNextCollectionResourcePosition(
@@ -56,19 +57,34 @@ export async function removeResourceFromCollection(
 export async function listCollectionResources(
 	db: DrizzleDB,
 	collectionId: string,
-	opts: { limit?: number; offset?: number; status?: string } = {},
+	opts: {
+		limit?: number;
+		offset?: number;
+		status?: string;
+		viewer?: { id: string; role?: string | null } | null;
+	} = {},
 ) {
 	const { limit, offset } = normalizePagination(
 		opts.limit ?? 100,
 		opts.offset,
 		100,
 	);
-	const conditions = [
+	const conditions: ReturnType<typeof or>[] = [
 		eq(collectionResources.collectionId, collectionId),
 		isNull(resources.deletedAt),
 	];
 
 	if (opts.status) conditions.push(eq(resources.editorialStatus, opts.status));
+	const viewer = opts.viewer;
+	if (viewer !== undefined && !hasMinRole(viewer?.role, "admin")) {
+		const visible =
+			viewer && hasMinRole(viewer.role, "curator")
+				? sql`${resources.editorialStatus} is distinct from 'draft'`
+				: eq(resources.editorialStatus, "published");
+		conditions.push(
+			viewer ? or(visible, eq(resources.createdBy, viewer.id)) : visible,
+		);
+	}
 
 	return db
 		.select({

@@ -319,18 +319,19 @@ describe("quién recibe el enlace firmado (CA-1, CA-2, CA-4)", () => {
 		});
 	});
 
-	test("el panel de la autora firma sus recursos no publicados", async () => {
+	// #530: el panel ya no lista recursos; «Mis recursos» los pagina aparte.
+	test("«Mis recursos» de la autora firma sus recursos no publicados", async () => {
 		const body = await as(AUTHOR, async () => {
-			const res = await get("/api/v1/users/me/dashboard");
+			const res = await get("/api/v1/users/me/resources?limit=50");
 			expect(res.status).toBe(200);
 			return (await res.json()) as {
-				recentResources: Array<{
+				data: Array<{
 					id: string;
 					elpxPreview: { thumbnailUrl: string | null } | null;
 				}>;
 			};
 		});
-		const byId = new Map(body.recentResources.map((row) => [row.id, row]));
+		const byId = new Map(body.data.map((row) => [row.id, row]));
 		for (const status of ["draft", "review", "archived"] as const) {
 			const row = byId.get(seeded[status].resourceId);
 			await expectSignedServes(
@@ -421,7 +422,40 @@ describe("quién recibe el enlace firmado (CA-1, CA-2, CA-4)", () => {
 		await expectSignedServes(detail.thumbnailUrl, seeded.draft.legacyFile);
 	});
 
-	test("las colecciones de administración no dan la miniatura de un borrador ajeno", async () => {
+	test("una autora ve sus borradores y lo publicado en su colección", async () => {
+		const db = getDb().db;
+		const collection = await repo.createCollection(db, {
+			title: "Colección importada de la autora",
+			description: "Incluye recursos con distintos permisos",
+			curatorId: AUTHOR_ID,
+		});
+		const draft = await repo.createResource(db, {
+			title: "Borrador ajeno",
+			description: "Privado",
+			language: "es",
+			license: "cc-by",
+			resourceType: "actividad-interactiva",
+			createdBy: STRANGER_ID,
+		});
+		for (const resourceId of [
+			draft.id,
+			seeded.draft.resourceId,
+			seeded.published.resourceId,
+		]) {
+			await repo.addResourceToCollection(db, collection.id, resourceId);
+		}
+		const response = await createAdminApp(AUTHOR).request(
+			`/api/admin/collections/${collection.id}/resources`,
+		);
+		expect(response.status).toBe(200);
+		const rows = (await response.json()) as Array<{ resourceId: string }>;
+		expect(rows.map((row) => row.resourceId)).toEqual([
+			seeded.draft.resourceId,
+			seeded.published.resourceId,
+		]);
+	});
+
+	test("las colecciones de administración ocultan el borrador ajeno", async () => {
 		const db = getDb().db;
 		const collection = await repo.createCollection(db, {
 			title: `Colección ${WORD}`,
@@ -445,7 +479,7 @@ describe("quién recibe el enlace firmado (CA-1, CA-2, CA-4)", () => {
 		}>;
 		const byId = new Map(rows.map((row) => [row.resourceId, row]));
 		// #460: el borrador de otra persona es privado de su autora.
-		expect(byId.get(seeded.draft.resourceId)?.thumbnailUrl).toBeNull();
+		expect(byId.has(seeded.draft.resourceId)).toBe(false);
 		await expectSignedServes(
 			byId.get(seeded.archived.resourceId)?.thumbnailUrl,
 			seeded.archived.legacyFile,

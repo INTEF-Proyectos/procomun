@@ -10,6 +10,7 @@ export const CLI_COMMANDS = [
 	"fts:reindex",
 	"import:legacy-procomun",
 	"import:legacy-users",
+	"import:legacy-itineraries",
 	"elpx:screenshots",
 	"elpx:thumbnails",
 	"catalog:area-keywords",
@@ -32,6 +33,9 @@ const commandLoaders: Record<
 		(await import("./commands/import-legacy-procomun.ts")).importLegacyProcomun,
 	"import:legacy-users": async () =>
 		(await import("./commands/import-legacy-users.ts")).importLegacyUsers,
+	"import:legacy-itineraries": async () =>
+		(await import("./commands/import-legacy-itineraries.ts"))
+			.importLegacyItineraries,
 	"elpx:screenshots": async () =>
 		(await import("./commands/elpx-screenshots.ts")).elpxScreenshots,
 	"elpx:thumbnails": async () =>
@@ -57,7 +61,7 @@ export function printHelp(log: Pick<typeof console, "log"> = console) {
 	);
 	log.log("  fts:reindex       Reindexar search_vector de todos los recursos");
 	log.log(
-		"  import:legacy-procomun --source-dir <ruta> [--dry-run] [--limit <n>] [--only <externalId>] [--report-dir <ruta>]",
+		"  import:legacy-procomun --source-dir <ruta> --users-file <usuarios.json> [--dry-run] [--limit <n>] [--only <externalId>] [--report-dir <ruta>]",
 	);
 	log.log(
 		"                    Importa recursos y artículos legacy de Procomún (pares .json+.elpx), ver ADR-0029",
@@ -75,10 +79,10 @@ export function printHelp(log: Pick<typeof console, "log"> = console) {
 		"                    Copia a nuestro almacenamiento las miniaturas legacy enlazadas en caliente (#409)",
 	);
 	log.log(
-		"  import:legacy-procomun --link-authors --source-dir <ruta> [--dry-run] [--report-dir <ruta>] [--restricted-report <ruta>]",
+		"  import:legacy-procomun --link-authors --source-dir <ruta> --users-file <usuarios.json> [--dry-run] [--report-dir <ruta>] [--restricted-report <ruta>]",
 	);
 	log.log(
-		"                    Pasa lo ya importado a la cuenta de su autor por publicatorEmailStr; solo lee los .json (#456)",
+		"                    Pasa lo ya importado a la cuenta de su autor por el UID del volcado de usuarios; no necesita los .elpx (#600)",
 	);
 	log.log(
 		"  import:legacy-users --source-file <usuarios.json> [--dry-run] [--limit <n>] [--report-dir <ruta>]",
@@ -88,6 +92,12 @@ export function printHelp(log: Pick<typeof console, "log"> = console) {
 	);
 	log.log(
 		"                    Pasa a editor las cuentas legacy importadas como author (#507)",
+	);
+	log.log(
+		"  import:legacy-itineraries --source-file <itinerarios.json> [--dry-run] [--limit <n>] [--only <id>] [--report-dir <ruta>]",
+	);
+	log.log(
+		"                    Importa los itinerarios legacy como colecciones de su autor; antes, los recursos (#432)",
 	);
 	log.log(
 		"  elpx:screenshots [--dry-run]  Detecta screenshot.png en los paquetes ya subidos (#409)",

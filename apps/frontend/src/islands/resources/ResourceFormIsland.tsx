@@ -8,9 +8,9 @@ import { getApiClient } from "../../lib/get-api-client.ts";
 import { url } from "../../lib/paths.ts";
 import { hasMinRole } from "../../lib/shared-utils.ts";
 import { AccessibleFeedback } from "../shared/AccessibleFeedback.tsx";
+import { LicenseSelectOptions } from "./LicenseSelectOptions.tsx";
 import {
 	LANGUAGE_OPTIONS,
-	LICENSE_OPTIONS,
 	RESOURCE_TYPE_OPTIONS,
 } from "./resource-form-options.ts";
 
@@ -324,11 +324,7 @@ export function ResourceFormIsland({
 								setFieldValue("license", event.currentTarget.value)
 							}
 						>
-							{LICENSE_OPTIONS.map((option) => (
-								<option key={option.value} value={option.value}>
-									{option.label}
-								</option>
-							))}
+							<LicenseSelectOptions />
 						</select>
 						<span id="license-error" className="field-error" role="alert">
 							{fieldErrors.license ?? ""}

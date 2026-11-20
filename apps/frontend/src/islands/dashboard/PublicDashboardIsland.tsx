@@ -1,5 +1,15 @@
+import {
+	EMPTY_PROFILE_DETAILS,
+	PROFILE_DETAIL_FIELDS,
+	PROFILE_LIMITS,
+	type ProfileDetails,
+} from "@procomun/db/user-profile";
 import { useCallback, useEffect, useState } from "react";
-import type { Resource, SessionUser } from "../../lib/api-client.ts";
+import type {
+	MyProfileUpdate,
+	Resource,
+	SessionUser,
+} from "../../lib/api-client.ts";
 import { getApiClient } from "../../lib/get-api-client.ts";
 import { gravatarUrl } from "../../lib/gravatar.ts";
 import { url } from "../../lib/paths.ts";
@@ -19,7 +29,16 @@ import { ResourceGrid } from "../../ui/ResourceGrid.tsx";
 import { Skeleton } from "../../ui/Skeleton.tsx";
 import { Tabs } from "../../ui/Tabs.tsx";
 import { UserAvatar } from "../../ui/UserAvatar.tsx";
+import { AccountTab } from "./AccountTab.tsx";
 import { ApiKeysTab } from "./ApiKeysTab.tsx";
+import { MyResourcesTab } from "./MyResourcesTab.tsx";
+import {
+	errorsByField,
+	FieldError,
+	ProfileDetailsFields,
+	ProfileDetailsView,
+	type ProfileFormErrors,
+} from "./ProfileDetails.tsx";
 import "./PublicDashboardIsland.css";
 import "../../lib/paraglide-client.ts";
 import * as m from "../../paraglide/messages.js";
@@ -40,6 +59,35 @@ export function withFavoriteCount(
 	};
 }
 
+/**
+ * Contadores de «Mis recursos» del resumen (#530). El total es la suma de los
+ * cuatro estados: antes solo sumaba publicados y borradores.
+ */
+export function dashboardResourceCounts(data: {
+	draftCount?: number;
+	publishedCount?: number;
+	reviewCount?: number;
+	archivedCount?: number;
+	resourceCount?: number;
+}): Pick<
+	DashboardSummary,
+	"draftCount" | "publishedCount" | "reviewCount" | "archivedCount"
+> & { resourceCount: number } {
+	const draftCount = Number(data.draftCount ?? 0);
+	const publishedCount = Number(data.publishedCount ?? 0);
+	const reviewCount = Number(data.reviewCount ?? 0);
+	const archivedCount = Number(data.archivedCount ?? 0);
+	return {
+		draftCount,
+		publishedCount,
+		reviewCount,
+		archivedCount,
+		resourceCount:
+			data.resourceCount ??
+			draftCount + publishedCount + reviewCount + archivedCount,
+	};
+}
+
 /** El avatar del perfil mide 6rem (96 px): se pide al doble para pantallas densas. */
 const PROFILE_AVATAR_SIZE = 192;
 
@@ -52,6 +100,20 @@ export function profileAvatarUrl(
 ): Promise<string | null> {
 	return gravatarUrl(user.email, PROFILE_AVATAR_SIZE);
 }
+
+/**
+ * Pestañas a las que se puede entrar con `?tab=`. #532: el enlace que verifica
+ * un correo nuevo vuelve a `/perfil?tab=account`; si `account` no estuviera
+ * aquí, caería en la pestaña por defecto sin avisar.
+ */
+export const PROFILE_TABS: readonly string[] = [
+	"resources",
+	"favorites",
+	"ratings",
+	"activity",
+	"api-keys",
+	"account",
+];
 
 export function hasEmailVerificationSuccess(search: string): boolean {
 	return new URLSearchParams(search).get("verified") === "1";
@@ -383,6 +445,31 @@ function ActivityTab() {
 interface ProfileEditState {
 	name: string;
 	bio: string;
+	/** Centro, localidad y redes (#533). */
+	details: ProfileDetails;
+}
+
+/**
+ * Solo lo que el usuario ha cambiado respecto a lo que se cargó (revisión de
+ * #586). Así, si la lectura del perfil falló, guardar el nombre no vacía la
+ * bio ni los datos ampliados, y un país importado que la lista no tiene (XK)
+ * no impide guardar el resto.
+ */
+export function profileChanges(
+	original: ProfileEditState,
+	form: ProfileEditState,
+): MyProfileUpdate {
+	const changes: MyProfileUpdate = {};
+	if (form.name !== original.name) changes.name = form.name;
+	if (form.bio !== original.bio) changes.bio = form.bio;
+	const profile: Partial<ProfileDetails> = {};
+	for (const field of PROFILE_DETAIL_FIELDS) {
+		if ((form.details[field] ?? "") !== (original.details[field] ?? "")) {
+			profile[field] = form.details[field];
+		}
+	}
+	if (Object.keys(profile).length > 0) changes.profile = profile;
+	return changes;
 }
 
 export function PublicDashboardIsland() {
@@ -395,11 +482,23 @@ export function PublicDashboardIsland() {
 	const [editForm, setEditForm] = useState<ProfileEditState>({
 		name: "",
 		bio: "",
+		details: EMPTY_PROFILE_DETAILS,
 	});
+	// Valores con los que se abrió el formulario: se envía solo lo que cambia.
+	const [editOriginal, setEditOriginal] = useState<ProfileEditState>(editForm);
+	// getMyProfile() falló: la bio y los datos ampliados no se conocen.
+	const [profileLoadFailed, setProfileLoadFailed] = useState(false);
+	const [profileDetails, setProfileDetails] = useState<ProfileDetails>(
+		EMPTY_PROFILE_DETAILS,
+	);
+	const [fieldErrors, setFieldErrors] = useState<ProfileFormErrors>({});
 	const [saving, setSaving] = useState(false);
 	const [saveMessage, setSaveMessage] = useState("");
 	const [emailVerificationSuccess, setEmailVerificationSuccess] =
 		useState(false);
+	// #532: el correo de la sesión, para la pestaña «Cuenta». El perfil público
+	// (dashboard.user) no lo lleva, a propósito.
+	const [sessionEmail, setSessionEmail] = useState("");
 	const [badgeConfig, setBadgeConfig] =
 		useState<import("../../lib/api-client.ts").BadgeConfig>(
 			DEFAULT_BADGE_CONFIG,
@@ -420,6 +519,7 @@ export function PublicDashboardIsland() {
 			}
 
 			const { user } = session;
+			setSessionEmail(user.email);
 			if (hasEmailVerificationSuccess(window.location.search)) {
 				setEmailVerificationSuccess(true);
 				window.history.replaceState({}, "", url("perfil"));
@@ -430,17 +530,22 @@ export function PublicDashboardIsland() {
 				api.getUserDashboard().catch(() => ({
 					draftCount: 0,
 					publishedCount: 0,
+					reviewCount: 0,
+					archivedCount: 0,
+					resourceCount: 0,
 					favoriteCount: 0,
 					ratingCount: 0,
-					recentResources: [] as Resource[],
 				})),
 				api.getBadgeConfig().catch(() => null),
-				api.getMyProfile().catch(() => null),
+				api.getMyProfile().catch(() => undefined),
 				profileAvatarUrl(user),
 			]);
 			if (config) setBadgeConfig(config);
+			setProfileLoadFailed(profile === undefined);
+			setProfileDetails(profile?.profile ?? EMPTY_PROFILE_DETAILS);
 
 			const nextFavoriteCount = dashData.favoriteCount ?? 0;
+			const counts = dashboardResourceCounts(dashData);
 			setDashboard({
 				user: {
 					id: user.id,
@@ -452,20 +557,11 @@ export function PublicDashboardIsland() {
 					avatarUrl,
 					bio: profile?.bio ?? null,
 					role: user.role,
-					resourceCount:
-						(dashData.draftCount ?? 0) + (dashData.publishedCount ?? 0),
+					resourceCount: counts.resourceCount,
 					favoriteCount: nextFavoriteCount,
 					joinedAt: "",
 				},
-				recentResources: ((dashData.recentResources ?? []) as Resource[]).map(
-					(r) => ({
-						...r,
-						author: r.createdByName || r.author || null,
-						createdAt: typeof r.createdAt === "string" ? r.createdAt : "",
-					}),
-				),
-				draftCount: dashData.draftCount ?? 0,
-				publishedCount: dashData.publishedCount ?? 0,
+				...counts,
 				favoriteCount: nextFavoriteCount,
 				recentActivity: [], // loaded lazily by ActivityTab
 			});
@@ -533,17 +629,22 @@ export function PublicDashboardIsland() {
 
 	function startEditing() {
 		if (!dashboard) return;
-		setEditForm({
+		const initial = {
 			name: dashboard.user.name || "",
 			bio: dashboard.user.bio || "",
-		});
+			details: profileDetails,
+		};
+		setEditForm(initial);
+		setEditOriginal(initial);
 		setEditing(true);
 		setSaveMessage("");
+		setFieldErrors({});
 	}
 
 	function cancelEditing() {
 		setEditing(false);
 		setSaveMessage("");
+		setFieldErrors({});
 	}
 
 	async function handleSave() {
@@ -553,22 +654,32 @@ export function PublicDashboardIsland() {
 
 		try {
 			const api = await getApiClient();
-			const result = await api.updateMyProfile({
-				name: editForm.name,
-				bio: editForm.bio,
-			});
+			const result = await api.updateMyProfile(
+				profileChanges(editOriginal, editForm),
+			);
+			if (!result.ok && result.fieldErrors?.length) {
+				// #533: la API valida; se señalan los campos sin salir de la edición.
+				setFieldErrors(errorsByField(result.fieldErrors));
+				setSaveMessage(m.profile_save_invalid());
+				return;
+			}
 			if (!result.ok) {
 				throw new Error(result.error ?? "Error al actualizar perfil");
 			}
 
+			// Lo guardado sale normalizado (espacios, https://, país en mayúsculas).
+			const saved = await api.getMyProfile().catch(() => null);
 			setDashboard({
 				...dashboard,
 				user: {
 					...dashboard.user,
-					name: editForm.name,
-					bio: editForm.bio,
+					name: saved?.name || editForm.name.trim(),
+					bio: saved ? saved.bio : editForm.bio,
 				},
 			});
+			setProfileDetails(saved?.profile ?? editForm.details);
+			if (saved) setProfileLoadFailed(false);
+			setFieldErrors({});
 			setEditing(false);
 			setSaveMessage(m.profile_saved_ok());
 			setTimeout(() => setSaveMessage(""), 3000);
@@ -605,13 +716,7 @@ export function PublicDashboardIsland() {
 		typeof window !== "undefined"
 			? new URLSearchParams(window.location.search).get("tab")
 			: null;
-	const validTabs = [
-		"resources",
-		"favorites",
-		"ratings",
-		"activity",
-		"api-keys",
-	];
+	const validTabs = PROFILE_TABS;
 	const defaultTab =
 		tabParam && validTabs.includes(tabParam)
 			? tabParam === "api-keys" && !hasMinRole(user.role, "author")
@@ -624,64 +729,13 @@ export function PublicDashboardIsland() {
 			id: "resources",
 			label: m.profile_my_resources(),
 			icon: "library_books",
-			count: dashboard.publishedCount + dashboard.draftCount,
+			count: dashboard.resourceCount,
 			content: (
-				<div className="dashboard-tab-content">
-					<div className="dashboard-tab-header">
-						<span>
-							{m.profile_resources_count({
-								count: String(dashboard.publishedCount + dashboard.draftCount),
-							})}
-						</span>
-						<a href={url("nuevo")} className="dashboard-create-btn">
-							<span className="material-symbols-outlined" aria-hidden="true">
-								add
-							</span>
-							{m.profile_new_resource()}
-						</a>
-					</div>
-					{dashboard.recentResources.length > 0 ? (
-						<ResourceGrid>
-							{dashboard.recentResources.map((resource) => (
-								<div key={resource.id} className="dashboard-resource-wrap">
-									<ResourceCard
-										resource={resource}
-										href={url(`recurso?slug=${resource.slug}`)}
-										badges={[
-											...computeResourceBadges(resource, badgeConfig),
-											...(resource.editorialStatus === "draft"
-												? [{ text: "Borrador", variant: "draft" as const }]
-												: []),
-											...(resource.editorialStatus === "review"
-												? [{ text: "En revisión", variant: "review" as const }]
-												: []),
-										]}
-									/>
-									<a
-										href={url(`editar?id=${resource.id}`)}
-										className="dashboard-edit-icon"
-										aria-label={m.profile_edit_resource({
-											title: resource.title,
-										})}
-									>
-										<span className="material-symbols-outlined">edit</span>
-									</a>
-								</div>
-							))}
-						</ResourceGrid>
-					) : (
-						<EmptyState
-							icon="note_add"
-							title={m.profile_no_resources()}
-							description={m.profile_no_resources_desc()}
-							action={
-								<a href={url("nuevo")} className="dashboard-create-btn">
-									{m.profile_create_resource()}
-								</a>
-							}
-						/>
-					)}
-				</div>
+				<MyResourcesTab
+					user={{ id: user.id, role: user.role }}
+					badgeConfig={badgeConfig}
+					onChanged={() => void refreshDashboard({ silent: true })}
+				/>
 			),
 		},
 		{
@@ -723,6 +777,15 @@ export function PublicDashboardIsland() {
 			content: <ApiKeysTab />,
 		});
 	}
+
+	// #532: la última, para todos los roles. La propia pestaña decide si
+	// ofrece los formularios (no en las cuentas de acceso institucional).
+	tabs.push({
+		id: "account",
+		label: m.account_tab_title(),
+		icon: "manage_accounts",
+		content: <AccountTab email={sessionEmail} />,
+	});
 
 	return (
 		<div className="dashboard-public">
@@ -776,6 +839,7 @@ export function PublicDashboardIsland() {
 											{m.profile_no_bio()}
 										</p>
 									)}
+									<ProfileDetailsView details={profileDetails} />
 								</div>
 								<button
 									className="dashboard-edit-btn"
@@ -801,6 +865,16 @@ export function PublicDashboardIsland() {
 									<strong>{dashboard.draftCount}</strong> {m.profile_drafts()}
 								</span>
 								<span className="dashboard-stat">
+									<strong>{dashboard.reviewCount}</strong>{" "}
+									{m.profile_in_review()}
+								</span>
+								{dashboard.archivedCount > 0 ? (
+									<span className="dashboard-stat">
+										<strong>{dashboard.archivedCount}</strong>{" "}
+										{m.profile_archived()}
+									</span>
+								) : null}
+								<span className="dashboard-stat">
 									<strong>{dashboard.favoriteCount}</strong> {m.nav_favorites()}
 								</span>
 							</div>
@@ -819,6 +893,17 @@ export function PublicDashboardIsland() {
 					) : (
 						/* --- Edit mode --- */
 						<div className="dashboard-edit-form">
+							{profileLoadFailed && (
+								<p className="dashboard-details-note" role="status">
+									<span
+										className="material-symbols-outlined"
+										aria-hidden="true"
+									>
+										info
+									</span>
+									{m.profile_load_partial()}
+								</p>
+							)}
 							<div className="dashboard-edit-field">
 								<label htmlFor="profile-name">{m.profile_name_label()}</label>
 								<input
@@ -830,7 +915,15 @@ export function PublicDashboardIsland() {
 									}
 									placeholder={m.profile_name_placeholder()}
 									disabled={saving}
+									required
+									maxLength={PROFILE_LIMITS.name}
+									autoComplete="name"
+									aria-invalid={fieldErrors.name ? true : undefined}
+									aria-describedby={
+										fieldErrors.name ? "profile-name-error" : undefined
+									}
 								/>
+								<FieldError id="profile-name-error" code={fieldErrors.name} />
 							</div>
 							<div className="dashboard-edit-field">
 								<label htmlFor="profile-bio">{m.profile_bio_label()}</label>
@@ -843,8 +936,34 @@ export function PublicDashboardIsland() {
 									placeholder={m.profile_bio_placeholder()}
 									rows={3}
 									disabled={saving}
+									maxLength={PROFILE_LIMITS.bio}
+									aria-invalid={fieldErrors.bio ? true : undefined}
+									aria-describedby={
+										fieldErrors.bio ? "profile-bio-error" : undefined
+									}
 								/>
+								<FieldError id="profile-bio-error" code={fieldErrors.bio} />
 							</div>
+							<ProfileDetailsFields
+								value={editForm.details}
+								onChange={(details) => setEditForm({ ...editForm, details })}
+								errors={fieldErrors}
+								disabled={saving}
+							/>
+							{saveMessage && (
+								<div
+									className="dashboard-save-message dashboard-save-message--error"
+									role="alert"
+								>
+									<span
+										className="material-symbols-outlined"
+										aria-hidden="true"
+									>
+										error
+									</span>
+									{saveMessage}
+								</div>
+							)}
 							<div className="dashboard-edit-actions">
 								<button
 									className="dashboard-edit-cancel"

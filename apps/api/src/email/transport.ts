@@ -216,6 +216,29 @@ export function getEmailTransport(env: RuntimeEnv = process.env): EmailPort {
 }
 
 /**
+ * Envía sin que la respuesta HTTP espere al SMTP (revisión de #552).
+ *
+ * En `/change-email` Better Auth solo llama al envío cuando el destino está
+ * libre: si la respuesta esperase al SMTP, su latencia delataría qué correos
+ * tienen cuenta. El transporte se resuelve antes, así que una configuración
+ * sin SMTP sigue fallando en el momento. Un fallo del envío se registra con un
+ * resumen saneado: el error de nodemailer puede llevar destinatarios y el
+ * mensaje lleva el enlace con el token.
+ */
+export function sendWithoutWaiting(
+	port: EmailPort,
+	message: EmailMessage,
+	log: (line: string, summary: Record<string, unknown>) => void = console.error,
+): void {
+	port.sendEmail(message).catch((error: unknown) => {
+		log("[email] No se pudo enviar un correo", {
+			subject: message.subject,
+			...summarizeEmailError(error),
+		});
+	});
+}
+
+/**
  * Opciones `emailVerification` de Better Auth derivadas del flag único.
  *
  * `sendOnSignIn` reenvía la verificación cuando alguien sin verificar acierta
@@ -237,7 +260,9 @@ export function buildEmailVerificationOptions(
 			user: { email: string };
 			url: string;
 		}): Promise<void> => {
-			await getEmailTransport(env).sendEmail(
+			// También verifica el correo nuevo de un cambio (#532): sin esperar.
+			sendWithoutWaiting(
+				getEmailTransport(env),
 				buildVerificationEmail({ email: user.email, url }),
 			);
 		},
@@ -255,11 +280,76 @@ export function buildVerificationEmail(params: {
 	return {
 		to: params.email,
 		subject: "Verifica tu correo electrónico en Procomún",
+		// #532: Better Auth usa este mismo correo para el alta y para verificar
+		// el correo nuevo de un cambio. «Para activar tu cuenta» era falso en el
+		// segundo caso, y quien cambia de correo se asustaría pensando que
+		// alguien ha abierto una cuenta a su nombre.
 		text:
 			"Hola,\n\n" +
-			"Para activar tu cuenta en Procomún confirma tu correo electrónico abriendo este enlace:\n" +
+			"Confirma tu dirección de correo electrónico en Procomún abriendo este enlace:\n" +
 			`${params.url}\n\n` +
-			"Si no has solicitado esta cuenta, ignora este mensaje.",
+			"Si no has creado una cuenta ni has pedido cambiar tu correo en Procomún, ignora este mensaje.",
+	};
+}
+
+/**
+ * Cambio de correo (issue #532).
+ *
+ * Better Auth 1.7, con el correo actual verificado, avisa primero a la
+ * dirección **antigua**: el cambio no sigue hasta que el dueño lo confirma
+ * desde su buzón, y después se verifica el correo nuevo. Es lo que protege a
+ * la cuenta si alguien ha robado la sesión. Con el correo sin verificar (la
+ * mayoría de las cuentas importadas, #488) va directo a verificar el nuevo.
+ */
+export function buildChangeEmailConfirmationEmail(params: {
+	/** Dirección actual, a la que va este aviso. */
+	email: string;
+	newEmail: string;
+	url: string;
+}): EmailMessage {
+	return {
+		to: params.email,
+		subject: "Confirma el cambio de correo en Procomún",
+		text:
+			"Hola,\n\n" +
+			`Se ha pedido cambiar el correo de tu cuenta de Procomún a ${params.newEmail}. ` +
+			"Todavía no ha cambiado nada.\n\n" +
+			"Si lo has pedido tú, confirma el cambio abriendo este enlace. Después te enviaremos otro a la dirección nueva para verificarla:\n" +
+			`${params.url}\n\n` +
+			"Si no has pedido el cambio, ignora este mensaje y cambia tu contraseña: quien lo ha pedido ha entrado en tu cuenta.",
+	};
+}
+
+/** Opciones `user.changeEmail` de Better Auth. */
+export function buildChangeEmailOptions(
+	env: RuntimeEnv = process.env,
+	transport: (env: RuntimeEnv) => EmailPort = getEmailTransport,
+) {
+	return {
+		// Sin transporte no se puede verificar el correo nuevo (#552): apagado,
+		// y la pestaña Cuenta esconde el formulario.
+		enabled: hasEmailTransport(env),
+		// Nunca: una cuenta sin verificar podría pasar a otro correo sin
+		// demostrar que lo controla.
+		updateEmailWithoutVerification: false,
+		sendChangeEmailConfirmation: async ({
+			user,
+			newEmail,
+			url,
+		}: {
+			user: { email: string };
+			newEmail: string;
+			url: string;
+		}): Promise<void> => {
+			sendWithoutWaiting(
+				transport(env),
+				buildChangeEmailConfirmationEmail({
+					email: user.email,
+					newEmail,
+					url,
+				}),
+			);
+		},
 	};
 }
 
@@ -369,7 +459,10 @@ export function summarizeEmailError(error: unknown): EmailErrorSummary {
  * resuelve igual que la redirección de Better Auth, que ya la comprueba contra
  * `trustedOrigins`. Lo que no tenga esa forma se deja tal cual.
  */
-export function directResetLink(url: string): string {
+export function directResetLink(
+	url: string,
+	env: RuntimeEnv = process.env,
+): string {
 	let link: URL;
 	try {
 		link = new URL(url);
@@ -380,7 +473,9 @@ export function directResetLink(url: string): string {
 	if (!token) return url;
 	const target = new URL(
 		link.searchParams.get("callbackURL") || "/restablecer",
-		link.origin,
+		// Con orígenes separados, BETTER_AUTH_URL apunta a la API y la pantalla
+		// vive en FRONTEND_URL (#598). Sin ella, el mismo origen de antes.
+		env.FRONTEND_URL?.trim() || link.origin,
 	);
 	// En el fragmento: el navegador no lo manda en la petición HTTP, así que
 	// no llega a ningún proxy ni log (tercera revisión de #551).
@@ -412,7 +507,7 @@ export function buildPasswordResetOptions(
 					transport(env).sendEmail(
 						buildPasswordResetEmail({
 							email: user.email,
-							url: directResetLink(url),
+							url: directResetLink(url, env),
 							expiresIn: config.expiresIn,
 						}),
 					),

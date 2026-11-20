@@ -186,6 +186,19 @@ Los JSON/`.elpx` de `ode-export/` contienen datos personales reales (nombres y e
 - [x] `describeDbError` y `summarizeDbStepError` pasan a `@procomun/db/db-errors`, compartidas por la API y los importadores; `apps/cli/src/import-errors.ts` las reexporta.
 - [x] Revisión del 2026-11-08 (journal con la 0017 y la 0018 fundidas, test de migraciones sin cerrar): resuelta en 733e4fe0. Verificado en la punta: el journal no tiene claves repetidas, los idx son únicos y la 0019 tiene el `when` mayor, y el migrador de Drizzle aplica solo la 0019 sobre una base con las 15 migraciones de main registradas.
 
+## Importador de itinerarios como colecciones — 2026-11-16 (#432)
+
+- [x] Migración `0022_collections_legacy_import`: `collections.import_source`, `external_id` y `published_at`, con índice único parcial `(import_source, external_id)`. Esquema Drizzle, `createTables` y tests de migraciones (journal, idempotencia, base previa).
+- [x] Mapeo puro `mapLegacyItinerary` y limpieza de la descripción `cleanLegacyItineraryDescription` (`packages/db/src/legacy-import/itinerary.ts`).
+- [x] `normalizeLegacyPublicatorEmail` copiado tal cual de #508 (`publicator-email.ts` y su test), para que el merge con #508 no choque.
+- [x] Repositorio `legacy-collections.ts`: `findLegacyCollectionOwnerAccount` e `importLegacyCollection` (crear, actualizar sin duplicar, `unchanged`, propietario reasignado a mano respetado, enlace al aparecer la cuenta, recursos omitidos con motivo).
+- [x] CLI `import:legacy-itineraries --source-file <itinerarios.json> [--dry-run] [--limit <n>] [--only <id>] [--report-dir <ruta>]`, registrado en `apps/cli/src/index.ts` y en la ayuda.
+- [x] Informe sin correos ni nombres, con el recuento de metadatos descartados.
+- [x] Permisos de la API para el propietario author o editor (adenda de la ADR-0008).
+- [x] Test de integración con el `itinerarios.json` real (anonimizado) en `apps/cli/src/test-fixtures/legacy-itineraries/`.
+- [ ] Cuando #508 llegue a main: sustituir `findLegacyCollectionOwnerAccount` por `findLegacyAuthorAccount` y valorar `--restricted-report` para los itinerarios sin cuenta.
+- [ ] Issue aparte: visitas de los itinerarios (el exportador no las trae).
+- [ ] Issue aparte: pantalla «Mis colecciones» para el autor no curator.
 ## Informes sin correos e informe restringido — 2026-11-16 (issue #543)
 
 - [x] `authorsWithoutAccount` y `sourceEmailWithoutAccount` sin `email` en el informe general de la importación y de `--link-authors`.
@@ -200,3 +213,29 @@ Los JSON/`.elpx` de `ode-export/` contienen datos personales reales (nombres y e
 - [x] `skipped_without_author` sin `email` en el informe general; el correo va a la lista restringida con `list: "skipped_without_author"`.
 - [x] Test con un error real de Drizzle cuyos parámetros llevan el texto del artículo y el correo: el informe y la consola no los llevan.
 - [x] README y diseño actualizados.
+
+## Revisión de #573 — 2026-11-19
+
+- [x] El listado de recursos de la colección aplica los permisos de lectura antes de paginar.
+- [x] El importador conserva entidades numéricas inválidas, aísla fallos de mapeo y omite los valores de publicación inválidos del informe.
+- [x] La migración de itinerarios se renumera de 0022 a 0028 y se aplica después de la 0027 ya integrada en main. Prueba con el migrador sobre una base que ya tiene la 0027.
+
+## Perfil ampliado editable — 2026-11-16 (issue #533)
+
+- [x] `/perfil` edita país, localidad, centro y su web, web personal y redes. Privado hasta #504: solo lo devuelve `GET /api/v1/users/me/profile` a su dueño.
+- [x] El «Sobre mí» queda solo en `user_profile.about`. La migración 0023 le pasa `user.bio` (prevalece sobre el importado) y borra la columna.
+- [x] El servidor valida nombre (obligatorio), «Sobre mí», país, webs y longitudes, también en la administración de usuarios.
+- [ ] Mostrar en la ficha pública del autor (#487) lo que decida #504.
+
+### Revisión de #586 — 2026-11-18
+
+- [x] `/perfil` envía solo lo que cambia: un fallo al leer el perfil no vacía la bio ni los datos ampliados, y un país importado como `XK` no impide guardar el nombre.
+- [x] La administración solo ve el «Sobre mí» escrito en la plataforma nueva (`about_edited_at`). Ampliarlo al importado queda para #504.
+- [x] El `PATCH` del perfil propio guarda todo en una transacción.
+- [x] Prueba con el migrador de drizzle: la 0023 copia la bio antes de borrar `user.bio`.
+- [x] Caché de Inlang fuera de Git (`.gitignore`).
+
+## Atribución histórica por UID — 2026-11-19 (#600)
+
+- [x] Exigir el volcado en importación y reenlace, resolver por UID y registrar el motivo sin correo en el informe general.
+- [x] Documentar el tratamiento de los artículos pendientes y cubrir con pruebas el correo reasignado fuera del volcado.

@@ -845,7 +845,8 @@ export function ResourceDetailContent({
 								/>
 								<ShareButton />
 								<ReportButton
-									resourceSlug={resource.slug}
+									target="resource"
+									slug={resource.slug}
 									currentUserId={currentUserId}
 								/>
 							</div>

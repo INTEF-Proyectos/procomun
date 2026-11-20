@@ -1,10 +1,14 @@
 import { describe, expect, test } from "bun:test";
+import { EMPTY_PROFILE_DETAILS } from "@procomun/db/user-profile";
 import { renderToStaticMarkup } from "react-dom/server";
 import type { DashboardSummary } from "../../lib/types/user-extended.ts";
 import {
+	dashboardResourceCounts,
 	hasEmailVerificationSuccess,
+	PROFILE_TABS,
 	PublicDashboardIsland,
 	profileAvatarUrl,
+	profileChanges,
 	roleLabel,
 	withFavoriteCount,
 } from "./PublicDashboardIsland.tsx";
@@ -24,9 +28,11 @@ const baseDashboard: DashboardSummary = {
 		favoriteCount: 1,
 		joinedAt: "",
 	},
-	recentResources: [],
 	draftCount: 1,
 	publishedCount: 1,
+	reviewCount: 0,
+	archivedCount: 0,
+	resourceCount: 2,
 	favoriteCount: 1,
 	recentActivity: [],
 };
@@ -67,6 +73,42 @@ describe("PublicDashboardIsland", () => {
 	test("muestra el shell de carga inicial del perfil", () => {
 		const html = renderToStaticMarkup(<PublicDashboardIsland />);
 		expect(html).toContain("dashboard-loading");
+	});
+});
+
+describe("dashboardResourceCounts (#530)", () => {
+	test("el total incluye los recursos en revisión y los archivados", () => {
+		expect(
+			dashboardResourceCounts({
+				draftCount: 2,
+				publishedCount: 3,
+				reviewCount: 4,
+				archivedCount: 1,
+			}),
+		).toEqual({
+			draftCount: 2,
+			publishedCount: 3,
+			reviewCount: 4,
+			archivedCount: 1,
+			resourceCount: 10,
+		});
+	});
+
+	test("usa el total de la API cuando viene", () => {
+		expect(
+			dashboardResourceCounts({ draftCount: 1, resourceCount: 7 })
+				.resourceCount,
+		).toBe(7);
+	});
+});
+
+// #532: el enlace que verifica un correo nuevo vuelve a /perfil?tab=account
+// (lo fija changeEmail en http-api-client.ts). Si la pestaña no estuviera en la
+// lista, el usuario caería en otra sin saber si el cambio ha ido bien.
+describe("vuelta a la pestaña Cuenta (#532)", () => {
+	test("?tab=account abre la pestaña Cuenta", () => {
+		const tab = new URLSearchParams("?tab=account").get("tab") ?? "";
+		expect(PROFILE_TABS).toContain(tab);
 	});
 });
 
@@ -111,5 +153,47 @@ describe("roleLabel (#534)", () => {
 			expect(roleLabel(role)).not.toBe(role.toUpperCase());
 			expect(roleLabel(role)).not.toBe(role);
 		}
+	});
+});
+
+describe("profileChanges (#533, revisión de #586)", () => {
+	const empty = {
+		name: "Ana",
+		bio: "",
+		details: { ...EMPTY_PROFILE_DETAILS },
+	};
+
+	test("si falló la lectura del perfil, guardar el nombre no envía la bio ni los datos ampliados", () => {
+		// El formulario parte de valores vacíos porque getMyProfile() falló.
+		expect(profileChanges(empty, { ...empty, name: "Ana María" })).toEqual({
+			name: "Ana María",
+		});
+	});
+
+	test("una cuenta con un país importado como XK edita el nombre sin enviar el país", () => {
+		const imported = {
+			...empty,
+			bio: "Sobre mí importado",
+			details: { ...EMPTY_PROFILE_DETAILS, countryCode: "XK" },
+		};
+		expect(
+			profileChanges(imported, { ...imported, name: "Ana María" }),
+		).toEqual({ name: "Ana María" });
+	});
+
+	test("envía solo los campos que cambian, también al vaciarlos", () => {
+		const original = {
+			...empty,
+			bio: "Antes",
+			details: { ...EMPTY_PROFILE_DETAILS, locality: "Burgos" },
+		};
+		expect(
+			profileChanges(original, {
+				...original,
+				bio: "",
+				details: { ...original.details, locality: "", twitter: "@ana" },
+			}),
+		).toEqual({ bio: "", profile: { locality: "", twitter: "@ana" } });
+		expect(profileChanges(original, original)).toEqual({});
 	});
 });

@@ -11,10 +11,10 @@ import { url } from "../../lib/paths.ts";
 import { hasMinRole } from "../../lib/shared-utils.ts";
 import { statusChangeFeedback } from "../../lib/status-change-errors.ts";
 import { AccessibleFeedback } from "../shared/AccessibleFeedback.tsx";
+import { LicenseSelectOptions } from "./LicenseSelectOptions.tsx";
 import {
 	getResourceTypeOptions,
 	LANGUAGE_OPTIONS,
-	LICENSE_OPTIONS,
 } from "./resource-form-options.ts";
 
 interface ResourceFormState {
@@ -543,11 +543,7 @@ export function ResourceEditorIsland() {
 								setFieldValue("license", event.currentTarget.value)
 							}
 						>
-							{LICENSE_OPTIONS.map((option) => (
-								<option key={option.value} value={option.value}>
-									{option.label}
-								</option>
-							))}
+							<LicenseSelectOptions />
 						</select>
 						<span id="license-error" className="field-error" role="alert">
 							{fieldErrors.license ?? ""}

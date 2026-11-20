@@ -26,7 +26,7 @@ export const user = pgTable(
 		emailVerified: boolean("email_verified").notNull().default(false),
 		name: text("name"),
 		image: text("image"),
-		bio: text("bio"),
+		// El «Sobre mí» está en user_profile.about desde #533 (migración 0023).
 		role: varchar("role", { length: 50 }).notNull().default("author"),
 		isActive: boolean("is_active").notNull().default(true),
 		banned: boolean("banned").default(false),

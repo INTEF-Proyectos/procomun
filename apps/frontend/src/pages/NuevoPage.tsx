@@ -11,6 +11,7 @@ import {
 	KnowledgeAreaField,
 	ProfessionalFamilyField,
 } from "../islands/resources/KnowledgeClassificationFields.tsx";
+import { LicenseSelectOptions } from "../islands/resources/LicenseSelectOptions.tsx";
 import {
 	LANGUAGE_OPTIONS,
 	LICENSE_OPTIONS,
@@ -28,6 +29,8 @@ import { getApiClient } from "../lib/get-api-client.ts";
 import { familiesToSave } from "../lib/knowledge-area-field.ts";
 import { url } from "../lib/paths.ts";
 import { hasMinRole } from "../lib/shared-utils.ts";
+import * as m from "../paraglide/messages.js";
+import { MediaBankLinkView, useMediaBankUrl } from "../ui/MediaBankLink.tsx";
 import "../styles/nuevo.css";
 
 interface ResourceFormState {
@@ -115,8 +118,20 @@ export function buildCreateResourceBody(
 	};
 }
 
+/** Aviso de `/nuevo` para quien quiere subir imágenes, vídeo o audio (#569). */
+export function MediaBankHint({ href }: { href: string | null }) {
+	if (!href) return null;
+	return (
+		<p className="new-resource-media-bank">
+			{m.new_resource_media_bank_hint()}{" "}
+			<MediaBankLinkView href={href} label={m.new_resource_media_bank_link()} />
+		</p>
+	);
+}
+
 export default function NuevoPage() {
 	const navigate = useNavigate();
+	const mediaBankUrl = useMediaBankUrl();
 
 	const [showAuthCheck, setShowAuthCheck] = useState(false);
 	const [showElpxDrawer, setShowElpxDrawer] = useState(false);
@@ -413,6 +428,7 @@ export default function NuevoPage() {
 						>
 							{skipBtnText}
 						</button>
+						<MediaBankHint href={mediaBankUrl} />
 					</div>
 				</section>
 			)}
@@ -501,11 +517,7 @@ export default function NuevoPage() {
 									setFieldValue("license", event.currentTarget.value)
 								}
 							>
-								<option value="cc-by">CC BY</option>
-								<option value="cc-by-sa">CC BY-SA</option>
-								<option value="cc-by-nc">CC BY-NC</option>
-								<option value="cc-by-nc-sa">CC BY-NC-SA</option>
-								<option value="cc0">CC0 (Dominio público)</option>
+								<LicenseSelectOptions />
 							</select>
 							<span id="license-error" className="field-error" role="alert">
 								{fieldErrors.license ?? ""}

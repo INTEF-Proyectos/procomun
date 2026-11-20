@@ -1,7 +1,9 @@
+import { parseCatalogIdList } from "@procomun/db/knowledge-areas";
 import * as repo from "@procomun/db/repository";
 import { favorites, ratings, resources } from "@procomun/db/schema";
+import { validateProfileUpdate } from "@procomun/db/user-profile";
 import { and, desc, eq, isNull, sql } from "drizzle-orm";
-import { Hono } from "hono";
+import { type Context, Hono } from "hono";
 import { logActivity } from "../activity/log.ts";
 import { type AuthEnv, requireAuth, requireUser } from "../auth/middleware.ts";
 import { getDb } from "../db.ts";
@@ -9,6 +11,10 @@ import { parsePagination } from "../http/pagination.ts";
 import { listUserActivity } from "../social/activity-service.ts";
 import { getUserDashboardSummary } from "../social/dashboard-service.ts";
 import { toggleResourceFavorite } from "../social/favorites-service.ts";
+import {
+	listMyResources,
+	parseMyResourcesStatus,
+} from "../social/my-resources-service.ts";
 import {
 	getResourceRatingsSummary,
 	upsertResourceRating,
@@ -237,13 +243,48 @@ socialRoutes.get("/users/me/dashboard", requireAuth, async (c) => {
 });
 
 // ---------------------------------------------------------------------------
+// GET /users/me/resources (auth required) — «Mis recursos» (#530)
+// Todos los recursos propios en cualquier estado, con los filtros del buscador.
+// ---------------------------------------------------------------------------
+socialRoutes.get("/users/me/resources", requireAuth, async (c) => {
+	const { limit, offset, search } = parsePagination(c);
+	const currentUser = requireUser(c);
+	const status = parseMyResourcesStatus(c.req.query("status"));
+	if (!status.ok) return c.json({ error: "Estado no válido" }, 400);
+	return c.json(
+		await listMyResources(currentUser.id, {
+			limit,
+			offset,
+			search,
+			status: status.status,
+			resourceType: c.req.query("resourceType"),
+			tag: c.req.query("tag"),
+			educationalCategory: c.req.query("educationalCategory"),
+			educationalOption: c.req.query("educationalOption"),
+			knowledgeAreaIds: parseCatalogIdList(c.req.query("knowledgeAreas")),
+			professionalFamilyIds: parseCatalogIdList(
+				c.req.query("professionalFamilies"),
+			),
+		}),
+	);
+});
+
+// ---------------------------------------------------------------------------
 // GET /users/me/profile (auth required)
 // ---------------------------------------------------------------------------
+// `profile` lleva centro, localidad y redes (#533). Es privado: solo se
+// devuelve aquí, a su dueño, hasta que #504 decida qué se muestra.
 socialRoutes.get("/users/me/profile", requireAuth, async (c) => {
 	const currentUser = requireUser(c);
-	const found = await repo.getUserById(getDb().db, currentUser.id);
+	const db = getDb().db;
+	const [found, profile, bio] = await Promise.all([
+		repo.getUserById(db, currentUser.id),
+		repo.getUserProfileDetails(db, currentUser.id),
+		// Su dueño ve también el «Sobre mí» importado sin editar (#586).
+		repo.getUserAbout(db, currentUser.id),
+	]);
 
-	if (found) return c.json(found);
+	if (found) return c.json({ ...found, bio, profile });
 
 	return c.json({
 		id: currentUser.id,
@@ -252,6 +293,7 @@ socialRoutes.get("/users/me/profile", requireAuth, async (c) => {
 		bio: null,
 		role: currentUser.role ?? "reader",
 		isActive: true,
+		profile,
 	});
 });
 
@@ -268,17 +310,20 @@ socialRoutes.patch("/users/me/profile", requireAuth, async (c) => {
 	});
 
 	const body = await c.req.json().catch(() => null);
-	if (!body || typeof body !== "object") {
+	if (!body || typeof body !== "object" || Array.isArray(body)) {
 		return c.json({ error: "Cuerpo de la petición inválido" }, 400);
 	}
 
-	const updates: { name?: string | null; bio?: string | null } = {};
-	if ("name" in body)
-		updates.name = typeof body.name === "string" ? body.name : null;
-	if ("bio" in body)
-		updates.bio = typeof body.bio === "string" ? body.bio : null;
-
-	await repo.updateUser(getDb().db, currentUser.id, updates);
+	// #533: el nombre no puede quedar vacío y los textos tienen longitud máxima.
+	const validation = validateProfileUpdate(body);
+	if (!validation.ok) {
+		return c.json(
+			{ error: "Datos inválidos", details: validation.errors },
+			400,
+		);
+	}
+	// Todo o nada: un fallo al final no deja el nombre cambiado y el resto no.
+	await repo.updateOwnProfile(getDb().db, currentUser.id, validation.value);
 	return c.json({ id: currentUser.id, updated: true });
 });
 
@@ -379,6 +424,32 @@ socialRoutes.get("/resources/:slug/stats", async (c) => {
 	return c.json(await getResourceSocialStats(resource.id, currentUser?.id));
 });
 
+type ReportBody = { reason: repo.ReportReason; description: string | null };
+
+/** Valida el cuerpo de una denuncia; igual para recursos y colecciones. */
+async function parseReportBody(
+	c: Context<AuthEnv>,
+): Promise<ReportBody | { error: string }> {
+	const body = await c.req
+		.json<{ reason?: unknown; description?: unknown }>()
+		.catch(() => null);
+	if (
+		!body ||
+		typeof body.reason !== "string" ||
+		!repo.REPORT_REASONS.includes(body.reason as repo.ReportReason)
+	) {
+		return {
+			error: `Motivo inválido. Válidos: ${repo.REPORT_REASONS.join(", ")}`,
+		};
+	}
+	// Sanitize description: trim and limit length
+	const description =
+		typeof body.description === "string" && body.description.trim()
+			? body.description.trim().slice(0, 2000)
+			: null;
+	return { reason: body.reason as repo.ReportReason, description };
+}
+
 // ---------------------------------------------------------------------------
 // POST /resources/:slug/report (auth required — submit content report)
 // ---------------------------------------------------------------------------
@@ -392,28 +463,14 @@ socialRoutes.post("/resources/:slug/report", requireAuth, async (c) => {
 		return c.json({ error: "Recurso no encontrado" }, 404);
 	}
 
-	const body = await c.req.json<{ reason: string; description?: string }>();
-
-	if (
-		!body.reason ||
-		!repo.REPORT_REASONS.includes(body.reason as repo.ReportReason)
-	) {
-		return c.json(
-			{ error: `Motivo inválido. Válidos: ${repo.REPORT_REASONS.join(", ")}` },
-			400,
-		);
-	}
-
-	// Sanitize description: trim and limit length
-	const description = body.description
-		? body.description.trim().slice(0, 2000)
-		: null;
+	const body = await parseReportBody(c);
+	if ("error" in body) return c.json({ error: body.error }, 400);
 
 	const result = await repo.createReport(getDb().db, {
 		resourceId: resource.id,
 		reporterId: currentUser.id,
-		reason: body.reason as repo.ReportReason,
-		description,
+		reason: body.reason,
+		description: body.description,
 	});
 
 	await logActivity({
@@ -424,6 +481,46 @@ socialRoutes.post("/resources/:slug/report", requireAuth, async (c) => {
 		resourceSlug: resource.slug,
 		description: `Reportaste «${resource.title}» por ${body.reason}`,
 		metadata: { reason: body.reason },
+	});
+
+	return c.json(result, 201);
+});
+
+// ---------------------------------------------------------------------------
+// POST /collections/:slug/report (issue #539: auth required, solo publicadas)
+// ---------------------------------------------------------------------------
+socialRoutes.post("/collections/:slug/report", requireAuth, async (c) => {
+	const slug = c.req.param("slug");
+	if (!slug) return c.json({ error: "Falta slug" }, 400);
+	const currentUser = requireUser(c);
+
+	// Solo se denuncia lo que se ve: una colección publicada.
+	const collection = await repo.getCollectionBySlug(getDb().db, slug, {
+		status: "published",
+	});
+	if (!collection) {
+		return c.json({ error: "Colección no encontrada" }, 404);
+	}
+
+	const body = await parseReportBody(c);
+	if ("error" in body) return c.json({ error: body.error }, 400);
+
+	const result = await repo.createReport(getDb().db, {
+		collectionId: collection.id,
+		reporterId: currentUser.id,
+		reason: body.reason,
+		description: body.description,
+	});
+
+	await logActivity({
+		userId: currentUser.id,
+		type: "report_submitted",
+		description: `Reportaste la colección «${collection.title}» por ${body.reason}`,
+		metadata: {
+			reason: body.reason,
+			collectionId: collection.id,
+			collectionSlug: collection.slug,
+		},
 	});
 
 	return c.json(result, 201);

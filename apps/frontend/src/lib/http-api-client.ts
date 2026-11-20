@@ -13,6 +13,8 @@ import type {
 	KnowledgeAreaInput,
 	KnowledgeAreaRecord,
 	MediaItemRecord,
+	MyResourcesOptions,
+	MyResourcesResult,
 	PaginatedResult,
 	PublicAuthor,
 	PublicKnowledgeAreaCatalog,
@@ -30,6 +32,45 @@ import type {
 	UserRecord,
 } from "./api-client.ts";
 import { url } from "./paths.ts";
+
+/** Parámetros de filtrado comunes al buscador y a «Mis recursos» (#530). */
+function resourceFilterParams(opts?: {
+	status?: string;
+	q?: string;
+	limit?: number;
+	offset?: number;
+	resourceType?: string;
+	language?: string;
+	license?: string;
+	tag?: string;
+	educationalCategory?: string;
+	educationalOption?: string;
+	knowledgeAreas?: string[];
+	professionalFamilies?: string[];
+}): URLSearchParams {
+	const params = new URLSearchParams();
+	if (opts?.status) params.set("status", opts.status);
+	if (opts?.q) params.set("q", opts.q);
+	if (opts?.limit) params.set("limit", String(opts.limit));
+	if (opts?.offset) params.set("offset", String(opts.offset));
+	if (opts?.resourceType) params.set("resourceType", opts.resourceType);
+	if (opts?.language) params.set("language", opts.language);
+	if (opts?.license) params.set("license", opts.license);
+	if (opts?.tag) params.set("tag", opts.tag);
+	if (opts?.educationalCategory) {
+		params.set("educationalCategory", opts.educationalCategory);
+	}
+	if (opts?.educationalOption) {
+		params.set("educationalOption", opts.educationalOption);
+	}
+	if (opts?.knowledgeAreas?.length) {
+		params.set("knowledgeAreas", opts.knowledgeAreas.join(","));
+	}
+	if (opts?.professionalFamilies?.length) {
+		params.set("professionalFamilies", opts.professionalFamilies.join(","));
+	}
+	return params;
+}
 
 /**
  * Cliente HTTP que llama al servidor API real.
@@ -49,27 +90,7 @@ export class HttpApiClient implements ApiClient {
 		knowledgeAreas?: string[];
 		professionalFamilies?: string[];
 	}): Promise<ResourceListResult> {
-		const params = new URLSearchParams();
-		if (opts?.q) params.set("q", opts.q);
-		if (opts?.limit) params.set("limit", String(opts.limit));
-		if (opts?.offset) params.set("offset", String(opts.offset));
-		if (opts?.resourceType) params.set("resourceType", opts.resourceType);
-		if (opts?.language) params.set("language", opts.language);
-		if (opts?.license) params.set("license", opts.license);
-		if (opts?.tag) params.set("tag", opts.tag);
-		if (opts?.educationalCategory) {
-			params.set("educationalCategory", opts.educationalCategory);
-		}
-		if (opts?.educationalOption) {
-			params.set("educationalOption", opts.educationalOption);
-		}
-		if (opts?.knowledgeAreas?.length) {
-			params.set("knowledgeAreas", opts.knowledgeAreas.join(","));
-		}
-		if (opts?.professionalFamilies?.length) {
-			params.set("professionalFamilies", opts.professionalFamilies.join(","));
-		}
-		const qs = params.toString();
+		const qs = resourceFilterParams(opts).toString();
 		const res = await fetch(`/api/v1/resources${qs ? `?${qs}` : ""}`);
 		return res.json();
 	}
@@ -312,6 +333,85 @@ export class HttpApiClient implements ApiClient {
 				data?.message ??
 				"El enlace no vale: puede haber caducado o haberse usado ya.",
 		};
+	}
+
+	/**
+	 * Cambia la contraseña (#532). Cierra las demás sesiones: quien la cambia
+	 * porque sospecha que se la han robado necesita que la otra deje de valer.
+	 * Con la contraseña actual equivocada devuelve el código
+	 * `wrong_current_password`, que la isla traduce.
+	 */
+	async changePassword(
+		currentPassword: string,
+		newPassword: string,
+	): Promise<SignInResult> {
+		let res: Response;
+		try {
+			res = await fetch("/api/auth/change-password", {
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				credentials: "include",
+				body: JSON.stringify({
+					currentPassword,
+					newPassword,
+					revokeOtherSessions: true,
+				}),
+			});
+		} catch {
+			// Fallo de red (#552): la isla enseña el error de conexión.
+			return { ok: false };
+		}
+		if (res.ok) return { ok: true };
+		const data = await res.json().catch(() => null);
+		if (data?.code === "INVALID_PASSWORD") {
+			return { ok: false, error: "wrong_current_password" };
+		}
+		return { ok: false, error: data?.message ?? "No se ha podido cambiar" };
+	}
+
+	/**
+	 * Pide el cambio de correo (#532). No cambia nada al momento: con el correo
+	 * verificado, Better Auth avisa antes a la dirección antigua; en todo caso
+	 * hay que verificar la nueva.
+	 */
+	async changeEmail(newEmail: string): Promise<SignInResult> {
+		let res: Response;
+		try {
+			res = await fetch("/api/auth/change-email", {
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				credentials: "include",
+				// url(): respeta la ruta base y el prefijo de idioma (#552).
+				body: JSON.stringify({
+					newEmail,
+					callbackURL: url("perfil?tab=account"),
+				}),
+			});
+		} catch {
+			return { ok: false };
+		}
+		if (res.ok) return { ok: true };
+		const data = await res.json().catch(() => null);
+		return { ok: false, error: data?.message ?? "No se ha podido cambiar" };
+	}
+
+	/**
+	 * ¿La cuenta tiene contraseña propia? Las de acceso institucional (OIDC)
+	 * no: su contraseña y su correo se gestionan en el proveedor de identidad.
+	 * Si no se puede saber, `false`: ofrecer cambiar una contraseña que no
+	 * existe acaba en error.
+	 */
+	async hasPasswordAccount(): Promise<boolean> {
+		try {
+			const res = await fetch("/api/auth/list-accounts", {
+				credentials: "include",
+			});
+			if (!res.ok) return false;
+			const accounts = (await res.json()) as Array<{ providerId?: string }>;
+			return accounts.some((a) => a.providerId === "credential");
+		} catch {
+			return false;
+		}
 	}
 
 	async signInOidc(): Promise<SignInResult> {
@@ -1014,6 +1114,18 @@ export class HttpApiClient implements ApiClient {
 		return res.json();
 	}
 
+	async listMyResources(opts?: MyResourcesOptions): Promise<MyResourcesResult> {
+		const qs = resourceFilterParams(opts).toString();
+		const res = await fetch(`/api/v1/users/me/resources${qs ? `?${qs}` : ""}`, {
+			credentials: "include",
+		});
+		if (!res.ok) {
+			const err = await res.json().catch(() => ({}));
+			throw new Error(err.error || "Error al cargar tus recursos");
+		}
+		return res.json();
+	}
+
 	async getUserDashboard() {
 		const res = await fetch("/api/v1/users/me/dashboard", {
 			credentials: "include",
@@ -1021,7 +1133,7 @@ export class HttpApiClient implements ApiClient {
 		return res.json();
 	}
 
-	async getMyProfile(): Promise<UserRecord | null> {
+	async getMyProfile(): Promise<import("./api-client.ts").MyProfile | null> {
 		const res = await fetch("/api/v1/users/me/profile", {
 			credentials: "include",
 		});
@@ -1029,7 +1141,7 @@ export class HttpApiClient implements ApiClient {
 		return res.json();
 	}
 
-	async updateMyProfile(data: Partial<Pick<UserRecord, "name" | "bio">>) {
+	async updateMyProfile(data: import("./api-client.ts").MyProfileUpdate) {
 		const res = await fetch("/api/v1/users/me/profile", {
 			method: "PATCH",
 			headers: { "Content-Type": "application/json" },
@@ -1038,7 +1150,22 @@ export class HttpApiClient implements ApiClient {
 		});
 		if (!res.ok) {
 			const err = await res.json().catch(() => ({}));
-			return { ok: false, error: err.error ?? "Error al actualizar perfil" };
+			const error: string = err.error ?? "Error al actualizar perfil";
+			// #533: errores por campo para señalarlos en el formulario.
+			if (!Array.isArray(err.details)) return { ok: false, error };
+			const fieldErrors = (
+				err.details as Array<{ field?: unknown; code?: unknown }>
+			)
+				.filter(
+					(detail) =>
+						typeof detail?.field === "string" &&
+						typeof detail?.code === "string",
+				)
+				.map((detail) => ({
+					field: detail.field as string,
+					code: detail.code as string,
+				}));
+			return { ok: false, error, fieldErrors };
 		}
 		return { ok: true };
 	}
@@ -1106,11 +1233,32 @@ export class HttpApiClient implements ApiClient {
 		reason: string,
 		description?: string,
 	): Promise<{ id: string }> {
-		const res = await fetch(`/api/v1/resources/${slug}/report`, {
+		return this.postReport(`/api/v1/resources/${slug}/report`, {
+			reason,
+			description,
+		});
+	}
+
+	async reportCollection(
+		slug: string,
+		reason: string,
+		description?: string,
+	): Promise<{ id: string }> {
+		return this.postReport(`/api/v1/collections/${slug}/report`, {
+			reason,
+			description,
+		});
+	}
+
+	private async postReport(
+		endpoint: string,
+		body: { reason: string; description?: string },
+	): Promise<{ id: string }> {
+		const res = await fetch(endpoint, {
 			method: "POST",
 			headers: { "Content-Type": "application/json" },
 			credentials: "include",
-			body: JSON.stringify({ reason, description }),
+			body: JSON.stringify(body),
 		});
 		if (!res.ok) {
 			const err = await res.json().catch(() => ({}));
@@ -1123,6 +1271,7 @@ export class HttpApiClient implements ApiClient {
 		status?: string;
 		reason?: string;
 		resourceId?: string;
+		collectionId?: string;
 		limit?: number;
 		offset?: number;
 	}): Promise<PaginatedResult<ReportRecord>> {
@@ -1130,6 +1279,7 @@ export class HttpApiClient implements ApiClient {
 		if (opts?.status) params.set("status", opts.status);
 		if (opts?.reason) params.set("reason", opts.reason);
 		if (opts?.resourceId) params.set("resourceId", opts.resourceId);
+		if (opts?.collectionId) params.set("collectionId", opts.collectionId);
 		if (opts?.limit) params.set("limit", String(opts.limit));
 		if (opts?.offset) params.set("offset", String(opts.offset));
 		const res = await fetch(`/api/admin/reports?${params}`, {

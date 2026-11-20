@@ -180,3 +180,22 @@ La vista previa de una versión histórica sigue la regla de la adenda anterior.
 **Validación.** `apps/api/src/routes/admin.unit.test.ts`, bloque «borradores de coleccion ajenos (#538)»: el dueño gestiona su borrador; otro curator recibe 403 en `GET /:id`, `PATCH`, `DELETE` y `GET /:id/resources`, y el borrador no sale en su listado; en revisión, publicada y archivada las ve cualquier curator; el admin ve y edita el borrador de cualquiera.
 
 **Test ajustado.** «curator puede listar y gestionar colecciones existentes» esperaba que el curator viera el **borrador del admin**. Esa expectativa ya no vale por diseño: ahora la colección del admin pasa a revisión dentro del propio test para seguir comprobando lo que comprobaba.
+
+## Adenda 2026-11-16 — el autor de un itinerario importado gestiona su colección (#432)
+
+**Contexto.** Los itinerarios del Procomún antiguo pasan a ser colecciones (#432). Los crearon usuarios normales, que aquí son `editor` o `author`, y en #433 se decidió que las colecciones solo las crean `curator` y `admin`. En #432 se acordó con el INTEF que la colección importada siga siendo de su autor: puede verla y editarla aunque su rol no le deje crear colecciones. No gana permisos globales ni acceso a colecciones ajenas, y la colección no se reasigna a un curator.
+
+**Decisión.**
+
+- **Propietario.** Es `collections.curatorId`, el mismo campo que ya marca de quién es una colección (#538). El importador pone ahí la cuenta del autor (`publicatorEmailStr`).
+- **Rol mínimo: `author`.** `canManageCollection` deja gestionar la colección propia a partir de `author`, igual que `canManageResource` con el creador de un recurso. Bastaría con `editor` para los usuarios importados (#507 y #525 los dejan en `editor`), pero un `author` puede ser autor de un itinerario si alguien le cambió el rol, y pedir `editor` le quitaría su colección sin motivo. El `reader` no entra: el backoffice exige `author` (`adminRoutes`).
+- **Qué puede hacer el propietario que no es curator.** Ver su colección (`GET /:id`), listar las suyas (`GET /`, filtrado por `curatorId`), editar título, descripción, portada y orden, añadir, quitar y reordenar recursos (las subrutas pasan por `requireManageableCollection`) y mandar su borrador a revisión (`draft → review`).
+- **Qué no puede hacer.** Crear colecciones (`POST /`, `roles.create: "curator"`). Borrar (`DELETE /:id`, `roles.remove: "curator"`). Publicar, archivar o devolver a borrador. Cambiar el propietario: `updateCollection` no acepta `curatorId`, y el test lo comprueba. Ver o editar colecciones ajenas, aunque estén publicadas: reciben 403 y no salen en su listado.
+- **Por qué no publica.** Las colecciones no tienen máquina de estados propia: hasta ahora solo las tocaban curator y admin, que cambian el estado libremente. Para el propietario se aplica la regla del autor de un recurso (`TRANSITION_RULES`): manda a revisión y el curator publica. Así una colección que el Procomún antiguo tenía en borrador no se publica sin revisión editorial. Lo que ya estaba publicado sigue publicado, y el propietario puede corregir su contenido sin despublicarla, como el creador de un recurso publicado. La regla está en `collectionStatusChangeError` (`apps/api/src/auth/roles.ts`) y la aplica `validateUpdateWith`. Mandar el estado que ya tiene no cuenta como cambio.
+- **Curator y admin** siguen como en la adenda de #538. El borrador del autor es suyo: otro curator no lo ve hasta que lo manda a revisión.
+
+**Implementación.** `apps/api/src/auth/roles.ts` (`canManageCollection`, `collectionStatusChangeError`), `apps/api/src/routes/admin/collections.ts` (`baseRole: "author"`, `roles`, `listFilters`, `validateUpdateWith`), `apps/api/src/routes/admin/index.ts` (la puerta de `/collections` baja de `curator` a `author`) y `apps/api/src/routes/crud-builder.ts` (`validateUpdateWith` recibe también el usuario).
+
+**Validación.** `apps/api/src/routes/admin.unit.test.ts`, bloque «colecciones de su autor no curator (#432)», y `apps/api/src/auth/roles.unit.test.ts`. El test «author no puede acceder a colecciones» pasa a «author sin colecciones propias no ve ninguna»: el author entra en `/collections`, pero el listado le sale vacío.
+
+**Riesgos.** Las colecciones que se quedan sin cuenta, a nombre del usuario de sistema y en borrador, solo las ve el admin, por la regla de #538. La pantalla «Mis colecciones» para el autor va en otra issue: hoy la interfaz sigue mostrando la gestión de colecciones solo a curator y admin.

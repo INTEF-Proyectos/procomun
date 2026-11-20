@@ -1,4 +1,4 @@
-import { and, eq, isNull, ne, or } from "drizzle-orm";
+import { and, eq, isNotNull, isNull, ne, or } from "drizzle-orm";
 import { normalizeLegacyPublicatorEmail } from "../legacy-import/publicator-email.ts";
 import { LEGACY_IMPORT_SYSTEM_USER_ID } from "../legacy-import/system-user.ts";
 import { lowerEmail, user } from "../schema/auth.ts";
@@ -31,6 +31,38 @@ export async function findLegacyAuthorAccount(
 			and(
 				eq(lowerEmail(user.email), normalized),
 				ne(user.id, LEGACY_IMPORT_SYSTEM_USER_ID),
+			),
+		)
+		.limit(1);
+	return row
+		? {
+				id: row.id,
+				deleted: row.deletedAt !== null,
+				emailVerified: row.emailVerified,
+			}
+		: null;
+}
+
+/**
+ * Cuenta por su id estable `legacy-procomun:user:<uid>` (#552), sin mirar el
+ * correo: el titular actual de una dirección puede no ser quien publicó.
+ */
+export async function findLegacyAccountById(
+	db: DrizzleDB,
+	id: string,
+): Promise<{ id: string; deleted: boolean; emailVerified: boolean } | null> {
+	if (id === LEGACY_IMPORT_SYSTEM_USER_ID) return null;
+	const [row] = await db
+		.select({
+			id: user.id,
+			deletedAt: user.deletedAt,
+			emailVerified: user.emailVerified,
+		})
+		.from(user)
+		.where(
+			and(
+				eq(user.id, id),
+				or(eq(user.isActive, true), isNotNull(user.deletedAt)),
 			),
 		)
 		.limit(1);
