@@ -262,6 +262,9 @@ ADR-0037:
     Adenda 2026-11-03 (issue #507): lo que daba author da editor (admin y
     curator sin cambios) e import:legacy-users --fix-roles corrige las
     cuentas legacy ya importadas como author.
+    Adenda 2026-11-16 (issue #533): el «Sobre mí» queda solo en
+    user_profile.about (migración 0023 borra user.bio) y /perfil edita el
+    perfil ampliado, privado hasta #504, con validación en el servidor.
 
 ADR-0039:
   title: "Versionado mínimo de recursos: historial ELPX automático y proyección vigente"

@@ -136,6 +136,27 @@ export interface UserRecord {
 	updatedAt?: string | number | Date | null;
 }
 
+/** Centro, localidad y redes del perfil propio (#533). Privados hasta #504. */
+export type UserProfileDetails =
+	import("@procomun/db/user-profile").ProfileDetails;
+
+/** Perfil propio: la cuenta y sus datos ampliados. */
+export interface MyProfile extends UserRecord {
+	profile?: UserProfileDetails;
+}
+
+export interface MyProfileUpdate {
+	name?: string;
+	bio?: string | null;
+	profile?: Partial<UserProfileDetails>;
+}
+
+/** Error de validación de un campo, como lo devuelve la API. */
+export interface ProfileFieldError {
+	field: string;
+	code: string;
+}
+
 export interface CollectionRecord {
 	id: string;
 	slug: string;
@@ -724,10 +745,12 @@ export interface ApiClient {
 		favoriteCount: number;
 		ratingCount?: number;
 	}>;
-	getMyProfile(): Promise<UserRecord | null>;
-	updateMyProfile(
-		data: Partial<Pick<UserRecord, "name" | "bio">>,
-	): Promise<{ ok: boolean; error?: string }>;
+	getMyProfile(): Promise<MyProfile | null>;
+	updateMyProfile(data: MyProfileUpdate): Promise<{
+		ok: boolean;
+		error?: string;
+		fieldErrors?: ProfileFieldError[];
+	}>;
 	getUserActivity(opts?: {
 		limit?: number;
 		offset?: number;
