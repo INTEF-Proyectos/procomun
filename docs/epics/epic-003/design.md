@@ -225,3 +225,21 @@ Nadie veía su foto de Gravatar en el menú ni en `/perfil`; todos tenían la si
 - No hay foto de perfil propia en `main`: `user.image` no se usa para representar al usuario (ADR-0037). Cuando exista `user_profile.image`, irá en `avatarUrl` antes que Gravatar.
 - Cada carga de la página envía a Gravatar el hash del correo y la IP del usuario. Si se mantiene la integración se decide en #504.
 - Falta comprobar a mano la carga de una foto real con una cuenta de prueba que tenga Gravatar.
+
+## Seguimiento 2026-11-16 — «Mis recursos» completo (#530)
+
+La pestaña «Mis recursos» de `/perfil` solo enseñaba los 5 últimos recursos (`getUserDashboardSummary`, `.limit(5)`), sin paginación ni filtros, y el contador sumaba solo publicados y borradores. Sale de la comparativa de #494.
+
+- [x] API: `GET /api/v1/users/me/resources` (sesión obligatoria). Todos los recursos propios no eliminados, en cualquier estado, ordenados por última edición. Admite `status` (`draft`, `review`, `published`, `archived`; otro valor da 400), `q`, `resourceType`, `tag`, `educationalCategory`, `educationalOption`, `knowledgeAreas`, `professionalFamilies`, `limit` y `offset`, igual que el buscador público. Devuelve `{ data, total, limit, offset, statusCounts }`.
+- [x] `statusCounts` cuenta por estado con los mismos filtros que la lista, sin el estado: «Todos» es la suma de los cuatro y cada contador coincide con lo que se ve al elegir ese estado. Sale de `countResourcesByStatus`, que comparte condiciones con `listResources` (`packages/db/src/repository/resources.ts`).
+- [x] `GET /api/v1/users/me/dashboard` añade `reviewCount`, `archivedCount` y `resourceCount`, y deja de devolver `recentResources`. La cabecera del perfil enseña también los recursos en revisión, y los archivados si hay alguno; la pestaña cuenta todos.
+- [x] Interfaz (`MyResourcesTab.tsx`): buscador, filtro de estado con radios y sus contadores, «Más filtros» (tipo, etapa y ciclo, área y familia, etiqueta) con «Limpiar filtros», paginación de 12 y, en cada tarjeta propia, «Editar» y «Eliminar» siempre visibles. Eliminar abre el `ConfirmDialog` accesible de Administrar, nunca `window.confirm`; al borrar se anuncia en una región de estado, el foco pasa a ese aviso y se vuelven a pedir los contadores del perfil. Textos en los cinco idiomas.
+- [x] Editar y eliminar solo aparecen si `canManageResource` lo permite, la misma regla que aplica `DELETE /api/admin/resources/:id`.
+- [x] `ui/Pagination.tsx` deja los textos fijos en castellano y usa Paraglide.
+- [x] Tests rojo → verde: `my-resources-service.unit.test.ts`, `dashboard-service.unit.test.ts`, `social.unit.test.ts` («Mis recursos»), `http-api-client-my-resources.unit.test.ts`, `my-resources.unit.test.ts`, `MyResourcesTab.unit.test.tsx` y `PublicDashboardIsland.unit.test.tsx`.
+
+## Riesgos abiertos 2026-11-16 (#530)
+
+- `resources.created_by` no tiene índice. Con decenas de miles de recursos importados (#508) cada visita a «Mis recursos» recorre la tabla dos veces (lista y contadores). No se ha añadido migración; si se nota, la 0024 puede crear el índice.
+- El orden es fijo (última edición primero); no hay selector de orden.
+- El filtro por etiqueta admite una sola etiqueta, como en `/explorar`.

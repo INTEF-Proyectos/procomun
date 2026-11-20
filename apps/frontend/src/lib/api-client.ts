@@ -67,6 +67,33 @@ export interface ResourceListResult {
 	offset: number;
 }
 
+/** Recursos propios por estado editorial (#530). */
+export interface ResourceStatusCounts {
+	draft: number;
+	review: number;
+	published: number;
+	archived: number;
+	total: number;
+}
+
+/** Filtros de «Mis recursos» (#530): los del buscador público más el estado. */
+export interface MyResourcesOptions {
+	status?: string;
+	q?: string;
+	limit?: number;
+	offset?: number;
+	resourceType?: string;
+	tag?: string;
+	educationalCategory?: string;
+	educationalOption?: string;
+	knowledgeAreas?: string[];
+	professionalFamilies?: string[];
+}
+
+export interface MyResourcesResult extends ResourceListResult {
+	statusCounts: ResourceStatusCounts;
+}
+
 /** Compact card used by related / same-author recommendation strips (ADR-0036). */
 export interface RelatedResource {
 	id: string;
@@ -686,12 +713,16 @@ export interface ApiClient {
 		limit?: number;
 		offset?: number;
 	}): Promise<PaginatedResult<Resource>>;
+	/** «Mis recursos» (#530): todos los propios, en cualquier estado. */
+	listMyResources(opts?: MyResourcesOptions): Promise<MyResourcesResult>;
 	getUserDashboard(): Promise<{
 		draftCount: number;
 		publishedCount: number;
+		reviewCount?: number;
+		archivedCount?: number;
+		resourceCount?: number;
 		favoriteCount: number;
 		ratingCount?: number;
-		recentResources: Resource[];
 	}>;
 	getMyProfile(): Promise<UserRecord | null>;
 	updateMyProfile(

@@ -232,10 +232,7 @@ export async function getResourceRatings(slug: string): Promise<RatingSummary> {
 
 export async function getDashboardSummary(): Promise<DashboardSummary> {
 	await delay();
-	return {
-		...MOCK_DASHBOARD,
-		recentResources: MOCK_RESOURCES.slice(0, 4),
-	};
+	return { ...MOCK_DASHBOARD };
 }
 
 // ---------------------------------------------------------------------------

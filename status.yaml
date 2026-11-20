@@ -4660,6 +4660,22 @@ tasks:
       enlaza a su ficha. ReportButton y AdminReportsSection pasan a Paraglide
       en los cinco idiomas. Dudas de producto (motivos y quien modera) en la
       issue.
+  T-2026-11-16-15141586:
+    date: 2026-11-16
+    agent: "frontend-ux-accesibilidad"
+    task: "«Mis recursos» completo: todos los recursos, estados, buscador y filtros"
+    status: Done
+    related: ["#530", "#494"]
+    notes: >
+      Nuevo GET /api/v1/users/me/resources: recursos propios en cualquier
+      estado, paginados, con estado, texto, tipo, etapa, area, familia y
+      etiqueta, y statusCounts con los mismos filtros (countResourcesByStatus
+      comparte condiciones con listResources). El resumen del perfil cuenta
+      tambien revision y archivados y deja de enviar los 5 ultimos. En /perfil,
+      MyResourcesTab con buscador, radios de estado con contadores, mas
+      filtros, paginacion de 12 y editar o eliminar en la tarjeta con el
+      ConfirmDialog accesible. Sin migracion: created_by sigue sin indice
+      (riesgo anotado en docs/epics/epic-003/design.md).
   T-2026-11-16-13581092:
     date: 2026-11-16
     agent: "ingestas-y-migraciones + backend-api-servicios"
@@ -4982,6 +4998,29 @@ tasks:
     status: In Progress
     related: ["#585", "#596"]
     notes: "La migración 0025_reports_collections pasa a 0030_reports_collections. Se conserva su marca temporal y se actualiza el journal."
+  T-2026-11-18-21590222:
+    date: 2026-11-18
+    agent: "frontend-ux-accesibilidad + qa-validacion"
+    task: "Corregir el fallo de Chromium al limpiar filtros en la PR #580"
+    status: Done
+    related: ["#580", "#530"]
+    notes: >
+      Al limpiar una búsqueda sin resultados, los contadores anteriores
+      desmontaban el panel y se perdía el foco. Se mantiene el panel durante
+      la recarga. El E2E crea su propio borrador, espera el resultado vacío
+      y comprueba la reapertura de resultados con el panel abierto y enfocado.
+      Validación local: ambos E2E en Chromium repetidos tres veces, 18 pruebas
+      unitarias, 180 pruebas de interfaz, lint y tipos.
+  T-2026-11-19-08305810:
+    date: 2026-11-19
+    agent: "integración"
+    task: "Resolver los conflictos de Mis recursos con main (#580)"
+    status: Done
+    related: ["#580", "#530", "#579"]
+    notes: >
+      Integrado main. Los cinco catálogos conservan los mensajes de Mis
+      recursos y del banco multimedia. Se conserva una única exclusión de la
+      caché generada de Inlang.
   T-2026-11-18-21443119:
     date: 2026-11-18
     agent: "devops-sre + qa-validacion"
