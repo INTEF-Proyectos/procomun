@@ -83,7 +83,12 @@ async function addLegacyPassword(
 	return inserted.length > 0;
 }
 
-/** Inserta el perfil si aún no existe; nunca lo sobrescribe. */
+/**
+ * Inserta el perfil si no existe. Si ya existe (p. ej. la fila con solo la bio
+ * que crea la migración 0023), rellena únicamente los campos vacíos: nunca
+ * sobrescribe un valor ni la bio.
+ * ponytail: un campo que la persona vació a mano se vuelve a rellenar al reimportar.
+ */
 async function addLegacyProfile(
 	db: DrizzleDB,
 	mapped: MappedLegacyUser,
@@ -100,7 +105,26 @@ async function addLegacyProfile(
 		})
 		.onConflictDoNothing()
 		.returning({ userId: userProfile.userId });
-	return inserted.length > 0;
+	if (inserted.length > 0) return true;
+
+	const [current] = await db
+		.select()
+		.from(userProfile)
+		.where(eq(userProfile.userId, mapped.id))
+		.limit(1);
+	if (!current) return false;
+	const missing = Object.fromEntries(
+		Object.entries(mapped.profile).filter(
+			([key, value]) =>
+				value !== null && current[key as keyof typeof current] == null,
+		),
+	);
+	if (Object.keys(missing).length === 0) return false;
+	await db
+		.update(userProfile)
+		.set({ ...missing, updatedAt: now })
+		.where(eq(userProfile.userId, mapped.id));
+	return true;
 }
 
 /**

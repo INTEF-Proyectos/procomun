@@ -1133,7 +1133,7 @@ export class HttpApiClient implements ApiClient {
 		return res.json();
 	}
 
-	async getMyProfile(): Promise<UserRecord | null> {
+	async getMyProfile(): Promise<import("./api-client.ts").MyProfile | null> {
 		const res = await fetch("/api/v1/users/me/profile", {
 			credentials: "include",
 		});
@@ -1141,7 +1141,7 @@ export class HttpApiClient implements ApiClient {
 		return res.json();
 	}
 
-	async updateMyProfile(data: Partial<Pick<UserRecord, "name" | "bio">>) {
+	async updateMyProfile(data: import("./api-client.ts").MyProfileUpdate) {
 		const res = await fetch("/api/v1/users/me/profile", {
 			method: "PATCH",
 			headers: { "Content-Type": "application/json" },
@@ -1150,7 +1150,22 @@ export class HttpApiClient implements ApiClient {
 		});
 		if (!res.ok) {
 			const err = await res.json().catch(() => ({}));
-			return { ok: false, error: err.error ?? "Error al actualizar perfil" };
+			const error: string = err.error ?? "Error al actualizar perfil";
+			// #533: errores por campo para señalarlos en el formulario.
+			if (!Array.isArray(err.details)) return { ok: false, error };
+			const fieldErrors = (
+				err.details as Array<{ field?: unknown; code?: unknown }>
+			)
+				.filter(
+					(detail) =>
+						typeof detail?.field === "string" &&
+						typeof detail?.code === "string",
+				)
+				.map((detail) => ({
+					field: detail.field as string,
+					code: detail.code as string,
+				}));
+			return { ok: false, error, fieldErrors };
 		}
 		return { ok: true };
 	}

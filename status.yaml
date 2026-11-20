@@ -4624,6 +4624,20 @@ tasks:
       La revision del 08-nov ya estaba resuelta en 733e4fe0; se ha
       verificado el journal y el migrador real de Drizzle sobre una base en
       main.
+  T-2026-11-16-15214208:
+    date: 2026-11-16
+    agent: "backend-api-servicios + frontend-ux-accesibilidad"
+    task: "Perfil ampliado: centro, localidad y redes del usuario"
+    status: Done
+    related: ["#533", "#494", "#488", "#504", "#487", "ADR-0037"]
+    notes: >
+      /perfil edita pais, localidad, centro y su web, web personal y redes,
+      privados hasta #504 (solo GET /users/me/profile a su dueno). El «Sobre
+      mi» queda solo en user_profile.about: la migracion 0023 le pasa user.bio
+      y borra la columna. Validacion compartida en @procomun/db/user-profile:
+      nombre obligatorio y longitudes, tambien en la administracion de
+      usuarios. Adenda en ADR-0037. Fuera: la ficha publica del autor (#487).
+
   T-2026-11-16-15141586:
     date: 2026-11-16
     agent: "frontend-ux-accesibilidad"
@@ -4955,6 +4969,13 @@ tasks:
       cubria el Referer. Tests rojo -> verde en transport.unit.test.ts,
       password-reset.integration.test.ts y nginx-log-redaction.unit.test.ts;
       comprobado con nginx:alpine. Adenda de ADR-0007 y operaciones.md.
+  T-2026-11-19-07271113:
+    date: 2026-11-19
+    agent: "ingestas-y-migraciones"
+    task: "Renumera la migración de #586 tras integrar la 0027"
+    status: In Progress
+    related: ["#586", "#596"]
+    notes: "La migración 0023_user_bio_to_profile pasa a 0029_user_bio_to_profile. Se conserva su marca temporal y se actualiza el journal."
   T-2026-11-18-21590222:
     date: 2026-11-18
     agent: "frontend-ux-accesibilidad + qa-validacion"
@@ -5035,3 +5056,14 @@ tasks:
       reutiliza el resumen saneado de errores SMTP. Validación local:
       98 pruebas de los flujos de autenticación y correo, 180 pruebas de
       interfaz, tipos y paridad de archivos de prueba.
+  T-2026-11-20-07063898:
+    date: 2026-11-20
+    agent: "frontend-ux-accesibilidad + qa-validacion"
+    task: "Resolver el conflicto de la PR #586 al integrar Mis recursos"
+    status: Done
+    related: ["#586", "#580", "#533", "#530"]
+    notes: >
+      Integrado main con el perfil ampliado y la pestaña Mis recursos.
+      Se conserva la migración 0029. Prueba conjunta de guardado del perfil,
+      listado y resumen de recursos. Validación local con 257 pruebas
+      específicas, 208 pruebas de interfaz, tipos y Biome.
