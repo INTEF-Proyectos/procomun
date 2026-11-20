@@ -56,6 +56,28 @@ export const THUMBNAIL_OWNER_INDEXES_SCHEMA = [
 ] as const;
 
 /**
+ * #533: el «Sobre mí» queda solo en `user_profile.about`, privado como el resto
+ * del perfil (ADR-0037). Le pasa el `user.bio` escrito en la plataforma nueva
+ * (prevalece sobre el importado) y borra esa columna. `about_edited_at` marca
+ * lo escrito en la plataforma nueva: lo importado sin editar no lo ve la
+ * administración (revisión de #586). La migración 0029_user_bio_to_profile
+ * contiene esta misma sentencia.
+ */
+export const USER_BIO_TO_PROFILE = `DO $$ BEGIN
+	ALTER TABLE "user_profile" ADD COLUMN IF NOT EXISTS about_edited_at TIMESTAMP;
+	IF EXISTS (
+		SELECT 1 FROM information_schema.columns
+		WHERE table_schema = current_schema()
+			AND table_name = 'user' AND column_name = 'bio'
+	) THEN
+		INSERT INTO "user_profile" (user_id, about, about_edited_at)
+		SELECT id, bio, now() FROM "user" WHERE bio ~ '\\S'
+		ON CONFLICT (user_id) DO UPDATE SET about = EXCLUDED.about,
+			about_edited_at = EXCLUDED.about_edited_at, updated_at = now();
+		ALTER TABLE "user" DROP COLUMN "bio";
+	END IF;
+END $$`;
+/**
  * Catálogo inicial de palabras clave (issue #384, ADR-0042). Solo inserta si
  * aún no hay ningún término de catálogo: no reescribe etiquetas existentes ni
  * recupera términos o alias borrados después. Si el slug ya lo usa una
@@ -188,7 +210,6 @@ export const SCHEMA_STATEMENTS = [
 		email_verified BOOLEAN NOT NULL DEFAULT false,
 		name TEXT,
 		image TEXT,
-		bio TEXT,
 		role VARCHAR(50) NOT NULL DEFAULT 'reader',
 		is_active BOOLEAN NOT NULL DEFAULT true,
 		banned BOOLEAN DEFAULT false,
@@ -403,6 +424,12 @@ export const SCHEMA_STATEMENTS = [
 		created_at TIMESTAMP NOT NULL DEFAULT NOW(),
 		updated_at TIMESTAMP NOT NULL DEFAULT NOW()
 	)`,
+	// #432: colecciones importadas de los itinerarios del Procomún antiguo
+	// (migración 0028_collections_legacy_import).
+	`ALTER TABLE "collections" ADD COLUMN IF NOT EXISTS import_source TEXT`,
+	`ALTER TABLE "collections" ADD COLUMN IF NOT EXISTS external_id TEXT`,
+	`ALTER TABLE "collections" ADD COLUMN IF NOT EXISTS published_at TIMESTAMP`,
+	`CREATE UNIQUE INDEX IF NOT EXISTS collections_import_source_external_id_idx ON "collections" (import_source, external_id) WHERE external_id IS NOT NULL`,
 	`CREATE TABLE IF NOT EXISTS "collection_resources" (
 		collection_id TEXT NOT NULL REFERENCES "collections"(id) ON DELETE CASCADE,
 		resource_id TEXT NOT NULL REFERENCES "resources"(id) ON DELETE CASCADE,
@@ -497,10 +524,6 @@ export const SCHEMA_STATEMENTS = [
 	EXCEPTION WHEN duplicate_column THEN NULL;
 	END $$`,
 	`DO $$ BEGIN
-		ALTER TABLE "user" ADD COLUMN bio TEXT;
-	EXCEPTION WHEN duplicate_column THEN NULL;
-	END $$`,
-	`DO $$ BEGIN
 		ALTER TABLE "user" ADD COLUMN deleted_at TIMESTAMP;
 	EXCEPTION WHEN duplicate_column THEN NULL;
 	END $$`,
@@ -550,6 +573,16 @@ export const SCHEMA_STATEMENTS = [
 	`CREATE INDEX IF NOT EXISTS idx_reports_resource_id ON reports(resource_id)`,
 	`CREATE INDEX IF NOT EXISTS idx_reports_status ON reports(status)`,
 	`CREATE INDEX IF NOT EXISTS idx_reports_reporter_id ON reports(reporter_id)`,
+	// Denuncias de colecciones (issue #539, migración 0025): un recurso o una
+	// colección, exactamente uno de los dos.
+	`ALTER TABLE "reports" ALTER COLUMN resource_id DROP NOT NULL`,
+	`ALTER TABLE "reports" ADD COLUMN IF NOT EXISTS collection_id TEXT REFERENCES "collections"(id) ON DELETE CASCADE`,
+	`DO $$ BEGIN
+		ALTER TABLE "reports" ADD CONSTRAINT reports_target_check
+			CHECK ((resource_id IS NULL) <> (collection_id IS NULL));
+	EXCEPTION WHEN duplicate_object THEN NULL;
+	END $$`,
+	`CREATE INDEX IF NOT EXISTS idx_reports_collection_id ON "reports"(collection_id)`,
 	// Versionado de recursos (issue #31 / ADR-0039)
 	// Un recurso puede tener varios proyectos elpx (historial): se elimina la
 	// unicidad de resource_id en BDs creadas antes de este cambio.
@@ -586,6 +619,7 @@ export const SCHEMA_STATEMENTS = [
 		educational_center TEXT,
 		educational_center_url TEXT,
 		about TEXT,
+		about_edited_at TIMESTAMP,
 		website TEXT,
 		facebook TEXT,
 		linkedin TEXT,
@@ -593,6 +627,8 @@ export const SCHEMA_STATEMENTS = [
 		created_at TIMESTAMP NOT NULL DEFAULT NOW(),
 		updated_at TIMESTAMP NOT NULL DEFAULT NOW()
 	)`,
+	// #533: bases PGlite creadas con user.bio (migración 0023).
+	USER_BIO_TO_PROFILE,
 	`DO $$ BEGIN
 		ALTER TABLE "resources" ADD COLUMN other_authors TEXT;
 	EXCEPTION WHEN duplicate_column THEN NULL;

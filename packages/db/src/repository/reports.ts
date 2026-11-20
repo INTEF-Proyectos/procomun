@@ -1,5 +1,6 @@
-import { and, desc, eq, sql } from "drizzle-orm";
+import { and, desc, eq, isNull, sql } from "drizzle-orm";
 import { user } from "../schema/auth.ts";
+import { collections } from "../schema/collections.ts";
 import { reports } from "../schema/reports.ts";
 import { resources } from "../schema/resources.ts";
 import { type DrizzleDB, normalizePagination } from "./shared.ts";
@@ -31,12 +32,43 @@ export const REPORT_ACTIONS = [
 	"resource_deactivated",
 	"resource_deleted",
 	"referred_editorial",
+	// Issue #539: denuncias de colecciones.
+	"collection_edited",
+	"collection_deactivated",
+	"collection_deleted",
 ] as const;
 
 export type ReportAction = (typeof REPORT_ACTIONS)[number];
 
-type CreateReportInput = {
-	resourceId: string;
+/** Qué se denuncia: un recurso o una colección (issue #539). */
+export type ReportTarget = "resource" | "collection";
+
+const ACTION_TARGET: Partial<Record<ReportAction, ReportTarget>> = {
+	resource_edited: "resource",
+	resource_deactivated: "resource",
+	resource_deleted: "resource",
+	collection_edited: "collection",
+	collection_deactivated: "collection",
+	collection_deleted: "collection",
+};
+
+/**
+ * Las acciones sobre recursos solo valen para denuncias de recursos, y las de
+ * colecciones para las de colecciones. Las demás (descartar, resolver sin
+ * cambios, derivar) valen para las dos.
+ */
+export function isReportActionAllowed(
+	action: ReportAction,
+	target: ReportTarget,
+): boolean {
+	const only = ACTION_TARGET[action];
+	return !only || only === target;
+}
+
+type CreateReportInput = (
+	| { resourceId: string; collectionId?: never }
+	| { collectionId: string; resourceId?: never }
+) & {
 	reporterId?: string | null;
 	reason: ReportReason;
 	description?: string | null;
@@ -48,6 +80,7 @@ type ListReportsOptions = {
 	status?: string;
 	reason?: string;
 	resourceId?: string;
+	collectionId?: string;
 };
 
 type UpdateReportInput = {
@@ -62,6 +95,10 @@ const reportListSelection = {
 	resourceId: reports.resourceId,
 	resourceTitle: resources.title,
 	resourceSlug: resources.slug,
+	collectionId: reports.collectionId,
+	collectionTitle: collections.title,
+	collectionSlug: collections.slug,
+	collectionStatus: collections.editorialStatus,
 	reporterId: reports.reporterId,
 	reason: reports.reason,
 	description: reports.description,
@@ -79,7 +116,8 @@ export async function createReport(db: DrizzleDB, input: CreateReportInput) {
 	const now = new Date();
 	await db.insert(reports).values({
 		id,
-		resourceId: input.resourceId,
+		resourceId: input.resourceId ?? null,
+		collectionId: input.collectionId ?? null,
 		reporterId: input.reporterId ?? null,
 		reason: input.reason,
 		description: input.description ?? null,
@@ -100,6 +138,7 @@ export async function listReports(
 		opts.status ? eq(reports.status, opts.status) : undefined,
 		opts.reason ? eq(reports.reason, opts.reason) : undefined,
 		opts.resourceId ? eq(reports.resourceId, opts.resourceId) : undefined,
+		opts.collectionId ? eq(reports.collectionId, opts.collectionId) : undefined,
 	].filter(Boolean);
 
 	const where = conditions.length > 0 ? and(...conditions) : undefined;
@@ -107,7 +146,8 @@ export async function listReports(
 	const rows = await db
 		.select(reportListSelection)
 		.from(reports)
-		.innerJoin(resources, eq(reports.resourceId, resources.id))
+		.leftJoin(resources, eq(reports.resourceId, resources.id))
+		.leftJoin(collections, eq(reports.collectionId, collections.id))
 		.where(where)
 		.orderBy(desc(reports.createdAt))
 		.limit(limit)
@@ -116,7 +156,6 @@ export async function listReports(
 	const countResult = await db
 		.select({ count: sql<number>`count(*)` })
 		.from(reports)
-		.innerJoin(resources, eq(reports.resourceId, resources.id))
 		.where(where);
 
 	return {
@@ -134,7 +173,8 @@ export async function getReportById(db: DrizzleDB, reportId: string) {
 			reporterName: user.name,
 		})
 		.from(reports)
-		.innerJoin(resources, eq(reports.resourceId, resources.id))
+		.leftJoin(resources, eq(reports.resourceId, resources.id))
+		.leftJoin(collections, eq(reports.collectionId, collections.id))
 		.leftJoin(user, eq(reports.reporterId, user.id))
 		.where(eq(reports.id, reportId))
 		.limit(1);
@@ -175,4 +215,27 @@ export async function getReportCountByResource(
 		);
 
 	return Number(result[0]?.count ?? 0);
+}
+
+/**
+ * Lee y bloquea (FOR UPDATE) la fila de una colección dentro de una
+ * transacción, para decidir sobre su estado actual sin carreras (#585).
+ */
+export async function lockCollectionForUpdate(tx: DrizzleDB, id: string) {
+	const rows = await tx
+		.select()
+		.from(collections)
+		.where(eq(collections.id, id))
+		.for("update");
+	return rows[0] ?? null;
+}
+
+/** Igual que `lockCollectionForUpdate`, para un recurso no borrado. */
+export async function lockResourceForUpdate(tx: DrizzleDB, id: string) {
+	const rows = await tx
+		.select()
+		.from(resources)
+		.where(and(eq(resources.id, id), isNull(resources.deletedAt)))
+		.for("update");
+	return rows[0] ?? null;
 }

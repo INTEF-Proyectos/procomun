@@ -449,3 +449,16 @@ Para dar la bateria por cerrada:
 - Los defectos visuales/accesibilidad deben incluir captura, viewport, navegador y ruta.
 - Cualquier dato creado para prueba debe quedar documentado o limpiarse con nuevo seed.
 - Si se usa `make up` con base local, anotar si se ejecuto `make down` al final.
+
+## Ampliación 2026-11-16 — MP-08 «Mis recursos» completo (#530)
+
+| Paso | Resultado esperado |
+|------|--------------------|
+| Login como author con más de 12 recursos propios. Abrir `/perfil`, pestaña `Mis recursos`. | Aparecen 12 tarjetas y la paginación; «Todos (n)» coincide con el contador de la pestaña. |
+| Elegir cada estado: publicados, borradores, en revisión y archivados. | Cada lista tiene tantos recursos como su contador; la suma de los cuatro es «Todos». |
+| Escribir parte de un título en «Buscar en mis recursos». | La lista se filtra; los contadores de estado pasan a contar solo lo que coincide. |
+| Abrir «Más filtros» y elegir tipo, etapa, área o etiqueta. «Limpiar filtros». | Se filtra; al limpiar vuelve la lista completa del estado elegido y se vacía el buscador. |
+| En una tarjeta, «Editar». | Abre `/editar?id=…` del recurso. |
+| En una tarjeta, «Eliminar», y «Cancelar» o Escape. | Se abre un diálogo propio (no el `confirm` del navegador); al cancelar no se borra y el foco vuelve al botón. |
+| «Eliminar» y confirmar. | El recurso desaparece, se anuncia «Se ha eliminado…», bajan los contadores del perfil y de la pestaña. |
+| Repetir con teclado y lector de pantalla. | Todos los controles se alcanzan con Tab, tienen nombre accesible y foco visible. |
