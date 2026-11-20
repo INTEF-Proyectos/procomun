@@ -124,3 +124,8 @@ En desarrollo
 ## Renumeración de la migración — 2026-11-19
 
 `0025_reports_collections` pasa a `0030_reports_collections` tras integrar la 0027 de «Artículo». Se conserva el orden de integración #586, #585 y #587.
+
+## Licencias de alta y edición — 2026-11-19 (#597)
+
+- [x] Derivar las opciones de alta y edición de las licencias válidas de la API.
+- [x] Cubrir que editar el título conserva las licencias CC BY-ND y CC BY-NC-ND.
