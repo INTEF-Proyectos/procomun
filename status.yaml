@@ -5173,3 +5173,10 @@ tasks:
       La ficha reutiliza el resumen y el control de estrellas de los recursos.
       Una cuenta puede actualizar su voto en cualquier colección publicada,
       incluidas las importadas. La migración 0033 valida el rango y la unicidad.
+  T-2026-11-20-21092246:
+    date: 2026-11-20
+    agent: "ingestas-y-migraciones + qa-validacion"
+    task: "Atribuye los itinerarios al propietario histórico por UID"
+    status: In Progress
+    related: ["#616", "#432", "#600", "ADR-0029"]
+    notes: "El volcado histórico es obligatorio. La reimportación conserva las atribuciones existentes. Verificación con datos sintéticos."
