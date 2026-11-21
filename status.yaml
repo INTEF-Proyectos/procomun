@@ -5163,6 +5163,13 @@ tasks:
       Se conservan las secciones de seguimiento del perfil ampliado y
       de la atribución histórica por UID. Pasan 110 pruebas de importación,
       reenlace y autoría con datos sintéticos, además de tipos y Biome.
+  T-2026-11-20-21100978:
+    date: 2026-11-20
+    agent: "backend-api-servicios + qa-validacion"
+    task: "Corregir la reordenación de colecciones con borradores ocultos"
+    status: Done
+    related: ["#617", "#432"]
+    notes: "Regresión de API reproducida y corregida con datos sintéticos."
   T-2026-11-20-21092246:
     date: 2026-11-20
     agent: "ingestas-y-migraciones + qa-validacion"
