@@ -9,9 +9,14 @@ import type {
 	CollectionDetailRecord,
 	CollectionRecord,
 } from "../../lib/api-client.ts";
+import {
+	classificationLineText,
+	formatEducationalClassifications,
+} from "../../lib/educational-classification.ts";
 import { getApiClient } from "../../lib/get-api-client.ts";
 import { url } from "../../lib/paths.ts";
 import { resourceCardMedia } from "../../lib/resource-card-media.ts";
+import { languageLabel } from "../../lib/resource-display.ts";
 import { formatDateLong } from "../../lib/shared-utils.ts";
 import { ResourceByline } from "../../ui/AuthorLinks.tsx";
 import { CardTypeMarker } from "../../ui/CardTypeMarker.tsx";
@@ -59,6 +64,27 @@ export function CollectionDetailContent({
 	onBack: () => void;
 	currentUserId?: string | null;
 }) {
+	const metadata = [
+		{
+			label: "Idioma",
+			value: detail.language ? languageLabel(detail.language) : "",
+		},
+		{
+			label: "Palabras clave",
+			value: detail.catalogKeywords?.map(({ label }) => label).join(", "),
+		},
+		{
+			label: "Áreas de conocimiento",
+			value: detail.knowledgeAreas?.map(({ label }) => label).join(", "),
+		},
+		{
+			label: "Etapa, programa o ámbito educativo",
+			value: formatEducationalClassifications(detail.educationalAreas)
+				.map(classificationLineText)
+				.join("; "),
+		},
+	].filter((field) => field.value);
+
 	return (
 		<section className="collections-shell">
 			<div className="collection-detail-toolbar">
@@ -98,6 +124,23 @@ export function CollectionDetailContent({
 					</ul>
 				</div>
 			</header>
+
+			{metadata.length > 0 && (
+				<section
+					className="collection-detail-section"
+					aria-labelledby="collection-metadata-title"
+				>
+					<h2 id="collection-metadata-title">Detalles técnicos</h2>
+					<dl>
+						{metadata.map(({ label, value }) => (
+							<div key={label}>
+								<dt>{label}</dt>
+								<dd>{value}</dd>
+							</div>
+						))}
+					</dl>
+				</section>
+			)}
 
 			<section
 				className="collection-detail-section"

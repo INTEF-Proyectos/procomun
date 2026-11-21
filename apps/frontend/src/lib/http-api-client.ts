@@ -764,6 +764,10 @@ export class HttpApiClient implements ApiClient {
 			coverImageUrl: string | null;
 			editorialStatus: string;
 			isOrdered: boolean;
+			language: string | null;
+			keywordIds: string[];
+			knowledgeAreaIds: string[];
+			educationalAreas: { categoryId: string; optionId: string | null }[];
 		}>,
 	) {
 		const res = await fetch(`/api/admin/collections/${id}`, {

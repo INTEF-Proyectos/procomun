@@ -158,6 +158,10 @@ export interface ProfileFieldError {
 }
 
 export interface CollectionRecord {
+	language?: string | null;
+	catalogKeywords?: CatalogKeyword[];
+	knowledgeAreas?: ResourceKnowledgeArea[];
+	educationalAreas?: Resource["educationalAreas"];
 	id: string;
 	slug: string;
 	title: string;
@@ -628,6 +632,10 @@ export interface ApiClient {
 			coverImageUrl: string | null;
 			editorialStatus: string;
 			isOrdered: boolean;
+			language: string | null;
+			keywordIds: string[];
+			knowledgeAreaIds: string[];
+			educationalAreas: { categoryId: string; optionId: string | null }[];
 		}>,
 	): Promise<{
 		ok: boolean;

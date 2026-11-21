@@ -1,3 +1,4 @@
+import { VALID_LANGUAGES } from "@procomun/db/validation";
 import {
 	type FormEvent,
 	startTransition,
@@ -6,12 +7,23 @@ import {
 	useState,
 } from "react";
 import type {
+	CatalogKeyword,
 	CollectionRecord,
 	CollectionResourceRecord,
+	PublicKnowledgeAreaCatalog,
 	Resource,
 } from "../../lib/api-client.ts";
+import {
+	assignmentsToSelections,
+	type EducationalSelection,
+	selectionsToAssignments,
+} from "../../lib/educational-classification.ts";
 import { getApiClient } from "../../lib/get-api-client.ts";
 import { labelFor } from "../../lib/labels.ts";
+import { languageLabel } from "../../lib/resource-display.ts";
+import { EducationalClassificationEditor } from "../resources/EducationalClassificationFields.tsx";
+import { KeywordCatalogField } from "../resources/KeywordCatalogField.tsx";
+import { KnowledgeAreaField } from "../resources/KnowledgeClassificationFields.tsx";
 import { AccessibleFeedback } from "../shared/AccessibleFeedback.tsx";
 import { ConfirmDialog } from "../shared/ConfirmDialog.tsx";
 import { ModalFrame } from "../shared/ModalFrame.tsx";
@@ -208,6 +220,14 @@ export function CollectionsCrudIsland() {
 		message: "",
 		variant: "neutral",
 	});
+	const [language, setLanguage] = useState("");
+	const [keywords, setKeywords] = useState<CatalogKeyword[]>([]);
+	const [areas, setAreas] = useState<string[]>([]);
+	const [educational, setEducational] = useState<EducationalSelection[]>([]);
+	const [catalog, setCatalog] = useState<PublicKnowledgeAreaCatalog | null>(
+		null,
+	);
+
 	const [editing, setEditing] = useState<CollectionRecord | null>(null);
 	const [editForm, setEditForm] = useState(EMPTY_FORM);
 	const [editError, setEditError] = useState("");
@@ -339,7 +359,17 @@ export function CollectionsCrudIsland() {
 				return;
 			}
 
+			setLanguage(collection.language ?? "");
+			setKeywords(collection.catalogKeywords ?? []);
+			setAreas(collection.knowledgeAreas?.map(({ id }) => id) ?? []);
+			setEducational(
+				assignmentsToSelections(collection.educationalAreas ?? []),
+			);
 			setEditing(collection);
+			void api
+				.getKnowledgeAreaCatalog()
+				.then(setCatalog)
+				.catch(() => {});
 			setEditForm({
 				title: collection.title,
 				description: collection.description,
@@ -396,6 +426,10 @@ export function CollectionsCrudIsland() {
 				coverImageUrl: editForm.coverImageUrl || null,
 				editorialStatus: editForm.editorialStatus,
 				isOrdered: editForm.isOrdered,
+				language: language || null,
+				keywordIds: keywords.map(({ id }) => id),
+				knowledgeAreaIds: areas,
+				educationalAreas: selectionsToAssignments(educational),
 			});
 			if (!result.ok) {
 				setEditError(result.error ?? "Error al guardar.");
@@ -755,6 +789,40 @@ export function CollectionsCrudIsland() {
 								Orden fija
 							</label>
 						</div>
+
+						<fieldset className="admin-form-field">
+							<legend>Detalles técnicos</legend>
+							<label htmlFor="collection-edit-language">Idioma</label>
+							<select
+								id="collection-edit-language"
+								value={language}
+								onChange={(event) => setLanguage(event.currentTarget.value)}
+							>
+								<option value="">Sin indicar</option>
+								{VALID_LANGUAGES.map((code) => (
+									<option key={code} value={code}>
+										{languageLabel(code)}
+									</option>
+								))}
+							</select>
+							<KeywordCatalogField
+								id="collection-keywords"
+								selected={keywords}
+								onChange={setKeywords}
+							/>
+							<KnowledgeAreaField
+								idPrefix="collection-edit"
+								catalog={catalog}
+								selectedIds={areas}
+								onChange={setAreas}
+								resourceAreas={editing.knowledgeAreas}
+							/>
+							<EducationalClassificationEditor
+								idPrefix="collection-edit"
+								selections={educational}
+								onChange={setEducational}
+							/>
+						</fieldset>
 
 						<section
 							className="collection-resource-section"

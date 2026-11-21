@@ -1239,6 +1239,67 @@ describe("Rutas admin — colecciones", () => {
 		expect(body.id).toBeDefined();
 	});
 
+	test("conserva los metadatos de una colección y revierte una selección inválida (#611)", async () => {
+		const headers = { "Content-Type": "application/json" };
+		const created = await app.request("/api/admin/collections", {
+			method: "POST",
+			headers,
+			body: JSON.stringify({
+				title: "Colección con metadatos",
+				description: "Descripción",
+				editorialStatus: "published",
+			}),
+		});
+		expect(created.status).toBe(201);
+		const { id, slug } = await created.json();
+		const outcome = await repo.createCatalogKeyword(getDb().db, {
+			label: "Catalogación 611",
+			createdBy: "1",
+		});
+		if (outcome.status === "invalid")
+			throw new Error("No se obtuvo palabra clave");
+		const { keyword } = outcome;
+		const assignments = [
+			{ categoryId: "educacion-primaria", optionId: "primer-ciclo" },
+		];
+		const path = `/api/admin/collections/${id}`;
+		const patch = (data: Record<string, unknown>) =>
+			app.request(path, {
+				method: "PATCH",
+				headers,
+				body: JSON.stringify(data),
+			});
+		expect(
+			(
+				await patch({
+					language: "ca",
+					knowledgeAreaIds: ["matematicas"],
+					keywordIds: [keyword.id],
+					educationalAreas: assignments,
+				})
+			).status,
+		).toBe(200);
+		expect((await patch({ title: "Título nuevo" })).status).toBe(200);
+		expect(
+			(await patch({ language: "en", knowledgeAreaIds: ["area-inexistente"] }))
+				.status,
+		).toBe(400);
+		const res = await app.request(path);
+		const metadata = {
+			title: "Título nuevo",
+			language: "ca",
+			knowledgeAreas: [expect.objectContaining({ id: "matematicas" })],
+			catalogKeywords: [keyword],
+			educationalAreas: assignments,
+		};
+		expect(await res.json()).toMatchObject(metadata);
+		const publicApp = new Hono();
+		publicApp.route("/api/v1", publicRoutes);
+		const published = await publicApp.request(`/api/v1/collections/${slug}`);
+		expect(published.status).toBe(200);
+		expect(await published.json()).toMatchObject(metadata);
+	});
+
 	test("POST /api/admin/collections → 400 sin título", async () => {
 		const res = await app.request("/api/admin/collections", {
 			method: "POST",

@@ -1,6 +1,16 @@
-import { desc, eq, ne, or, sql } from "drizzle-orm";
+import { asc, desc, eq, ne, or, sql } from "drizzle-orm";
+import { inspectEducationalAssignments } from "../educational-areas.ts";
 import { user } from "../schema/auth.ts";
-import { collections } from "../schema/collections.ts";
+import {
+	collectionKeywords,
+	collectionKnowledgeAreas,
+	collections,
+} from "../schema/collections.ts";
+import { knowledgeAreas } from "../schema/knowledge-areas.ts";
+import { tags } from "../schema/tags.ts";
+import { VALID_LANGUAGES } from "../validation.ts";
+import { assertCatalogKeywordIds } from "./keyword-catalog.ts";
+import { assertResourceKnowledgeAreaIds } from "./knowledge-areas.ts";
 import {
 	andWhere,
 	buildSearchTerm,
@@ -82,15 +92,46 @@ export async function listCollections(
 	return { data: rows, total: Number(countRows[0]?.count ?? 0), limit, offset };
 }
 
+async function collectionMetadata(db: DrizzleDB, id: string) {
+	const [catalogKeywords, areas] = await Promise.all([
+		db
+			.select({ id: tags.id, slug: tags.slug, label: tags.label })
+			.from(collectionKeywords)
+			.innerJoin(tags, eq(collectionKeywords.tagId, tags.id))
+			.where(eq(collectionKeywords.collectionId, id))
+			.orderBy(asc(tags.label)),
+		db
+			.select({
+				id: knowledgeAreas.id,
+				label: knowledgeAreas.label,
+				blockId: knowledgeAreas.blockId,
+				active: knowledgeAreas.active,
+			})
+			.from(collectionKnowledgeAreas)
+			.innerJoin(
+				knowledgeAreas,
+				eq(collectionKnowledgeAreas.areaId, knowledgeAreas.id),
+			)
+			.where(eq(collectionKnowledgeAreas.collectionId, id))
+			.orderBy(asc(knowledgeAreas.label)),
+	]);
+	return { catalogKeywords, knowledgeAreas: areas };
+}
+
 export async function getCollectionById(db: DrizzleDB, id: string) {
 	const rows = await db
-		.select(collectionSelection())
+		.select({
+			...collectionSelection(),
+			language: collections.language,
+			educationalAreas: collections.educationalAreas,
+		})
 		.from(collections)
 		.leftJoin(user, eq(collections.curatorId, user.id))
 		.where(eq(collections.id, id))
 		.limit(1);
 
-	return rows[0] ?? null;
+	const row = rows[0];
+	return row ? { ...row, ...(await collectionMetadata(db, row.id)) } : null;
 }
 
 export async function getCollectionBySlug(
@@ -103,13 +144,18 @@ export async function getCollectionBySlug(
 		conditions.push(eq(collections.editorialStatus, opts.status));
 
 	const rows = await db
-		.select(collectionSelection(opts.resourceStatus))
+		.select({
+			...collectionSelection(opts.resourceStatus),
+			language: collections.language,
+			educationalAreas: collections.educationalAreas,
+		})
 		.from(collections)
 		.leftJoin(user, eq(collections.curatorId, user.id))
 		.where(andWhere(conditions))
 		.limit(1);
 
-	return rows[0] ?? null;
+	const row = rows[0];
+	return row ? { ...row, ...(await collectionMetadata(db, row.id)) } : null;
 }
 
 export async function createCollection(
@@ -152,12 +198,80 @@ export async function updateCollection(
 		coverImageUrl: string | null;
 		editorialStatus: string;
 		isOrdered: boolean;
+		language: unknown;
+		educationalAreas: unknown;
+		keywordIds: unknown;
+		knowledgeAreaIds: unknown;
 	}>,
 ) {
-	await db
-		.update(collections)
-		.set({ ...data, updatedAt: new Date() })
-		.where(eq(collections.id, id));
+	const {
+		keywordIds,
+		knowledgeAreaIds,
+		educationalAreas,
+		language,
+		...fields
+	} = data;
+	if (
+		language !== undefined &&
+		language !== null &&
+		(typeof language !== "string" ||
+			!VALID_LANGUAGES.some((code) => code === language))
+	) {
+		throw Object.assign(new Error("Idioma no válido"), { status: 400 });
+	}
+	const classification =
+		educationalAreas === undefined
+			? undefined
+			: inspectEducationalAssignments(educationalAreas);
+	if (classification?.errors.length) {
+		throw Object.assign(new Error("Clasificación educativa no válida"), {
+			status: 400,
+			details: classification.errors,
+		});
+	}
+	const assignments = classification?.assignments;
+	await db.transaction(async (tx: DrizzleDB) => {
+		await tx
+			.update(collections)
+			.set({
+				...fields,
+				language,
+				educationalAreas: assignments,
+				updatedAt: new Date(),
+			})
+			.where(eq(collections.id, id));
+		if (keywordIds === undefined && knowledgeAreaIds === undefined) return;
+		const current = await collectionMetadata(tx, id);
+		if (keywordIds !== undefined) {
+			const ids = await assertCatalogKeywordIds(
+				tx,
+				keywordIds,
+				current.catalogKeywords.map(({ id }) => id),
+			);
+			await tx
+				.delete(collectionKeywords)
+				.where(eq(collectionKeywords.collectionId, id));
+			if (ids.length)
+				await tx
+					.insert(collectionKeywords)
+					.values(ids.map((tagId) => ({ collectionId: id, tagId })));
+		}
+		if (knowledgeAreaIds !== undefined) {
+			const ids = await assertResourceKnowledgeAreaIds(
+				tx,
+				null,
+				knowledgeAreaIds,
+				current.knowledgeAreas.map(({ id }) => id),
+			);
+			await tx
+				.delete(collectionKnowledgeAreas)
+				.where(eq(collectionKnowledgeAreas.collectionId, id));
+			if (ids.length)
+				await tx
+					.insert(collectionKnowledgeAreas)
+					.values(ids.map((areaId) => ({ collectionId: id, areaId })));
+		}
+	});
 }
 
 export async function deleteCollection(db: DrizzleDB, id: string) {

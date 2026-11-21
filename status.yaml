@@ -5163,3 +5163,11 @@ tasks:
       Se conservan las secciones de seguimiento del perfil ampliado y
       de la atribución histórica por UID. Pasan 110 pruebas de importación,
       reenlace y autoría con datos sintéticos, además de tipos y Biome.
+  T-2026-11-21-00301750:
+    agent: "metadatos-y-curacion + qa-validacion"
+    task: "Editar y mostrar los metadatos técnicos de colecciones"
+    status: Done
+    related: ["#611", "#614", "#612", "#615"]
+    notes: >
+      La edición y la ficha pública comparten los catálogos de recursos.
+      El alta, los filtros y la importación tienen seguimiento propio.

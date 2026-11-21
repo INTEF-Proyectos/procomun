@@ -1288,3 +1288,29 @@ describe("migración 0030_reports_collections", () => {
 		}
 	});
 });
+
+test("la migración de metadatos conserva las colecciones existentes (#611)", async () => {
+	const migration = await readFile(
+		path.join(migrationsDir, "0034_collection_metadata.sql"),
+		"utf8",
+	);
+	const db = new PGlite();
+	try {
+		await db.exec(`
+			CREATE TABLE collections (id TEXT PRIMARY KEY);
+			CREATE TABLE tags (id TEXT PRIMARY KEY);
+			CREATE TABLE knowledge_areas (id TEXT PRIMARY KEY);
+			INSERT INTO collections (id) VALUES ('coleccion-previa');
+		`);
+		await db.exec(migration);
+		await db.exec(migration);
+		const { rows } = await db.query(
+			"SELECT id, language, educational_areas FROM collections",
+		);
+		expect(rows).toEqual([
+			{ id: "coleccion-previa", language: null, educational_areas: [] },
+		]);
+	} finally {
+		await db.close();
+	}
+});
