@@ -5163,3 +5163,10 @@ tasks:
       Se conservan las secciones de seguimiento del perfil ampliado y
       de la atribución histórica por UID. Pasan 110 pruebas de importación,
       reenlace y autoría con datos sintéticos, además de tipos y Biome.
+  T-2026-11-20-21092246:
+    date: 2026-11-20
+    agent: "ingestas-y-migraciones + qa-validacion"
+    task: "Atribuye los itinerarios al propietario histórico por UID"
+    status: In Progress
+    related: ["#616", "#432", "#600", "ADR-0029"]
+    notes: "El volcado histórico es obligatorio. La reimportación conserva las atribuciones existentes. Verificación con datos sintéticos."
