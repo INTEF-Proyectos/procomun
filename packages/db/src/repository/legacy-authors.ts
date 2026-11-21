@@ -46,10 +46,12 @@ export async function findLegacyAuthorAccount(
 /**
  * Cuenta por su id estable `legacy-procomun:user:<uid>` (#552), sin mirar el
  * correo: el titular actual de una dirección puede no ser quien publicó.
+ * Las colecciones históricas conservan la atribución a cuentas bloqueadas.
  */
 export async function findLegacyAccountById(
 	db: DrizzleDB,
 	id: string,
+	options: { includeInactive?: boolean } = {},
 ): Promise<{ id: string; deleted: boolean; emailVerified: boolean } | null> {
 	if (id === LEGACY_IMPORT_SYSTEM_USER_ID) return null;
 	const [row] = await db
@@ -62,7 +64,9 @@ export async function findLegacyAccountById(
 		.where(
 			and(
 				eq(user.id, id),
-				or(eq(user.isActive, true), isNotNull(user.deletedAt)),
+				options.includeInactive
+					? undefined
+					: or(eq(user.isActive, true), isNotNull(user.deletedAt)),
 			),
 		)
 		.limit(1);
