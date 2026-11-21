@@ -5163,3 +5163,13 @@ tasks:
       Se conservan las secciones de seguimiento del perfil ampliado y
       de la atribución histórica por UID. Pasan 110 pruebas de importación,
       reenlace y autoría con datos sintéticos, además de tipos y Biome.
+  T-2026-11-21-00290246:
+    date: 2026-11-21
+    agent: "devops-sre + qa-validacion"
+    task: "Publicar y escanear la imagen del thumbnailer"
+    status: Done
+    related: ["#519", "ADR-0046"]
+    notes: >
+      CI publica app y thumbnailer con las etiquetas main y latest y escanea
+      ambos digests con Trivy. Dependabot agrupa Playwright y dos pruebas
+      verifican el contrato de publicación y la paridad de versiones.
