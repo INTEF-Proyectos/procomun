@@ -1056,8 +1056,27 @@ export class HttpApiClient implements ApiClient {
 		return res.json();
 	}
 
+	async getCollectionRatings(slug: string) {
+		const response = await fetch(
+			`/api/v1/collections/${encodeURIComponent(slug)}/ratings`,
+		);
+		if (!response.ok) throw new Error("No se pudieron cargar las valoraciones");
+		return response.json();
+	}
+
 	async submitRating(slug: string, score: number) {
-		const res = await fetch(`/api/v1/resources/${slug}/ratings`, {
+		return this.saveRating(`/api/v1/resources/${slug}/ratings`, score);
+	}
+
+	async submitCollectionRating(slug: string, score: number) {
+		return this.saveRating(
+			`/api/v1/collections/${encodeURIComponent(slug)}/ratings`,
+			score,
+		);
+	}
+
+	private async saveRating(path: string, score: number) {
+		const res = await fetch(path, {
 			method: "POST",
 			headers: { "Content-Type": "application/json" },
 			credentials: "include",

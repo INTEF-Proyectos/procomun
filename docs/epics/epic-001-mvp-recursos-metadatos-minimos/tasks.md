@@ -129,3 +129,9 @@ En desarrollo
 
 - [x] Derivar las opciones de alta y edición de las licencias válidas de la API.
 - [x] Cubrir que editar el título conserva las licencias CC BY-ND y CC BY-NC-ND.
+
+### 2026-11-21 · Valoraciones de colecciones públicas (#609)
+
+- [x] Reutilizar la escala de una a cinco estrellas, el resumen y los controles de las fichas de recursos.
+- [x] Permitir un voto editable por cuenta y colección publicada. Las colecciones importadas empiezan con cero valoraciones.
+- [x] Comprobar permisos, media, distribución y sustitución de votos con datos de prueba.

@@ -15,6 +15,7 @@ import { resourceCardMedia } from "../../lib/resource-card-media.ts";
 import { formatDateLong } from "../../lib/shared-utils.ts";
 import { ResourceByline } from "../../ui/AuthorLinks.tsx";
 import { CardTypeMarker } from "../../ui/CardTypeMarker.tsx";
+import { RatingIsland } from "../social/RatingIsland.tsx";
 import { ReportButton } from "../social/ReportButton.tsx";
 import "./PublicCollectionsIsland.css";
 
@@ -158,6 +159,14 @@ export function CollectionDetailContent({
 					})}
 				</div>
 			</section>
+			<div className="collection-detail-section">
+				<RatingIsland
+					key={detail.slug}
+					target="collection"
+					slug={detail.slug}
+					currentUserId={currentUserId}
+				/>
+			</div>
 		</section>
 	);
 }

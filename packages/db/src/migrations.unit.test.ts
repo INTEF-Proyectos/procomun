@@ -1288,3 +1288,42 @@ describe("migración 0030_reports_collections", () => {
 		}
 	});
 });
+
+test("0033 añade valoraciones acotadas y únicas a colecciones existentes (#609)", async () => {
+	const migration = await readFile(
+		path.join(migrationsDir, "0033_collection_ratings.sql"),
+		"utf8",
+	);
+	expect(
+		SCHEMA_STATEMENTS.find((statement) =>
+			statement.includes('"collection_ratings"'),
+		),
+	).toBe(migration.trim().slice(0, -1));
+	const db = new PGlite();
+	try {
+		await db.exec(`
+			CREATE TABLE collections (id TEXT PRIMARY KEY);
+			CREATE TABLE "user" (id TEXT PRIMARY KEY);
+			INSERT INTO collections VALUES ('importada');
+			INSERT INTO "user" VALUES ('cuenta');
+		`);
+		await db.exec(migration);
+		await db.exec(migration);
+		await expect(
+			db.exec(`INSERT INTO collection_ratings (collection_id, user_id, score)
+			VALUES ('importada', 'cuenta', 6)`),
+		).rejects.toThrow("collection_ratings_score_check");
+		await db.exec(`INSERT INTO collection_ratings (collection_id, user_id, score)
+			VALUES ('importada', 'cuenta', 3)`);
+		await expect(
+			db.exec(`INSERT INTO collection_ratings (collection_id, user_id, score)
+			VALUES ('importada', 'cuenta', 4)`),
+		).rejects.toThrow("collection_ratings_pkey");
+		await db.exec(`DELETE FROM "user" WHERE id = 'cuenta'`);
+		expect(
+			(await db.query("SELECT score FROM collection_ratings")).rows,
+		).toEqual([]);
+	} finally {
+		await db.close();
+	}
+});

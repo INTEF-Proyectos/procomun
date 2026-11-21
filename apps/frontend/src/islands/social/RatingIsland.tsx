@@ -1,85 +1,98 @@
 import { useEffect, useState } from "react";
+import type { ApiClient } from "../../lib/api-client.ts";
 import { getApiClient } from "../../lib/get-api-client.ts";
-import type { RatingSummary as RatingSummaryType } from "../../lib/types/social.ts";
 import { RatingSummary } from "../../ui/RatingSummary.tsx";
 import { StarRating } from "../../ui/StarRating.tsx";
 import "./RatingIsland.css";
 
 export interface RatingIslandProps {
-	resourceSlug: string;
+	slug: string;
+	target?: "resource" | "collection";
 	currentUserId?: string | null;
 }
 
+const EMPTY_RATING = {
+	averageScore: 0,
+	totalRatings: 0,
+	distribution: { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 },
+};
+type RatingData = typeof EMPTY_RATING & { userScore?: number | null };
+
+function loadRating(
+	api: ApiClient,
+	target: "resource" | "collection",
+	slug: string,
+): Promise<RatingData> {
+	return target === "collection"
+		? api.getCollectionRatings(slug)
+		: api.getResourceRatings(slug);
+}
+
 export function RatingIsland({
-	resourceSlug,
+	slug,
+	target = "resource",
 	currentUserId,
 }: RatingIslandProps) {
-	const [rating, setRating] = useState<RatingSummaryType | null>(null);
-	const [userScore, setUserScore] = useState<number>(0);
-	const [loading, setLoading] = useState(true);
+	const [rating, setRating] = useState<RatingData | null>(null);
 	const [submitting, setSubmitting] = useState(false);
+	const [error, setError] = useState("");
+	const userScore = rating?.userScore ?? 0;
+	const Heading = target === "collection" ? "h2" : "h3";
 
 	useEffect(() => {
-		void (async () => {
-			try {
-				const api = await getApiClient();
-				const data = await api.getResourceRatings(resourceSlug);
-				const raw = data as Record<string, unknown>;
-				setRating({
-					resourceId: (raw.resourceId as string) ?? resourceSlug,
-					averageScore: Number(raw.averageScore) || 0,
-					totalRatings: Number(raw.totalRatings) || 0,
-					distribution: (raw.distribution as Record<
-						1 | 2 | 3 | 4 | 5,
-						number
-					>) ?? { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 },
-				});
-				// Load user's own rating if present
-				if (raw.userScore != null) {
-					setUserScore(Number(raw.userScore));
-				}
-			} catch {
-				// No ratings available — show empty state
-				setRating({
-					resourceId: resourceSlug,
-					averageScore: 0,
-					totalRatings: 0,
-					distribution: { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 },
-				});
-			} finally {
-				setLoading(false);
-			}
-		})();
-	}, [resourceSlug]);
+		let active = true;
+		void getApiClient()
+			.then((api) => loadRating(api, target, slug))
+			.catch(() => EMPTY_RATING)
+			.then((data) => {
+				if (active) setRating(data);
+			});
+		return () => {
+			active = false;
+		};
+	}, [slug, target]);
 
 	async function handleRate(score: number) {
 		if (!currentUserId || submitting) return;
 		setSubmitting(true);
+		setError("");
 		try {
 			const api = await getApiClient();
-			const result = await api.submitRating(resourceSlug, score);
-			setUserScore(result.score);
-			const updated = await api.getResourceRatings(resourceSlug);
-			setRating(updated as RatingSummaryType);
+			const result =
+				target === "collection"
+					? await api.submitCollectionRating(slug, score)
+					: await api.submitRating(slug, score);
+			setRating((current) => ({
+				...(current ?? EMPTY_RATING),
+				userScore: result.score,
+			}));
+			setRating(await loadRating(api, target, slug));
+		} catch {
+			setError("No se pudo actualizar la valoración. Inténtalo de nuevo.");
 		} finally {
 			setSubmitting(false);
 		}
 	}
 
-	if (loading || !rating) {
+	if (!rating) {
 		return <p className="rating-loading">Cargando valoraciones...</p>;
 	}
 
 	return (
 		<div className="rating-island">
-			<h3 className="rating-island-title">Valoraciones</h3>
+			<Heading className="rating-island-title">Valoraciones</Heading>
 			<RatingSummary rating={rating} />
 			{currentUserId && (
 				<div className="rating-island-user">
 					<p className="rating-island-label">
-						{userScore > 0 ? "Tu valoración:" : "Valora este recurso:"}
+						{userScore > 0
+							? "Tu valoración:"
+							: target === "collection"
+								? "Valora esta colección:"
+								: "Valora este recurso:"}
 					</p>
 					<StarRating value={userScore} onChange={handleRate} size="lg" />
+					<span aria-live="polite">{error}</span>
 				</div>
 			)}
 		</div>

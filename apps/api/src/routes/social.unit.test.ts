@@ -843,3 +843,79 @@ describe("Social — Visitas (#421)", () => {
 		}
 	});
 });
+
+test("las cuentas pueden valorar y modificar su voto en colecciones públicas (#609)", async () => {
+	const { db } = getDb();
+	const slug = "coleccion-valoraciones-609";
+	await db.insert(schema.collections).values([
+		{
+			id: slug,
+			title: "Itinerario importado",
+			slug,
+			description: "Prueba",
+			editorialStatus: "published",
+			curatorId: "1",
+			importSource: "legacy-procomun",
+			externalId: "609",
+		},
+		{
+			id: "609-draft",
+			title: "Borrador",
+			slug: "609-draft",
+			description: "Prueba",
+			editorialStatus: "draft",
+			curatorId: "1",
+		},
+	]);
+	const path = `/api/v1/collections/${slug}/ratings`;
+	const vote = (
+		app: ReturnType<typeof createSocialApp>,
+		score: number,
+		url = path,
+	) =>
+		app.request(url, {
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({ score }),
+		});
+
+	const empty = await anonApp.request(path);
+	expect(empty.status).toBe(200);
+	expect(await empty.json()).toMatchObject({
+		averageScore: 0,
+		totalRatings: 0,
+		userScore: null,
+	});
+	expect((await vote(anonApp, 5)).status).toBe(401);
+	expect((await vote(adminApp, 2.5)).status).toBe(400);
+	expect(
+		(await vote(adminApp, 4, "/api/v1/collections/609-draft/ratings")).status,
+	).toBe(404);
+	expect(
+		(await anonApp.request("/api/v1/collections/609-draft/ratings")).status,
+	).toBe(404);
+	expect((await vote(adminApp, 2)).status).toBe(200);
+	expect((await vote(adminApp, 5)).status).toBe(200);
+	const userId = "collection-rater-609";
+	await db.insert(schema.user).values({
+		id: userId,
+		name: "Cuenta de prueba",
+		email: "rater-609@example.test",
+	});
+	const rater = createSocialApp({
+		id: userId,
+		role: "reader",
+		name: "Cuenta de prueba",
+	});
+	expect((await vote(rater, 2)).status).toBe(200);
+	expect(await (await adminApp.request(path)).json()).toMatchObject({
+		averageScore: 3.5,
+		totalRatings: 2,
+		userScore: 5,
+		distribution: { 2: 1, 5: 1 },
+	});
+	expect(await (await anonApp.request(path)).json()).toMatchObject({
+		totalRatings: 2,
+		userScore: null,
+	});
+});

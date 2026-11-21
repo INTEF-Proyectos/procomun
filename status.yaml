@@ -5163,3 +5163,13 @@ tasks:
       Se conservan las secciones de seguimiento del perfil ampliado y
       de la atribución histórica por UID. Pasan 110 pruebas de importación,
       reenlace y autoría con datos sintéticos, además de tipos y Biome.
+  T-2026-11-21-00271091:
+    date: 2026-11-21
+    agent: "backend-api-servicios + frontend-ux-accesibilidad"
+    task: "Añadir valoraciones a las colecciones públicas"
+    status: Done
+    related: ["#609"]
+    notes: >
+      La ficha reutiliza el resumen y el control de estrellas de los recursos.
+      Una cuenta puede actualizar su voto en cualquier colección publicada,
+      incluidas las importadas. La migración 0033 valida el rango y la unicidad.
