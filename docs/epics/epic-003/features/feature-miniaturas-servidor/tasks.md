@@ -62,3 +62,9 @@ Implementación (en #512, apilado sobre #471):
 - [x] [P2] CSP propia de captura (`CAPTURE_HTML_CSP`) sin `allow-popups` ni `allow-popups-to-escape-sandbox`. El test de paridad comprueba las garantías comunes con el visor y los permisos que se quitan; test de integración de que `window.open` no abre nada.
 
 - [x] `recupera los processing colgados…` (elpx-thumbnails) fallaba también en la punta revisada al correr el fichero completo (aislado pasaba): el primer reclamo se llevaba proyectos pendientes de tests anteriores, creados antes. El test fija `created_at` anteriores.
+
+## 2026-11-21 · Limpieza manual de miniaturas (#520)
+
+- [x] Añadir simulación y borrado por CLI con siete días de margen y un informe de archivos y bytes.
+- [x] Preservar miniaturas de proyectos históricos, recursos dados de baja y portadas con referencia local.
+- [x] Cubrir la limpieza y su repetición con una base y un almacén temporales.

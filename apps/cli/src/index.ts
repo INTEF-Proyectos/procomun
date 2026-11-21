@@ -13,6 +13,7 @@ export const CLI_COMMANDS = [
 	"import:legacy-itineraries",
 	"elpx:screenshots",
 	"elpx:thumbnails",
+	"thumbnails:prune",
 	"catalog:area-keywords",
 	"import:legacy-keywords",
 ] as const;
@@ -40,6 +41,8 @@ const commandLoaders: Record<
 		(await import("./commands/elpx-screenshots.ts")).elpxScreenshots,
 	"elpx:thumbnails": async () =>
 		(await import("./commands/elpx-thumbnails.ts")).elpxThumbnails,
+	"thumbnails:prune": async () =>
+		(await import("./commands/thumbnails-prune.ts")).thumbnailsPrune,
 	"catalog:area-keywords": async () =>
 		(await import("./commands/catalog-area-keywords.ts")).catalogAreaKeywords,
 	"import:legacy-keywords": async () =>
@@ -101,6 +104,9 @@ export function printHelp(log: Pick<typeof console, "log"> = console) {
 	);
 	log.log(
 		"  elpx:screenshots [--dry-run]  Detecta screenshot.png en los paquetes ya subidos (#409)",
+	);
+	log.log(
+		"  thumbnails:prune [--dry-run]  Elimina miniaturas huérfanas con al menos siete días",
 	);
 	log.log("  elpx:thumbnails [--dry-run] [--limit <n>] [--force]");
 	log.log(
