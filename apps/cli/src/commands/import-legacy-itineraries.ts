@@ -11,8 +11,8 @@
  *   y salen en el informe como «recurso no encontrado».
  * - Idempotente: reimportar actualiza la colección sin duplicarla y respeta
  *   el propietario reasignado a mano.
- * - knowledgeArea, labelsStr, learningContext y educationalDescription se
- *   descartan (las colecciones no tienen esos campos) y se cuentan.
+ * - Metadatos: se resuelven con los catálogos compartidos y se informa de
+ *   valores sin correspondencia, ambiguos o que superarían los límites.
  *
  * El informe no lleva correos ni nombres (#543): solo el id del itinerario, el
  * resultado y el motivo.
@@ -24,11 +24,12 @@ import { mkdir } from "node:fs/promises";
 import path from "node:path";
 import { parseArgs } from "node:util";
 import type {
-	LegacyItineraryDiscardedField,
 	LegacyItineraryJson,
+	LegacyItineraryMetadata,
 } from "@procomun/db/legacy-import";
 import type {
 	ImportLegacyCollectionResult,
+	LegacyCollectionMetadataIssues,
 	LegacyCollectionOwnerOutcome,
 	MissingLegacyCollectionResource,
 } from "@procomun/db/repository";
@@ -56,6 +57,8 @@ export async function loadImportLegacyItinerariesDependencies() {
 		ensureLegacyImportSystemUser: legacyImport.ensureLegacyImportSystemUser,
 		findLegacyCollectionOwnerAccount: repo.findLegacyCollectionOwnerAccount,
 		importLegacyCollection: repo.importLegacyCollection,
+		loadLegacyCollectionMetadataCatalog:
+			repo.loadLegacyCollectionMetadataCatalog,
 		LEGACY_USER_ID_PREFIX: repo.LEGACY_USER_ID_PREFIX,
 	};
 }
@@ -69,6 +72,9 @@ export type OwnerReason =
 	| "deleted_account"
 	| "unverified_account";
 
+type LegacyItineraryDiscardedField =
+	| keyof LegacyItineraryMetadata
+	| "educationalDescription";
 type ImportedRecord = {
 	outcome: ImportLegacyCollectionResult["outcome"];
 	itineraryId: string;
@@ -79,6 +85,7 @@ type ImportedRecord = {
 	linkedResources: number;
 	missingResources: MissingLegacyCollectionResource[];
 	discardedFields: LegacyItineraryDiscardedField[];
+	metadataIssues?: LegacyCollectionMetadataIssues;
 	warnings: string[];
 };
 
@@ -117,7 +124,7 @@ export interface ImportLegacyItinerariesReport {
 		withoutOwner: number;
 		/** Recursos del itinerario que no están importados (o están de baja). */
 		missingResources: number;
-		/** Registros que traían cada metadato descartado con contenido. */
+		/** Registros con valores descartados por campo, aunque otros valores sí se importen. */
 		discardedMetadata: Record<LegacyItineraryDiscardedField, number>;
 	};
 	records: ItineraryRecord[];
@@ -261,6 +268,9 @@ export async function runImportLegacyItineraries(
 	const db = deps.getDb().db;
 	if (!options.dryRun) await deps.ensureLegacyImportSystemUser(db);
 	const resolveOwner = createOwnerResolver(deps, db);
+	let catalog:
+		| Awaited<ReturnType<Deps["loadLegacyCollectionMetadataCatalog"]>>
+		| undefined;
 
 	const selected = raw
 		.map((legacy: unknown, index: number) => ({ legacy, index }))
@@ -326,10 +336,16 @@ export async function runImportLegacyItineraries(
 			}
 
 			const owner = await resolveOwner(mapped.publicatorEmail);
+			if (
+				!catalog &&
+				Object.values(mapped.metadata).some((values) => values.length)
+			) {
+				catalog = await deps.loadLegacyCollectionMetadataCatalog(db);
+			}
 			const result = await deps.importLegacyCollection(
 				db,
 				{ itinerary: mapped, ownerId: owner.userId },
-				{ dryRun: options.dryRun },
+				{ dryRun: options.dryRun, metadataCatalog: catalog },
 			);
 			const counter = {
 				created: "created",
@@ -341,7 +357,10 @@ export async function runImportLegacyItineraries(
 			totals[counter[result.outcome]]++;
 			if (result.owner === "system") totals.withoutOwner++;
 			totals.missingResources += result.missingResources.length;
-			for (const field of mapped.discardedFields) {
+			const discardedFields = Object.keys(
+				result.metadataIssues ?? {},
+			) as (keyof LegacyItineraryMetadata)[];
+			for (const field of discardedFields) {
 				totals.discardedMetadata[field]++;
 			}
 			records.push({
@@ -355,7 +374,10 @@ export async function runImportLegacyItineraries(
 					: {}),
 				linkedResources: result.linkedResources,
 				missingResources: result.missingResources,
-				discardedFields: mapped.discardedFields,
+				discardedFields,
+				...(result.metadataIssues
+					? { metadataIssues: result.metadataIssues }
+					: {}),
 				warnings: mapped.warnings,
 			});
 			for (const missing of result.missingResources) {

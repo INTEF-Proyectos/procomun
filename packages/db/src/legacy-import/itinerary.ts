@@ -1,5 +1,5 @@
 import { buildSlug } from "../repository/shared/slugs.ts";
-import { IMPORT_SOURCE } from "./field-mapper.ts";
+import { buildLegacyKeywords, IMPORT_SOURCE } from "./field-mapper.ts";
 import {
 	type LegacyEditorialStatus,
 	resolveLegacyPublicationStatus,
@@ -34,20 +34,11 @@ export interface LegacyItineraryJson {
 	urlDrupal?: string[] | null;
 }
 
-/**
- * Metadatos del itinerario que no se importan: las colecciones no tienen
- * esos campos (decisión de #432). Se avisa en el informe de cada registro
- * que traiga alguno con contenido.
- */
-export const LEGACY_ITINERARY_DISCARDED_FIELDS = [
-	"knowledgeArea",
-	"labelsStr",
-	"learningContext",
-	"educationalDescription",
-] as const;
-
-export type LegacyItineraryDiscardedField =
-	(typeof LEGACY_ITINERARY_DISCARDED_FIELDS)[number];
+export type LegacyItineraryMetadata = {
+	knowledgeArea: string[];
+	labelsStr: string[];
+	learningContext: string[];
+};
 
 export interface LegacyItineraryResourceRef {
 	/** `external_id` con el que el importador de ODE (y de artículos) guarda el recurso. */
@@ -69,7 +60,7 @@ export interface MappedLegacyItinerary {
 	publicatorEmail: string | null;
 	/** Primero los ODE y luego los artículos, cada uno en el orden del JSON. */
 	resources: LegacyItineraryResourceRef[];
-	discardedFields: LegacyItineraryDiscardedField[];
+	metadata: LegacyItineraryMetadata;
 	warnings: string[];
 }
 
@@ -138,13 +129,16 @@ function contentKeys(value: unknown): string[] {
 		.filter(Boolean);
 }
 
-function hasContent(value: unknown): boolean {
-	if (Array.isArray(value)) {
-		return value.some(
-			(item) => typeof item === "string" && item.trim().length > 0,
-		);
-	}
-	return typeof value === "string" && value.trim().length > 0;
+function metadataValues(value: unknown): string[] {
+	const values = Array.isArray(value) ? value : [value];
+	return [
+		...new Set(
+			values
+				.filter((item): item is string => typeof item === "string")
+				.map((item) => item.trim())
+				.filter(Boolean),
+		),
+	];
 }
 
 function parsePublicationDate(value: unknown): Date | null | "invalid" {
@@ -183,14 +177,23 @@ export function mapLegacyItinerary(
 		warnings.push(`titleStr truncado a ${MAX_TITLE_LENGTH} caracteres`);
 	}
 
-	let description = cleanLegacyItineraryDescription(json.descriptionStr);
+	let description = [
+		...new Set(
+			[
+				cleanLegacyItineraryDescription(json.descriptionStr),
+				...metadataValues(json.educationalDescription).map(
+					cleanLegacyItineraryDescription,
+				),
+			].filter(Boolean),
+		),
+	].join("\n\n");
 	if (!description) {
 		description = title;
 		warnings.push("descriptionStr vacío: se usa el título como descripción");
 	} else if (description.length > MAX_DESCRIPTION_LENGTH) {
 		description = truncate(description, MAX_DESCRIPTION_LENGTH);
 		warnings.push(
-			`descriptionStr truncado a ${MAX_DESCRIPTION_LENGTH} caracteres`,
+			`Descripción truncada a ${MAX_DESCRIPTION_LENGTH} caracteres`,
 		);
 	}
 
@@ -220,9 +223,11 @@ export function mapLegacyItinerary(
 		}
 	}
 
-	const discardedFields = LEGACY_ITINERARY_DISCARDED_FIELDS.filter((field) =>
-		hasContent(json[field]),
+	const { keywords, truncated } = buildLegacyKeywords(
+		metadataValues(json.labelsStr),
 	);
+	if (truncated)
+		warnings.push("labelsStr truncado: se han omitido palabras clave");
 
 	return {
 		mapped: {
@@ -237,7 +242,11 @@ export function mapLegacyItinerary(
 			isOrdered: true,
 			publicatorEmail: normalizeLegacyPublicatorEmail(json.publicatorEmailStr),
 			resources,
-			discardedFields,
+			metadata: {
+				knowledgeArea: metadataValues(json.knowledgeArea),
+				labelsStr: keywords?.split(",") ?? [],
+				learningContext: metadataValues(json.learningContext),
+			},
 			warnings,
 		},
 		blockingErrors: [],

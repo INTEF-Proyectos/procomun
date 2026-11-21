@@ -5171,3 +5171,9 @@ tasks:
     notes: >
       La edición y la ficha pública comparten los catálogos de recursos.
       El alta, los filtros y la importación tienen seguimiento propio.
+  T-2026-11-21-08131372:
+    agent: "ingestas-y-migraciones + qa-validacion"
+    task: "Importar metadatos de itinerarios en los catálogos de colecciones"
+    status: Done
+    related: ["#615", "#611"]
+    notes: "El informe cuenta las incidencias de catálogo y la reimportación no duplica asociaciones."
