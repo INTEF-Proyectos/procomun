@@ -5171,3 +5171,9 @@ tasks:
     notes: >
       La edición y la ficha pública comparten los catálogos de recursos.
       El alta, los filtros y la importación tienen seguimiento propio.
+  T-2026-11-21-08150457:
+    agent: "busqueda-y-descubrimiento + qa-validacion"
+    task: "Filtrar el listado público de colecciones por sus metadatos"
+    status: Done
+    related: ["#612", "#611"]
+    notes: "Texto y filtros combinables con el estado reflejado en la URL."

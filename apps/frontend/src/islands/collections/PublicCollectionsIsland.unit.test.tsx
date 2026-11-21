@@ -57,16 +57,24 @@ describe("PublicCollectionsIsland", () => {
 
 		expect(html).toContain("Colecciones publicadas");
 		expect(html).toContain("Buscar por título o descripción");
+		expect(html).toContain("Filtros Avanzados");
 		expect(html).toContain("Cargando colecciones...");
 	});
 
 	test("lee el estado de colecciones desde la URL", () => {
 		expect(
-			readCollectionLocation("?q=matematicas&page=3&slug=algebra"),
-		).toEqual({
+			readCollectionLocation(
+				"?q=matematicas&page=3&slug=algebra&knowledgeAreas=matematicas&language=ca&tag=funciones&educationalCategory=educacion-primaria&educationalOption=primer-ciclo",
+			),
+		).toMatchObject({
 			query: "matematicas",
 			page: 3,
 			slug: "algebra",
+			knowledgeAreas: ["matematicas"],
+			language: "ca",
+			tag: "funciones",
+			educationalCategory: "educacion-primaria",
+			educationalOption: "primer-ciclo",
 		});
 	});
 

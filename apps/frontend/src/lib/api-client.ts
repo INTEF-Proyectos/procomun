@@ -511,6 +511,11 @@ export interface ApiClient {
 		q?: string;
 		limit?: number;
 		offset?: number;
+		language?: string;
+		tag?: string;
+		knowledgeAreas?: string[];
+		educationalCategory?: string;
+		educationalOption?: string;
 	}): Promise<PaginatedResult<CollectionRecord>>;
 	getPublicCollectionBySlug(
 		slug: string,

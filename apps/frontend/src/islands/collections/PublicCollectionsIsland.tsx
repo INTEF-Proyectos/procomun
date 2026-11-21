@@ -1,33 +1,49 @@
 import {
 	type FormEvent,
-	startTransition,
 	useCallback,
 	useEffect,
+	useRef,
 	useState,
 } from "react";
 import type {
 	CollectionDetailRecord,
 	CollectionRecord,
+	PublicKnowledgeAreaCatalog,
 } from "../../lib/api-client.ts";
 import {
 	classificationLineText,
 	formatEducationalClassifications,
+	sanitizeEducationalFilter,
 } from "../../lib/educational-classification.ts";
 import { getApiClient } from "../../lib/get-api-client.ts";
+import {
+	buildListingUrl,
+	type HistoryUpdateMode,
+	type ListingState,
+	readListingState,
+	writeListingStateToHistory,
+} from "../../lib/listing-history.ts";
 import { url } from "../../lib/paths.ts";
 import { resourceCardMedia } from "../../lib/resource-card-media.ts";
 import { languageLabel } from "../../lib/resource-display.ts";
+import {
+	LANGUAGE_OPTIONS,
+	loadFilterOptions,
+} from "../../lib/resource-filters.ts";
 import { formatDateLong } from "../../lib/shared-utils.ts";
 import { ResourceByline } from "../../ui/AuthorLinks.tsx";
 import { CardTypeMarker } from "../../ui/CardTypeMarker.tsx";
+import { EducationalSearchFilters } from "../catalog/EducationalSearchFilters.tsx";
+import { KnowledgeAreaSearchFilters } from "../catalog/KnowledgeAreaSearchFilters.tsx";
+import { KeywordCatalogField } from "../resources/KeywordCatalogField.tsx";
 import { ReportButton } from "../social/ReportButton.tsx";
 import "./PublicCollectionsIsland.css";
+import "../../lib/paraglide-client.ts";
+import * as m from "../../paraglide/messages.js";
 
 const PAGE_SIZE = 9;
 
-interface CollectionLocationState {
-	query: string;
-	page: number;
+interface CollectionLocationState extends ListingState {
 	slug: string | null;
 }
 
@@ -46,22 +62,39 @@ function coverStyle(coverImageUrl?: string | null) {
 }
 
 function readCollectionLocation(search: string): CollectionLocationState {
-	const params = new URLSearchParams(search);
+	const state = readListingState(search);
+	const educational = sanitizeEducationalFilter(
+		state.educationalCategory,
+		state.educationalOption,
+	);
 	return {
-		query: params.get("q") ?? "",
-		page: Math.max(1, Number(params.get("page") ?? "1") || 1),
-		slug: params.get("slug"),
+		...state,
+		page: Number.isSafeInteger(state.page) ? state.page : 1,
+		resourceType: "",
+		license: "",
+		professionalFamilies: [],
+		educationalCategory: educational.categoryId,
+		educationalOption: educational.optionId,
+		slug: new URLSearchParams(search).get("slug"),
 	};
+}
+
+function buildCollectionUrl(state: CollectionLocationState) {
+	const slug = new URLSearchParams();
+	if (state.slug) slug.set("slug", state.slug);
+	return buildListingUrl(url("colecciones"), slug.toString(), state);
 }
 
 /** Detalle de una colección pública; sin estado, para poder probarlo. */
 export function CollectionDetailContent({
 	detail,
 	onBack,
+	backHref = url("colecciones"),
 	currentUserId = null,
 }: {
 	detail: CollectionDetailRecord;
 	onBack: () => void;
+	backHref?: string;
 	currentUserId?: string | null;
 }) {
 	const metadata = [
@@ -88,13 +121,23 @@ export function CollectionDetailContent({
 	return (
 		<section className="collections-shell">
 			<div className="collection-detail-toolbar">
-				<button
-					type="button"
+				<a
+					href={backHref}
 					className="collections-back-link"
-					onClick={onBack}
+					onClick={(event) => {
+						if (
+							event.metaKey ||
+							event.ctrlKey ||
+							event.shiftKey ||
+							event.altKey
+						)
+							return;
+						event.preventDefault();
+						onBack();
+					}}
 				>
 					Volver al listado
-				</button>
+				</a>
 				{/* #539: las colecciones también se denuncian. */}
 				<ReportButton
 					target="collection"
@@ -206,140 +249,137 @@ export function CollectionDetailContent({
 }
 
 export function PublicCollectionsIsland() {
+	const [listing, setListing] = useState(() => readCollectionLocation(""));
 	const [query, setQuery] = useState("");
-	const [appliedQuery, setAppliedQuery] = useState("");
-	const [page, setPage] = useState(1);
-	// El valor no se lee: la fuente de verdad del slug es la URL (syncUrl); solo
-	// se conserva el setter para forzar el re-render al cambiar de colección.
-	const [, setSlug] = useState<string | null>(null);
 	const [loading, setLoading] = useState(true);
 	const [collections, setCollections] = useState<CollectionRecord[]>([]);
 	const [total, setTotal] = useState(0);
 	const [detail, setDetail] = useState<CollectionDetailRecord | null>(null);
 	const [error, setError] = useState("");
 	const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+	const [languageOptions, setLanguageOptions] = useState(LANGUAGE_OPTIONS);
+	const [areaCatalog, setAreaCatalog] =
+		useState<PublicKnowledgeAreaCatalog | null>(null);
+	const [tagLabel, setTagLabel] = useState<{
+		slug: string;
+		label: string;
+	} | null>(null);
+	const requestId = useRef(0);
 
 	useEffect(() => {
-		void (async () => {
-			const api = await getApiClient();
-			const session = await api.getSession().catch(() => null);
-			setCurrentUserId(session?.user?.id ?? null);
-		})();
+		void getApiClient().then((api) => {
+			void api
+				.getSession()
+				.then((session) => setCurrentUserId(session?.user?.id ?? null))
+				.catch(() => {});
+			void api
+				.getKnowledgeAreaCatalog()
+				.then(setAreaCatalog)
+				.catch(() => {});
+		});
+		void loadFilterOptions(
+			"language",
+			m.catalog_all_languages(),
+			LANGUAGE_OPTIONS,
+		).then(setLanguageOptions);
 	}, []);
 
-	function syncUrl(next: { q?: string; page?: number; slug?: string | null }) {
-		const params = new URLSearchParams(window.location.search);
-		if (next.q !== undefined) {
-			if (next.q) params.set("q", next.q);
-			else params.delete("q");
-		}
-		if (next.page !== undefined) {
-			if (next.page > 1) params.set("page", String(next.page));
-			else params.delete("page");
-		}
-		if (next.slug !== undefined) {
-			if (next.slug) params.set("slug", next.slug);
-			else params.delete("slug");
-		}
-		const suffix = params.toString();
-		window.history.pushState(
-			{},
-			"",
-			`${url("colecciones")}${suffix ? `?${suffix}` : ""}`,
-		);
-	}
+	useEffect(() => {
+		if (!listing.tag) return;
+		let cancelled = false;
+		void getApiClient()
+			.then((api) => api.getPublicTagBySlug(listing.tag))
+			.then((tag) => {
+				if (!cancelled && tag)
+					setTagLabel({ slug: listing.tag, label: tag.label });
+			})
+			.catch(() => {});
+		return () => {
+			cancelled = true;
+		};
+	}, [listing.tag]);
 
-	const loadList = useCallback(async (nextPage: number, nextQuery: string) => {
+	const loadLocation = useCallback(async (next: CollectionLocationState) => {
+		const id = ++requestId.current;
+		setListing(next);
 		setLoading(true);
 		setError("");
+		setDetail(null);
 		try {
 			const api = await getApiClient();
+			if (next.slug) {
+				const result = await api.getPublicCollectionBySlug(next.slug);
+				if (id !== requestId.current) return;
+				setDetail(result);
+				if (!result)
+					setError("La colección solicitada no existe o no está publicada.");
+				return;
+			}
 			const result = await api.listPublicCollections({
-				q: nextQuery || undefined,
+				q: next.query || undefined,
 				limit: PAGE_SIZE,
-				offset: (nextPage - 1) * PAGE_SIZE,
+				offset: (next.page - 1) * PAGE_SIZE,
+				language: next.language,
+				tag: next.tag,
+				knowledgeAreas: next.knowledgeAreas,
+				educationalCategory: next.educationalCategory,
+				educationalOption: next.educationalOption,
 			});
-			startTransition(() => {
-				setCollections(result.data);
-				setTotal(result.total);
-				setDetail(null);
-				setSlug(null);
-				setPage(nextPage);
-				setAppliedQuery(nextQuery);
-				setLoading(false);
-			});
+			if (id !== requestId.current) return;
+			setCollections(result.data);
+			setTotal(result.total);
 		} catch {
+			if (id !== requestId.current) return;
+			setDetail(null);
 			setCollections([]);
 			setTotal(0);
-			setError("No se pudieron cargar las colecciones.");
-			setLoading(false);
-		}
-	}, []);
-
-	const loadDetail = useCallback(async (nextSlug: string) => {
-		setLoading(true);
-		setError("");
-		try {
-			const api = await getApiClient();
-			const result = await api.getPublicCollectionBySlug(nextSlug);
-			if (!result) {
-				setDetail(null);
-				setError("La colección solicitada no existe o no está publicada.");
-				setLoading(false);
-				return;
-			}
-			startTransition(() => {
-				setSlug(nextSlug);
-				setDetail(result);
-				setLoading(false);
-			});
-		} catch {
-			setDetail(null);
-			setError("No se pudo cargar el detalle de la colección.");
-			setLoading(false);
+			setError(
+				next.slug
+					? "No se pudo cargar el detalle de la colección."
+					: "No se pudieron cargar las colecciones.",
+			);
+		} finally {
+			if (id === requestId.current) setLoading(false);
 		}
 	}, []);
 
 	useEffect(() => {
-		function syncFromLocation(search: string) {
-			const nextState = readCollectionLocation(search);
-			setQuery(nextState.query);
-			if (nextState.slug) {
-				void loadDetail(nextState.slug);
-				return;
-			}
-			void loadList(nextState.page, nextState.query);
+		function syncFromLocation() {
+			const next = readCollectionLocation(window.location.search);
+			setQuery(next.query);
+			void loadLocation(next);
 		}
 
-		syncFromLocation(window.location.search);
+		syncFromLocation();
+		window.addEventListener("popstate", syncFromLocation);
+		return () => window.removeEventListener("popstate", syncFromLocation);
+	}, [loadLocation]);
 
-		function handlePopState() {
-			syncFromLocation(window.location.search);
-		}
-
-		window.addEventListener("popstate", handlePopState);
-		return () => {
-			window.removeEventListener("popstate", handlePopState);
-		};
-	}, [loadList, loadDetail]);
-
-	async function handleSearch(event: FormEvent<HTMLFormElement>) {
-		event.preventDefault();
-		syncUrl({ q: query.trim(), page: 1, slug: null });
-		await loadList(1, query.trim());
+	function navigate(next: CollectionLocationState, mode: HistoryUpdateMode) {
+		writeListingStateToHistory(window.history, buildCollectionUrl(next), mode);
+		void loadLocation(next);
 	}
 
+	function changeFilters(filters: Partial<CollectionLocationState>) {
+		navigate({ ...listing, ...filters, page: 1, slug: null }, "replace");
+	}
+
+	function handleSearch(event: FormEvent<HTMLFormElement>) {
+		event.preventDefault();
+		navigate({ ...listing, query: query.trim(), page: 1, slug: null }, "push");
+	}
+
+	const { page } = listing;
 	const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
 	if (detail) {
+		const back = { ...listing, slug: null };
 		return (
 			<CollectionDetailContent
 				detail={detail}
 				currentUserId={currentUserId}
-				onBack={() => {
-					syncUrl({ slug: null });
-					void loadList(page, appliedQuery);
-				}}
+				backHref={buildCollectionUrl(back)}
+				onBack={() => navigate(back, "push")}
 			/>
 		);
 	}
@@ -367,6 +407,82 @@ export function PublicCollectionsIsland() {
 				</search>
 			</header>
 
+			<details className="collections-filters">
+				<summary>{m.catalog_advanced_filters()}</summary>
+				<div className="collections-filters-fields">
+					<EducationalSearchFilters
+						categoryId={listing.educationalCategory ?? ""}
+						optionId={listing.educationalOption ?? ""}
+						onChange={(next) =>
+							changeFilters({
+								educationalCategory: next.categoryId,
+								educationalOption: next.optionId,
+							})
+						}
+					/>
+					<KnowledgeAreaSearchFilters
+						catalog={areaCatalog}
+						educationalCategory={listing.educationalCategory ?? ""}
+						knowledgeAreas={listing.knowledgeAreas ?? []}
+						professionalFamilies={[]}
+						includeProfessionalFamilies={false}
+						areaHelp={m.collections_knowledge_areas_filter_help()}
+						onChange={({ knowledgeAreas }) => changeFilters({ knowledgeAreas })}
+					/>
+					<div className="filter-group">
+						<label htmlFor="collection-language">{m.catalog_language()}</label>
+						<select
+							id="collection-language"
+							value={listing.language}
+							onChange={(event) =>
+								changeFilters({ language: event.currentTarget.value })
+							}
+						>
+							{languageOptions.map(({ value, label }) => (
+								<option key={value} value={value}>
+									{label}
+								</option>
+							))}
+						</select>
+					</div>
+					<div className="filter-group">
+						<KeywordCatalogField
+							id="collection-filter-tag"
+							filter
+							selected={
+								listing.tag
+									? [
+											{
+												id: listing.tag,
+												slug: listing.tag,
+												label:
+													tagLabel?.slug === listing.tag
+														? tagLabel.label
+														: listing.tag,
+											},
+										]
+									: []
+							}
+							onChange={(next) => {
+								const tag = next.at(-1);
+								setTagLabel(tag ? { slug: tag.slug, label: tag.label } : null);
+								changeFilters({ tag: tag?.slug ?? "" });
+							}}
+						/>
+					</div>
+				</div>
+				<button
+					type="button"
+					className="clear-btn"
+					onClick={() => {
+						setQuery("");
+						navigate(readCollectionLocation(""), "replace");
+					}}
+				>
+					{m.catalog_clear_filters()}
+				</button>
+			</details>
+
 			<section
 				className="collection-list-section"
 				aria-labelledby="collections-results-title"
@@ -374,7 +490,7 @@ export function PublicCollectionsIsland() {
 				<div className="collections-section-head">
 					<div>
 						<p className="collections-eyebrow">Resultados</p>
-						<h2 id="collections-results-title">
+						<h2 id="collections-results-title" aria-live="polite">
 							{loading
 								? "Cargando colecciones..."
 								: `${total} colecciones publicadas`}
@@ -389,32 +505,39 @@ export function PublicCollectionsIsland() {
 				) : null}
 
 				<div className="collection-card-grid">
-					{collections.map((collection) => (
-						<a
-							key={collection.id}
-							href={url(`colecciones?slug=${collection.slug}`)}
-							className="collection-public-card"
-							onClick={(event) => {
-								event.preventDefault();
-								syncUrl({ slug: collection.slug });
-								void loadDetail(collection.slug);
-							}}
-						>
-							<div
-								className="collection-public-card-cover"
-								style={coverStyle(collection.coverImageUrl)}
-							/>
-							<div className="collection-public-card-body">
-								<p className="collection-public-card-eyebrow">Colección</p>
-								<h3>{collection.title}</h3>
-								<p>{truncate(collection.description ?? "", 180)}</p>
-								<div className="collection-public-card-meta">
-									<span>{collection.resourceCount ?? 0} recursos</span>
-									<span>{collection.curatorName ?? "Equipo editorial"}</span>
+					{!loading &&
+						collections.map((collection) => (
+							<a
+								key={collection.id}
+								href={buildCollectionUrl({ ...listing, slug: collection.slug })}
+								className="collection-public-card"
+								onClick={(event) => {
+									if (
+										event.metaKey ||
+										event.ctrlKey ||
+										event.shiftKey ||
+										event.altKey
+									)
+										return;
+									event.preventDefault();
+									navigate({ ...listing, slug: collection.slug }, "push");
+								}}
+							>
+								<div
+									className="collection-public-card-cover"
+									style={coverStyle(collection.coverImageUrl)}
+								/>
+								<div className="collection-public-card-body">
+									<p className="collection-public-card-eyebrow">Colección</p>
+									<h3>{collection.title}</h3>
+									<p>{truncate(collection.description ?? "", 180)}</p>
+									<div className="collection-public-card-meta">
+										<span>{collection.resourceCount ?? 0} recursos</span>
+										<span>{collection.curatorName ?? "Equipo editorial"}</span>
+									</div>
 								</div>
-							</div>
-						</a>
-					))}
+							</a>
+						))}
 				</div>
 
 				{!loading && !collections.length && !error ? (
@@ -423,35 +546,32 @@ export function PublicCollectionsIsland() {
 					</p>
 				) : null}
 
-				<nav
-					className="collections-pagination"
-					aria-label="Paginación de colecciones"
-					hidden={total <= PAGE_SIZE}
-				>
-					<button
-						type="button"
-						disabled={page <= 1}
-						onClick={() => {
-							const nextPage = page - 1;
-							syncUrl({ page: nextPage });
-							void loadList(nextPage, appliedQuery);
-						}}
+				{!loading && total > PAGE_SIZE && (
+					<nav
+						className="collections-pagination"
+						aria-label="Paginación de colecciones"
 					>
-						Anterior
-					</button>
-					<span>{`Página ${page} de ${totalPages}`}</span>
-					<button
-						type="button"
-						disabled={page >= totalPages}
-						onClick={() => {
-							const nextPage = page + 1;
-							syncUrl({ page: nextPage });
-							void loadList(nextPage, appliedQuery);
-						}}
-					>
-						Siguiente
-					</button>
-				</nav>
+						<button
+							type="button"
+							disabled={page <= 1}
+							onClick={() => {
+								navigate({ ...listing, page: page - 1 }, "push");
+							}}
+						>
+							Anterior
+						</button>
+						<span>{`Página ${page} de ${totalPages}`}</span>
+						<button
+							type="button"
+							disabled={page >= totalPages}
+							onClick={() => {
+								navigate({ ...listing, page: page + 1 }, "push");
+							}}
+						>
+							Siguiente
+						</button>
+					</nav>
+				)}
 			</section>
 		</section>
 	);

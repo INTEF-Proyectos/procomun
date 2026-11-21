@@ -377,6 +377,7 @@
 	"knowledge_areas_search": "Search for an area",
 	"knowledge_areas_help": "Choose up to {max}. At least one is required to submit for review or publish.",
 	"knowledge_areas_max": "You have already chosen {max} areas, the maximum. Remove one to add another.",
+	"collections_knowledge_areas_filter_help": "Collections with any of the selected areas.",
 	"knowledge_areas_filter_help": "Resources with any of the chosen areas.",
 	"professional_families_label": "Professional family",
 	"professional_families_search": "Search for a family",
