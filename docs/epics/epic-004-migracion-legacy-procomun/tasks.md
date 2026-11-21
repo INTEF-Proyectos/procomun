@@ -240,6 +240,11 @@ Los JSON/`.elpx` de `ode-export/` contienen datos personales reales (nombres y e
 - [x] Exigir el volcado en importación y reenlace, resolver por UID y registrar el motivo sin correo en el informe general.
 - [x] Documentar el tratamiento de los artículos pendientes y cubrir con pruebas el correo reasignado fuera del volcado.
 
+## Seguimiento de la atribución de itinerarios — 2026-11-20 (#616)
+
+- [x] Sustituir la búsqueda por correo actual por el UID del volcado, reutilizando la atribución de #600.
+- [x] Documentar la opción obligatoria `--users-file` y cubrir correo reasignado, UID ambiguo y cuenta bloqueada.
+
 ## Gestión de itinerarios propios — 2026-11-21 (#575)
 
 - [x] Mostrar «Mis colecciones» en el perfil de los autores y editores que tienen colecciones. El acceso directo a la pestaña comprueba la misma condición.

@@ -5175,3 +5175,10 @@ tasks:
       recursos y enviar borradores a revisión con los permisos de la API.
       Se validaron seis escenarios en Chromium, además de la edición y el
       envío a revisión de una colección real en una base local de pruebas.
+  T-2026-11-20-21092246:
+    date: 2026-11-20
+    agent: "ingestas-y-migraciones + qa-validacion"
+    task: "Atribuye los itinerarios al propietario histórico por UID"
+    status: In Progress
+    related: ["#616", "#432", "#600", "ADR-0029"]
+    notes: "El volcado histórico es obligatorio. La reimportación conserva las atribuciones existentes. Verificación con datos sintéticos."

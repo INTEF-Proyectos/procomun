@@ -19,10 +19,7 @@ import {
 } from "../legacy-import/system-user.ts";
 import * as schema from "../schema/index.ts";
 import { createTables } from "../setup.ts";
-import {
-	findLegacyCollectionOwnerAccount,
-	importLegacyCollection,
-} from "./legacy-collections.ts";
+import { importLegacyCollection } from "./legacy-collections.ts";
 import type { DrizzleDB } from "./shared.ts";
 
 describe("importación de itinerarios como colecciones (#432)", () => {
@@ -116,30 +113,6 @@ describe("importación de itinerarios como colecciones (#432)", () => {
 			.where(eq(schema.collectionResources.collectionId, collectionId))
 			.orderBy(asc(schema.collectionResources.position));
 	}
-
-	describe("findLegacyCollectionOwnerAccount", () => {
-		test("encuentra la cuenta sin distinguir mayúsculas ni espacios", async () => {
-			await addUser("u-1", "Autora@Ejemplo.test");
-			expect(
-				await findLegacyCollectionOwnerAccount(db, " autora@EJEMPLO.test "),
-			).toEqual({ id: "u-1", deleted: false, emailVerified: true });
-		});
-
-		test("marca la cuenta dada de baja y no devuelve el usuario de sistema", async () => {
-			await addUser("u-baja", "baja@ejemplo.test", { deletedAt: new Date() });
-			expect(
-				(await findLegacyCollectionOwnerAccount(db, "baja@ejemplo.test"))
-					?.deleted,
-			).toBe(true);
-			expect(
-				await findLegacyCollectionOwnerAccount(
-					db,
-					"legacy-procomun-import@system.local",
-				),
-			).toBeNull();
-			expect(await findLegacyCollectionOwnerAccount(db, "  ")).toBeNull();
-		});
-	});
 
 	test("crea la colección del autor con los recursos importados, en orden, y omite los que faltan", async () => {
 		await addUser("u-1", "autora@ejemplo.test");
