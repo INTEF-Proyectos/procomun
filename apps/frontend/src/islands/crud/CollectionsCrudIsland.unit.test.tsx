@@ -33,12 +33,30 @@ describe("CollectionsCrudIsland", () => {
 		const html = renderToStaticMarkup(<CollectionsCrudIsland />);
 
 		expect(html).toContain("Nueva coleccion");
-		expect(html).toContain("Cargando colecciones...");
-		expect(html).toContain("Titulo o descripcion");
+		expect(html).toContain("Cargando");
+		expect(html).toContain("Título o descripción");
 		expect(html).toContain("Crear coleccion");
 		expect(html).toContain("No hay colecciones para los filtros actuales.");
 		expect(html).toContain("admin-inline-form");
 		expect(html).toContain("admin-table");
+	});
+
+	test("oculta el alta y el borrado para propietarios sin rol de curación", () => {
+		const user = { id: "user-1", role: "editor" };
+		const html = renderToStaticMarkup(<CollectionsCrudIsland user={user} />);
+		expect(html).not.toContain("Nueva coleccion");
+		const columns = buildCollectionColumns({
+			busyLoadEdit: false,
+			onEdit: () => undefined,
+			onDelete: () => undefined,
+			user,
+		});
+		const actions = columns.find((column) => column.id === "actions");
+		expect(renderCell(actions?.cell(sample))).toContain("Editar");
+		expect(renderCell(actions?.cell(sample))).not.toContain("Eliminar");
+		expect(
+			renderCell(actions?.cell({ ...sample, curatorId: "otro" })),
+		).not.toContain("Editar");
 	});
 
 	test("celdas compactas: tipografía, truncado accesible y acciones con aria-label (#304)", () => {

@@ -239,3 +239,9 @@ Los JSON/`.elpx` de `ode-export/` contienen datos personales reales (nombres y e
 
 - [x] Exigir el volcado en importación y reenlace, resolver por UID y registrar el motivo sin correo en el informe general.
 - [x] Documentar el tratamiento de los artículos pendientes y cubrir con pruebas el correo reasignado fuera del volcado.
+
+## Gestión de itinerarios propios — 2026-11-21 (#575)
+
+- [x] Mostrar «Mis colecciones» en el perfil de los autores y editores que tienen colecciones. El acceso directo a la pestaña comprueba la misma condición.
+- [x] Reutilizar el editor del backoffice con las reglas de propiedad y transición de la ADR-0008. El propietario puede editar los datos, gestionar los recursos y enviar a revisión un borrador.
+- [x] Traducir la pestaña y los controles compartidos en los cinco idiomas. Añadir pruebas de navegación y acciones por rol en Chromium y una regresión unitaria para los controles de alta y baja.

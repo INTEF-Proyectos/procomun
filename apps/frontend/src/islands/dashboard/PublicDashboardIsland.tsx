@@ -29,6 +29,7 @@ import { ResourceGrid } from "../../ui/ResourceGrid.tsx";
 import { Skeleton } from "../../ui/Skeleton.tsx";
 import { Tabs } from "../../ui/Tabs.tsx";
 import { UserAvatar } from "../../ui/UserAvatar.tsx";
+import { CollectionsCrudIsland } from "../crud/CollectionsCrudIsland.tsx";
 import { AccountTab } from "./AccountTab.tsx";
 import { ApiKeysTab } from "./ApiKeysTab.tsx";
 import { MyResourcesTab } from "./MyResourcesTab.tsx";
@@ -108,6 +109,7 @@ export function profileAvatarUrl(
  */
 export const PROFILE_TABS: readonly string[] = [
 	"resources",
+	"collections",
 	"favorites",
 	"ratings",
 	"activity",
@@ -497,6 +499,7 @@ export function PublicDashboardIsland() {
 	// #532: el correo de la sesión, para la pestaña «Cuenta». El perfil público
 	// (dashboard.user) no lo lleva, a propósito.
 	const [sessionEmail, setSessionEmail] = useState("");
+	const [hasOwnCollections, setHasOwnCollections] = useState(false);
 	const [badgeConfig, setBadgeConfig] =
 		useState<import("../../lib/api-client.ts").BadgeConfig>(
 			DEFAULT_BADGE_CONFIG,
@@ -524,21 +527,29 @@ export function PublicDashboardIsland() {
 			}
 
 			// Fetch dashboard data + badge config + perfil persistido (DEF-004: incluye bio)
-			const [dashData, config, profile, avatarUrl] = await Promise.all([
-				api.getUserDashboard().catch(() => ({
-					draftCount: 0,
-					publishedCount: 0,
-					reviewCount: 0,
-					archivedCount: 0,
-					resourceCount: 0,
-					favoriteCount: 0,
-					ratingCount: 0,
-				})),
-				api.getBadgeConfig().catch(() => null),
-				api.getMyProfile().catch(() => undefined),
-				profileAvatarUrl(user),
-			]);
+			const [dashData, config, profile, avatarUrl, hasCollections] =
+				await Promise.all([
+					api.getUserDashboard().catch(() => ({
+						draftCount: 0,
+						publishedCount: 0,
+						reviewCount: 0,
+						archivedCount: 0,
+						resourceCount: 0,
+						favoriteCount: 0,
+						ratingCount: 0,
+					})),
+					api.getBadgeConfig().catch(() => null),
+					api.getMyProfile().catch(() => undefined),
+					profileAvatarUrl(user),
+					hasMinRole(user.role, "author") && !hasMinRole(user.role, "curator")
+						? api
+								.listCollections({ limit: 1 })
+								.then((result) => result.total > 0)
+								.catch(() => false)
+						: false,
+				]);
 			if (config) setBadgeConfig(config);
+			setHasOwnCollections(hasCollections);
 			setProfileLoadFailed(profile === undefined);
 			setProfileDetails(profile?.profile ?? EMPTY_PROFILE_DETAILS);
 
@@ -717,7 +728,8 @@ export function PublicDashboardIsland() {
 	const validTabs = PROFILE_TABS;
 	const defaultTab =
 		tabParam && validTabs.includes(tabParam)
-			? tabParam === "api-keys" && !hasMinRole(user.role, "author")
+			? (tabParam === "api-keys" && !hasMinRole(user.role, "author")) ||
+				(tabParam === "collections" && !hasOwnCollections)
 				? "resources"
 				: tabParam
 			: "resources";
@@ -766,6 +778,19 @@ export function PublicDashboardIsland() {
 			content: <ActivityTab />,
 		},
 	];
+
+	if (hasOwnCollections) {
+		tabs.splice(1, 0, {
+			id: "collections",
+			label: m.profile_my_collections(),
+			icon: "collections_bookmark",
+			content: (
+				<div className="dashboard-tab-content">
+					<CollectionsCrudIsland user={{ id: user.id, role: user.role }} />
+				</div>
+			),
+		});
+	}
 
 	if (hasMinRole(user.role, "author")) {
 		tabs.push({
