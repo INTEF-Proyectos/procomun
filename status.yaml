@@ -5171,3 +5171,9 @@ tasks:
     notes: >
       La edición y la ficha pública comparten los catálogos de recursos.
       El alta, los filtros y la importación tienen seguimiento propio.
+  T-2026-11-21-00365493:
+    agent: "metadatos-y-curacion + qa-validacion"
+    task: "Clasificar colecciones desde su formulario de alta"
+    status: Done
+    related: ["#614", "#611"]
+    notes: "Alta y edición usan los mismos controles y validaciones de catálogo."

@@ -22,3 +22,7 @@ La edición usa los controles de clasificación ya disponibles y se autoriza con
 - La ficha sigue ocultando las colecciones que no están publicadas.
 
 El formulario de alta se sigue en #614, los filtros en #612 y la correspondencia desde el JSON legado en #615. Los tres dependen del mismo modelo.
+
+## 2026-11-21 · Alta de colecciones (#614)
+
+El formulario de alta usa los mismos controles que la edición. Se valida la selección contra los catálogos al crear la colección. Si falla, la transacción revierte la colección y sus asociaciones para que la persona pueda corregir y reenviar el formulario.

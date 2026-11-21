@@ -1300,6 +1300,48 @@ describe("Rutas admin — colecciones", () => {
 		expect(await published.json()).toMatchObject(metadata);
 	});
 
+	test("crea una colección con metadatos y rechaza el alta inválida (#614)", async () => {
+		const title = "Alta catalogada 614";
+		const outcome = await repo.createCatalogKeyword(getDb().db, {
+			label: "Catalogación 614",
+			createdBy: "1",
+		});
+		if (outcome.status === "invalid")
+			throw new Error("No se obtuvo palabra clave");
+		const { keyword } = outcome;
+		const assignments = [
+			{ categoryId: "educacion-primaria", optionId: "primer-ciclo" },
+		];
+		const create = (knowledgeAreaIds: string[]) =>
+			app.request("/api/admin/collections", {
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify({
+					title,
+					description: "Descripción",
+					language: "ca",
+					keywordIds: [keyword.id],
+					educationalAreas: assignments,
+					knowledgeAreaIds,
+				}),
+			});
+		expect((await create(["desconocida"])).status).toBe(400);
+		const list = await app.request(
+			`/api/admin/collections?q=${encodeURIComponent(title)}`,
+		);
+		expect((await list.json()).total).toBe(0);
+		const created = await create(["matematicas"]);
+		expect(created.status).toBe(201);
+		const { id } = await created.json();
+		const detail = await app.request(`/api/admin/collections/${id}`);
+		expect(await detail.json()).toMatchObject({
+			language: "ca",
+			catalogKeywords: [keyword],
+			educationalAreas: assignments,
+			knowledgeAreas: [expect.objectContaining({ id: "matematicas" })],
+		});
+	});
+
 	test("POST /api/admin/collections → 400 sin título", async () => {
 		const res = await app.request("/api/admin/collections", {
 			method: "POST",

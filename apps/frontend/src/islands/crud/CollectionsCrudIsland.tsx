@@ -205,6 +205,87 @@ export function buildCollectionColumns(
 	];
 }
 
+type CollectionMetadata = {
+	language: string;
+	keywords: CatalogKeyword[];
+	areas: string[];
+	educational: EducationalSelection[];
+};
+
+const EMPTY_METADATA: CollectionMetadata = {
+	language: "",
+	keywords: [],
+	areas: [],
+	educational: [],
+};
+
+function metadataPayload({
+	language,
+	keywords,
+	areas,
+	educational,
+}: CollectionMetadata) {
+	return {
+		language: language || null,
+		keywordIds: keywords.map(({ id }) => id),
+		knowledgeAreaIds: areas,
+		educationalAreas: selectionsToAssignments(educational),
+	};
+}
+
+function CollectionMetadataFields({
+	idPrefix,
+	metadata,
+	setMetadata,
+	catalog,
+	resourceAreas,
+}: {
+	idPrefix: string;
+	metadata: CollectionMetadata;
+	setMetadata: (metadata: CollectionMetadata) => void;
+	catalog: PublicKnowledgeAreaCatalog | null;
+	resourceAreas?: CollectionRecord["knowledgeAreas"];
+}) {
+	const { language, keywords, areas, educational } = metadata;
+	return (
+		<fieldset className="admin-form-field">
+			<legend>Detalles técnicos</legend>
+			<label htmlFor={`${idPrefix}-language`}>Idioma</label>
+			<select
+				id={`${idPrefix}-language`}
+				value={language}
+				onChange={(event) =>
+					setMetadata({ ...metadata, language: event.currentTarget.value })
+				}
+			>
+				<option value="">Sin indicar</option>
+				{VALID_LANGUAGES.map((code) => (
+					<option key={code} value={code}>
+						{languageLabel(code)}
+					</option>
+				))}
+			</select>
+			<KeywordCatalogField
+				id={`${idPrefix}-keywords`}
+				selected={keywords}
+				onChange={(keywords) => setMetadata({ ...metadata, keywords })}
+			/>
+			<KnowledgeAreaField
+				idPrefix={idPrefix}
+				catalog={catalog}
+				selectedIds={areas}
+				onChange={(areas) => setMetadata({ ...metadata, areas })}
+				resourceAreas={resourceAreas}
+			/>
+			<EducationalClassificationEditor
+				idPrefix={idPrefix}
+				selections={educational}
+				onChange={(educational) => setMetadata({ ...metadata, educational })}
+			/>
+		</fieldset>
+	);
+}
+
 export function CollectionsCrudIsland() {
 	const [rows, setRows] = useState<CollectionRecord[]>([]);
 	const [search, setSearch] = useState("");
@@ -220,10 +301,8 @@ export function CollectionsCrudIsland() {
 		message: "",
 		variant: "neutral",
 	});
-	const [language, setLanguage] = useState("");
-	const [keywords, setKeywords] = useState<CatalogKeyword[]>([]);
-	const [areas, setAreas] = useState<string[]>([]);
-	const [educational, setEducational] = useState<EducationalSelection[]>([]);
+	const [createMetadata, setCreateMetadata] = useState(EMPTY_METADATA);
+	const [editMetadata, setEditMetadata] = useState(EMPTY_METADATA);
 	const [catalog, setCatalog] = useState<PublicKnowledgeAreaCatalog | null>(
 		null,
 	);
@@ -322,6 +401,10 @@ export function CollectionsCrudIsland() {
 
 	useEffect(() => {
 		void loadCollections(0, "");
+		void getApiClient()
+			.then((api) => api.getKnowledgeAreaCatalog())
+			.then(setCatalog)
+			.catch(() => {});
 	}, [loadCollections]);
 
 	const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
@@ -359,17 +442,13 @@ export function CollectionsCrudIsland() {
 				return;
 			}
 
-			setLanguage(collection.language ?? "");
-			setKeywords(collection.catalogKeywords ?? []);
-			setAreas(collection.knowledgeAreas?.map(({ id }) => id) ?? []);
-			setEducational(
-				assignmentsToSelections(collection.educationalAreas ?? []),
-			);
+			setEditMetadata({
+				language: collection.language ?? "",
+				keywords: collection.catalogKeywords ?? [],
+				areas: collection.knowledgeAreas?.map(({ id }) => id) ?? [],
+				educational: assignmentsToSelections(collection.educationalAreas ?? []),
+			});
 			setEditing(collection);
-			void api
-				.getKnowledgeAreaCatalog()
-				.then(setCatalog)
-				.catch(() => {});
 			setEditForm({
 				title: collection.title,
 				description: collection.description,
@@ -397,8 +476,10 @@ export function CollectionsCrudIsland() {
 				description: createForm.description,
 				coverImageUrl: createForm.coverImageUrl || null,
 				isOrdered: createForm.isOrdered,
+				...metadataPayload(createMetadata),
 			});
 			setCreateForm(EMPTY_FORM);
+			setCreateMetadata(EMPTY_METADATA);
 			setCreateFeedback({ message: "Coleccion creada.", variant: "success" });
 			await loadCollections(0, appliedSearch);
 		} catch {
@@ -426,10 +507,7 @@ export function CollectionsCrudIsland() {
 				coverImageUrl: editForm.coverImageUrl || null,
 				editorialStatus: editForm.editorialStatus,
 				isOrdered: editForm.isOrdered,
-				language: language || null,
-				keywordIds: keywords.map(({ id }) => id),
-				knowledgeAreaIds: areas,
-				educationalAreas: selectionsToAssignments(educational),
+				...metadataPayload(editMetadata),
 			});
 			if (!result.ok) {
 				setEditError(result.error ?? "Error al guardar.");
@@ -610,6 +688,12 @@ export function CollectionsCrudIsland() {
 							Orden fija
 						</label>
 					</div>
+					<CollectionMetadataFields
+						idPrefix="collection-create"
+						metadata={createMetadata}
+						setMetadata={setCreateMetadata}
+						catalog={catalog}
+					/>
 					<div className="admin-form-actions">
 						<button
 							type="submit"
@@ -790,39 +874,13 @@ export function CollectionsCrudIsland() {
 							</label>
 						</div>
 
-						<fieldset className="admin-form-field">
-							<legend>Detalles técnicos</legend>
-							<label htmlFor="collection-edit-language">Idioma</label>
-							<select
-								id="collection-edit-language"
-								value={language}
-								onChange={(event) => setLanguage(event.currentTarget.value)}
-							>
-								<option value="">Sin indicar</option>
-								{VALID_LANGUAGES.map((code) => (
-									<option key={code} value={code}>
-										{languageLabel(code)}
-									</option>
-								))}
-							</select>
-							<KeywordCatalogField
-								id="collection-keywords"
-								selected={keywords}
-								onChange={setKeywords}
-							/>
-							<KnowledgeAreaField
-								idPrefix="collection-edit"
-								catalog={catalog}
-								selectedIds={areas}
-								onChange={setAreas}
-								resourceAreas={editing.knowledgeAreas}
-							/>
-							<EducationalClassificationEditor
-								idPrefix="collection-edit"
-								selections={educational}
-								onChange={setEducational}
-							/>
-						</fieldset>
+						<CollectionMetadataFields
+							idPrefix="collection-edit"
+							metadata={editMetadata}
+							setMetadata={setEditMetadata}
+							catalog={catalog}
+							resourceAreas={editing.knowledgeAreas}
+						/>
 
 						<section
 							className="collection-resource-section"
