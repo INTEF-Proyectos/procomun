@@ -5153,6 +5153,16 @@ tasks:
       de la épica y los mensajes de ambas ramas en los cinco idiomas.
       Pasan las cuatro pruebas de opciones del formulario, 222 pruebas
       de interfaz, tipos y Biome.
+  T-2026-11-21-00395760:
+    date: 2026-11-21
+    agent: "backend-api-servicios + qa-validacion"
+    task: "Cargar la sesión en las rutas públicas de denuncia"
+    status: Done
+    related: ["#625", "#539", "#29"]
+    notes: >
+      La aplicación carga la sesión para denuncias de recursos y colecciones.
+      La regresión usa una sesión real, guarda las denuncias como pendientes
+      y comprueba el rechazo sin sesión y para borradores.
   T-2026-11-20-11313838:
     date: 2026-11-20
     agent: "ingestas-y-migraciones + qa-validacion"
