@@ -18,7 +18,7 @@ import {
 	mapLegacyItinerary,
 } from "@procomun/db/legacy-import";
 import {
-	findLegacyCollectionOwnerAccount,
+	findLegacyAccountById,
 	importLegacyCollection,
 	LEGACY_USER_ID_PREFIX,
 } from "@procomun/db/repository";
@@ -58,6 +58,7 @@ describe("import:legacy-itineraries (integración con PGlite)", () => {
 	let pglite: PGlite;
 	let db: ReturnType<typeof drizzle<typeof schema>>;
 	let dir: string;
+	let usersFile: string;
 	let logs: string[];
 	let spies: Array<{ mockRestore: () => void }>;
 
@@ -71,10 +72,12 @@ describe("import:legacy-itineraries (integración con PGlite)", () => {
 			getDb: () => ({ db: shared, provider: "pglite" }),
 			waitForDb: async () => {},
 			mapLegacyItinerary,
-			findLegacyCollectionOwnerAccount,
+			findLegacyAccountById: (
+				db: Parameters<typeof findLegacyAccountById>[0],
+				id: string,
+			) => findLegacyAccountById(db, id, { includeInactive: true }),
 			importLegacyCollection,
 			ensureLegacyImportSystemUser,
-			LEGACY_USER_ID_PREFIX,
 		} as unknown as Deps;
 	}
 
@@ -99,6 +102,14 @@ describe("import:legacy-itineraries (integración con PGlite)", () => {
 			DELETE FROM "user";
 		`);
 		dir = await mkdtemp(path.join(tmpdir(), "legacy-itineraries-"));
+		usersFile = path.join(dir, "usuarios.json");
+		await Bun.write(
+			usersFile,
+			JSON.stringify([
+				{ uid: 135, mail: "docente.itinerario.uno@ejemplo.test" },
+				{ uid: 136, mail: "docente.itinerario.dos@ejemplo.test" },
+			]),
+		);
 		for (const externalId of IMPORTED_RESOURCES) {
 			await db.insert(schema.resources).values({
 				id: `res-${externalId}`,
@@ -159,6 +170,8 @@ describe("import:legacy-itineraries (integración con PGlite)", () => {
 			parseImportLegacyItinerariesArgs([
 				"--source-file",
 				SOURCE_FILE,
+				"--users-file",
+				usersFile,
 				"--report-dir",
 				reportDir,
 			]),
@@ -261,13 +274,13 @@ describe("import:legacy-itineraries (integración con PGlite)", () => {
 
 	test("es idempotente: la segunda pasada no duplica ni cambia nada", async () => {
 		await runImportLegacyItineraries(
-			{ sourceFile: SOURCE_FILE, dryRun: false },
+			{ sourceFile: SOURCE_FILE, usersFile, dryRun: false },
 			deps(),
 		);
 		const before = await db.select().from(schema.collections);
 
 		const again = await runImportLegacyItineraries(
-			{ sourceFile: SOURCE_FILE, dryRun: false },
+			{ sourceFile: SOURCE_FILE, usersFile, dryRun: false },
 			deps(),
 		);
 		expect(again.totals).toMatchObject({ created: 0, unchanged: 2 });
@@ -280,7 +293,7 @@ describe("import:legacy-itineraries (integración con PGlite)", () => {
 
 	test("--dry-run no escribe; --only y --limit acotan los itinerarios", async () => {
 		const dry = await runImportLegacyItineraries(
-			{ sourceFile: SOURCE_FILE, dryRun: true },
+			{ sourceFile: SOURCE_FILE, usersFile, dryRun: true },
 			deps(),
 		);
 		expect(dry.totals).toMatchObject({ wouldCreate: 2, created: 0 });
@@ -294,14 +307,14 @@ describe("import:legacy-itineraries (integración con PGlite)", () => {
 		).toHaveLength(0);
 
 		const only = await runImportLegacyItineraries(
-			{ sourceFile: SOURCE_FILE, dryRun: false, only: IT2 },
+			{ sourceFile: SOURCE_FILE, usersFile, dryRun: false, only: IT2 },
 			deps(),
 		);
 		expect(only.totals).toMatchObject({ processed: 1, created: 1 });
 		expect(only.records.map((r) => r.itineraryId)).toEqual([IT2]);
 
 		const limited = await runImportLegacyItineraries(
-			{ sourceFile: SOURCE_FILE, dryRun: false, limit: 1 },
+			{ sourceFile: SOURCE_FILE, usersFile, dryRun: false, limit: 1 },
 			deps(),
 		);
 		expect(limited.records.map((r) => r.itineraryId)).toEqual([IT1]);
@@ -313,7 +326,7 @@ describe("import:legacy-itineraries (integración con PGlite)", () => {
 			.set({ deletedAt: new Date() })
 			.where(eq(schema.user.id, `${LEGACY_USER_ID_PREFIX}136`));
 		const deleted = await runImportLegacyItineraries(
-			{ sourceFile: SOURCE_FILE, dryRun: true, only: IT2 },
+			{ sourceFile: SOURCE_FILE, usersFile, dryRun: true, only: IT2 },
 			deps(),
 		);
 		expect(deleted.records[0]).toMatchObject({
@@ -323,36 +336,90 @@ describe("import:legacy-itineraries (integración con PGlite)", () => {
 
 		await db
 			.update(schema.user)
-			.set({ deletedAt: null, banned: true })
+			.set({ deletedAt: null, banned: true, isActive: false })
 			.where(eq(schema.user.id, `${LEGACY_USER_ID_PREFIX}136`));
 		const banned = await runImportLegacyItineraries(
-			{ sourceFile: SOURCE_FILE, dryRun: true, only: IT2 },
+			{ sourceFile: SOURCE_FILE, usersFile, dryRun: true, only: IT2 },
 			deps(),
 		);
 		expect(banned.records[0]).toMatchObject({ owner: "owner" });
 	});
 
-	test("una cuenta sin verificar que no creó el importador de usuarios no recibe la colección", async () => {
+	test("atribuye el itinerario al UID histórico aunque el correo se haya reasignado", async () => {
+		const historicId = `${LEGACY_USER_ID_PREFIX}136`;
+		const email = "docente.itinerario.dos@ejemplo.test";
 		await db
 			.update(schema.user)
-			.set({ id: "registrada-a-mano", emailVerified: false })
+			.set({ email: "cambiado@ejemplo.test" })
+			.where(eq(schema.user.id, historicId));
+		await db.insert(schema.user).values({
+			id: "titular-nuevo",
+			email,
+			name: "Titular nuevo",
+			emailVerified: true,
+		});
+		const options = {
+			sourceFile: SOURCE_FILE,
+			usersFile,
+			dryRun: false,
+			only: IT2,
+		};
+		await runImportLegacyItineraries(options, deps());
+		expect((await collection(IT2))?.curatorId).toBe(historicId);
+	});
+
+	test("el titular actual, aunque verificado, no recibe la colección si falta la cuenta histórica", async () => {
+		await db
+			.update(schema.user)
+			.set({ id: "registrada-a-mano", emailVerified: true })
 			.where(eq(schema.user.id, `${LEGACY_USER_ID_PREFIX}136`));
 		const report = await runImportLegacyItineraries(
-			{ sourceFile: SOURCE_FILE, dryRun: true, only: IT2 },
+			{ sourceFile: SOURCE_FILE, usersFile, dryRun: true, only: IT2 },
 			deps(),
 		);
 		expect(report.records[0]).toMatchObject({
 			owner: "system",
-			ownerReason: "unverified_account",
+			ownerReason: "no_account",
 		});
 	});
+
+	test.each([
+		{ records: [], reason: "no_legacy_uid" },
+		{
+			records: [
+				{ uid: 136, mail: "docente.itinerario.dos@ejemplo.test" },
+				{ uid: 200, mail: "docente.itinerario.dos@ejemplo.test" },
+			],
+			reason: "ambiguous_account",
+		},
+	])(
+		"con UID ausente o ambiguo deja el itinerario pendiente (%p)",
+		async ({ records, reason }) => {
+			await Bun.write(usersFile, JSON.stringify(records));
+			const report = await runImportLegacyItineraries(
+				{ sourceFile: SOURCE_FILE, usersFile, dryRun: false, only: IT2 },
+				deps(),
+			);
+			expect(report.records[0]).toMatchObject({
+				owner: "system",
+				ownerReason: reason,
+			});
+			expect(JSON.stringify(report)).not.toContain(
+				"docente.itinerario.dos@ejemplo.test",
+			);
+			expect(await collection(IT2)).toMatchObject({
+				curatorId: LEGACY_IMPORT_SYSTEM_USER_ID,
+				editorialStatus: "draft",
+			});
+		},
+	);
 
 	test("un error de la base de datos sale resumido, sin la consulta ni el correo", async () => {
 		await pglite.exec(
 			"ALTER TABLE collections ADD CONSTRAINT test_rechaza_coleccion CHECK (title NOT LIKE 'Alimentación%')",
 		);
 		const report = await runImportLegacyItineraries(
-			{ sourceFile: SOURCE_FILE, dryRun: false },
+			{ sourceFile: SOURCE_FILE, usersFile, dryRun: false },
 			deps(),
 		);
 		expect(report.totals).toMatchObject({ created: 1, errored: 1 });

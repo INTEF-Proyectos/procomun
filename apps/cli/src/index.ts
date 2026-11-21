@@ -94,7 +94,7 @@ export function printHelp(log: Pick<typeof console, "log"> = console) {
 		"                    Pasa a editor las cuentas legacy importadas como author (#507)",
 	);
 	log.log(
-		"  import:legacy-itineraries --source-file <itinerarios.json> [--dry-run] [--limit <n>] [--only <id>] [--report-dir <ruta>]",
+		"  import:legacy-itineraries --source-file <itinerarios.json> --users-file <usuarios.json> [--dry-run] [--limit <n>] [--only <id>] [--report-dir <ruta>]",
 	);
 	log.log(
 		"                    Importa los itinerarios legacy como colecciones de su autor; antes, los recursos (#432)",
