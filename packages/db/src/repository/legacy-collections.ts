@@ -1,4 +1,4 @@
-import { and, asc, eq, inArray, ne } from "drizzle-orm";
+import { and, asc, eq, inArray } from "drizzle-orm";
 import {
 	MAX_KNOWLEDGE_AREAS,
 	normalizeKnowledgeAreaKey,
@@ -9,9 +9,7 @@ import type {
 	LegacyItineraryResourceRef,
 	MappedLegacyItinerary,
 } from "../legacy-import/itinerary.ts";
-import { normalizeLegacyPublicatorEmail } from "../legacy-import/publicator-email.ts";
 import { LEGACY_IMPORT_SYSTEM_USER_ID } from "../legacy-import/system-user.ts";
-import { lowerEmail, user } from "../schema/auth.ts";
 import { collectionResources, collections } from "../schema/collections.ts";
 import { resources } from "../schema/resources.ts";
 import {
@@ -24,44 +22,6 @@ import { getCollectionById, updateCollection } from "./collections.ts";
 import { listKeywordCatalog } from "./keyword-catalog.ts";
 import { listKnowledgeAreas } from "./knowledge-areas.ts";
 import type { DrizzleDB } from "./shared.ts";
-
-/**
- * Cuenta cuyo correo coincide con el `publicatorEmailStr` de un itinerario
- * legacy (#432). Misma regla que `findLegacyAuthorAccount` de #508 para los
- * recursos: sin distinguir mayúsculas ni espacios, nunca el usuario de sistema,
- * las bloqueadas cuentan y las dadas de baja se devuelven marcadas para que el
- * llamante no les asigne nada.
- *
- * Pendiente: cuando #508 llegue a main, sustituir por `findLegacyAuthorAccount`.
- */
-export async function findLegacyCollectionOwnerAccount(
-	db: DrizzleDB,
-	email: string,
-): Promise<{ id: string; deleted: boolean; emailVerified: boolean } | null> {
-	const normalized = normalizeLegacyPublicatorEmail(email);
-	if (!normalized) return null;
-	const [row] = await db
-		.select({
-			id: user.id,
-			deletedAt: user.deletedAt,
-			emailVerified: user.emailVerified,
-		})
-		.from(user)
-		.where(
-			and(
-				eq(lowerEmail(user.email), normalized),
-				ne(user.id, LEGACY_IMPORT_SYSTEM_USER_ID),
-			),
-		)
-		.limit(1);
-	return row
-		? {
-				id: row.id,
-				deleted: row.deletedAt !== null,
-				emailVerified: row.emailVerified,
-			}
-		: null;
-}
 
 export interface MissingLegacyCollectionResource
 	extends LegacyItineraryResourceRef {

@@ -485,14 +485,8 @@ async function runImportLegacyProcomunCommand(
 		return;
 	}
 
-	const usersDump = options.usersFile
-		? await Bun.file(options.usersFile).json()
-		: undefined;
-	if (options.usersFile && !Array.isArray(usersDump)) {
-		throw new Error("--users-file debe contener un array de usuarios");
-	}
-	const legacyUidsByEmail = usersDump
-		? buildLegacyUidIndex(usersDump)
+	const legacyUidsByEmail = options.usersFile
+		? await readLegacyUidIndex(options.usersFile)
 		: undefined;
 
 	if (options.linkAuthors) {
@@ -1065,7 +1059,7 @@ export async function runCopyLegacyPreviews(
 }
 
 type LegacyAuthor =
-	| { userId: string }
+	| { userId: string; reason?: undefined }
 	| { userId: null; reason: AuthorWithoutAccount["reason"] };
 
 /** Correo normalizado -> UIDs del Procomún antiguo que lo tenían (#552). */
@@ -1094,9 +1088,17 @@ export function buildLegacyUidIndex(
 	return index;
 }
 
+export async function readLegacyUidIndex(usersFile: string) {
+	const users = await Bun.file(usersFile).json();
+	if (!Array.isArray(users)) {
+		throw new Error("--users-file debe contener un array de usuarios");
+	}
+	return buildLegacyUidIndex(users);
+}
+
 /** Resuelve cada correo del volcado histórico una sola vez por ejecución. */
-function createLegacyAuthorResolver(
-	deps: Deps,
+export function createLegacyAuthorResolver(
+	deps: Pick<Deps, "findLegacyAccountById">,
 	db: ReturnType<Deps["getDb"]>["db"],
 	uidsByEmail?: LegacyUidsByEmail,
 ) {

@@ -2,8 +2,8 @@
  * Importa los itinerarios del Procomún antiguo como colecciones (issue #432).
  * El exportador los da todos en un único JSON (un array).
  *
- * - Propietario: la cuenta cuyo correo coincide con `publicatorEmailStr`
- *   (como los recursos en #508). Sin cuenta, la colección queda en borrador a
+ * - Propietario: la cuenta del UID asociado a `publicatorEmailStr` en el
+ *   volcado histórico. Sin cuenta, la colección queda en borrador a
  *   nombre del usuario de sistema del importador y sale en el informe.
  * - Recursos: los ODE (`itineraryContent`) y luego los artículos
  *   (`interestContent`), cruzados por el `external_id` con el que los guardó
@@ -18,7 +18,7 @@
  * resultado y el motivo.
  *
  * Uso:
- *   bun run apps/cli/src/index.ts import:legacy-itineraries --source-file <itinerarios.json> [--dry-run] [--limit <n>] [--only <id>] [--report-dir <ruta>]
+ *   bun run apps/cli/src/index.ts import:legacy-itineraries --source-file <itinerarios.json> --users-file <usuarios.json> [--dry-run] [--limit <n>] [--only <id>] [--report-dir <ruta>]
  */
 import { mkdir } from "node:fs/promises";
 import path from "node:path";
@@ -39,6 +39,11 @@ import {
 	summarizeDbStepError,
 	withoutDbDetails,
 } from "../import-errors.ts";
+import {
+	type AuthorWithoutAccount,
+	createLegacyAuthorResolver,
+	readLegacyUidIndex,
+} from "./import-legacy-procomun.ts";
 import { closeCliDb } from "./import-legacy-users.ts";
 
 const TAG = "[import:legacy-itineraries]";
@@ -55,22 +60,18 @@ export async function loadImportLegacyItinerariesDependencies() {
 		waitForDb,
 		mapLegacyItinerary: legacyImport.mapLegacyItinerary,
 		ensureLegacyImportSystemUser: legacyImport.ensureLegacyImportSystemUser,
-		findLegacyCollectionOwnerAccount: repo.findLegacyCollectionOwnerAccount,
+		findLegacyAccountById: (db: ReturnType<typeof getDb>["db"], id: string) =>
+			repo.findLegacyAccountById(db, id, { includeInactive: true }),
 		importLegacyCollection: repo.importLegacyCollection,
 		loadLegacyCollectionMetadataCatalog:
 			repo.loadLegacyCollectionMetadataCatalog,
-		LEGACY_USER_ID_PREFIX: repo.LEGACY_USER_ID_PREFIX,
 	};
 }
 
 type Deps = Awaited<ReturnType<typeof loadImportLegacyItinerariesDependencies>>;
 
 /** Por qué no se asigna la colección a una cuenta. Nunca lleva el correo. */
-export type OwnerReason =
-	| "no_email"
-	| "no_account"
-	| "deleted_account"
-	| "unverified_account";
+export type OwnerReason = AuthorWithoutAccount["reason"];
 
 type LegacyItineraryDiscardedField =
 	| keyof LegacyItineraryMetadata
@@ -135,6 +136,7 @@ export function parseImportLegacyItinerariesArgs(args: string[]) {
 		args,
 		options: {
 			"source-file": { type: "string" },
+			"users-file": { type: "string" },
 			"dry-run": { type: "boolean", default: false },
 			limit: { type: "string" },
 			only: { type: "string" },
@@ -144,7 +146,7 @@ export function parseImportLegacyItinerariesArgs(args: string[]) {
 	});
 	if (!values["source-file"]) {
 		throw new Error(
-			"Falta --source-file. Uso: import:legacy-itineraries --source-file <itinerarios.json> [--dry-run] [--limit <n>] [--only <id>] [--report-dir <ruta>]",
+			"Falta --source-file. Uso: import:legacy-itineraries --source-file <itinerarios.json> --users-file <usuarios.json> [--dry-run] [--limit <n>] [--only <id>] [--report-dir <ruta>]",
 		);
 	}
 	const limit = values.limit == null ? undefined : Number(values.limit);
@@ -155,8 +157,12 @@ export function parseImportLegacyItinerariesArgs(args: string[]) {
 	if (values.only != null && !only) {
 		throw new Error("--only necesita el id de un itinerario");
 	}
+	if (!values["users-file"]?.trim()) {
+		throw new Error("Falta --users-file <usuarios.json>");
+	}
 	return {
 		sourceFile: path.resolve(values["source-file"]),
+		usersFile: path.resolve(values["users-file"]),
 		dryRun: Boolean(values["dry-run"]),
 		limit,
 		only,
@@ -216,42 +222,12 @@ export async function runImportLegacyItinerariesCommand(
 	}
 }
 
-type OwnerResolution =
-	| { userId: string; reason?: undefined }
-	| { userId: null; reason: OwnerReason };
-
-/**
- * `publicatorEmailStr` → cuenta, con la misma regla que #508 para los
- * recursos: las dadas de baja no reciben nada y las bloqueadas sí. Una cuenta
- * sin verificar tampoco, salvo las que crea el importador de usuarios (#488):
- * si no, quien se registre con el correo de un autor antiguo se quedaría con
- * sus colecciones. Cada correo se busca una vez por ejecución.
- */
-function createOwnerResolver(deps: Deps, db: ReturnType<Deps["getDb"]>["db"]) {
-	const cache = new Map<string, OwnerResolution>();
-	return async (email: string | null): Promise<OwnerResolution> => {
-		if (!email) return { userId: null, reason: "no_email" };
-		const cached = cache.get(email);
-		if (cached) return cached;
-		const account = await deps.findLegacyCollectionOwnerAccount(db, email);
-		const resolution: OwnerResolution = !account
-			? { userId: null, reason: "no_account" }
-			: account.deleted
-				? { userId: null, reason: "deleted_account" }
-				: !account.emailVerified &&
-						!account.id.startsWith(deps.LEGACY_USER_ID_PREFIX)
-					? { userId: null, reason: "unverified_account" }
-					: { userId: account.id };
-		cache.set(email, resolution);
-		return resolution;
-	};
-}
-
 const KIND_LABEL = { ode: "ODE", article: "artículo" } as const;
 
 export async function runImportLegacyItineraries(
 	options: {
 		sourceFile: string;
+		usersFile: string;
 		dryRun: boolean;
 		limit?: number;
 		only?: string;
@@ -264,10 +240,11 @@ export async function runImportLegacyItineraries(
 		throw new Error("El JSON de itinerarios debe contener un array en la raíz");
 	}
 
+	const legacyUidsByEmail = await readLegacyUidIndex(options.usersFile);
 	await deps.waitForDb();
 	const db = deps.getDb().db;
 	if (!options.dryRun) await deps.ensureLegacyImportSystemUser(db);
-	const resolveOwner = createOwnerResolver(deps, db);
+	const resolveOwner = createLegacyAuthorResolver(deps, db, legacyUidsByEmail);
 	let catalog:
 		| Awaited<ReturnType<Deps["loadLegacyCollectionMetadataCatalog"]>>
 		| undefined;

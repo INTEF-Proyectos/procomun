@@ -389,3 +389,7 @@ Un fallo de la base de datos al guardar el artículo pasa por `summarizeImportEr
 ## Revisión de #573 — 2026-11-19
 
 La migración de itinerarios se renumera de `0022_collections_legacy_import` a `0028_collections_legacy_import` para que el migrador la aplique también sobre bases que ya recibieron la 0027.
+
+## Atribución histórica de itinerarios — 2026-11-20 (#616)
+
+La regla de propietario del apartado de itinerarios se actualiza con la atribución por UID de ADR-0029. `import:legacy-itineraries` requiere `--users-file <usuarios.json>`. El correo del itinerario se usa para localizar un único UID en ese volcado y se consulta la cuenta histórica por su ID. Las cuentas bloqueadas conservan su atribución y las dadas de baja se dejan pendientes. El informe general indica `no_legacy_uid` para correos ausentes, `ambiguous_account` para varios UID y `no_account` si falta la cuenta histórica, sin incluir el correo. Las colecciones ya asignadas a una cuenta conservan su propietario al reimportar.
