@@ -5170,6 +5170,13 @@ tasks:
     status: In Progress
     related: ["#608", "ADR-0044"]
     notes: "Deduplicación por pestaña y colección publicada, también en importadas. Migración 0032 y pruebas de API, esquema e interfaz."
+  T-2026-11-20-21100978:
+    date: 2026-11-20
+    agent: "backend-api-servicios + qa-validacion"
+    task: "Corregir la reordenación de colecciones con borradores ocultos"
+    status: Done
+    related: ["#617", "#432"]
+    notes: "Regresión de API reproducida y corregida con datos sintéticos."
   T-2026-11-20-21092246:
     date: 2026-11-20
     agent: "ingestas-y-migraciones + qa-validacion"
@@ -5177,3 +5184,13 @@ tasks:
     status: In Progress
     related: ["#616", "#432", "#600", "ADR-0029"]
     notes: "El volcado histórico es obligatorio. La reimportación conserva las atribuciones existentes. Verificación con datos sintéticos."
+  T-2026-11-22-20405187:
+    date: 2026-11-22
+    agent: "documentacion-y-roadmap + qa-validacion"
+    task: "Integrar main en la PR #620 del contador de visitas de colecciones"
+    status: Done
+    related: ["#620", "#619", "#608"]
+    notes: >
+      Se incorporó la reordenación de recursos visibles de #619 y se conservó
+      la migración 0032. Pasaron 214 pruebas específicas, 223 pruebas de
+      interfaz y la comprobación de tipos.
