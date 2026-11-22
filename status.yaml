@@ -5173,6 +5173,13 @@ tasks:
       CI publica app y thumbnailer con las etiquetas main y latest y escanea
       ambos digests con Trivy. Dependabot agrupa Playwright y dos pruebas
       verifican el contrato de publicación y la paridad de versiones.
+  T-2026-11-20-21100978:
+    date: 2026-11-20
+    agent: "backend-api-servicios + qa-validacion"
+    task: "Corregir la reordenación de colecciones con borradores ocultos"
+    status: Done
+    related: ["#617", "#432"]
+    notes: "Regresión de API reproducida y corregida con datos sintéticos."
   T-2026-11-20-21092246:
     date: 2026-11-20
     agent: "ingestas-y-migraciones + qa-validacion"
