@@ -5173,6 +5173,13 @@ tasks:
       La ficha reutiliza el resumen y el control de estrellas de los recursos.
       Una cuenta puede actualizar su voto en cualquier colección publicada,
       incluidas las importadas. La migración 0033 valida el rango y la unicidad.
+  T-2026-11-20-21100978:
+    date: 2026-11-20
+    agent: "backend-api-servicios + qa-validacion"
+    task: "Corregir la reordenación de colecciones con borradores ocultos"
+    status: Done
+    related: ["#617", "#432"]
+    notes: "Regresión de API reproducida y corregida con datos sintéticos."
   T-2026-11-20-21092246:
     date: 2026-11-20
     agent: "ingestas-y-migraciones + qa-validacion"
