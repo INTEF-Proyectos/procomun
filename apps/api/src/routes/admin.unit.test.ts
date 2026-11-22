@@ -802,6 +802,54 @@ describe("Rutas admin — borradores privados frente al curator (#460)", () => {
 		expect(add.status).toBe(404);
 	});
 
+	test("reordena dos recursos visibles sin mover el borrador ajeno (#617)", async () => {
+		await ensureUsers();
+		const first = await createDraft(curatorApp);
+		const hidden = await createDraft(authorApp);
+		const last = await createDraft(curatorApp);
+		const db = getDb().db;
+		const collection = await repo.createCollection(db, {
+			title: "Colección ordenada",
+			description: "Colección de prueba",
+			curatorId,
+			isOrdered: true,
+		});
+		await repo.addResourceToCollection(db, collection.id, first.id, 0);
+		await repo.addResourceToCollection(db, collection.id, hidden.id, 1);
+		await repo.addResourceToCollection(db, collection.id, last.id, 2);
+		const url = `/api/admin/collections/${collection.id}/resources`;
+
+		const reordered = await curatorApp.request(`${url}/reorder`, {
+			method: "PATCH",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({ resourceId: first.id, direction: "down" }),
+		});
+		expect(reordered.status).toBe(200);
+		const listed = await curatorApp.request(url);
+		expect(listed.status).toBe(200);
+		const items = (await listed.json()) as Array<{ resourceId: string }>;
+		expect(items.map(({ resourceId }) => resourceId)).toEqual([
+			last.id,
+			first.id,
+		]);
+		expect(
+			(await repo.listCollectionResources(db, collection.id)).map(
+				({ resourceId, position }) => [resourceId, position],
+			),
+		).toEqual([
+			[last.id, 0],
+			[hidden.id, 1],
+			[first.id, 2],
+		]);
+
+		const hiddenReorder = await curatorApp.request(`${url}/reorder`, {
+			method: "PATCH",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({ resourceId: hidden.id, direction: "up" }),
+		});
+		expect(hiddenReorder.status).toBe(400);
+	});
+
 	test("el curator ve sus propios borradores", async () => {
 		await ensureUsers();
 		const own = await createDraft(curatorApp);

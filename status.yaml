@@ -5171,6 +5171,13 @@ tasks:
     notes: >
       La edición y la ficha pública comparten los catálogos de recursos.
       El alta, los filtros y la importación tienen seguimiento propio.
+  T-2026-11-20-21100978:
+    date: 2026-11-20
+    agent: "backend-api-servicios + qa-validacion"
+    task: "Corregir la reordenación de colecciones con borradores ocultos"
+    status: Done
+    related: ["#617", "#432"]
+    notes: "Regresión de API reproducida y corregida con datos sintéticos."
   T-2026-11-20-21092246:
     date: 2026-11-20
     agent: "ingestas-y-migraciones + qa-validacion"

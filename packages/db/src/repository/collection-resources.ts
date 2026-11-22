@@ -1,9 +1,11 @@
-import { and, asc, eq, isNull, or, sql } from "drizzle-orm";
+import { and, asc, eq, inArray, isNull, or, sql } from "drizzle-orm";
 import { user } from "../schema/auth.ts";
-import { collectionResources } from "../schema/collections.ts";
+import { collectionResources, collections } from "../schema/collections.ts";
 import { resources } from "../schema/resources.ts";
 import { hasMinRole } from "../validation.ts";
 import { andWhere, type DrizzleDB, normalizePagination } from "./shared.ts";
+
+type CollectionResourceViewer = { id: string; role?: string | null } | null;
 
 async function getNextCollectionResourcePosition(
 	db: DrizzleDB,
@@ -61,7 +63,7 @@ export async function listCollectionResources(
 		limit?: number;
 		offset?: number;
 		status?: string;
-		viewer?: { id: string; role?: string | null } | null;
+		viewer?: CollectionResourceViewer;
 	} = {},
 ) {
 	const { limit, offset } = normalizePagination(
@@ -119,39 +121,40 @@ export async function reorderCollectionResource(
 	collectionId: string,
 	resourceId: string,
 	direction: "up" | "down",
+	viewer?: CollectionResourceViewer,
 ) {
-	const items = await listCollectionResources(db, collectionId, { limit: 100 });
-	const currentIndex = items.findIndex(
-		(item) => item.resourceId === resourceId,
-	);
-	if (currentIndex === -1) return false;
+	return db.transaction(async (tx: DrizzleDB) => {
+		// Serializa las reordenaciones de la colección antes de leer sus posiciones.
+		await tx
+			.select({ id: collections.id })
+			.from(collections)
+			.where(eq(collections.id, collectionId))
+			.for("update");
 
-	const swapIndex = direction === "up" ? currentIndex - 1 : currentIndex + 1;
-	if (swapIndex < 0 || swapIndex >= items.length) return false;
+		const items = await listCollectionResources(tx, collectionId, { viewer });
+		const index = items.findIndex((item) => item.resourceId === resourceId);
+		if (index < 0) return false;
 
-	const current = items[currentIndex];
-	const swap = items[swapIndex];
-	if (!current || !swap) return false;
+		const current = items[index];
+		const adjacent = items[direction === "up" ? index - 1 : index + 1];
+		if (!current || !adjacent) return false;
 
-	await db
-		.update(collectionResources)
-		.set({ position: swap.position })
-		.where(
-			and(
-				eq(collectionResources.collectionId, collectionId),
-				eq(collectionResources.resourceId, current.resourceId),
-			),
-		);
+		await tx
+			.update(collectionResources)
+			.set({
+				position: sql`case when ${collectionResources.resourceId} = ${current.resourceId}
+					then ${adjacent.position}::integer else ${current.position}::integer end`,
+			})
+			.where(
+				and(
+					eq(collectionResources.collectionId, collectionId),
+					inArray(collectionResources.resourceId, [
+						current.resourceId,
+						adjacent.resourceId,
+					]),
+				),
+			);
 
-	await db
-		.update(collectionResources)
-		.set({ position: current.position })
-		.where(
-			and(
-				eq(collectionResources.collectionId, collectionId),
-				eq(collectionResources.resourceId, swap.resourceId),
-			),
-		);
-
-	return true;
+		return true;
+	});
 }

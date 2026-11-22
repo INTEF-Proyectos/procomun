@@ -210,6 +210,7 @@ collectionRoutes.patch("/:id/resources/reorder", async (c) => {
 		id,
 		body.resourceId,
 		body.direction,
+		getCurrentUser(c),
 	);
 	if (!reordered) {
 		return c.json({ error: "No se pudo reordenar el recurso" }, 400);
