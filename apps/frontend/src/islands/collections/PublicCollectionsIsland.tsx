@@ -37,6 +37,7 @@ import { CardTypeMarker } from "../../ui/CardTypeMarker.tsx";
 import { EducationalSearchFilters } from "../catalog/EducationalSearchFilters.tsx";
 import { KnowledgeAreaSearchFilters } from "../catalog/KnowledgeAreaSearchFilters.tsx";
 import { KeywordCatalogField } from "../resources/KeywordCatalogField.tsx";
+import { RatingIsland } from "../social/RatingIsland.tsx";
 import { ReportButton } from "../social/ReportButton.tsx";
 import "./PublicCollectionsIsland.css";
 import "../../lib/paraglide-client.ts";
@@ -254,6 +255,14 @@ export function CollectionDetailContent({
 					})}
 				</div>
 			</section>
+			<div className="collection-detail-section">
+				<RatingIsland
+					key={detail.slug}
+					target="collection"
+					slug={detail.slug}
+					currentUserId={currentUserId}
+				/>
+			</div>
 		</section>
 	);
 }

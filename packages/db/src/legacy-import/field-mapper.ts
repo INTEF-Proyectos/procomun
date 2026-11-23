@@ -81,9 +81,9 @@ function truncateList(
  * corta antes de partir una a la mitad, en vez de truncar el string final a
  * ciegas.
  */
-function buildKeywords(
+export function buildLegacyKeywords(
 	values: string[],
-	max: number,
+	max = MAX_KEYWORDS_LENGTH,
 ): { keywords: string | null; truncated: boolean } {
 	if (values.length === 0) return { keywords: null, truncated: false };
 
@@ -417,9 +417,8 @@ export function mapLegacyRecord(
 
 	const publisher = publisherName;
 
-	const { keywords, truncated: keywordsTruncated } = buildKeywords(
+	const { keywords, truncated: keywordsTruncated } = buildLegacyKeywords(
 		dedupeTrimmed(json.labelsStr),
-		MAX_KEYWORDS_LENGTH,
 	);
 	if (keywordsTruncated) {
 		warnings.push({

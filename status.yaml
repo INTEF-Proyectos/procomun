@@ -5187,6 +5187,28 @@ tasks:
     status: Done
     related: ["#612", "#611"]
     notes: "Texto y filtros combinables con el estado reflejado en la URL."
+  T-2026-11-21-08131372:
+    agent: "ingestas-y-migraciones + qa-validacion"
+    task: "Importar metadatos de itinerarios en los catálogos de colecciones"
+    status: Done
+    related: ["#615", "#611"]
+    notes: "El informe cuenta las incidencias de catálogo y la reimportación no duplica asociaciones."
+  T-2026-11-21-00365493:
+    agent: "metadatos-y-curacion + qa-validacion"
+    task: "Clasificar colecciones desde su formulario de alta"
+    status: Done
+    related: ["#614", "#611"]
+    notes: "Alta y edición usan los mismos controles y validaciones de catálogo."
+  T-2026-11-21-00271091:
+    date: 2026-11-21
+    agent: "backend-api-servicios + frontend-ux-accesibilidad"
+    task: "Añadir valoraciones a las colecciones públicas"
+    status: Done
+    related: ["#609"]
+    notes: >
+      La ficha reutiliza el resumen y el control de estrellas de los recursos.
+      Una cuenta puede actualizar su voto en cualquier colección publicada,
+      incluidas las importadas. La migración 0033 valida el rango y la unicidad.
   T-2026-11-20-21100482:
     date: 2026-11-20
     agent: "backend-api-servicios"
@@ -5238,3 +5260,13 @@ tasks:
       El detalle conserva el contador de visitas y los metadatos. La 0034
       queda después de la 0032 y el migrador conserva el total previo.
       Pasan siete pruebas específicas y la comprobación de tipos.
+  T-2026-11-23-07092370:
+    date: 2026-11-23
+    agent: "backend-api-servicios + qa-validacion"
+    task: "Integrar main en la PR #622 de valoraciones de colecciones"
+    status: Done
+    related: ["#622", "#620", "#609"]
+    notes: >
+      Se integran las visitas de #620 y ambas pruebas de API. La migración
+      0033 queda después de la 0032 y el migrador conserva los contadores
+      existentes. Pasan 117 pruebas de los archivos afectados y los tipos.

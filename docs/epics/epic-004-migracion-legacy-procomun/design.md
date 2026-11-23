@@ -393,3 +393,9 @@ La migración de itinerarios se renumera de `0022_collections_legacy_import` a `
 ## Atribución histórica de itinerarios — 2026-11-20 (#616)
 
 La regla de propietario del apartado de itinerarios se actualiza con la atribución por UID de ADR-0029. `import:legacy-itineraries` requiere `--users-file <usuarios.json>`. El correo del itinerario se usa para localizar un único UID en ese volcado y se consulta la cuenta histórica por su ID. Las cuentas bloqueadas conservan su atribución y las dadas de baja se dejan pendientes. El informe general indica `no_legacy_uid` para correos ausentes, `ambiguous_account` para varios UID y `no_account` si falta la cuenta histórica, sin incluir el correo. Las colecciones ya asignadas a una cuenta conservan su propietario al reimportar.
+
+## Metadatos de itinerarios — 2026-11-23 (#615)
+
+Sustituye la fila «`knowledgeArea`, `labelsStr`, `learningContext`, `educationalDescription` — Se descartan» del apartado de itinerarios. Las colecciones ya tienen áreas de conocimiento, palabras clave del catálogo y clasificación educativa, y el importador las rellena como se describe en `epic-001-mvp-recursos-metadatos-minimos/features/collection-metadata/import.md`. `educationalDescription` se añade a la descripción de la colección.
+
+En el informe, `discardedFields` pasa a listar los campos con algún valor que no se ha podido importar, y el nuevo `metadataIssues` da el detalle por campo (`unmatched`, `ambiguous`, `overLimit`, `eleOutsideSpanish`), sin valores de origen. `totals.discardedMetadata` cuenta los registros con incidencias en `knowledgeArea`, `labelsStr` o `learningContext`.

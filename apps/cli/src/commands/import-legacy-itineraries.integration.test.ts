@@ -18,9 +18,12 @@ import {
 	mapLegacyItinerary,
 } from "@procomun/db/legacy-import";
 import {
+	createCatalogKeyword,
 	findLegacyAccountById,
+	getCollectionById,
 	importLegacyCollection,
 	LEGACY_USER_ID_PREFIX,
+	loadLegacyCollectionMetadataCatalog,
 } from "@procomun/db/repository";
 import * as schema from "@procomun/db/schema";
 import { createTables } from "@procomun/db/setup";
@@ -77,6 +80,7 @@ describe("import:legacy-itineraries (integración con PGlite)", () => {
 				id: string,
 			) => findLegacyAccountById(db, id, { includeInactive: true }),
 			importLegacyCollection,
+			loadLegacyCollectionMetadataCatalog,
 			ensureLegacyImportSystemUser,
 		} as unknown as Deps;
 	}
@@ -230,10 +234,9 @@ describe("import:legacy-itineraries (integración con PGlite)", () => {
 			withoutOwner: 1,
 			missingResources: 2,
 			discardedMetadata: {
-				knowledgeArea: 2,
+				knowledgeArea: 1,
 				labelsStr: 2,
-				learningContext: 2,
-				educationalDescription: 0,
+				learningContext: 0,
 			},
 		});
 		const byId = Object.fromEntries(
@@ -251,7 +254,7 @@ describe("import:legacy-itineraries (integración con PGlite)", () => {
 					reason: "not_imported",
 				},
 			],
-			discardedFields: ["knowledgeArea", "labelsStr", "learningContext"],
+			discardedFields: ["labelsStr"],
 		});
 		expect(byId[IT2]).toMatchObject({
 			outcome: "created",
@@ -270,6 +273,90 @@ describe("import:legacy-itineraries (integración con PGlite)", () => {
 			`[recurso no encontrado] itinerario ${IT1}: eVC1LpYBAcddN1-HHKC- (artículo)`,
 		);
 		expect(logs.join("\n")).not.toMatch(/@/);
+	});
+
+	test("resuelve los metadatos del itinerario, informa los valores sin correspondencia y reimporta sin duplicar", async () => {
+		const term = await createCatalogKeyword(db, {
+			label: "Mecanizado de prueba",
+			aliases: ["Mecanizado", "Fabricación y montaje"],
+			createdBy: `${LEGACY_USER_ID_PREFIX}136`,
+		});
+		if (term.status === "invalid") throw new Error("catálogo inválido");
+
+		const sourceFile = path.join(dir, "metadatos.json");
+		const itinerary = {
+			id: "it-metadatos",
+			titleStr: "Itinerario de prueba",
+			descriptionStr: "Descripción general",
+			knowledgeArea: ["Tecnologías", "Área sin correspondencia"],
+			labelsStr: [
+				"mecanizado",
+				"mecánica, electricidad, dibujo técnico, Leonardo Da Vinci",
+				"herramientas del taller de tecnología",
+				"máquinas eléctricas",
+				"fabricación y montaje",
+				"taller",
+			],
+			learningContext: ["Formación Profesional Básica (más de 15 años)"],
+			educationalDescription: [""],
+		};
+		await Bun.write(sourceFile, JSON.stringify([itinerary]));
+
+		const dryRun = await runImportLegacyItineraries(
+			{ sourceFile, usersFile, dryRun: true },
+			deps(),
+		);
+		expect(dryRun.records[0]).toMatchObject({
+			outcome: "would_create",
+			metadataIssues: {
+				knowledgeArea: { unmatched: 1 },
+				labelsStr: { unmatched: 7 },
+			},
+		});
+		expect(await collection(itinerary.id)).toBeUndefined();
+
+		await runImportLegacyItineraries(
+			{ sourceFile, usersFile, dryRun: false },
+			deps(),
+		);
+		const first = await collection(itinerary.id);
+		expect(first?.description).toBe("Descripción general");
+		const details = await getCollectionById(db, first?.id ?? "");
+		expect(details?.knowledgeAreas.map(({ id }) => id)).toEqual(["tecnologia"]);
+		expect(details?.catalogKeywords.map(({ id }) => id)).toEqual([
+			term.keyword.id,
+		]);
+		expect(details?.educationalAreas).toEqual([
+			{ categoryId: "formacion-profesional", optionId: "grado-basico" },
+		]);
+
+		await Bun.write(
+			sourceFile,
+			JSON.stringify([
+				{
+					...itinerary,
+					educationalDescription: ["", "<p>Práctica de taller</p>"],
+				},
+			]),
+		);
+		const update = await runImportLegacyItineraries(
+			{ sourceFile, usersFile, dryRun: false },
+			deps(),
+		);
+		expect(update.records[0]).toMatchObject({ outcome: "updated" });
+		const unchanged = await runImportLegacyItineraries(
+			{ sourceFile, usersFile, dryRun: false },
+			deps(),
+		);
+		expect(unchanged.records[0]).toMatchObject({ outcome: "unchanged" });
+		expect((await collection(itinerary.id))?.description).toBe(
+			"Descripción general\n\nPráctica de taller",
+		);
+		expect(
+			(await getCollectionById(db, first?.id ?? ""))?.catalogKeywords.map(
+				({ id }) => id,
+			),
+		).toEqual([term.keyword.id]);
 	});
 
 	test("es idempotente: la segunda pasada no duplica ni cambia nada", async () => {

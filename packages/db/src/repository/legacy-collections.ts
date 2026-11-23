@@ -1,11 +1,26 @@
 import { and, asc, eq, inArray } from "drizzle-orm";
+import {
+	MAX_KNOWLEDGE_AREAS,
+	normalizeKnowledgeAreaKey,
+} from "../knowledge-areas.ts";
+import { mapLegacyEducationalCategories } from "../legacy-import/educational-category-map.ts";
 import type {
+	LegacyItineraryMetadata,
 	LegacyItineraryResourceRef,
 	MappedLegacyItinerary,
 } from "../legacy-import/itinerary.ts";
 import { LEGACY_IMPORT_SYSTEM_USER_ID } from "../legacy-import/system-user.ts";
 import { collectionResources, collections } from "../schema/collections.ts";
 import { resources } from "../schema/resources.ts";
+import {
+	keywordIndex,
+	MAX_KEYWORD_SELECTIONS,
+	matchLegacyLabels,
+	normalizeKeywordKey,
+} from "../tags/keyword-catalog.ts";
+import { getCollectionById, updateCollection } from "./collections.ts";
+import { listKeywordCatalog } from "./keyword-catalog.ts";
+import { listKnowledgeAreas } from "./knowledge-areas.ts";
 import type { DrizzleDB } from "./shared.ts";
 
 export interface MissingLegacyCollectionResource
@@ -24,6 +39,117 @@ export type LegacyCollectionOwnerOutcome =
 	/** Alguien la reasignó a mano: no se toca. */
 	| "kept_owner";
 
+export type LegacyCollectionMetadataIssues = Partial<
+	Record<
+		keyof LegacyItineraryMetadata,
+		{
+			unmatched?: number;
+			ambiguous?: number;
+			overLimit?: boolean;
+			eleOutsideSpanish?: number;
+		}
+	>
+>;
+
+export async function loadLegacyCollectionMetadataCatalog(db: DrizzleDB) {
+	const [terms, activeAreas] = await Promise.all([
+		listKeywordCatalog(db),
+		listKnowledgeAreas(db),
+	]);
+	const areas = new Map(
+		activeAreas.map(({ id, label }) => [normalizeKnowledgeAreaKey(label), id]),
+	);
+	// Única equivalencia adicional: el plural del exportador (#615) y el
+	// área vigente de Tecnología representan la misma denominación curricular.
+	if (
+		activeAreas.some(({ id }) => id === "tecnologia") &&
+		!areas.has("tecnologias")
+	) {
+		areas.set("tecnologias", "tecnologia");
+	}
+	return { keywords: keywordIndex(terms), areas };
+}
+
+type MetadataCatalog = Awaited<
+	ReturnType<typeof loadLegacyCollectionMetadataCatalog>
+>;
+
+function addCatalogMatches(current: string[], incoming: string[], max: number) {
+	const combined = [...new Set([...current, ...incoming])];
+	const changed = combined.length > current.length;
+	const overLimit = changed && combined.length > max;
+	return { ids: changed && !overLimit ? combined : undefined, overLimit };
+}
+
+function resolveCollectionMetadata(
+	metadata: LegacyItineraryMetadata,
+	catalog: MetadataCatalog,
+	current: Awaited<ReturnType<typeof getCollectionById>>,
+) {
+	const issues: LegacyCollectionMetadataIssues = {};
+	const areaKeys = [
+		...new Set(metadata.knowledgeArea.map(normalizeKnowledgeAreaKey)),
+	].filter(Boolean);
+	const areaIds = areaKeys.flatMap((key) => catalog.areas.get(key) ?? []);
+	const areas = addCatalogMatches(
+		current?.knowledgeAreas.map(({ id }) => id) ?? [],
+		areaIds,
+		MAX_KNOWLEDGE_AREAS,
+	);
+	const unmatchedAreas = areaKeys.length - areaIds.length;
+	if (unmatchedAreas || areas.overLimit) {
+		issues.knowledgeArea = {
+			...(unmatchedAreas ? { unmatched: unmatchedAreas } : {}),
+			...(areas.overLimit ? { overLimit: true } : {}),
+		};
+	}
+
+	const labels = matchLegacyLabels(metadata.labelsStr, catalog.keywords);
+	const unmatchedLabels = new Set(labels.unmatched.map(normalizeKeywordKey))
+		.size;
+	const ambiguousLabels = new Set(labels.ambiguous.map(normalizeKeywordKey))
+		.size;
+	const keywords = addCatalogMatches(
+		current?.catalogKeywords.map(({ id }) => id) ?? [],
+		labels.ids,
+		MAX_KEYWORD_SELECTIONS,
+	);
+	if (unmatchedLabels || ambiguousLabels || keywords.overLimit) {
+		issues.labelsStr = {
+			...(unmatchedLabels ? { unmatched: unmatchedLabels } : {}),
+			...(ambiguousLabels ? { ambiguous: ambiguousLabels } : {}),
+			...(keywords.overLimit ? { overLimit: true } : {}),
+		};
+	}
+
+	const contexts = mapLegacyEducationalCategories(
+		metadata.learningContext,
+		current?.language,
+	);
+	if (contexts.unrecognized.length || contexts.eleOutsideSpanish.length) {
+		issues.learningContext = {
+			...(contexts.unrecognized.length
+				? { unmatched: contexts.unrecognized.length }
+				: {}),
+			...(contexts.eleOutsideSpanish.length
+				? { eleOutsideSpanish: contexts.eleOutsideSpanish.length }
+				: {}),
+		};
+	}
+	const educationalAreas =
+		!current?.educationalAreas.length && contexts.assignments.length
+			? contexts.assignments
+			: undefined;
+	return {
+		issues,
+		fields: {
+			knowledgeAreaIds: areas.ids,
+			keywordIds: keywords.ids,
+			educationalAreas,
+		},
+	};
+}
+
 export interface ImportLegacyCollectionResult {
 	outcome:
 		| "created"
@@ -36,6 +162,7 @@ export interface ImportLegacyCollectionResult {
 	owner: LegacyCollectionOwnerOutcome;
 	linkedResources: number;
 	missingResources: MissingLegacyCollectionResource[];
+	metadataIssues?: LegacyCollectionMetadataIssues;
 }
 
 async function resolveResources(
@@ -123,7 +250,7 @@ function sameList(a: string[], b: string[]) {
 export async function importLegacyCollection(
 	db: DrizzleDB,
 	input: { itinerary: MappedLegacyItinerary; ownerId: string | null },
-	options: { dryRun: boolean },
+	options: { dryRun: boolean; metadataCatalog?: MetadataCatalog },
 ): Promise<ImportLegacyCollectionResult> {
 	const { itinerary, ownerId } = input;
 	const { resourceIds, missing } = await resolveResources(
@@ -131,11 +258,6 @@ export async function importLegacyCollection(
 		itinerary.importSource,
 		itinerary.resources,
 	);
-	const base = {
-		linkedResources: resourceIds.length,
-		missingResources: missing,
-	};
-
 	const [existing] = await db
 		.select({
 			id: collections.id,
@@ -153,6 +275,27 @@ export async function importLegacyCollection(
 			),
 		)
 		.limit(1);
+
+	const hasMetadata = Object.values(itinerary.metadata).some(
+		(values) => values.length,
+	);
+	const metadata = hasMetadata
+		? resolveCollectionMetadata(
+				itinerary.metadata,
+				options.metadataCatalog ??
+					(await loadLegacyCollectionMetadataCatalog(db)),
+				existing ? await getCollectionById(db, existing.id) : null,
+			)
+		: undefined;
+	const metadataChanged =
+		metadata && Object.values(metadata.fields).some(Boolean);
+	const base = {
+		linkedResources: resourceIds.length,
+		missingResources: missing,
+		...(metadata && Object.keys(metadata.issues).length > 0
+			? { metadataIssues: metadata.issues }
+			: {}),
+	};
 
 	if (!existing) {
 		const owner: LegacyCollectionOwnerOutcome = ownerId ? "owner" : "system";
@@ -177,6 +320,7 @@ export async function importLegacyCollection(
 				updatedAt: now,
 			});
 			await replaceResources(tx, id, resourceIds);
+			if (metadataChanged) await updateCollection(tx, id, metadata.fields);
 		});
 		return { ...base, outcome: "created", collectionId: id, owner };
 	}
@@ -199,7 +343,12 @@ export async function importLegacyCollection(
 		resourceIds,
 	);
 
-	if (!contentChanged && !resourcesChanged && owner !== "linked") {
+	if (
+		!contentChanged &&
+		!resourcesChanged &&
+		!metadataChanged &&
+		owner !== "linked"
+	) {
 		return { ...base, outcome: "unchanged", collectionId: existing.id, owner };
 	}
 	if (options.dryRun) {
@@ -247,6 +396,8 @@ export async function importLegacyCollection(
 		if (resourcesChanged) {
 			await replaceResources(tx, existing.id, resourceIds);
 		}
+		if (metadataChanged)
+			await updateCollection(tx, existing.id, metadata.fields);
 	});
 	return {
 		...base,

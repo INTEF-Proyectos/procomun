@@ -424,7 +424,7 @@ describe("Rutas públicas /api/v1", () => {
 					isOrdered: true,
 					publicatorEmail: null,
 					resources: [],
-					discardedFields: [],
+					metadata: { knowledgeArea: [], labelsStr: [], learningContext: [] },
 					warnings: [],
 				},
 			},

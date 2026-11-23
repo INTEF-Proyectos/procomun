@@ -22,6 +22,10 @@ function buildDeps(overrides: Partial<Deps> = {}): Deps {
 		mapLegacyItinerary,
 		ensureLegacyImportSystemUser: async () => null,
 		findLegacyAccountById: async () => null,
+		loadLegacyCollectionMetadataCatalog: async () => ({
+			areas: new Map(),
+			keywords: new Map(),
+		}),
 		importLegacyCollection: async () => ({
 			outcome: "created",
 			collectionId: "c-1",
