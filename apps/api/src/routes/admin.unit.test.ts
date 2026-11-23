@@ -1332,6 +1332,21 @@ describe("Rutas admin — colecciones", () => {
 			(await patch({ language: "en", knowledgeAreaIds: ["area-inexistente"] }))
 				.status,
 		).toBe(400);
+		const invalidPair = await patch({
+			educationalAreas: [
+				{ categoryId: "educacion-primaria", optionId: "no-existe" },
+			],
+		});
+		expect(invalidPair.status).toBe(400);
+		expect(await invalidPair.json()).toEqual({
+			error: "La combinación de categoría y opción no existe",
+			details: [
+				{
+					field: "educationalAreas",
+					message: "La combinación de categoría y opción no existe",
+				},
+			],
+		});
 		const res = await app.request(path);
 		const metadata = {
 			title: "Título nuevo",
