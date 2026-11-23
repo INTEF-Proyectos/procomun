@@ -1,9 +1,11 @@
 import { describe, expect, test } from "bun:test";
 import * as schema from "@procomun/db/schema";
+import { eq } from "drizzle-orm";
 import { Hono } from "hono";
 import type { AuthEnv } from "../auth/middleware.ts";
 import { getDb } from "../db.ts";
 import { adminRoutes } from "./admin/index.ts";
+import { publicRoutes } from "./public.ts";
 import { socialRoutes } from "./social.ts";
 
 /**
@@ -842,6 +844,62 @@ describe("Social — Visitas (#421)", () => {
 			expect(res.status).toBe(400);
 		}
 	});
+});
+
+test("las fichas de colecciones publicadas cuentan una visita por pestaña (#608)", async () => {
+	const slug = `visitas-${crypto.randomUUID()}`;
+	const created = await adminApp.request("/api/admin/collections", {
+		method: "POST",
+		headers: { "Content-Type": "application/json" },
+		body: JSON.stringify({ title: slug, description: "Colección de prueba" }),
+	});
+	expect(created.status).toBe(201);
+	const collection = (await created.json()) as { id: string; slug: string };
+	const db = getDb().db;
+	const app = new Hono<AuthEnv>();
+	app.route("/api/v1", publicRoutes);
+	app.route("/api/v1", socialRoutes);
+	const detailPath = `/api/v1/collections/${collection.slug}`;
+	const visit = (sessionId: unknown) =>
+		app.request(`${detailPath}/view`, {
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({ sessionId }),
+		});
+	const sessionA = crypto.randomUUID();
+	expect((await visit(sessionA)).status).toBe(404);
+	await db
+		.update(schema.collections)
+		.set({
+			editorialStatus: "published",
+			importSource: "legacy-procomun",
+			externalId: slug,
+		})
+		.where(eq(schema.collections.id, collection.id));
+	expect(await (await app.request(detailPath)).json()).toMatchObject({
+		viewCount: 0,
+	});
+	expect((await visit(null)).status).toBe(400);
+	const simultaneous = await Promise.all([
+		visit(sessionA),
+		visit(sessionA.toUpperCase()),
+	]);
+	for (const response of simultaneous) {
+		expect(await response.json()).toEqual({ viewCount: 1 });
+	}
+	expect(await (await visit(crypto.randomUUID())).json()).toEqual({
+		viewCount: 2,
+	});
+	expect(await (await app.request(detailPath)).json()).toMatchObject({
+		viewCount: 2,
+	});
+	await db
+		.update(schema.collectionViewSessions)
+		.set({
+			createdAt: new Date(Date.now() - 25 * 60 * 60 * 1000),
+		})
+		.where(eq(schema.collectionViewSessions.collectionId, collection.id));
+	expect(await (await visit(sessionA)).json()).toEqual({ viewCount: 3 });
 });
 
 test("las cuentas pueden valorar y modificar su voto en colecciones públicas (#609)", async () => {

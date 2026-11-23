@@ -29,6 +29,7 @@ import {
 } from "../social/resource-stats-service.ts";
 import {
 	isValidViewSessionId,
+	recordCollectionView,
 	recordResourceView,
 } from "../social/resource-views-service.ts";
 
@@ -438,6 +439,22 @@ socialRoutes.post("/resources/:slug/view", async (c) => {
 	}
 
 	const viewCount = await recordResourceView(resource.id, body.sessionId);
+	return c.json({ viewCount });
+});
+
+socialRoutes.post("/collections/:slug/view", async (c) => {
+	const body = await c.req.json<{ sessionId?: unknown }>().catch(() => null);
+	if (!isValidViewSessionId(body?.sessionId)) {
+		return c.json({ error: "Identificador de sesión no válido" }, 400);
+	}
+
+	const viewCount = await recordCollectionView(
+		c.req.param("slug"),
+		body.sessionId,
+	);
+	if (viewCount === null) {
+		return c.json({ error: "Colección no encontrada" }, 404);
+	}
 	return c.json({ viewCount });
 });
 

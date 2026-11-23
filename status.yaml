@@ -5153,6 +5153,16 @@ tasks:
       de la épica y los mensajes de ambas ramas en los cinco idiomas.
       Pasan las cuatro pruebas de opciones del formulario, 222 pruebas
       de interfaz, tipos y Biome.
+  T-2026-11-21-00395760:
+    date: 2026-11-21
+    agent: "backend-api-servicios + qa-validacion"
+    task: "Cargar la sesión en las rutas públicas de denuncia"
+    status: Done
+    related: ["#625", "#539", "#29"]
+    notes: >
+      La aplicación carga la sesión para denuncias de recursos y colecciones.
+      La regresión usa una sesión real, guarda las denuncias como pendientes
+      y comprueba el rechazo sin sesión y para borradores.
   T-2026-11-20-11313838:
     date: 2026-11-20
     agent: "ingestas-y-migraciones + qa-validacion"
@@ -5173,6 +5183,13 @@ tasks:
       La ficha reutiliza el resumen y el control de estrellas de los recursos.
       Una cuenta puede actualizar su voto en cualquier colección publicada,
       incluidas las importadas. La migración 0033 valida el rango y la unicidad.
+  T-2026-11-20-21100482:
+    date: 2026-11-20
+    agent: "backend-api-servicios"
+    task: "Añade el contador de visitas de las colecciones públicas"
+    status: In Progress
+    related: ["#608", "ADR-0044"]
+    notes: "Deduplicación por pestaña y colección publicada, también en importadas. Migración 0032 y pruebas de API, esquema e interfaz."
   T-2026-11-21-00290246:
     date: 2026-11-21
     agent: "devops-sre + qa-validacion"
@@ -5197,3 +5214,23 @@ tasks:
     status: In Progress
     related: ["#616", "#432", "#600", "ADR-0029"]
     notes: "El volcado histórico es obligatorio. La reimportación conserva las atribuciones existentes. Verificación con datos sintéticos."
+  T-2026-11-22-20405187:
+    date: 2026-11-22
+    agent: "documentacion-y-roadmap + qa-validacion"
+    task: "Integrar main en la PR #620 del contador de visitas de colecciones"
+    status: Done
+    related: ["#620", "#619", "#608"]
+    notes: >
+      Se incorporó la reordenación de recursos visibles de #619 y se conservó
+      la migración 0032. Pasaron 214 pruebas específicas, 223 pruebas de
+      interfaz y la comprobación de tipos.
+  T-2026-11-23-07092370:
+    date: 2026-11-23
+    agent: "backend-api-servicios + qa-validacion"
+    task: "Integrar main en la PR #622 de valoraciones de colecciones"
+    status: Done
+    related: ["#622", "#620", "#609"]
+    notes: >
+      Se integran las visitas de #620 y ambas pruebas de API. La migración
+      0033 queda después de la 0032 y el migrador conserva los contadores
+      existentes. Pasan 117 pruebas de los archivos afectados y los tipos.
