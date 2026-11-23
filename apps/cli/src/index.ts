@@ -105,12 +105,12 @@ export function printHelp(log: Pick<typeof console, "log"> = console) {
 	log.log(
 		"  elpx:screenshots [--dry-run]  Detecta screenshot.png en los paquetes ya subidos (#409)",
 	);
-	log.log(
-		"  thumbnails:prune [--dry-run]  Elimina miniaturas huérfanas con al menos siete días",
-	);
 	log.log("  elpx:thumbnails [--dry-run] [--limit <n>] [--force]");
 	log.log(
 		"                    Encola la miniatura generada de los paquetes sin imagen (#470)",
+	);
+	log.log(
+		"  thumbnails:prune [--dry-run]  Elimina miniaturas huérfanas de más de siete días",
 	);
 	log.log(
 		"  catalog:area-keywords [--apply] [--include <id,id>] [--report-dir <ruta>]",

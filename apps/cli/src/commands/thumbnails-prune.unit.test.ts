@@ -9,7 +9,7 @@ import {
 	writeFile,
 } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { join, relative as relativePath } from "node:path";
 import { PGlite } from "@electric-sql/pglite";
 import * as schema from "@procomun/db/schema";
 import { drizzle } from "drizzle-orm/pglite";
@@ -42,10 +42,10 @@ test("solo elimina las miniaturas huérfanas antiguas y simula sin borrar (#520)
 		`);
 		await db.query("INSERT INTO elpx_projects VALUES ($1)", [project]);
 		await db.query("INSERT INTO resources VALUES ($1)", [
-			`/api/v1/thumbnails/${resource}`,
+			` /api/v1/thumbnails/${resource}\n`,
 		]);
 		await db.query("INSERT INTO collections VALUES ($1)", [
-			`https://ejemplo.test/api/v1/thumbnails/${cover}?v=1`,
+			` https://ejemplo.test/api/v1/thumbnails/${cover}?v=1\n`,
 		]);
 		await mkdir(dir);
 		for (const file of [orphan, project, resource, cover, recent, "otro.png"]) {
@@ -82,10 +82,42 @@ test("acepta DATABASE_URL o un PGLITE_DIR con una base ya creada (#630)", async 
 		await assertExistingDatabase({ PGLITE_DIR: root });
 		await assertExistingDatabase({ PGLITE_DIR: `file://${root}` });
 		await assertExistingDatabase({ DATABASE_URL: "postgres://x/y" });
+		for (const PGLITE_DIR of [join(root, "otra"), "memory://", "local-data"])
+			await expect(assertExistingDatabase({ PGLITE_DIR })).rejects.toThrow(
+				/PGLITE_DIR/,
+			);
+		const relative = relativePath(process.cwd(), root);
 		await expect(
-			assertExistingDatabase({ PGLITE_DIR: join(root, "otra") }),
-		).rejects.toThrow(/PGLITE_DIR/);
+			assertExistingDatabase({ PGLITE_DIR: relative }),
+		).rejects.toThrow(/ruta absoluta/);
 	} finally {
+		await rm(root, { recursive: true, force: true });
+	}
+});
+
+test("no borra nada si la base no tiene ninguna referencia (#630)", async () => {
+	const root = await mkdtemp(join(tmpdir(), "procomun-prune-"));
+	const dir = join(root, "thumbnails");
+	const file = `${"0".repeat(64)}.png`;
+	const db = new PGlite();
+	const old = new Date("2026-01-01T00:00:00Z");
+	try {
+		await db.exec(`
+			CREATE TABLE elpx_projects (thumbnail_file text);
+			CREATE TABLE resources (thumbnail_url text);
+			CREATE TABLE collections (cover_image_url text);
+		`);
+		await mkdir(dir);
+		await writeFile(join(dir, file), "test");
+		await utimes(join(dir, file), old, old);
+		const database = drizzle(db, { schema });
+		for (const dryRun of [true, false])
+			await expect(pruneThumbnails(database, root, dryRun)).rejects.toThrow(
+				/ninguna referencia/,
+			);
+		expect(await readdir(dir)).toEqual([file]);
+	} finally {
+		await db.close();
 		await rm(root, { recursive: true, force: true });
 	}
 });
@@ -97,6 +129,8 @@ test("sin una base configurada y ya creada sale con error antes de tocar el alma
 	const keys = ["DATABASE_URL", "PGLITE_DIR", "UPLOAD_STORAGE_DIR"] as const;
 	const saved = keys.map((key) => process.env[key]);
 	const old = new Date("2026-01-01T00:00:00Z");
+	// db.ts rellena el entorno con el .env al cargarse: que lo haga antes de vaciarlo.
+	await import("../../../api/src/db.ts");
 	try {
 		await mkdir(dir);
 		await writeFile(join(dir, orphan), "test");
@@ -108,7 +142,7 @@ test("sin una base configurada y ya creada sale con error antes de tocar el alma
 			else process.env.PGLITE_DIR = pgliteDir;
 			for (const args of [["--dry-run"], []]) {
 				await expect(thumbnailsPrune(args)).rejects.toThrow(
-					/DATABASE_URL|PGLITE_DIR/,
+					/necesita DATABASE_URL/,
 				);
 				expect(await readdir(dir)).toEqual([orphan]);
 			}

@@ -1,5 +1,5 @@
 import { lstat, readdir, unlink } from "node:fs/promises";
-import { join } from "node:path";
+import { isAbsolute, join } from "node:path";
 import type { DrizzleDB } from "@procomun/db/repository";
 import { collections, elpxProjects, resources } from "@procomun/db/schema";
 import { isNotNull } from "drizzle-orm";
@@ -50,9 +50,14 @@ export async function pruneThumbnails(
 				.from(collections)
 				.where(isNotNull(collections.coverImageUrl)),
 		);
+	// Una base sin ninguna referencia no es la del despliegue: borraría todo.
+	if (!rows.length)
+		throw new Error(
+			"La base no tiene ninguna referencia a miniaturas; revisa DATABASE_URL o PGLITE_DIR",
+		);
 	const referenced = new Set(
 		rows.map(({ reference }) => {
-			const url = reference?.split(/[?#]/, 1)[0] ?? "";
+			const url = reference?.trim().split(/[?#]/, 1)[0] ?? "";
 			return url.includes(THUMBNAIL_PUBLIC_PREFIX)
 				? url.split("/").at(-1)
 				: url;
@@ -80,6 +85,11 @@ export async function pruneThumbnails(
 export async function assertExistingDatabase(env = process.env) {
 	if (env.DATABASE_URL) return;
 	const dir = env.PGLITE_DIR?.replace(/^file:\/\//, "");
+	// La API y el CLI resuelven una ruta relativa desde directorios distintos.
+	if (dir && !/^\w+:\/\//.test(dir) && !isAbsolute(dir))
+		throw new Error(
+			"PGLITE_DIR debe ser una ruta absoluta para thumbnails:prune",
+		);
 	if (
 		dir &&
 		!/^\w+:\/\//.test(dir) &&
