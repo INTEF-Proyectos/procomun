@@ -1288,3 +1288,41 @@ describe("migración 0030_reports_collections", () => {
 		}
 	});
 });
+
+test("0032 conserva colecciones previas y crea sesiones de visita sin duplicados (#608)", async () => {
+	const migration = await readFile(
+		path.join(migrationsDir, "0032_collection_views.sql"),
+		"utf8",
+	);
+	const { COLLECTION_VIEWS_SCHEMA } = await import("./setup.ts");
+	const statements = migration
+		.split("--> statement-breakpoint")
+		.map((statement) => statement.trim().replace(/;$/, ""));
+	expect(statements).toEqual(COLLECTION_VIEWS_SCHEMA);
+	const db = new PGlite();
+	try {
+		await db.exec(
+			"CREATE TABLE collections (id TEXT PRIMARY KEY); INSERT INTO collections VALUES ('c1');",
+		);
+		const sql = migration.replaceAll("--> statement-breakpoint", "");
+		await db.exec(sql);
+		await db.exec(sql);
+		expect((await db.query("SELECT view_count FROM collections")).rows).toEqual(
+			[{ view_count: 0 }],
+		);
+		await db.exec(
+			"INSERT INTO collection_view_sessions (collection_id, session_hash) VALUES ('c1', 'hash');",
+		);
+		await expect(
+			db.exec(
+				"INSERT INTO collection_view_sessions (collection_id, session_hash) VALUES ('c1', 'hash');",
+			),
+		).rejects.toThrow();
+		await db.exec("DELETE FROM collections WHERE id = 'c1';");
+		expect(
+			(await db.query("SELECT * FROM collection_view_sessions")).rows,
+		).toEqual([]);
+	} finally {
+		await db.close();
+	}
+});
