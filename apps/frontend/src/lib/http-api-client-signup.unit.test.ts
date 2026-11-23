@@ -753,6 +753,19 @@ describe("HttpApiClient.trackResourceView (#421)", () => {
 		globalThis.fetch = originalFetch;
 	});
 
+	test("registra una visita de colección en la ruta de colecciones (#608)", async () => {
+		const calls = mockFetchQueue([jsonResponse({ viewCount: 1 })]);
+		const sessionId = "6f1d9a52-1c1e-4b4c-9f0e-0a1b2c3d4e5f";
+		await expect(
+			new HttpApiClient().trackCollectionView("stem", sessionId),
+		).resolves.toEqual({ viewCount: 1 });
+		expect(getCall(calls, 0)).toMatchObject({
+			url: "/api/v1/collections/stem/view",
+			init: { method: "POST" },
+		});
+		expect(bodyAsJson(getCall(calls, 0))).toEqual({ sessionId });
+	});
+
 	test("manda el identificador de sesión y devuelve el total", async () => {
 		const calls = mockFetchQueue([
 			jsonResponse({ viewCount: 3 }),

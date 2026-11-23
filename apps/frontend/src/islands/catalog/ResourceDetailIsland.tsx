@@ -32,7 +32,7 @@ import {
 	type ResourceExportKind,
 } from "../../lib/resource-export.ts";
 import type { ResourceSummary } from "../../lib/types/resource-extended.ts";
-import { trackResourceViewOnce } from "../../lib/view-tracking.ts";
+import { trackViewOnce } from "../../lib/view-tracking.ts";
 import { AuthorSearchLinks, PublisherLink } from "../../ui/AuthorLinks.tsx";
 import { LicenseBadge } from "../../ui/LicenseBadge.tsx";
 import { ResourceCard } from "../../ui/ResourceCard.tsx";
@@ -1012,7 +1012,7 @@ export function ResourceDetailIsland() {
 					if (current.editorialStatus !== "published") return;
 					void (async () => {
 						const api = await getApiClient();
-						const viewCount = await trackResourceViewOnce(
+						const viewCount = await trackViewOnce(
 							current.slug,
 							(slug, sessionId) => api.trackResourceView(slug, sessionId),
 						);

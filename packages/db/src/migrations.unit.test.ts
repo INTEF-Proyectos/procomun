@@ -1289,8 +1289,46 @@ describe("migración 0030_reports_collections", () => {
 	});
 });
 
+test("0032 conserva colecciones previas y crea sesiones de visita sin duplicados (#608)", async () => {
+	const migration = await readFile(
+		path.join(migrationsDir, "0032_collection_views.sql"),
+		"utf8",
+	);
+	const { COLLECTION_VIEWS_SCHEMA } = await import("./setup.ts");
+	const statements = migration
+		.split("--> statement-breakpoint")
+		.map((statement) => statement.trim().replace(/;$/, ""));
+	expect(statements).toEqual(COLLECTION_VIEWS_SCHEMA);
+	const db = new PGlite();
+	try {
+		await db.exec(
+			"CREATE TABLE collections (id TEXT PRIMARY KEY); INSERT INTO collections VALUES ('c1');",
+		);
+		const sql = migration.replaceAll("--> statement-breakpoint", "");
+		await db.exec(sql);
+		await db.exec(sql);
+		expect((await db.query("SELECT view_count FROM collections")).rows).toEqual(
+			[{ view_count: 0 }],
+		);
+		await db.exec(
+			"INSERT INTO collection_view_sessions (collection_id, session_hash) VALUES ('c1', 'hash');",
+		);
+		await expect(
+			db.exec(
+				"INSERT INTO collection_view_sessions (collection_id, session_hash) VALUES ('c1', 'hash');",
+			),
+		).rejects.toThrow();
+		await db.exec("DELETE FROM collections WHERE id = 'c1';");
+		expect(
+			(await db.query("SELECT * FROM collection_view_sessions")).rows,
+		).toEqual([]);
+	} finally {
+		await db.close();
+	}
+});
+
 // Issue #420, ADR-0049 (adenda 2026-11-16): sello «Validado».
-describe("migración 0031_resource_validation_seal", () => {
+describe("migración 0035_resource_validation_seal", () => {
 	const OLD_SCHEMA = `CREATE TABLE "user" (id TEXT PRIMARY KEY);
 		CREATE TABLE "resources" (id TEXT PRIMARY KEY, title TEXT NOT NULL)`;
 
@@ -1299,12 +1337,12 @@ describe("migración 0031_resource_validation_seal", () => {
 			await readFile(path.join(migrationsDir, "meta/_journal.json"), "utf8"),
 		) as { entries: Array<{ tag: string; when: number }> };
 		const entry = journal.entries.find(
-			(item) => item.tag === "0031_resource_validation_seal",
+			(item) => item.tag === "0035_resource_validation_seal",
 		);
 		const previous = journal.entries.filter(
-			(item) => item.tag < "0031_resource_validation_seal",
+			(item) => item.tag < "0035_resource_validation_seal",
 		);
-		expect(entry?.when).toBe(1794000000000);
+		expect(entry?.when).toBe(1794400000000);
 		expect(entry?.when ?? 0).toBeGreaterThan(
 			Math.max(...previous.map((item) => item.when)),
 		);
@@ -1313,7 +1351,7 @@ describe("migración 0031_resource_validation_seal", () => {
 	test("es idempotente, solo admite los orígenes conocidos y suelta al validador borrado", async () => {
 		const migration = (
 			await readFile(
-				path.join(migrationsDir, "0031_resource_validation_seal.sql"),
+				path.join(migrationsDir, "0035_resource_validation_seal.sql"),
 				"utf8",
 			)
 		).replaceAll("--> statement-breakpoint", "");
@@ -1345,11 +1383,11 @@ describe("migración 0031_resource_validation_seal", () => {
 		}
 	});
 
-	test("createTables y la 0031 dejan una sola clave ajena en validated_by", async () => {
+	test("createTables y la 0035 dejan una sola clave ajena en validated_by", async () => {
 		const { createTables } = await import("./setup.ts");
 		const migration = (
 			await readFile(
-				path.join(migrationsDir, "0031_resource_validation_seal.sql"),
+				path.join(migrationsDir, "0035_resource_validation_seal.sql"),
 				"utf8",
 			)
 		).replaceAll("--> statement-breakpoint", "");

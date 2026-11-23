@@ -362,3 +362,7 @@ Es la parte del sello de la fase 1b y el distintivo de la fase 1c, sobre el fluj
 ## Renumeración de la migración — 2026-11-19
 
 `0026_resource_validation_seal` pasa a `0031_resource_validation_seal` tras integrar la 0027 de «Artículo». Se conserva el orden de integración #586, #585 y #587.
+
+## Renumeración de la migración — 2026-11-23
+
+`0031_resource_validation_seal` pasa a `0035_resource_validation_seal`, con `when` 1794400000000. Al integrar `main` entra la `0032_collection_views` (1794100000000). Además, el stack de colecciones (#622 y #623) reserva la 0033 y la 0034. Con la marca anterior, el migrador de Drizzle se saltaría el sello en cualquier base que ya tuviera la 0032. El stack del sello (#518, #587 y #588) debe mezclarse después del de colecciones. Si se mezcla antes, la 0033 y la 0034 tendrán que pasar detrás de la 0035.
