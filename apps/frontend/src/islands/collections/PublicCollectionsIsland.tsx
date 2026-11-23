@@ -18,6 +18,8 @@ import { url } from "../../lib/paths.ts";
 import { resourceCardMedia } from "../../lib/resource-card-media.ts";
 import { languageLabel } from "../../lib/resource-display.ts";
 import { formatDateLong } from "../../lib/shared-utils.ts";
+import { trackViewOnce } from "../../lib/view-tracking.ts";
+import { m } from "../../paraglide/messages.js";
 import { ResourceByline } from "../../ui/AuthorLinks.tsx";
 import { CardTypeMarker } from "../../ui/CardTypeMarker.tsx";
 import { ReportButton } from "../social/ReportButton.tsx";
@@ -114,9 +116,18 @@ export function CollectionDetailContent({
 					<p>{detail.description}</p>
 					<ul
 						className="collection-detail-meta"
+						/* biome-ignore lint/a11y/noRedundantRoles: Safari requiere el rol en listas con display flex. */
+						role="list"
 						aria-label="Metadatos de la colección"
 					>
 						<li>{detail.resourceCount ?? detail.resources.length} recursos</li>
+						<li>
+							{detail.viewCount === 1
+								? m.detail_views_one()
+								: m.detail_views_other({
+										count: String(detail.viewCount ?? 0),
+									})}
+						</li>
 						<li>Curator: {detail.curatorName ?? "Equipo editorial"}</li>
 						<li>
 							Actualizada {formatDateLong(detail.updatedAt ?? detail.createdAt)}
@@ -226,6 +237,24 @@ export function PublicCollectionsIsland() {
 			setCurrentUserId(session?.user?.id ?? null);
 		})();
 	}, []);
+
+	const detailSlug = detail?.slug;
+	useEffect(() => {
+		if (!detailSlug) return;
+		let active = true;
+		void trackViewOnce(`collection:${detailSlug}`, async (_, sessionId) => {
+			const api = await getApiClient();
+			return api.trackCollectionView(detailSlug, sessionId);
+		}).then((viewCount) => {
+			if (!active || viewCount === null) return;
+			setDetail((current) =>
+				current?.slug === detailSlug ? { ...current, viewCount } : current,
+			);
+		});
+		return () => {
+			active = false;
+		};
+	}, [detailSlug]);
 
 	function syncUrl(next: { q?: string; page?: number; slug?: string | null }) {
 		const params = new URLSearchParams(window.location.search);

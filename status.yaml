@@ -5181,6 +5181,13 @@ tasks:
     notes: >
       La edición y la ficha pública comparten los catálogos de recursos.
       El alta, los filtros y la importación tienen seguimiento propio.
+  T-2026-11-20-21100482:
+    date: 2026-11-20
+    agent: "backend-api-servicios"
+    task: "Añade el contador de visitas de las colecciones públicas"
+    status: In Progress
+    related: ["#608", "ADR-0044"]
+    notes: "Deduplicación por pestaña y colección publicada, también en importadas. Migración 0032 y pruebas de API, esquema e interfaz."
   T-2026-11-21-00290246:
     date: 2026-11-21
     agent: "devops-sre + qa-validacion"
@@ -5205,3 +5212,23 @@ tasks:
     status: In Progress
     related: ["#616", "#432", "#600", "ADR-0029"]
     notes: "El volcado histórico es obligatorio. La reimportación conserva las atribuciones existentes. Verificación con datos sintéticos."
+  T-2026-11-22-20405187:
+    date: 2026-11-22
+    agent: "documentacion-y-roadmap + qa-validacion"
+    task: "Integrar main en la PR #620 del contador de visitas de colecciones"
+    status: Done
+    related: ["#620", "#619", "#608"]
+    notes: >
+      Se incorporó la reordenación de recursos visibles de #619 y se conservó
+      la migración 0032. Pasaron 214 pruebas específicas, 223 pruebas de
+      interfaz y la comprobación de tipos.
+  T-2026-11-23-07211424:
+    date: 2026-11-23
+    agent: "backend-api-servicios + qa-validacion"
+    task: "Integrar main en la PR #623 de metadatos de colecciones"
+    status: Done
+    related: ["#623", "#620", "#611"]
+    notes: >
+      El detalle conserva el contador de visitas y los metadatos. La 0034
+      queda después de la 0032 y el migrador conserva el total previo.
+      Pasan siete pruebas específicas y la comprobación de tipos.

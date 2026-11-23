@@ -1345,7 +1345,7 @@ describe("Rutas admin — colecciones", () => {
 		publicApp.route("/api/v1", publicRoutes);
 		const published = await publicApp.request(`/api/v1/collections/${slug}`);
 		expect(published.status).toBe(200);
-		expect(await published.json()).toMatchObject(metadata);
+		expect(await published.json()).toMatchObject({ ...metadata, viewCount: 0 });
 	});
 
 	test("POST /api/admin/collections → 400 sin título", async () => {

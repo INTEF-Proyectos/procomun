@@ -146,6 +146,7 @@ export async function getCollectionBySlug(
 	const rows = await db
 		.select({
 			...collectionSelection(opts.resourceStatus),
+			viewCount: collections.viewCount,
 			language: collections.language,
 			educationalAreas: collections.educationalAreas,
 		})
