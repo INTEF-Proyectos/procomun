@@ -1332,6 +1332,12 @@ test("la migración de metadatos conserva las colecciones existentes (#611)", as
 		path.join(migrationsDir, "0034_collection_metadata.sql"),
 		"utf8",
 	);
+	const { COLLECTION_METADATA_SCHEMA } = await import("./setup.ts");
+	expect(
+		migration
+			.split("--> statement-breakpoint")
+			.map((statement) => statement.trim().replace(/;$/, "")),
+	).toEqual(COLLECTION_METADATA_SCHEMA);
 	const db = new PGlite();
 	try {
 		await db.exec(`
