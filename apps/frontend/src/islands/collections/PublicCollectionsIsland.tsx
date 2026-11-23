@@ -17,6 +17,7 @@ import { trackViewOnce } from "../../lib/view-tracking.ts";
 import { m } from "../../paraglide/messages.js";
 import { ResourceByline } from "../../ui/AuthorLinks.tsx";
 import { CardTypeMarker } from "../../ui/CardTypeMarker.tsx";
+import { RatingIsland } from "../social/RatingIsland.tsx";
 import { ReportButton } from "../social/ReportButton.tsx";
 import "./PublicCollectionsIsland.css";
 
@@ -169,6 +170,14 @@ export function CollectionDetailContent({
 					})}
 				</div>
 			</section>
+			<div className="collection-detail-section">
+				<RatingIsland
+					key={detail.slug}
+					target="collection"
+					slug={detail.slug}
+					currentUserId={currentUserId}
+				/>
+			</div>
 		</section>
 	);
 }
