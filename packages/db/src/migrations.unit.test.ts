@@ -1031,3 +1031,298 @@ describe("migración 0028_collections_legacy_import", () => {
 		}
 	});
 });
+
+// #533: el «Sobre mí» queda solo en user_profile.about, privado como el resto
+// del perfil (ADR-0037). La 0029 le pasa el user.bio que se escribió en la
+// plataforma nueva y borra esa columna. setup.ts aplica la misma sentencia.
+describe("migración 0029_user_bio_to_profile", () => {
+	test("va en el journal con su when reservado", async () => {
+		const journal = JSON.parse(
+			await readFile(path.join(migrationsDir, "meta/_journal.json"), "utf8"),
+		) as { entries: Array<{ tag: string; when: number }> };
+		const entry = journal.entries.find(
+			(item) => item.tag === "0029_user_bio_to_profile",
+		);
+		expect(entry?.when).toBe(1793700000000);
+	});
+
+	test("coincide con setup.ts, mueve la bio sin perder el «Sobre mí» importado y es idempotente", async () => {
+		const migration = await readFile(
+			path.join(migrationsDir, "0029_user_bio_to_profile.sql"),
+			"utf8",
+		);
+		const { USER_BIO_TO_PROFILE } = await import("./setup.ts");
+		expect(migration.replace(/^(--[^\n]*\n)+/, "").trim()).toBe(
+			`${USER_BIO_TO_PROFILE};`,
+		);
+		expect(SCHEMA_STATEMENTS).toContain(USER_BIO_TO_PROFILE);
+
+		const db = new PGlite();
+		try {
+			await db.exec(`CREATE TABLE "user" (id text PRIMARY KEY, bio text);
+				CREATE TABLE "user_profile" (user_id text PRIMARY KEY, locality text, about text,
+					created_at timestamp NOT NULL DEFAULT now(), updated_at timestamp NOT NULL DEFAULT now());
+				INSERT INTO "user" (id, bio) VALUES
+					('u1', 'Nueva 1'), ('u2', 'Nueva 2'), ('u3', '  '), ('u4', NULL), ('u5', 'Nueva 5'),
+					('u6', E'\\t\\n \\r\\n');
+				INSERT INTO "user_profile" (user_id, locality, about) VALUES
+					('u2', 'Burgos', 'Antiguo 2'), ('u3', NULL, 'Antiguo 3'), ('u5', 'Soria', NULL),
+					('u6', NULL, 'Antiguo 6');`);
+			await db.exec(migration);
+			await db.exec(migration);
+
+			const profiles = await db.query<{
+				user_id: string;
+				locality: string | null;
+				about: string | null;
+				edited: boolean;
+			}>(
+				'SELECT user_id, locality, about, about_edited_at IS NOT NULL AS edited FROM "user_profile" ORDER BY user_id',
+			);
+			expect(profiles.rows).toEqual([
+				// Sin fila de perfil: se crea con la bio.
+				{ user_id: "u1", locality: null, about: "Nueva 1", edited: true },
+				// Lo escrito en la plataforma nueva prevalece sobre lo importado.
+				{ user_id: "u2", locality: "Burgos", about: "Nueva 2", edited: true },
+				// Una bio en blanco no borra el «Sobre mí» importado, que sigue
+				// sin marcar como editado: la administración no lo ve (#586).
+				{ user_id: "u3", locality: null, about: "Antiguo 3", edited: false },
+				{ user_id: "u5", locality: "Soria", about: "Nueva 5", edited: true },
+				// Tabuladores y saltos de línea tampoco cuentan como contenido (#586).
+				{ user_id: "u6", locality: null, about: "Antiguo 6", edited: false },
+			]);
+			const columns = await db.query<{ column_name: string }>(
+				"SELECT column_name FROM information_schema.columns WHERE table_name = 'user'",
+			);
+			expect(columns.rows.map((row) => row.column_name)).not.toContain("bio");
+		} finally {
+			await db.close();
+		}
+	});
+
+	// Revisión de #586: con el migrador real, sobre una base que se quedó en la
+	// 0021 (con user.bio y sin about_edited_at), la bio se copia antes de borrar
+	// la columna.
+	test("con el migrador de drizzle copia la bio a user_profile.about y después borra user.bio", async () => {
+		const { createTables } = await import("./setup.ts");
+		const db = new PGlite();
+		try {
+			await createTables(db);
+			await db.exec(`ALTER TABLE "user" ADD COLUMN bio TEXT;
+				ALTER TABLE "user_profile" DROP COLUMN about_edited_at;
+				INSERT INTO "user" (id, email, bio) VALUES
+					('nueva', 'nueva@example.test', 'Escrita en la plataforma'),
+					('importada', 'importada@example.test', NULL);
+				INSERT INTO "user_profile" (user_id, about) VALUES ('importada', 'Del Procomún anterior');
+				CREATE SCHEMA drizzle;
+				CREATE TABLE drizzle.__drizzle_migrations (
+					id SERIAL PRIMARY KEY, hash text NOT NULL, created_at bigint
+				);`);
+			const journal = JSON.parse(
+				await readFile(path.join(migrationsDir, "meta/_journal.json"), "utf8"),
+			) as { entries: Array<{ tag: string; when: number }> };
+			const at = journal.entries.findIndex(
+				(entry) => entry.tag === "0029_user_bio_to_profile",
+			);
+			for (const entry of journal.entries.slice(0, at)) {
+				await db.query(
+					"INSERT INTO drizzle.__drizzle_migrations (hash, created_at) VALUES ($1, $2)",
+					[entry.tag, entry.when],
+				);
+			}
+
+			await migrate(drizzle(db), { migrationsFolder: migrationsDir });
+
+			const profiles = await db.query(
+				'SELECT user_id, about, about_edited_at IS NOT NULL AS edited FROM "user_profile" ORDER BY user_id',
+			);
+			expect(profiles.rows).toEqual([
+				{ user_id: "importada", about: "Del Procomún anterior", edited: false },
+				{ user_id: "nueva", about: "Escrita en la plataforma", edited: true },
+			]);
+			const bio = await db.query(
+				"SELECT 1 FROM information_schema.columns WHERE table_name = 'user' AND column_name = 'bio'",
+			);
+			expect(bio.rows).toHaveLength(0);
+		} finally {
+			await db.close();
+		}
+	});
+});
+
+// Issue #539: las colecciones también se pueden denunciar. Una denuncia apunta
+// a un recurso o a una colección, nunca a los dos ni a ninguno.
+describe("migración 0030_reports_collections", () => {
+	const OLD_SCHEMA = `CREATE TABLE "user" (id TEXT PRIMARY KEY);
+		CREATE TABLE "resources" (id TEXT PRIMARY KEY);
+		CREATE TABLE "collections" (id TEXT PRIMARY KEY);
+		CREATE TABLE "reports" (
+			id TEXT PRIMARY KEY,
+			resource_id TEXT NOT NULL REFERENCES "resources"(id) ON DELETE CASCADE,
+			reporter_id TEXT REFERENCES "user"(id) ON DELETE SET NULL,
+			reason VARCHAR(50) NOT NULL,
+			status VARCHAR(20) NOT NULL DEFAULT 'pending'
+		);
+		INSERT INTO "resources" (id) VALUES ('r1');
+		INSERT INTO "collections" (id) VALUES ('c1');
+		INSERT INTO "reports" (id, resource_id, reason) VALUES ('previa', 'r1', 'spam');`;
+	const sqlText = (value: string | null) => (value ? `'${value}'` : "NULL");
+	const insert = (
+		id: string,
+		resourceId: string | null,
+		collectionId: string | null,
+	) =>
+		`INSERT INTO "reports" (id, resource_id, collection_id, reason)
+		VALUES ('${id}', ${sqlText(resourceId)}, ${sqlText(collectionId)}, 'spam')`;
+
+	test("está en el journal justo después de la 0029, con un when posterior", async () => {
+		const journal = JSON.parse(
+			await readFile(path.join(migrationsDir, "meta/_journal.json"), "utf8"),
+		) as { entries: Array<{ idx: number; tag: string; when: number }> };
+		const entry = journal.entries.find(
+			(item) => item.tag === "0030_reports_collections",
+		);
+		const profile = journal.entries.find(
+			(item) => item.tag === "0029_user_bio_to_profile",
+		);
+		expect(entry?.idx).toBe((profile?.idx ?? -1) + 1);
+		expect(entry?.when).toBe(1793900000000);
+		expect(entry?.when ?? 0).toBeGreaterThan(profile?.when ?? Infinity);
+	});
+
+	async function assertSchema(db: PGlite) {
+		// La denuncia previa sigue apuntando a su recurso.
+		const previous = await db.query<{ resource_id: string }>(
+			`SELECT resource_id FROM "reports" WHERE id = 'previa'`,
+		);
+		expect(previous.rows).toEqual([{ resource_id: "r1" }]);
+		await db.exec(insert("a-coleccion", null, "c1"));
+		await expect(db.exec(insert("a-nada", null, null))).rejects.toThrow();
+		await expect(db.exec(insert("a-ambos", "r1", "c1"))).rejects.toThrow();
+		// Al borrar la colección se van sus denuncias.
+		await db.exec(`DELETE FROM "collections" WHERE id = 'c1'`);
+		const rows = await db.query<{ id: string }>(
+			`SELECT id FROM "reports" ORDER BY id`,
+		);
+		expect(rows.rows).toEqual([{ id: "previa" }]);
+	}
+
+	test("es idempotente y admite denuncias de colecciones", async () => {
+		const migration = (
+			await readFile(
+				path.join(migrationsDir, "0030_reports_collections.sql"),
+				"utf8",
+			)
+		).replaceAll("--> statement-breakpoint", "");
+		const db = new PGlite();
+		try {
+			await db.exec(OLD_SCHEMA);
+			await db.exec(migration);
+			await db.exec(migration);
+			await assertSchema(db);
+		} finally {
+			await db.close();
+		}
+	});
+
+	// Review de #585: con el migrador real de drizzle, sobre una base que tiene
+	// aplicadas todas las migraciones del journal anteriores a la 0030. Si su
+	// `when` quedara por debajo del de una migración ya
+	// aplicada, drizzle se la saltaría en silencio y este test fallaría.
+	test("el migrador de drizzle la aplica sobre una base con las anteriores", async () => {
+		const { createTables } = await import("./setup.ts");
+		const journal = JSON.parse(
+			await readFile(path.join(migrationsDir, "meta/_journal.json"), "utf8"),
+		) as { entries: Array<{ tag: string; when: number }> };
+		const at = journal.entries.findIndex(
+			(item) => item.tag === "0030_reports_collections",
+		);
+		expect(at).toBeGreaterThan(0);
+		const db = new PGlite();
+		try {
+			await createTables(db);
+			// Se retira lo que añade la 0030 para partir del esquema de la 0029.
+			await db.exec(`DELETE FROM "reports" WHERE resource_id IS NULL;
+				ALTER TABLE "reports" DROP CONSTRAINT IF EXISTS "reports_target_check";
+				DROP INDEX IF EXISTS "idx_reports_collection_id";
+				ALTER TABLE "reports" DROP COLUMN "collection_id";
+				ALTER TABLE "reports" ALTER COLUMN "resource_id" SET NOT NULL;
+				CREATE SCHEMA drizzle;
+				CREATE TABLE drizzle.__drizzle_migrations (
+					id SERIAL PRIMARY KEY, hash text NOT NULL, created_at bigint
+				);`);
+			for (const entry of journal.entries.slice(0, at)) {
+				await db.query(
+					"INSERT INTO drizzle.__drizzle_migrations (hash, created_at) VALUES ($1, $2)",
+					[entry.tag, entry.when],
+				);
+			}
+			await migrate(drizzle(db), { migrationsFolder: migrationsDir });
+			const column = await db.query(`SELECT 1 FROM information_schema.columns
+				WHERE table_name = 'reports' AND column_name = 'collection_id'`);
+			expect(column.rows).toHaveLength(1);
+			const check = await db.query(`SELECT 1 FROM pg_constraint
+				WHERE conname = 'reports_target_check'`);
+			expect(check.rows).toHaveLength(1);
+		} finally {
+			await db.close();
+		}
+	});
+
+	test("el esquema de arranque (setup.ts) hace lo mismo en una base previa", async () => {
+		const statements = SCHEMA_STATEMENTS.filter((statement) =>
+			/"reports"[\s\S]*(collection_id|resource_id DROP NOT NULL)/.test(
+				statement,
+			),
+		);
+		expect(statements.length).toBeGreaterThan(0);
+		const db = new PGlite();
+		try {
+			await db.exec(OLD_SCHEMA);
+			for (const statement of [...statements, ...statements]) {
+				await db.exec(statement);
+			}
+			await assertSchema(db);
+		} finally {
+			await db.close();
+		}
+	});
+});
+
+test("0032 conserva colecciones previas y crea sesiones de visita sin duplicados (#608)", async () => {
+	const migration = await readFile(
+		path.join(migrationsDir, "0032_collection_views.sql"),
+		"utf8",
+	);
+	const { COLLECTION_VIEWS_SCHEMA } = await import("./setup.ts");
+	const statements = migration
+		.split("--> statement-breakpoint")
+		.map((statement) => statement.trim().replace(/;$/, ""));
+	expect(statements).toEqual(COLLECTION_VIEWS_SCHEMA);
+	const db = new PGlite();
+	try {
+		await db.exec(
+			"CREATE TABLE collections (id TEXT PRIMARY KEY); INSERT INTO collections VALUES ('c1');",
+		);
+		const sql = migration.replaceAll("--> statement-breakpoint", "");
+		await db.exec(sql);
+		await db.exec(sql);
+		expect((await db.query("SELECT view_count FROM collections")).rows).toEqual(
+			[{ view_count: 0 }],
+		);
+		await db.exec(
+			"INSERT INTO collection_view_sessions (collection_id, session_hash) VALUES ('c1', 'hash');",
+		);
+		await expect(
+			db.exec(
+				"INSERT INTO collection_view_sessions (collection_id, session_hash) VALUES ('c1', 'hash');",
+			),
+		).rejects.toThrow();
+		await db.exec("DELETE FROM collections WHERE id = 'c1';");
+		expect(
+			(await db.query("SELECT * FROM collection_view_sessions")).rows,
+		).toEqual([]);
+	} finally {
+		await db.close();
+	}
+});

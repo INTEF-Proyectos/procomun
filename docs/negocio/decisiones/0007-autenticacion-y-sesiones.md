@@ -265,3 +265,7 @@ El correo de verificación de Better Auth es el mismo para el alta y para el cor
 **Límite.** Sin `--users-file` el comportamiento es el de #456 (por correo actual), y el riesgo descrito sigue existiendo. Para los lotes reales, pasarlo siempre.
 
 **Validación.** `import-legacy-procomun.unit.test.ts` (cambio de titular del correo, UID sin cuenta, UID ambiguo sin correo en el informe, índice) y `legacy-authors.unit.test.ts` (búsqueda por id con el correo cambiado).
+
+## Seguimiento de la atribución histórica — 2026-11-19 (#600)
+
+La regla de ADR-0029 exige el volcado de usuarios en importación y reenlace y elimina la alternativa por correo actual descrita en el apartado anterior.

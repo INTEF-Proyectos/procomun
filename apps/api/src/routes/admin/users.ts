@@ -1,4 +1,5 @@
 import * as repo from "@procomun/db/repository";
+import { validateUserNameAndBio } from "@procomun/db/user-profile";
 import { ROLE_LEVELS } from "@procomun/db/validation";
 import { Hono } from "hono";
 import { logActivity } from "../../activity/log.ts";
@@ -140,18 +141,25 @@ userRoutes.patch("/:id", async (c) => {
 	const existing = await repo.getUserById(getDb().db, id);
 	if (!existing) return c.json({ error: "Usuario no encontrado" }, 404);
 
-	const body = await c.req.json();
+	const body = await c.req.json().catch(() => null);
+	if (!body || typeof body !== "object" || Array.isArray(body)) {
+		return c.json({ error: "Cuerpo de la petición inválido" }, 400);
+	}
+	// DEF-004 (#201): el perfil debe persistir también el campo "sobre mí" (bio).
+	// #533: el nombre no puede quedar vacío y los textos tienen longitud máxima.
+	const validation = validateUserNameAndBio(body);
+	if (!validation.ok) {
+		return c.json(
+			{ error: "Datos inválidos", details: validation.errors },
+			400,
+		);
+	}
 	const updates: {
 		name?: string | null;
 		bio?: string | null;
 		role?: string;
 		isActive?: boolean;
-	} = {};
-	if ("name" in body)
-		updates.name = typeof body.name === "string" ? body.name : null;
-	// DEF-004 (#201): el perfil debe persistir también el campo "sobre mí" (bio).
-	if ("bio" in body)
-		updates.bio = typeof body.bio === "string" ? body.bio : null;
+	} = { ...validation.value };
 	if (hasMinRole(currentUser.role, "admin")) {
 		if (typeof body.role === "string" && body.role in ROLE_LEVELS)
 			updates.role = body.role;

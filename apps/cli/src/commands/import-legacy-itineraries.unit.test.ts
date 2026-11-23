@@ -21,7 +21,7 @@ function buildDeps(overrides: Partial<Deps> = {}): Deps {
 		waitForDb: async () => {},
 		mapLegacyItinerary,
 		ensureLegacyImportSystemUser: async () => null,
-		findLegacyCollectionOwnerAccount: async () => null,
+		findLegacyAccountById: async () => null,
 		importLegacyCollection: async () => ({
 			outcome: "created",
 			collectionId: "c-1",
@@ -29,7 +29,6 @@ function buildDeps(overrides: Partial<Deps> = {}): Deps {
 			linkedResources: 0,
 			missingResources: [],
 		}),
-		LEGACY_USER_ID_PREFIX: "legacy-procomun:user:",
 		...overrides,
 	} as Deps;
 }
@@ -55,9 +54,14 @@ describe("parseImportLegacyItinerariesArgs", () => {
 				" ",
 			]),
 		).toThrow("--only necesita");
+		expect(() =>
+			parseImportLegacyItinerariesArgs(["--source-file", "x.json"]),
+		).toThrow("Falta --users-file");
 		const options = parseImportLegacyItinerariesArgs([
 			"--source-file",
 			"x.json",
+			"--users-file",
+			"usuarios.json",
 			"--dry-run",
 			"--limit",
 			"3",
@@ -71,6 +75,7 @@ describe("parseImportLegacyItinerariesArgs", () => {
 			limit: 3,
 			only: "abc",
 			sourceFile: path.resolve("x.json"),
+			usersFile: path.resolve("usuarios.json"),
 			reportDir: path.resolve("informes"),
 		});
 	});
@@ -78,10 +83,16 @@ describe("parseImportLegacyItinerariesArgs", () => {
 
 describe("runImportLegacyItineraries", () => {
 	let dir: string;
+	let usersFile: string;
 	let spies: Array<{ mockRestore: () => void }>;
 
 	beforeEach(async () => {
 		dir = await mkdtemp(path.join(tmpdir(), "legacy-itineraries-unit-"));
+		usersFile = path.join(dir, "usuarios.json");
+		await Bun.write(
+			usersFile,
+			JSON.stringify([{ uid: 1, mail: "misma@ejemplo.test" }]),
+		);
 		spies = [
 			spyOn(console, "log").mockImplementation(() => {}),
 			spyOn(console, "warn").mockImplementation(() => {}),
@@ -102,10 +113,24 @@ describe("runImportLegacyItineraries", () => {
 	test("rechaza un JSON que no es un array", async () => {
 		await expect(
 			runImportLegacyItineraries(
-				{ sourceFile: await source({}), dryRun: true },
+				{ usersFile, sourceFile: await source({}), dryRun: true },
 				buildDeps(),
 			),
 		).rejects.toThrow("debe contener un array");
+	});
+
+	test("rechaza un volcado de usuarios sin array antes de conectar a la base", async () => {
+		await Bun.write(usersFile, "{}");
+		await expect(
+			runImportLegacyItineraries(
+				{ sourceFile: await source([]), usersFile, dryRun: true },
+				buildDeps({
+					waitForDb: async () => {
+						throw new Error("conexión imprevista");
+					},
+				}),
+			),
+		).rejects.toThrow("--users-file debe contener un array de usuarios");
 	});
 
 	test("bloquea los registros sin id, sin título o que no son objetos, y sale con 1", async () => {
@@ -129,7 +154,7 @@ describe("runImportLegacyItineraries", () => {
 			{ id: "it-ok", titleStr: "Bien", descriptionStr: "x" },
 		]);
 		const report = await runImportLegacyItineraries(
-			{ sourceFile, dryRun: true },
+			{ sourceFile, usersFile, dryRun: true },
 			deps,
 		);
 		expect(imported).toBe(1);
@@ -154,7 +179,12 @@ describe("runImportLegacyItineraries", () => {
 		const reportDir = path.join(dir, "informes");
 		const exitCode = await runImportLegacyItinerariesCommand(
 			{
-				...parseImportLegacyItinerariesArgs(["--source-file", sourceFile]),
+				...parseImportLegacyItinerariesArgs([
+					"--source-file",
+					sourceFile,
+					"--users-file",
+					usersFile,
+				]),
 				dryRun: true,
 				reportDir,
 			},
@@ -174,8 +204,8 @@ describe("runImportLegacyItineraries", () => {
 				systemUser++;
 				return null;
 			},
-			findLegacyCollectionOwnerAccount: async (_db, email) => {
-				lookups.push(email);
+			findLegacyAccountById: async (_db, id) => {
+				lookups.push(id);
 				return { id: "u-1", deleted: false, emailVerified: true };
 			},
 		});
@@ -183,17 +213,24 @@ describe("runImportLegacyItineraries", () => {
 			{ id: "a", titleStr: "A", publicatorEmailStr: "Misma@Ejemplo.test" },
 			{ id: "b", titleStr: "B", publicatorEmailStr: "misma@ejemplo.test " },
 		]);
-		await runImportLegacyItineraries({ sourceFile, dryRun: true }, deps);
-		expect(lookups).toEqual(["misma@ejemplo.test"]);
+		await runImportLegacyItineraries(
+			{ sourceFile, usersFile, dryRun: true },
+			deps,
+		);
+		expect(lookups).toEqual(["legacy-procomun:user:1"]);
 		expect(systemUser).toBe(0);
 
-		await runImportLegacyItineraries({ sourceFile, dryRun: false }, deps);
+		await runImportLegacyItineraries(
+			{ sourceFile, usersFile, dryRun: false },
+			deps,
+		);
 		expect(systemUser).toBe(1);
 	});
 
 	test("preserva entidades inválidas y omite valores de origen en el informe", async () => {
 		const report = await runImportLegacyItineraries(
 			{
+				usersFile,
 				sourceFile: await source([
 					{
 						id: "a",
@@ -227,6 +264,7 @@ describe("runImportLegacyItineraries", () => {
 	test("continúa el lote si falla el mapeo de un registro", async () => {
 		const report = await runImportLegacyItineraries(
 			{
+				usersFile,
 				sourceFile: await source([{ id: "a" }, { id: "b", titleStr: "B" }]),
 				dryRun: false,
 			},
@@ -250,6 +288,7 @@ describe("runImportLegacyItineraries", () => {
 		});
 		const report = await runImportLegacyItineraries(
 			{
+				usersFile,
 				sourceFile: await source([{ id: "a", titleStr: "A" }]),
 				dryRun: false,
 			},

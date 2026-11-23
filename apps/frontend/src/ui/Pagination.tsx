@@ -1,4 +1,6 @@
 import "./Pagination.css";
+import "../lib/paraglide-client.ts";
+import * as m from "../paraglide/messages.js";
 
 export interface PaginationProps {
 	currentPage: number;
@@ -45,18 +47,21 @@ export function Pagination({
 	});
 
 	return (
-		<nav className={`pagination ${className}`.trim()} aria-label="Paginación">
+		<nav
+			className={`pagination ${className}`.trim()}
+			aria-label={m.pagination_label()}
+		>
 			<button
 				type="button"
 				className="pagination-btn pagination-prev"
 				disabled={currentPage <= 1}
 				onClick={() => onPageChange(currentPage - 1)}
-				aria-label="Página anterior"
+				aria-label={m.pagination_previous()}
 			>
 				<span className="material-symbols-outlined" aria-hidden="true">
 					chevron_left
 				</span>
-				<span className="pagination-btn-text">Anterior</span>
+				<span className="pagination-btn-text">{m.common_previous()}</span>
 			</button>
 
 			<div className="pagination-pages">
@@ -71,7 +76,7 @@ export function Pagination({
 							type="button"
 							className={`pagination-page${item.value === currentPage ? " pagination-page-active" : ""}`}
 							onClick={() => onPageChange(item.value as number)}
-							aria-label={`Página ${item.value}`}
+							aria-label={m.pagination_page({ page: String(item.value) })}
 							aria-current={item.value === currentPage ? "page" : undefined}
 						>
 							{item.value}
@@ -85,9 +90,9 @@ export function Pagination({
 				className="pagination-btn pagination-next"
 				disabled={currentPage >= totalPages}
 				onClick={() => onPageChange(currentPage + 1)}
-				aria-label="Página siguiente"
+				aria-label={m.pagination_next()}
 			>
-				<span className="pagination-btn-text">Siguiente</span>
+				<span className="pagination-btn-text">{m.common_next()}</span>
 				<span className="material-symbols-outlined" aria-hidden="true">
 					chevron_right
 				</span>

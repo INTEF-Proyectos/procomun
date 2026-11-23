@@ -711,18 +711,35 @@ describe("Rutas admin — borradores privados frente al curator (#460)", () => {
 		);
 		const search = await listIds(
 			curatorApp,
-			`&search=${encodeURIComponent(draft.title)}`,
+			`&q=${encodeURIComponent(draft.title)}`,
 		);
 		expect(search.ids).not.toContain(draft.id);
 		// La misma búsqueda lo encuentra para el admin.
 		expect(
-			(await listIds(adminApp, `&search=${encodeURIComponent(draft.title)}`))
-				.ids,
+			(await listIds(adminApp, `&q=${encodeURIComponent(draft.title)}`)).ids,
 		).toContain(draft.id);
 
 		// El autor y el admin sí lo ven.
 		expect((await listIds(authorApp, "&status=draft")).ids).toContain(draft.id);
 		expect((await listIds(adminApp, "&status=draft")).ids).toContain(draft.id);
+	});
+
+	test("el autor encuentra su recurso buscando un término que solo está en la autoría (#580)", async () => {
+		await ensureUsers();
+		const token = `autoria${crypto.randomUUID().slice(0, 8)}`;
+		const res = await authorApp.request("/api/admin/resources", {
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({
+				...validResource,
+				title: `Sin coincidencia ${crypto.randomUUID()}`,
+				author: `Autoría ${token}`,
+			}),
+		});
+		expect(res.status).toBe(201);
+		const { id } = (await res.json()) as { id: string };
+
+		expect((await listIds(authorApp, `&q=${token}`)).ids).toContain(id);
 	});
 
 	test("el curator no lee ni modifica el borrador ajeno por acceso directo", async () => {
@@ -783,6 +800,54 @@ describe("Rutas admin — borradores privados frente al curator (#460)", () => {
 			},
 		);
 		expect(add.status).toBe(404);
+	});
+
+	test("reordena dos recursos visibles sin mover el borrador ajeno (#617)", async () => {
+		await ensureUsers();
+		const first = await createDraft(curatorApp);
+		const hidden = await createDraft(authorApp);
+		const last = await createDraft(curatorApp);
+		const db = getDb().db;
+		const collection = await repo.createCollection(db, {
+			title: "Colección ordenada",
+			description: "Colección de prueba",
+			curatorId,
+			isOrdered: true,
+		});
+		await repo.addResourceToCollection(db, collection.id, first.id, 0);
+		await repo.addResourceToCollection(db, collection.id, hidden.id, 1);
+		await repo.addResourceToCollection(db, collection.id, last.id, 2);
+		const url = `/api/admin/collections/${collection.id}/resources`;
+
+		const reordered = await curatorApp.request(`${url}/reorder`, {
+			method: "PATCH",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({ resourceId: first.id, direction: "down" }),
+		});
+		expect(reordered.status).toBe(200);
+		const listed = await curatorApp.request(url);
+		expect(listed.status).toBe(200);
+		const items = (await listed.json()) as Array<{ resourceId: string }>;
+		expect(items.map(({ resourceId }) => resourceId)).toEqual([
+			last.id,
+			first.id,
+		]);
+		expect(
+			(await repo.listCollectionResources(db, collection.id)).map(
+				({ resourceId, position }) => [resourceId, position],
+			),
+		).toEqual([
+			[last.id, 0],
+			[hidden.id, 1],
+			[first.id, 2],
+		]);
+
+		const hiddenReorder = await curatorApp.request(`${url}/reorder`, {
+			method: "PATCH",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({ resourceId: hidden.id, direction: "up" }),
+		});
+		expect(hiddenReorder.status).toBe(400);
 	});
 
 	test("el curator ve sus propios borradores", async () => {
@@ -1863,7 +1928,41 @@ describe("Rutas admin — actualización de usuarios", () => {
 
 		const getRes = await adminApp.request(`/api/admin/users/${id}`);
 		const body = await getRes.json();
-		expect(body.bio).toBe("");
+		// #533: un «Sobre mí» vacío se guarda como null.
+		expect(body.bio).toBeNull();
+	});
+
+	test("PATCH /api/admin/users/:id → rechaza nombre vacío y «Sobre mí» demasiado largo (#533)", async () => {
+		const adminApp = createAdminApp({ id: "1", role: "admin" });
+		const email = `name-check-${crypto.randomUUID()}@test.com`;
+		const createRes = await adminApp.request("/api/admin/users", {
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({
+				name: "Con Nombre",
+				email,
+				password: "supersecret8",
+			}),
+		});
+		const { id } = await createRes.json();
+
+		for (const body of [
+			{ name: "" },
+			{ name: null },
+			{ bio: "x".repeat(10_001) },
+		]) {
+			const res = await adminApp.request(`/api/admin/users/${id}`, {
+				method: "PATCH",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify(body),
+			});
+			expect(res.status).toBe(400);
+		}
+
+		const getRes = await adminApp.request(`/api/admin/users/${id}`);
+		const user = await getRes.json();
+		expect(user.name).toBe("Con Nombre");
+		expect(user.bio).toBeNull();
 	});
 });
 

@@ -6,7 +6,12 @@
  * par recurso + sesión ya existe dentro de la ventana, no suma.
  */
 import { createHash } from "node:crypto";
-import { resourceViewCounts, resourceViewSessions } from "@procomun/db/schema";
+import {
+	collections,
+	collectionViewSessions,
+	resourceViewCounts,
+	resourceViewSessions,
+} from "@procomun/db/schema";
 import { and, eq, lt, sql } from "drizzle-orm";
 import { getDb } from "../db.ts";
 
@@ -78,4 +83,47 @@ export async function recordResourceView(
 	});
 
 	return getResourceViewCount(resourceId);
+}
+
+/** Bloquea la colección mientras registra la visita y actualiza el total. */
+export async function recordCollectionView(slug: string, sessionId: string) {
+	const db = getDb().db;
+	const now = new Date();
+	const sessionHash = hashViewSession(`collection:${sessionId}`);
+	return db.transaction(async (tx: typeof db) => {
+		const [collection] = await tx
+			.select({ id: collections.id, viewCount: collections.viewCount })
+			.from(collections)
+			.where(
+				and(
+					eq(collections.slug, slug),
+					eq(collections.editorialStatus, "published"),
+				),
+			)
+			.for("update");
+		if (!collection) return null;
+		await tx
+			.delete(collectionViewSessions)
+			.where(
+				and(
+					eq(collectionViewSessions.collectionId, collection.id),
+					lt(
+						collectionViewSessions.createdAt,
+						new Date(now.getTime() - VIEW_SESSION_WINDOW_MS),
+					),
+				),
+			);
+		const [inserted] = await tx
+			.insert(collectionViewSessions)
+			.values({ collectionId: collection.id, sessionHash, createdAt: now })
+			.onConflictDoNothing()
+			.returning({ collectionId: collectionViewSessions.collectionId });
+		if (!inserted) return collection.viewCount;
+		const viewCount = collection.viewCount + 1;
+		await tx
+			.update(collections)
+			.set({ viewCount })
+			.where(eq(collections.id, collection.id));
+		return viewCount;
+	});
 }
