@@ -25,6 +25,34 @@ export const RESOURCE_VIEWS_SCHEMA = [
 	`CREATE INDEX IF NOT EXISTS resource_view_sessions_created_at_idx ON resource_view_sessions (created_at)`,
 ];
 
+/** DDL de la migración 0032_collection_views (#608). */
+export const COLLECTION_VIEWS_SCHEMA = [
+	`ALTER TABLE "collections" ADD COLUMN IF NOT EXISTS view_count INTEGER NOT NULL DEFAULT 0`,
+	`CREATE TABLE IF NOT EXISTS "collection_view_sessions" (
+		collection_id TEXT NOT NULL REFERENCES "collections"(id) ON DELETE CASCADE,
+		session_hash VARCHAR(64) NOT NULL,
+		created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+		PRIMARY KEY (collection_id, session_hash)
+	)`,
+	`CREATE INDEX IF NOT EXISTS collection_view_sessions_collection_created_at_idx ON collection_view_sessions (collection_id, created_at)`,
+];
+
+/** DDL de la migración 0034_collection_metadata (#611). */
+export const COLLECTION_METADATA_SCHEMA = [
+	`ALTER TABLE "collections" ADD COLUMN IF NOT EXISTS language VARCHAR(10)`,
+	`ALTER TABLE "collections" ADD COLUMN IF NOT EXISTS educational_areas JSONB NOT NULL DEFAULT '[]'::jsonb`,
+	`CREATE TABLE IF NOT EXISTS "collection_keywords" (
+		collection_id TEXT NOT NULL REFERENCES "collections"(id) ON DELETE CASCADE,
+		tag_id TEXT NOT NULL REFERENCES "tags"(id) ON DELETE CASCADE,
+		PRIMARY KEY (collection_id, tag_id)
+	)`,
+	`CREATE TABLE IF NOT EXISTS "collection_knowledge_areas" (
+		collection_id TEXT NOT NULL REFERENCES "collections"(id) ON DELETE CASCADE,
+		area_id TEXT NOT NULL REFERENCES "knowledge_areas"(id) ON DELETE CASCADE,
+		PRIMARY KEY (collection_id, area_id)
+	)`,
+];
+
 /**
  * Cola de miniaturas generadas en el servidor (#470, ADR-0046). La migración
  * 0020_elpx_thumbnail_queue contiene estas mismas sentencias; un test
@@ -430,18 +458,8 @@ export const SCHEMA_STATEMENTS = [
 	`ALTER TABLE "collections" ADD COLUMN IF NOT EXISTS external_id TEXT`,
 	`ALTER TABLE "collections" ADD COLUMN IF NOT EXISTS published_at TIMESTAMP`,
 	`CREATE UNIQUE INDEX IF NOT EXISTS collections_import_source_external_id_idx ON "collections" (import_source, external_id) WHERE external_id IS NOT NULL`,
-	`ALTER TABLE "collections" ADD COLUMN IF NOT EXISTS language VARCHAR(10)`,
-	`ALTER TABLE "collections" ADD COLUMN IF NOT EXISTS educational_areas JSONB NOT NULL DEFAULT '[]'::jsonb`,
-	`CREATE TABLE IF NOT EXISTS "collection_keywords" (
-		collection_id TEXT NOT NULL REFERENCES "collections"(id) ON DELETE CASCADE,
-		tag_id TEXT NOT NULL REFERENCES "tags"(id) ON DELETE CASCADE,
-		PRIMARY KEY (collection_id, tag_id)
-	)`,
-	`CREATE TABLE IF NOT EXISTS "collection_knowledge_areas" (
-		collection_id TEXT NOT NULL REFERENCES "collections"(id) ON DELETE CASCADE,
-		area_id TEXT NOT NULL REFERENCES "knowledge_areas"(id) ON DELETE CASCADE,
-		PRIMARY KEY (collection_id, area_id)
-	)`,
+	...COLLECTION_VIEWS_SCHEMA,
+	...COLLECTION_METADATA_SCHEMA,
 	`CREATE TABLE IF NOT EXISTS "collection_resources" (
 		collection_id TEXT NOT NULL REFERENCES "collections"(id) ON DELETE CASCADE,
 		resource_id TEXT NOT NULL REFERENCES "resources"(id) ON DELETE CASCADE,

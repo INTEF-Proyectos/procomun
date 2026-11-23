@@ -2,7 +2,15 @@ import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import { PGlite } from "@electric-sql/pglite";
 import { drizzle } from "drizzle-orm/pglite";
 import type { DrizzleDB } from "../repository/shared.ts";
-import { createResource, ensureUser, listResources } from "../repository.ts";
+import {
+	createCatalogKeyword,
+	createCollection,
+	createResource,
+	ensureUser,
+	getCollectionById,
+	listResources,
+	updateCollection,
+} from "../repository.ts";
 import * as schema from "../schema/index.ts";
 import { createTables } from "../setup.ts";
 import {
@@ -199,6 +207,45 @@ describe("tags repository (issue #76)", () => {
 		expect(remaining.some((t) => t.id === tag.id)).toBe(false);
 		expect(remaining.some((t) => t.slug === "keepme")).toBe(true);
 		expect(await getTagById(db, tag.id)).toBeNull();
+	});
+
+	test("fusionar o borrar con reasignación lleva la palabra clave a las colecciones (#623)", async () => {
+		const keyword = async (label: string) => {
+			const outcome = await createCatalogKeyword(db, {
+				label,
+				createdBy: userId,
+			});
+			if (outcome.status === "invalid") throw new Error("Sin palabra clave");
+			return outcome.keyword;
+		};
+		const [source, target, other] = await Promise.all([
+			keyword("Geometría 623"),
+			keyword("Geometría plana 623"),
+			keyword("Trigonometría 623"),
+		]);
+		const merged = await createCollection(db, {
+			title: "Colección fusionada",
+			description: "desc",
+			curatorId: userId,
+		});
+		const both = await createCollection(db, {
+			title: "Colección con las dos",
+			description: "desc",
+			curatorId: userId,
+		});
+		await updateCollection(db, merged.id, { keywordIds: [source.id] });
+		await updateCollection(db, both.id, {
+			keywordIds: [source.id, target.id],
+		});
+		const keywordIds = async (id: string) =>
+			(await getCollectionById(db, id))?.catalogKeywords.map(({ id }) => id);
+
+		await mergeTags(db, source.id, target.id);
+		expect(await keywordIds(merged.id)).toEqual([target.id]);
+		expect(await keywordIds(both.id)).toEqual([target.id]);
+
+		await deleteTag(db, target.id, { reassignToId: other.id });
+		expect(await keywordIds(merged.id)).toEqual([other.id]);
 	});
 
 	test("mergeTags with missing source throws TagNotFoundError", async () => {

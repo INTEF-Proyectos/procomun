@@ -31,6 +31,10 @@ updates:
           - "react-dom"
           - "@types/react"
           - "@types/react-dom"
+      playwright:
+        patterns:
+          - "@playwright/test"
+          - "playwright-core"
       minor-patch:
         patterns: ["*"]
         update-types: ["minor", "patch"]

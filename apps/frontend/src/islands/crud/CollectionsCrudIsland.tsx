@@ -366,10 +366,11 @@ export function CollectionsCrudIsland() {
 				assignmentsToSelections(collection.educationalAreas ?? []),
 			);
 			setEditing(collection);
-			void api
-				.getKnowledgeAreaCatalog()
-				.then(setCatalog)
-				.catch(() => {});
+			if (!catalog)
+				void api
+					.getKnowledgeAreaCatalog()
+					.then(setCatalog)
+					.catch(() => {});
 			setEditForm({
 				title: collection.title,
 				description: collection.description,

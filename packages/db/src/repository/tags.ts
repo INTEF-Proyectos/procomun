@@ -1,4 +1,5 @@
 import { and, asc, desc, eq, inArray, isNull, sql } from "drizzle-orm";
+import { collectionKeywords } from "../schema/collections.ts";
 import { resources } from "../schema/resources.ts";
 import { resourceTags, tags } from "../schema/tags.ts";
 import {
@@ -465,6 +466,27 @@ export async function mergeTags(
 	}
 
 	await db.delete(resourceTags).where(eq(resourceTags.tagId, sourceId));
+
+	// Las colecciones también enlazan palabras clave de catálogo (#611).
+	const collectionLinks = await db
+		.select({ collectionId: collectionKeywords.collectionId })
+		.from(collectionKeywords)
+		.where(eq(collectionKeywords.tagId, sourceId));
+	if (collectionLinks.length > 0) {
+		await db
+			.insert(collectionKeywords)
+			.values(
+				collectionLinks.map(({ collectionId }) => ({
+					collectionId,
+					tagId: targetId,
+				})),
+			)
+			.onConflictDoNothing();
+		await db
+			.delete(collectionKeywords)
+			.where(eq(collectionKeywords.tagId, sourceId));
+	}
+
 	await db
 		.update(tags)
 		.set({

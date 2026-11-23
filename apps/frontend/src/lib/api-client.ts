@@ -196,6 +196,7 @@ export interface CollectionResourceRecord {
 }
 
 export interface CollectionDetailRecord extends CollectionRecord {
+	viewCount: number;
 	resources: CollectionResourceRecord[];
 }
 
@@ -771,6 +772,10 @@ export interface ApiClient {
 	trackDownload(slug: string, format?: string): Promise<{ count: number }>;
 	/** Una visita por sesión al abrir la vista previa (ADR-0044). */
 	trackResourceView(
+		slug: string,
+		sessionId: string,
+	): Promise<{ viewCount: number }>;
+	trackCollectionView(
 		slug: string,
 		sessionId: string,
 	): Promise<{ viewCount: number }>;
