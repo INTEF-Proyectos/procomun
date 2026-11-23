@@ -99,6 +99,10 @@ const collectionRoutes = buildCrudRoutes({
 					? body.editorialStatus
 					: undefined,
 			isOrdered: !!body.isOrdered,
+			language: body.language,
+			educationalAreas: body.educationalAreas,
+			keywordIds: body.keywordIds,
+			knowledgeAreaIds: body.knowledgeAreaIds,
 		};
 	},
 	afterCreate: async (user, result, data) => {
@@ -210,6 +214,7 @@ collectionRoutes.patch("/:id/resources/reorder", async (c) => {
 		id,
 		body.resourceId,
 		body.direction,
+		getCurrentUser(c),
 	);
 	if (!reordered) {
 		return c.json({ error: "No se pudo reordenar el recurso" }, 400);

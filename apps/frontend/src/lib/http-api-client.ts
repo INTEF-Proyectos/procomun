@@ -742,6 +742,10 @@ export class HttpApiClient implements ApiClient {
 		coverImageUrl?: string | null;
 		editorialStatus?: string;
 		isOrdered?: boolean;
+		language?: string | null;
+		educationalAreas?: { categoryId: string; optionId: string | null }[];
+		keywordIds?: string[];
+		knowledgeAreaIds?: string[];
 	}) {
 		const res = await fetch("/api/admin/collections", {
 			method: "POST",
@@ -1056,12 +1060,34 @@ export class HttpApiClient implements ApiClient {
 	// --- Social ---
 
 	async getResourceRatings(slug: string) {
-		const res = await fetch(`/api/v1/resources/${slug}/ratings`);
+		return this.loadRatings(`/api/v1/resources/${slug}/ratings`);
+	}
+
+	async getCollectionRatings(slug: string) {
+		return this.loadRatings(
+			`/api/v1/collections/${encodeURIComponent(slug)}/ratings`,
+		);
+	}
+
+	private async loadRatings(path: string) {
+		const res = await fetch(path);
+		if (!res.ok) throw new Error("No se pudieron cargar las valoraciones");
 		return res.json();
 	}
 
 	async submitRating(slug: string, score: number) {
-		const res = await fetch(`/api/v1/resources/${slug}/ratings`, {
+		return this.saveRating(`/api/v1/resources/${slug}/ratings`, score);
+	}
+
+	async submitCollectionRating(slug: string, score: number) {
+		return this.saveRating(
+			`/api/v1/collections/${encodeURIComponent(slug)}/ratings`,
+			score,
+		);
+	}
+
+	private async saveRating(path: string, score: number) {
+		const res = await fetch(path, {
 			method: "POST",
 			headers: { "Content-Type": "application/json" },
 			credentials: "include",
@@ -1205,15 +1231,27 @@ export class HttpApiClient implements ApiClient {
 		return res.json();
 	}
 
-	async trackResourceView(
+	trackResourceView(slug: string, sessionId: string) {
+		return this.trackView("resources", slug, sessionId);
+	}
+
+	trackCollectionView(slug: string, sessionId: string) {
+		return this.trackView("collections", slug, sessionId);
+	}
+
+	private async trackView(
+		target: "resources" | "collections",
 		slug: string,
 		sessionId: string,
 	): Promise<{ viewCount: number }> {
-		const res = await fetch(`/api/v1/resources/${slug}/view`, {
-			method: "POST",
-			headers: { "Content-Type": "application/json" },
-			body: JSON.stringify({ sessionId }),
-		});
+		const res = await fetch(
+			`/api/v1/${target}/${encodeURIComponent(slug)}/view`,
+			{
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify({ sessionId }),
+			},
+		);
 		if (!res.ok)
 			throw new Error(`No se pudo registrar la visita (${res.status})`);
 		return res.json();

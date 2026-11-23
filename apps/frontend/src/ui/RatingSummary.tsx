@@ -3,7 +3,7 @@ import { StarRating } from "./StarRating.tsx";
 import "./RatingSummary.css";
 
 export interface RatingSummaryProps {
-	rating: RatingSummaryType;
+	rating: Omit<RatingSummaryType, "resourceId">;
 	className?: string;
 }
 

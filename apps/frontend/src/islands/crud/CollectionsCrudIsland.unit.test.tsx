@@ -1,10 +1,12 @@
 import { describe, expect, test } from "bun:test";
 import type { ReactElement, ReactNode } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import type { CollectionRecord } from "../../lib/api-client.ts";
+import type { CatalogKeyword, CollectionRecord } from "../../lib/api-client.ts";
 import {
 	buildCollectionColumns,
 	CollectionsCrudIsland,
+	createErrorMessage,
+	metadataPayload,
 } from "./CollectionsCrudIsland.tsx";
 
 function renderCell(node: ReactNode): string {
@@ -81,5 +83,53 @@ describe("CollectionsCrudIsland", () => {
 			"admin-collection-cell--clamp",
 		);
 		expect(byId.cover?.className).toContain("admin-collection-cell--clamp");
+	});
+
+	test("el alta muestra los controles de catalogación (#614)", () => {
+		const html = renderToStaticMarkup(<CollectionsCrudIsland />);
+
+		expect(html).toContain('id="collection-create-language"');
+		expect(html).toContain("Detalles técnicos");
+	});
+
+	test("metadataPayload envía los metadatos del alta (#614)", () => {
+		expect(
+			metadataPayload({
+				language: "",
+				keywords: [],
+				areas: [],
+				educational: [],
+			}),
+		).toEqual({
+			language: null,
+			keywordIds: [],
+			knowledgeAreaIds: [],
+			educationalAreas: [],
+		});
+		expect(
+			metadataPayload({
+				language: "ca",
+				keywords: [{ id: "k1", label: "Uno" } as CatalogKeyword],
+				areas: ["matematicas"],
+				educational: [],
+			}),
+		).toMatchObject({
+			language: "ca",
+			keywordIds: ["k1"],
+			knowledgeAreaIds: ["matematicas"],
+		});
+	});
+
+	test("createErrorMessage muestra el motivo que da la API (#614)", () => {
+		expect(
+			createErrorMessage({
+				error: "Alguna palabra clave no pertenece al catálogo",
+			}),
+		).toBe("Alguna palabra clave no pertenece al catálogo");
+		expect(createErrorMessage({})).toBe("Error al crear la coleccion.");
+		expect(createErrorMessage(new TypeError("Failed to fetch"))).toBe(
+			"Error al crear la coleccion.",
+		);
+		expect(createErrorMessage(null)).toBe("Error al crear la coleccion.");
 	});
 });
