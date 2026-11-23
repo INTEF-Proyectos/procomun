@@ -132,6 +132,7 @@ publicRoutes.get("/authors/:id", async (c) => {
 		limit,
 		offset,
 		createdBy: author.id,
+		includeUnvalidated: true,
 	});
 	return c.json({ ...resources, author });
 });

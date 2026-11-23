@@ -240,9 +240,10 @@ export async function seedWithClient(
 		}
 
 		for (const r of DEMO_RESOURCES) {
+			// #568: los publicados de la demo llevan el sello «Validado»; sin él no
+			// saldrían en Explorar ni en Novedades.
+			const sealed = r.editorialStatus === "published";
 			await client.query(
-				// #568: los publicados de la demo llevan el sello «Validado»; sin él no
-				// saldrían en Explorar ni en Novedades.
 				`INSERT INTO "resources" (id, slug, title, description, language, license, resource_type, keywords, author, publisher, created_by, editorial_status, featured_at, created_at, updated_at, validated_at, validation_source) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)`,
 				[
 					r.id,
@@ -260,8 +261,8 @@ export async function seedWithClient(
 					r.featuredAt,
 					r.createdAt,
 					now,
-					r.editorialStatus === "published" ? now : null,
-					r.editorialStatus === "published" ? "review" : null,
+					sealed ? now : null,
+					sealed ? "review" : null,
 				],
 			);
 

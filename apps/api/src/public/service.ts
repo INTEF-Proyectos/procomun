@@ -20,6 +20,11 @@ export async function listPublishedResources(opts: {
 	knowledgeAreas?: string[];
 	/** Familias profesionales (#448): cualquiera de ellas. */
 	professionalFamilies?: string[];
+	/**
+	 * #568: los listados generales solo enseñan lo validado; la ficha pública
+	 * del autor pide también sus publicados sin sello.
+	 */
+	includeUnvalidated?: boolean;
 }) {
 	const db = getDb().db;
 	const result = await repo.listResources(db, {
@@ -36,9 +41,7 @@ export async function listPublishedResources(opts: {
 		knowledgeAreaIds: opts.knowledgeAreas,
 		professionalFamilyIds: opts.professionalFamilies,
 		status: "published",
-		// #568: los listados generales solo enseñan lo validado; la ficha del
-		// autor (createdBy) trae todos sus publicados.
-		validatedOnly: !opts.createdBy,
+		validatedOnly: !opts.includeUnvalidated,
 	});
 
 	const resourceIds = result.data.map(

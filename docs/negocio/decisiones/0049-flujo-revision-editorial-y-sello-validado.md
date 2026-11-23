@@ -359,6 +359,10 @@ Es la parte del sello de la fase 1b y el distintivo de la fase 1c, sobre el fluj
 * El filtro «Solo validados» y la regla de visibilidad de #568.
 * `validated` en los feeds.
 
+## Renumeración de la migración — 2026-11-19
+
+`0026_resource_validation_seal` pasa a `0031_resource_validation_seal` tras integrar la 0027 de «Artículo». Se conserva el orden de integración #586, #585 y #587.
+
 ## Adenda 2026-11-17 — solo lo validado sale en el descubrimiento (#568)
 
 **Decisión del equipo (#568, 2026-11-16).** Desde el primer día, sin periodo transitorio, los buscadores, Novedades, el sitemap y los listados generales de la API pública solo enseñan recursos publicados con el sello. Hay dos excepciones, que solo abarcan recursos **publicados** (nunca borradores, en revisión, archivados ni eliminados) y no cambian ningún permiso:
@@ -386,8 +390,4 @@ Un publicado sin sello se sigue abriendo por su enlace directo, y su creador lo 
 * **Semilla de desarrollo.** Los recursos publicados de `seed` y `seed:resources` llevan el sello, para que Explorar y los e2e no se queden vacíos.
 * **Pérdida del sello.** Como la regla se evalúa en cada consulta, un recurso que pierde el sello (#420) desaparece de inmediato de esas superficies y sigue accesible por enlace.
 
-**Validación.** `apps/api/src/public/validated-discovery.unit.test.ts` (listado y total, texto completo, feed general, relacionados, pérdida del sello, enlace directo, autor y su feed, colección) y el caso nuevo de `apps/cli/src/commands/seed.unit.test.ts`.
-
-## Renumeración de la migración — 2026-11-19
-
-`0026_resource_validation_seal` pasa a `0031_resource_validation_seal` tras integrar la 0027 de «Artículo». Se conserva el orden de integración #586, #585 y #587.
+**Validación.** `apps/api/src/public/validated-discovery.unit.test.ts` (listado y total, texto completo, feed general, relacionados, pérdida del sello, enlace directo, autor y su feed, colección) y los casos nuevos de `apps/cli/src/commands/seed.unit.test.ts` (demo) y `apps/api/src/routes/dev.unit.test.ts` (`seed:resources`).
