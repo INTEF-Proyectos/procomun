@@ -218,19 +218,8 @@ export class HttpApiClient implements ApiClient {
 		educationalCategory?: string;
 		educationalOption?: string;
 	}): Promise<PaginatedResult<CollectionRecord>> {
-		const params = new URLSearchParams();
-		if (opts?.q) params.set("q", opts.q);
-		if (opts?.limit) params.set("limit", String(opts.limit));
-		if (opts?.offset) params.set("offset", String(opts.offset));
-		if (opts?.language) params.set("language", opts.language);
-		if (opts?.tag) params.set("tag", opts.tag);
-		if (opts?.knowledgeAreas?.length)
-			params.set("knowledgeAreas", opts.knowledgeAreas.join(","));
-		if (opts?.educationalCategory)
-			params.set("educationalCategory", opts.educationalCategory);
-		if (opts?.educationalOption)
-			params.set("educationalOption", opts.educationalOption);
-		const qs = params.toString();
+		// Mismos nombres de parámetro que el buscador de recursos.
+		const qs = resourceFilterParams(opts).toString();
 		const res = await fetch(`/api/v1/collections${qs ? `?${qs}` : ""}`);
 		return res.json();
 	}
