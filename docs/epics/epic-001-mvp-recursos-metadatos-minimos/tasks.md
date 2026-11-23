@@ -129,3 +129,22 @@ En desarrollo
 
 - [x] Derivar las opciones de alta y edición de las licencias válidas de la API.
 - [x] Cubrir que editar el título conserva las licencias CC BY-ND y CC BY-NC-ND.
+
+## Visitas de colecciones públicas — 2026-11-20 (#608)
+
+- [x] Mostrar el total en la ficha pública y registrar una visita por pestaña, también en colecciones importadas.
+- [x] Aplicar la migración `0032_collection_views` a bases existentes y mantener el arranque de PGlite.
+- [ ] Incorporar el histórico del origen cuando esté disponible (#574).
+
+### 2026-11-21 · Valoraciones de colecciones públicas (#609)
+
+- [x] Reutilizar la escala de una a cinco estrellas, el resumen y los controles de las fichas de recursos.
+- [x] Permitir un voto editable por cuenta y colección publicada. Las colecciones importadas empiezan con cero valoraciones.
+- [x] Comprobar permisos, media, distribución y sustitución de votos con datos de prueba.
+
+## Metadatos técnicos de colecciones — 2026-11-23 (#611)
+
+- [x] Guardar idioma, palabras clave, áreas de conocimiento y clasificación educativa en la colección (migración `0034_collection_metadata`).
+- [x] Editar los cuatro campos desde la edición de colecciones y mostrarlos en la ficha pública.
+- [x] Mover las palabras clave de las colecciones al fusionar o reasignar una palabra clave del catálogo.
+- [ ] Alta con metadatos (#614), filtros del listado público (#612) e importación desde el JSON legado (#615).

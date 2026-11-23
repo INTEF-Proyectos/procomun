@@ -1,5 +1,9 @@
 import { asc, desc, eq, ne, or, sql } from "drizzle-orm";
-import { inspectEducationalAssignments } from "../educational-areas.ts";
+import {
+	EDUCATIONAL_AREA_FIELD,
+	EducationalAreaValidationError,
+	inspectEducationalAssignments,
+} from "../educational-areas.ts";
 import { user } from "../schema/auth.ts";
 import {
 	collectionKeywords,
@@ -146,6 +150,7 @@ export async function getCollectionBySlug(
 	const rows = await db
 		.select({
 			...collectionSelection(opts.resourceStatus),
+			viewCount: collections.viewCount,
 			language: collections.language,
 			educationalAreas: collections.educationalAreas,
 		})
@@ -246,10 +251,10 @@ export async function updateCollection(
 			? undefined
 			: inspectEducationalAssignments(educationalAreas);
 	if (classification?.errors.length) {
-		throw Object.assign(new Error("Clasificación educativa no válida"), {
-			status: 400,
-			details: classification.errors,
-		});
+		throw Object.assign(
+			new EducationalAreaValidationError(classification.errors),
+			{ status: 400, field: EDUCATIONAL_AREA_FIELD },
+		);
 	}
 	const assignments = classification?.assignments;
 	await db.transaction(async (tx: DrizzleDB) => {
@@ -276,7 +281,8 @@ export async function updateCollection(
 			if (ids.length)
 				await tx
 					.insert(collectionKeywords)
-					.values(ids.map((tagId) => ({ collectionId: id, tagId })));
+					.values(ids.map((tagId) => ({ collectionId: id, tagId })))
+					.onConflictDoNothing();
 		}
 		if (knowledgeAreaIds !== undefined) {
 			const ids = await assertResourceKnowledgeAreaIds(
@@ -291,7 +297,8 @@ export async function updateCollection(
 			if (ids.length)
 				await tx
 					.insert(collectionKnowledgeAreas)
-					.values(ids.map((areaId) => ({ collectionId: id, areaId })));
+					.values(ids.map((areaId) => ({ collectionId: id, areaId })))
+					.onConflictDoNothing();
 		}
 	});
 }

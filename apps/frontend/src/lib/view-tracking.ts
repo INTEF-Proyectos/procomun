@@ -1,7 +1,7 @@
 /**
  * Visitas de la ficha (ADR-0044, #421): un UUID aleatorio por pestaña en
- * sessionStorage, sin datos personales. Se manda a la API la primera vez que
- * se abre la vista previa de cada recurso; el servidor deduplica igualmente.
+ * sessionStorage, sin datos personales. Cada ficha usa una clave propia;
+ * el servidor deduplica igualmente.
  */
 
 const SESSION_KEY = "procomun:view-session";
@@ -27,7 +27,7 @@ function sessionStorageOrNull(): Storage | null {
  * Devuelve el total de visitas si esta llamada registró la visita, o null si
  * ya se había contado en la sesión, si falló o si no hay almacenamiento.
  */
-export async function trackResourceViewOnce(
+export async function trackViewOnce(
 	slug: string,
 	track: (slug: string, sessionId: string) => Promise<{ viewCount: number }>,
 	storage: Storage | null = sessionStorageOrNull(),
