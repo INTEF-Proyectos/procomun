@@ -1,6 +1,8 @@
 import { VALID_LANGUAGES } from "@procomun/db/validation";
 import {
+	type Dispatch,
 	type FormEvent,
+	type SetStateAction,
 	startTransition,
 	useCallback,
 	useEffect,
@@ -219,7 +221,7 @@ const EMPTY_METADATA: CollectionMetadata = {
 	educational: [],
 };
 
-function metadataPayload({
+export function metadataPayload({
 	language,
 	keywords,
 	areas,
@@ -233,6 +235,14 @@ function metadataPayload({
 	};
 }
 
+/** Mensaje que da la API al rechazar el alta (p. ej. un catálogo no válido). */
+export function createErrorMessage(error: unknown): string {
+	const message = (error as { error?: unknown } | null)?.error;
+	return typeof message === "string" && message
+		? message
+		: "Error al crear la coleccion.";
+}
+
 function CollectionMetadataFields({
 	idPrefix,
 	metadata,
@@ -242,7 +252,7 @@ function CollectionMetadataFields({
 }: {
 	idPrefix: string;
 	metadata: CollectionMetadata;
-	setMetadata: (metadata: CollectionMetadata) => void;
+	setMetadata: Dispatch<SetStateAction<CollectionMetadata>>;
 	catalog: PublicKnowledgeAreaCatalog | null;
 	resourceAreas?: CollectionRecord["knowledgeAreas"];
 }) {
@@ -254,9 +264,10 @@ function CollectionMetadataFields({
 			<select
 				id={`${idPrefix}-language`}
 				value={language}
-				onChange={(event) =>
-					setMetadata({ ...metadata, language: event.currentTarget.value })
-				}
+				onChange={(event) => {
+					const { value } = event.currentTarget;
+					setMetadata((current) => ({ ...current, language: value }));
+				}}
 			>
 				<option value="">Sin indicar</option>
 				{VALID_LANGUAGES.map((code) => (
@@ -268,19 +279,23 @@ function CollectionMetadataFields({
 			<KeywordCatalogField
 				id={`${idPrefix}-keywords`}
 				selected={keywords}
-				onChange={(keywords) => setMetadata({ ...metadata, keywords })}
+				onChange={(keywords) =>
+					setMetadata((current) => ({ ...current, keywords }))
+				}
 			/>
 			<KnowledgeAreaField
 				idPrefix={idPrefix}
 				catalog={catalog}
 				selectedIds={areas}
-				onChange={(areas) => setMetadata({ ...metadata, areas })}
+				onChange={(areas) => setMetadata((current) => ({ ...current, areas }))}
 				resourceAreas={resourceAreas}
 			/>
 			<EducationalClassificationEditor
 				idPrefix={idPrefix}
 				selections={educational}
-				onChange={(educational) => setMetadata({ ...metadata, educational })}
+				onChange={(educational) =>
+					setMetadata((current) => ({ ...current, educational }))
+				}
 			/>
 		</fieldset>
 	);
@@ -399,13 +414,17 @@ export function CollectionsCrudIsland() {
 		}
 	}
 
-	useEffect(() => {
-		void loadCollections(0, "");
+	const loadCatalog = useCallback(() => {
 		void getApiClient()
 			.then((api) => api.getKnowledgeAreaCatalog())
 			.then(setCatalog)
 			.catch(() => {});
-	}, [loadCollections]);
+	}, []);
+
+	useEffect(() => {
+		void loadCollections(0, "");
+		loadCatalog();
+	}, [loadCollections, loadCatalog]);
 
 	const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 	const currentPage = Math.floor(offset / PAGE_SIZE) + 1;
@@ -449,6 +468,8 @@ export function CollectionsCrudIsland() {
 				educational: assignmentsToSelections(collection.educationalAreas ?? []),
 			});
 			setEditing(collection);
+			// Si el catálogo no cargó al montar, se reintenta al abrir la edición.
+			if (!catalog) loadCatalog();
 			setEditForm({
 				title: collection.title,
 				description: collection.description,
@@ -482,9 +503,9 @@ export function CollectionsCrudIsland() {
 			setCreateMetadata(EMPTY_METADATA);
 			setCreateFeedback({ message: "Coleccion creada.", variant: "success" });
 			await loadCollections(0, appliedSearch);
-		} catch {
+		} catch (error) {
 			setCreateFeedback({
-				message: "Error al crear la coleccion.",
+				message: createErrorMessage(error),
 				variant: "error",
 			});
 		} finally {
