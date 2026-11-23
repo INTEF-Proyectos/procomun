@@ -391,3 +391,7 @@ Un publicado sin sello se sigue abriendo por su enlace directo, y su creador lo 
 * **Pérdida del sello.** Como la regla se evalúa en cada consulta, un recurso que pierde el sello (#420) desaparece de inmediato de esas superficies y sigue accesible por enlace.
 
 **Validación.** `apps/api/src/public/validated-discovery.unit.test.ts` (listado y total, texto completo, feed general, relacionados, pérdida del sello, enlace directo, autor y su feed, colección) y los casos nuevos de `apps/cli/src/commands/seed.unit.test.ts` (demo) y `apps/api/src/routes/dev.unit.test.ts` (`seed:resources`).
+
+## Renumeración de la migración — 2026-11-23
+
+`0031_resource_validation_seal` pasa a `0035_resource_validation_seal`, con `when` 1794400000000. Al integrar `main` entra la `0032_collection_views` (1794100000000). Además, el stack de colecciones (#622 y #623) reserva la 0033 y la 0034. Con la marca anterior, el migrador de Drizzle se saltaría el sello en cualquier base que ya tuviera la 0032. El stack del sello (#518, #587 y #588) debe mezclarse después del de colecciones. Si se mezcla antes, la 0033 y la 0034 tendrán que pasar detrás de la 0035.

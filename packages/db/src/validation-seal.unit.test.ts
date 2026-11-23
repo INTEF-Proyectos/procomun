@@ -12,8 +12,8 @@ describe("validationSealOnStatusChange", () => {
 		expect(validationSealOnStatusChange("review", "published")).toBe("grant");
 	});
 
-	test("publicar directamente desde borrador no lo pone", () => {
-		expect(validationSealOnStatusChange("draft", "published")).toBe("keep");
+	test("publicar directamente desde borrador no lo pone y quita uno que sobrara", () => {
+		expect(validationSealOnStatusChange("draft", "published")).toBe("revoke");
 	});
 
 	test("archivar lo conserva y restaurar a borrador lo quita", () => {

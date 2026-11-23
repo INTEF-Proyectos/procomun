@@ -1201,15 +1201,27 @@ export class HttpApiClient implements ApiClient {
 		return res.json();
 	}
 
-	async trackResourceView(
+	trackResourceView(slug: string, sessionId: string) {
+		return this.trackView("resources", slug, sessionId);
+	}
+
+	trackCollectionView(slug: string, sessionId: string) {
+		return this.trackView("collections", slug, sessionId);
+	}
+
+	private async trackView(
+		target: "resources" | "collections",
 		slug: string,
 		sessionId: string,
 	): Promise<{ viewCount: number }> {
-		const res = await fetch(`/api/v1/resources/${slug}/view`, {
-			method: "POST",
-			headers: { "Content-Type": "application/json" },
-			body: JSON.stringify({ sessionId }),
-		});
+		const res = await fetch(
+			`/api/v1/${target}/${encodeURIComponent(slug)}/view`,
+			{
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify({ sessionId }),
+			},
+		);
 		if (!res.ok)
 			throw new Error(`No se pudo registrar la visita (${res.status})`);
 		return res.json();

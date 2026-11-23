@@ -25,6 +25,18 @@ export const RESOURCE_VIEWS_SCHEMA = [
 	`CREATE INDEX IF NOT EXISTS resource_view_sessions_created_at_idx ON resource_view_sessions (created_at)`,
 ];
 
+/** DDL de la migración 0032_collection_views (#608). */
+export const COLLECTION_VIEWS_SCHEMA = [
+	`ALTER TABLE "collections" ADD COLUMN IF NOT EXISTS view_count INTEGER NOT NULL DEFAULT 0`,
+	`CREATE TABLE IF NOT EXISTS "collection_view_sessions" (
+		collection_id TEXT NOT NULL REFERENCES "collections"(id) ON DELETE CASCADE,
+		session_hash VARCHAR(64) NOT NULL,
+		created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+		PRIMARY KEY (collection_id, session_hash)
+	)`,
+	`CREATE INDEX IF NOT EXISTS collection_view_sessions_collection_created_at_idx ON collection_view_sessions (collection_id, created_at)`,
+];
+
 /**
  * Cola de miniaturas generadas en el servidor (#470, ADR-0046). La migración
  * 0020_elpx_thumbnail_queue contiene estas mismas sentencias; un test
@@ -430,6 +442,7 @@ export const SCHEMA_STATEMENTS = [
 	`ALTER TABLE "collections" ADD COLUMN IF NOT EXISTS external_id TEXT`,
 	`ALTER TABLE "collections" ADD COLUMN IF NOT EXISTS published_at TIMESTAMP`,
 	`CREATE UNIQUE INDEX IF NOT EXISTS collections_import_source_external_id_idx ON "collections" (import_source, external_id) WHERE external_id IS NOT NULL`,
+	...COLLECTION_VIEWS_SCHEMA,
 	`CREATE TABLE IF NOT EXISTS "collection_resources" (
 		collection_id TEXT NOT NULL REFERENCES "collections"(id) ON DELETE CASCADE,
 		resource_id TEXT NOT NULL REFERENCES "resources"(id) ON DELETE CASCADE,
@@ -637,9 +650,15 @@ export const SCHEMA_STATEMENTS = [
 		ALTER TABLE "elpx_projects" ADD COLUMN has_screenshot BOOLEAN NOT NULL DEFAULT false;
 	EXCEPTION WHEN duplicate_column THEN NULL;
 	END $$`,
-	// Sello «Validado» (issue #420, ADR-0049, migración 0026)
+	// Sello «Validado» (issue #420, ADR-0049, migración 0035). La clave ajena
+	// lleva el mismo nombre que en la 0035 para no duplicarla.
 	`ALTER TABLE "resources" ADD COLUMN IF NOT EXISTS validated_at TIMESTAMP`,
-	`ALTER TABLE "resources" ADD COLUMN IF NOT EXISTS validated_by TEXT REFERENCES "user"(id) ON DELETE SET NULL`,
+	`ALTER TABLE "resources" ADD COLUMN IF NOT EXISTS validated_by TEXT`,
+	`DO $$ BEGIN
+		ALTER TABLE "resources" ADD CONSTRAINT resources_validated_by_user_id_fk
+			FOREIGN KEY (validated_by) REFERENCES "user"(id) ON DELETE SET NULL;
+	EXCEPTION WHEN duplicate_object THEN NULL;
+	END $$`,
 	`ALTER TABLE "resources" ADD COLUMN IF NOT EXISTS validation_source VARCHAR(20)`,
 	`DO $$ BEGIN
 		ALTER TABLE "resources" ADD CONSTRAINT resources_validation_source_check
