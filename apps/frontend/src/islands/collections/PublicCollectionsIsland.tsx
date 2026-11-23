@@ -311,8 +311,12 @@ export function PublicCollectionsIsland() {
 				const result = await api.getPublicCollectionBySlug(next.slug);
 				if (id !== requestId.current) return;
 				setDetail(result);
-				if (!result)
+				if (!result) {
+					// Sin ficha no se dejan a la vista las tarjetas del listado anterior.
+					setCollections([]);
+					setTotal(0);
 					setError("La colección solicitada no existe o no está publicada.");
+				}
 				return;
 			}
 			const result = await api.listPublicCollections({
@@ -361,7 +365,12 @@ export function PublicCollectionsIsland() {
 	}
 
 	function changeFilters(filters: Partial<CollectionLocationState>) {
-		navigate({ ...listing, ...filters, page: 1, slug: null }, "replace");
+		// El texto escrito sin pulsar Buscar también se aplica: así el cuadro de
+		// búsqueda y los resultados no se contradicen.
+		navigate(
+			{ ...listing, ...filters, query: query.trim(), page: 1, slug: null },
+			"replace",
+		);
 	}
 
 	function handleSearch(event: FormEvent<HTMLFormElement>) {
@@ -449,6 +458,7 @@ export function PublicCollectionsIsland() {
 						<KeywordCatalogField
 							id="collection-filter-tag"
 							filter
+							includeTags={false}
 							selected={
 								listing.tag
 									? [
@@ -504,40 +514,41 @@ export function PublicCollectionsIsland() {
 					</p>
 				) : null}
 
+				{/* La rejilla y la paginación siguen montadas mientras carga para que
+				    el foco no se pierda al cambiar de página. */}
 				<div className="collection-card-grid">
-					{!loading &&
-						collections.map((collection) => (
-							<a
-								key={collection.id}
-								href={buildCollectionUrl({ ...listing, slug: collection.slug })}
-								className="collection-public-card"
-								onClick={(event) => {
-									if (
-										event.metaKey ||
-										event.ctrlKey ||
-										event.shiftKey ||
-										event.altKey
-									)
-										return;
-									event.preventDefault();
-									navigate({ ...listing, slug: collection.slug }, "push");
-								}}
-							>
-								<div
-									className="collection-public-card-cover"
-									style={coverStyle(collection.coverImageUrl)}
-								/>
-								<div className="collection-public-card-body">
-									<p className="collection-public-card-eyebrow">Colección</p>
-									<h3>{collection.title}</h3>
-									<p>{truncate(collection.description ?? "", 180)}</p>
-									<div className="collection-public-card-meta">
-										<span>{collection.resourceCount ?? 0} recursos</span>
-										<span>{collection.curatorName ?? "Equipo editorial"}</span>
-									</div>
+					{collections.map((collection) => (
+						<a
+							key={collection.id}
+							href={buildCollectionUrl({ ...listing, slug: collection.slug })}
+							className="collection-public-card"
+							onClick={(event) => {
+								if (
+									event.metaKey ||
+									event.ctrlKey ||
+									event.shiftKey ||
+									event.altKey
+								)
+									return;
+								event.preventDefault();
+								navigate({ ...listing, slug: collection.slug }, "push");
+							}}
+						>
+							<div
+								className="collection-public-card-cover"
+								style={coverStyle(collection.coverImageUrl)}
+							/>
+							<div className="collection-public-card-body">
+								<p className="collection-public-card-eyebrow">Colección</p>
+								<h3>{collection.title}</h3>
+								<p>{truncate(collection.description ?? "", 180)}</p>
+								<div className="collection-public-card-meta">
+									<span>{collection.resourceCount ?? 0} recursos</span>
+									<span>{collection.curatorName ?? "Equipo editorial"}</span>
 								</div>
-							</a>
-						))}
+							</div>
+						</a>
+					))}
 				</div>
 
 				{!loading && !collections.length && !error ? (
@@ -546,32 +557,31 @@ export function PublicCollectionsIsland() {
 					</p>
 				) : null}
 
-				{!loading && total > PAGE_SIZE && (
-					<nav
-						className="collections-pagination"
-						aria-label="Paginación de colecciones"
+				<nav
+					className="collections-pagination"
+					aria-label="Paginación de colecciones"
+					hidden={total <= PAGE_SIZE}
+				>
+					<button
+						type="button"
+						disabled={page <= 1}
+						onClick={() => {
+							navigate({ ...listing, page: page - 1 }, "push");
+						}}
 					>
-						<button
-							type="button"
-							disabled={page <= 1}
-							onClick={() => {
-								navigate({ ...listing, page: page - 1 }, "push");
-							}}
-						>
-							Anterior
-						</button>
-						<span>{`Página ${page} de ${totalPages}`}</span>
-						<button
-							type="button"
-							disabled={page >= totalPages}
-							onClick={() => {
-								navigate({ ...listing, page: page + 1 }, "push");
-							}}
-						>
-							Siguiente
-						</button>
-					</nav>
-				)}
+						Anterior
+					</button>
+					<span>{`Página ${page} de ${totalPages}`}</span>
+					<button
+						type="button"
+						disabled={page >= totalPages}
+						onClick={() => {
+							navigate({ ...listing, page: page + 1 }, "push");
+						}}
+					>
+						Siguiente
+					</button>
+				</nav>
 			</section>
 		</section>
 	);

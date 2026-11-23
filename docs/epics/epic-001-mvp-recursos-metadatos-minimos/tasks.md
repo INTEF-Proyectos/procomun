@@ -129,3 +129,11 @@ En desarrollo
 
 - [x] Derivar las opciones de alta y edición de las licencias válidas de la API.
 - [x] Cubrir que editar el título conserva las licencias CC BY-ND y CC BY-NC-ND.
+
+## Filtros avanzados de colecciones — 2026-11-23 (#612)
+
+- [x] `GET /api/v1/collections` combina el texto con idioma, palabra clave, áreas de conocimiento y etapa, programa o ámbito educativo.
+- [x] El listado público guarda los filtros en la URL al paginar, abrir una ficha y volver.
+- [x] «Limpiar filtros» devuelve el texto y los filtros a su estado inicial.
+- [x] El filtro de palabra clave sugiere solo términos del catálogo, porque las colecciones no tienen etiquetas libres.
+- [ ] Las colecciones importadas aprovechan los filtros cuando el importador guarde sus metadatos (#615).

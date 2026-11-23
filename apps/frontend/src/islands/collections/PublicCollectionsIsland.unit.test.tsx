@@ -59,6 +59,8 @@ describe("PublicCollectionsIsland", () => {
 		expect(html).toContain("Buscar por título o descripción");
 		expect(html).toContain("Filtros Avanzados");
 		expect(html).toContain("Cargando colecciones...");
+		// La paginación sigue montada mientras carga: el foco no se pierde.
+		expect(html).toContain('aria-label="Paginación de colecciones"');
 	});
 
 	test("lee el estado de colecciones desde la URL", () => {
@@ -75,6 +77,18 @@ describe("PublicCollectionsIsland", () => {
 			tag: "funciones",
 			educationalCategory: "educacion-primaria",
 			educationalOption: "primer-ciclo",
+		});
+	});
+
+	test("descarta los filtros que solo tienen los recursos", () => {
+		expect(
+			readCollectionLocation(
+				"?resourceType=video&license=cc-by&professionalFamilies=sanidad",
+			),
+		).toMatchObject({
+			resourceType: "",
+			license: "",
+			professionalFamilies: [],
 		});
 	});
 
