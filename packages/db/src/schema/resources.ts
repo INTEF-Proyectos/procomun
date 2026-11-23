@@ -55,7 +55,7 @@ export const resources = pgTable(
 		assignedCuratorId: text("assigned_curator_id").references(() => user.id),
 		curatedAt: timestamp("curated_at"),
 		featuredAt: timestamp("featured_at"),
-		// Sello «Validado» (issue #420, ADR-0049, migración 0026). validated_at no
+		// Sello «Validado» (issue #420, ADR-0049, migración 0031). validated_at no
 		// nulo = validado; validated_by es nulo en los importados con `certified`.
 		validatedAt: timestamp("validated_at"),
 		validatedBy: text("validated_by").references(() => user.id, {

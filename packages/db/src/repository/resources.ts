@@ -675,7 +675,8 @@ export async function updateEditorialStatus(
 		.where(and(eq(resources.id, id), isNull(resources.deletedAt)));
 }
 
-const NO_VALIDATION = {
+/** Columnas del sello «Validado» (#420) vacías: el recurso deja de tenerlo. */
+export const NO_VALIDATION = {
 	validatedAt: null,
 	validatedBy: null,
 	validationSource: null,

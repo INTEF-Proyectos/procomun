@@ -16,6 +16,7 @@ import {
 import { resourceViewCounts } from "../schema/social.ts";
 import { uploadSessions } from "../schema/uploads.ts";
 import { initialThumbnailStatus } from "./elpx-thumbnails.ts";
+import { NO_VALIDATION } from "./resources.ts";
 import { buildSlug, type DrizzleDB } from "./shared.ts";
 
 export interface LegacyResourceInput {
@@ -326,7 +327,12 @@ export async function unpublishUnreviewedLegacyResource(
 	if (!options.dryRun) {
 		await db
 			.update(resources)
-			.set({ editorialStatus: "draft", updatedAt: new Date() })
+			// #420: volver a borrador quita también el sello «Validado».
+			.set({
+				editorialStatus: "draft",
+				updatedAt: new Date(),
+				...NO_VALIDATION,
+			})
 			.where(
 				and(
 					eq(resources.id, row.id),

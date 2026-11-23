@@ -18,7 +18,8 @@ export type ValidationSealChange = "grant" | "revoke" | "keep";
  *
  * - `review → published` («Aprobar y publicar») lo pone. Solo pueden hacerlo
  *   curator y admin (TRANSITION_RULES).
- * - Publicar directamente desde borrador no lo pone.
+ * - Publicar directamente desde borrador no lo pone, y quita el que hubiera
+ *   quedado en el borrador por otra vía (por ejemplo, `--fix-published`).
  * - Archivar lo conserva (no se ve mientras está archivado).
  * - Volver a borrador o a revisión lo quita: el recurso tendrá que revisarse
  *   de nuevo.
@@ -28,7 +29,7 @@ export function validationSealOnStatusChange(
 	to: string,
 ): ValidationSealChange {
 	if (from === "review" && to === "published") return "grant";
-	if (to === "draft" || to === "review") return "revoke";
+	if (from === "draft" || to === "draft" || to === "review") return "revoke";
 	return "keep";
 }
 

@@ -6,6 +6,7 @@ import {
 	ensureUser,
 	importLegacyResourceWithElpx,
 	markLegacyResourceCertified,
+	unpublishUnreviewedLegacyResource,
 	updateResource,
 } from "../repository.ts";
 import * as schema from "../schema/index.ts";
@@ -216,6 +217,26 @@ describe("sello de los importados con certified (#420)", () => {
 
 			expect(result).toEqual({ outcome: "edited", resourceId: id });
 			expect((await row(id))?.validatedAt).toBeNull();
+		});
+
+		test("--fix-published quita el sello al pasar a borrador", async () => {
+			const id = await imported("m6");
+			await markLegacyResourceCertified(db, "legacy-procomun", "m6", {
+				dryRun: false,
+			});
+
+			const result = await unpublishUnreviewedLegacyResource(
+				db,
+				"legacy-procomun",
+				"m6",
+				{ dryRun: false },
+			);
+
+			expect(result).toEqual({ outcome: "unpublished", resourceId: id });
+			const resource = await row(id);
+			expect(resource?.editorialStatus).toBe("draft");
+			expect(resource?.validatedAt).toBeNull();
+			expect(resource?.validationSource).toBeNull();
 		});
 
 		test("no encuentra lo que no se importó", async () => {

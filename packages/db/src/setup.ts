@@ -637,9 +637,15 @@ export const SCHEMA_STATEMENTS = [
 		ALTER TABLE "elpx_projects" ADD COLUMN has_screenshot BOOLEAN NOT NULL DEFAULT false;
 	EXCEPTION WHEN duplicate_column THEN NULL;
 	END $$`,
-	// Sello «Validado» (issue #420, ADR-0049, migración 0026)
+	// Sello «Validado» (issue #420, ADR-0049, migración 0031). La clave ajena
+	// lleva el mismo nombre que en la 0031 para no duplicarla.
 	`ALTER TABLE "resources" ADD COLUMN IF NOT EXISTS validated_at TIMESTAMP`,
-	`ALTER TABLE "resources" ADD COLUMN IF NOT EXISTS validated_by TEXT REFERENCES "user"(id) ON DELETE SET NULL`,
+	`ALTER TABLE "resources" ADD COLUMN IF NOT EXISTS validated_by TEXT`,
+	`DO $$ BEGIN
+		ALTER TABLE "resources" ADD CONSTRAINT resources_validated_by_user_id_fk
+			FOREIGN KEY (validated_by) REFERENCES "user"(id) ON DELETE SET NULL;
+	EXCEPTION WHEN duplicate_object THEN NULL;
+	END $$`,
 	`ALTER TABLE "resources" ADD COLUMN IF NOT EXISTS validation_source VARCHAR(20)`,
 	`DO $$ BEGIN
 		ALTER TABLE "resources" ADD CONSTRAINT resources_validation_source_check

@@ -1345,6 +1345,32 @@ describe("migración 0031_resource_validation_seal", () => {
 		}
 	});
 
+	test("createTables y la 0031 dejan una sola clave ajena en validated_by", async () => {
+		const { createTables } = await import("./setup.ts");
+		const migration = (
+			await readFile(
+				path.join(migrationsDir, "0031_resource_validation_seal.sql"),
+				"utf8",
+			)
+		).replaceAll("--> statement-breakpoint", "");
+		const db = new PGlite();
+		try {
+			await createTables(db);
+			await db.exec(migration);
+			const fks = await db.query<{ conname: string }>(
+				`SELECT c.conname FROM pg_constraint c
+				 JOIN pg_attribute a ON a.attrelid = c.conrelid AND a.attnum = ANY (c.conkey)
+				 WHERE c.conrelid = 'resources'::regclass AND c.contype = 'f'
+				   AND a.attname = 'validated_by'`,
+			);
+			expect(fks.rows.map((row) => row.conname)).toEqual([
+				"resources_validated_by_user_id_fk",
+			]);
+		} finally {
+			await db.close();
+		}
+	});
+
 	test("el esquema de arranque (setup.ts) crea las mismas columnas", () => {
 		for (const column of [
 			"validated_at",
