@@ -16,6 +16,7 @@ import type {
 	Resource,
 } from "../../lib/api-client.ts";
 import { getApiClient } from "../../lib/get-api-client.ts";
+import { labelFor } from "../../lib/labels.ts";
 import * as m from "../../paraglide/messages.js";
 import { AccessibleFeedback } from "../shared/AccessibleFeedback.tsx";
 import { ConfirmDialog } from "../shared/ConfirmDialog.tsx";
@@ -67,9 +68,7 @@ function truncate(text: string, maxLength: number) {
 }
 
 function statusLabel(status: string) {
-	return Object.hasOwn(STATUS_LABELS, status)
-		? (STATUS_LABELS[status]?.() ?? status)
-		: status;
+	return labelFor(STATUS_LABELS, status)?.() ?? status;
 }
 
 function statusBadgeClass(status: string) {
@@ -832,10 +831,11 @@ export function CollectionsCrudIsland({
 											}));
 										}}
 									>
-										<option value="draft">{m.resource_draft()}</option>
-										<option value="review">{m.resource_in_review()}</option>
-										<option value="published">{m.resource_published()}</option>
-										<option value="archived">{m.resource_archived()}</option>
+										{Object.entries(STATUS_LABELS).map(([value, label]) => (
+											<option key={value} value={value}>
+												{label()}
+											</option>
+										))}
 									</select>
 								</div>
 							)}
