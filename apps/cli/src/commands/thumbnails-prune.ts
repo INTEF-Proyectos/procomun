@@ -85,17 +85,14 @@ export async function pruneThumbnails(
 export async function assertExistingDatabase(env = process.env) {
 	if (env.DATABASE_URL) return;
 	const dir = env.PGLITE_DIR?.replace(/^file:\/\//, "");
-	// La API y el CLI resuelven una ruta relativa desde directorios distintos.
-	if (dir && !/^\w+:\/\//.test(dir) && !isAbsolute(dir))
-		throw new Error(
-			"PGLITE_DIR debe ser una ruta absoluta para thumbnails:prune",
-		);
-	if (
-		dir &&
-		!/^\w+:\/\//.test(dir) &&
-		(await Bun.file(join(dir, "PG_VERSION")).exists())
-	)
-		return;
+	if (dir && !/^\w+:\/\//.test(dir)) {
+		// La API y el CLI resuelven una ruta relativa desde directorios distintos.
+		if (!isAbsolute(dir))
+			throw new Error(
+				"PGLITE_DIR debe ser una ruta absoluta para thumbnails:prune",
+			);
+		if (await Bun.file(join(dir, "PG_VERSION")).exists()) return;
+	}
 	throw new Error(
 		"thumbnails:prune necesita DATABASE_URL o un PGLITE_DIR con una base ya creada",
 	);
