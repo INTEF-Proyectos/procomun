@@ -42,10 +42,7 @@ export function ValidatedBadge({
 
 	// Los importados no llevan fecha: la del sello sería la de la importación,
 	// no la de la revisión en el Procomún antiguo.
-	const showDate =
-		resource.validationSource !== "legacy" &&
-		!!dateLabel &&
-		!!resource.validatedAt;
+	const showDate = resource.validationSource !== "legacy" && !!dateLabel;
 	const datetime =
 		resource.validatedAt instanceof Date
 			? resource.validatedAt.toISOString()
