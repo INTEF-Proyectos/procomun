@@ -89,6 +89,25 @@ export function dashboardResourceCounts(data: {
 	};
 }
 
+/**
+ * #575: si el autor o editor tiene colecciones propias, para mostrar «Mis
+ * colecciones». El curator las gestiona en el backoffice. Devuelve null si la
+ * consulta falla: en una recarga silenciosa se conserva el valor anterior y la
+ * pestaña abierta no desaparece por un fallo de red.
+ */
+export function detectOwnCollections(
+	role: string | undefined,
+	listCollections: () => Promise<{ total: number }>,
+): Promise<boolean | null> {
+	if (!hasMinRole(role, "author") || hasMinRole(role, "curator")) {
+		return Promise.resolve(false);
+	}
+	return listCollections().then(
+		(result) => result.total > 0,
+		() => null,
+	);
+}
+
 /** El avatar del perfil mide 6rem (96 px): se pide al doble para pantallas densas. */
 const PROFILE_AVATAR_SIZE = 192;
 
@@ -541,15 +560,12 @@ export function PublicDashboardIsland() {
 					api.getBadgeConfig().catch(() => null),
 					api.getMyProfile().catch(() => undefined),
 					profileAvatarUrl(user),
-					hasMinRole(user.role, "author") && !hasMinRole(user.role, "curator")
-						? api
-								.listCollections({ limit: 1 })
-								.then((result) => result.total > 0)
-								.catch(() => false)
-						: false,
+					detectOwnCollections(user.role, () =>
+						api.listCollections({ limit: 1 }),
+					),
 				]);
 			if (config) setBadgeConfig(config);
-			setHasOwnCollections(hasCollections);
+			if (hasCollections !== null) setHasOwnCollections(hasCollections);
 			setProfileLoadFailed(profile === undefined);
 			setProfileDetails(profile?.profile ?? EMPTY_PROFILE_DETAILS);
 

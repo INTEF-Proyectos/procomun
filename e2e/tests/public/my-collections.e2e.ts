@@ -82,7 +82,7 @@ for (const role of ["author", "editor"] as const) {
 			page.getByRole("tab", { name: "Mis colecciones" }),
 		).toHaveAttribute("aria-selected", "true");
 		await expect(
-			page.getByRole("button", { name: /crear colección|eliminar/i }),
+			page.getByRole("button", { name: /crear colecci[oó]n|eliminar/i }),
 		).toHaveCount(0);
 		await page
 			.getByRole("button", { name: "Editar Itinerario importado" })

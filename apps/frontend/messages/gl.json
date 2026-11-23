@@ -210,6 +210,7 @@
 	"collection_resources_hint": "Engade recursos existentes e reordénaos coas frechas.",
 	"collection_resources_empty": "A colección aínda non ten recursos asociados.",
 	"collection_search_resources": "Busca recursos para engadilos á colección.",
+	"collection_resource_search_placeholder": "Título do recurso",
 	"collection_add_resource": "Engadir",
 	"collection_move_up": "Subir",
 	"collection_move_down": "Baixar",

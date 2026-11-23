@@ -210,6 +210,7 @@
 	"collection_resources_hint": "Gehitu lehendik dauden baliabideak eta berrantolatu geziekin.",
 	"collection_resources_empty": "Bildumak ez du baliabiderik oraindik.",
 	"collection_search_resources": "Bilatu bildumara gehitzeko baliabideak.",
+	"collection_resource_search_placeholder": "Baliabidearen izenburua",
 	"collection_add_resource": "Gehitu",
 	"collection_move_up": "Igo",
 	"collection_move_down": "Jaitsi",

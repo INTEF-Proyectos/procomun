@@ -210,6 +210,7 @@
 	"collection_resources_hint": "Afegeix recursos existents i reordena’ls amb les fletxes.",
 	"collection_resources_empty": "La col·lecció encara no té recursos associats.",
 	"collection_search_resources": "Cerca recursos per afegir-los a la col·lecció.",
+	"collection_resource_search_placeholder": "Títol del recurs",
 	"collection_add_resource": "Afegeix",
 	"collection_move_up": "Puja",
 	"collection_move_down": "Baixa",

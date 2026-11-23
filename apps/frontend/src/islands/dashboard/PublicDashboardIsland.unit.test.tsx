@@ -4,6 +4,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import type { DashboardSummary } from "../../lib/types/user-extended.ts";
 import {
 	dashboardResourceCounts,
+	detectOwnCollections,
 	hasEmailVerificationSuccess,
 	PROFILE_TABS,
 	PublicDashboardIsland,
@@ -195,5 +196,31 @@ describe("profileChanges (#533, revisión de #586)", () => {
 			}),
 		).toEqual({ bio: "", profile: { locality: "", twitter: "@ana" } });
 		expect(profileChanges(original, original)).toEqual({});
+	});
+});
+
+describe("detectOwnCollections (#575)", () => {
+	const withTotal = (total: number) => () => Promise.resolve({ total });
+
+	test("solo consulta para autores y editores", async () => {
+		let calls = 0;
+		const list = () => {
+			calls++;
+			return Promise.resolve({ total: 3 });
+		};
+		expect(await detectOwnCollections("viewer", list)).toBe(false);
+		expect(await detectOwnCollections("curator", list)).toBe(false);
+		expect(await detectOwnCollections("admin", list)).toBe(false);
+		expect(calls).toBe(0);
+		expect(await detectOwnCollections("author", list)).toBe(true);
+		expect(await detectOwnCollections("editor", withTotal(0))).toBe(false);
+	});
+
+	test("un fallo devuelve null para no ocultar la pestaña abierta", async () => {
+		expect(
+			await detectOwnCollections("editor", () =>
+				Promise.reject(new Error("500")),
+			),
+		).toBeNull();
 	});
 });

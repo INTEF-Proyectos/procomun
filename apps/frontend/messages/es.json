@@ -210,6 +210,7 @@
 	"collection_resources_hint": "Añade recursos existentes y reordénalos con flechas.",
 	"collection_resources_empty": "La colección todavía no tiene recursos asociados.",
 	"collection_search_resources": "Busca recursos para añadirlos a la colección.",
+	"collection_resource_search_placeholder": "Título del recurso",
 	"collection_add_resource": "Añadir",
 	"collection_move_up": "Subir",
 	"collection_move_down": "Bajar",

@@ -1,10 +1,11 @@
 import { describe, expect, test } from "bun:test";
 import type { ReactElement, ReactNode } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import type { CollectionRecord } from "../../lib/api-client.ts";
+import type { CollectionRecord, Resource } from "../../lib/api-client.ts";
 import {
 	buildCollectionColumns,
 	CollectionsCrudIsland,
+	mergeResourceCandidates,
 } from "./CollectionsCrudIsland.tsx";
 
 function renderCell(node: ReactNode): string {
@@ -99,5 +100,29 @@ describe("CollectionsCrudIsland", () => {
 			"admin-collection-cell--clamp",
 		);
 		expect(byId.cover?.className).toContain("admin-collection-cell--clamp");
+	});
+});
+
+describe("mergeResourceCandidates (#575)", () => {
+	const resource = (id: string) => ({ id, title: id }) as unknown as Resource;
+
+	test("quita duplicados y excluidos y respeta el límite", () => {
+		const merged = mergeResourceCandidates(
+			[
+				[resource("a"), resource("b"), resource("enlazado")],
+				[resource("b"), resource("c"), resource("d")],
+			],
+			new Set(["enlazado"]),
+			3,
+		);
+		expect(merged.map((item) => item.id)).toEqual(["a", "b", "c"]);
+	});
+
+	test("vale con una sola lista cuando la otra búsqueda falla", () => {
+		expect(
+			mergeResourceCandidates([[resource("a")]], new Set()).map(
+				(item) => item.id,
+			),
+		).toEqual(["a"]);
 	});
 });

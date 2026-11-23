@@ -85,6 +85,25 @@ function coverPreview(url: string | null | undefined) {
 	return m.collection_has_cover();
 }
 
+/**
+ * #575: une las búsquedas de recursos (los gestionables y, para el propietario
+ * sin rol de curación, el catálogo público) sin duplicados, sin los ya
+ * enlazados y sin pasar del límite de resultados.
+ */
+export function mergeResourceCandidates(
+	lists: readonly (readonly Resource[])[],
+	excludedIds: ReadonlySet<string>,
+	limit = RESOURCE_SEARCH_LIMIT,
+): Resource[] {
+	const candidates = new Map<string, Resource>();
+	for (const list of lists) {
+		for (const item of list) {
+			if (!excludedIds.has(item.id)) candidates.set(item.id, item);
+		}
+	}
+	return [...candidates.values()].slice(0, limit);
+}
+
 type CollectionViewer = { id: string; role?: string };
 
 export interface CollectionColumnHandlers {
@@ -308,20 +327,22 @@ export function CollectionsCrudIsland({
 				limit: RESOURCE_SEARCH_LIMIT,
 				offset: 0,
 			};
-			const [manageable, published] = await Promise.all([
+			// Si falla una de las dos búsquedas, valen los resultados de la otra.
+			const settled = await Promise.allSettled([
 				api.listAdminResources(options),
-				canCurate ? null : api.listResources(options),
+				...(canCurate ? [] : [api.listResources(options)]),
 			]);
-			const candidates = new Map(
-				manageable.data.map((item) => [item.id, item]),
+			const lists = settled.flatMap((result) =>
+				result.status === "fulfilled" ? [result.value.data] : [],
 			);
-			for (const item of published?.data ?? []) candidates.set(item.id, item);
-			const currentIds = new Set(
-				linkedResources.map((item) => item.resourceId),
-			);
+			if (lists.length === 0) throw new Error(m.catalog_error());
 			setResourceResults(
-				[...candidates.values()].filter(
-					(item) => item.id !== collectionId && !currentIds.has(item.id),
+				mergeResourceCandidates(
+					lists,
+					new Set([
+						collectionId,
+						...linkedResources.map((item) => item.resourceId),
+					]),
 				),
 			);
 		} catch {
@@ -426,15 +447,17 @@ export function CollectionsCrudIsland({
 			: submitter?.getAttribute("value") === "review"
 				? "review"
 				: undefined;
-		if (
+		const statusError =
 			user &&
 			collectionStatusChangeError(
 				user,
 				editing.editorialStatus,
 				requestedStatus,
-			)
-		)
+			);
+		if (statusError) {
+			setEditError(statusError);
 			return;
+		}
 
 		setBusyAction("edit");
 		setEditError("");
@@ -859,7 +882,7 @@ export function CollectionsCrudIsland({
 									</span>
 									<input
 										type="search"
-										placeholder={m.collection_title()}
+										placeholder={m.collection_resource_search_placeholder()}
 										value={resourceSearch}
 										onChange={(event) =>
 											setResourceSearch(event.currentTarget.value)

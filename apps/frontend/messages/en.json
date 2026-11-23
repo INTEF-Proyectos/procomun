@@ -210,6 +210,7 @@
 	"collection_resources_hint": "Add existing resources and reorder them with the arrow buttons.",
 	"collection_resources_empty": "The collection has no resources yet.",
 	"collection_search_resources": "Search for resources to add to the collection.",
+	"collection_resource_search_placeholder": "Resource title",
 	"collection_add_resource": "Add",
 	"collection_move_up": "Move up",
 	"collection_move_down": "Move down",
