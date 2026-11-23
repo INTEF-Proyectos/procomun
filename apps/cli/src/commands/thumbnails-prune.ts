@@ -1,4 +1,5 @@
 import { lstat, readdir, unlink } from "node:fs/promises";
+import { join } from "node:path";
 import type { DrizzleDB } from "@procomun/db/repository";
 import { collections, elpxProjects, resources } from "@procomun/db/schema";
 import { isNotNull } from "drizzle-orm";
@@ -76,6 +77,20 @@ export async function pruneThumbnails(
 	return report;
 }
 
+export async function assertExistingDatabase(env = process.env) {
+	if (env.DATABASE_URL) return;
+	const dir = env.PGLITE_DIR?.replace(/^file:\/\//, "");
+	if (
+		dir &&
+		!/^\w+:\/\//.test(dir) &&
+		(await Bun.file(join(dir, "PG_VERSION")).exists())
+	)
+		return;
+	throw new Error(
+		"thumbnails:prune necesita DATABASE_URL o un PGLITE_DIR con una base ya creada",
+	);
+}
+
 export async function thumbnailsPrune(args: string[]) {
 	if (args.some((arg) => arg !== "--dry-run"))
 		throw new Error("Uso: thumbnails:prune [--dry-run]");
@@ -83,6 +98,9 @@ export async function thumbnailsPrune(args: string[]) {
 		import("../../../api/src/db.ts"),
 		import("../../../api/src/uploads/config.ts"),
 	]);
+	// db.ts ya ha cargado el .env; sin base explícita crearía una PGlite vacía
+	// y todas las miniaturas parecerían huérfanas.
+	await assertExistingDatabase();
 	await waitForDb();
 	const dryRun = args.includes("--dry-run");
 	const { files, bytes } = await pruneThumbnails(

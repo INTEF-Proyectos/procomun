@@ -98,7 +98,9 @@ make format
 
 Ejecuta este comando desde el entorno del despliegue, con la misma base de
 datos y el mismo `UPLOAD_STORAGE_DIR` que usa la aplicación. Usa una ruta
-absoluta si el despliegue tiene configurada una ruta relativa.
+absoluta si el despliegue tiene configurada una ruta relativa. El comando
+exige `DATABASE_URL` o un `PGLITE_DIR` con una base ya creada; si falta, sale
+con error sin tocar el almacén, también en simulación.
 
 ```sh
 bun run --filter '@procomun/cli' cli -- thumbnails:prune --dry-run
