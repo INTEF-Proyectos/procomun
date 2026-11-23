@@ -1,8 +1,10 @@
 import { relations, sql } from "drizzle-orm";
 import {
 	boolean,
+	index,
 	integer,
 	pgTable,
+	primaryKey,
 	text,
 	timestamp,
 	uniqueIndex,
@@ -19,6 +21,7 @@ export const collections = pgTable(
 		title: text("title").notNull(),
 		description: text("description").notNull(),
 		coverImageUrl: text("cover_image_url"),
+		viewCount: integer("view_count").notNull().default(0),
 		isOrdered: boolean("is_ordered").notNull().default(false),
 		editorialStatus: varchar("editorial_status", { length: 50 })
 			.notNull()
@@ -41,6 +44,24 @@ export const collections = pgTable(
 		uniqueIndex("collections_import_source_external_id_idx")
 			.on(table.importSource, table.externalId)
 			.where(sql`${table.externalId} IS NOT NULL`),
+	],
+);
+
+export const collectionViewSessions = pgTable(
+	"collection_view_sessions",
+	{
+		collectionId: text("collection_id")
+			.notNull()
+			.references(() => collections.id, { onDelete: "cascade" }),
+		sessionHash: varchar("session_hash", { length: 64 }).notNull(),
+		createdAt: timestamp("created_at").notNull().defaultNow(),
+	},
+	(table) => [
+		primaryKey({ columns: [table.collectionId, table.sessionHash] }),
+		index("collection_view_sessions_collection_created_at_idx").on(
+			table.collectionId,
+			table.createdAt,
+		),
 	],
 );
 

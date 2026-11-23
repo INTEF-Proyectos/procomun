@@ -103,7 +103,10 @@ export async function getCollectionBySlug(
 		conditions.push(eq(collections.editorialStatus, opts.status));
 
 	const rows = await db
-		.select(collectionSelection(opts.resourceStatus))
+		.select({
+			...collectionSelection(opts.resourceStatus),
+			viewCount: collections.viewCount,
+		})
 		.from(collections)
 		.leftJoin(user, eq(collections.curatorId, user.id))
 		.where(andWhere(conditions))

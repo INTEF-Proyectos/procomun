@@ -16,7 +16,9 @@ import {
 	parseMyResourcesStatus,
 } from "../social/my-resources-service.ts";
 import {
+	getCollectionRatingsSummary,
 	getResourceRatingsSummary,
+	upsertCollectionRating,
 	upsertResourceRating,
 } from "../social/ratings-service.ts";
 import { enrichResourceCards } from "../social/resource-card.ts";
@@ -27,6 +29,7 @@ import {
 } from "../social/resource-stats-service.ts";
 import {
 	isValidViewSessionId,
+	recordCollectionView,
 	recordResourceView,
 } from "../social/resource-views-service.ts";
 
@@ -96,6 +99,40 @@ socialRoutes.post("/resources/:slug/ratings", requireAuth, async (c) => {
 	});
 
 	return c.json(result);
+});
+
+// GET/POST /collections/:slug/ratings (#609)
+socialRoutes.get("/collections/:slug/ratings", async (c) => {
+	const summary = await getCollectionRatingsSummary(
+		c.req.param("slug"),
+		c.get("user")?.id,
+	);
+	return summary
+		? c.json(summary)
+		: c.json({ error: "Colección no encontrada" }, 404);
+});
+
+socialRoutes.post("/collections/:slug/ratings", requireAuth, async (c) => {
+	const slug = c.req.param("slug");
+	if (!slug) return c.json({ error: "Falta slug" }, 400);
+	const body = await c.req.json<{ score?: unknown }>().catch(() => null);
+	const score = body?.score;
+	if (
+		typeof score !== "number" ||
+		!Number.isInteger(score) ||
+		score < 1 ||
+		score > 5
+	) {
+		return c.json(
+			{ error: "La puntuación debe ser un entero entre 1 y 5" },
+			400,
+		);
+	}
+
+	const rating = await upsertCollectionRating(slug, requireUser(c).id, score);
+	return rating
+		? c.json(rating)
+		: c.json({ error: "Colección no encontrada" }, 404);
 });
 
 // ---------------------------------------------------------------------------
@@ -402,6 +439,22 @@ socialRoutes.post("/resources/:slug/view", async (c) => {
 	}
 
 	const viewCount = await recordResourceView(resource.id, body.sessionId);
+	return c.json({ viewCount });
+});
+
+socialRoutes.post("/collections/:slug/view", async (c) => {
+	const body = await c.req.json<{ sessionId?: unknown }>().catch(() => null);
+	if (!isValidViewSessionId(body?.sessionId)) {
+		return c.json({ error: "Identificador de sesión no válido" }, 400);
+	}
+
+	const viewCount = await recordCollectionView(
+		c.req.param("slug"),
+		body.sessionId,
+	);
+	if (viewCount === null) {
+		return c.json({ error: "Colección no encontrada" }, 404);
+	}
 	return c.json({ viewCount });
 });
 

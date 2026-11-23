@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { getViewSessionId, trackResourceViewOnce } from "./view-tracking.ts";
+import { getViewSessionId, trackViewOnce } from "./view-tracking.ts";
 
 function memoryStorage(): Storage {
 	const data = new Map<string, string>();
@@ -39,9 +39,9 @@ describe("view-tracking (#421)", () => {
 			return { viewCount: calls.length };
 		};
 
-		expect(await trackResourceViewOnce("a", track, storage)).toBe(1);
-		expect(await trackResourceViewOnce("a", track, storage)).toBeNull();
-		expect(await trackResourceViewOnce("b", track, storage)).toBe(2);
+		expect(await trackViewOnce("a", track, storage)).toBe(1);
+		expect(await trackViewOnce("a", track, storage)).toBeNull();
+		expect(await trackViewOnce("b", track, storage)).toBe(2);
 		expect(calls.map(([slug]) => slug)).toEqual(["a", "b"]);
 		expect(new Set(calls.map(([, id]) => id)).size).toBe(1);
 	});
@@ -54,9 +54,9 @@ describe("view-tracking (#421)", () => {
 			return { viewCount: 7 };
 		};
 
-		expect(await trackResourceViewOnce("a", track, storage)).toBeNull();
+		expect(await trackViewOnce("a", track, storage)).toBeNull();
 		fail = false;
-		expect(await trackResourceViewOnce("a", track, storage)).toBe(7);
+		expect(await trackViewOnce("a", track, storage)).toBe(7);
 	});
 
 	test("sin almacenamiento disponible no cuenta", async () => {
@@ -65,7 +65,7 @@ describe("view-tracking (#421)", () => {
 			called = true;
 			return { viewCount: 1 };
 		};
-		expect(await trackResourceViewOnce("a", track, null)).toBeNull();
+		expect(await trackViewOnce("a", track, null)).toBeNull();
 		expect(called).toBe(false);
 	});
 });
