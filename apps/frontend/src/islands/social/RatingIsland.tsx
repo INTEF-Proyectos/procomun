@@ -28,6 +28,26 @@ function loadRating(
 		: api.getResourceRatings(slug);
 }
 
+/**
+ * Guarda el voto y recarga el resumen. Si la recarga falla, el voto ya está
+ * guardado: se conserva el resumen anterior con la puntuación nueva en lugar
+ * de mostrar un error.
+ */
+export async function rateAndRefresh(
+	api: ApiClient,
+	target: "resource" | "collection",
+	slug: string,
+	score: number,
+	current: RatingData | null,
+): Promise<RatingData> {
+	const result =
+		target === "collection"
+			? await api.submitCollectionRating(slug, score)
+			: await api.submitRating(slug, score);
+	const saved = { ...(current ?? EMPTY_RATING), userScore: result.score };
+	return loadRating(api, target, slug).catch(() => saved);
+}
+
 export function RatingIsland({
 	slug,
 	target = "resource",
@@ -58,15 +78,7 @@ export function RatingIsland({
 		setError("");
 		try {
 			const api = await getApiClient();
-			const result =
-				target === "collection"
-					? await api.submitCollectionRating(slug, score)
-					: await api.submitRating(slug, score);
-			setRating((current) => ({
-				...(current ?? EMPTY_RATING),
-				userScore: result.score,
-			}));
-			setRating(await loadRating(api, target, slug));
+			setRating(await rateAndRefresh(api, target, slug, score, rating));
 		} catch {
 			setError("No se pudo actualizar la valoración. Inténtalo de nuevo.");
 		} finally {
