@@ -237,7 +237,6 @@ describe("import:legacy-itineraries (integración con PGlite)", () => {
 				knowledgeArea: 1,
 				labelsStr: 2,
 				learningContext: 0,
-				educationalDescription: 0,
 			},
 		});
 		const byId = Object.fromEntries(

@@ -73,9 +73,7 @@ type Deps = Awaited<ReturnType<typeof loadImportLegacyItinerariesDependencies>>;
 /** Por qué no se asigna la colección a una cuenta. Nunca lleva el correo. */
 export type OwnerReason = AuthorWithoutAccount["reason"];
 
-type LegacyItineraryDiscardedField =
-	| keyof LegacyItineraryMetadata
-	| "educationalDescription";
+type LegacyItineraryDiscardedField = keyof LegacyItineraryMetadata;
 type ImportedRecord = {
 	outcome: ImportLegacyCollectionResult["outcome"];
 	itineraryId: string;
@@ -210,7 +208,7 @@ export async function runImportLegacyItinerariesCommand(
 			.map(([field, count]) => `${field} (${count})`);
 		if (discarded.length > 0) {
 			console.log(
-				`${TAG} Metadatos descartados (las colecciones no los tienen): ${discarded.join(", ")}`,
+				`${TAG} Metadatos con valores sin importar (sin correspondencia, ambiguos o fuera de límite): ${discarded.join(", ")}`,
 			);
 		}
 		return t.errored > 0 || t.blocked > 0 ? 1 : 0;
@@ -274,7 +272,6 @@ export async function runImportLegacyItineraries(
 			knowledgeArea: 0,
 			labelsStr: 0,
 			learningContext: 0,
-			educationalDescription: 0,
 		},
 	};
 	const records: ItineraryRecord[] = [];
@@ -336,7 +333,7 @@ export async function runImportLegacyItineraries(
 			totals.missingResources += result.missingResources.length;
 			const discardedFields = Object.keys(
 				result.metadataIssues ?? {},
-			) as (keyof LegacyItineraryMetadata)[];
+			) as LegacyItineraryDiscardedField[];
 			for (const field of discardedFields) {
 				totals.discardedMetadata[field]++;
 			}
