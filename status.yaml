@@ -5250,3 +5250,23 @@ tasks:
       La release llegó al tope de 1000 adjuntos y la publicación fallaba. El
       workflow retira hasta 200 capturas de PR cerrados por ejecución. Los
       comentarios de PR cerrados pierden sus imágenes.
+  T-2026-11-24-09011752:
+    date: 2026-11-24
+    agent: "devops-sre"
+    task: "Desplegar con las imágenes publicadas sin construirlas en el servidor"
+    status: Done
+    related: ["#519", "#470"]
+    notes: >
+      El compose nombra las imágenes de ghcr.io y hay un objetivo
+      up-docker-images que las descarga. Construir la del thumbnailer en un
+      servidor tardaba minutos por la instalación de Chromium.
+  T-2026-11-24-09262038:
+    date: 2026-11-24
+    agent: "devops-sre + documentacion-y-roadmap"
+    task: "Documentar el despliegue en servidor con las imágenes publicadas"
+    status: Done
+    related: ["#641", "#519"]
+    notes: >
+      La guía de instalación tiene los pasos y docs/operaciones/despliegue
+      el docker-compose de ejemplo. Probado en dos servidores: el de pruebas
+      propio y uno del INTEF.

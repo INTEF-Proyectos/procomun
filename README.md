@@ -81,6 +81,7 @@ make up
 make up-api
 make up-frontend
 make up-docker
+make up-docker-images
 make seed-docker
 make down-docker
 make up-postgres
