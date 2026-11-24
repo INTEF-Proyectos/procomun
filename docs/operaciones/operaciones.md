@@ -96,6 +96,8 @@ make up-docker-images
 
 Equivale a `docker compose pull` seguido de `docker compose up --no-build -d`.
 
+Para un servidor sin el repositorio clonado, `docs/operaciones/instalacion.md` tiene los pasos con el `docker-compose.yml` de `docs/operaciones/despliegue/`.
+
 ## Troubleshooting: problemas comunes y soluciones
 
 - **Error de Conexión a DB**: Verifique que el contenedor `db` esté `healthy` con `docker ps`.

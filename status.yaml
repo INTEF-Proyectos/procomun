@@ -5250,3 +5250,13 @@ tasks:
       El compose nombra las imágenes de ghcr.io y hay un objetivo
       up-docker-images que las descarga. Construir la del thumbnailer en un
       servidor tardaba minutos por la instalación de Chromium.
+  T-2026-11-24-09262038:
+    date: 2026-11-24
+    agent: "devops-sre + documentacion-y-roadmap"
+    task: "Documentar el despliegue en servidor con las imágenes publicadas"
+    status: Done
+    related: ["#641", "#519"]
+    notes: >
+      La guía de instalación tiene los pasos y docs/operaciones/despliegue
+      el docker-compose de ejemplo. Probado en dos servidores: el de pruebas
+      propio y uno del INTEF.
