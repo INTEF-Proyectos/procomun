@@ -16,6 +16,8 @@ export type RenderOutcome =
 
 export interface ThumbnailRenderer {
 	render(hash: string): Promise<RenderOutcome>;
+	/** El servicio responde. Lo usa el bucle para saber que una caída terminó. */
+	healthy?(): Promise<boolean>;
 }
 
 /** Cota de seguridad; el servicio ya apunta a 100 KB. */
