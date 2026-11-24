@@ -11,6 +11,8 @@ import type {
 } from "../legacy-import/itinerary.ts";
 import { LEGACY_IMPORT_SYSTEM_USER_ID } from "../legacy-import/system-user.ts";
 import {
+	collectionKeywords,
+	collectionKnowledgeAreas,
 	collectionResources,
 	collections,
 	type LegacyImportedCollectionMetadata,
@@ -22,7 +24,7 @@ import {
 	matchLegacyLabels,
 	normalizeKeywordKey,
 } from "../tags/keyword-catalog.ts";
-import { getCollectionById, updateCollection } from "./collections.ts";
+import { getCollectionById } from "./collections.ts";
 import { listKeywordCatalog } from "./keyword-catalog.ts";
 import { listKnowledgeAreas } from "./knowledge-areas.ts";
 import type { DrizzleDB } from "./shared.ts";
@@ -79,8 +81,8 @@ type MetadataCatalog = Awaited<
 >;
 
 /**
- * Añade a `current` lo que el origen trae por primera vez. Lo que el
- * importador ya ofreció (`offered`) no vuelve: si falta, es que se quitó a
+ * Lo que el origen trae por primera vez y la colección aún no tiene. Lo que
+ * el importador ya ofreció (`offered`) no vuelve: si falta, es que se quitó a
  * mano (#628). `offered` sale ampliado salvo que no cupiera, para reintentarlo.
  */
 function addCatalogMatches(
@@ -89,12 +91,11 @@ function addCatalogMatches(
 	offered: string[],
 	max: number,
 ) {
-	const fresh = incoming.filter((id) => !offered.includes(id));
-	const combined = [...new Set([...current, ...fresh])];
-	const changed = combined.length > current.length;
-	const overLimit = changed && combined.length > max;
+	const fresh = [...new Set(incoming)].filter((id) => !offered.includes(id));
+	const added = fresh.filter((id) => !current.includes(id));
+	const overLimit = added.length > 0 && current.length + added.length > max;
 	return {
-		ids: changed && !overLimit ? combined : undefined,
+		added: overLimit ? [] : added,
 		overLimit,
 		offered: overLimit ? offered : [...new Set([...offered, ...fresh])].sort(),
 	};
@@ -182,8 +183,8 @@ function resolveCollectionMetadata(
 	return {
 		issues,
 		fields: {
-			knowledgeAreaIds: areas.ids,
-			keywordIds: keywords.ids,
+			knowledgeAreaIds: areas.added,
+			keywordIds: keywords.added,
 			educationalAreas,
 		},
 		offered: {
@@ -193,6 +194,50 @@ function resolveCollectionMetadata(
 				offered.educationalAreas || contexts.assignments.length > 0,
 		},
 	};
+}
+
+type ResolvedMetadata = ReturnType<typeof resolveCollectionMetadata>;
+
+function metadataFieldsChanged(fields: ResolvedMetadata["fields"]) {
+	return (
+		fields.knowledgeAreaIds.length > 0 ||
+		fields.keywordIds.length > 0 ||
+		!!fields.educationalAreas
+	);
+}
+
+/**
+ * Escribe los metadatos importados. Las áreas y las palabras clave se
+ * insertan, no se sustituye el conjunto: lo calculado sale de una lectura
+ * anterior a la transacción y reemplazar pisaría una edición simultánea.
+ */
+async function applyImportedMetadata(
+	tx: DrizzleDB,
+	collectionId: string,
+	{ fields, offered }: ResolvedMetadata,
+) {
+	if (fields.keywordIds.length)
+		await tx
+			.insert(collectionKeywords)
+			.values(fields.keywordIds.map((tagId) => ({ collectionId, tagId })))
+			.onConflictDoNothing();
+	if (fields.knowledgeAreaIds.length)
+		await tx
+			.insert(collectionKnowledgeAreas)
+			.values(
+				fields.knowledgeAreaIds.map((areaId) => ({ collectionId, areaId })),
+			)
+			.onConflictDoNothing();
+	await tx
+		.update(collections)
+		.set({
+			legacyImportedMetadata: offered,
+			...(fields.educationalAreas
+				? { educationalAreas: fields.educationalAreas }
+				: {}),
+			...(metadataFieldsChanged(fields) ? { updatedAt: new Date() } : {}),
+		})
+		.where(eq(collections.id, collectionId));
 }
 
 export interface ImportLegacyCollectionResult {
@@ -334,12 +379,12 @@ export async function importLegacyCollection(
 				existing?.legacyImportedMetadata ?? NOTHING_OFFERED,
 			)
 		: undefined;
-	// También cuenta apuntar lo ofrecido, aunque no cambie ningún campo.
-	const metadataChanged =
-		metadata &&
-		(Object.values(metadata.fields).some(Boolean) ||
-			offeredKey(metadata.offered) !==
-				offeredKey(existing?.legacyImportedMetadata ?? NOTHING_OFFERED));
+	const metadataChanged = !!metadata && metadataFieldsChanged(metadata.fields);
+	// Apuntar lo ofrecido no cambia nada visible: no cuenta como actualización.
+	const offeredChanged =
+		!!metadata &&
+		offeredKey(metadata.offered) !==
+			offeredKey(existing?.legacyImportedMetadata ?? NOTHING_OFFERED);
 	const base = {
 		linkedResources: resourceIds.length,
 		missingResources: missing,
@@ -367,12 +412,11 @@ export async function importLegacyCollection(
 				importSource: itinerary.importSource,
 				externalId: itinerary.externalId,
 				publishedAt: itinerary.publishedAt,
-				legacyImportedMetadata: metadata?.offered,
 				createdAt: now,
 				updatedAt: now,
 			});
 			await replaceResources(tx, id, resourceIds);
-			if (metadataChanged) await updateCollection(tx, id, metadata.fields);
+			if (metadata) await applyImportedMetadata(tx, id, metadata);
 		});
 		return { ...base, outcome: "created", collectionId: id, owner };
 	}
@@ -401,6 +445,8 @@ export async function importLegacyCollection(
 		!metadataChanged &&
 		owner !== "linked"
 	) {
+		if (metadata && offeredChanged && !options.dryRun)
+			await applyImportedMetadata(db, existing.id, metadata);
 		return { ...base, outcome: "unchanged", collectionId: existing.id, owner };
 	}
 	if (options.dryRun) {
@@ -448,13 +494,8 @@ export async function importLegacyCollection(
 		if (resourcesChanged) {
 			await replaceResources(tx, existing.id, resourceIds);
 		}
-		if (metadataChanged) {
-			await updateCollection(tx, existing.id, metadata.fields);
-			await tx
-				.update(collections)
-				.set({ legacyImportedMetadata: metadata.offered })
-				.where(eq(collections.id, existing.id));
-		}
+		if (metadata && (metadataChanged || offeredChanged))
+			await applyImportedMetadata(tx, existing.id, metadata);
 	});
 	return {
 		...base,
