@@ -5250,6 +5250,16 @@ tasks:
       La release llegó al tope de 1000 adjuntos y la publicación fallaba. El
       workflow retira hasta 200 capturas de PR cerrados por ejecución. Los
       comentarios de PR cerrados pierden sus imágenes.
+  T-2026-11-24-09084305:
+    date: 2026-11-24
+    agent: "backend-api-servicios + qa-validacion"
+    task: "El seed deja en cola las miniaturas de sus paquetes .elpx"
+    status: Done
+    related: ["#470", ADR-0046]
+    notes: >
+      El seed insertaba elpx_projects sin thumbnail_status y el bucle de la
+      API no capturaba las portadas de demo. Ahora usa el mismo estado
+      inicial que una subida normal.
   T-2026-11-24-08035724:
     date: 2026-11-24
     agent: "backend-api-servicios + devops-sre"
