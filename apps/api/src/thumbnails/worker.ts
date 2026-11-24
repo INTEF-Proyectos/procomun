@@ -212,6 +212,9 @@ export function createThumbnailWorker(
 	let loop: Promise<void> | null = null;
 
 	async function run(signal: AbortSignal) {
+		// La caída del servicio no gasta intentos ni para la API, así que sin
+		// este aviso pasaría desapercibida. Uno al caer y otro al volver.
+		let down = false;
 		while (!signal.aborted) {
 			let result: ThumbnailTickResult | null = null;
 			try {
@@ -220,6 +223,15 @@ export function createThumbnailWorker(
 				log.error(
 					`[thumbnails] error en el bucle: ${sanitizeForLog(errorMessage(err))}`,
 				);
+			}
+			if (result?.unavailable && !down) {
+				down = true;
+				log.warn(
+					`[thumbnails] el servicio thumbnailer no responde: las capturas quedan en cola y se reintenta cada ${deps.config.unavailablePauseMs / 1000} s`,
+				);
+			} else if (down && result?.claimed && !result.unavailable) {
+				down = false;
+				log.info("[thumbnails] el servicio thumbnailer vuelve a responder");
 			}
 			const delay = nextDelayMs(result, deps.config);
 			if (delay > 0) await sleep(delay, signal);

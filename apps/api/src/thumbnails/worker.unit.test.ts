@@ -319,4 +319,47 @@ describe("createThumbnailWorker (#470)", () => {
 		await worker.stop();
 		expect(Date.now() - started).toBeLessThan(1000);
 	});
+
+	test("avisa una vez si el servicio no responde y otra cuando vuelve", async () => {
+		const job = (id: string) => ({ id, hash: id, attempts: 0 }) as ThumbnailJob;
+		const { queue } = fakeQueue([job("a"), job("b"), job("c")]);
+		const outcomes: RenderOutcome[] = [
+			{ kind: "unavailable", reason: "servicio no disponible (ECONNREFUSED)" },
+			{ kind: "unavailable", reason: "servicio no disponible (ECONNREFUSED)" },
+			{ kind: "empty" },
+		];
+		const logs: string[] = [];
+		let sleeps = 0;
+		const worker = createThumbnailWorker({
+			queue,
+			renderer: {
+				render: async () => outcomes.shift() ?? { kind: "empty" },
+			},
+			store: async () => null,
+			config: { ...CONFIG, concurrency: 1 },
+			now: () => NOW,
+			log: {
+				info: (message: string) => logs.push(`info ${message}`),
+				warn: (message: string) => logs.push(`warn ${message}`),
+				error() {},
+			},
+			sleep: async (_ms, signal) => {
+				sleeps++;
+				if (sleeps >= 3) {
+					await new Promise<void>((resolve) =>
+						signal.addEventListener("abort", () => resolve(), { once: true }),
+					);
+				}
+			},
+		});
+
+		worker.start();
+		while (sleeps < 3) await Bun.sleep(1);
+		await worker.stop();
+
+		expect(logs).toEqual([
+			"warn [thumbnails] el servicio thumbnailer no responde: las capturas quedan en cola y se reintenta cada 30 s",
+			"info [thumbnails] el servicio thumbnailer vuelve a responder",
+		]);
+	});
 });
