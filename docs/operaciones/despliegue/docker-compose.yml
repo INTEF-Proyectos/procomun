@@ -1,0 +1,91 @@
+---
+# Procomún en un servidor con las imágenes que publica el CI en ghcr.io.
+# No construye nada. Instrucciones: docs/operaciones/instalacion.md
+#
+# Hace falta, en esta misma carpeta:
+#   - seccomp-chromium.json  (apps/thumbnailer/seccomp-chromium.json del repo)
+#   - reset-on-update.sh     (solo en un entorno de pruebas, ver más abajo)
+services:
+  db:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: procomun
+      POSTGRES_PASSWORD: CAMBIAR
+      POSTGRES_DB: procomun
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U procomun"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  app:
+    image: ghcr.io/intef-proyectos/procomun:main
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      # La misma contraseña que POSTGRES_PASSWORD.
+      DATABASE_URL: postgres://procomun:CAMBIAR@db:5432/procomun
+      # La dirección pública con la que se entra a la plataforma.
+      BETTER_AUTH_URL: https://procomun.example.org
+      FRONTEND_URL: https://procomun.example.org
+      # Cadena aleatoria larga: openssl rand -base64 32
+      BETTER_AUTH_SECRET: CAMBIAR
+      # Miniaturas generadas en el servidor. Sin esta variable no se generan.
+      THUMBNAILER_URL: http://thumbnailer:3100
+      THUMBNAILER_CONCURRENCY: 2
+    volumes:
+      # Subidas; el thumbnailer las monta en solo lectura.
+      - uploads:/app/local-data/uploads
+      # Solo para un entorno de pruebas: descomentar esta línea y la de
+      # `entrypoint` vacía la base de datos y las subidas en cada contenedor
+      # nuevo y vuelve a cargar los datos de ejemplo. BORRA TODO LO QUE HAYA.
+      # - ./reset-on-update.sh:/reset-on-update.sh:ro
+    # entrypoint: ["sh", "/reset-on-update.sh"]
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - default
+      - thumbnails
+
+  # Captura la portada de los .elpx sin imagen. Ejecuta contenido de autor
+  # en Chromium: red interna sin salida, sin secretos, todo en solo lectura.
+  thumbnailer:
+    image: ghcr.io/intef-proyectos/procomun-thumbnailer:main
+    restart: unless-stopped
+    environment:
+      THUMBNAILER_STORAGE_DIR: /data/uploads
+      THUMBNAILER_CONCURRENCY: 2
+      THUMBNAILER_CHROMIUM_SANDBOX: "true"
+    volumes:
+      - uploads:/data/uploads:ro
+    networks:
+      - thumbnails
+    read_only: true
+    tmpfs:
+      - /tmp:size=256m
+    shm_size: 256m
+    mem_limit: 1g
+    cpus: 1.0
+    pids_limit: 512
+    cap_drop:
+      - ALL
+    cap_add:
+      - SYS_CHROOT
+    security_opt:
+      - no-new-privileges:true
+      - seccomp=./seccomp-chromium.json
+
+volumes:
+  pgdata:
+  uploads:
+
+networks:
+  default:
+  # internal: sin ruta hacia fuera; solo app <-> thumbnailer.
+  thumbnails:
+    internal: true

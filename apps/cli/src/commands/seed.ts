@@ -1,5 +1,6 @@
 import path from "node:path";
 import { getEducationalCategory } from "@procomun/db/educational-areas";
+import { initialThumbnailStatus } from "@procomun/db/repository";
 import {
 	ALL_SEED_COLLECTION_IDS,
 	ALL_SEED_RESOURCE_IDS,
@@ -25,6 +26,42 @@ type SeedClient = {
 	) => Promise<SeedQueryResult>;
 	close: () => Promise<void>;
 };
+
+/**
+ * Inserta el proyecto .elpx de un recurso de demo. Lleva el estado inicial de
+ * la miniatura, como una subida normal: sin él quedaba a NULL y el bucle de
+ * la API nunca capturaba las portadas del seed (#470).
+ */
+export async function insertSeedElpxProject(
+	client: Pick<SeedClient, "query">,
+	project: {
+		id: string;
+		resourceId: string;
+		hash: string;
+		extractPath: string;
+		filename: string;
+		hasPreview: boolean;
+		hasScreenshot: boolean;
+		metadata: unknown;
+		now: string;
+	},
+) {
+	await client.query(
+		`INSERT INTO "elpx_projects" (id, resource_id, hash, extract_path, original_filename, version, has_preview, has_screenshot, elpx_metadata, thumbnail_status, created_at, updated_at) VALUES ($1, $2, $3, $4, $5, 3, $6, $7, $8, $9, $10, $10)`,
+		[
+			project.id,
+			project.resourceId,
+			project.hash,
+			project.extractPath,
+			project.filename,
+			project.hasPreview,
+			project.hasScreenshot,
+			JSON.stringify(project.metadata ?? null),
+			initialThumbnailStatus(project),
+			project.now,
+		],
+	);
+}
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -336,21 +373,17 @@ export async function seedWithClient(
 					);
 
 					// Create elpx project
-					await client.query(
-						`INSERT INTO "elpx_projects" (id, resource_id, hash, extract_path, original_filename, version, has_preview, has_screenshot, elpx_metadata, created_at, updated_at) VALUES ($1, $2, $3, $4, $5, 3, $6, $7, $8, $9, $10)`,
-						[
-							elpxId,
-							r.id,
-							result.hash,
-							result.extractPath,
-							elpxFilename,
-							result.hasPreview,
-							result.hasScreenshot,
-							JSON.stringify(result.metadata),
-							now,
-							now,
-						],
-					);
+					await insertSeedElpxProject(client, {
+						id: elpxId,
+						resourceId: r.id,
+						hash: result.hash,
+						extractPath: result.extractPath,
+						filename: elpxFilename,
+						hasPreview: result.hasPreview,
+						hasScreenshot: result.hasScreenshot,
+						metadata: result.metadata,
+						now,
+					});
 
 					log.log(`  + ${r.slug} [${r.editorialStatus}] + elpx`);
 				} catch (err) {
