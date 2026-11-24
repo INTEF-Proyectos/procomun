@@ -94,6 +94,30 @@ make lint
 make format
 ```
 
+### Limpieza de miniaturas huérfanas
+
+Ejecuta este comando desde el entorno del despliegue, con la misma base de
+datos y el mismo `UPLOAD_STORAGE_DIR` que usa la aplicación. Usa una ruta
+absoluta si el despliegue tiene configurada una ruta relativa. El comando
+exige `DATABASE_URL` o un `PGLITE_DIR` absoluto con una base ya creada; si
+falta, o si la base no tiene ninguna referencia a miniaturas, sale con error
+sin tocar el almacén, también en simulación.
+
+```sh
+bun run --filter '@procomun/cli' cli -- thumbnails:prune --dry-run
+```
+
+La simulación devuelve un informe JSON con los archivos candidatos y su tamaño
+en bytes. Solo se consideran miniaturas del almacén con más de siete días desde
+su última modificación. Se conservan las referencias de proyectos históricos,
+recursos dados de baja y portadas de colecciones.
+
+Para aplicar la limpieza, detén primero los procesos que puedan escribir
+miniaturas o cambiar sus referencias, incluidos la API, el generador y los
+importadores. Así se evita que aparezca una referencia entre la consulta y el
+borrado. Repite el comando sin `--dry-run` y guarda su informe. El tamaño
+refleja la suma de los archivos eliminados.
+
 ### Variables importantes
 
 - `DATABASE_URL`: activa PostgreSQL real en lugar de PGlite

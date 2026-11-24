@@ -5214,6 +5214,12 @@ tasks:
     status: In Progress
     related: ["#616", "#432", "#600", "ADR-0029"]
     notes: "El volcado histórico es obligatorio. La reimportación conserva las atribuciones existentes. Verificación con datos sintéticos."
+  T-2026-11-21-08300814:
+    agent: "devops-sre + qa-validacion"
+    task: "Añadir limpieza manual de miniaturas huérfanas"
+    status: Done
+    related: ["#520"]
+    notes: "Simulación y borrado de archivos con siete días de margen, conservando referencias históricas."
   T-2026-11-22-20405187:
     date: 2026-11-22
     agent: "documentacion-y-roadmap + qa-validacion"
