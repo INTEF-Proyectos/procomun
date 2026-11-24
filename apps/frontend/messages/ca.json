@@ -459,5 +459,7 @@
 	"my_resources_delete_confirm": "Segur que vols eliminar «{title}»? S'esborra el recurs sencer i aquesta acció no es pot desfer.",
 	"my_resources_deleting": "S'està eliminant…",
 	"my_resources_deleted": "S'ha eliminat «{title}».",
-	"my_resources_delete_error": "No s'ha pogut eliminar «{title}»."
+	"my_resources_delete_error": "No s'ha pogut eliminar «{title}».",
+	"collection_detail_keywords": "Paraules clau",
+	"collection_detail_educational": "Etapa, programa o àmbit educatiu"
 }

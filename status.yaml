@@ -5242,6 +5242,16 @@ tasks:
       El detalle conserva el contador de visitas y los metadatos. La 0034
       queda después de la 0032 y el migrador conserva el total previo.
       Pasan siete pruebas específicas y la comprobación de tipos.
+  T-2026-11-24-07064810:
+    date: 2026-11-24
+    agent: "frontend-ux-accesibilidad + qa-validacion"
+    task: "Atender la revisión de la PR #623 de metadatos de colecciones"
+    status: Done
+    related: ["#623", "#611"]
+    notes: >
+      La edición envía solo los campos modificados. El panel de etiquetas
+      cuenta también las colecciones y lo dice al borrar. Los rótulos de la
+      ficha pública salen de Paraglide.
   T-2026-11-23-07092370:
     date: 2026-11-23
     agent: "backend-api-servicios + qa-validacion"

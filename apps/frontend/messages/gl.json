@@ -459,5 +459,7 @@
 	"my_resources_delete_confirm": "Seguro que queres eliminar «{title}»? Bórrase o recurso completo e esta acción non se pode desfacer.",
 	"my_resources_deleting": "Eliminando…",
 	"my_resources_deleted": "Eliminouse «{title}».",
-	"my_resources_delete_error": "Non se puido eliminar «{title}»."
+	"my_resources_delete_error": "Non se puido eliminar «{title}».",
+	"collection_detail_keywords": "Palabras clave",
+	"collection_detail_educational": "Etapa, programa ou ámbito educativo"
 }

@@ -248,6 +248,30 @@ describe("tags repository (issue #76)", () => {
 		expect(await keywordIds(merged.id)).toEqual([other.id]);
 	});
 
+	test("listTags cuenta las colecciones que usan cada palabra clave (#623)", async () => {
+		const outcome = await createCatalogKeyword(db, {
+			label: "Solo colecciones 623",
+			createdBy: userId,
+		});
+		if (outcome.status === "invalid") throw new Error("Sin palabra clave");
+		const collection = await createCollection(db, {
+			title: "Colección con palabra clave propia",
+			description: "desc",
+			curatorId: userId,
+		});
+		await updateCollection(db, collection.id, {
+			keywordIds: [outcome.keyword.id],
+		});
+
+		const { data } = await listTags(db, {
+			search: "Solo colecciones 623",
+			withCollectionCount: true,
+		});
+		expect(data).toHaveLength(1);
+		expect(data[0]?.usageCount).toBe(0);
+		expect(data[0]?.collectionCount).toBe(1);
+	});
+
 	test("mergeTags with missing source throws TagNotFoundError", async () => {
 		const target = await ensureTag(db, "Existente");
 		await expect(
