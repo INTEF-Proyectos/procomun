@@ -53,6 +53,11 @@ export const COLLECTION_METADATA_SCHEMA = [
 	)`,
 ];
 
+/** DDL de la migración 0036_collection_legacy_imported_metadata (#615). */
+export const COLLECTION_LEGACY_IMPORTED_METADATA_SCHEMA = [
+	`ALTER TABLE "collections" ADD COLUMN IF NOT EXISTS legacy_imported_metadata JSONB`,
+];
+
 /**
  * Cola de miniaturas generadas en el servidor (#470, ADR-0046). La migración
  * 0020_elpx_thumbnail_queue contiene estas mismas sentencias; un test
@@ -460,6 +465,7 @@ export const SCHEMA_STATEMENTS = [
 	`CREATE UNIQUE INDEX IF NOT EXISTS collections_import_source_external_id_idx ON "collections" (import_source, external_id) WHERE external_id IS NOT NULL`,
 	...COLLECTION_VIEWS_SCHEMA,
 	...COLLECTION_METADATA_SCHEMA,
+	...COLLECTION_LEGACY_IMPORTED_METADATA_SCHEMA,
 	`CREATE TABLE IF NOT EXISTS "collection_resources" (
 		collection_id TEXT NOT NULL REFERENCES "collections"(id) ON DELETE CASCADE,
 		resource_id TEXT NOT NULL REFERENCES "resources"(id) ON DELETE CASCADE,

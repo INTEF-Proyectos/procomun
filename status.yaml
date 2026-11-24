@@ -5193,12 +5193,33 @@ tasks:
     status: Done
     related: ["#615", "#611"]
     notes: "El informe cuenta las incidencias de catálogo y la reimportación no duplica asociaciones."
+  T-2026-11-24-08171843:
+    date: 2026-11-24
+    agent: "ingestas-y-migraciones + qa-validacion"
+    task: "Atender la revisión de la PR #628 de importación de metadatos de itinerarios"
+    status: Done
+    related: ["#628", "#615"]
+    notes: >
+      El importador apunta lo que ya ofreció a cada colección (migración
+      0036) y no restaura lo que se retiró a mano. Las etiquetas se resuelven
+      una a una, sin el tope de texto. La 0036 debe entrar después de la 0034
+      de la #623 y de la 0035 de la #587.
   T-2026-11-21-00365493:
     agent: "metadatos-y-curacion + qa-validacion"
     task: "Clasificar colecciones desde su formulario de alta"
     status: Done
     related: ["#614", "#611"]
     notes: "Alta y edición usan los mismos controles y validaciones de catálogo."
+  T-2026-11-24-08084091:
+    date: 2026-11-24
+    agent: "frontend-ux-accesibilidad + qa-validacion"
+    task: "Atender la revisión de la PR #626 del alta de colecciones"
+    status: Done
+    related: ["#626", "#614"]
+    notes: >
+      Si falla el catálogo de áreas, el alta y la edición lo avisan junto al
+      selector y ofrecen reintentar sin perder lo escrito. Se integra el
+      arreglo de la #623: la edición envía solo los campos modificados.
   T-2026-11-21-00271091:
     date: 2026-11-21
     agent: "backend-api-servicios + frontend-ux-accesibilidad"
@@ -5260,6 +5281,16 @@ tasks:
       El detalle conserva el contador de visitas y los metadatos. La 0034
       queda después de la 0032 y el migrador conserva el total previo.
       Pasan siete pruebas específicas y la comprobación de tipos.
+  T-2026-11-24-07064810:
+    date: 2026-11-24
+    agent: "frontend-ux-accesibilidad + qa-validacion"
+    task: "Atender la revisión de la PR #623 de metadatos de colecciones"
+    status: Done
+    related: ["#623", "#611"]
+    notes: >
+      La edición envía solo los campos modificados. El panel de etiquetas
+      cuenta también las colecciones y lo dice al borrar. Los rótulos de la
+      ficha pública salen de Paraglide.
   T-2026-11-23-07092370:
     date: 2026-11-23
     agent: "backend-api-servicios + qa-validacion"

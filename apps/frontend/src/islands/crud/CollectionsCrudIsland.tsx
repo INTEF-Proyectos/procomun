@@ -6,6 +6,7 @@ import {
 	startTransition,
 	useCallback,
 	useEffect,
+	useRef,
 	useState,
 } from "react";
 import type {
@@ -84,6 +85,18 @@ function statusBadgeClass(status: string) {
 
 function isOrderedValue(value: CollectionRecord["isOrdered"] | boolean) {
 	return Boolean(value);
+}
+
+/** Campos de `current` que difieren de `loaded`: lo único que va en el PATCH (#623). */
+export function changedFields<T extends Record<string, unknown>>(
+	loaded: Partial<T>,
+	current: T,
+): Partial<T> {
+	return Object.fromEntries(
+		Object.entries(current).filter(
+			([key, value]) => JSON.stringify(value) !== JSON.stringify(loaded[key]),
+		),
+	) as Partial<T>;
 }
 
 function coverPreview(url: string | null | undefined) {
@@ -235,6 +248,18 @@ export function metadataPayload({
 	};
 }
 
+/** Cuerpo del PATCH de edición a partir de los valores del formulario. */
+function editPayload(form: CollectionFormState, metadata: CollectionMetadata) {
+	return {
+		title: form.title,
+		description: form.description,
+		coverImageUrl: form.coverImageUrl || null,
+		editorialStatus: form.editorialStatus,
+		isOrdered: form.isOrdered,
+		...metadataPayload(metadata),
+	};
+}
+
 /** Mensaje que da la API al rechazar el alta (p. ej. un catálogo no válido). */
 export function createErrorMessage(error: unknown): string {
 	const message = (error as { error?: unknown } | null)?.error;
@@ -249,12 +274,14 @@ function CollectionMetadataFields({
 	setMetadata,
 	catalog,
 	resourceAreas,
+	onCatalogRetry,
 }: {
 	idPrefix: string;
 	metadata: CollectionMetadata;
 	setMetadata: Dispatch<SetStateAction<CollectionMetadata>>;
 	catalog: PublicKnowledgeAreaCatalog | null;
 	resourceAreas?: CollectionRecord["knowledgeAreas"];
+	onCatalogRetry?: () => void;
 }) {
 	const { language, keywords, areas, educational } = metadata;
 	return (
@@ -289,6 +316,7 @@ function CollectionMetadataFields({
 				selectedIds={areas}
 				onChange={(areas) => setMetadata((current) => ({ ...current, areas }))}
 				resourceAreas={resourceAreas}
+				onCatalogRetry={onCatalogRetry}
 			/>
 			<EducationalClassificationEditor
 				idPrefix={idPrefix}
@@ -321,10 +349,13 @@ export function CollectionsCrudIsland() {
 	const [catalog, setCatalog] = useState<PublicKnowledgeAreaCatalog | null>(
 		null,
 	);
+	const [catalogFailed, setCatalogFailed] = useState(false);
 
 	const [editing, setEditing] = useState<CollectionRecord | null>(null);
 	const [editForm, setEditForm] = useState(EMPTY_FORM);
 	const [editError, setEditError] = useState("");
+	// Lo que se cargó al abrir la edición: el PATCH lleva solo las diferencias.
+	const loadedPayload = useRef<ReturnType<typeof editPayload> | null>(null);
 	const [deleteTarget, setDeleteTarget] = useState<CollectionRecord | null>(
 		null,
 	);
@@ -415,10 +446,11 @@ export function CollectionsCrudIsland() {
 	}
 
 	const loadCatalog = useCallback(() => {
+		setCatalogFailed(false);
 		void getApiClient()
 			.then((api) => api.getKnowledgeAreaCatalog())
 			.then(setCatalog)
-			.catch(() => {});
+			.catch(() => setCatalogFailed(true));
 	}, []);
 
 	useEffect(() => {
@@ -461,22 +493,25 @@ export function CollectionsCrudIsland() {
 				return;
 			}
 
-			setEditMetadata({
-				language: collection.language ?? "",
-				keywords: collection.catalogKeywords ?? [],
-				areas: collection.knowledgeAreas?.map(({ id }) => id) ?? [],
-				educational: assignmentsToSelections(collection.educationalAreas ?? []),
-			});
-			setEditing(collection);
-			// Si el catálogo no cargó al montar, se reintenta al abrir la edición.
-			if (!catalog) loadCatalog();
-			setEditForm({
+			const form = {
 				title: collection.title,
 				description: collection.description,
 				coverImageUrl: collection.coverImageUrl ?? "",
 				editorialStatus: collection.editorialStatus,
 				isOrdered: isOrderedValue(collection.isOrdered),
-			});
+			};
+			const metadata = {
+				language: collection.language ?? "",
+				keywords: collection.catalogKeywords ?? [],
+				areas: collection.knowledgeAreas?.map(({ id }) => id) ?? [],
+				educational: assignmentsToSelections(collection.educationalAreas ?? []),
+			};
+			loadedPayload.current = editPayload(form, metadata);
+			setEditMetadata(metadata);
+			setEditing(collection);
+			// Si el catálogo no cargó al montar, se reintenta al abrir la edición.
+			if (!catalog) loadCatalog();
+			setEditForm(form);
 			await loadCollectionResources(collection.id);
 		} catch {
 			setStatusMessage("No se pudo cargar la coleccion seleccionada.");
@@ -522,14 +557,15 @@ export function CollectionsCrudIsland() {
 
 		try {
 			const api = await getApiClient();
-			const result = await api.updateCollection(editing.id, {
-				title: editForm.title,
-				description: editForm.description,
-				coverImageUrl: editForm.coverImageUrl || null,
-				editorialStatus: editForm.editorialStatus,
-				isOrdered: editForm.isOrdered,
-				...metadataPayload(editMetadata),
-			});
+			// #623: solo se envía lo que ha cambiado, para no pisar lo que otra
+			// pestaña haya guardado mientras tanto.
+			const result = await api.updateCollection(
+				editing.id,
+				changedFields(
+					loadedPayload.current ?? {},
+					editPayload(editForm, editMetadata),
+				),
+			);
 			if (!result.ok) {
 				setEditError(result.error ?? "Error al guardar.");
 				return;
@@ -714,6 +750,7 @@ export function CollectionsCrudIsland() {
 						metadata={createMetadata}
 						setMetadata={setCreateMetadata}
 						catalog={catalog}
+						onCatalogRetry={catalogFailed ? loadCatalog : undefined}
 					/>
 					<div className="admin-form-actions">
 						<button
@@ -900,6 +937,7 @@ export function CollectionsCrudIsland() {
 							metadata={editMetadata}
 							setMetadata={setEditMetadata}
 							catalog={catalog}
+							onCatalogRetry={catalogFailed ? loadCatalog : undefined}
 							resourceAreas={editing.knowledgeAreas}
 						/>
 

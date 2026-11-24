@@ -101,19 +101,19 @@ export function CollectionDetailContent({
 }) {
 	const metadata = [
 		{
-			label: "Idioma",
+			label: m.detail_language(),
 			value: detail.language ? languageLabel(detail.language) : "",
 		},
 		{
-			label: "Palabras clave",
+			label: m.collection_detail_keywords(),
 			value: detail.catalogKeywords?.map(({ label }) => label).join(", "),
 		},
 		{
-			label: "Áreas de conocimiento",
+			label: m.knowledge_areas_label(),
 			value: detail.knowledgeAreas?.map(({ label }) => label).join(", "),
 		},
 		{
-			label: "Etapa, programa o ámbito educativo",
+			label: m.collection_detail_educational(),
 			value: formatEducationalClassifications(detail.educationalAreas)
 				.map(classificationLineText)
 				.join("; "),
@@ -184,7 +184,7 @@ export function CollectionDetailContent({
 					className="collection-detail-section"
 					aria-labelledby="collection-metadata-title"
 				>
-					<h2 id="collection-metadata-title">Detalles técnicos</h2>
+					<h2 id="collection-metadata-title">{m.detail_technical()}</h2>
 					<dl>
 						{metadata.map(({ label, value }) => (
 							<div key={label}>

@@ -281,6 +281,8 @@ export interface TagRecord {
 	label: string;
 	description: string | null;
 	usageCount: number;
+	/** Colecciones que la usan; solo lo devuelve el listado del panel (#623). */
+	collectionCount?: number;
 	canonicalTagId: string | null;
 	createdAt?: string | number | Date | null;
 	updatedAt?: string | number | Date | null;

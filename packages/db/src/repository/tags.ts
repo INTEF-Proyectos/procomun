@@ -166,6 +166,8 @@ export async function listTags(
 		search?: string;
 		/** When true, only canonical tags (no synonyms). Default true. */
 		canonicalOnly?: boolean;
+		/** Añade `collectionCount`; solo lo pide el panel (#623). */
+		withCollectionCount?: boolean;
 	} = {},
 ) {
 	const { limit, offset } = normalizePagination(opts.limit, opts.offset);
@@ -184,7 +186,13 @@ export async function listTags(
 
 	const where = andWhere(conditions);
 	const query = db
-		.select(tagSelect)
+		.select({
+			...tagSelect,
+			// Borrar una palabra clave también la quita de las colecciones (#623).
+			...(opts.withCollectionCount && {
+				collectionCount: sql<number>`(select count(*)::int from ${collectionKeywords} ck where ck.tag_id = ${tags.id})`,
+			}),
+		})
 		.from(tags)
 		.limit(limit)
 		.offset(offset)

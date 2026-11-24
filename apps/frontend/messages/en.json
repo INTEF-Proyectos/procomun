@@ -460,5 +460,9 @@
 	"my_resources_delete_confirm": "Are you sure you want to delete “{title}”? The whole resource will be removed and this cannot be undone.",
 	"my_resources_deleting": "Deleting…",
 	"my_resources_deleted": "“{title}” has been deleted.",
-	"my_resources_delete_error": "“{title}” could not be deleted."
+	"my_resources_delete_error": "“{title}” could not be deleted.",
+	"collection_detail_keywords": "Keywords",
+	"collection_detail_educational": "Educational stage, programme or field",
+	"knowledge_areas_load_error": "The knowledge areas could not be loaded.",
+	"knowledge_areas_retry": "Retry"
 }

@@ -1,5 +1,5 @@
 import { buildSlug } from "../repository/shared/slugs.ts";
-import { buildLegacyKeywords, IMPORT_SOURCE } from "./field-mapper.ts";
+import { IMPORT_SOURCE } from "./field-mapper.ts";
 import {
 	type LegacyEditorialStatus,
 	resolveLegacyPublicationStatus,
@@ -223,12 +223,6 @@ export function mapLegacyItinerary(
 		}
 	}
 
-	const { keywords, truncated } = buildLegacyKeywords(
-		metadataValues(json.labelsStr),
-	);
-	if (truncated)
-		warnings.push("labelsStr truncado: se han omitido palabras clave");
-
 	return {
 		mapped: {
 			externalId,
@@ -244,7 +238,12 @@ export function mapLegacyItinerary(
 			resources,
 			metadata: {
 				knowledgeArea: metadataValues(json.knowledgeArea),
-				labelsStr: keywords?.split(",") ?? [],
+				// Cada etiqueta se resuelve por separado contra el catálogo: una
+				// entrada desmesurada cuenta como no reconocida y no descarta a
+				// las demás (#628). El tope es el de términos catalogados.
+				labelsStr: metadataValues(json.labelsStr).flatMap((value) =>
+					value.split(","),
+				),
 				learningContext: metadataValues(json.learningContext),
 			},
 			warnings,

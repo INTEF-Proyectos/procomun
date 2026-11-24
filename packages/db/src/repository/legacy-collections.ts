@@ -10,7 +10,11 @@ import type {
 	MappedLegacyItinerary,
 } from "../legacy-import/itinerary.ts";
 import { LEGACY_IMPORT_SYSTEM_USER_ID } from "../legacy-import/system-user.ts";
-import { collectionResources, collections } from "../schema/collections.ts";
+import {
+	collectionResources,
+	collections,
+	type LegacyImportedCollectionMetadata,
+} from "../schema/collections.ts";
 import { resources } from "../schema/resources.ts";
 import {
 	keywordIndex,
@@ -74,17 +78,48 @@ type MetadataCatalog = Awaited<
 	ReturnType<typeof loadLegacyCollectionMetadataCatalog>
 >;
 
-function addCatalogMatches(current: string[], incoming: string[], max: number) {
-	const combined = [...new Set([...current, ...incoming])];
+/**
+ * Añade a `current` lo que el origen trae por primera vez. Lo que el
+ * importador ya ofreció (`offered`) no vuelve: si falta, es que se quitó a
+ * mano (#628). `offered` sale ampliado salvo que no cupiera, para reintentarlo.
+ */
+function addCatalogMatches(
+	current: string[],
+	incoming: string[],
+	offered: string[],
+	max: number,
+) {
+	const fresh = incoming.filter((id) => !offered.includes(id));
+	const combined = [...new Set([...current, ...fresh])];
 	const changed = combined.length > current.length;
 	const overLimit = changed && combined.length > max;
-	return { ids: changed && !overLimit ? combined : undefined, overLimit };
+	return {
+		ids: changed && !overLimit ? combined : undefined,
+		overLimit,
+		offered: overLimit ? offered : [...new Set([...offered, ...fresh])].sort(),
+	};
 }
+
+/** Para comparar: jsonb no conserva el orden de las claves. */
+function offeredKey(offered: LegacyImportedCollectionMetadata) {
+	return JSON.stringify([
+		offered.knowledgeAreaIds,
+		offered.keywordIds,
+		offered.educationalAreas,
+	]);
+}
+
+const NOTHING_OFFERED: LegacyImportedCollectionMetadata = {
+	knowledgeAreaIds: [],
+	keywordIds: [],
+	educationalAreas: false,
+};
 
 function resolveCollectionMetadata(
 	metadata: LegacyItineraryMetadata,
 	catalog: MetadataCatalog,
 	current: Awaited<ReturnType<typeof getCollectionById>>,
+	offered: LegacyImportedCollectionMetadata,
 ) {
 	const issues: LegacyCollectionMetadataIssues = {};
 	const areaKeys = [
@@ -94,6 +129,7 @@ function resolveCollectionMetadata(
 	const areas = addCatalogMatches(
 		current?.knowledgeAreas.map(({ id }) => id) ?? [],
 		areaIds,
+		offered.knowledgeAreaIds,
 		MAX_KNOWLEDGE_AREAS,
 	);
 	const unmatchedAreas = areaKeys.length - areaIds.length;
@@ -112,6 +148,7 @@ function resolveCollectionMetadata(
 	const keywords = addCatalogMatches(
 		current?.catalogKeywords.map(({ id }) => id) ?? [],
 		labels.ids,
+		offered.keywordIds,
 		MAX_KEYWORD_SELECTIONS,
 	);
 	if (unmatchedLabels || ambiguousLabels || keywords.overLimit) {
@@ -137,7 +174,9 @@ function resolveCollectionMetadata(
 		};
 	}
 	const educationalAreas =
-		!current?.educationalAreas.length && contexts.assignments.length
+		!offered.educationalAreas &&
+		!current?.educationalAreas.length &&
+		contexts.assignments.length
 			? contexts.assignments
 			: undefined;
 	return {
@@ -146,6 +185,12 @@ function resolveCollectionMetadata(
 			knowledgeAreaIds: areas.ids,
 			keywordIds: keywords.ids,
 			educationalAreas,
+		},
+		offered: {
+			knowledgeAreaIds: areas.offered,
+			keywordIds: keywords.offered,
+			educationalAreas:
+				offered.educationalAreas || contexts.assignments.length > 0,
 		},
 	};
 }
@@ -266,6 +311,7 @@ export async function importLegacyCollection(
 			publishedAt: collections.publishedAt,
 			curatorId: collections.curatorId,
 			editorialStatus: collections.editorialStatus,
+			legacyImportedMetadata: collections.legacyImportedMetadata,
 		})
 		.from(collections)
 		.where(
@@ -285,10 +331,15 @@ export async function importLegacyCollection(
 				options.metadataCatalog ??
 					(await loadLegacyCollectionMetadataCatalog(db)),
 				existing ? await getCollectionById(db, existing.id) : null,
+				existing?.legacyImportedMetadata ?? NOTHING_OFFERED,
 			)
 		: undefined;
+	// También cuenta apuntar lo ofrecido, aunque no cambie ningún campo.
 	const metadataChanged =
-		metadata && Object.values(metadata.fields).some(Boolean);
+		metadata &&
+		(Object.values(metadata.fields).some(Boolean) ||
+			offeredKey(metadata.offered) !==
+				offeredKey(existing?.legacyImportedMetadata ?? NOTHING_OFFERED));
 	const base = {
 		linkedResources: resourceIds.length,
 		missingResources: missing,
@@ -316,6 +367,7 @@ export async function importLegacyCollection(
 				importSource: itinerary.importSource,
 				externalId: itinerary.externalId,
 				publishedAt: itinerary.publishedAt,
+				legacyImportedMetadata: metadata?.offered,
 				createdAt: now,
 				updatedAt: now,
 			});
@@ -396,8 +448,13 @@ export async function importLegacyCollection(
 		if (resourcesChanged) {
 			await replaceResources(tx, existing.id, resourceIds);
 		}
-		if (metadataChanged)
+		if (metadataChanged) {
 			await updateCollection(tx, existing.id, metadata.fields);
+			await tx
+				.update(collections)
+				.set({ legacyImportedMetadata: metadata.offered })
+				.where(eq(collections.id, existing.id));
+		}
 	});
 	return {
 		...base,

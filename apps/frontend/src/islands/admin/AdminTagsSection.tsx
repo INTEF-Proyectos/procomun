@@ -23,6 +23,16 @@ function formatDate(d: TagRecord["updatedAt"]): string {
 	});
 }
 
+/** Usos de una etiqueta: recursos y colecciones (#623). */
+function totalUsage(tag: TagRecord): number {
+	return tag.usageCount + (tag.collectionCount ?? 0);
+}
+
+/** Confirmación de borrado: dice de dónde se quitará la etiqueta (#623). */
+export function deleteTagMessage(tag: TagRecord): string {
+	return `¿Seguro que deseas eliminar «${tag.label}»? Se quitará de ${tag.usageCount} recursos y ${tag.collectionCount ?? 0} colecciones.`;
+}
+
 export function AdminTagsSection() {
 	const [rows, setRows] = useState<TagRecord[]>([]);
 	const [allTags, setAllTags] = useState<TagRecord[]>([]);
@@ -221,7 +231,7 @@ export function AdminTagsSection() {
 			key: "usage",
 			label: "Uso",
 			render: (t) => (
-				<span className="admin-collection-meta">{t.usageCount}</span>
+				<span className="admin-collection-meta">{totalUsage(t)}</span>
 			),
 		},
 		{
@@ -428,7 +438,7 @@ export function AdminTagsSection() {
 									.filter((t) => t.id !== mergeSource.id)
 									.map((t) => (
 										<option key={t.id} value={t.id}>
-											{t.label} ({t.slug}) · uso {t.usageCount}
+											{t.label} ({t.slug}) · uso {totalUsage(t)}
 										</option>
 									))}
 							</select>
@@ -461,7 +471,7 @@ export function AdminTagsSection() {
 			<ConfirmDialog
 				open={deleteTarget !== null}
 				title="Eliminar etiqueta"
-				message={`Seguro que deseas eliminar «${deleteTarget?.label ?? "esta etiqueta"}»?`}
+				message={deleteTarget ? deleteTagMessage(deleteTarget) : ""}
 				confirmLabel="Eliminar"
 				busy={busyDelete}
 				onCancel={() => setDeleteTarget(null)}

@@ -17,6 +17,12 @@ import { knowledgeAreas } from "./knowledge-areas.ts";
 import { resources } from "./resources.ts";
 import { tags } from "./tags.ts";
 
+export type LegacyImportedCollectionMetadata = {
+	knowledgeAreaIds: string[];
+	keywordIds: string[];
+	educationalAreas: boolean;
+};
+
 export const collections = pgTable(
 	"collections",
 	{
@@ -46,6 +52,13 @@ export const collections = pgTable(
 		externalId: text("external_id"),
 		/** Fecha de publicación en el Procomún antiguo (`publicationDate`). */
 		publishedAt: timestamp("published_at"),
+		/**
+		 * Metadatos que el importador ya ofreció a la colección (#615, migración
+		 * 0036). Lo que se quite después a mano no vuelve al reimportar.
+		 */
+		legacyImportedMetadata: jsonb(
+			"legacy_imported_metadata",
+		).$type<LegacyImportedCollectionMetadata>(),
 	},
 	(table) => [
 		// Misma clave que resources_import_source_external_id_idx: reimportar un
