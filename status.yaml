@@ -5240,3 +5240,23 @@ tasks:
       Se integran las visitas de #620 y ambas pruebas de API. La migración
       0033 queda después de la 0032 y el migrador conserva los contadores
       existentes. Pasan 117 pruebas de los archivos afectados y los tipos.
+  T-2026-11-24-09011752:
+    date: 2026-11-24
+    agent: "devops-sre"
+    task: "Desplegar con las imágenes publicadas sin construirlas en el servidor"
+    status: Done
+    related: ["#519", "#470"]
+    notes: >
+      El compose nombra las imágenes de ghcr.io y hay un objetivo
+      up-docker-images que las descarga. Construir la del thumbnailer en un
+      servidor tardaba minutos por la instalación de Chromium.
+  T-2026-11-24-09262038:
+    date: 2026-11-24
+    agent: "devops-sre + documentacion-y-roadmap"
+    task: "Documentar el despliegue en servidor con las imágenes publicadas"
+    status: Done
+    related: ["#641", "#519"]
+    notes: >
+      La guía de instalación tiene los pasos y docs/operaciones/despliegue
+      el docker-compose de ejemplo. Probado en dos servidores: el de pruebas
+      propio y uno del INTEF.

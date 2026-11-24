@@ -1,4 +1,4 @@
-.PHONY: deps up down clean format lint test test-unit test-integration test-ui test-e2e test-e2e-firefox test-e2e-postgres check-coverage cli seed up-docker down-docker seed-docker up-postgres download-exelearning-editor
+.PHONY: deps up down clean format lint test test-unit test-integration test-ui test-e2e test-e2e-firefox test-e2e-postgres check-coverage cli seed up-docker up-docker-images down-docker seed-docker up-postgres download-exelearning-editor
 
 # Variables
 BUN = bun
@@ -157,6 +157,13 @@ download-exelearning-editor:
 # Docker — levanta sistema completo (db + api + frontend + seed)
 up-docker:
 	docker compose up --build -d
+
+# Igual, pero con las imágenes que publica el CI en ghcr.io en vez de
+# construirlas. Para servidores: la del thumbnailer instala Chromium y sus
+# bibliotecas al construirse, tarda minutos y necesita salida a Internet.
+up-docker-images:
+	docker compose pull
+	docker compose up --no-build -d
 
 down-docker:
 	docker compose down
