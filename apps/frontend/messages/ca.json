@@ -466,5 +466,6 @@
 	"knowledge_areas_load_error": "No s'han pogut carregar les àrees de coneixement.",
 	"knowledge_areas_retry": "Torna-ho a provar",
 	"collections_filters_active_one": "1 filtre actiu",
-	"collections_filters_active_other": "{count} filtres actius"
+	"collections_filters_active_other": "{count} filtres actius",
+	"collections_knowledge_areas_help": "Tria'n fins a {max}."
 }

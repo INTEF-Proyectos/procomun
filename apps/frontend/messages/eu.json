@@ -466,5 +466,6 @@
 	"knowledge_areas_load_error": "Ezin izan dira jakintza-arloak kargatu.",
 	"knowledge_areas_retry": "Saiatu berriro",
 	"collections_filters_active_one": "Iragazki aktibo 1",
-	"collections_filters_active_other": "{count} iragazki aktibo"
+	"collections_filters_active_other": "{count} iragazki aktibo",
+	"collections_knowledge_areas_help": "Aukeratu gehienez {max}."
 }

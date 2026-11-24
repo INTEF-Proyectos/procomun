@@ -466,5 +466,6 @@
 	"knowledge_areas_load_error": "Non se puideron cargar as áreas de coñecemento.",
 	"knowledge_areas_retry": "Tentar de novo",
 	"collections_filters_active_one": "1 filtro activo",
-	"collections_filters_active_other": "{count} filtros activos"
+	"collections_filters_active_other": "{count} filtros activos",
+	"collections_knowledge_areas_help": "Elixe ata {max}."
 }

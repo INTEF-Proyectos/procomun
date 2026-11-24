@@ -109,6 +109,14 @@ test("combina texto y filtros técnicos de colecciones y permite limpiarlos", as
 		await expect(page.getByText("1 filtro activo")).toBeVisible();
 		await filters.click();
 		await expect(language).toHaveValue("ca");
+
+		// El enlace «Colecciones» de la cabecera vuelve al listado sin filtros.
+		await page
+			.locator("a.public-nav-link", { hasText: "Colecciones" })
+			.first()
+			.click();
+		await expect(page).toHaveURL(/\/colecciones$/);
+		await expect(page.getByText(/filtros? activos?/)).toHaveCount(0);
 	} finally {
 		await page.request.delete(path);
 	}

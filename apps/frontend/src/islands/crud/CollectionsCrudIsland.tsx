@@ -327,8 +327,10 @@ function CollectionMetadataFields({
 				onChange={(areas) => setMetadata((current) => ({ ...current, areas }))}
 				resourceAreas={resourceAreas}
 				onCatalogRetry={onCatalogRetry}
+				requiredToPublish={false}
 			/>
 			<EducationalClassificationEditor
+				subject="Una colección"
 				idPrefix={idPrefix}
 				selections={educational}
 				onChange={(educational) =>

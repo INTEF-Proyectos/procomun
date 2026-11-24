@@ -76,6 +76,7 @@ export function KnowledgeAreaField({
 	error,
 	resourceAreas = [],
 	onCatalogRetry,
+	requiredToPublish = true,
 }: {
 	idPrefix: string;
 	catalog: PublicKnowledgeAreaCatalog | null;
@@ -86,6 +87,8 @@ export function KnowledgeAreaField({
 	resourceAreas?: ResourceKnowledgeArea[];
 	/** Solo si la carga del catálogo ha fallado: muestra el aviso y reintenta. */
 	onCatalogRetry?: () => void;
+	/** Los recursos necesitan un área para publicarse; las colecciones no. */
+	requiredToPublish?: boolean;
 }) {
 	const { areas, blocks } = catalog ?? EMPTY_CATALOG;
 	const options = formAreaOptions(areas, selectedIds);
@@ -107,7 +110,11 @@ export function KnowledgeAreaField({
 				id={`${idPrefix}-${KNOWLEDGE_AREA_FIELD}`}
 				legend={m.knowledge_areas_label()}
 				searchLabel={m.knowledge_areas_search()}
-				help={m.knowledge_areas_help({ max: String(MAX_KNOWLEDGE_AREAS) })}
+				help={(requiredToPublish
+					? m.knowledge_areas_help
+					: m.collections_knowledge_areas_help)({
+					max: String(MAX_KNOWLEDGE_AREAS),
+				})}
 				options={options}
 				groups={blocks}
 				selected={selectedCatalogOptions(selectedIds, options, fallback)}
