@@ -83,6 +83,21 @@ El Referer también las lleva: el HTML del `.elpx` sale con `Referrer-Policy: sa
    docker compose up -d
    ```
 
+### Desplegar con las imágenes publicadas (2026-11-24)
+
+`make up-docker` construye las imágenes en la máquina. La del `thumbnailer` instala Chromium y sus bibliotecas del sistema durante la construcción: tarda varios minutos, necesita salida a Internet y en un servidor con la red restringida puede no terminar.
+
+En un servidor es preferible descargar las que publica el CI en cada cambio de `main` (`ghcr.io/intef-proyectos/procomun:main` y `ghcr.io/intef-proyectos/procomun-thumbnailer:main`, públicas):
+
+```bash
+git pull origin main
+make up-docker-images
+```
+
+Equivale a `docker compose pull` seguido de `docker compose up --no-build -d`.
+
+Para un servidor sin el repositorio clonado, `docs/operaciones/instalacion.md` tiene los pasos con el `docker-compose.yml` de `docs/operaciones/despliegue/`.
+
 ## Troubleshooting: problemas comunes y soluciones
 
 - **Error de Conexión a DB**: Verifique que el contenedor `db` esté `healthy` con `docker ps`.
@@ -116,6 +131,7 @@ Las tarjetas de los paquetes `.elpx` sin `screenshot.png` y sin la imagen `previ
 ### Cómo se activa
 
 - `docker compose up -d` levanta `thumbnailer` junto a `app`. La API solo arranca el bucle si tiene `THUMBNAILER_URL` (en `docker-compose.yml`, `http://thumbnailer:3100`). Sin esa variable todo sigue igual, con el marcador por tipo.
+- `app` arranca aunque `thumbnailer` no esté: no depende de él en el `docker-compose.yml`. Si la variable está definida y el servicio no responde, las capturas se quedan en cola sin gastar intentos y el registro de la API avisa con `[thumbnails] el servicio thumbnailer no está disponible`; cuando vuelve, lo dice y sigue con la cola.
 - `thumbnailer` no publica puertos, solo está en la red interna `thumbnails` (sin salida a Internet), no tiene secretos ni base de datos, corre como usuario sin privilegios con el sistema de ficheros en solo lectura y monta el volumen `uploads` en solo lectura.
 - Memoria y CPU: `THUMBNAILER_MEM_LIMIT` (1g por defecto) y `THUMBNAILER_CPUS` (1.0). `THUMBNAILER_CONCURRENCY=2` son dos capturas a la vez; si se sube, hay que subir también la memoria.
 - El resto de variables está en `.env.example`.

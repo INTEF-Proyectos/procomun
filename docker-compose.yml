@@ -16,6 +16,9 @@ services:
       retries: 5
 
   app:
+    # El CI publica esta imagen; `make up-docker-images` la descarga en vez
+    # de construirla. Con `--build` se etiqueta así la construida en local.
+    image: ghcr.io/intef-proyectos/procomun:main
     build:
       context: .
       target: app
@@ -49,6 +52,7 @@ services:
   # de datos, el sistema de ficheros es de solo lectura y el almacenamiento se
   # monta en solo lectura. Sin puertos publicados.
   thumbnailer:
+    image: ghcr.io/intef-proyectos/procomun-thumbnailer:main
     build:
       context: .
       target: thumbnailer
