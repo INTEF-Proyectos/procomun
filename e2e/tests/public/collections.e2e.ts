@@ -145,6 +145,7 @@ test("avisa si falla el catálogo de áreas y reintenta sin perder filtros ni b�
 	await expect(page).toHaveURL(/language=ca/);
 
 	const areas = page.getByRole("combobox", { name: "Buscar un área" });
+	await expect(areas).toBeFocused();
 	await areas.fill("matem");
 	await expect(page.getByRole("option", { name: "Matemáticas" })).toBeVisible();
 });

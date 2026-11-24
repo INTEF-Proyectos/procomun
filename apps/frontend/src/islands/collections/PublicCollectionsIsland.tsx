@@ -297,11 +297,14 @@ export function PublicCollectionsIsland() {
 	} | null>(null);
 	const requestId = useRef(0);
 
+	// El aviso sigue a la vista mientras se reintenta y solo se quita al cargar.
 	const loadAreaCatalog = useCallback(() => {
-		setAreaCatalogFailed(false);
 		void getApiClient()
 			.then((api) => api.getKnowledgeAreaCatalog())
-			.then(setAreaCatalog)
+			.then((loaded) => {
+				setAreaCatalog(loaded);
+				setAreaCatalogFailed(false);
+			})
 			.catch(() => setAreaCatalogFailed(true));
 	}, []);
 
@@ -495,8 +498,11 @@ export function PublicCollectionsIsland() {
 							})
 						}
 					/>
-					{areaCatalogFailed ? (
-						<KnowledgeCatalogError onRetry={loadAreaCatalog} />
+					{areaCatalogFailed && !areaCatalog ? (
+						<KnowledgeCatalogError
+							onRetry={loadAreaCatalog}
+							focusId="filter-knowledgeAreas"
+						/>
 					) : null}
 					<KnowledgeAreaSearchFilters
 						catalog={areaCatalog}
