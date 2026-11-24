@@ -5335,3 +5335,22 @@ tasks:
       La guía de instalación tiene los pasos y docs/operaciones/despliegue
       el docker-compose de ejemplo. Probado en dos servidores: el de pruebas
       propio y uno del INTEF.
+  T-2026-11-24-14521293:
+    date: 2026-11-24
+    agent: "frontend-ux-accesibilidad"
+    task: "La ficha de una colección muestra «Autoría» en vez de «Curator»"
+    status: Done
+    related: ["#638"]
+    notes: >
+      «Curator» es un rol interno que el lector no entiende. La ficha usa el
+      mismo rótulo traducido que la de recursos.
+  T-2026-11-24-15544395:
+    date: 2026-11-24
+    agent: "backend-api-servicios + qa-validacion"
+    task: "Resolver el conflicto y hacer atómica la reasignación de etiquetas en la PR #623"
+    status: Done
+    related: ["#623", "#643", "#611"]
+    notes: >
+      Se conservan las pruebas de autoría y de traducción de la ficha.
+      La fusión y el borrado con reasignación revierten los cambios si falla
+      una escritura. Pasan 25 pruebas específicas y la comprobación de tipos.
