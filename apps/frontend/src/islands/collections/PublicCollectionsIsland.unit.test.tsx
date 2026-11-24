@@ -108,3 +108,9 @@ test("muestra el contador como parte de los metadatos de la ficha (#608)", () =>
 	expect(renderCollectionDetail({}, 1)).toContain("1 visita");
 	expect(renderCollectionDetail({}, 2)).toContain("2 visitas");
 });
+
+test("la ficha presenta a quien creó la colección como autoría, no como «Curator» (#638)", () => {
+	const html = renderCollectionDetail({});
+	expect(html).toContain("Autoría: Curadora");
+	expect(html).not.toContain("Curator:");
+});
