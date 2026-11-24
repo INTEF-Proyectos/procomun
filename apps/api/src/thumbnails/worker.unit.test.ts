@@ -358,8 +358,46 @@ describe("createThumbnailWorker (#470)", () => {
 		await worker.stop();
 
 		expect(logs).toEqual([
-			"warn [thumbnails] el servicio thumbnailer no responde: las capturas quedan en cola y se reintenta cada 30 s",
+			"warn [thumbnails] el servicio thumbnailer no está disponible: las capturas quedan en cola y se reintenta cada 30 s",
 			"info [thumbnails] el servicio thumbnailer vuelve a responder",
 		]);
+	});
+
+	test("si la cola se vacía durante la caída, avisa también de la siguiente", async () => {
+		const job = (id: string) => ({ id, hash: id, attempts: 0 }) as ThumbnailJob;
+		// Vueltas: caída con un trabajo, cola vacía (ya responde), otra caída.
+		const batches = [[job("a")], [], [job("b")]];
+		const { queue } = fakeQueue();
+		const warnings: string[] = [];
+		let sleeps = 0;
+		const worker = createThumbnailWorker({
+			queue: { ...queue, claim: async () => batches.shift() ?? [] },
+			renderer: {
+				render: async () => ({ kind: "unavailable", reason: "caído" }),
+				healthy: async () => true,
+			},
+			store: async () => null,
+			config: { ...CONFIG, concurrency: 1 },
+			now: () => NOW,
+			log: {
+				info() {},
+				warn: (message: string) => warnings.push(message),
+				error() {},
+			},
+			sleep: async (_ms, signal) => {
+				sleeps++;
+				if (sleeps >= 3) {
+					await new Promise<void>((resolve) =>
+						signal.addEventListener("abort", () => resolve(), { once: true }),
+					);
+				}
+			},
+		});
+
+		worker.start();
+		while (sleeps < 3) await Bun.sleep(1);
+		await worker.stop();
+
+		expect(warnings).toHaveLength(2);
 	});
 });

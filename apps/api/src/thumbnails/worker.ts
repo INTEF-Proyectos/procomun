@@ -226,12 +226,21 @@ export function createThumbnailWorker(
 			}
 			if (result?.unavailable && !down) {
 				down = true;
+				// «No está disponible» y no «no responde»: también cubre un 503
+				// del servicio (cola llena o Chromium que no arranca).
 				log.warn(
-					`[thumbnails] el servicio thumbnailer no responde: las capturas quedan en cola y se reintenta cada ${deps.config.unavailablePauseMs / 1000} s`,
+					`[thumbnails] el servicio thumbnailer no está disponible: las capturas quedan en cola y se reintenta cada ${deps.config.unavailablePauseMs / 1000} s`,
 				);
-			} else if (down && result?.claimed && !result.unavailable) {
-				down = false;
-				log.info("[thumbnails] el servicio thumbnailer vuelve a responder");
+			} else if (down && result && !result.unavailable) {
+				// Sin capturas en esta vuelta no se sabe si ha vuelto: se le
+				// pregunta, o una segunda caída ya no avisaría.
+				const back =
+					result.claimed > 0 ||
+					(await deps.renderer.healthy?.().catch(() => false));
+				if (back) {
+					down = false;
+					log.info("[thumbnails] el servicio thumbnailer vuelve a responder");
+				}
 			}
 			const delay = nextDelayMs(result, deps.config);
 			if (delay > 0) await sleep(delay, signal);
