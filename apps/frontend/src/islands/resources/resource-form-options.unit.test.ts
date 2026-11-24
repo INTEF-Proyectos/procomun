@@ -1,6 +1,8 @@
 import { describe, expect, test } from "bun:test";
+import { VALID_LICENSES } from "@procomun/db/validation";
 import {
 	getResourceTypeOptions,
+	LICENSE_OPTIONS,
 	RESOURCE_TYPE_OPTIONS,
 } from "./resource-form-options.ts";
 
@@ -32,4 +34,10 @@ describe("getResourceTypeOptions", () => {
 		expect(getResourceTypeOptions(null)).toBe(RESOURCE_TYPE_OPTIONS);
 		expect(getResourceTypeOptions("   ")).toBe(RESOURCE_TYPE_OPTIONS);
 	});
+});
+
+test("las opciones incluyen todas las licencias válidas", () => {
+	expect(LICENSE_OPTIONS.map(({ value }) => value)).toEqual([
+		...VALID_LICENSES,
+	]);
 });

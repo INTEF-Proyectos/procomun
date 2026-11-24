@@ -17,10 +17,13 @@ const sessionProtectedApiPatterns = [
 
 const sessionProtectedSocialPatterns = [
 	"/api/v1/resources/*/ratings",
+	"/api/v1/collections/*/ratings",
 	"/api/v1/resources/*/comments",
 	"/api/v1/resources/*/favorite",
 	"/api/v1/resources/*/download",
 	"/api/v1/resources/*/stats",
+	"/api/v1/resources/*/report",
+	"/api/v1/collections/*/report",
 	"/api/v1/users/*",
 	"/api/v1/comments/*",
 ];

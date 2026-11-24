@@ -222,4 +222,17 @@ describe("registerGlobalMiddleware", () => {
 			resetDependencies();
 		}
 	});
+
+	test("inicializa la sesión en las valoraciones de colecciones (#609)", async () => {
+		const app = new Hono<AuthEnv>();
+		registerGlobalMiddleware(app);
+		app.post("/api/v1/collections/:slug/ratings", (c) =>
+			c.json({ session: c.get("session"), user: c.get("user") }),
+		);
+
+		const response = await app.request("/api/v1/collections/ejemplo/ratings", {
+			method: "POST",
+		});
+		expect(await response.json()).toEqual({ session: null, user: null });
+	});
 });

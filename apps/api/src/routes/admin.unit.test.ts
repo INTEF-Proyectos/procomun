@@ -1,5 +1,6 @@
 import { describe, expect, spyOn, test } from "bun:test";
 import * as repo from "@procomun/db/repository";
+import { resources as resourcesTable } from "@procomun/db/schema";
 import { Hono } from "hono";
 import { auth } from "../auth/config.ts";
 import type { AuthEnv } from "../auth/middleware.ts";
@@ -710,18 +711,35 @@ describe("Rutas admin — borradores privados frente al curator (#460)", () => {
 		);
 		const search = await listIds(
 			curatorApp,
-			`&search=${encodeURIComponent(draft.title)}`,
+			`&q=${encodeURIComponent(draft.title)}`,
 		);
 		expect(search.ids).not.toContain(draft.id);
 		// La misma búsqueda lo encuentra para el admin.
 		expect(
-			(await listIds(adminApp, `&search=${encodeURIComponent(draft.title)}`))
-				.ids,
+			(await listIds(adminApp, `&q=${encodeURIComponent(draft.title)}`)).ids,
 		).toContain(draft.id);
 
 		// El autor y el admin sí lo ven.
 		expect((await listIds(authorApp, "&status=draft")).ids).toContain(draft.id);
 		expect((await listIds(adminApp, "&status=draft")).ids).toContain(draft.id);
+	});
+
+	test("el autor encuentra su recurso buscando un término que solo está en la autoría (#580)", async () => {
+		await ensureUsers();
+		const token = `autoria${crypto.randomUUID().slice(0, 8)}`;
+		const res = await authorApp.request("/api/admin/resources", {
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({
+				...validResource,
+				title: `Sin coincidencia ${crypto.randomUUID()}`,
+				author: `Autoría ${token}`,
+			}),
+		});
+		expect(res.status).toBe(201);
+		const { id } = (await res.json()) as { id: string };
+
+		expect((await listIds(authorApp, `&q=${token}`)).ids).toContain(id);
 	});
 
 	test("el curator no lee ni modifica el borrador ajeno por acceso directo", async () => {
@@ -782,6 +800,54 @@ describe("Rutas admin — borradores privados frente al curator (#460)", () => {
 			},
 		);
 		expect(add.status).toBe(404);
+	});
+
+	test("reordena dos recursos visibles sin mover el borrador ajeno (#617)", async () => {
+		await ensureUsers();
+		const first = await createDraft(curatorApp);
+		const hidden = await createDraft(authorApp);
+		const last = await createDraft(curatorApp);
+		const db = getDb().db;
+		const collection = await repo.createCollection(db, {
+			title: "Colección ordenada",
+			description: "Colección de prueba",
+			curatorId,
+			isOrdered: true,
+		});
+		await repo.addResourceToCollection(db, collection.id, first.id, 0);
+		await repo.addResourceToCollection(db, collection.id, hidden.id, 1);
+		await repo.addResourceToCollection(db, collection.id, last.id, 2);
+		const url = `/api/admin/collections/${collection.id}/resources`;
+
+		const reordered = await curatorApp.request(`${url}/reorder`, {
+			method: "PATCH",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({ resourceId: first.id, direction: "down" }),
+		});
+		expect(reordered.status).toBe(200);
+		const listed = await curatorApp.request(url);
+		expect(listed.status).toBe(200);
+		const items = (await listed.json()) as Array<{ resourceId: string }>;
+		expect(items.map(({ resourceId }) => resourceId)).toEqual([
+			last.id,
+			first.id,
+		]);
+		expect(
+			(await repo.listCollectionResources(db, collection.id)).map(
+				({ resourceId, position }) => [resourceId, position],
+			),
+		).toEqual([
+			[last.id, 0],
+			[hidden.id, 1],
+			[first.id, 2],
+		]);
+
+		const hiddenReorder = await curatorApp.request(`${url}/reorder`, {
+			method: "PATCH",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({ resourceId: hidden.id, direction: "up" }),
+		});
+		expect(hiddenReorder.status).toBe(400);
 	});
 
 	test("el curator ve sus propios borradores", async () => {
@@ -987,13 +1053,18 @@ describe("Rutas admin — RBAC por rol", () => {
 		expect(createRes.status).toBe(403);
 	});
 
-	test("author no puede acceder a colecciones", async () => {
+	// #432: el author ya entra en /collections, pero solo para las suyas (las
+	// importadas de sus itinerarios). Sin colecciones, el listado sale vacío.
+	test("author sin colecciones propias no ve ninguna", async () => {
 		const authorApp = createAdminApp({
 			id: "author-collections",
 			role: "author",
 		});
 		const res = await authorApp.request("/api/admin/collections");
-		expect(res.status).toBe(403);
+		expect(res.status).toBe(200);
+		const body = await res.json();
+		expect(body.data).toEqual([]);
+		expect(body.total).toBe(0);
 	});
 });
 
@@ -1857,7 +1928,41 @@ describe("Rutas admin — actualización de usuarios", () => {
 
 		const getRes = await adminApp.request(`/api/admin/users/${id}`);
 		const body = await getRes.json();
-		expect(body.bio).toBe("");
+		// #533: un «Sobre mí» vacío se guarda como null.
+		expect(body.bio).toBeNull();
+	});
+
+	test("PATCH /api/admin/users/:id → rechaza nombre vacío y «Sobre mí» demasiado largo (#533)", async () => {
+		const adminApp = createAdminApp({ id: "1", role: "admin" });
+		const email = `name-check-${crypto.randomUUID()}@test.com`;
+		const createRes = await adminApp.request("/api/admin/users", {
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({
+				name: "Con Nombre",
+				email,
+				password: "supersecret8",
+			}),
+		});
+		const { id } = await createRes.json();
+
+		for (const body of [
+			{ name: "" },
+			{ name: null },
+			{ bio: "x".repeat(10_001) },
+		]) {
+			const res = await adminApp.request(`/api/admin/users/${id}`, {
+				method: "PATCH",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify(body),
+			});
+			expect(res.status).toBe(400);
+		}
+
+		const getRes = await adminApp.request(`/api/admin/users/${id}`);
+		const user = await getRes.json();
+		expect(user.name).toBe("Con Nombre");
+		expect(user.bio).toBeNull();
 	});
 });
 
@@ -2182,5 +2287,266 @@ describe("Rutas admin — borradores de coleccion ajenos (#538)", () => {
 		const listed = await adminApp.request("/api/admin/collections?limit=100");
 		const ids = (await listed.json()).data.map((x: { id: string }) => x.id);
 		expect(ids).toContain(created.id);
+	});
+});
+
+// #432: los itinerarios importados del Procomún antiguo conservan a su autor
+// como propietario (curatorId), aunque sea editor o author. Puede ver y editar
+// SUS colecciones y mandarlas a revisión; no puede crear colecciones, ni
+// publicarlas o archivarlas, ni borrarlas, ni tocar las ajenas.
+describe("Rutas admin — colecciones de su autor no curator (#432)", () => {
+	const ownerId = "editor-432-dueno";
+	const otherId = "editor-432-otro";
+	const authorId = "author-432-dueno";
+	const curatorId = "curator-432";
+	const ownerApp = createAdminApp({ id: ownerId, role: "editor" });
+	const otherApp = createAdminApp({ id: otherId, role: "editor" });
+	const authorApp = createAdminApp({ id: authorId, role: "author" });
+	const curatorApp = createAdminApp({ id: curatorId, role: "curator" });
+	const adminApp = createAdminApp({ id: "1", role: "admin" });
+	const json = (body: unknown) => ({
+		headers: { "Content-Type": "application/json" },
+		body: JSON.stringify(body),
+	});
+
+	async function importedCollection(
+		owner: string,
+		editorialStatus = "draft",
+		title = `Itinerario importado ${crypto.randomUUID()}`,
+	) {
+		const db = getDb().db;
+		for (const [id, role] of [
+			[ownerId, "editor"],
+			[otherId, "editor"],
+			[authorId, "author"],
+			[curatorId, "curator"],
+		] as const) {
+			await repo.ensureUser(db, { id, email: `${id}@local.invalid`, role });
+		}
+		return repo.createCollection(db, {
+			title,
+			description: "Importada del Procomún antiguo",
+			curatorId: owner,
+			editorialStatus,
+			isOrdered: true,
+		});
+	}
+
+	async function publishedResource() {
+		const id = crypto.randomUUID();
+		await getDb()
+			.db.insert(resourcesTable)
+			.values({
+				id,
+				slug: `recurso-432-${id}`,
+				title: "Recurso publicado #432",
+				description: "d",
+				language: "es",
+				license: "cc-by",
+				resourceType: "documento",
+				editorialStatus: "published",
+				createdBy: "1",
+			});
+		return id;
+	}
+
+	test("el propietario editor ve y edita la suya, y gestiona sus recursos", async () => {
+		const { id } = await importedCollection(ownerId, "published");
+
+		const get = await ownerApp.request(`/api/admin/collections/${id}`);
+		expect(get.status).toBe(200);
+		expect((await get.json()).curatorId).toBe(ownerId);
+
+		const patch = await ownerApp.request(`/api/admin/collections/${id}`, {
+			method: "PATCH",
+			...json({ title: "Título que pone su autor", description: "Nueva" }),
+		});
+		expect(patch.status).toBe(200);
+		const after = await (
+			await ownerApp.request(`/api/admin/collections/${id}`)
+		).json();
+		expect(after).toMatchObject({
+			title: "Título que pone su autor",
+			description: "Nueva",
+			editorialStatus: "published",
+		});
+
+		const resourceId = await publishedResource();
+		const add = await ownerApp.request(
+			`/api/admin/collections/${id}/resources`,
+			{ method: "POST", ...json({ resourceId }) },
+		);
+		expect(add.status).toBe(201);
+		const list = await ownerApp.request(
+			`/api/admin/collections/${id}/resources`,
+		);
+		expect(list.status).toBe(200);
+		const remove = await ownerApp.request(
+			`/api/admin/collections/${id}/resources/${resourceId}`,
+			{ method: "DELETE" },
+		);
+		expect(remove.status).toBe(200);
+	});
+
+	test("también vale con rol author", async () => {
+		const { id } = await importedCollection(authorId);
+		const get = await authorApp.request(`/api/admin/collections/${id}`);
+		expect(get.status).toBe(200);
+		const patch = await authorApp.request(`/api/admin/collections/${id}`, {
+			method: "PATCH",
+			...json({ title: "Lo edita su autora" }),
+		});
+		expect(patch.status).toBe(200);
+	});
+
+	test("en su listado solo salen las suyas, no las ajenas aunque estén publicadas", async () => {
+		const own = await importedCollection(ownerId);
+		const others = await importedCollection(otherId, "published");
+		const curators = await importedCollection(curatorId, "review");
+
+		const res = await ownerApp.request("/api/admin/collections?limit=100");
+		expect(res.status).toBe(200);
+		const body = await res.json();
+		const ids = body.data.map((x: { id: string }) => x.id);
+		expect(ids).toContain(own.id);
+		expect(ids).not.toContain(others.id);
+		expect(ids).not.toContain(curators.id);
+		expect(
+			body.data.every((x: { curatorId: string }) => x.curatorId === ownerId),
+		).toBe(true);
+	});
+
+	test("otro editor no ve ni edita la ajena, ni sus recursos", async () => {
+		const { id } = await importedCollection(ownerId, "published");
+
+		expect(
+			(await otherApp.request(`/api/admin/collections/${id}`)).status,
+		).toBe(403);
+		expect(
+			(
+				await otherApp.request(`/api/admin/collections/${id}`, {
+					method: "PATCH",
+					...json({ title: "No es mía" }),
+				})
+			).status,
+		).toBe(403);
+		expect(
+			(await otherApp.request(`/api/admin/collections/${id}/resources`)).status,
+		).toBe(403);
+	});
+
+	test("el editor no puede crear colecciones ni borrar la suya", async () => {
+		const create = await ownerApp.request("/api/admin/collections", {
+			method: "POST",
+			...json({ title: "Nueva", description: "No puede" }),
+		});
+		expect(create.status).toBe(403);
+
+		const { id } = await importedCollection(ownerId);
+		const del = await ownerApp.request(`/api/admin/collections/${id}`, {
+			method: "DELETE",
+		});
+		expect(del.status).toBe(403);
+		expect(
+			(await ownerApp.request(`/api/admin/collections/${id}`)).status,
+		).toBe(200);
+	});
+
+	test("no puede cambiarse el propietario", async () => {
+		const { id } = await importedCollection(ownerId);
+		const patch = await ownerApp.request(`/api/admin/collections/${id}`, {
+			method: "PATCH",
+			...json({ title: "Sigue siendo mía", curatorId: otherId }),
+		});
+		expect(patch.status).toBe(200);
+		const after = await (
+			await ownerApp.request(`/api/admin/collections/${id}`)
+		).json();
+		expect(after.curatorId).toBe(ownerId);
+	});
+
+	test("puede mandar su borrador a revisión, pero no publicar ni archivar", async () => {
+		const draft = await importedCollection(ownerId);
+		const publish = await ownerApp.request(
+			`/api/admin/collections/${draft.id}`,
+			{ method: "PATCH", ...json({ editorialStatus: "published" }) },
+		);
+		expect(publish.status).toBe(400);
+
+		const toReview = await ownerApp.request(
+			`/api/admin/collections/${draft.id}`,
+			{ method: "PATCH", ...json({ editorialStatus: "review" }) },
+		);
+		expect(toReview.status).toBe(200);
+		// En revisión es de la cola de curación: no la devuelve él a borrador.
+		const back = await ownerApp.request(`/api/admin/collections/${draft.id}`, {
+			method: "PATCH",
+			...json({ editorialStatus: "draft" }),
+		});
+		expect(back.status).toBe(400);
+
+		const published = await importedCollection(ownerId, "published");
+		const archive = await ownerApp.request(
+			`/api/admin/collections/${published.id}`,
+			{ method: "PATCH", ...json({ editorialStatus: "archived" }) },
+		);
+		expect(archive.status).toBe(400);
+		// Mandar el estado que ya tiene no es un cambio de estado.
+		const same = await ownerApp.request(
+			`/api/admin/collections/${published.id}`,
+			{
+				method: "PATCH",
+				...json({ editorialStatus: "published", title: "Mismo estado" }),
+			},
+		);
+		expect(same.status).toBe(200);
+
+		// El curator la publica desde la cola de revisión, como hasta ahora.
+		const curatorPublish = await curatorApp.request(
+			`/api/admin/collections/${draft.id}`,
+			{ method: "PATCH", ...json({ editorialStatus: "published" }) },
+		);
+		expect(curatorPublish.status).toBe(200);
+	});
+
+	test("un reader no entra aunque figure como propietario", async () => {
+		const db = getDb().db;
+		await repo.ensureUser(db, {
+			id: "reader-432",
+			email: "reader-432@local.invalid",
+			role: "reader",
+		});
+		const { id } = await repo.createCollection(db, {
+			title: "De un reader",
+			description: "x",
+			curatorId: "reader-432",
+		});
+		const readerApp = createAdminApp({ id: "reader-432", role: "reader" });
+		expect(
+			(await readerApp.request(`/api/admin/collections/${id}`)).status,
+		).toBe(403);
+	});
+
+	test("curator y admin siguen como en #538 con las colecciones importadas", async () => {
+		const draft = await importedCollection(ownerId);
+		const published = await importedCollection(ownerId, "published");
+
+		// El borrador del autor es suyo: el curator no lo ve; el admin, sí.
+		expect(
+			(await curatorApp.request(`/api/admin/collections/${draft.id}`)).status,
+		).toBe(403);
+		expect(
+			(await adminApp.request(`/api/admin/collections/${draft.id}`)).status,
+		).toBe(200);
+		expect(
+			(await curatorApp.request(`/api/admin/collections/${published.id}`))
+				.status,
+		).toBe(200);
+		// El curator sigue creando colecciones.
+		const create = await curatorApp.request("/api/admin/collections", {
+			method: "POST",
+			...json({ title: "Del curator #432", description: "Sí puede" }),
+		});
+		expect(create.status).toBe(201);
 	});
 });

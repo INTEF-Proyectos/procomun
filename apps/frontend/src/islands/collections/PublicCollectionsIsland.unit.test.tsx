@@ -12,6 +12,7 @@ import {
 
 function renderCollectionDetail(
 	resource: Partial<CollectionResourceRecord>,
+	viewCount = 0,
 ): string {
 	const detail: CollectionDetailRecord = {
 		id: "col-1",
@@ -19,6 +20,7 @@ function renderCollectionDetail(
 		title: "Colección de prueba",
 		description: "Descripción",
 		editorialStatus: "published",
+		viewCount,
 		curatorId: "curator-1",
 		curatorName: "Curadora",
 		createdAt: "2026-10-01T00:00:00Z",
@@ -92,4 +94,17 @@ describe("PublicCollectionsIsland", () => {
 		expect(meta).toStartWith("<span>EN</span><span>cc-by</span>");
 		expect(meta).toContain("Autora");
 	});
+
+	test("la ficha de la colección tiene el botón para denunciarla (#539)", () => {
+		const html = renderCollectionDetail({});
+
+		expect(html).toContain('aria-label="Reportar colección"');
+		expect(html).toContain("collection-report-btn");
+	});
+});
+
+test("muestra el contador como parte de los metadatos de la ficha (#608)", () => {
+	expect(renderCollectionDetail({}, 0)).toContain("0 visitas");
+	expect(renderCollectionDetail({}, 1)).toContain("1 visita");
+	expect(renderCollectionDetail({}, 2)).toContain("2 visitas");
 });

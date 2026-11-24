@@ -111,3 +111,33 @@ En desarrollo
 
 ### Cierre
 - [x] Registrar validación final y cierre de la iteración.
+
+## Denuncias de colecciones (#539) — 2026-11-16
+
+- [x] Migración `0025_reports_collections`: una denuncia apunta a un recurso o a una colección (CHECK `reports_target_check`); la denuncia se borra con la colección.
+- [x] `POST /api/v1/collections/:slug/report`: con sesión, solo colecciones publicadas y con los mismos motivos que los recursos.
+- [x] `/api/admin/reports`: las denuncias de colecciones salen en la misma cola, se filtran por `collectionId` y se resuelven con `collection_edited`, `collection_deactivated` (archiva) o `collection_deleted`.
+- [x] Botón «Reportar» en la ficha pública de la colección y columna «Contenido» en la cola de administración.
+- [x] Textos de `ReportButton` y `AdminReportsSection` con Paraglide (es, en, ca, gl, eu).
+- [ ] Pendiente de producto: motivos propios para colecciones y si un curator puede resolver denuncias de sus propias colecciones.
+
+## Renumeración de la migración — 2026-11-19
+
+`0025_reports_collections` pasa a `0030_reports_collections` tras integrar la 0027 de «Artículo». Se conserva el orden de integración #586, #585 y #587.
+
+## Licencias de alta y edición — 2026-11-19 (#597)
+
+- [x] Derivar las opciones de alta y edición de las licencias válidas de la API.
+- [x] Cubrir que editar el título conserva las licencias CC BY-ND y CC BY-NC-ND.
+
+## Visitas de colecciones públicas — 2026-11-20 (#608)
+
+- [x] Mostrar el total en la ficha pública y registrar una visita por pestaña, también en colecciones importadas.
+- [x] Aplicar la migración `0032_collection_views` a bases existentes y mantener el arranque de PGlite.
+- [ ] Incorporar el histórico del origen cuando esté disponible (#574).
+
+### 2026-11-21 · Valoraciones de colecciones públicas (#609)
+
+- [x] Reutilizar la escala de una a cinco estrellas, el resumen y los controles de las fichas de recursos.
+- [x] Permitir un voto editable por cuenta y colección publicada. Las colecciones importadas empiezan con cero valoraciones.
+- [x] Comprobar permisos, media, distribución y sustitución de votos con datos de prueba.

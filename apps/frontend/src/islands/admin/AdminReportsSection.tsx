@@ -1,44 +1,68 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { ReportRecord } from "../../lib/api-client.ts";
 import { getApiClient } from "../../lib/get-api-client.ts";
-import { labelFor } from "../../lib/labels.ts";
+import "../../lib/paraglide-client.ts";
+import { url } from "../../lib/paths.ts";
+import {
+	reportActionOptions,
+	reportReasonLabel,
+	reportStatusLabel,
+	reportTarget,
+} from "../../lib/report-labels.tsx";
+import * as m from "../../paraglide/messages.js";
 import { AdminTable, type Column } from "./AdminTable.tsx";
 
 const PAGE_SIZE = 10;
 
-const STATUS_MAP: Record<string, { label: string; className: string }> = {
-	pending: { label: "Pendiente", className: "status-draft" },
-	in_review: { label: "En revision", className: "status-review" },
-	resolved: { label: "Resuelto", className: "status-published" },
-	dismissed: { label: "Descartado", className: "status-archived" },
+const STATUS_CLASS: Record<string, string> = {
+	pending: "status-draft",
+	in_review: "status-review",
+	resolved: "status-published",
+	dismissed: "status-archived",
 };
 
-const REASON_LABELS: Record<string, string> = {
-	inappropriate: "Inapropiado",
-	copyright: "Derechos de autor",
-	incorrect_info: "Info incorrecta",
-	broken_link: "Enlace roto",
-	spam: "Spam",
-	other: "Otro",
-};
+function statusFilters() {
+	return [
+		{ value: "", label: m.admin_reports_filter_all() },
+		{ value: "pending", label: reportStatusLabel("pending") },
+		{ value: "in_review", label: reportStatusLabel("in_review") },
+		{ value: "resolved", label: reportStatusLabel("resolved") },
+		{ value: "dismissed", label: reportStatusLabel("dismissed") },
+	];
+}
 
-const STATUS_FILTERS = [
-	{ value: "", label: "Todos" },
-	{ value: "pending", label: "Pendiente" },
-	{ value: "in_review", label: "En revision" },
-	{ value: "resolved", label: "Resuelto" },
-	{ value: "dismissed", label: "Descartado" },
-];
-
-const ACTION_OPTIONS = [
-	{ value: "", label: "Seleccionar accion" },
-	{ value: "dismissed", label: "Descartar (sin accion)" },
-	{ value: "resolved_no_change", label: "Resolver sin cambios" },
-	{ value: "resource_edited", label: "Recurso editado" },
-	{ value: "resource_deactivated", label: "Desactivar recurso" },
-	{ value: "resource_deleted", label: "Eliminar recurso" },
-	{ value: "referred_editorial", label: "Derivar a editorial" },
-];
+/**
+ * Lo denunciado: un recurso o, desde #539, una colección. Dice cuál de los dos
+ * es y enlaza a su ficha pública.
+ */
+export function ReportTargetCell({ report }: { report: ReportRecord }) {
+	const isCollection = reportTarget(report) === "collection";
+	const title = isCollection ? report.collectionTitle : report.resourceTitle;
+	const slug = isCollection ? report.collectionSlug : report.resourceSlug;
+	// La ficha pública de una colección solo existe si está publicada (#585).
+	const hasPublicPage =
+		!isCollection || report.collectionStatus === "published";
+	const href =
+		slug && hasPublicPage
+			? url(isCollection ? `colecciones?slug=${slug}` : `recurso?slug=${slug}`)
+			: null;
+	return (
+		<div>
+			<span className="admin-status-badge">
+				{isCollection
+					? m.admin_reports_kind_collection()
+					: m.admin_reports_kind_resource()}
+			</span>{" "}
+			{href ? (
+				<a href={href}>
+					<strong>{title || m.admin_reports_untitled()}</strong>
+				</a>
+			) : (
+				<strong>{title || m.admin_reports_untitled()}</strong>
+			)}
+		</div>
+	);
+}
 
 function formatDate(d: string | null | undefined): string {
 	if (!d) return "-";
@@ -142,37 +166,32 @@ export function AdminReportsSection() {
 
 	const columns: Column<ReportRecord>[] = [
 		{
-			key: "resource",
-			label: "Recurso",
-			render: (r) => (
-				<div>
-					<strong>{r.resourceTitle || "Sin titulo"}</strong>
-				</div>
-			),
+			key: "content",
+			label: m.admin_reports_col_content(),
+			render: (r) => <ReportTargetCell report={r} />,
 		},
 		{
 			key: "reason",
-			label: "Motivo",
-			render: (r) => labelFor(REASON_LABELS, r.reason) || r.reason,
+			label: m.admin_reports_col_reason(),
+			render: (r) => reportReasonLabel(r.reason),
 		},
 		{
 			key: "status",
-			label: "Estado",
-			render: (r) => {
-				const s = STATUS_MAP[r.status] || { label: r.status, className: "" };
-				return (
-					<span className={`admin-status-badge ${s.className}`}>{s.label}</span>
-				);
-			},
+			label: m.admin_reports_col_status(),
+			render: (r) => (
+				<span className={`admin-status-badge ${STATUS_CLASS[r.status] ?? ""}`}>
+					{reportStatusLabel(r.status)}
+				</span>
+			),
 		},
 		{
 			key: "date",
-			label: "Fecha",
+			label: m.admin_reports_col_date(),
 			render: (r) => formatDate(r.createdAt),
 		},
 		{
 			key: "actions",
-			label: "Acciones",
+			label: m.admin_reports_col_actions(),
 			render: (r) => (
 				<div style={{ display: "flex", gap: "0.5rem" }}>
 					{r.status === "pending" && (
@@ -181,16 +200,20 @@ export function AdminReportsSection() {
 							className="admin-btn admin-btn--sm"
 							onClick={() => handleMarkInReview(r)}
 						>
-							Revisar
+							{m.admin_reports_review()}
 						</button>
 					)}
 					{(r.status === "pending" || r.status === "in_review") && (
 						<button
 							type="button"
 							className="admin-btn admin-btn--sm admin-btn--danger"
-							onClick={() => setSelectedReport(r)}
+							onClick={() => {
+								// Las acciones dependen de si es un recurso o una colección.
+								setActionTaken("");
+								setSelectedReport(r);
+							}}
 						>
-							Resolver
+							{m.admin_reports_resolve()}
 						</button>
 					)}
 				</div>
@@ -201,10 +224,10 @@ export function AdminReportsSection() {
 	return (
 		<>
 			<div className="admin-section-header">
-				<h2>Denuncias de contenido</h2>
+				<h2>{m.admin_reports_title()}</h2>
 				<div className="admin-filters">
 					<div className="admin-filter-group">
-						{STATUS_FILTERS.map((f) => (
+						{statusFilters().map((f) => (
 							<button
 								key={f.value}
 								type="button"
@@ -227,7 +250,7 @@ export function AdminReportsSection() {
 				page={page}
 				pageSize={PAGE_SIZE}
 				onPageChange={(p) => void loadReports(p, statusFilter)}
-				emptyMessage="No hay denuncias para los filtros actuales."
+				emptyMessage={m.admin_reports_empty()}
 			/>
 
 			{/* Resolve modal */}
@@ -250,15 +273,14 @@ export function AdminReportsSection() {
 								id="resolve-report-title"
 								style={{ margin: "0 0 1rem", fontSize: "1.25rem" }}
 							>
-								Resolver denuncia
+								{m.admin_reports_resolve_title()}
 							</h2>
-							<p style={{ marginBottom: "0.5rem" }}>
-								<strong>Recurso:</strong> {selectedReport.resourceTitle}
-							</p>
+							<div style={{ marginBottom: "0.5rem" }}>
+								<ReportTargetCell report={selectedReport} />
+							</div>
 							<p style={{ marginBottom: "1rem" }}>
-								<strong>Motivo:</strong>{" "}
-								{labelFor(REASON_LABELS, selectedReport.reason) ||
-									selectedReport.reason}
+								<strong>{m.admin_reports_col_reason()}:</strong>{" "}
+								{reportReasonLabel(selectedReport.reason)}
 								{selectedReport.description && (
 									<span
 										style={{
@@ -281,7 +303,7 @@ export function AdminReportsSection() {
 										fontWeight: 500,
 									}}
 								>
-									Accion a tomar *
+									{m.admin_reports_action_label()} *
 								</label>
 								<select
 									id="resolve-action"
@@ -295,11 +317,13 @@ export function AdminReportsSection() {
 										border: "1px solid var(--color-outline)",
 									}}
 								>
-									{ACTION_OPTIONS.map((o) => (
-										<option key={o.value} value={o.value}>
-											{o.label}
-										</option>
-									))}
+									{reportActionOptions(reportTarget(selectedReport)).map(
+										(o) => (
+											<option key={o.value} value={o.value}>
+												{o.label}
+											</option>
+										),
+									)}
 								</select>
 							</div>
 
@@ -312,7 +336,7 @@ export function AdminReportsSection() {
 										fontWeight: 500,
 									}}
 								>
-									Notas de resolucion (opcional)
+									{m.admin_reports_resolution_label()}
 								</label>
 								<textarea
 									id="resolve-resolution"
@@ -326,7 +350,7 @@ export function AdminReportsSection() {
 										border: "1px solid var(--color-outline)",
 										resize: "vertical",
 									}}
-									placeholder="Describe la resolucion..."
+									placeholder={m.admin_reports_resolution_placeholder()}
 								/>
 							</div>
 
@@ -337,14 +361,16 @@ export function AdminReportsSection() {
 									onClick={() => setSelectedReport(null)}
 									disabled={busy}
 								>
-									Cancelar
+									{m.report_cancel()}
 								</button>
 								<button
 									type="submit"
 									className="admin-btn admin-btn--danger"
 									disabled={busy || !actionTaken}
 								>
-									{busy ? "Procesando..." : "Confirmar resolucion"}
+									{busy
+										? m.admin_reports_processing()
+										: m.admin_reports_confirm()}
 								</button>
 							</div>
 						</form>

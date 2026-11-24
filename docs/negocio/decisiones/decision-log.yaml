@@ -274,6 +274,9 @@ ADR-0037:
     Adenda 2026-11-03 (issue #507): lo que daba author da editor (admin y
     curator sin cambios) e import:legacy-users --fix-roles corrige las
     cuentas legacy ya importadas como author.
+    Adenda 2026-11-16 (issue #533): el «Sobre mí» queda solo en
+    user_profile.about (migración 0023 borra user.bio) y /perfil edita el
+    perfil ampliado, privado hasta #504, con validación en el servidor.
 
 ADR-0038:
   title: "Topología del preview HTTP y cableado del editor embebido"
@@ -389,6 +392,30 @@ ADR-0046:
     por la URL estable solo si pertenece a un recurso publicado (public,
     max-age=3600); lo no publicado, por enlace firmado (private, no-store).
 
+ADR-0050:
+  title: "Modelo de comunidades"
+  status: Propuesto
+  date: 2026-11-16
+  file: 0050-modelo-de-comunidades.md
+  notes: >
+    Issues #493 y #495. Tablas propias (communities, community_members,
+    community_join_requests, community_invitations, community_resources y
+    uniones a etiquetas, áreas, contexto y visitas) frente a plataforma
+    externa, ampliar collections o el plugin organization de Better Auth.
+    Modalidad pública/privada independiente del estado
+    (pending/rejected/draft/published); publicada solo con al menos un
+    administrador. Roles de comunidad sin tocar los globales. Importador
+    manual import:legacy-communities. Preguntas abiertas en el diseño de la
+    épica 006.
+    Revisión 2026-11-18 (#578): reimportar no cambia el estado ni los roles y
+    no vuelve a aplicar relaciones ya aplicadas; la baja lógica del último
+    administrador pasa la comunidad a draft en la misma transacción; regla
+    común con ADR-0051 (recuento y administradores públicos, invitaciones a
+    14 días, correo y solicitud borrados en cualquier cierre); unirse sin
+    aprobación a una pública es provisional hasta respuesta en #493.
+    Adenda 2026-11-18 (#578): resolución manual de identity_conflict por un
+    admin (sin correo, auditada); el importador la usa una sola vez por UID y
+    la comunidad sigue en draft hasta publicación explícita.
 ADR-0051:
   title: "Tratamiento de datos personales y baja de cuentas"
   status: Propuesto

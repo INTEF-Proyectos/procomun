@@ -11,6 +11,7 @@ import {
 	KnowledgeAreaField,
 	ProfessionalFamilyField,
 } from "../islands/resources/KnowledgeClassificationFields.tsx";
+import { LicenseSelectOptions } from "../islands/resources/LicenseSelectOptions.tsx";
 import {
 	LANGUAGE_OPTIONS,
 	LICENSE_OPTIONS,
@@ -516,11 +517,7 @@ export default function NuevoPage() {
 									setFieldValue("license", event.currentTarget.value)
 								}
 							>
-								<option value="cc-by">CC BY</option>
-								<option value="cc-by-sa">CC BY-SA</option>
-								<option value="cc-by-nc">CC BY-NC</option>
-								<option value="cc-by-nc-sa">CC BY-NC-SA</option>
-								<option value="cc0">CC0 (Dominio público)</option>
+								<LicenseSelectOptions />
 							</select>
 							<span id="license-error" className="field-error" role="alert">
 								{fieldErrors.license ?? ""}

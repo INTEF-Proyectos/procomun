@@ -38,6 +38,7 @@ import {
 import { EditorialActions } from "./EditorialActions.tsx";
 import { ResourceVersionPanel } from "./ResourceVersionPanel.tsx";
 import "../styles/editar.css";
+import { LicenseSelectOptions } from "../islands/resources/LicenseSelectOptions.tsx";
 import { labelFor } from "../lib/labels.ts";
 
 const STATUS_LABELS: Record<string, { label: string; cssClass: string }> = {
@@ -925,11 +926,7 @@ export default function EditarPage() {
 											ref={licenseRef}
 											defaultValue={DEFAULT_LICENSE}
 										>
-											<option value="cc-by">CC BY</option>
-											<option value="cc-by-sa">CC BY-SA</option>
-											<option value="cc-by-nc">CC BY-NC</option>
-											<option value="cc-by-nc-sa">CC BY-NC-SA</option>
-											<option value="cc0">CC0</option>
+											<LicenseSelectOptions />
 										</select>
 									</div>
 								</div>
@@ -1114,11 +1111,7 @@ export default function EditarPage() {
 										ref={licenseRef}
 										defaultValue={res.license ?? DEFAULT_LICENSE}
 									>
-										<option value="cc-by">CC BY</option>
-										<option value="cc-by-sa">CC BY-SA</option>
-										<option value="cc-by-nc">CC BY-NC</option>
-										<option value="cc-by-nc-sa">CC BY-NC-SA</option>
-										<option value="cc0">CC0</option>
+										<LicenseSelectOptions />
 									</select>
 								</div>
 

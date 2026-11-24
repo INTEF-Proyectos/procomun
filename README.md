@@ -81,6 +81,7 @@ make up
 make up-api
 make up-frontend
 make up-docker
+make up-docker-images
 make seed-docker
 make down-docker
 make up-postgres
@@ -93,6 +94,30 @@ make test-e2e-postgres
 make lint
 make format
 ```
+
+### Limpieza de miniaturas huérfanas
+
+Ejecuta este comando desde el entorno del despliegue, con la misma base de
+datos y el mismo `UPLOAD_STORAGE_DIR` que usa la aplicación. Usa una ruta
+absoluta si el despliegue tiene configurada una ruta relativa. El comando
+exige `DATABASE_URL` o un `PGLITE_DIR` absoluto con una base ya creada; si
+falta, o si la base no tiene ninguna referencia a miniaturas, sale con error
+sin tocar el almacén, también en simulación.
+
+```sh
+bun run --filter '@procomun/cli' cli -- thumbnails:prune --dry-run
+```
+
+La simulación devuelve un informe JSON con los archivos candidatos y su tamaño
+en bytes. Solo se consideran miniaturas del almacén con más de siete días desde
+su última modificación. Se conservan las referencias de proyectos históricos,
+recursos dados de baja y portadas de colecciones.
+
+Para aplicar la limpieza, detén primero los procesos que puedan escribir
+miniaturas o cambiar sus referencias, incluidos la API, el generador y los
+importadores. Así se evita que aparezca una referencia entre la consulta y el
+borrado. Repite el comando sin `--dry-run` y guarda su informe. El tamaño
+refleja la suma de los archivos eliminados.
 
 ### Variables importantes
 
@@ -153,8 +178,8 @@ La empresa que mantiene la plataforma Procomún actual (legacy) dispone de una h
 `import:legacy-procomun` toma un directorio con esos pares `<id>.json` + `<id>.elpx`, mapea los metadatos al perfil mínimo de procomun-ng (ADR-0009) y persiste cada recurso como `published` si su JSON trae `published: 1`, o como `draft` en cualquier otro caso (issue #447). Reutiliza el pipeline de subida/extracción `.elpx` ya existente y es idempotente: reejecutarlo sobre el mismo directorio no duplica nada.
 
 ```bash
-make cli ARGS="import:legacy-procomun --source-dir <ruta-a-los-pares .json+.elpx> --dry-run"
-make cli ARGS="import:legacy-procomun --source-dir <ruta>"
+make cli ARGS="import:legacy-procomun --source-dir <ruta-a-los-pares .json+.elpx> --users-file <usuarios.json> --dry-run"
+make cli ARGS="import:legacy-procomun --source-dir <ruta> --users-file <usuarios.json>"
 ```
 
 Flags disponibles: `--source-dir <ruta>` (obligatorio), `--dry-run` (valida y mapea sin escribir en BD), `--limit <n>`, `--only <externalId>` (reintenta un único registro), `--report-dir <ruta>` (por defecto `local-data/legacy-import-reports/`).
@@ -163,12 +188,20 @@ Para corregir lo importado antes de leer `published`: `make cli ARGS="import:leg
 
 Para corregir el idioma «es» puesto por defecto (#473): `make cli ARGS="import:legacy-procomun --fix-language --source-dir <ruta> --dry-run"` (y sin `--dry-run` para aplicarlo). Relee `generalLanguageStr` y cambia los recursos que siguen en «es» y cuyo origen no lo declara: quedan sin idioma o con el suyo (el valenciano `va` pasa a `ca`). Un idioma distinto de «es» no se toca.
 
-Cada recurso pasa a la cuenta cuyo correo coincide con su `publicatorEmailStr` (issue #456), sin distinguir mayúsculas: así sale en «Mis recursos» y en la ficha de autor, y su autor puede editarlo. Si no hay cuenta, queda a nombre del usuario de sistema y el informe lo lista en `authorsWithoutAccount`, solo con el identificador del recurso y el motivo. Para enlazar lo ya importado cuando existan las cuentas: `make cli ARGS="import:legacy-procomun --link-authors --source-dir <ruta> --dry-run"` (y sin `--dry-run` para aplicarlo). Solo lee los `.json` y nunca cambia un recurso que ya tenga otro creador.
+El volcado `--users-file <usuarios.json>` es obligatorio. El importador usa `publicatorEmailStr` para localizar un UID único en el volcado y busca la cuenta activa `legacy-procomun:user:<uid>`. Cuando la correspondencia falta, es ambigua o no tiene cuenta válida, los ODE quedan sin atribuir y los artículos quedan pendientes de importar (`skipped_without_author`). El informe general lista el ID del recurso y el motivo en `authorsWithoutAccount`. Una vez corregida la correspondencia, vuelve a importar los artículos pendientes o enlaza los ODE existentes con `make cli ARGS="import:legacy-procomun --link-authors --source-dir <ruta> --users-file <usuarios.json> --dry-run"` (quita `--dry-run` para aplicar). El reenlace conserva el creador de un recurso ya atribuido.
 
 Los artículos del Procomún antiguo (`"type": "POST"` en el JSON, issue #446) entran por el mismo comando y en el mismo formato. Reciben el tipo «Artículo», la licencia por defecto de la plataforma (`cc-by`) y la descripción «Artículo relacionado con <título>». Su contenido se ve desde el `.elpx`, que no se modifica, y su texto sirve para la búsqueda. Solo se importan si su `publicatorEmailStr` lleva a una cuenta: los demás no entran y el informe los lista como `skipped_without_author`, con el motivo. El correo solo sale en el informe restringido, si se pide con `--restricted-report` (ver abajo). Al reimportar, entran los que ya tengan cuenta.
 
 Al terminar escribe un `informe_ingesta-<runId>.json` con el desglose (importados, omitidos por ya existir, bloqueados por licencia no reconocida u otros motivos, y warnings tolerables).
 
+Los itinerarios del Procomún antiguo se importan como colecciones (#432), después de los usuarios y los recursos:
+
+```bash
+make cli ARGS="import:legacy-itineraries --source-file <itinerarios.json> --users-file <usuarios.json> --dry-run"
+make cli ARGS="import:legacy-itineraries --source-file <itinerarios.json> --users-file <usuarios.json>"
+```
+
+Los dos ficheros son obligatorios. El importador cruza `publicatorEmailStr` con el volcado de usuarios, exige un UID único y busca la cuenta `legacy-procomun:user:<uid>`. Sin coincidencia histórica válida, la colección se crea en borrador a nombre del usuario de sistema y el informe indica el motivo. Una reimportación conserva las colecciones ya atribuidas a una cuenta. Se admiten `--dry-run`, `--limit <n>`, `--only <id del itinerario>` y `--report-dir <ruta>`. Los recursos que aún no estén importados se omiten. Es idempotente. El informe `informe_itinerarios-<runId>.json` no lleva correos. Detalle en el `design.md` de la épica (sección del 2026-11-16).
 **Datos personales en los informes (#543).** Los informes generales (`informe_*.json` en `--report-dir`) y la consola no llevan datos personales: ni correos ni el texto de los errores de la base de datos, que llevan la consulta y sus parámetros. De un recurso sin cuenta de autor solo dan el identificador, el resultado y el motivo. Para localizar las cuentas que faltan, la importación y `--link-authors` admiten `--restricted-report <ruta>`: escribe aparte el identificador, el correo de origen y el motivo. Sí lleva datos personales, y es solo para quien resuelve las incidencias de la migración. La ruta la elige el operador, tiene que estar fuera de `--report-dir`, el fichero se crea nuevo (no pisa otro) con permisos `0600` y hay que borrarlo al terminar. Sin la opción, el correo no se guarda en ningún sitio.
 
 **Con PGlite (por defecto, sin `DATABASE_URL`)**: detén el servidor de desarrollo (`make up` / `make up-api`) antes de lanzar el import — PGlite es una base de datos embebida de un solo proceso y no soporta que dos procesos abran el mismo directorio de datos a la vez. Con PostgreSQL real (`make up-postgres` o `DATABASE_URL` configurada) no hace falta parar nada, ya que Postgres sí admite conexiones concurrentes de varios procesos.

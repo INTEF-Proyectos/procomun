@@ -51,3 +51,9 @@ UUID aleatorio por pestaña en `sessionStorage` y deduplicación en el servidor.
 * Servicio: `apps/api/src/social/resource-views-service.ts`. Ruta: `POST /api/v1/resources/:slug/view`. `GET /api/v1/resources/:slug/stats` incluye `viewCount`.
 * Frontend: `apps/frontend/src/lib/view-tracking.ts` y `ResourceDetailIsland.tsx`.
 * **Importación pendiente:** `LegacyResourceInput.legacyViewCount` y el mismo campo opcional en el mapeo ya guardan el valor inicial en `resource_view_counts.legacy_view_count`. Falta leerlo del `.json` en `field-mapper.ts` cuando el exportador lo incluya: todavía no se conoce el nombre del campo. Los recursos ya importados se quedan a 0 hasta que se reimporten o se cargue el dato con una corrección.
+
+## Visitas de colecciones públicas — 2026-11-20 (#608)
+
+La ficha registra una visita al abrirse, con el mismo identificador aleatorio por pestaña y la misma deduplicación de 24 horas. Solo se registran visitas mientras la colección está publicada. El servidor guarda un hash separado del de los recursos y purga las sesiones caducadas al recibir otra visita de la misma colección.
+
+`GET /api/v1/collections/:slug` devuelve `viewCount` y `POST /api/v1/collections/:slug/view` actualiza el contador. El total parte de cero para las colecciones existentes e importadas. El histórico de itinerarios se tratará en #574.

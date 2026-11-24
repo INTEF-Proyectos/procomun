@@ -3,6 +3,8 @@
  * Implementación actual: HttpApiClient (contra la API del servidor).
  */
 
+import type { RatingSummary } from "./types/social.ts";
+
 /**
  * Previsualización del .elpx que la API adjunta a cada recurso. El visor y la
  * miniatura son independientes (revisión de #471): un objeto no nulo no
@@ -67,6 +69,33 @@ export interface ResourceListResult {
 	offset: number;
 }
 
+/** Recursos propios por estado editorial (#530). */
+export interface ResourceStatusCounts {
+	draft: number;
+	review: number;
+	published: number;
+	archived: number;
+	total: number;
+}
+
+/** Filtros de «Mis recursos» (#530): los del buscador público más el estado. */
+export interface MyResourcesOptions {
+	status?: string;
+	q?: string;
+	limit?: number;
+	offset?: number;
+	resourceType?: string;
+	tag?: string;
+	educationalCategory?: string;
+	educationalOption?: string;
+	knowledgeAreas?: string[];
+	professionalFamilies?: string[];
+}
+
+export interface MyResourcesResult extends ResourceListResult {
+	statusCounts: ResourceStatusCounts;
+}
+
 /** Compact card used by related / same-author recommendation strips (ADR-0036). */
 export interface RelatedResource {
 	id: string;
@@ -109,6 +138,27 @@ export interface UserRecord {
 	updatedAt?: string | number | Date | null;
 }
 
+/** Centro, localidad y redes del perfil propio (#533). Privados hasta #504. */
+export type UserProfileDetails =
+	import("@procomun/db/user-profile").ProfileDetails;
+
+/** Perfil propio: la cuenta y sus datos ampliados. */
+export interface MyProfile extends UserRecord {
+	profile?: UserProfileDetails;
+}
+
+export interface MyProfileUpdate {
+	name?: string;
+	bio?: string | null;
+	profile?: Partial<UserProfileDetails>;
+}
+
+/** Error de validación de un campo, como lo devuelve la API. */
+export interface ProfileFieldError {
+	field: string;
+	code: string;
+}
+
 export interface CollectionRecord {
 	id: string;
 	slug: string;
@@ -144,6 +194,7 @@ export interface CollectionResourceRecord {
 }
 
 export interface CollectionDetailRecord extends CollectionRecord {
+	viewCount: number;
 	resources: CollectionResourceRecord[];
 }
 
@@ -240,9 +291,15 @@ export interface PaginatedResult<T> {
 
 export interface ReportRecord {
 	id: string;
-	resourceId: string;
-	resourceTitle?: string;
-	resourceSlug?: string;
+	/** Una denuncia apunta a un recurso o a una colección (#539). */
+	resourceId: string | null;
+	resourceTitle?: string | null;
+	resourceSlug?: string | null;
+	collectionId?: string | null;
+	collectionTitle?: string | null;
+	collectionSlug?: string | null;
+	/** Estado editorial de la colección: solo la publicada tiene ficha pública. */
+	collectionStatus?: string | null;
 	reporterId?: string | null;
 	reporterName?: string | null;
 	reason: string;
@@ -469,9 +526,18 @@ export interface ApiClient {
 		callbackURL?: string,
 	): Promise<SignInResult>;
 	signIn(email: string, password: string): Promise<SignInResult>;
-	/** #531: siempre ok salvo fallo de red, para no revelar qué correos hay. */
+	/** #531: respuesta genérica, exista o no una cuenta con ese correo. */
 	requestPasswordReset(email: string): Promise<SignInResult>;
 	resetPassword(token: string, newPassword: string): Promise<SignInResult>;
+	/** #532: cierra las demás sesiones al cambiarla. */
+	changePassword(
+		currentPassword: string,
+		newPassword: string,
+	): Promise<SignInResult>;
+	/** #532: no cambia al momento; hay que verificar el correo nuevo. */
+	changeEmail(newEmail: string): Promise<SignInResult>;
+	/** #532: false en las cuentas solo de acceso institucional (OIDC). */
+	hasPasswordAccount(): Promise<boolean>;
 	signInOidc(): Promise<SignInResult>;
 	signOut(): Promise<void>;
 
@@ -647,12 +713,9 @@ export interface ApiClient {
 	listSimilarAdminTags(id: string): Promise<TagRecord[]>;
 
 	// Social
-	getResourceRatings(slug: string): Promise<{
-		resourceId: string;
-		averageScore: number;
-		totalRatings: number;
-		distribution: Record<number, number>;
-	}>;
+	getResourceRatings(
+		slug: string,
+	): Promise<RatingSummary & { userScore?: number | null }>;
 	submitRating(
 		slug: string,
 		score: number,
@@ -662,6 +725,16 @@ export interface ApiClient {
 		score: number;
 		createdAt: string;
 	}>;
+	getCollectionRatings(slug: string): Promise<
+		Omit<RatingSummary, "resourceId"> & {
+			collectionId: string;
+			userScore: number | null;
+		}
+	>;
+	submitCollectionRating(
+		slug: string,
+		score: number,
+	): Promise<{ score: number }>;
 	toggleFavorite(slug: string): Promise<{ favorited: boolean; count: number }>;
 	getUserFavorites(opts?: {
 		limit?: number;
@@ -671,17 +744,23 @@ export interface ApiClient {
 		limit?: number;
 		offset?: number;
 	}): Promise<PaginatedResult<Resource>>;
+	/** «Mis recursos» (#530): todos los propios, en cualquier estado. */
+	listMyResources(opts?: MyResourcesOptions): Promise<MyResourcesResult>;
 	getUserDashboard(): Promise<{
 		draftCount: number;
 		publishedCount: number;
+		reviewCount?: number;
+		archivedCount?: number;
+		resourceCount?: number;
 		favoriteCount: number;
 		ratingCount?: number;
-		recentResources: Resource[];
 	}>;
-	getMyProfile(): Promise<UserRecord | null>;
-	updateMyProfile(
-		data: Partial<Pick<UserRecord, "name" | "bio">>,
-	): Promise<{ ok: boolean; error?: string }>;
+	getMyProfile(): Promise<MyProfile | null>;
+	updateMyProfile(data: MyProfileUpdate): Promise<{
+		ok: boolean;
+		error?: string;
+		fieldErrors?: ProfileFieldError[];
+	}>;
 	getUserActivity(opts?: {
 		limit?: number;
 		offset?: number;
@@ -689,6 +768,10 @@ export interface ApiClient {
 	trackDownload(slug: string, format?: string): Promise<{ count: number }>;
 	/** Una visita por sesión al abrir la vista previa (ADR-0044). */
 	trackResourceView(
+		slug: string,
+		sessionId: string,
+	): Promise<{ viewCount: number }>;
+	trackCollectionView(
 		slug: string,
 		sessionId: string,
 	): Promise<{ viewCount: number }>;
@@ -706,12 +789,18 @@ export interface ApiClient {
 		reason: string,
 		description?: string,
 	): Promise<{ id: string }>;
+	reportCollection(
+		slug: string,
+		reason: string,
+		description?: string,
+	): Promise<{ id: string }>;
 
 	// Admin Reports
 	listReports(opts?: {
 		status?: string;
 		reason?: string;
 		resourceId?: string;
+		collectionId?: string;
 		limit?: number;
 		offset?: number;
 	}): Promise<PaginatedResult<ReportRecord>>;

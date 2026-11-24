@@ -3,6 +3,7 @@ import { canViewResource, validateCollection } from "@procomun/db/validation";
 import { logActivity } from "../../activity/log.ts";
 import {
 	canManageCollection,
+	collectionStatusChangeError,
 	getCurrentUser,
 	hasMinRole,
 } from "../../auth/roles.ts";
@@ -12,8 +13,12 @@ import { thumbnailUrlForViewer } from "../../thumbnails/access.ts";
 import { buildCrudRoutes } from "../crud-builder.ts";
 import { parseJsonBodyOrNull, requireManageableCollection } from "./guards.ts";
 
+// #432: author y editor entran solo para las colecciones de las que son
+// propietarios (itinerarios importados). Crear y borrar siguen siendo del
+// curator; canManageCollection decide el resto.
 const collectionRoutes = buildCrudRoutes({
-	baseRole: "curator",
+	baseRole: "author",
+	roles: { create: "curator", remove: "curator" },
 	list: (db, opts) =>
 		repo.listCollections(
 			db,
@@ -50,15 +55,33 @@ const collectionRoutes = buildCrudRoutes({
 	remove: repo.deleteCollection,
 	validateCreate: validateCollection,
 	validateUpdate: validateCollection,
+	validateUpdateWith: (entity, body, user) => {
+		const error = collectionStatusChangeError(
+			user,
+			entity.editorialStatus,
+			typeof body.editorialStatus === "string"
+				? body.editorialStatus
+				: undefined,
+		);
+		return error
+			? { valid: false, errors: [{ field: "editorialStatus", message: error }] }
+			: { valid: true, errors: [] };
+	},
 	mergeOnUpdate: true,
 	canManage: canManageCollection,
-	listFilters: (user) => ({
-		curatorId: undefined,
-		// #538: el curator no ve en el listado los borradores de otro curator;
-		// el admin, todos. Misma regla que canManageCollection, y que #460 en
-		// los recursos.
-		hideOthersDraftsFor: hasMinRole(user.role, "admin") ? undefined : user.id,
-	}),
+	listFilters: (user) =>
+		// #432: author y editor solo ven las suyas.
+		!hasMinRole(user.role, "curator")
+			? { curatorId: user.id }
+			: {
+					curatorId: undefined,
+					// #538: el curator no ve en el listado los borradores de otro
+					// curator; el admin, todos. Misma regla que canManageCollection,
+					// y que #460 en los recursos.
+					hideOthersDraftsFor: hasMinRole(user.role, "admin")
+						? undefined
+						: user.id,
+				},
 	prepareCreate: async (body, user) => {
 		await ensureCurrentUser(user);
 		return {
@@ -109,13 +132,11 @@ collectionRoutes.get("/:id/resources", async (c) => {
 	const check = await requireManageableCollection(c, id);
 	if ("response" in check) return check.response;
 
+	const user = getCurrentUser(c);
 	const resources = await repo.listCollectionResources(getDb().db, id, {
 		limit: 100,
+		viewer: user,
 	});
-	// Revisión de #481: la colección puede tener recursos no publicados, también
-	// borradores ajenos (#460). Su preview legacy sale firmada si el usuario
-	// puede verlos y no sale si no.
-	const user = getCurrentUser(c);
 	return c.json(
 		resources.map((resource) => ({
 			...resource,
@@ -185,6 +206,7 @@ collectionRoutes.patch("/:id/resources/reorder", async (c) => {
 		id,
 		body.resourceId,
 		body.direction,
+		getCurrentUser(c),
 	);
 	if (!reordered) {
 		return c.json({ error: "No se pudo reordenar el recurso" }, 400);

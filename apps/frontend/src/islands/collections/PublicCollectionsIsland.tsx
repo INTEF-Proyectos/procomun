@@ -13,8 +13,12 @@ import { getApiClient } from "../../lib/get-api-client.ts";
 import { url } from "../../lib/paths.ts";
 import { resourceCardMedia } from "../../lib/resource-card-media.ts";
 import { formatDateLong } from "../../lib/shared-utils.ts";
+import { trackViewOnce } from "../../lib/view-tracking.ts";
+import { m } from "../../paraglide/messages.js";
 import { ResourceByline } from "../../ui/AuthorLinks.tsx";
 import { CardTypeMarker } from "../../ui/CardTypeMarker.tsx";
+import { RatingIsland } from "../social/RatingIsland.tsx";
+import { ReportButton } from "../social/ReportButton.tsx";
 import "./PublicCollectionsIsland.css";
 
 const PAGE_SIZE = 9;
@@ -52,15 +56,30 @@ function readCollectionLocation(search: string): CollectionLocationState {
 export function CollectionDetailContent({
 	detail,
 	onBack,
+	currentUserId = null,
 }: {
 	detail: CollectionDetailRecord;
 	onBack: () => void;
+	currentUserId?: string | null;
 }) {
 	return (
 		<section className="collections-shell">
-			<button type="button" className="collections-back-link" onClick={onBack}>
-				Volver al listado
-			</button>
+			<div className="collection-detail-toolbar">
+				<button
+					type="button"
+					className="collections-back-link"
+					onClick={onBack}
+				>
+					Volver al listado
+				</button>
+				{/* #539: las colecciones también se denuncian. */}
+				<ReportButton
+					target="collection"
+					slug={detail.slug}
+					currentUserId={currentUserId}
+					className="collection-report-btn"
+				/>
+			</div>
 
 			<header
 				className="collection-detail-hero"
@@ -72,9 +91,18 @@ export function CollectionDetailContent({
 					<p>{detail.description}</p>
 					<ul
 						className="collection-detail-meta"
+						/* biome-ignore lint/a11y/noRedundantRoles: Safari requiere el rol en listas con display flex. */
+						role="list"
 						aria-label="Metadatos de la colección"
 					>
 						<li>{detail.resourceCount ?? detail.resources.length} recursos</li>
+						<li>
+							{detail.viewCount === 1
+								? m.detail_views_one()
+								: m.detail_views_other({
+										count: String(detail.viewCount ?? 0),
+									})}
+						</li>
 						<li>Curator: {detail.curatorName ?? "Equipo editorial"}</li>
 						<li>
 							Actualizada {formatDateLong(detail.updatedAt ?? detail.createdAt)}
@@ -142,6 +170,14 @@ export function CollectionDetailContent({
 					})}
 				</div>
 			</section>
+			<div className="collection-detail-section">
+				<RatingIsland
+					key={detail.slug}
+					target="collection"
+					slug={detail.slug}
+					currentUserId={currentUserId}
+				/>
+			</div>
 		</section>
 	);
 }
@@ -158,6 +194,33 @@ export function PublicCollectionsIsland() {
 	const [total, setTotal] = useState(0);
 	const [detail, setDetail] = useState<CollectionDetailRecord | null>(null);
 	const [error, setError] = useState("");
+	const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+
+	useEffect(() => {
+		void (async () => {
+			const api = await getApiClient();
+			const session = await api.getSession().catch(() => null);
+			setCurrentUserId(session?.user?.id ?? null);
+		})();
+	}, []);
+
+	const detailSlug = detail?.slug;
+	useEffect(() => {
+		if (!detailSlug) return;
+		let active = true;
+		void trackViewOnce(`collection:${detailSlug}`, async (_, sessionId) => {
+			const api = await getApiClient();
+			return api.trackCollectionView(detailSlug, sessionId);
+		}).then((viewCount) => {
+			if (!active || viewCount === null) return;
+			setDetail((current) =>
+				current?.slug === detailSlug ? { ...current, viewCount } : current,
+			);
+		});
+		return () => {
+			active = false;
+		};
+	}, [detailSlug]);
 
 	function syncUrl(next: { q?: string; page?: number; slug?: string | null }) {
 		const params = new URLSearchParams(window.location.search);
@@ -267,6 +330,7 @@ export function PublicCollectionsIsland() {
 		return (
 			<CollectionDetailContent
 				detail={detail}
+				currentUserId={currentUserId}
 				onBack={() => {
 					syncUrl({ slug: null });
 					void loadList(page, appliedQuery);
