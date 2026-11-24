@@ -4,6 +4,7 @@ import type {
 	CollectionDetailRecord,
 	CollectionResourceRecord,
 } from "../../lib/api-client.ts";
+import { overwriteGetLocale } from "../../paraglide/runtime.js";
 import {
 	CollectionDetailContent,
 	PublicCollectionsIsland,
@@ -13,6 +14,7 @@ import {
 function renderCollectionDetail(
 	resource: Partial<CollectionResourceRecord>,
 	viewCount = 0,
+	extra: Partial<CollectionDetailRecord> = {},
 ): string {
 	const detail: CollectionDetailRecord = {
 		id: "col-1",
@@ -40,6 +42,7 @@ function renderCollectionDetail(
 				...resource,
 			},
 		],
+		...extra,
 	};
 	return renderToStaticMarkup(
 		<CollectionDetailContent detail={detail} onBack={() => {}} />,
@@ -107,4 +110,22 @@ test("muestra el contador como parte de los metadatos de la ficha (#608)", () =>
 	expect(renderCollectionDetail({}, 0)).toContain("0 visitas");
 	expect(renderCollectionDetail({}, 1)).toContain("1 visita");
 	expect(renderCollectionDetail({}, 2)).toContain("2 visitas");
+});
+
+test("los rótulos de los detalles técnicos siguen el idioma de la interfaz (#623)", () => {
+	overwriteGetLocale(() => "en");
+	try {
+		const html = renderCollectionDetail({}, 0, {
+			language: "es",
+			catalogKeywords: [{ id: "k1", label: "Geometría" }],
+			knowledgeAreas: [{ id: "a1", label: "Matemáticas" }],
+		} as Partial<CollectionDetailRecord>);
+		expect(html).toContain("Technical Details");
+		expect(html).toContain("<dt>Language</dt>");
+		expect(html).toContain("<dt>Keywords</dt>");
+		expect(html).toContain("<dt>Knowledge areas</dt>");
+		expect(html).not.toContain("Detalles técnicos");
+	} finally {
+		overwriteGetLocale(() => "es");
+	}
 });

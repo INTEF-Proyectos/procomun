@@ -148,3 +148,9 @@ En desarrollo
 - [x] Editar los cuatro campos desde la edición de colecciones y mostrarlos en la ficha pública.
 - [x] Mover las palabras clave de las colecciones al fusionar o reasignar una palabra clave del catálogo.
 - [ ] Alta con metadatos (#614), filtros del listado público (#612) e importación desde el JSON legado (#615).
+
+## Revisión de la PR #623 — 2026-11-24 (#611)
+
+- [x] El PATCH de edición lleva solo los campos modificados; vaciar un campo se envía de forma explícita.
+- [x] El panel de etiquetas cuenta las colecciones que usan cada palabra clave y lo indica en la confirmación de borrado.
+- [x] Los rótulos de los detalles técnicos de la ficha pública usan mensajes de Paraglide.
