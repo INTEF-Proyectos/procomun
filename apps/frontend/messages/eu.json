@@ -459,5 +459,9 @@
 	"my_resources_delete_confirm": "Ziur «{title}» ezabatu nahi duzula? Baliabide osoa ezabatuko da eta ekintza hau ezin da desegin.",
 	"my_resources_deleting": "Ezabatzen…",
 	"my_resources_deleted": "«{title}» ezabatu da.",
-	"my_resources_delete_error": "Ezin izan da «{title}» ezabatu."
+	"my_resources_delete_error": "Ezin izan da «{title}» ezabatu.",
+	"collection_detail_keywords": "Gako-hitzak",
+	"collection_detail_educational": "Hezkuntza-etapa, programa edo eremua",
+	"knowledge_areas_load_error": "Ezin izan dira jakintza-arloak kargatu.",
+	"knowledge_areas_retry": "Saiatu berriro"
 }

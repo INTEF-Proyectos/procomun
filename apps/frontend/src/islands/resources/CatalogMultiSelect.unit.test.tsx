@@ -94,6 +94,26 @@ describe("campos de áreas y familias del formulario (#448)", () => {
 		expect(html).toContain("Ajedrez (inactiva)");
 	});
 
+	test("si el catálogo no carga, avisa y ofrece reintentar (#626)", () => {
+		const render = (onCatalogRetry?: () => void) =>
+			renderToStaticMarkup(
+				<KnowledgeAreaField
+					idPrefix="ed"
+					catalog={null}
+					selectedIds={[]}
+					onChange={() => {}}
+					onCatalogRetry={onCatalogRetry}
+				/>,
+			);
+		const failed = render(() => {});
+		expect(failed).toContain('role="alert"');
+		expect(failed).toContain(
+			"No se han podido cargar las áreas de conocimiento",
+		);
+		expect(failed).toContain(">Reintentar</button>");
+		expect(render()).not.toContain("Reintentar");
+	});
+
 	test("la familia profesional solo aparece con FP", () => {
 		const withoutFp = renderToStaticMarkup(
 			<ProfessionalFamilyField

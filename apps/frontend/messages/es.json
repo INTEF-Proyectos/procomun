@@ -459,5 +459,9 @@
 	"my_resources_delete_confirm": "¿Seguro que deseas eliminar «{title}»? Se borra el recurso completo y esta acción no se puede deshacer.",
 	"my_resources_deleting": "Eliminando…",
 	"my_resources_deleted": "Se ha eliminado «{title}».",
-	"my_resources_delete_error": "No se ha podido eliminar «{title}»."
+	"my_resources_delete_error": "No se ha podido eliminar «{title}».",
+	"collection_detail_keywords": "Palabras clave",
+	"collection_detail_educational": "Etapa, programa o ámbito educativo",
+	"knowledge_areas_load_error": "No se han podido cargar las áreas de conocimiento.",
+	"knowledge_areas_retry": "Reintentar"
 }
