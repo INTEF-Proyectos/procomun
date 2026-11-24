@@ -274,12 +274,14 @@ function CollectionMetadataFields({
 	setMetadata,
 	catalog,
 	resourceAreas,
+	onCatalogRetry,
 }: {
 	idPrefix: string;
 	metadata: CollectionMetadata;
 	setMetadata: Dispatch<SetStateAction<CollectionMetadata>>;
 	catalog: PublicKnowledgeAreaCatalog | null;
 	resourceAreas?: CollectionRecord["knowledgeAreas"];
+	onCatalogRetry?: () => void;
 }) {
 	const { language, keywords, areas, educational } = metadata;
 	return (
@@ -314,6 +316,7 @@ function CollectionMetadataFields({
 				selectedIds={areas}
 				onChange={(areas) => setMetadata((current) => ({ ...current, areas }))}
 				resourceAreas={resourceAreas}
+				onCatalogRetry={onCatalogRetry}
 			/>
 			<EducationalClassificationEditor
 				idPrefix={idPrefix}
@@ -346,6 +349,7 @@ export function CollectionsCrudIsland() {
 	const [catalog, setCatalog] = useState<PublicKnowledgeAreaCatalog | null>(
 		null,
 	);
+	const [catalogFailed, setCatalogFailed] = useState(false);
 
 	const [editing, setEditing] = useState<CollectionRecord | null>(null);
 	const [editForm, setEditForm] = useState(EMPTY_FORM);
@@ -442,10 +446,11 @@ export function CollectionsCrudIsland() {
 	}
 
 	const loadCatalog = useCallback(() => {
+		setCatalogFailed(false);
 		void getApiClient()
 			.then((api) => api.getKnowledgeAreaCatalog())
 			.then(setCatalog)
-			.catch(() => {});
+			.catch(() => setCatalogFailed(true));
 	}, []);
 
 	useEffect(() => {
@@ -745,6 +750,7 @@ export function CollectionsCrudIsland() {
 						metadata={createMetadata}
 						setMetadata={setCreateMetadata}
 						catalog={catalog}
+						onCatalogRetry={catalogFailed ? loadCatalog : undefined}
 					/>
 					<div className="admin-form-actions">
 						<button
@@ -931,6 +937,7 @@ export function CollectionsCrudIsland() {
 							metadata={editMetadata}
 							setMetadata={setEditMetadata}
 							catalog={catalog}
+							onCatalogRetry={catalogFailed ? loadCatalog : undefined}
 							resourceAreas={editing.knowledgeAreas}
 						/>
 

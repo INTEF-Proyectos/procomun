@@ -5187,6 +5187,16 @@ tasks:
     status: Done
     related: ["#614", "#611"]
     notes: "Alta y edición usan los mismos controles y validaciones de catálogo."
+  T-2026-11-24-08084091:
+    date: 2026-11-24
+    agent: "frontend-ux-accesibilidad + qa-validacion"
+    task: "Atender la revisión de la PR #626 del alta de colecciones"
+    status: Done
+    related: ["#626", "#614"]
+    notes: >
+      Si falla el catálogo de áreas, el alta y la edición lo avisan junto al
+      selector y ofrecen reintentar sin perder lo escrito. Se integra el
+      arreglo de la #623: la edición envía solo los campos modificados.
   T-2026-11-21-00271091:
     date: 2026-11-21
     agent: "backend-api-servicios + frontend-ux-accesibilidad"

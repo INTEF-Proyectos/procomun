@@ -30,6 +30,21 @@ const EMPTY_CATALOG: PublicKnowledgeAreaCatalog = {
 	professionalFamilies: [],
 };
 
+/**
+ * Aviso cuando el catálogo no carga, con un botón para volver a pedirlo
+ * (#626). Sin él, el selector se queda sin opciones y nadie sabe por qué.
+ */
+export function KnowledgeCatalogError({ onRetry }: { onRetry: () => void }) {
+	return (
+		<p className="catalog-multiselect-error" role="alert">
+			{m.knowledge_areas_load_error()}{" "}
+			<button type="button" onClick={onRetry}>
+				{m.knowledge_areas_retry()}
+			</button>
+		</p>
+	);
+}
+
 export function KnowledgeAreaField({
 	idPrefix,
 	catalog,
@@ -37,6 +52,7 @@ export function KnowledgeAreaField({
 	onChange,
 	error,
 	resourceAreas = [],
+	onCatalogRetry,
 }: {
 	idPrefix: string;
 	catalog: PublicKnowledgeAreaCatalog | null;
@@ -45,6 +61,8 @@ export function KnowledgeAreaField({
 	error?: string;
 	/** Las que ya tiene el recurso: dan la denominación si el catálogo no carga. */
 	resourceAreas?: ResourceKnowledgeArea[];
+	/** Solo si la carga del catálogo ha fallado: muestra el aviso y reintenta. */
+	onCatalogRetry?: () => void;
 }) {
 	const { areas, blocks } = catalog ?? EMPTY_CATALOG;
 	const options = formAreaOptions(areas, selectedIds);
@@ -55,20 +73,25 @@ export function KnowledgeAreaField({
 		active: area.active,
 	}));
 	return (
-		<CatalogMultiSelect
-			id={`${idPrefix}-${KNOWLEDGE_AREA_FIELD}`}
-			legend={m.knowledge_areas_label()}
-			searchLabel={m.knowledge_areas_search()}
-			help={m.knowledge_areas_help({ max: String(MAX_KNOWLEDGE_AREAS) })}
-			options={options}
-			groups={blocks}
-			selected={selectedCatalogOptions(selectedIds, options, fallback)}
-			onChange={onChange}
-			max={MAX_KNOWLEDGE_AREAS}
-			maxMessage={m.knowledge_areas_max({ max: String(MAX_KNOWLEDGE_AREAS) })}
-			error={error}
-			markInactive
-		/>
+		<>
+			{onCatalogRetry ? (
+				<KnowledgeCatalogError onRetry={onCatalogRetry} />
+			) : null}
+			<CatalogMultiSelect
+				id={`${idPrefix}-${KNOWLEDGE_AREA_FIELD}`}
+				legend={m.knowledge_areas_label()}
+				searchLabel={m.knowledge_areas_search()}
+				help={m.knowledge_areas_help({ max: String(MAX_KNOWLEDGE_AREAS) })}
+				options={options}
+				groups={blocks}
+				selected={selectedCatalogOptions(selectedIds, options, fallback)}
+				onChange={onChange}
+				max={MAX_KNOWLEDGE_AREAS}
+				maxMessage={m.knowledge_areas_max({ max: String(MAX_KNOWLEDGE_AREAS) })}
+				error={error}
+				markInactive
+			/>
+		</>
 	);
 }
 

@@ -154,3 +154,8 @@ En desarrollo
 - [x] El PATCH de edición lleva solo los campos modificados; vaciar un campo se envía de forma explícita.
 - [x] El panel de etiquetas cuenta las colecciones que usan cada palabra clave y lo indica en la confirmación de borrado.
 - [x] Los rótulos de los detalles técnicos de la ficha pública usan mensajes de Paraglide.
+
+## Revisión de la PR #626 — 2026-11-24 (#614)
+
+- [x] Si falla el catálogo de áreas de conocimiento, el alta y la edición muestran un aviso accesible con un botón «Reintentar» que no borra lo escrito.
+- [x] Prueba E2E con un primer fallo del catálogo y una respuesta válida al reintentar.
