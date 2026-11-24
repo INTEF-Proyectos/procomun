@@ -131,6 +131,7 @@ Las tarjetas de los paquetes `.elpx` sin `screenshot.png` y sin la imagen `previ
 ### Cómo se activa
 
 - `docker compose up -d` levanta `thumbnailer` junto a `app`. La API solo arranca el bucle si tiene `THUMBNAILER_URL` (en `docker-compose.yml`, `http://thumbnailer:3100`). Sin esa variable todo sigue igual, con el marcador por tipo.
+- `app` arranca aunque `thumbnailer` no esté: no depende de él en el `docker-compose.yml`. Si la variable está definida y el servicio no responde, las capturas se quedan en cola sin gastar intentos y el registro de la API avisa con `[thumbnails] el servicio thumbnailer no está disponible`; cuando vuelve, lo dice y sigue con la cola.
 - `thumbnailer` no publica puertos, solo está en la red interna `thumbnails` (sin salida a Internet), no tiene secretos ni base de datos, corre como usuario sin privilegios con el sistema de ficheros en solo lectura y monta el volumen `uploads` en solo lectura.
 - Memoria y CPU: `THUMBNAILER_MEM_LIMIT` (1g por defecto) y `THUMBNAILER_CPUS` (1.0). `THUMBNAILER_CONCURRENCY=2` son dos capturas a la vez; si se sube, hay que subir también la memoria.
 - El resto de variables está en `.env.example`.

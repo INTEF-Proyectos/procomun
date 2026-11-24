@@ -5240,6 +5240,16 @@ tasks:
       Se integran las visitas de #620 y ambas pruebas de API. La migración
       0033 queda después de la 0032 y el migrador conserva los contadores
       existentes. Pasan 117 pruebas de los archivos afectados y los tipos.
+  T-2026-11-24-08035724:
+    date: 2026-11-24
+    agent: "backend-api-servicios + devops-sre"
+    task: "Avisar en el registro cuando el servicio thumbnailer no responde"
+    status: Done
+    related: ["#470", ADR-0046]
+    notes: >
+      La API ya arrancaba sin el thumbnailer y dejaba las capturas en cola
+      sin gastar intentos, pero no lo decía. El bucle avisa una vez al
+      perder el servicio y otra al recuperarlo.
   T-2026-11-24-09011752:
     date: 2026-11-24
     agent: "devops-sre"
