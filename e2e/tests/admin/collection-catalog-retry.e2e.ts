@@ -42,6 +42,8 @@ test("el alta de colecciones avisa si falla el catálogo de áreas y deja reinte
 	);
 
 	const search = form.getByRole("combobox", { name: "Buscar un área" });
+	// El aviso se ha ido con el foco dentro: pasa al buscador de áreas.
+	await expect(search).toBeFocused();
 	await search.fill("quimi");
 	await page.getByRole("option", { name: "Química" }).click();
 	await expect(
