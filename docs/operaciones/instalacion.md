@@ -18,6 +18,63 @@ Esta guía detalla los pasos necesarios para desplegar Procomun utilizando Docke
 - Puertos abiertos: 80 (HTTP), 443 (HTTPS).
 - Acceso a internet para descarga de imágenes de registro (GHCR).
 
+## Despliegue en un servidor con las imágenes publicadas (2026-11-24)
+
+Es la forma recomendada en un servidor. No hace falta clonar el repositorio ni construir nada: se descargan las imágenes que publica el CI en cada cambio de `main`, que son públicas.
+
+1. **Crear una carpeta y descargar los ficheros**
+   ```bash
+   mkdir procomun && cd procomun
+   BASE=https://raw.githubusercontent.com/INTEF-Proyectos/procomun/main
+   curl -fsSLO $BASE/docs/operaciones/despliegue/docker-compose.yml
+   curl -fsSLO $BASE/apps/thumbnailer/seccomp-chromium.json
+   ```
+
+2. **Editar `docker-compose.yml`**
+   - `POSTGRES_PASSWORD`, y la misma contraseña dentro de `DATABASE_URL`.
+   - `BETTER_AUTH_SECRET`: una cadena aleatoria larga, por ejemplo la que da `openssl rand -base64 32`.
+   - `BETTER_AUTH_URL` y `FRONTEND_URL`: la dirección con la que se entra a la plataforma.
+
+3. **Arrancar**
+   ```bash
+   docker compose pull
+   docker compose up -d
+   docker compose ps
+   ```
+
+Quedan tres contenedores: `db`, `app` y `thumbnailer`. La plataforma escucha en el puerto 3000 y arranca con los datos de ejemplo.
+
+**Comprobar las miniaturas.** En el registro de `app` debe aparecer `bucle activo`:
+
+```bash
+docker compose logs app | grep thumbnails
+```
+
+Las miniaturas de los recursos que ya existan se encolan una vez a mano; las de las subidas nuevas se piden solas:
+
+```bash
+docker compose exec app bun run apps/cli/src/index.ts elpx:thumbnails
+```
+
+Si el `thumbnailer` no arranca, la plataforma funciona igual: las tarjetas sin imagen muestran el icono del tipo de recurso.
+
+**Actualizar** a la última versión de `main`:
+
+```bash
+docker compose pull
+docker compose up -d
+```
+
+**Entorno de pruebas que se regenera solo.** Para que cada actualización empiece con la base de datos y las subidas vacías y los datos de ejemplo recién cargados, descarga además el script y descomenta en `docker-compose.yml` las dos líneas que lo usan (el volumen `./reset-on-update.sh` y `entrypoint`):
+
+```bash
+curl -fsSLO $BASE/docs/operaciones/despliegue/reset-on-update.sh
+```
+
+Borra todo lo que haya en cada contenedor nuevo de `app`; un reinicio del mismo contenedor conserva los datos. No lo actives en un entorno con datos que haya que conservar.
+
+Si el repositorio ya está clonado en el servidor, `make up-docker-images` hace lo mismo con el `docker-compose.yml` de la raíz: descarga las imágenes y arranca sin construirlas.
+
 ## Instalación paso a paso
 
 1. **Clonar el repositorio**
