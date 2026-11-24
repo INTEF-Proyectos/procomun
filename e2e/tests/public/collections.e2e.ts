@@ -169,7 +169,11 @@ test("un error HTTP del listado muestra el aviso y la página sigue operativa (#
 	).toBeVisible();
 
 	listingDown = false;
-	await page.getByRole("button", { name: "Buscar", exact: true }).click();
+	// La cabecera tiene otro botón «Buscar».
+	await page
+		.locator("form.collections-search")
+		.getByRole("button", { name: "Buscar", exact: true })
+		.click();
 	await expect(
 		page.getByRole("heading", { name: /\d+ colecciones publicadas/ }),
 	).toBeVisible();
