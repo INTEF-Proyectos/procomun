@@ -1,6 +1,6 @@
 # Versión fijada, la misma que setup-bun en los workflows: con 1.3.x en Linux
 # importar PGlite deja la API en ~4 GB de RSS (#489).
-FROM oven/bun:1.4.4 AS base
+FROM oven/bun:1.4.5 AS base
 RUN apt-get update && apt-get install -y unzip curl && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
 
@@ -120,7 +120,7 @@ EXPOSE 80/tcp
 # con el almacenamiento en solo lectura (ver docker-compose.yml). Va antes de
 # `app` para que la imagen por defecto, la última etapa, siga siendo la todo
 # en uno. Solo instala playwright-core y chromium-headless-shell.
-FROM oven/bun:1.4.4 AS thumbnailer
+FROM oven/bun:1.4.5 AS thumbnailer
 WORKDIR /app
 ENV PLAYWRIGHT_BROWSERS_PATH=/ms-playwright
 

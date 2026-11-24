@@ -63,6 +63,12 @@ Implementación (en #512, apilado sobre #471):
 
 - [x] `recupera los processing colgados…` (elpx-thumbnails) fallaba también en la punta revisada al correr el fichero completo (aislado pasaba): el primer reclamo se llevaba proyectos pendientes de tests anteriores, creados antes. El test fija `created_at` anteriores.
 
+## 2026-11-21 — Publicación de la imagen del thumbnailer (#519)
+
+- [x] Publicar las etapas `app` y `thumbnailer` al superar la CI de `main`. El servicio de miniaturas queda disponible en `ghcr.io/intef-proyectos/procomun-thumbnailer` con las etiquetas `main` y `latest`.
+- [x] Escanear ambas imágenes en el mismo workflow con Trivy, usando el digest devuelto por GHCR. Los hallazgos quedan en el log del job y los fallos de ejecución de Trivy fallan el job.
+- [x] Agrupar `@playwright/test` y `playwright-core` en Dependabot y verificar en CI que sus versiones exactas coinciden.
+
 ## 2026-11-21 · Limpieza manual de miniaturas (#520)
 
 - [x] Añadir simulación y borrado por CLI con siete días de margen y un informe de archivos y bytes.
