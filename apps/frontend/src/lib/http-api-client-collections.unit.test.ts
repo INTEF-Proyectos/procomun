@@ -52,4 +52,17 @@ describe("HttpApiClient: filtros del listado de colecciones (#612)", () => {
 		});
 		expect(urls[0]).toBe("/api/v1/collections");
 	});
+
+	test("un error HTTP con cuerpo JSON rechaza en vez de resolver sin `data` (#629)", async () => {
+		globalThis.fetch = mock(
+			async () =>
+				new Response(JSON.stringify({ error: "No disponible" }), {
+					status: 503,
+				}),
+		) as unknown as typeof fetch;
+
+		await expect(new HttpApiClient().listPublicCollections()).rejects.toEqual({
+			error: "No disponible",
+		});
+	});
 });

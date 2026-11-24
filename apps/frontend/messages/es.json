@@ -464,5 +464,7 @@
 	"collection_detail_keywords": "Palabras clave",
 	"collection_detail_educational": "Etapa, programa o ámbito educativo",
 	"knowledge_areas_load_error": "No se han podido cargar las áreas de conocimiento.",
-	"knowledge_areas_retry": "Reintentar"
+	"knowledge_areas_retry": "Reintentar",
+	"collections_filters_active_one": "1 filtro activo",
+	"collections_filters_active_other": "{count} filtros activos"
 }

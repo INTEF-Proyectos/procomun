@@ -105,9 +105,16 @@
 	margin-block-start: 0.75rem;
 }
 
-.collections-filters .clear-btn {
+.collections-filters-count {
+	margin-inline-start: 0.75rem;
+	font-size: var(--text-body-sm);
+	font-weight: 500;
+	color: var(--color-on-surface-variant);
+}
+
+.collections-filters-clear {
 	width: auto;
-	margin-block-end: 0.75rem;
+	margin-block: -0.75rem 1.5rem;
 }
 
 .collection-list-section,

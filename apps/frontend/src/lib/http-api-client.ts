@@ -221,6 +221,7 @@ export class HttpApiClient implements ApiClient {
 		// Mismos nombres de parámetro que el buscador de recursos.
 		const qs = resourceFilterParams(opts).toString();
 		const res = await fetch(`/api/v1/collections${qs ? `?${qs}` : ""}`);
+		if (!res.ok) throw await res.json().catch(() => ({}));
 		return res.json();
 	}
 

@@ -464,5 +464,7 @@
 	"collection_detail_keywords": "Keywords",
 	"collection_detail_educational": "Educational stage, programme or field",
 	"knowledge_areas_load_error": "The knowledge areas could not be loaded.",
-	"knowledge_areas_retry": "Retry"
+	"knowledge_areas_retry": "Retry",
+	"collections_filters_active_one": "1 active filter",
+	"collections_filters_active_other": "{count} active filters"
 }

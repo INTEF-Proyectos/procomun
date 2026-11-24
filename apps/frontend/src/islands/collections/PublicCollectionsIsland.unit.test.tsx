@@ -6,6 +6,7 @@ import type {
 } from "../../lib/api-client.ts";
 import { overwriteGetLocale } from "../../paraglide/runtime.js";
 import {
+	activeFilterCount,
 	CollectionDetailContent,
 	PublicCollectionsIsland,
 	readCollectionLocation,
@@ -83,6 +84,17 @@ describe("PublicCollectionsIsland", () => {
 			educationalCategory: "educacion-primaria",
 			educationalOption: "primer-ciclo",
 		});
+	});
+
+	test("cuenta los filtros activos de un enlace filtrado (#629)", () => {
+		expect(activeFilterCount(readCollectionLocation("?q=algo&page=2"))).toBe(0);
+		expect(
+			activeFilterCount(
+				readCollectionLocation(
+					"?language=ca&tag=funciones&knowledgeAreas=matematicas,geografia&educationalCategory=educacion-primaria&educationalOption=primer-ciclo",
+				),
+			),
+		).toBe(5);
 	});
 
 	test("descarta los filtros que solo tienen los recursos", () => {

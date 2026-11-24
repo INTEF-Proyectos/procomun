@@ -37,6 +37,7 @@ import { CardTypeMarker } from "../../ui/CardTypeMarker.tsx";
 import { EducationalSearchFilters } from "../catalog/EducationalSearchFilters.tsx";
 import { KnowledgeAreaSearchFilters } from "../catalog/KnowledgeAreaSearchFilters.tsx";
 import { KeywordCatalogField } from "../resources/KeywordCatalogField.tsx";
+import { KnowledgeCatalogError } from "../resources/KnowledgeClassificationFields.tsx";
 import { RatingIsland } from "../social/RatingIsland.tsx";
 import { ReportButton } from "../social/ReportButton.tsx";
 import "./PublicCollectionsIsland.css";
@@ -61,6 +62,16 @@ function coverStyle(coverImageUrl?: string | null) {
 	return {
 		backgroundImage: `linear-gradient(rgba(15, 76, 207, 0.12), rgba(15, 76, 207, 0.42)), url("${coverImageUrl}")`,
 	};
+}
+
+/** Filtros aplicados, sin el texto: lo que el panel cerrado no deja ver (#629). */
+function activeFilterCount(state: CollectionLocationState): number {
+	return (
+		(state.language ? 1 : 0) +
+		(state.tag ? 1 : 0) +
+		(state.educationalCategory ? 1 : 0) +
+		(state.knowledgeAreas?.length ?? 0)
+	);
 }
 
 function readCollectionLocation(search: string): CollectionLocationState {
@@ -279,11 +290,20 @@ export function PublicCollectionsIsland() {
 	const [languageOptions, setLanguageOptions] = useState(LANGUAGE_OPTIONS);
 	const [areaCatalog, setAreaCatalog] =
 		useState<PublicKnowledgeAreaCatalog | null>(null);
+	const [areaCatalogFailed, setAreaCatalogFailed] = useState(false);
 	const [tagLabel, setTagLabel] = useState<{
 		slug: string;
 		label: string;
 	} | null>(null);
 	const requestId = useRef(0);
+
+	const loadAreaCatalog = useCallback(() => {
+		setAreaCatalogFailed(false);
+		void getApiClient()
+			.then((api) => api.getKnowledgeAreaCatalog())
+			.then(setAreaCatalog)
+			.catch(() => setAreaCatalogFailed(true));
+	}, []);
 
 	useEffect(() => {
 		void getApiClient().then((api) => {
@@ -291,17 +311,14 @@ export function PublicCollectionsIsland() {
 				.getSession()
 				.then((session) => setCurrentUserId(session?.user?.id ?? null))
 				.catch(() => {});
-			void api
-				.getKnowledgeAreaCatalog()
-				.then(setAreaCatalog)
-				.catch(() => {});
 		});
+		loadAreaCatalog();
 		void loadFilterOptions(
 			"language",
 			m.catalog_all_languages(),
 			LANGUAGE_OPTIONS,
 		).then(setLanguageOptions);
-	}, []);
+	}, [loadAreaCatalog]);
 
 	const detailSlug = detail?.slug;
 	useEffect(() => {
@@ -430,6 +447,7 @@ export function PublicCollectionsIsland() {
 		);
 	}
 
+	const activeFilters = activeFilterCount(listing);
 	return (
 		<section className="collections-shell">
 			<header className="collections-hero">
@@ -454,7 +472,18 @@ export function PublicCollectionsIsland() {
 			</header>
 
 			<details className="collections-filters">
-				<summary>{m.catalog_advanced_filters()}</summary>
+				<summary>
+					<span>{m.catalog_advanced_filters()}</span>
+					{activeFilters > 0 ? (
+						<span className="collections-filters-count">
+							{activeFilters === 1
+								? m.collections_filters_active_one()
+								: m.collections_filters_active_other({
+										count: String(activeFilters),
+									})}
+						</span>
+					) : null}
+				</summary>
 				<div className="collections-filters-fields">
 					<EducationalSearchFilters
 						categoryId={listing.educationalCategory ?? ""}
@@ -466,6 +495,9 @@ export function PublicCollectionsIsland() {
 							})
 						}
 					/>
+					{areaCatalogFailed ? (
+						<KnowledgeCatalogError onRetry={loadAreaCatalog} />
+					) : null}
 					<KnowledgeAreaSearchFilters
 						catalog={areaCatalog}
 						educationalCategory={listing.educationalCategory ?? ""}
@@ -518,9 +550,12 @@ export function PublicCollectionsIsland() {
 						/>
 					</div>
 				</div>
+			</details>
+			{/* Fuera del panel: se puede limpiar sin abrirlo (#629). */}
+			{activeFilters > 0 || listing.query ? (
 				<button
 					type="button"
-					className="clear-btn"
+					className="clear-btn collections-filters-clear"
 					onClick={() => {
 						setQuery("");
 						navigate(readCollectionLocation(""), "replace");
@@ -528,7 +563,7 @@ export function PublicCollectionsIsland() {
 				>
 					{m.catalog_clear_filters()}
 				</button>
-			</details>
+			) : null}
 
 			<section
 				className="collection-list-section"
@@ -624,4 +659,4 @@ export function PublicCollectionsIsland() {
 	);
 }
 
-export { readCollectionLocation };
+export { activeFilterCount, readCollectionLocation };

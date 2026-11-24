@@ -167,3 +167,9 @@ En desarrollo
 
 - [x] Si falla el catálogo de áreas de conocimiento, el alta y la edición muestran un aviso accesible con un botón «Reintentar» que no borra lo escrito.
 - [x] Prueba E2E con un primer fallo del catálogo y una respuesta válida al reintentar.
+
+## Revisión de la PR #629 — 2026-11-24 (#612)
+
+- [x] Si falla el catálogo de áreas, el panel de filtros lo avisa y ofrece «Reintentar» sin tocar los filtros ni el texto de búsqueda.
+- [x] El encabezado del panel dice cuántos filtros hay activos y «Limpiar filtros» queda fuera del panel, visible aunque esté cerrado.
+- [x] `listPublicCollections` rechaza ante un error HTTP y el listado muestra su aviso de error.
