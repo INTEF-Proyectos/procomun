@@ -154,3 +154,8 @@ En desarrollo
 - [x] El PATCH de edición lleva solo los campos modificados; vaciar un campo se envía de forma explícita.
 - [x] El panel de etiquetas cuenta las colecciones que usan cada palabra clave y lo indica en la confirmación de borrado.
 - [x] Los rótulos de los detalles técnicos de la ficha pública usan mensajes de Paraglide.
+
+## Revisión de la reasignación de etiquetas — 2026-11-24 (#623)
+
+- [x] Conservar las pruebas de autoría y de traducción de los detalles técnicos al integrar la PR #643.
+- [x] Revertir la fusión y el borrado con reasignación si falla una escritura, con pruebas sobre recursos y colecciones.
