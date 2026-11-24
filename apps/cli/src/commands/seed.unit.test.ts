@@ -11,6 +11,7 @@ import {
 import { createTables } from "@procomun/db/setup";
 import {
 	formatPostgresSeedTarget,
+	insertSeedElpxProject,
 	resolveSeedMode,
 	seedWithClient,
 } from "./seed.ts";
@@ -227,6 +228,43 @@ describe("seedWithClient sobre una base real (#452)", () => {
 			[versionId, resourceId],
 		);
 	}
+
+	test("el proyecto .elpx del seed nace con la miniatura en cola (#470)", async () => {
+		const db = new PGlite();
+		try {
+			await createTables(db);
+			await runSeed(db);
+			const [resource] = (
+				await db.query<{ id: string }>(`SELECT id FROM "resources" LIMIT 1`)
+			).rows;
+			const insert = (id: string, hasScreenshot: boolean) =>
+				insertSeedElpxProject(
+					{ query: (statement, params) => db.query(statement, params) },
+					{
+						id,
+						resourceId: resource?.id ?? "",
+						hash: `hash-${id}`,
+						extractPath: "/tmp/x",
+						filename: "x.elpx",
+						hasPreview: true,
+						hasScreenshot,
+						metadata: {},
+						now: "2026-10-26T10:00:00.000Z",
+					},
+				);
+			await insert("elpx-sin-captura", false);
+			await insert("elpx-con-captura", true);
+			const { rows } = await db.query(
+				`SELECT id, thumbnail_status FROM "elpx_projects" WHERE id LIKE 'elpx-%-captura' ORDER BY id`,
+			);
+			expect(rows).toEqual([
+				{ id: "elpx-con-captura", thumbnail_status: "skipped" },
+				{ id: "elpx-sin-captura", thumbnail_status: "pending" },
+			]);
+		} finally {
+			await db.close();
+		}
+	});
 
 	async function count(db: PGlite, sql: string, params: string[] = []) {
 		const result = await db.query<{ n: number }>(sql, params);
