@@ -1,14 +1,17 @@
-import { relations } from "drizzle-orm";
+import { relations, sql } from "drizzle-orm";
 import {
+	check,
 	integer,
 	jsonb,
 	pgTable,
+	primaryKey,
 	text,
 	timestamp,
 	unique,
 	varchar,
 } from "drizzle-orm/pg-core";
 import { user } from "./auth.ts";
+import { collections } from "./collections.ts";
 import { resources } from "./resources.ts";
 
 // Ratings: one rating per user per resource, score 1-5
@@ -28,6 +31,28 @@ export const ratings = pgTable(
 	},
 	(table) => [
 		unique("ratings_user_resource").on(table.resourceId, table.userId),
+	],
+);
+
+export const collectionRatings = pgTable(
+	"collection_ratings",
+	{
+		collectionId: text("collection_id")
+			.notNull()
+			.references(() => collections.id, { onDelete: "cascade" }),
+		userId: text("user_id")
+			.notNull()
+			.references(() => user.id, { onDelete: "cascade" }),
+		score: integer("score").notNull(),
+		createdAt: timestamp("created_at").notNull().defaultNow(),
+		updatedAt: timestamp("updated_at").notNull().defaultNow(),
+	},
+	(table) => [
+		primaryKey({ columns: [table.collectionId, table.userId] }),
+		check(
+			"collection_ratings_score_check",
+			sql`${table.score} BETWEEN 1 AND 5`,
+		),
 	],
 );
 

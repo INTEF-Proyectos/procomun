@@ -673,7 +673,7 @@ export function ResourceDetailContent({
 								</p>
 							) : null}
 							<RatingIsland
-								resourceSlug={resource.slug}
+								slug={resource.slug}
 								currentUserId={currentUserId}
 							/>
 						</section>

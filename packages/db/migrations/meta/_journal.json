@@ -166,6 +166,13 @@
 		{
 			"idx": 23,
 			"version": "7",
+			"when": 1794200000000,
+			"tag": "0033_collection_ratings",
+			"breakpoints": true
+		},
+		{
+			"idx": 24,
+			"version": "7",
 			"when": 1794400000000,
 			"tag": "0035_resource_validation_seal",
 			"breakpoints": true

@@ -135,3 +135,9 @@ En desarrollo
 - [x] Mostrar el total en la ficha pública y registrar una visita por pestaña, también en colecciones importadas.
 - [x] Aplicar la migración `0032_collection_views` a bases existentes y mantener el arranque de PGlite.
 - [ ] Incorporar el histórico del origen cuando esté disponible (#574).
+
+### 2026-11-21 · Valoraciones de colecciones públicas (#609)
+
+- [x] Reutilizar la escala de una a cinco estrellas, el resumen y los controles de las fichas de recursos.
+- [x] Permitir un voto editable por cuenta y colección publicada. Las colecciones importadas empiezan con cero valoraciones.
+- [x] Comprobar permisos, media, distribución y sustitución de votos con datos de prueba.

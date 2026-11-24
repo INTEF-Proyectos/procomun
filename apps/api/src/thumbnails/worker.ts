@@ -212,6 +212,9 @@ export function createThumbnailWorker(
 	let loop: Promise<void> | null = null;
 
 	async function run(signal: AbortSignal) {
+		// La caída del servicio no gasta intentos ni para la API, así que sin
+		// este aviso pasaría desapercibida. Uno al caer y otro al volver.
+		let down = false;
 		while (!signal.aborted) {
 			let result: ThumbnailTickResult | null = null;
 			try {
@@ -220,6 +223,24 @@ export function createThumbnailWorker(
 				log.error(
 					`[thumbnails] error en el bucle: ${sanitizeForLog(errorMessage(err))}`,
 				);
+			}
+			if (result?.unavailable && !down) {
+				down = true;
+				// «No está disponible» y no «no responde»: también cubre un 503
+				// del servicio (cola llena o Chromium que no arranca).
+				log.warn(
+					`[thumbnails] el servicio thumbnailer no está disponible: las capturas quedan en cola y se reintenta cada ${deps.config.unavailablePauseMs / 1000} s`,
+				);
+			} else if (down && result && !result.unavailable) {
+				// Sin capturas en esta vuelta no se sabe si ha vuelto: se le
+				// pregunta, o una segunda caída ya no avisaría.
+				const back =
+					result.claimed > 0 ||
+					(await deps.renderer.healthy?.().catch(() => false));
+				if (back) {
+					down = false;
+					log.info("[thumbnails] el servicio thumbnailer vuelve a responder");
+				}
 			}
 			const delay = nextDelayMs(result, deps.config);
 			if (delay > 0) await sleep(delay, signal);
