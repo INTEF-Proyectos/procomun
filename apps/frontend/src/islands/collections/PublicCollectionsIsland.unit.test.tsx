@@ -9,6 +9,7 @@ import {
 	activeFilterCount,
 	CollectionDetailContent,
 	PublicCollectionsIsland,
+	pageOutOfRange,
 	readCollectionLocation,
 } from "./PublicCollectionsIsland.tsx";
 
@@ -95,6 +96,14 @@ describe("PublicCollectionsIsland", () => {
 				),
 			),
 		).toBe(5);
+	});
+
+	test("una página más allá de la última vuelve a la primera (#629)", () => {
+		expect(pageOutOfRange(2, 4)).toBe(true);
+		expect(pageOutOfRange(3, 27)).toBe(false);
+		expect(pageOutOfRange(4, 27)).toBe(true);
+		// Sin resultados, la primera página es la válida.
+		expect(pageOutOfRange(1, 0)).toBe(false);
 	});
 
 	test("descarta los filtros que solo tienen los recursos", () => {

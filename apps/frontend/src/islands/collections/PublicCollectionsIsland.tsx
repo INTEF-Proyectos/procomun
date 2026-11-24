@@ -64,6 +64,11 @@ function coverStyle(coverImageUrl?: string | null) {
 	};
 }
 
+/** La página pedida queda más allá de la última con resultados. */
+function pageOutOfRange(page: number, total: number): boolean {
+	return page > Math.max(1, Math.ceil(total / PAGE_SIZE));
+}
+
 /** Filtros aplicados, sin el texto: lo que el panel cerrado no deja ver (#629). */
 function activeFilterCount(state: CollectionLocationState): number {
 	return (
@@ -296,6 +301,7 @@ export function PublicCollectionsIsland() {
 		label: string;
 	} | null>(null);
 	const requestId = useRef(0);
+	const searchInput = useRef<HTMLInputElement>(null);
 
 	// El aviso sigue a la vista mientras se reintenta y solo se quita al cargar.
 	const loadAreaCatalog = useCallback(() => {
@@ -387,6 +393,18 @@ export function PublicCollectionsIsland() {
 				educationalOption: next.educationalOption,
 			});
 			if (id !== requestId.current) return;
+			// Una página que ya no existe (enlace antiguo, o filtro cambiado
+			// mientras cargaba) vuelve a la primera en vez de quedarse vacía.
+			if (pageOutOfRange(next.page, result.total)) {
+				const first = { ...next, page: 1 };
+				writeListingStateToHistory(
+					window.history,
+					buildCollectionUrl(first),
+					"replace",
+				);
+				await loadLocation(first);
+				return;
+			}
 			setCollections(result.data);
 			setTotal(result.total);
 		} catch {
@@ -463,6 +481,7 @@ export function PublicCollectionsIsland() {
 				<search>
 					<form className="collections-search" onSubmit={handleSearch}>
 						<input
+							ref={searchInput}
 							type="search"
 							placeholder="Buscar por título o descripción"
 							aria-label="Buscar colecciones"
@@ -565,6 +584,8 @@ export function PublicCollectionsIsland() {
 					onClick={() => {
 						setQuery("");
 						navigate(readCollectionLocation(""), "replace");
+						// El botón desaparece al limpiar: el foco pasa al buscador.
+						searchInput.current?.focus();
 					}}
 				>
 					{m.catalog_clear_filters()}
@@ -642,9 +663,9 @@ export function PublicCollectionsIsland() {
 				>
 					<button
 						type="button"
-						disabled={page <= 1}
+						disabled={loading || page <= 1}
 						onClick={() => {
-							navigate({ ...listing, page: page - 1 }, "push");
+							navigate({ ...listing, page: page - 1, slug: null }, "push");
 						}}
 					>
 						Anterior
@@ -652,9 +673,9 @@ export function PublicCollectionsIsland() {
 					<span>{`Página ${page} de ${totalPages}`}</span>
 					<button
 						type="button"
-						disabled={page >= totalPages}
+						disabled={loading || page >= totalPages}
 						onClick={() => {
-							navigate({ ...listing, page: page + 1 }, "push");
+							navigate({ ...listing, page: page + 1, slug: null }, "push");
 						}}
 					>
 						Siguiente
@@ -665,4 +686,4 @@ export function PublicCollectionsIsland() {
 	);
 }
 
-export { activeFilterCount, readCollectionLocation };
+export { activeFilterCount, pageOutOfRange, readCollectionLocation };

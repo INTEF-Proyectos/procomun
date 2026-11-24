@@ -112,7 +112,8 @@
 	color: var(--color-on-surface-variant);
 }
 
-.collections-filters-clear {
+/* Dos clases: gana a `.clear-btn` de catalog.css cargue en el orden que cargue. */
+.clear-btn.collections-filters-clear {
 	width: auto;
 	margin-block: -0.75rem 1.5rem;
 }
