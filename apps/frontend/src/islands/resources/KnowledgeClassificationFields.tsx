@@ -3,6 +3,7 @@ import {
 	MAX_KNOWLEDGE_AREAS,
 	PROFESSIONAL_FAMILY_FIELD,
 } from "@procomun/db/knowledge-areas";
+import { useEffect, useRef } from "react";
 import type {
 	PublicKnowledgeAreaCatalog,
 	ResourceKnowledgeArea,
@@ -34,11 +35,33 @@ const EMPTY_CATALOG: PublicKnowledgeAreaCatalog = {
  * Aviso cuando el catálogo no carga, con un botón para volver a pedirlo
  * (#626). Sin él, el selector se queda sin opciones y nadie sabe por qué.
  */
-export function KnowledgeCatalogError({ onRetry }: { onRetry: () => void }) {
+export function KnowledgeCatalogError({
+	onRetry,
+	focusId,
+}: {
+	onRetry: () => void;
+	/** Campo que recibe el foco cuando el reintento funciona y el aviso se va. */
+	focusId?: string;
+}) {
+	const retried = useRef(false);
+	// El aviso desaparece al cargar el catálogo y se llevaría el foco del
+	// botón: pasa al campo que acaba de recibir las opciones.
+	useEffect(
+		() => () => {
+			if (retried.current && focusId) document.getElementById(focusId)?.focus();
+		},
+		[focusId],
+	);
 	return (
 		<p className="catalog-multiselect-error" role="alert">
 			{m.knowledge_areas_load_error()}{" "}
-			<button type="button" onClick={onRetry}>
+			<button
+				type="button"
+				onClick={() => {
+					retried.current = true;
+					onRetry();
+				}}
+			>
 				{m.knowledge_areas_retry()}
 			</button>
 		</p>
@@ -75,7 +98,10 @@ export function KnowledgeAreaField({
 	return (
 		<>
 			{onCatalogRetry ? (
-				<KnowledgeCatalogError onRetry={onCatalogRetry} />
+				<KnowledgeCatalogError
+					onRetry={onCatalogRetry}
+					focusId={`${idPrefix}-${KNOWLEDGE_AREA_FIELD}`}
+				/>
 			) : null}
 			<CatalogMultiSelect
 				id={`${idPrefix}-${KNOWLEDGE_AREA_FIELD}`}

@@ -262,7 +262,17 @@ function editPayload(form: CollectionFormState, metadata: CollectionMetadata) {
 
 /** Mensaje que da la API al rechazar el alta (p. ej. un catálogo no válido). */
 export function createErrorMessage(error: unknown): string {
-	const message = (error as { error?: unknown } | null)?.error;
+	const { error: message, details } = (error ?? {}) as {
+		error?: unknown;
+		details?: unknown;
+	};
+	// `details` dice qué campo falla; `error` solo «Validación fallida».
+	const reasons = Array.isArray(details)
+		? details
+				.map((detail) => (detail as { message?: unknown } | null)?.message)
+				.filter((reason) => typeof reason === "string" && reason)
+		: [];
+	if (reasons.length) return reasons.join(" ");
 	return typeof message === "string" && message
 		? message
 		: "Error al crear la coleccion.";
@@ -350,6 +360,9 @@ export function CollectionsCrudIsland() {
 		null,
 	);
 	const [catalogFailed, setCatalogFailed] = useState(false);
+	// Cambia tras cada alta: los buscadores del formulario vuelven a montarse
+	// y no arrastran el texto ni los avisos de la colección anterior.
+	const [createFormKey, setCreateFormKey] = useState(0);
 
 	const [editing, setEditing] = useState<CollectionRecord | null>(null);
 	const [editForm, setEditForm] = useState(EMPTY_FORM);
@@ -445,11 +458,15 @@ export function CollectionsCrudIsland() {
 		}
 	}
 
+	// El aviso sigue a la vista mientras se reintenta y solo se quita al
+	// cargar: así el botón no desaparece bajo el foco.
 	const loadCatalog = useCallback(() => {
-		setCatalogFailed(false);
 		void getApiClient()
 			.then((api) => api.getKnowledgeAreaCatalog())
-			.then(setCatalog)
+			.then((loaded) => {
+				setCatalog(loaded);
+				setCatalogFailed(false);
+			})
 			.catch(() => setCatalogFailed(true));
 	}, []);
 
@@ -536,6 +553,7 @@ export function CollectionsCrudIsland() {
 			});
 			setCreateForm(EMPTY_FORM);
 			setCreateMetadata(EMPTY_METADATA);
+			setCreateFormKey((key) => key + 1);
 			setCreateFeedback({ message: "Coleccion creada.", variant: "success" });
 			await loadCollections(0, appliedSearch);
 		} catch (error) {
@@ -746,11 +764,12 @@ export function CollectionsCrudIsland() {
 						</label>
 					</div>
 					<CollectionMetadataFields
+						key={createFormKey}
 						idPrefix="collection-create"
 						metadata={createMetadata}
 						setMetadata={setCreateMetadata}
 						catalog={catalog}
-						onCatalogRetry={catalogFailed ? loadCatalog : undefined}
+						onCatalogRetry={catalogFailed && !catalog ? loadCatalog : undefined}
 					/>
 					<div className="admin-form-actions">
 						<button
@@ -937,7 +956,9 @@ export function CollectionsCrudIsland() {
 							metadata={editMetadata}
 							setMetadata={setEditMetadata}
 							catalog={catalog}
-							onCatalogRetry={catalogFailed ? loadCatalog : undefined}
+							onCatalogRetry={
+								catalogFailed && !catalog ? loadCatalog : undefined
+							}
 							resourceAreas={editing.knowledgeAreas}
 						/>
 
