@@ -83,6 +83,19 @@ El Referer también las lleva: el HTML del `.elpx` sale con `Referrer-Policy: sa
    docker compose up -d
    ```
 
+### Desplegar con las imágenes publicadas (2026-11-24)
+
+`make up-docker` construye las imágenes en la máquina. La del `thumbnailer` instala Chromium y sus bibliotecas del sistema durante la construcción: tarda varios minutos, necesita salida a Internet y en un servidor con la red restringida puede no terminar.
+
+En un servidor es preferible descargar las que publica el CI en cada cambio de `main` (`ghcr.io/intef-proyectos/procomun:main` y `ghcr.io/intef-proyectos/procomun-thumbnailer:main`, públicas):
+
+```bash
+git pull origin main
+make up-docker-images
+```
+
+Equivale a `docker compose pull` seguido de `docker compose up --no-build -d`.
+
 ## Troubleshooting: problemas comunes y soluciones
 
 - **Error de Conexión a DB**: Verifique que el contenedor `db` esté `healthy` con `docker ps`.
