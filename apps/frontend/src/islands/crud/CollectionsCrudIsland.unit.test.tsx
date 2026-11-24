@@ -127,6 +127,12 @@ describe("CollectionsCrudIsland", () => {
 				error: "Alguna palabra clave no pertenece al catálogo",
 			}),
 		).toBe("Alguna palabra clave no pertenece al catálogo");
+		expect(
+			createErrorMessage({
+				error: "Validación fallida",
+				details: [{ field: "title", message: "El título es obligatorio" }],
+			}),
+		).toBe("El título es obligatorio");
 		expect(createErrorMessage({})).toBe("Error al crear la coleccion.");
 		expect(createErrorMessage(new TypeError("Failed to fetch"))).toBe(
 			"Error al crear la coleccion.",
