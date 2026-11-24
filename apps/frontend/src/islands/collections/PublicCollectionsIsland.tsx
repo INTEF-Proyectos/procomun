@@ -187,7 +187,10 @@ export function CollectionDetailContent({
 										count: String(detail.viewCount ?? 0),
 									})}
 						</li>
-						<li>Curator: {detail.curatorName ?? "Equipo editorial"}</li>
+						<li>
+							{m.detail_authors_label()}{" "}
+							{detail.curatorName ?? "Equipo editorial"}
+						</li>
 						<li>
 							Actualizada {formatDateLong(detail.updatedAt ?? detail.createdAt)}
 						</li>
