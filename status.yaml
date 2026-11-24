@@ -5318,3 +5318,12 @@ tasks:
       La guía de instalación tiene los pasos y docs/operaciones/despliegue
       el docker-compose de ejemplo. Probado en dos servidores: el de pruebas
       propio y uno del INTEF.
+  T-2026-11-24-14521293:
+    date: 2026-11-24
+    agent: "frontend-ux-accesibilidad"
+    task: "La ficha de una colección muestra «Autoría» en vez de «Curator»"
+    status: Done
+    related: ["#638"]
+    notes: >
+      «Curator» es un rol interno que el lector no entiende. La ficha usa el
+      mismo rótulo traducido que la de recursos.
