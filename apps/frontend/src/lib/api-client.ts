@@ -3,6 +3,8 @@
  * Implementación actual: HttpApiClient (contra la API del servidor).
  */
 
+import type { RatingSummary } from "./types/social.ts";
+
 /**
  * Previsualización del .elpx que la API adjunta a cada recurso. El visor y la
  * miniatura son independientes (revisión de #471): un objeto no nulo no
@@ -711,12 +713,9 @@ export interface ApiClient {
 	listSimilarAdminTags(id: string): Promise<TagRecord[]>;
 
 	// Social
-	getResourceRatings(slug: string): Promise<{
-		resourceId: string;
-		averageScore: number;
-		totalRatings: number;
-		distribution: Record<number, number>;
-	}>;
+	getResourceRatings(
+		slug: string,
+	): Promise<RatingSummary & { userScore?: number | null }>;
 	submitRating(
 		slug: string,
 		score: number,
@@ -726,6 +725,16 @@ export interface ApiClient {
 		score: number;
 		createdAt: string;
 	}>;
+	getCollectionRatings(slug: string): Promise<
+		Omit<RatingSummary, "resourceId"> & {
+			collectionId: string;
+			userScore: number | null;
+		}
+	>;
+	submitCollectionRating(
+		slug: string,
+		score: number,
+	): Promise<{ score: number }>;
 	toggleFavorite(slug: string): Promise<{ favorited: boolean; count: number }>;
 	getUserFavorites(opts?: {
 		limit?: number;
