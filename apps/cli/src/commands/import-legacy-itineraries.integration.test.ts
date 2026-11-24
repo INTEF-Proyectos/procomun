@@ -418,6 +418,37 @@ describe("import:legacy-itineraries (integración con PGlite)", () => {
 		]);
 	});
 
+	test("apuntar lo ya ofrecido no cuenta como actualización ni mueve la fecha (#628)", async () => {
+		const sourceFile = path.join(dir, "solo-contexto.json");
+		const itinerary = {
+			id: "it-solo-contexto",
+			titleStr: "Itinerario con etapa",
+			descriptionStr: "Descripción general",
+			learningContext: ["Formación Profesional Básica (más de 15 años)"],
+		};
+		await Bun.write(sourceFile, JSON.stringify([itinerary]));
+		const run = () =>
+			runImportLegacyItineraries(
+				{ sourceFile, usersFile, dryRun: false },
+				deps(),
+			);
+		await run();
+		const row = await collection(itinerary.id);
+		// Como una colección importada antes de existir el registro.
+		await db
+			.update(schema.collections)
+			.set({ legacyImportedMetadata: null })
+			.where(eq(schema.collections.id, row?.id ?? ""));
+		const before = await collection(itinerary.id);
+
+		expect((await run()).records[0]).toMatchObject({ outcome: "unchanged" });
+		const after = await collection(itinerary.id);
+		expect(after?.updatedAt).toEqual(before?.updatedAt);
+		expect(after?.legacyImportedMetadata).toMatchObject({
+			educationalAreas: true,
+		});
+	});
+
 	test("una etiqueta demasiado larga no descarta las válidas que la siguen (#628)", async () => {
 		const sourceFile = path.join(dir, "etiqueta-larga.json");
 		await Bun.write(
