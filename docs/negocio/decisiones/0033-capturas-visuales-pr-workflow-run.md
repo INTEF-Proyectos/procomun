@@ -146,3 +146,5 @@ Se resuelve la limpieza pendiente dentro del propio paso de publicación, sin ch
 Consecuencia: los comentarios de capturas de PR cerrados dejan de mostrar sus imágenes.
 
 Precisiones tras la revisión del cambio (2026-11-24): solo se tocan los adjuntos con el nombre que pone el workflow (`pr-<número>-…`); las capturas anteriores del propio PR se quitan siempre y un fallo ahí detiene el paso, mientras que un fallo al limpiar las de PR cerrados solo deja un aviso y se reintenta en la siguiente ejecución; y si el PR se cerró mientras esperaba turno, el paso termina sin publicar ni dar error. El 2026-11-24 se retiraron a mano las 985 capturas de PR cerrados que había acumuladas. Queda por comprobar la primera ejecución tras la mezcla, porque `workflow_run` usa el workflow de `main`.
+
+Tras la revisión de la PR #640 (2026-11-24): el patrón se acota al nombre completo que genera el workflow, `pr-<número>-<12 hex>-<captura>.png`, para que el borrado automático no alcance otros adjuntos de un PR cerrado. Una lista vacía de PR abiertos es válida (se cerró el último) y deja el paso en «omitido»; si la consulta falla, el paso se detiene antes de borrar nada.

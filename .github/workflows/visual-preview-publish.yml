@@ -123,10 +123,6 @@ jobs:
           gh api "repos/${GITHUB_REPOSITORY}/pulls?state=open&per_page=100" \
             --paginate --jq '.[].number'
         )"
-        if [[ -z "$open_prs" ]]; then
-          echo "Could not list the open pull requests." >&2
-          exit 1
-        fi
         if ! grep -qxF "$PR_NUMBER" <<<"$open_prs"; then
           # Se cerró o se mezcló mientras esperaba turno: no hay nada que publicar.
           echo "::notice::PR #${PR_NUMBER} is no longer open; skipping the previews."
@@ -145,8 +141,9 @@ jobs:
         own_ids=()
         closed_ids=()
         while read -r asset_id name; do
-          # Solo los adjuntos con el nombre que pone este workflow.
-          [[ "$name" =~ ^pr-([0-9]+)- ]] || continue
+          # Solo los adjuntos con el nombre exacto que pone este workflow:
+          # pr-<número>-<12 hex del SHA>-<captura>.png
+          [[ "$name" =~ ^pr-([0-9]+)-[0-9a-f]{12}-[a-z0-9][a-z0-9-]{0,63}\.png$ ]] || continue
           pr="${BASH_REMATCH[1]}"
           if [[ "$pr" == "$PR_NUMBER" ]]; then
             own_ids+=("$asset_id")
