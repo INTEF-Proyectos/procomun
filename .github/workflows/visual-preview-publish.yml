@@ -115,6 +115,18 @@ jobs:
           gh api "repos/${GITHUB_REPOSITORY}/releases/tags/${PREVIEW_TAG}" --jq '.id'
         )"
 
+        # GitHub admite 1000 adjuntos por release. Además de las capturas
+        # anteriores de este PR se retiran las de PR que ya no están abiertos,
+        # como mucho 200 por ejecución para no agotar el tiempo del job.
+        open_prs="$(
+          gh api "repos/${GITHUB_REPOSITORY}/pulls?state=open&per_page=100" \
+            --paginate --jq '.[].number'
+        )"
+        if ! grep -qx "$PR_NUMBER" <<<"$open_prs"; then
+          echo "PR #${PR_NUMBER} is not in the open pull request list." >&2
+          exit 1
+        fi
+
         while read -r asset_id; do
           [[ -z "$asset_id" ]] && continue
           gh api \
@@ -124,7 +136,14 @@ jobs:
           gh api \
             "repos/${GITHUB_REPOSITORY}/releases/${release_id}/assets" \
             --paginate \
-            --jq ".[] | select(.name | startswith(\"pr-${PR_NUMBER}-\")) | .id"
+            --jq '.[] | "\(.id) \(.name)"' |
+            while read -r asset_id name; do
+              pr="${name#pr-}"
+              pr="${pr%%-*}"
+              if [[ "$pr" == "$PR_NUMBER" ]] || ! grep -qx "$pr" <<<"$open_prs"; then
+                echo "$asset_id"
+              fi
+            done | head -n 200
         )
 
         for asset in "$ASSET_DIR"/*.png; do

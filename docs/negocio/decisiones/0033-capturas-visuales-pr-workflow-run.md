@@ -136,3 +136,11 @@ No se identifica un bloqueo legal: las imágenes contienen exclusivamente la int
 * Lost Pixel: https://github.com/marketplace/actions/lost-pixel
 * Webshot Archive GitHub Action: https://github.com/marketplace/actions/webshot-archive-github-action
 * Issue #283 y PR #284.
+
+## Adenda 2026-11-24 — limpieza de capturas de PR cerrados
+
+El 2026-11-24 la prerelease `pr-visual-previews` llegó a los 1000 adjuntos que GitHub admite por release y la publicación empezó a fallar con `file_count limited to 1000 assets per release`. De esos adjuntos, 985 eran de PR ya cerrados.
+
+Se resuelve la limpieza pendiente dentro del propio paso de publicación, sin checkout ni código del PR: antes de subir las capturas se retiran las anteriores del mismo PR, como ya se hacía, y las de cualquier PR que no esté abierto, con un máximo de 200 por ejecución para no agotar el tiempo del job. La lista de PR abiertos sale de la API; si el PR que publica no aparece en ella, el paso se detiene sin borrar nada.
+
+Consecuencia: los comentarios de capturas de PR cerrados dejan de mostrar sus imágenes.
