@@ -21,10 +21,13 @@ export function EducationalClassificationEditor({
 	selections,
 	onChange,
 	idPrefix,
+	subject = "Un recurso",
 }: {
 	selections: EducationalSelection[];
 	onChange: (selections: EducationalSelection[]) => void;
 	idPrefix: string;
+	/** Lo que se clasifica, para la frase de ayuda («Una colección»). */
+	subject?: string;
 }) {
 	const addSelectRef = useRef<HTMLSelectElement>(null);
 	const [focusAddSelect, setFocusAddSelect] = useState(false);
@@ -45,7 +48,7 @@ export function EducationalClassificationEditor({
 		<fieldset className="educational-classification">
 			<legend>{EDUCATIONAL_SECTION_TITLE}</legend>
 			<p className="educational-classification-help">
-				Un recurso puede asociarse a varias categorías.{" "}
+				{subject} puede asociarse a varias categorías.{" "}
 				{EDUCATIONAL_OPTION_LABEL} es opcional y solo aparece cuando la
 				categoría lo tiene.
 			</p>

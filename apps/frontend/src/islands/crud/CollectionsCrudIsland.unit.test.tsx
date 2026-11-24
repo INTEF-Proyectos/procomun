@@ -91,6 +91,9 @@ describe("CollectionsCrudIsland", () => {
 
 		expect(html).toContain('id="collection-create-language"');
 		expect(html).toContain("Detalles técnicos");
+		// La ayuda es la de colecciones, no la regla de publicación de recursos.
+		expect(html).toContain("Una colección puede asociarse");
+		expect(html).not.toContain("enviar a revisión o publicar");
 	});
 
 	test("metadataPayload envía los metadatos del alta (#614)", () => {

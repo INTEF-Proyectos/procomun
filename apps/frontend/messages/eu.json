@@ -463,5 +463,6 @@
 	"collection_detail_keywords": "Gako-hitzak",
 	"collection_detail_educational": "Hezkuntza-etapa, programa edo eremua",
 	"knowledge_areas_load_error": "Ezin izan dira jakintza-arloak kargatu.",
-	"knowledge_areas_retry": "Saiatu berriro"
+	"knowledge_areas_retry": "Saiatu berriro",
+	"collections_knowledge_areas_help": "Aukeratu gehienez {max}."
 }
