@@ -37,7 +37,7 @@
 	],
 	"devDependencies": {
 		"@axe-core/playwright": "^4.14.0",
-		"@types/bun": "1.4.4",
+		"@types/bun": "1.4.5",
 		"@playwright/test": "1.65.1",
 		"@biomejs/biome": "2.6.8",
 		"typescript": "7.0.2"

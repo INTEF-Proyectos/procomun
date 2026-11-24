@@ -13,13 +13,13 @@
 		"@procomun/db": "workspace:*",
 		"@tus/file-store": "2.1.2",
 		"@tus/server": "2.4.7",
-		"better-auth": "1.7.26",
+		"better-auth": "1.7.27",
 		"cheerio": "^1.2.0",
 		"drizzle-orm": "0.45.4",
 		"feed": "^6.0.0",
 		"hono": "4.13.19",
 		"mammoth": "^1.13.0",
-		"nodemailer": "^10.6.0",
+		"nodemailer": "^10.6.1",
 		"pdf-parse": "^2.4.5"
 	},
 	"devDependencies": {

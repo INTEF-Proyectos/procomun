@@ -9,6 +9,7 @@ import {
 	ensureUser,
 	getCollectionById,
 	listResources,
+	setResourceCatalogKeywords,
 	updateCollection,
 } from "../repository.ts";
 import * as schema from "../schema/index.ts";
@@ -247,6 +248,65 @@ describe("tags repository (issue #76)", () => {
 		await deleteTag(db, target.id, { reassignToId: other.id });
 		expect(await keywordIds(merged.id)).toEqual([other.id]);
 	});
+
+	test.each([
+		["fusionar", "BEFORE INSERT ON collection_keywords"],
+		["borrar con reasignación", "BEFORE DELETE ON tags"],
+	])(
+		"revierte todos los cambios si falla al %s (#623)",
+		async (operation, triggerOn) => {
+			const source = await createCatalogKeyword(db, {
+				label: "Origen de la reasignación",
+				createdBy: userId,
+			});
+			const target = await createCatalogKeyword(db, {
+				label: "Destino de la reasignación",
+				createdBy: userId,
+			});
+			if (source.status === "invalid" || target.status === "invalid") {
+				throw new Error("No se pudieron crear las palabras clave");
+			}
+			const sourceId = source.keyword.id;
+			const targetId = target.keyword.id;
+			const collection = await createCollection(db, {
+				title: "Colección con reasignación fallida",
+				description: "desc",
+				curatorId: userId,
+			});
+			await setResourceCatalogKeywords(db, otherResourceId, [sourceId]);
+			await updateCollection(db, collection.id, { keywordIds: [sourceId] });
+
+			await client.exec(`
+			CREATE FUNCTION fail_tag_reassignment() RETURNS trigger
+			LANGUAGE plpgsql AS $$
+			BEGIN
+				RAISE EXCEPTION 'Fallo de reasignación simulado';
+			END;
+			$$;
+			CREATE TRIGGER fail_tag_reassignment ${triggerOn}
+			FOR EACH ROW EXECUTE FUNCTION fail_tag_reassignment();
+		`);
+
+			const result =
+				operation === "fusionar"
+					? mergeTags(db, sourceId, targetId)
+					: deleteTag(db, sourceId, { reassignToId: targetId });
+			await expect(result).rejects.toThrow();
+			expect(
+				(await listResourceTags(db, otherResourceId)).map(({ id }) => id),
+			).toEqual([sourceId]);
+			expect(
+				(await getCollectionById(db, collection.id))?.catalogKeywords.map(
+					({ id }) => id,
+				),
+			).toEqual([sourceId]);
+			expect(await getTagById(db, sourceId)).toMatchObject({
+				canonicalTagId: null,
+				usageCount: 1,
+			});
+			expect(await getTagById(db, targetId)).toMatchObject({ usageCount: 0 });
+		},
+	);
 
 	test("listTags cuenta las colecciones que usan cada palabra clave (#623)", async () => {
 		const outcome = await createCatalogKeyword(db, {

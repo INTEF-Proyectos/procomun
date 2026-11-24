@@ -129,3 +129,9 @@ test("los rótulos de los detalles técnicos siguen el idioma de la interfaz (#6
 		overwriteGetLocale(() => "es");
 	}
 });
+
+test("la ficha presenta a quien creó la colección como autoría, no como «Curator» (#638)", () => {
+	const html = renderCollectionDetail({});
+	expect(html).toContain("Autoría: Curadora");
+	expect(html).not.toContain("Curator:");
+});

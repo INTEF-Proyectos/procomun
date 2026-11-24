@@ -426,6 +426,14 @@ export async function mergeTags(
 	sourceId: string,
 	targetId: string,
 ): Promise<{ target: TagRecord; reassigned: number }> {
+	return db.transaction((tx) => mergeTagAssignments(tx, sourceId, targetId));
+}
+
+async function mergeTagAssignments(
+	db: DrizzleDB,
+	sourceId: string,
+	targetId: string,
+): Promise<{ target: TagRecord; reassigned: number }> {
 	if (sourceId === targetId) {
 		throw new TagMergeError("Cannot merge a tag into itself");
 	}
@@ -521,27 +529,20 @@ export async function deleteTag(
 	id: string,
 	opts: { reassignToId?: string } = {},
 ): Promise<void> {
-	const existing = await getTagById(db, id);
-	if (!existing) throw new TagNotFoundError(id);
+	await db.transaction(async (tx) => {
+		if (opts.reassignToId) {
+			await mergeTagAssignments(tx, id, opts.reassignToId);
+		} else if (!(await getTagById(tx, id))) {
+			throw new TagNotFoundError(id);
+		}
 
-	if (opts.reassignToId) {
-		await mergeTags(db, id, opts.reassignToId);
-		// After merge, source remains as synonym — remove the row fully
-		await db.delete(resourceTags).where(eq(resourceTags.tagId, id));
-		await db
+		await tx.delete(resourceTags).where(eq(resourceTags.tagId, id));
+		await tx
 			.update(tags)
 			.set({ canonicalTagId: null })
 			.where(eq(tags.canonicalTagId, id));
-		await db.delete(tags).where(eq(tags.id, id));
-		return;
-	}
-
-	await db.delete(resourceTags).where(eq(resourceTags.tagId, id));
-	await db
-		.update(tags)
-		.set({ canonicalTagId: null })
-		.where(eq(tags.canonicalTagId, id));
-	await db.delete(tags).where(eq(tags.id, id));
+		await tx.delete(tags).where(eq(tags.id, id));
+	});
 }
 
 export async function listSimilarTagsFor(
