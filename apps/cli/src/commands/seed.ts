@@ -56,7 +56,7 @@ export async function insertSeedElpxProject(
 			project.filename,
 			project.hasPreview,
 			project.hasScreenshot,
-			JSON.stringify(project.metadata),
+			JSON.stringify(project.metadata ?? null),
 			initialThumbnailStatus(project),
 			project.now,
 		],
