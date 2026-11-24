@@ -1,5 +1,13 @@
-import { beforeEach, describe, expect, mock, test } from "bun:test";
+import { afterAll, beforeEach, describe, expect, mock, test } from "bun:test";
 import { Hono } from "hono";
+
+// `mock.module` vale para todo el proceso y `mock.restore()` no lo deshace:
+// se guarda el servicio real para reponerlo al acabar. Sin esto, cualquier
+// test que use los feeds de verdad y corra después recibe el doble (#568).
+const realFeedService = { ...(await import("../feeds/service.ts")) };
+afterAll(() => {
+	mock.module("../feeds/service.ts", () => realFeedService);
+});
 
 // Mock the feed service to avoid DB dependency
 const mockBuildGeneralFeed = mock((_opts?: Record<string, unknown>) => {
