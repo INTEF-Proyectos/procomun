@@ -250,3 +250,9 @@ Los JSON/`.elpx` de `ode-export/` contienen datos personales reales (nombres y e
 - [x] Mostrar «Mis colecciones» en el perfil de los autores y editores que tienen colecciones. El acceso directo a la pestaña comprueba la misma condición.
 - [x] Reutilizar el editor del backoffice con las reglas de propiedad y transición de la ADR-0008. El propietario puede editar los datos, gestionar los recursos y enviar a revisión un borrador.
 - [x] Traducir la pestaña y los controles compartidos en los cinco idiomas. Añadir pruebas de navegación y acciones por rol en Chromium y una regresión unitaria para los controles de alta y baja.
+
+## Revisión de la PR #624 — 2026-11-24 (#575)
+
+- [x] El buscador de recursos muestra los resultados propios y los del catálogo público sin recortar la unión.
+- [x] `listResources` rechaza ante un error HTTP, así que un fallo del catálogo no vacía los resultados propios.
+- [x] La prueba E2E de permisos comprueba la ausencia del selector de estado por su nombre accesible.

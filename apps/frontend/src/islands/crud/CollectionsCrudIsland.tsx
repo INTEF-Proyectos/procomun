@@ -86,13 +86,13 @@ function coverPreview(url: string | null | undefined) {
 
 /**
  * #575: une las búsquedas de recursos (los gestionables y, para el propietario
- * sin rol de curación, el catálogo público) sin duplicados, sin los ya
- * enlazados y sin pasar del límite de resultados.
+ * sin rol de curación, el catálogo público) sin duplicados y sin los ya
+ * enlazados. No recorta: cada búsqueda ya viene limitada, y recortar la unión
+ * dejaba fuera el catálogo público cuando los propios llenaban el cupo (#624).
  */
 export function mergeResourceCandidates(
 	lists: readonly (readonly Resource[])[],
 	excludedIds: ReadonlySet<string>,
-	limit = RESOURCE_SEARCH_LIMIT,
 ): Resource[] {
 	const candidates = new Map<string, Resource>();
 	for (const list of lists) {
@@ -100,7 +100,7 @@ export function mergeResourceCandidates(
 			if (!excludedIds.has(item.id)) candidates.set(item.id, item);
 		}
 	}
-	return [...candidates.values()].slice(0, limit);
+	return [...candidates.values()];
 }
 
 type CollectionViewer = { id: string; role?: string };

@@ -90,7 +90,10 @@ for (const role of ["author", "editor"] as const) {
 
 		const dialog = page.getByRole("dialog", { name: "Editar colección" });
 		await expect(dialog).toBeVisible();
-		await expect(dialog.getByRole("combobox")).toHaveCount(0);
+		// Por nombre accesible: el diálogo puede tener otros selectores (#623).
+		await expect(dialog.getByRole("combobox", { name: "Estado" })).toHaveCount(
+			0,
+		);
 		await dialog
 			.getByLabel("Título", { exact: true })
 			.fill("Itinerario actualizado");

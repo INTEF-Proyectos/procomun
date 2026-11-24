@@ -5185,6 +5185,16 @@ tasks:
       recursos y enviar borradores a revisión con los permisos de la API.
       Se validaron seis escenarios en Chromium, además de la edición y el
       envío a revisión de una colección real en una base local de pruebas.
+  T-2026-11-24-07074810:
+    date: 2026-11-24
+    agent: "frontend-ux-accesibilidad + qa-validacion"
+    task: "Atender la revisión de la PR #624 de «Mis colecciones»"
+    status: Done
+    related: ["#624", "#575"]
+    notes: >
+      El buscador de recursos ya no recorta la unión de resultados propios y
+      públicos. El cliente HTTP rechaza los errores del catálogo. La prueba
+      de permisos busca el selector de estado por su nombre accesible.
   T-2026-11-21-00271091:
     date: 2026-11-21
     agent: "backend-api-servicios + frontend-ux-accesibilidad"

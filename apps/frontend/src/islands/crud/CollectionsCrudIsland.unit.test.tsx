@@ -106,16 +106,25 @@ describe("CollectionsCrudIsland", () => {
 describe("mergeResourceCandidates (#575)", () => {
 	const resource = (id: string) => ({ id, title: id }) as unknown as Resource;
 
-	test("quita duplicados y excluidos y respeta el límite", () => {
+	test("quita duplicados y excluidos", () => {
 		const merged = mergeResourceCandidates(
 			[
 				[resource("a"), resource("b"), resource("enlazado")],
 				[resource("b"), resource("c"), resource("d")],
 			],
 			new Set(["enlazado"]),
-			3,
 		);
-		expect(merged.map((item) => item.id)).toEqual(["a", "b", "c"]);
+		expect(merged.map((item) => item.id)).toEqual(["a", "b", "c", "d"]);
+	});
+
+	test("ocho resultados propios no ocultan el del catálogo público (#624)", () => {
+		const own = Array.from({ length: 8 }, (_, i) => resource(`propio-${i}`));
+		const merged = mergeResourceCandidates(
+			[own, [resource("publico")]],
+			new Set(),
+		);
+		expect(merged).toHaveLength(9);
+		expect(merged.at(-1)?.id).toBe("publico");
 	});
 
 	test("vale con una sola lista cuando la otra búsqueda falla", () => {

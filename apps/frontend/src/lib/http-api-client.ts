@@ -92,6 +92,7 @@ export class HttpApiClient implements ApiClient {
 	}): Promise<ResourceListResult> {
 		const qs = resourceFilterParams(opts).toString();
 		const res = await fetch(`/api/v1/resources${qs ? `?${qs}` : ""}`);
+		if (!res.ok) throw await res.json().catch(() => ({}));
 		return res.json();
 	}
 
