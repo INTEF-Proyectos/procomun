@@ -87,6 +87,7 @@ jobs:
         done
 
     - name: Publish latest assets
+      id: publish
       env:
         GH_TOKEN: ${{ github.token }}
         # Sin checkout: gh no puede inferir el repo desde .git. GH_REPO evita
@@ -122,29 +123,53 @@ jobs:
           gh api "repos/${GITHUB_REPOSITORY}/pulls?state=open&per_page=100" \
             --paginate --jq '.[].number'
         )"
-        if ! grep -qx "$PR_NUMBER" <<<"$open_prs"; then
-          echo "PR #${PR_NUMBER} is not in the open pull request list." >&2
+        if [[ -z "$open_prs" ]]; then
+          echo "Could not list the open pull requests." >&2
           exit 1
         fi
+        if ! grep -qxF "$PR_NUMBER" <<<"$open_prs"; then
+          # Se cerró o se mezcló mientras esperaba turno: no hay nada que publicar.
+          echo "::notice::PR #${PR_NUMBER} is no longer open; skipping the previews."
+          echo "skipped=true" >>"$GITHUB_OUTPUT"
+          exit 0
+        fi
 
-        while read -r asset_id; do
-          [[ -z "$asset_id" ]] && continue
-          gh api \
-            --method DELETE \
-            "repos/${GITHUB_REPOSITORY}/releases/assets/${asset_id}"
-        done < <(
+        # La lista se pide fuera del bucle para que un fallo detenga el paso.
+        assets="$(
           gh api \
             "repos/${GITHUB_REPOSITORY}/releases/${release_id}/assets" \
             --paginate \
-            --jq '.[] | "\(.id) \(.name)"' |
-            while read -r asset_id name; do
-              pr="${name#pr-}"
-              pr="${pr%%-*}"
-              if [[ "$pr" == "$PR_NUMBER" ]] || ! grep -qx "$pr" <<<"$open_prs"; then
-                echo "$asset_id"
-              fi
-            done | head -n 200
-        )
+            --jq '.[] | "\(.id) \(.name)"'
+        )"
+
+        own_ids=()
+        closed_ids=()
+        while read -r asset_id name; do
+          # Solo los adjuntos con el nombre que pone este workflow.
+          [[ "$name" =~ ^pr-([0-9]+)- ]] || continue
+          pr="${BASH_REMATCH[1]}"
+          if [[ "$pr" == "$PR_NUMBER" ]]; then
+            own_ids+=("$asset_id")
+          elif ! grep -qxF "$pr" <<<"$open_prs"; then
+            closed_ids+=("$asset_id")
+          fi
+        done <<<"$assets"
+
+        # Las capturas anteriores de este PR se quitan siempre.
+        for asset_id in "${own_ids[@]}"; do
+          gh api --method DELETE \
+            "repos/${GITHUB_REPOSITORY}/releases/assets/${asset_id}"
+        done
+
+        # La limpieza de PR cerrados es de mantenimiento: si GitHub rechaza una
+        # petición se deja para la siguiente ejecución, sin impedir la publicación.
+        for asset_id in "${closed_ids[@]:0:200}"; do
+          if ! gh api --method DELETE \
+            "repos/${GITHUB_REPOSITORY}/releases/assets/${asset_id}" >/dev/null; then
+            echo "::warning::Could not delete every preview of closed pull requests."
+            break
+          fi
+        done
 
         for asset in "$ASSET_DIR"/*.png; do
           # GH_REPO evita el fallo de git local; --clobber por si reintenta el mismo SHA
@@ -152,6 +177,7 @@ jobs:
         done
 
     - name: Create or update pull-request comment
+      if: steps.publish.outputs.skipped != 'true'
       uses: actions/github-script@v9
       env:
         ASSET_DIR: ${{ runner.temp }}/visual-preview-assets
