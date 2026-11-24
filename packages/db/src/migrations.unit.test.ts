@@ -1488,3 +1488,30 @@ test("Drizzle aplica los metadatos a una base con el contador de visitas (#623)"
 		await db.close();
 	}
 });
+
+test("la migración 0036 coincide con setup.ts y conserva las colecciones (#615)", async () => {
+	const migration = await readFile(
+		path.join(migrationsDir, "0036_collection_legacy_imported_metadata.sql"),
+		"utf8",
+	);
+	const { COLLECTION_LEGACY_IMPORTED_METADATA_SCHEMA } = await import(
+		"./setup.ts"
+	);
+	expect([migration.trim().replace(/;$/, "")]).toEqual(
+		COLLECTION_LEGACY_IMPORTED_METADATA_SCHEMA,
+	);
+	const db = new PGlite();
+	try {
+		await db.exec(`
+			CREATE TABLE collections (id TEXT PRIMARY KEY);
+			INSERT INTO collections (id) VALUES ('existente');
+		`);
+		await db.exec(migration);
+		expect(
+			(await db.query("SELECT id, legacy_imported_metadata FROM collections"))
+				.rows,
+		).toEqual([{ id: "existente", legacy_imported_metadata: null }]);
+	} finally {
+		await db.close();
+	}
+});

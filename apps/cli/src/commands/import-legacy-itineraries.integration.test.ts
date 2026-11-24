@@ -24,6 +24,7 @@ import {
 	importLegacyCollection,
 	LEGACY_USER_ID_PREFIX,
 	loadLegacyCollectionMetadataCatalog,
+	updateCollection,
 } from "@procomun/db/repository";
 import * as schema from "@procomun/db/schema";
 import { createTables } from "@procomun/db/setup";
@@ -357,6 +358,103 @@ describe("import:legacy-itineraries (integración con PGlite)", () => {
 				({ id }) => id,
 			),
 		).toEqual([term.keyword.id]);
+	});
+
+	test("reimportar no restaura los metadatos retirados a mano y sí añade lo que el catálogo resuelve después (#628)", async () => {
+		const sourceFile = path.join(dir, "retirados.json");
+		const itinerary = {
+			id: "it-retirados",
+			titleStr: "Itinerario con metadatos retirados",
+			descriptionStr: "Descripción general",
+			knowledgeArea: ["Tecnologías"],
+			labelsStr: ["Fresado de prueba", "Torneado de prueba"],
+			learningContext: ["Formación Profesional Básica (más de 15 años)"],
+		};
+		await Bun.write(sourceFile, JSON.stringify([itinerary]));
+		const keyword = async (label: string) => {
+			const term = await createCatalogKeyword(db, {
+				label,
+				createdBy: `${LEGACY_USER_ID_PREFIX}136`,
+			});
+			if (term.status === "invalid") throw new Error("catálogo inválido");
+			return term.keyword.id;
+		};
+		const fresado = await keyword("Fresado de prueba");
+		const run = () =>
+			runImportLegacyItineraries(
+				{ sourceFile, usersFile, dryRun: false },
+				deps(),
+			);
+		const details = async () => {
+			const row = await collection(itinerary.id);
+			return getCollectionById(db, row?.id ?? "");
+		};
+
+		await run();
+		const imported = await details();
+		expect(imported?.knowledgeAreas.map(({ id }) => id)).toEqual([
+			"tecnologia",
+		]);
+		expect(imported?.catalogKeywords.map(({ id }) => id)).toEqual([fresado]);
+		expect(imported?.educationalAreas).toHaveLength(1);
+
+		// Edición normal: se vacían los tres campos.
+		await updateCollection(db, imported?.id ?? "", {
+			knowledgeAreaIds: [],
+			keywordIds: [],
+			educationalAreas: [],
+		});
+		expect((await run()).records[0]).toMatchObject({ outcome: "unchanged" });
+		const cleared = await details();
+		expect(cleared?.knowledgeAreas).toEqual([]);
+		expect(cleared?.catalogKeywords).toEqual([]);
+		expect(cleared?.educationalAreas).toEqual([]);
+
+		// Lo que estaba pendiente de migrar sí entra cuando el catálogo lo resuelve.
+		const torneado = await keyword("Torneado de prueba");
+		expect((await run()).records[0]).toMatchObject({ outcome: "updated" });
+		expect((await details())?.catalogKeywords.map(({ id }) => id)).toEqual([
+			torneado,
+		]);
+	});
+
+	test("una etiqueta demasiado larga no descarta las válidas que la siguen (#628)", async () => {
+		const sourceFile = path.join(dir, "etiqueta-larga.json");
+		await Bun.write(
+			sourceFile,
+			JSON.stringify([
+				{
+					id: "it-etiqueta-larga",
+					titleStr: "Itinerario con una etiqueta larga",
+					descriptionStr: "Descripción general",
+					labelsStr: ["Mecanizado largo", "x".repeat(1001), "Taller largo"],
+				},
+			]),
+		);
+		const ids: string[] = [];
+		for (const label of ["Mecanizado largo", "Taller largo"]) {
+			const term = await createCatalogKeyword(db, {
+				label,
+				createdBy: `${LEGACY_USER_ID_PREFIX}136`,
+			});
+			if (term.status === "invalid") throw new Error("catálogo inválido");
+			ids.push(term.keyword.id);
+		}
+
+		const result = await runImportLegacyItineraries(
+			{ sourceFile, usersFile, dryRun: false },
+			deps(),
+		);
+		expect(result.records[0]).toMatchObject({
+			outcome: "created",
+			metadataIssues: { labelsStr: { unmatched: 1 } },
+			discardedFields: ["labelsStr"],
+		});
+		const row = await collection("it-etiqueta-larga");
+		const stored = await getCollectionById(db, row?.id ?? "");
+		expect(stored?.catalogKeywords.map(({ id }) => id).sort()).toEqual(
+			[...ids].sort(),
+		);
 	});
 
 	test("es idempotente: la segunda pasada no duplica ni cambia nada", async () => {
