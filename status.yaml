@@ -5240,6 +5240,16 @@ tasks:
       Se integran las visitas de #620 y ambas pruebas de API. La migración
       0033 queda después de la 0032 y el migrador conserva los contadores
       existentes. Pasan 117 pruebas de los archivos afectados y los tipos.
+  T-2026-11-24-08423643:
+    date: 2026-11-24
+    agent: "devops-sre"
+    task: "Retirar de la release de previsualizaciones las capturas de PR cerrados"
+    status: Done
+    related: [ADR-0033, "#283"]
+    notes: >
+      La release llegó al tope de 1000 adjuntos y la publicación fallaba. El
+      workflow retira hasta 200 capturas de PR cerrados por ejecución. Los
+      comentarios de PR cerrados pierden sus imágenes.
   T-2026-11-24-09084305:
     date: 2026-11-24
     agent: "backend-api-servicios + qa-validacion"
