@@ -9,9 +9,14 @@ import type {
 	CollectionDetailRecord,
 	CollectionRecord,
 } from "../../lib/api-client.ts";
+import {
+	classificationLineText,
+	formatEducationalClassifications,
+} from "../../lib/educational-classification.ts";
 import { getApiClient } from "../../lib/get-api-client.ts";
 import { url } from "../../lib/paths.ts";
 import { resourceCardMedia } from "../../lib/resource-card-media.ts";
+import { languageLabel } from "../../lib/resource-display.ts";
 import { formatDateLong } from "../../lib/shared-utils.ts";
 import { trackViewOnce } from "../../lib/view-tracking.ts";
 import { m } from "../../paraglide/messages.js";
@@ -62,6 +67,27 @@ export function CollectionDetailContent({
 	onBack: () => void;
 	currentUserId?: string | null;
 }) {
+	const metadata = [
+		{
+			label: m.detail_language(),
+			value: detail.language ? languageLabel(detail.language) : "",
+		},
+		{
+			label: m.collection_detail_keywords(),
+			value: detail.catalogKeywords?.map(({ label }) => label).join(", "),
+		},
+		{
+			label: m.knowledge_areas_label(),
+			value: detail.knowledgeAreas?.map(({ label }) => label).join(", "),
+		},
+		{
+			label: m.collection_detail_educational(),
+			value: formatEducationalClassifications(detail.educationalAreas)
+				.map(classificationLineText)
+				.join("; "),
+		},
+	].filter((field) => field.value);
+
 	return (
 		<section className="collections-shell">
 			<div className="collection-detail-toolbar">
@@ -113,6 +139,23 @@ export function CollectionDetailContent({
 					</ul>
 				</div>
 			</header>
+
+			{metadata.length > 0 && (
+				<section
+					className="collection-detail-section"
+					aria-labelledby="collection-metadata-title"
+				>
+					<h2 id="collection-metadata-title">{m.detail_technical()}</h2>
+					<dl>
+						{metadata.map(({ label, value }) => (
+							<div key={label}>
+								<dt>{label}</dt>
+								<dd>{value}</dd>
+							</div>
+						))}
+					</dl>
+				</section>
+			)}
 
 			<section
 				className="collection-detail-section"

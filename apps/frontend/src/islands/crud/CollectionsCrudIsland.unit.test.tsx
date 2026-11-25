@@ -5,6 +5,7 @@ import type { CollectionRecord } from "../../lib/api-client.ts";
 import {
 	buildCollectionColumns,
 	CollectionsCrudIsland,
+	changedFields,
 } from "./CollectionsCrudIsland.tsx";
 
 function renderCell(node: ReactNode): string {
@@ -81,5 +82,29 @@ describe("CollectionsCrudIsland", () => {
 			"admin-collection-cell--clamp",
 		);
 		expect(byId.cover?.className).toContain("admin-collection-cell--clamp");
+	});
+
+	test("al cambiar solo el título, el PATCH no lleva los demás campos (#623)", () => {
+		const loaded = {
+			title: "Título",
+			description: "Descripción",
+			language: "es" as string | null,
+			keywordIds: ["k1"],
+			knowledgeAreaIds: ["a1"],
+			educationalAreas: [{ categoryId: "c1", optionId: null }],
+		};
+		expect(changedFields(loaded, { ...loaded, title: "Otro título" })).toEqual({
+			title: "Otro título",
+		});
+		// Vaciar un campo se envía de forma explícita.
+		const cleared: typeof loaded = {
+			...loaded,
+			language: null,
+			keywordIds: [],
+		};
+		expect(changedFields(loaded, cleared)).toEqual({
+			language: null,
+			keywordIds: [],
+		});
 	});
 });

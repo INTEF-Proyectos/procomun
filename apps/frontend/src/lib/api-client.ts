@@ -160,6 +160,10 @@ export interface ProfileFieldError {
 }
 
 export interface CollectionRecord {
+	language?: string | null;
+	catalogKeywords?: CatalogKeyword[];
+	knowledgeAreas?: ResourceKnowledgeArea[];
+	educationalAreas?: Resource["educationalAreas"];
 	id: string;
 	slug: string;
 	title: string;
@@ -277,6 +281,8 @@ export interface TagRecord {
 	label: string;
 	description: string | null;
 	usageCount: number;
+	/** Colecciones que la usan; solo lo devuelve el listado del panel (#623). */
+	collectionCount?: number;
 	canonicalTagId: string | null;
 	createdAt?: string | number | Date | null;
 	updatedAt?: string | number | Date | null;
@@ -631,6 +637,10 @@ export interface ApiClient {
 			coverImageUrl: string | null;
 			editorialStatus: string;
 			isOrdered: boolean;
+			language: string | null;
+			keywordIds: string[];
+			knowledgeAreaIds: string[];
+			educationalAreas: { categoryId: string; optionId: string | null }[];
 		}>,
 	): Promise<{
 		ok: boolean;

@@ -1383,6 +1383,8 @@ test("el migrador aplica la 0033 sobre una base que ya tiene la 0032 (#622)", as
 		await db.exec(`
 			CREATE TABLE collections (id TEXT PRIMARY KEY);
 			CREATE TABLE "user" (id TEXT PRIMARY KEY);
+			CREATE TABLE tags (id TEXT PRIMARY KEY);
+			CREATE TABLE knowledge_areas (id TEXT PRIMARY KEY);
 			INSERT INTO collections VALUES ('importada');
 			CREATE SCHEMA drizzle;
 			CREATE TABLE drizzle.__drizzle_migrations (
@@ -1404,6 +1406,84 @@ test("el migrador aplica la 0033 sobre una base que ya tiene la 0032 (#622)", as
 		expect((await db.query("SELECT view_count FROM collections")).rows).toEqual(
 			[{ view_count: 7 }],
 		);
+	} finally {
+		await db.close();
+	}
+});
+
+test("la migración de metadatos conserva las colecciones existentes (#611)", async () => {
+	const migration = await readFile(
+		path.join(migrationsDir, "0034_collection_metadata.sql"),
+		"utf8",
+	);
+	const { COLLECTION_METADATA_SCHEMA } = await import("./setup.ts");
+	expect(
+		migration
+			.split("--> statement-breakpoint")
+			.map((statement) => statement.trim().replace(/;$/, "")),
+	).toEqual(COLLECTION_METADATA_SCHEMA);
+	const db = new PGlite();
+	try {
+		await db.exec(`
+			CREATE TABLE collections (id TEXT PRIMARY KEY);
+			CREATE TABLE tags (id TEXT PRIMARY KEY);
+			CREATE TABLE knowledge_areas (id TEXT PRIMARY KEY);
+			INSERT INTO collections (id) VALUES ('coleccion-previa');
+		`);
+		await db.exec(migration);
+		await db.exec(migration);
+		const { rows } = await db.query(
+			"SELECT id, language, educational_areas FROM collections",
+		);
+		expect(rows).toEqual([
+			{ id: "coleccion-previa", language: null, educational_areas: [] },
+		]);
+	} finally {
+		await db.close();
+	}
+});
+
+test("Drizzle aplica los metadatos a una base con el contador de visitas (#623)", async () => {
+	const journal = JSON.parse(
+		await readFile(path.join(migrationsDir, "meta/_journal.json"), "utf8"),
+	) as { entries: Array<{ tag: string; when: number }> };
+	const views = journal.entries.find(
+		(entry) => entry.tag === "0032_collection_views",
+	);
+	if (!views) throw new Error("Falta la 0032 en el journal");
+	const migration = await readFile(
+		path.join(migrationsDir, `${views.tag}.sql`),
+		"utf8",
+	);
+	const db = new PGlite();
+	try {
+		await db.exec(`
+			CREATE TABLE collections (id TEXT PRIMARY KEY);
+			CREATE TABLE "user" (id TEXT PRIMARY KEY);
+			CREATE TABLE tags (id TEXT PRIMARY KEY);
+			CREATE TABLE knowledge_areas (id TEXT PRIMARY KEY);
+			INSERT INTO collections VALUES ('coleccion-previa');
+			CREATE SCHEMA drizzle;
+			CREATE TABLE drizzle.__drizzle_migrations (
+				id SERIAL PRIMARY KEY, hash text NOT NULL, created_at bigint
+			);
+		`);
+		await db.exec(migration);
+		await db.exec("UPDATE collections SET view_count = 7");
+		await db.query(
+			"INSERT INTO drizzle.__drizzle_migrations (hash, created_at) VALUES ($1, $2)",
+			[views.tag, views.when],
+		);
+
+		await migrate(drizzle(db), { migrationsFolder: migrationsDir });
+
+		expect(
+			(
+				await db.query(
+					"SELECT view_count, language, educational_areas FROM collections",
+				)
+			).rows,
+		).toEqual([{ view_count: 7, language: null, educational_areas: [] }]);
 	} finally {
 		await db.close();
 	}

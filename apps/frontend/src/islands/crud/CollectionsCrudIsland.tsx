@@ -1,17 +1,30 @@
+import { VALID_LANGUAGES } from "@procomun/db/validation";
 import {
 	type FormEvent,
 	startTransition,
 	useCallback,
 	useEffect,
+	useRef,
 	useState,
 } from "react";
 import type {
+	CatalogKeyword,
 	CollectionRecord,
 	CollectionResourceRecord,
+	PublicKnowledgeAreaCatalog,
 	Resource,
 } from "../../lib/api-client.ts";
+import {
+	assignmentsToSelections,
+	type EducationalSelection,
+	selectionsToAssignments,
+} from "../../lib/educational-classification.ts";
 import { getApiClient } from "../../lib/get-api-client.ts";
 import { labelFor } from "../../lib/labels.ts";
+import { languageLabel } from "../../lib/resource-display.ts";
+import { EducationalClassificationEditor } from "../resources/EducationalClassificationFields.tsx";
+import { KeywordCatalogField } from "../resources/KeywordCatalogField.tsx";
+import { KnowledgeAreaField } from "../resources/KnowledgeClassificationFields.tsx";
 import { AccessibleFeedback } from "../shared/AccessibleFeedback.tsx";
 import { ConfirmDialog } from "../shared/ConfirmDialog.tsx";
 import { ModalFrame } from "../shared/ModalFrame.tsx";
@@ -70,6 +83,39 @@ function statusBadgeClass(status: string) {
 
 function isOrderedValue(value: CollectionRecord["isOrdered"] | boolean) {
 	return Boolean(value);
+}
+
+/** Cuerpo del PATCH de edición a partir de los valores del formulario. */
+function editPayload(
+	form: CollectionFormState,
+	language: string,
+	keywords: CatalogKeyword[],
+	areas: string[],
+	educational: EducationalSelection[],
+) {
+	return {
+		title: form.title,
+		description: form.description,
+		coverImageUrl: form.coverImageUrl || null,
+		editorialStatus: form.editorialStatus,
+		isOrdered: form.isOrdered,
+		language: language || null,
+		keywordIds: keywords.map(({ id }) => id),
+		knowledgeAreaIds: areas,
+		educationalAreas: selectionsToAssignments(educational),
+	};
+}
+
+/** Campos de `current` que difieren de `loaded`: lo único que va en el PATCH (#623). */
+export function changedFields<T extends Record<string, unknown>>(
+	loaded: Partial<T>,
+	current: T,
+): Partial<T> {
+	return Object.fromEntries(
+		Object.entries(current).filter(
+			([key, value]) => JSON.stringify(value) !== JSON.stringify(loaded[key]),
+		),
+	) as Partial<T>;
 }
 
 function coverPreview(url: string | null | undefined) {
@@ -208,9 +254,19 @@ export function CollectionsCrudIsland() {
 		message: "",
 		variant: "neutral",
 	});
+	const [language, setLanguage] = useState("");
+	const [keywords, setKeywords] = useState<CatalogKeyword[]>([]);
+	const [areas, setAreas] = useState<string[]>([]);
+	const [educational, setEducational] = useState<EducationalSelection[]>([]);
+	const [catalog, setCatalog] = useState<PublicKnowledgeAreaCatalog | null>(
+		null,
+	);
+
 	const [editing, setEditing] = useState<CollectionRecord | null>(null);
 	const [editForm, setEditForm] = useState(EMPTY_FORM);
 	const [editError, setEditError] = useState("");
+	// Lo que se cargó al abrir la edición: el PATCH lleva solo las diferencias.
+	const loadedPayload = useRef<ReturnType<typeof editPayload> | null>(null);
 	const [deleteTarget, setDeleteTarget] = useState<CollectionRecord | null>(
 		null,
 	);
@@ -339,14 +395,37 @@ export function CollectionsCrudIsland() {
 				return;
 			}
 
-			setEditing(collection);
-			setEditForm({
+			const form = {
 				title: collection.title,
 				description: collection.description,
 				coverImageUrl: collection.coverImageUrl ?? "",
 				editorialStatus: collection.editorialStatus,
 				isOrdered: isOrderedValue(collection.isOrdered),
-			});
+			};
+			const loadedLanguage = collection.language ?? "";
+			const loadedKeywords = collection.catalogKeywords ?? [];
+			const loadedAreas = collection.knowledgeAreas?.map(({ id }) => id) ?? [];
+			const loadedEducational = assignmentsToSelections(
+				collection.educationalAreas ?? [],
+			);
+			loadedPayload.current = editPayload(
+				form,
+				loadedLanguage,
+				loadedKeywords,
+				loadedAreas,
+				loadedEducational,
+			);
+			setLanguage(loadedLanguage);
+			setKeywords(loadedKeywords);
+			setAreas(loadedAreas);
+			setEducational(loadedEducational);
+			setEditing(collection);
+			if (!catalog)
+				void api
+					.getKnowledgeAreaCatalog()
+					.then(setCatalog)
+					.catch(() => {});
+			setEditForm(form);
 			await loadCollectionResources(collection.id);
 		} catch {
 			setStatusMessage("No se pudo cargar la coleccion seleccionada.");
@@ -390,13 +469,15 @@ export function CollectionsCrudIsland() {
 
 		try {
 			const api = await getApiClient();
-			const result = await api.updateCollection(editing.id, {
-				title: editForm.title,
-				description: editForm.description,
-				coverImageUrl: editForm.coverImageUrl || null,
-				editorialStatus: editForm.editorialStatus,
-				isOrdered: editForm.isOrdered,
-			});
+			// #623: solo se envía lo que ha cambiado, para no pisar lo que otra
+			// pestaña haya guardado mientras tanto.
+			const result = await api.updateCollection(
+				editing.id,
+				changedFields(
+					loadedPayload.current ?? {},
+					editPayload(editForm, language, keywords, areas, educational),
+				),
+			);
 			if (!result.ok) {
 				setEditError(result.error ?? "Error al guardar.");
 				return;
@@ -755,6 +836,40 @@ export function CollectionsCrudIsland() {
 								Orden fija
 							</label>
 						</div>
+
+						<fieldset className="admin-form-field">
+							<legend>Detalles técnicos</legend>
+							<label htmlFor="collection-edit-language">Idioma</label>
+							<select
+								id="collection-edit-language"
+								value={language}
+								onChange={(event) => setLanguage(event.currentTarget.value)}
+							>
+								<option value="">Sin indicar</option>
+								{VALID_LANGUAGES.map((code) => (
+									<option key={code} value={code}>
+										{languageLabel(code)}
+									</option>
+								))}
+							</select>
+							<KeywordCatalogField
+								id="collection-keywords"
+								selected={keywords}
+								onChange={setKeywords}
+							/>
+							<KnowledgeAreaField
+								idPrefix="collection-edit"
+								catalog={catalog}
+								selectedIds={areas}
+								onChange={setAreas}
+								resourceAreas={editing.knowledgeAreas}
+							/>
+							<EducationalClassificationEditor
+								idPrefix="collection-edit"
+								selections={educational}
+								onChange={setEducational}
+							/>
+						</fieldset>
 
 						<section
 							className="collection-resource-section"
