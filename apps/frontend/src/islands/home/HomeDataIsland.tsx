@@ -333,7 +333,10 @@ export function HomeDataIsland() {
 				const [resResult, colResult, config, platformStats] = await Promise.all(
 					[
 						api.listResources({ limit: 20 }),
-						api.listPublicCollections({ limit: 8 }),
+						// Sin colecciones la portada sigue mostrando los recursos.
+						api
+							.listPublicCollections({ limit: 8 })
+							.catch(() => ({ data: [], total: 0 })),
 						api.getBadgeConfig().catch(() => null),
 						api.getPlatformStats().catch(() => ({ users: 0 })),
 					],

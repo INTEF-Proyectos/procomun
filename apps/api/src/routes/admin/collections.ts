@@ -48,6 +48,10 @@ const collectionRoutes = buildCrudRoutes({
 				typeof payload.editorialStatus === "string"
 					? payload.editorialStatus
 					: undefined,
+			language: payload.language,
+			educationalAreas: payload.educationalAreas,
+			keywordIds: payload.keywordIds,
+			knowledgeAreaIds: payload.knowledgeAreaIds,
 			isOrdered:
 				typeof payload.isOrdered === "boolean" ? payload.isOrdered : undefined,
 		});
@@ -95,6 +99,10 @@ const collectionRoutes = buildCrudRoutes({
 					? body.editorialStatus
 					: undefined,
 			isOrdered: !!body.isOrdered,
+			language: body.language,
+			educationalAreas: body.educationalAreas,
+			keywordIds: body.keywordIds,
+			knowledgeAreaIds: body.knowledgeAreaIds,
 		};
 	},
 	afterCreate: async (user, result, data) => {

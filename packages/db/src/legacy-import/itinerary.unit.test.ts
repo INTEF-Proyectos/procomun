@@ -2,7 +2,6 @@ import { describe, expect, test } from "bun:test";
 import path from "node:path";
 import {
 	cleanLegacyItineraryDescription,
-	LEGACY_ITINERARY_DISCARDED_FIELDS,
 	type LegacyItineraryJson,
 	mapLegacyItinerary,
 	resolveLegacyItineraryId,
@@ -59,22 +58,22 @@ describe("mapLegacyItinerary (#432)", () => {
 		expect(mapped?.publicatorEmail).toBe("docente.itinerario.dos@ejemplo.test");
 	});
 
-	test("descarta knowledgeArea, labelsStr, learningContext y educationalDescription con aviso", async () => {
-		const [first] = await loadFixture();
-		const result = mapLegacyItinerary(first as LegacyItineraryJson);
-
-		expect(LEGACY_ITINERARY_DISCARDED_FIELDS).toEqual([
-			"knowledgeArea",
-			"labelsStr",
-			"learningContext",
-			"educationalDescription",
-		]);
-		// educationalDescription llega como ["", ""]: vacío, no se avisa.
-		expect(result.mapped?.discardedFields).toEqual([
-			"knowledgeArea",
-			"labelsStr",
-			"learningContext",
-		]);
+	test("recoge metadatos no vacíos y limpia la descripción educativa", () => {
+		const result = mapLegacyItinerary({
+			id: "metadatos",
+			titleStr: "Un itinerario",
+			descriptionStr: "Descripción general",
+			knowledgeArea: ["Tecnologías", " Tecnologías "],
+			labelsStr: ["", "Taller, electricidad"],
+			learningContext: ["Bachillerato"],
+			educationalDescription: ["", "<p>El taller</p>", "El taller"],
+		});
+		expect(result.mapped?.metadata).toEqual({
+			knowledgeArea: ["Tecnologías"],
+			labelsStr: ["Taller", " electricidad"],
+			learningContext: ["Bachillerato"],
+		});
+		expect(result.mapped?.description).toBe("Descripción general\n\nEl taller");
 	});
 
 	test("published 0 (o ausente) entra como borrador", () => {
