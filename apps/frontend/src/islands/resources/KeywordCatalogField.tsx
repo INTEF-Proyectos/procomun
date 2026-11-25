@@ -23,6 +23,11 @@ type KeywordCatalogFieldProps = {
 	canCreate?: boolean;
 	/** Filtro del buscador: sin ayuda y con las etiquetas libres anteriores. */
 	filter?: boolean;
+	/**
+	 * Añade las etiquetas libres a las sugerencias; por defecto, solo en el
+	 * filtro. Las colecciones no tienen etiquetas libres y lo desactivan.
+	 */
+	includeTags?: boolean;
 };
 
 const MATCH_SUFFIX = { label: "", alias: " (alias)", tag: " (etiqueta)" };
@@ -34,6 +39,7 @@ export function KeywordCatalogField({
 	onChange,
 	canCreate = false,
 	filter = false,
+	includeTags = filter,
 }: KeywordCatalogFieldProps) {
 	const listId = useId();
 	const [query, setQuery] = useState("");
@@ -62,7 +68,7 @@ export function KeywordCatalogField({
 		setSearching(true);
 		const timer = setTimeout(() => {
 			void getApiClient()
-				.then((api) => api.searchKeywords(term, filter))
+				.then((api) => api.searchKeywords(term, includeTags))
 				.then((data) => {
 					if (cancelled) return;
 					setSuggestions(data);
@@ -80,7 +86,7 @@ export function KeywordCatalogField({
 			cancelled = true;
 			clearTimeout(timer);
 		};
-	}, [query, filter]);
+	}, [query, includeTags]);
 
 	function select(keyword: CatalogKeyword) {
 		const next = addKeyword(selected, keyword);

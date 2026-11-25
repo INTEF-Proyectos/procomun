@@ -5181,6 +5181,22 @@ tasks:
     notes: >
       La edición y la ficha pública comparten los catálogos de recursos.
       El alta, los filtros y la importación tienen seguimiento propio.
+  T-2026-11-21-08150457:
+    agent: "busqueda-y-descubrimiento + qa-validacion"
+    task: "Filtrar el listado público de colecciones por sus metadatos"
+    status: Done
+    related: ["#612", "#611"]
+    notes: "Texto y filtros combinables con el estado reflejado en la URL."
+  T-2026-11-24-08215909:
+    date: 2026-11-24
+    agent: "frontend-ux-accesibilidad + qa-validacion"
+    task: "Atender la revisión de la PR #629 de filtros avanzados de colecciones"
+    status: Done
+    related: ["#629", "#612"]
+    notes: >
+      El panel avisa y reintenta si falla el catálogo de áreas, el
+      encabezado cuenta los filtros activos y se pueden limpiar con el panel
+      cerrado. El cliente rechaza los errores HTTP del listado.
   T-2026-11-21-08131372:
     agent: "ingestas-y-migraciones + qa-validacion"
     task: "Importar metadatos de itinerarios en los catálogos de colecciones"

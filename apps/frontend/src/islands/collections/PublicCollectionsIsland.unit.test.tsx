@@ -6,8 +6,10 @@ import type {
 } from "../../lib/api-client.ts";
 import { overwriteGetLocale } from "../../paraglide/runtime.js";
 import {
+	activeFilterCount,
 	CollectionDetailContent,
 	PublicCollectionsIsland,
+	pageOutOfRange,
 	readCollectionLocation,
 } from "./PublicCollectionsIsland.tsx";
 
@@ -62,16 +64,57 @@ describe("PublicCollectionsIsland", () => {
 
 		expect(html).toContain("Colecciones publicadas");
 		expect(html).toContain("Buscar por título o descripción");
+		expect(html).toContain("Filtros Avanzados");
 		expect(html).toContain("Cargando colecciones...");
+		// La paginación sigue montada mientras carga: el foco no se pierde.
+		expect(html).toContain('aria-label="Paginación de colecciones"');
 	});
 
 	test("lee el estado de colecciones desde la URL", () => {
 		expect(
-			readCollectionLocation("?q=matematicas&page=3&slug=algebra"),
-		).toEqual({
+			readCollectionLocation(
+				"?q=matematicas&page=3&slug=algebra&knowledgeAreas=matematicas&language=ca&tag=funciones&educationalCategory=educacion-primaria&educationalOption=primer-ciclo",
+			),
+		).toMatchObject({
 			query: "matematicas",
 			page: 3,
 			slug: "algebra",
+			knowledgeAreas: ["matematicas"],
+			language: "ca",
+			tag: "funciones",
+			educationalCategory: "educacion-primaria",
+			educationalOption: "primer-ciclo",
+		});
+	});
+
+	test("cuenta los filtros activos de un enlace filtrado (#629)", () => {
+		expect(activeFilterCount(readCollectionLocation("?q=algo&page=2"))).toBe(0);
+		expect(
+			activeFilterCount(
+				readCollectionLocation(
+					"?language=ca&tag=funciones&knowledgeAreas=matematicas,geografia&educationalCategory=educacion-primaria&educationalOption=primer-ciclo",
+				),
+			),
+		).toBe(5);
+	});
+
+	test("una página más allá de la última vuelve a la primera (#629)", () => {
+		expect(pageOutOfRange(2, 4)).toBe(true);
+		expect(pageOutOfRange(3, 27)).toBe(false);
+		expect(pageOutOfRange(4, 27)).toBe(true);
+		// Sin resultados, la primera página es la válida.
+		expect(pageOutOfRange(1, 0)).toBe(false);
+	});
+
+	test("descarta los filtros que solo tienen los recursos", () => {
+		expect(
+			readCollectionLocation(
+				"?resourceType=video&license=cc-by&professionalFamilies=sanidad",
+			),
+		).toMatchObject({
+			resourceType: "",
+			license: "",
+			professionalFamilies: [],
 		});
 	});
 

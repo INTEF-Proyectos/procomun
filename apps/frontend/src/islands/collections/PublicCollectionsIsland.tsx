@@ -1,36 +1,52 @@
 import {
 	type FormEvent,
-	startTransition,
 	useCallback,
 	useEffect,
+	useRef,
 	useState,
 } from "react";
 import type {
 	CollectionDetailRecord,
 	CollectionRecord,
+	PublicKnowledgeAreaCatalog,
 } from "../../lib/api-client.ts";
 import {
 	classificationLineText,
 	formatEducationalClassifications,
+	sanitizeEducationalFilter,
 } from "../../lib/educational-classification.ts";
 import { getApiClient } from "../../lib/get-api-client.ts";
+import {
+	buildListingUrl,
+	type HistoryUpdateMode,
+	type ListingState,
+	readListingState,
+	writeListingStateToHistory,
+} from "../../lib/listing-history.ts";
 import { url } from "../../lib/paths.ts";
 import { resourceCardMedia } from "../../lib/resource-card-media.ts";
 import { languageLabel } from "../../lib/resource-display.ts";
+import {
+	LANGUAGE_OPTIONS,
+	loadFilterOptions,
+} from "../../lib/resource-filters.ts";
 import { formatDateLong } from "../../lib/shared-utils.ts";
 import { trackViewOnce } from "../../lib/view-tracking.ts";
-import { m } from "../../paraglide/messages.js";
 import { ResourceByline } from "../../ui/AuthorLinks.tsx";
 import { CardTypeMarker } from "../../ui/CardTypeMarker.tsx";
+import { EducationalSearchFilters } from "../catalog/EducationalSearchFilters.tsx";
+import { KnowledgeAreaSearchFilters } from "../catalog/KnowledgeAreaSearchFilters.tsx";
+import { KeywordCatalogField } from "../resources/KeywordCatalogField.tsx";
+import { KnowledgeCatalogError } from "../resources/KnowledgeClassificationFields.tsx";
 import { RatingIsland } from "../social/RatingIsland.tsx";
 import { ReportButton } from "../social/ReportButton.tsx";
 import "./PublicCollectionsIsland.css";
+import "../../lib/paraglide-client.ts";
+import * as m from "../../paraglide/messages.js";
 
 const PAGE_SIZE = 9;
 
-interface CollectionLocationState {
-	query: string;
-	page: number;
+interface CollectionLocationState extends ListingState {
 	slug: string | null;
 }
 
@@ -48,23 +64,55 @@ function coverStyle(coverImageUrl?: string | null) {
 	};
 }
 
+/** La página pedida queda más allá de la última con resultados. */
+function pageOutOfRange(page: number, total: number): boolean {
+	return page > Math.max(1, Math.ceil(total / PAGE_SIZE));
+}
+
+/** Filtros aplicados, sin el texto: lo que el panel cerrado no deja ver (#629). */
+function activeFilterCount(state: CollectionLocationState): number {
+	return (
+		(state.language ? 1 : 0) +
+		(state.tag ? 1 : 0) +
+		(state.educationalCategory ? 1 : 0) +
+		(state.knowledgeAreas?.length ?? 0)
+	);
+}
+
 function readCollectionLocation(search: string): CollectionLocationState {
-	const params = new URLSearchParams(search);
+	const state = readListingState(search);
+	const educational = sanitizeEducationalFilter(
+		state.educationalCategory,
+		state.educationalOption,
+	);
 	return {
-		query: params.get("q") ?? "",
-		page: Math.max(1, Number(params.get("page") ?? "1") || 1),
-		slug: params.get("slug"),
+		...state,
+		page: Number.isSafeInteger(state.page) ? state.page : 1,
+		resourceType: "",
+		license: "",
+		professionalFamilies: [],
+		educationalCategory: educational.categoryId,
+		educationalOption: educational.optionId,
+		slug: new URLSearchParams(search).get("slug"),
 	};
+}
+
+function buildCollectionUrl(state: CollectionLocationState) {
+	const slug = new URLSearchParams();
+	if (state.slug) slug.set("slug", state.slug);
+	return buildListingUrl(url("colecciones"), slug.toString(), state);
 }
 
 /** Detalle de una colección pública; sin estado, para poder probarlo. */
 export function CollectionDetailContent({
 	detail,
 	onBack,
+	backHref = url("colecciones"),
 	currentUserId = null,
 }: {
 	detail: CollectionDetailRecord;
 	onBack: () => void;
+	backHref?: string;
 	currentUserId?: string | null;
 }) {
 	const metadata = [
@@ -91,13 +139,23 @@ export function CollectionDetailContent({
 	return (
 		<section className="collections-shell">
 			<div className="collection-detail-toolbar">
-				<button
-					type="button"
+				<a
+					href={backHref}
 					className="collections-back-link"
-					onClick={onBack}
+					onClick={(event) => {
+						if (
+							event.metaKey ||
+							event.ctrlKey ||
+							event.shiftKey ||
+							event.altKey
+						)
+							return;
+						event.preventDefault();
+						onBack();
+					}}
 				>
 					Volver al listado
-				</button>
+				</a>
 				{/* #539: las colecciones también se denuncian. */}
 				<ReportButton
 					target="collection"
@@ -229,26 +287,50 @@ export function CollectionDetailContent({
 }
 
 export function PublicCollectionsIsland() {
+	const [listing, setListing] = useState(() => readCollectionLocation(""));
 	const [query, setQuery] = useState("");
-	const [appliedQuery, setAppliedQuery] = useState("");
-	const [page, setPage] = useState(1);
-	// El valor no se lee: la fuente de verdad del slug es la URL (syncUrl); solo
-	// se conserva el setter para forzar el re-render al cambiar de colección.
-	const [, setSlug] = useState<string | null>(null);
 	const [loading, setLoading] = useState(true);
 	const [collections, setCollections] = useState<CollectionRecord[]>([]);
 	const [total, setTotal] = useState(0);
 	const [detail, setDetail] = useState<CollectionDetailRecord | null>(null);
 	const [error, setError] = useState("");
 	const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+	const [languageOptions, setLanguageOptions] = useState(LANGUAGE_OPTIONS);
+	const [areaCatalog, setAreaCatalog] =
+		useState<PublicKnowledgeAreaCatalog | null>(null);
+	const [areaCatalogFailed, setAreaCatalogFailed] = useState(false);
+	const [tagLabel, setTagLabel] = useState<{
+		slug: string;
+		label: string;
+	} | null>(null);
+	const requestId = useRef(0);
+	const searchInput = useRef<HTMLInputElement>(null);
+
+	// El aviso sigue a la vista mientras se reintenta y solo se quita al cargar.
+	const loadAreaCatalog = useCallback(() => {
+		void getApiClient()
+			.then((api) => api.getKnowledgeAreaCatalog())
+			.then((loaded) => {
+				setAreaCatalog(loaded);
+				setAreaCatalogFailed(false);
+			})
+			.catch(() => setAreaCatalogFailed(true));
+	}, []);
 
 	useEffect(() => {
-		void (async () => {
-			const api = await getApiClient();
-			const session = await api.getSession().catch(() => null);
-			setCurrentUserId(session?.user?.id ?? null);
-		})();
-	}, []);
+		void getApiClient().then((api) => {
+			void api
+				.getSession()
+				.then((session) => setCurrentUserId(session?.user?.id ?? null))
+				.catch(() => {});
+		});
+		loadAreaCatalog();
+		void loadFilterOptions(
+			"language",
+			m.catalog_all_languages(),
+			LANGUAGE_OPTIONS,
+		).then(setLanguageOptions);
+	}, [loadAreaCatalog]);
 
 	const detailSlug = detail?.slug;
 	useEffect(() => {
@@ -268,123 +350,128 @@ export function PublicCollectionsIsland() {
 		};
 	}, [detailSlug]);
 
-	function syncUrl(next: { q?: string; page?: number; slug?: string | null }) {
-		const params = new URLSearchParams(window.location.search);
-		if (next.q !== undefined) {
-			if (next.q) params.set("q", next.q);
-			else params.delete("q");
-		}
-		if (next.page !== undefined) {
-			if (next.page > 1) params.set("page", String(next.page));
-			else params.delete("page");
-		}
-		if (next.slug !== undefined) {
-			if (next.slug) params.set("slug", next.slug);
-			else params.delete("slug");
-		}
-		const suffix = params.toString();
-		window.history.pushState(
-			{},
-			"",
-			`${url("colecciones")}${suffix ? `?${suffix}` : ""}`,
-		);
-	}
+	useEffect(() => {
+		if (!listing.tag) return;
+		let cancelled = false;
+		void getApiClient()
+			.then((api) => api.getPublicTagBySlug(listing.tag))
+			.then((tag) => {
+				if (!cancelled && tag)
+					setTagLabel({ slug: listing.tag, label: tag.label });
+			})
+			.catch(() => {});
+		return () => {
+			cancelled = true;
+		};
+	}, [listing.tag]);
 
-	const loadList = useCallback(async (nextPage: number, nextQuery: string) => {
+	const loadLocation = useCallback(async (next: CollectionLocationState) => {
+		const id = ++requestId.current;
+		setListing(next);
 		setLoading(true);
 		setError("");
+		setDetail(null);
 		try {
 			const api = await getApiClient();
-			const result = await api.listPublicCollections({
-				q: nextQuery || undefined,
-				limit: PAGE_SIZE,
-				offset: (nextPage - 1) * PAGE_SIZE,
-			});
-			startTransition(() => {
-				setCollections(result.data);
-				setTotal(result.total);
-				setDetail(null);
-				setSlug(null);
-				setPage(nextPage);
-				setAppliedQuery(nextQuery);
-				setLoading(false);
-			});
-		} catch {
-			setCollections([]);
-			setTotal(0);
-			setError("No se pudieron cargar las colecciones.");
-			setLoading(false);
-		}
-	}, []);
-
-	const loadDetail = useCallback(async (nextSlug: string) => {
-		setLoading(true);
-		setError("");
-		try {
-			const api = await getApiClient();
-			const result = await api.getPublicCollectionBySlug(nextSlug);
-			if (!result) {
-				setDetail(null);
-				setError("La colección solicitada no existe o no está publicada.");
-				setLoading(false);
+			if (next.slug) {
+				const result = await api.getPublicCollectionBySlug(next.slug);
+				if (id !== requestId.current) return;
+				setDetail(result);
+				if (!result) {
+					// Sin ficha no se dejan a la vista las tarjetas del listado anterior.
+					setCollections([]);
+					setTotal(0);
+					setError("La colección solicitada no existe o no está publicada.");
+				}
 				return;
 			}
-			startTransition(() => {
-				setSlug(nextSlug);
-				setDetail(result);
-				setLoading(false);
+			const result = await api.listPublicCollections({
+				q: next.query || undefined,
+				limit: PAGE_SIZE,
+				offset: (next.page - 1) * PAGE_SIZE,
+				language: next.language,
+				tag: next.tag,
+				knowledgeAreas: next.knowledgeAreas,
+				educationalCategory: next.educationalCategory,
+				educationalOption: next.educationalOption,
 			});
+			if (id !== requestId.current) return;
+			// Una página que ya no existe (enlace antiguo, o filtro cambiado
+			// mientras cargaba) vuelve a la primera en vez de quedarse vacía.
+			if (pageOutOfRange(next.page, result.total)) {
+				const first = { ...next, page: 1 };
+				writeListingStateToHistory(
+					window.history,
+					buildCollectionUrl(first),
+					"replace",
+				);
+				await loadLocation(first);
+				return;
+			}
+			setCollections(result.data);
+			setTotal(result.total);
 		} catch {
+			if (id !== requestId.current) return;
 			setDetail(null);
-			setError("No se pudo cargar el detalle de la colección.");
-			setLoading(false);
+			setCollections([]);
+			setTotal(0);
+			setError(
+				next.slug
+					? "No se pudo cargar el detalle de la colección."
+					: "No se pudieron cargar las colecciones.",
+			);
+		} finally {
+			if (id === requestId.current) setLoading(false);
 		}
 	}, []);
 
 	useEffect(() => {
-		function syncFromLocation(search: string) {
-			const nextState = readCollectionLocation(search);
-			setQuery(nextState.query);
-			if (nextState.slug) {
-				void loadDetail(nextState.slug);
-				return;
-			}
-			void loadList(nextState.page, nextState.query);
+		function syncFromLocation() {
+			const next = readCollectionLocation(window.location.search);
+			setQuery(next.query);
+			void loadLocation(next);
 		}
 
-		syncFromLocation(window.location.search);
+		syncFromLocation();
+		window.addEventListener("popstate", syncFromLocation);
+		return () => window.removeEventListener("popstate", syncFromLocation);
+	}, [loadLocation]);
 
-		function handlePopState() {
-			syncFromLocation(window.location.search);
-		}
-
-		window.addEventListener("popstate", handlePopState);
-		return () => {
-			window.removeEventListener("popstate", handlePopState);
-		};
-	}, [loadList, loadDetail]);
-
-	async function handleSearch(event: FormEvent<HTMLFormElement>) {
-		event.preventDefault();
-		syncUrl({ q: query.trim(), page: 1, slug: null });
-		await loadList(1, query.trim());
+	function navigate(next: CollectionLocationState, mode: HistoryUpdateMode) {
+		writeListingStateToHistory(window.history, buildCollectionUrl(next), mode);
+		void loadLocation(next);
 	}
 
+	function changeFilters(filters: Partial<CollectionLocationState>) {
+		// El texto escrito sin pulsar Buscar también se aplica: así el cuadro de
+		// búsqueda y los resultados no se contradicen.
+		navigate(
+			{ ...listing, ...filters, query: query.trim(), page: 1, slug: null },
+			"replace",
+		);
+	}
+
+	function handleSearch(event: FormEvent<HTMLFormElement>) {
+		event.preventDefault();
+		navigate({ ...listing, query: query.trim(), page: 1, slug: null }, "push");
+	}
+
+	const { page } = listing;
 	const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
 	if (detail) {
+		const back = { ...listing, slug: null };
 		return (
 			<CollectionDetailContent
 				detail={detail}
 				currentUserId={currentUserId}
-				onBack={() => {
-					syncUrl({ slug: null });
-					void loadList(page, appliedQuery);
-				}}
+				backHref={buildCollectionUrl(back)}
+				onBack={() => navigate(back, "push")}
 			/>
 		);
 	}
 
+	const activeFilters = activeFilterCount(listing);
 	return (
 		<section className="collections-shell">
 			<header className="collections-hero">
@@ -397,6 +484,7 @@ export function PublicCollectionsIsland() {
 				<search>
 					<form className="collections-search" onSubmit={handleSearch}>
 						<input
+							ref={searchInput}
 							type="search"
 							placeholder="Buscar por título o descripción"
 							aria-label="Buscar colecciones"
@@ -408,6 +496,105 @@ export function PublicCollectionsIsland() {
 				</search>
 			</header>
 
+			<details className="collections-filters">
+				<summary>
+					<span>{m.catalog_advanced_filters()}</span>
+					{activeFilters > 0 ? (
+						<span className="collections-filters-count">
+							{activeFilters === 1
+								? m.collections_filters_active_one()
+								: m.collections_filters_active_other({
+										count: String(activeFilters),
+									})}
+						</span>
+					) : null}
+				</summary>
+				<div className="collections-filters-fields">
+					<EducationalSearchFilters
+						categoryId={listing.educationalCategory ?? ""}
+						optionId={listing.educationalOption ?? ""}
+						onChange={(next) =>
+							changeFilters({
+								educationalCategory: next.categoryId,
+								educationalOption: next.optionId,
+							})
+						}
+					/>
+					{areaCatalogFailed && !areaCatalog ? (
+						<KnowledgeCatalogError
+							onRetry={loadAreaCatalog}
+							focusId="filter-knowledgeAreas"
+						/>
+					) : null}
+					<KnowledgeAreaSearchFilters
+						catalog={areaCatalog}
+						educationalCategory={listing.educationalCategory ?? ""}
+						knowledgeAreas={listing.knowledgeAreas ?? []}
+						professionalFamilies={[]}
+						includeProfessionalFamilies={false}
+						areaHelp={m.collections_knowledge_areas_filter_help()}
+						onChange={({ knowledgeAreas }) => changeFilters({ knowledgeAreas })}
+					/>
+					<div className="filter-group">
+						<label htmlFor="collection-language">{m.catalog_language()}</label>
+						<select
+							id="collection-language"
+							value={listing.language}
+							onChange={(event) =>
+								changeFilters({ language: event.currentTarget.value })
+							}
+						>
+							{languageOptions.map(({ value, label }) => (
+								<option key={value} value={value}>
+									{label}
+								</option>
+							))}
+						</select>
+					</div>
+					<div className="filter-group">
+						<KeywordCatalogField
+							id="collection-filter-tag"
+							filter
+							includeTags={false}
+							selected={
+								listing.tag
+									? [
+											{
+												id: listing.tag,
+												slug: listing.tag,
+												label:
+													tagLabel?.slug === listing.tag
+														? tagLabel.label
+														: listing.tag,
+											},
+										]
+									: []
+							}
+							onChange={(next) => {
+								const tag = next.at(-1);
+								setTagLabel(tag ? { slug: tag.slug, label: tag.label } : null);
+								changeFilters({ tag: tag?.slug ?? "" });
+							}}
+						/>
+					</div>
+				</div>
+			</details>
+			{/* Fuera del panel: se puede limpiar sin abrirlo (#629). */}
+			{activeFilters > 0 || listing.query ? (
+				<button
+					type="button"
+					className="clear-btn collections-filters-clear"
+					onClick={() => {
+						setQuery("");
+						navigate(readCollectionLocation(""), "replace");
+						// El botón desaparece al limpiar: el foco pasa al buscador.
+						searchInput.current?.focus();
+					}}
+				>
+					{m.catalog_clear_filters()}
+				</button>
+			) : null}
+
 			<section
 				className="collection-list-section"
 				aria-labelledby="collections-results-title"
@@ -415,7 +602,7 @@ export function PublicCollectionsIsland() {
 				<div className="collections-section-head">
 					<div>
 						<p className="collections-eyebrow">Resultados</p>
-						<h2 id="collections-results-title">
+						<h2 id="collections-results-title" aria-live="polite">
 							{loading
 								? "Cargando colecciones..."
 								: `${total} colecciones publicadas`}
@@ -429,16 +616,24 @@ export function PublicCollectionsIsland() {
 					</p>
 				) : null}
 
+				{/* La rejilla y la paginación siguen montadas mientras carga para que
+				    el foco no se pierda al cambiar de página. */}
 				<div className="collection-card-grid">
 					{collections.map((collection) => (
 						<a
 							key={collection.id}
-							href={url(`colecciones?slug=${collection.slug}`)}
+							href={buildCollectionUrl({ ...listing, slug: collection.slug })}
 							className="collection-public-card"
 							onClick={(event) => {
+								if (
+									event.metaKey ||
+									event.ctrlKey ||
+									event.shiftKey ||
+									event.altKey
+								)
+									return;
 								event.preventDefault();
-								syncUrl({ slug: collection.slug });
-								void loadDetail(collection.slug);
+								navigate({ ...listing, slug: collection.slug }, "push");
 							}}
 						>
 							<div
@@ -471,11 +666,9 @@ export function PublicCollectionsIsland() {
 				>
 					<button
 						type="button"
-						disabled={page <= 1}
+						disabled={loading || page <= 1}
 						onClick={() => {
-							const nextPage = page - 1;
-							syncUrl({ page: nextPage });
-							void loadList(nextPage, appliedQuery);
+							navigate({ ...listing, page: page - 1, slug: null }, "push");
 						}}
 					>
 						Anterior
@@ -483,11 +676,9 @@ export function PublicCollectionsIsland() {
 					<span>{`Página ${page} de ${totalPages}`}</span>
 					<button
 						type="button"
-						disabled={page >= totalPages}
+						disabled={loading || page >= totalPages}
 						onClick={() => {
-							const nextPage = page + 1;
-							syncUrl({ page: nextPage });
-							void loadList(nextPage, appliedQuery);
+							navigate({ ...listing, page: page + 1, slug: null }, "push");
 						}}
 					>
 						Siguiente
@@ -498,4 +689,4 @@ export function PublicCollectionsIsland() {
 	);
 }
 
-export { readCollectionLocation };
+export { activeFilterCount, pageOutOfRange, readCollectionLocation };

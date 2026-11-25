@@ -1,4 +1,4 @@
-import { asc, desc, eq, ne, or, sql } from "drizzle-orm";
+import { asc, desc, eq, inArray, ne, or, sql } from "drizzle-orm";
 import {
 	EDUCATIONAL_AREA_FIELD,
 	EducationalAreaValidationError,
@@ -29,6 +29,11 @@ type CollectionFilters = {
 	limit?: number;
 	offset?: number;
 	search?: string;
+	language?: string;
+	tagSlug?: string;
+	knowledgeAreaIds?: string[];
+	educationalCategory?: string;
+	educationalOption?: string;
 	curatorId?: string;
 	status?: string;
 	resourceStatus?: string;
@@ -64,6 +69,43 @@ export async function listCollections(
 			sql`(${normalizeSearch(collections.title)} LIKE ${term} OR ${normalizeSearch(collections.description)} LIKE ${term})`,
 		);
 	}
+
+	if (opts.language) conditions.push(eq(collections.language, opts.language));
+	if (opts.tagSlug) {
+		const slug = opts.tagSlug;
+		// Usa el mismo slug que el filtro de recursos, incluidas sus equivalencias.
+		conditions.push(sql`exists (
+			select 1 from ${collectionKeywords} ck
+			inner join ${tags} t on t.id = ck.tag_id
+			where ck.collection_id = ${collections.id}
+				and coalesce(t.canonical_tag_id, t.id) = (
+					select coalesce(c.canonical_tag_id, c.id)
+					from ${tags} c where c.slug = ${slug} limit 1
+				)
+		)`);
+	}
+	if (opts.knowledgeAreaIds?.length) {
+		conditions.push(
+			inArray(
+				collections.id,
+				db
+					.select({ id: collectionKnowledgeAreas.collectionId })
+					.from(collectionKnowledgeAreas)
+					.where(
+						inArray(collectionKnowledgeAreas.areaId, opts.knowledgeAreaIds),
+					),
+			),
+		);
+	}
+	if (opts.educationalCategory) {
+		const assignment = {
+			categoryId: opts.educationalCategory,
+			...(opts.educationalOption && { optionId: opts.educationalOption }),
+		};
+		conditions.push(
+			sql`${collections.educationalAreas} @> ${JSON.stringify([assignment])}::jsonb`,
+		);
+	}
 	if (opts.curatorId)
 		conditions.push(eq(collections.curatorId, opts.curatorId));
 	if (opts.status)
@@ -85,7 +127,7 @@ export async function listCollections(
 		.leftJoin(user, eq(collections.curatorId, user.id))
 		.limit(limit)
 		.offset(offset)
-		.orderBy(desc(collections.updatedAt));
+		.orderBy(desc(collections.updatedAt), asc(collections.id));
 	const rows = where ? await query.where(where) : await query;
 
 	const countQuery = db

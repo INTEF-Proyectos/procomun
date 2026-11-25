@@ -394,6 +394,95 @@ describe("Rutas públicas /api/v1", () => {
 		).toBe(true);
 	});
 
+	test("combina texto y facetas propias de colecciones, también importadas (#612)", async () => {
+		const { db } = getDb();
+		const keyword = await repo.createCatalogKeyword(db, {
+			label: "Faceta 612",
+			createdBy: "system",
+		});
+		if (keyword.status === "invalid") throw new Error("Palabra clave inválida");
+		const metadata = {
+			language: "ca",
+			knowledgeAreaIds: ["matematicas"],
+			keywordIds: [keyword.keyword.id],
+			educationalAreas: [
+				{ categoryId: "educacion-primaria", optionId: "primer-ciclo" },
+			],
+		};
+		const imported = await repo.importLegacyCollection(
+			db,
+			{
+				ownerId: "system",
+				itinerary: {
+					externalId: "faceta-612-legacy",
+					importSource: "test-612",
+					title: "Prueba de facetas colección importada",
+					description: "Itinerario de prueba",
+					slugBase: "prueba-facetas-legacy",
+					editorialStatus: "published",
+					publishedAt: null,
+					isOrdered: true,
+					publicatorEmail: null,
+					resources: [],
+					metadata: { knowledgeArea: [], labelsStr: [], learningContext: [] },
+					warnings: [],
+				},
+			},
+			{ dryRun: false },
+		);
+		if (!imported.collectionId) throw new Error("No se importó la colección");
+		await repo.updateCollection(db, imported.collectionId, metadata);
+
+		const native = await repo.createCollection(db, {
+			title: "Prueba de facetas colección nueva",
+			description: "Colección de prueba",
+			curatorId: "system",
+			editorialStatus: "published",
+		});
+		await repo.updateCollection(db, native.id, metadata);
+		const draft = await repo.createCollection(db, {
+			title: "Prueba de facetas borrador",
+			description: "No sale en el listado público",
+			curatorId: "system",
+		});
+		await repo.updateCollection(db, draft.id, metadata);
+
+		const params = new URLSearchParams({
+			q: "prueba de facetas",
+			language: "ca",
+			tag: keyword.keyword.slug,
+			knowledgeAreas: "geografia,matematicas",
+			educationalCategory: "educacion-primaria",
+			educationalOption: "primer-ciclo",
+			limit: "1",
+		});
+		const list = async () => {
+			const response = await app.request(`/api/v1/collections?${params}`);
+			return response.json();
+		};
+		const first = await list();
+		expect(first.total).toBe(2);
+		expect(first.data).toHaveLength(1);
+		params.set("offset", "1");
+		const second = await list();
+		expect(second.total).toBe(2);
+		expect(new Set([first.data[0]?.id, second.data[0]?.id])).toEqual(
+			new Set([native.id, imported.collectionId]),
+		);
+		for (const [field, value] of Object.entries({
+			q: "no coincide",
+			language: "es",
+			tag: "otra-etiqueta",
+			knowledgeAreas: "geografia",
+			educationalOption: "segundo-ciclo",
+		})) {
+			const previous = params.get(field) ?? "";
+			params.set(field, value);
+			expect((await list()).total).toBe(0);
+			params.set(field, previous);
+		}
+	});
+
 	test("GET /api/v1/collections/:slug devuelve detalle con recursos", async () => {
 		const res = await app.request(
 			`/api/v1/collections/${publishedCollectionSlug}`,

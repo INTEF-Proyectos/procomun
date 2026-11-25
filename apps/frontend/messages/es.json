@@ -377,6 +377,7 @@
 	"knowledge_areas_search": "Buscar un área",
 	"knowledge_areas_help": "Elige hasta {max}. Hace falta al menos una para enviar a revisión o publicar.",
 	"knowledge_areas_max": "Ya has elegido {max} áreas, el máximo. Quita una para añadir otra.",
+	"collections_knowledge_areas_filter_help": "Colecciones con cualquiera de las áreas elegidas.",
 	"knowledge_areas_filter_help": "Recursos con cualquiera de las áreas elegidas.",
 	"professional_families_label": "Familia profesional",
 	"professional_families_search": "Buscar una familia",
@@ -464,5 +465,7 @@
 	"collection_detail_educational": "Etapa, programa o ámbito educativo",
 	"knowledge_areas_load_error": "No se han podido cargar las áreas de conocimiento.",
 	"knowledge_areas_retry": "Reintentar",
+	"collections_filters_active_one": "1 filtro activo",
+	"collections_filters_active_other": "{count} filtros activos",
 	"collections_knowledge_areas_help": "Elige hasta {max}."
 }
