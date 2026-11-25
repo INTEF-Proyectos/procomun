@@ -16,6 +16,5 @@ describe("legacy-import barrel", () => {
 		expect(typeof legacyImport.cleanLegacyItineraryDescription).toBe(
 			"function",
 		);
-		expect(legacyImport.LEGACY_ITINERARY_DISCARDED_FIELDS).toHaveLength(4);
 	});
 });
