@@ -409,6 +409,7 @@
 	"knowledge_areas_search": "Cerca una àrea",
 	"knowledge_areas_help": "Tria'n fins a {max}. Cal almenys una per enviar a revisió o publicar.",
 	"knowledge_areas_max": "Ja has triat {max} àrees, el màxim. Treu-ne una per afegir-ne una altra.",
+	"collections_knowledge_areas_filter_help": "Col·leccions amb qualsevol de les àrees seleccionades.",
 	"knowledge_areas_filter_help": "Recursos amb qualsevol de les àrees triades.",
 	"professional_families_label": "Família professional",
 	"professional_families_search": "Cerca una família",
@@ -491,5 +492,12 @@
 	"my_resources_delete_confirm": "Segur que vols eliminar «{title}»? S'esborra el recurs sencer i aquesta acció no es pot desfer.",
 	"my_resources_deleting": "S'està eliminant…",
 	"my_resources_deleted": "S'ha eliminat «{title}».",
-	"my_resources_delete_error": "No s'ha pogut eliminar «{title}»."
+	"my_resources_delete_error": "No s'ha pogut eliminar «{title}».",
+	"collection_detail_keywords": "Paraules clau",
+	"collection_detail_educational": "Etapa, programa o àmbit educatiu",
+	"knowledge_areas_load_error": "No s'han pogut carregar les àrees de coneixement.",
+	"knowledge_areas_retry": "Torna-ho a provar",
+	"collections_filters_active_one": "1 filtre actiu",
+	"collections_filters_active_other": "{count} filtres actius",
+	"collections_knowledge_areas_help": "Tria'n fins a {max}."
 }

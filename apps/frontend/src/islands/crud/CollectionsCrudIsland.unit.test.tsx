@@ -1,11 +1,18 @@
 import { describe, expect, test } from "bun:test";
 import type { ReactElement, ReactNode } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import type { CollectionRecord, Resource } from "../../lib/api-client.ts";
+import type {
+	CatalogKeyword,
+	CollectionRecord,
+	Resource,
+} from "../../lib/api-client.ts";
 import {
 	buildCollectionColumns,
 	CollectionsCrudIsland,
+	changedFields,
+	createErrorMessage,
 	mergeResourceCandidates,
+	metadataPayload,
 } from "./CollectionsCrudIsland.tsx";
 
 function renderCell(node: ReactNode): string {
@@ -100,6 +107,87 @@ describe("CollectionsCrudIsland", () => {
 			"admin-collection-cell--clamp",
 		);
 		expect(byId.cover?.className).toContain("admin-collection-cell--clamp");
+	});
+
+	test("el alta muestra los controles de catalogación (#614)", () => {
+		const html = renderToStaticMarkup(<CollectionsCrudIsland />);
+
+		expect(html).toContain('id="collection-create-language"');
+		expect(html).toContain("Detalles técnicos");
+		// La ayuda es la de colecciones, no la regla de publicación de recursos.
+		expect(html).toContain("Una colección puede asociarse");
+		expect(html).not.toContain("enviar a revisión o publicar");
+	});
+
+	test("metadataPayload envía los metadatos del alta (#614)", () => {
+		expect(
+			metadataPayload({
+				language: "",
+				keywords: [],
+				areas: [],
+				educational: [],
+			}),
+		).toEqual({
+			language: null,
+			keywordIds: [],
+			knowledgeAreaIds: [],
+			educationalAreas: [],
+		});
+		expect(
+			metadataPayload({
+				language: "ca",
+				keywords: [{ id: "k1", label: "Uno" } as CatalogKeyword],
+				areas: ["matematicas"],
+				educational: [],
+			}),
+		).toMatchObject({
+			language: "ca",
+			keywordIds: ["k1"],
+			knowledgeAreaIds: ["matematicas"],
+		});
+	});
+
+	test("createErrorMessage muestra el motivo que da la API (#614)", () => {
+		expect(
+			createErrorMessage({
+				error: "Alguna palabra clave no pertenece al catálogo",
+			}),
+		).toBe("Alguna palabra clave no pertenece al catálogo");
+		expect(
+			createErrorMessage({
+				error: "Validación fallida",
+				details: [{ field: "title", message: "El título es obligatorio" }],
+			}),
+		).toBe("El título es obligatorio");
+		expect(createErrorMessage({})).toBe("Error al crear la coleccion.");
+		expect(createErrorMessage(new TypeError("Failed to fetch"))).toBe(
+			"Error al crear la coleccion.",
+		);
+		expect(createErrorMessage(null)).toBe("Error al crear la coleccion.");
+	});
+
+	test("al cambiar solo el título, el PATCH no lleva los demás campos (#623)", () => {
+		const loaded = {
+			title: "Título",
+			description: "Descripción",
+			language: "es" as string | null,
+			keywordIds: ["k1"],
+			knowledgeAreaIds: ["a1"],
+			educationalAreas: [{ categoryId: "c1", optionId: null }],
+		};
+		expect(changedFields(loaded, { ...loaded, title: "Otro título" })).toEqual({
+			title: "Otro título",
+		});
+		// Vaciar un campo se envía de forma explícita.
+		const cleared: typeof loaded = {
+			...loaded,
+			language: null,
+			keywordIds: [],
+		};
+		expect(changedFields(loaded, cleared)).toEqual({
+			language: null,
+			keywordIds: [],
+		});
 	});
 });
 

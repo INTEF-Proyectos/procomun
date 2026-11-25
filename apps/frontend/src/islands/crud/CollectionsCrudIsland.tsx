@@ -2,22 +2,37 @@ import {
 	canManageCollection,
 	collectionStatusChangeError,
 	hasMinRole,
+	VALID_LANGUAGES,
 } from "@procomun/db/validation";
 import {
+	type Dispatch,
 	type FormEvent,
+	type SetStateAction,
 	startTransition,
 	useCallback,
 	useEffect,
+	useRef,
 	useState,
 } from "react";
 import type {
+	CatalogKeyword,
 	CollectionRecord,
 	CollectionResourceRecord,
+	PublicKnowledgeAreaCatalog,
 	Resource,
 } from "../../lib/api-client.ts";
+import {
+	assignmentsToSelections,
+	type EducationalSelection,
+	selectionsToAssignments,
+} from "../../lib/educational-classification.ts";
 import { getApiClient } from "../../lib/get-api-client.ts";
 import { labelFor } from "../../lib/labels.ts";
+import { languageLabel } from "../../lib/resource-display.ts";
 import * as m from "../../paraglide/messages.js";
+import { EducationalClassificationEditor } from "../resources/EducationalClassificationFields.tsx";
+import { KeywordCatalogField } from "../resources/KeywordCatalogField.tsx";
+import { KnowledgeAreaField } from "../resources/KnowledgeClassificationFields.tsx";
 import { AccessibleFeedback } from "../shared/AccessibleFeedback.tsx";
 import { ConfirmDialog } from "../shared/ConfirmDialog.tsx";
 import { ModalFrame } from "../shared/ModalFrame.tsx";
@@ -77,6 +92,18 @@ function statusBadgeClass(status: string) {
 
 function isOrderedValue(value: CollectionRecord["isOrdered"] | boolean) {
 	return Boolean(value);
+}
+
+/** Campos de `current` que difieren de `loaded`: lo único que va en el PATCH (#623). */
+export function changedFields<T extends Record<string, unknown>>(
+	loaded: Partial<T>,
+	current: T,
+): Partial<T> {
+	return Object.fromEntries(
+		Object.entries(current).filter(
+			([key, value]) => JSON.stringify(value) !== JSON.stringify(loaded[key]),
+		),
+	) as Partial<T>;
 }
 
 function coverPreview(url: string | null | undefined) {
@@ -225,6 +252,127 @@ export function buildCollectionColumns(
 	];
 }
 
+type CollectionMetadata = {
+	language: string;
+	keywords: CatalogKeyword[];
+	areas: string[];
+	educational: EducationalSelection[];
+};
+
+const EMPTY_METADATA: CollectionMetadata = {
+	language: "",
+	keywords: [],
+	areas: [],
+	educational: [],
+};
+
+export function metadataPayload({
+	language,
+	keywords,
+	areas,
+	educational,
+}: CollectionMetadata) {
+	return {
+		language: language || null,
+		keywordIds: keywords.map(({ id }) => id),
+		knowledgeAreaIds: areas,
+		educationalAreas: selectionsToAssignments(educational),
+	};
+}
+
+/** Cuerpo del PATCH de edición a partir de los valores del formulario. */
+function editPayload(form: CollectionFormState, metadata: CollectionMetadata) {
+	return {
+		title: form.title,
+		description: form.description,
+		coverImageUrl: form.coverImageUrl || null,
+		editorialStatus: form.editorialStatus,
+		isOrdered: form.isOrdered,
+		...metadataPayload(metadata),
+	};
+}
+
+/** Mensaje que da la API al rechazar el alta (p. ej. un catálogo no válido). */
+export function createErrorMessage(error: unknown): string {
+	const { error: message, details } = (error ?? {}) as {
+		error?: unknown;
+		details?: unknown;
+	};
+	// `details` dice qué campo falla; `error` solo «Validación fallida».
+	const reasons = Array.isArray(details)
+		? details
+				.map((detail) => (detail as { message?: unknown } | null)?.message)
+				.filter((reason) => typeof reason === "string" && reason)
+		: [];
+	if (reasons.length) return reasons.join(" ");
+	return typeof message === "string" && message
+		? message
+		: "Error al crear la coleccion.";
+}
+
+function CollectionMetadataFields({
+	idPrefix,
+	metadata,
+	setMetadata,
+	catalog,
+	resourceAreas,
+	onCatalogRetry,
+}: {
+	idPrefix: string;
+	metadata: CollectionMetadata;
+	setMetadata: Dispatch<SetStateAction<CollectionMetadata>>;
+	catalog: PublicKnowledgeAreaCatalog | null;
+	resourceAreas?: CollectionRecord["knowledgeAreas"];
+	onCatalogRetry?: () => void;
+}) {
+	const { language, keywords, areas, educational } = metadata;
+	return (
+		<fieldset className="admin-form-field">
+			<legend>Detalles técnicos</legend>
+			<label htmlFor={`${idPrefix}-language`}>Idioma</label>
+			<select
+				id={`${idPrefix}-language`}
+				value={language}
+				onChange={(event) => {
+					const { value } = event.currentTarget;
+					setMetadata((current) => ({ ...current, language: value }));
+				}}
+			>
+				<option value="">Sin indicar</option>
+				{VALID_LANGUAGES.map((code) => (
+					<option key={code} value={code}>
+						{languageLabel(code)}
+					</option>
+				))}
+			</select>
+			<KeywordCatalogField
+				id={`${idPrefix}-keywords`}
+				selected={keywords}
+				onChange={(keywords) =>
+					setMetadata((current) => ({ ...current, keywords }))
+				}
+			/>
+			<KnowledgeAreaField
+				idPrefix={idPrefix}
+				catalog={catalog}
+				selectedIds={areas}
+				onChange={(areas) => setMetadata((current) => ({ ...current, areas }))}
+				resourceAreas={resourceAreas}
+				onCatalogRetry={onCatalogRetry}
+				requiredToPublish={false}
+			/>
+			<EducationalClassificationEditor
+				subject="Una colección"
+				idPrefix={idPrefix}
+				selections={educational}
+				onChange={(educational) =>
+					setMetadata((current) => ({ ...current, educational }))
+				}
+			/>
+		</fieldset>
+	);
+}
+
 export function CollectionsCrudIsland({
 	user,
 }: {
@@ -245,9 +393,21 @@ export function CollectionsCrudIsland({
 		message: "",
 		variant: "neutral",
 	});
+	const [createMetadata, setCreateMetadata] = useState(EMPTY_METADATA);
+	const [editMetadata, setEditMetadata] = useState(EMPTY_METADATA);
+	const [catalog, setCatalog] = useState<PublicKnowledgeAreaCatalog | null>(
+		null,
+	);
+	const [catalogFailed, setCatalogFailed] = useState(false);
+	// Cambia tras cada alta: los buscadores del formulario vuelven a montarse
+	// y no arrastran el texto ni los avisos de la colección anterior.
+	const [createFormKey, setCreateFormKey] = useState(0);
+
 	const [editing, setEditing] = useState<CollectionRecord | null>(null);
 	const [editForm, setEditForm] = useState(EMPTY_FORM);
 	const [editError, setEditError] = useState("");
+	// Lo que se cargó al abrir la edición: el PATCH lleva solo las diferencias.
+	const loadedPayload = useRef<ReturnType<typeof editPayload> | null>(null);
 	const [deleteTarget, setDeleteTarget] = useState<CollectionRecord | null>(
 		null,
 	);
@@ -355,9 +515,22 @@ export function CollectionsCrudIsland({
 		}
 	}
 
+	// El aviso sigue a la vista mientras se reintenta y solo se quita al
+	// cargar: así el botón no desaparece bajo el foco.
+	const loadCatalog = useCallback(() => {
+		void getApiClient()
+			.then((api) => api.getKnowledgeAreaCatalog())
+			.then((loaded) => {
+				setCatalog(loaded);
+				setCatalogFailed(false);
+			})
+			.catch(() => setCatalogFailed(true));
+	}, []);
+
 	useEffect(() => {
 		void loadCollections(0, "");
-	}, [loadCollections]);
+		loadCatalog();
+	}, [loadCollections, loadCatalog]);
 
 	const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 	const currentPage = Math.floor(offset / PAGE_SIZE) + 1;
@@ -395,14 +568,25 @@ export function CollectionsCrudIsland({
 				return;
 			}
 
-			setEditing(collection);
-			setEditForm({
+			const form = {
 				title: collection.title,
 				description: collection.description,
 				coverImageUrl: collection.coverImageUrl ?? "",
 				editorialStatus: collection.editorialStatus,
 				isOrdered: isOrderedValue(collection.isOrdered),
-			});
+			};
+			const metadata = {
+				language: collection.language ?? "",
+				keywords: collection.catalogKeywords ?? [],
+				areas: collection.knowledgeAreas?.map(({ id }) => id) ?? [],
+				educational: assignmentsToSelections(collection.educationalAreas ?? []),
+			};
+			loadedPayload.current = editPayload(form, metadata);
+			setEditMetadata(metadata);
+			setEditing(collection);
+			// Si el catálogo no cargó al montar, se reintenta al abrir la edición.
+			if (!catalog) loadCatalog();
+			setEditForm(form);
 			await loadCollectionResources(collection.id);
 		} catch {
 			setStatusMessage(m.collection_load_error());
@@ -423,13 +607,16 @@ export function CollectionsCrudIsland({
 				description: createForm.description,
 				coverImageUrl: createForm.coverImageUrl || null,
 				isOrdered: createForm.isOrdered,
+				...metadataPayload(createMetadata),
 			});
 			setCreateForm(EMPTY_FORM);
+			setCreateMetadata(EMPTY_METADATA);
+			setCreateFormKey((key) => key + 1);
 			setCreateFeedback({ message: "Coleccion creada.", variant: "success" });
 			await loadCollections(0, appliedSearch);
-		} catch {
+		} catch (error) {
 			setCreateFeedback({
-				message: "Error al crear la coleccion.",
+				message: createErrorMessage(error),
 				variant: "error",
 			});
 		} finally {
@@ -463,13 +650,21 @@ export function CollectionsCrudIsland({
 
 		try {
 			const api = await getApiClient();
-			const result = await api.updateCollection(editing.id, {
-				title: editForm.title,
-				description: editForm.description,
-				coverImageUrl: editForm.coverImageUrl || null,
-				editorialStatus: requestedStatus,
-				isOrdered: editForm.isOrdered,
-			});
+			// #623: solo se envía lo que ha cambiado, para no pisar lo que otra
+			// pestaña haya guardado mientras tanto.
+			const result = await api.updateCollection(
+				editing.id,
+				changedFields(
+					loadedPayload.current ?? {},
+					editPayload(
+						{
+							...editForm,
+							editorialStatus: requestedStatus ?? editing.editorialStatus,
+						},
+						editMetadata,
+					),
+				),
+			);
 			if (!result.ok) {
 				setEditError(result.error ?? m.profile_save_error());
 				return;
@@ -661,6 +856,16 @@ export function CollectionsCrudIsland({
 								{m.collection_ordered()}
 							</label>
 						</div>
+						<CollectionMetadataFields
+							key={createFormKey}
+							idPrefix="collection-create"
+							metadata={createMetadata}
+							setMetadata={setCreateMetadata}
+							catalog={catalog}
+							onCatalogRetry={
+								catalogFailed && !catalog ? loadCatalog : undefined
+							}
+						/>
 						<div className="admin-form-actions">
 							<button
 								type="submit"
@@ -860,6 +1065,17 @@ export function CollectionsCrudIsland({
 								{m.collection_ordered()}
 							</label>
 						</div>
+
+						<CollectionMetadataFields
+							idPrefix="collection-edit"
+							metadata={editMetadata}
+							setMetadata={setEditMetadata}
+							catalog={catalog}
+							onCatalogRetry={
+								catalogFailed && !catalog ? loadCatalog : undefined
+							}
+							resourceAreas={editing.knowledgeAreas}
+						/>
 
 						<section
 							className="collection-resource-section"

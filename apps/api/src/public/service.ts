@@ -64,6 +64,11 @@ export async function listPublishedCollections(opts: {
 	limit: number;
 	offset: number;
 	search?: string;
+	language?: string;
+	tagSlug?: string;
+	knowledgeAreaIds?: string[];
+	educationalCategory?: string;
+	educationalOption?: string;
 }) {
 	const db = getDb().db;
 	const result = await repo.listCollections(db, {

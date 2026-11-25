@@ -213,13 +213,16 @@ export class HttpApiClient implements ApiClient {
 		q?: string;
 		limit?: number;
 		offset?: number;
+		language?: string;
+		tag?: string;
+		knowledgeAreas?: string[];
+		educationalCategory?: string;
+		educationalOption?: string;
 	}): Promise<PaginatedResult<CollectionRecord>> {
-		const params = new URLSearchParams();
-		if (opts?.q) params.set("q", opts.q);
-		if (opts?.limit) params.set("limit", String(opts.limit));
-		if (opts?.offset) params.set("offset", String(opts.offset));
-		const qs = params.toString();
+		// Mismos nombres de parámetro que el buscador de recursos.
+		const qs = resourceFilterParams(opts).toString();
 		const res = await fetch(`/api/v1/collections${qs ? `?${qs}` : ""}`);
+		if (!res.ok) throw await res.json().catch(() => ({}));
 		return res.json();
 	}
 
@@ -743,6 +746,10 @@ export class HttpApiClient implements ApiClient {
 		coverImageUrl?: string | null;
 		editorialStatus?: string;
 		isOrdered?: boolean;
+		language?: string | null;
+		educationalAreas?: { categoryId: string; optionId: string | null }[];
+		keywordIds?: string[];
+		knowledgeAreaIds?: string[];
 	}) {
 		const res = await fetch("/api/admin/collections", {
 			method: "POST",
@@ -765,6 +772,10 @@ export class HttpApiClient implements ApiClient {
 			coverImageUrl: string | null;
 			editorialStatus: string;
 			isOrdered: boolean;
+			language: string | null;
+			keywordIds: string[];
+			knowledgeAreaIds: string[];
+			educationalAreas: { categoryId: string; optionId: string | null }[];
 		}>,
 	) {
 		const res = await fetch(`/api/admin/collections/${id}`, {

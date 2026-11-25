@@ -21,6 +21,7 @@ async function collectionsForOwner(
 		editorialStatus: "draft",
 		curatorId: session.user.id,
 		isOrdered: 1,
+		language: "es",
 	};
 	await page.route(/\/api\/admin\/collections(?:\?|$)/, (route) =>
 		route.fulfill({
@@ -97,20 +98,33 @@ for (const role of ["author", "editor"] as const) {
 		await dialog
 			.getByLabel("Título", { exact: true })
 			.fill("Itinerario actualizado");
+		await dialog.getByLabel("Idioma", { exact: true }).selectOption("ca");
+		const save = page.waitForRequest(
+			(request) =>
+				request.method() === "PATCH" &&
+				request.url().endsWith("/legacy-itinerary"),
+		);
 		await dialog.getByRole("button", { name: "Guardar", exact: true }).click();
+		expect((await save).postDataJSON()).toEqual({
+			title: "Itinerario actualizado",
+			language: "ca",
+		});
 		const edit = page.getByRole("button", {
 			name: "Editar Itinerario actualizado",
 		});
 		await expect(edit).toBeVisible();
 
 		await edit.click();
+		await expect(dialog.getByLabel("Idioma", { exact: true })).toHaveValue(
+			"ca",
+		);
 		const patch = page.waitForRequest(
 			(request) =>
 				request.method() === "PATCH" &&
 				request.url().endsWith("/legacy-itinerary"),
 		);
 		await dialog.getByRole("button", { name: "Enviar a revisión" }).click();
-		expect((await patch).postDataJSON()).toMatchObject({
+		expect((await patch).postDataJSON()).toEqual({
 			editorialStatus: "review",
 		});
 		await expect(dialog).toHaveCount(0);
