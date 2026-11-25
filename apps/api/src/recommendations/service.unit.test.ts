@@ -31,6 +31,10 @@ async function publish(
 		...data,
 		editorialStatus: "published",
 	});
+	// #568: los relacionados solo proponen recursos validados.
+	await repo.updateEditorialStatus(db(), created.id, "published", "1", {
+		validationSeal: "grant",
+	});
 	return created;
 }
 

@@ -4641,6 +4641,20 @@ tasks:
       La revision del 08-nov ya estaba resuelta en 733e4fe0; se ha
       verificado el journal y el migrador real de Drizzle sobre una base en
       main.
+  T-2026-11-17-06132851:
+    date: 2026-11-17
+    agent: "busqueda-y-descubrimiento + backend-api-servicios + qa-validacion"
+    task: "Solo recursos validados en buscadores y Novedades (#568)"
+    status: Done
+    related: ["#568", "#420", "#496", "ADR-0049"]
+    notes: >
+      Filtro validatedOnly en listResources y en la búsqueda FTS. Lo aplican
+      el listado público (Explorar, Novedades, etiquetas), /search, los feeds
+      generales y los relacionados. Quedan fuera, por decisión de #568, la
+      ficha del autor y su feed, y las colecciones, que siguen enseñando todos
+      sus publicados. El enlace directo no cambia. La semilla de demo da el
+      sello a sus publicados. Adenda 2026-11-17 en ADR-0049. No hay sitemap
+      todavía.
   T-2026-11-16-15193773:
     date: 2026-11-16
     agent: "backend-api-servicios + frontend-ux-accesibilidad + ingestas-y-migraciones"
@@ -5449,3 +5463,13 @@ tasks:
       Se conservan las traducciones de colecciones y del sello Validado.
       La migración del sello pasa a 0037, después de la 0036 ya integrada.
       Pasan tipos y las pruebas del migrador, incluida una base con la 0036 ya aplicada.
+  T-2026-11-25-13050984:
+    date: 2026-11-25
+    agent: "backend-api-servicios + qa-validacion"
+    task: "Actualizar la PR #588 sobre el sello Validado"
+    status: Done
+    related: ["#588", "#587", "#568"]
+    notes: >
+      Se integra la rama corregida del sello de validación y su migración 0037.
+      Pasan los tipos y las pruebas del catálogo público, la búsqueda, los feeds,
+      las recomendaciones y las excepciones de autor y colecciones.

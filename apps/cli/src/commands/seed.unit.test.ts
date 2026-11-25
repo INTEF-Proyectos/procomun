@@ -349,6 +349,36 @@ describe("seedWithClient sobre una base real (#452)", () => {
 	);
 
 	test(
+		"los publicados de la demo llevan el sello «Validado» y el resto no (#568)",
+		async () => {
+			const db = new PGlite();
+			try {
+				await createTables(db);
+				await runSeed(db);
+				const published = DEMO_RESOURCES.filter(
+					(r) => r.editorialStatus === "published",
+				).length;
+				expect(published).toBeGreaterThan(0);
+				expect(
+					await count(
+						db,
+						`SELECT COUNT(*) AS n FROM "resources" WHERE editorial_status = 'published' AND validated_at IS NOT NULL AND validation_source = 'review'`,
+					),
+				).toBe(published);
+				expect(
+					await count(
+						db,
+						`SELECT COUNT(*) AS n FROM "resources" WHERE editorial_status <> 'published' AND validated_at IS NOT NULL`,
+					),
+				).toBe(0);
+			} finally {
+				await db.close();
+			}
+		},
+		{ timeout: 60_000 },
+	);
+
+	test(
 		"repetir el seed no duplica usuarios ni cuentas",
 		async () => {
 			const db = new PGlite();

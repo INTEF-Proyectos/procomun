@@ -352,7 +352,9 @@ describe("buscador por área y familia (#448)", () => {
 				title: `Buscador ${marker} ${crypto.randomUUID()}`,
 				...extra,
 			});
-			await repo.updateEditorialStatus(db(), id, "published", "1");
+			await repo.updateEditorialStatus(db(), id, "published", "1", {
+				validationSeal: "grant",
+			});
 			return { id, slug };
 		};
 		const hosteleria = await publish({

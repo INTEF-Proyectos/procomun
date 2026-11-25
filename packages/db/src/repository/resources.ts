@@ -76,6 +76,8 @@ type ResourceListOptions = {
 	 * SQL de `isOthersPrivateDraft` (validation.ts) para el listado del curator.
 	 */
 	hideOthersDraftsFor?: string;
+	/** Solo recursos con el sello «Validado» (#568): buscadores y Novedades. */
+	validatedOnly?: boolean;
 	/** Orden descendente por fecha de alta (por defecto) o de edición (#530). */
 	orderBy?: "createdAt" | "updatedAt";
 	/**
@@ -246,6 +248,7 @@ function resourceListConditions(opts: ResourceListOptions) {
 		);
 	}
 	if (opts.status) conditions.push(eq(resources.editorialStatus, opts.status));
+	if (opts.validatedOnly) conditions.push(isNotNull(resources.validatedAt));
 	if (opts.resourceType)
 		conditions.push(eq(resources.resourceType, opts.resourceType));
 	if (opts.language) conditions.push(eq(resources.language, opts.language));
