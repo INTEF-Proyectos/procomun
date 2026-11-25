@@ -99,6 +99,10 @@ const collectionRoutes = buildCrudRoutes({
 					? body.editorialStatus
 					: undefined,
 			isOrdered: !!body.isOrdered,
+			language: body.language,
+			educationalAreas: body.educationalAreas,
+			keywordIds: body.keywordIds,
+			knowledgeAreaIds: body.knowledgeAreaIds,
 		};
 	},
 	afterCreate: async (user, result, data) => {

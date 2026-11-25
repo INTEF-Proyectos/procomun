@@ -159,3 +159,9 @@ En desarrollo
 
 - [x] Conservar las pruebas de autoría y de traducción de los detalles técnicos al integrar la PR #643.
 - [x] Revertir la fusión y el borrado con reasignación si falla una escritura, con pruebas sobre recursos y colecciones.
+
+## Revisión de la PR #626 — 2026-11-24 (#614)
+
+- [x] Alta con metadatos (#614): el formulario de alta cataloga la colección con los mismos controles que la edición.
+- [x] Si falla el catálogo de áreas de conocimiento, el alta y la edición muestran un aviso accesible con un botón «Reintentar» que no borra lo escrito.
+- [x] Prueba E2E con un primer fallo del catálogo y una respuesta válida al reintentar.

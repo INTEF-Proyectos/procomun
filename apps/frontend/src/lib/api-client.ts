@@ -628,6 +628,10 @@ export interface ApiClient {
 		coverImageUrl?: string | null;
 		editorialStatus?: string;
 		isOrdered?: boolean;
+		language?: string | null;
+		educationalAreas?: { categoryId: string; optionId: string | null }[];
+		keywordIds?: string[];
+		knowledgeAreaIds?: string[];
 	}): Promise<{ id: string; slug: string }>;
 	updateCollection(
 		id: string,

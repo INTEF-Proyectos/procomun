@@ -163,6 +163,13 @@ export async function getCollectionBySlug(
 	return row ? { ...row, ...(await collectionMetadata(db, row.id)) } : null;
 }
 
+type CollectionMetadataInput = {
+	language?: unknown;
+	educationalAreas?: unknown;
+	keywordIds?: unknown;
+	knowledgeAreaIds?: unknown;
+};
+
 export async function createCollection(
 	db: DrizzleDB,
 	data: {
@@ -172,13 +179,14 @@ export async function createCollection(
 		curatorId: string;
 		editorialStatus?: string;
 		isOrdered?: boolean;
-	},
+	} & CollectionMetadataInput,
 ) {
 	const id = crypto.randomUUID();
 	const slug = `${buildSlug(data.title)}-${id.slice(0, 8)}`;
 	const now = new Date();
 
-	await db.insert(collections).values({
+	const { language, educationalAreas, keywordIds, knowledgeAreaIds } = data;
+	const values = {
 		id,
 		slug,
 		title: data.title,
@@ -189,7 +197,24 @@ export async function createCollection(
 		isOrdered: data.isOrdered ?? false,
 		createdAt: now,
 		updatedAt: now,
-	});
+	};
+	if (
+		[language, educationalAreas, keywordIds, knowledgeAreaIds].every(
+			(value) => value === undefined,
+		)
+	) {
+		await db.insert(collections).values(values);
+	} else {
+		await db.transaction(async (tx) => {
+			await tx.insert(collections).values(values);
+			await updateCollection(tx, id, {
+				language,
+				educationalAreas,
+				keywordIds,
+				knowledgeAreaIds,
+			});
+		});
+	}
 
 	return { id, slug };
 }
@@ -203,11 +228,8 @@ export async function updateCollection(
 		coverImageUrl: string | null;
 		editorialStatus: string;
 		isOrdered: boolean;
-		language: unknown;
-		educationalAreas: unknown;
-		keywordIds: unknown;
-		knowledgeAreaIds: unknown;
-	}>,
+	}> &
+		CollectionMetadataInput,
 ) {
 	const {
 		keywordIds,

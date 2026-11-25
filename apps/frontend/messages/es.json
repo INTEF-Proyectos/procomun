@@ -461,5 +461,8 @@
 	"my_resources_deleted": "Se ha eliminado «{title}».",
 	"my_resources_delete_error": "No se ha podido eliminar «{title}».",
 	"collection_detail_keywords": "Palabras clave",
-	"collection_detail_educational": "Etapa, programa o ámbito educativo"
+	"collection_detail_educational": "Etapa, programa o ámbito educativo",
+	"knowledge_areas_load_error": "No se han podido cargar las áreas de conocimiento.",
+	"knowledge_areas_retry": "Reintentar",
+	"collections_knowledge_areas_help": "Elige hasta {max}."
 }

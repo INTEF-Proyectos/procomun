@@ -1,6 +1,8 @@
 import { VALID_LANGUAGES } from "@procomun/db/validation";
 import {
+	type Dispatch,
 	type FormEvent,
+	type SetStateAction,
 	startTransition,
 	useCallback,
 	useEffect,
@@ -83,27 +85,6 @@ function statusBadgeClass(status: string) {
 
 function isOrderedValue(value: CollectionRecord["isOrdered"] | boolean) {
 	return Boolean(value);
-}
-
-/** Cuerpo del PATCH de edición a partir de los valores del formulario. */
-function editPayload(
-	form: CollectionFormState,
-	language: string,
-	keywords: CatalogKeyword[],
-	areas: string[],
-	educational: EducationalSelection[],
-) {
-	return {
-		title: form.title,
-		description: form.description,
-		coverImageUrl: form.coverImageUrl || null,
-		editorialStatus: form.editorialStatus,
-		isOrdered: form.isOrdered,
-		language: language || null,
-		keywordIds: keywords.map(({ id }) => id),
-		knowledgeAreaIds: areas,
-		educationalAreas: selectionsToAssignments(educational),
-	};
 }
 
 /** Campos de `current` que difieren de `loaded`: lo único que va en el PATCH (#623). */
@@ -239,6 +220,127 @@ export function buildCollectionColumns(
 	];
 }
 
+type CollectionMetadata = {
+	language: string;
+	keywords: CatalogKeyword[];
+	areas: string[];
+	educational: EducationalSelection[];
+};
+
+const EMPTY_METADATA: CollectionMetadata = {
+	language: "",
+	keywords: [],
+	areas: [],
+	educational: [],
+};
+
+export function metadataPayload({
+	language,
+	keywords,
+	areas,
+	educational,
+}: CollectionMetadata) {
+	return {
+		language: language || null,
+		keywordIds: keywords.map(({ id }) => id),
+		knowledgeAreaIds: areas,
+		educationalAreas: selectionsToAssignments(educational),
+	};
+}
+
+/** Cuerpo del PATCH de edición a partir de los valores del formulario. */
+function editPayload(form: CollectionFormState, metadata: CollectionMetadata) {
+	return {
+		title: form.title,
+		description: form.description,
+		coverImageUrl: form.coverImageUrl || null,
+		editorialStatus: form.editorialStatus,
+		isOrdered: form.isOrdered,
+		...metadataPayload(metadata),
+	};
+}
+
+/** Mensaje que da la API al rechazar el alta (p. ej. un catálogo no válido). */
+export function createErrorMessage(error: unknown): string {
+	const { error: message, details } = (error ?? {}) as {
+		error?: unknown;
+		details?: unknown;
+	};
+	// `details` dice qué campo falla; `error` solo «Validación fallida».
+	const reasons = Array.isArray(details)
+		? details
+				.map((detail) => (detail as { message?: unknown } | null)?.message)
+				.filter((reason) => typeof reason === "string" && reason)
+		: [];
+	if (reasons.length) return reasons.join(" ");
+	return typeof message === "string" && message
+		? message
+		: "Error al crear la coleccion.";
+}
+
+function CollectionMetadataFields({
+	idPrefix,
+	metadata,
+	setMetadata,
+	catalog,
+	resourceAreas,
+	onCatalogRetry,
+}: {
+	idPrefix: string;
+	metadata: CollectionMetadata;
+	setMetadata: Dispatch<SetStateAction<CollectionMetadata>>;
+	catalog: PublicKnowledgeAreaCatalog | null;
+	resourceAreas?: CollectionRecord["knowledgeAreas"];
+	onCatalogRetry?: () => void;
+}) {
+	const { language, keywords, areas, educational } = metadata;
+	return (
+		<fieldset className="admin-form-field">
+			<legend>Detalles técnicos</legend>
+			<label htmlFor={`${idPrefix}-language`}>Idioma</label>
+			<select
+				id={`${idPrefix}-language`}
+				value={language}
+				onChange={(event) => {
+					const { value } = event.currentTarget;
+					setMetadata((current) => ({ ...current, language: value }));
+				}}
+			>
+				<option value="">Sin indicar</option>
+				{VALID_LANGUAGES.map((code) => (
+					<option key={code} value={code}>
+						{languageLabel(code)}
+					</option>
+				))}
+			</select>
+			<KeywordCatalogField
+				id={`${idPrefix}-keywords`}
+				selected={keywords}
+				onChange={(keywords) =>
+					setMetadata((current) => ({ ...current, keywords }))
+				}
+			/>
+			<KnowledgeAreaField
+				idPrefix={idPrefix}
+				catalog={catalog}
+				selectedIds={areas}
+				onChange={(areas) => setMetadata((current) => ({ ...current, areas }))}
+				resourceAreas={resourceAreas}
+				onCatalogRetry={onCatalogRetry}
+				requiredToPublish={false}
+			/>
+			<EducationalClassificationEditor
+				subject="Una colección"
+				idPrefix={idPrefix}
+				selections={educational}
+				onChange={(educational) =>
+					setMetadata((current) => ({ ...current, educational }))
+				}
+			/>
+		</fieldset>
+	);
+}
+
 export function CollectionsCrudIsland() {
 	const [rows, setRows] = useState<CollectionRecord[]>([]);
 	const [search, setSearch] = useState("");
@@ -254,13 +356,15 @@ export function CollectionsCrudIsland() {
 		message: "",
 		variant: "neutral",
 	});
-	const [language, setLanguage] = useState("");
-	const [keywords, setKeywords] = useState<CatalogKeyword[]>([]);
-	const [areas, setAreas] = useState<string[]>([]);
-	const [educational, setEducational] = useState<EducationalSelection[]>([]);
+	const [createMetadata, setCreateMetadata] = useState(EMPTY_METADATA);
+	const [editMetadata, setEditMetadata] = useState(EMPTY_METADATA);
 	const [catalog, setCatalog] = useState<PublicKnowledgeAreaCatalog | null>(
 		null,
 	);
+	const [catalogFailed, setCatalogFailed] = useState(false);
+	// Cambia tras cada alta: los buscadores del formulario vuelven a montarse
+	// y no arrastran el texto ni los avisos de la colección anterior.
+	const [createFormKey, setCreateFormKey] = useState(0);
 
 	const [editing, setEditing] = useState<CollectionRecord | null>(null);
 	const [editForm, setEditForm] = useState(EMPTY_FORM);
@@ -356,9 +460,22 @@ export function CollectionsCrudIsland() {
 		}
 	}
 
+	// El aviso sigue a la vista mientras se reintenta y solo se quita al
+	// cargar: así el botón no desaparece bajo el foco.
+	const loadCatalog = useCallback(() => {
+		void getApiClient()
+			.then((api) => api.getKnowledgeAreaCatalog())
+			.then((loaded) => {
+				setCatalog(loaded);
+				setCatalogFailed(false);
+			})
+			.catch(() => setCatalogFailed(true));
+	}, []);
+
 	useEffect(() => {
 		void loadCollections(0, "");
-	}, [loadCollections]);
+		loadCatalog();
+	}, [loadCollections, loadCatalog]);
 
 	const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 	const currentPage = Math.floor(offset / PAGE_SIZE) + 1;
@@ -402,29 +519,17 @@ export function CollectionsCrudIsland() {
 				editorialStatus: collection.editorialStatus,
 				isOrdered: isOrderedValue(collection.isOrdered),
 			};
-			const loadedLanguage = collection.language ?? "";
-			const loadedKeywords = collection.catalogKeywords ?? [];
-			const loadedAreas = collection.knowledgeAreas?.map(({ id }) => id) ?? [];
-			const loadedEducational = assignmentsToSelections(
-				collection.educationalAreas ?? [],
-			);
-			loadedPayload.current = editPayload(
-				form,
-				loadedLanguage,
-				loadedKeywords,
-				loadedAreas,
-				loadedEducational,
-			);
-			setLanguage(loadedLanguage);
-			setKeywords(loadedKeywords);
-			setAreas(loadedAreas);
-			setEducational(loadedEducational);
+			const metadata = {
+				language: collection.language ?? "",
+				keywords: collection.catalogKeywords ?? [],
+				areas: collection.knowledgeAreas?.map(({ id }) => id) ?? [],
+				educational: assignmentsToSelections(collection.educationalAreas ?? []),
+			};
+			loadedPayload.current = editPayload(form, metadata);
+			setEditMetadata(metadata);
 			setEditing(collection);
-			if (!catalog)
-				void api
-					.getKnowledgeAreaCatalog()
-					.then(setCatalog)
-					.catch(() => {});
+			// Si el catálogo no cargó al montar, se reintenta al abrir la edición.
+			if (!catalog) loadCatalog();
 			setEditForm(form);
 			await loadCollectionResources(collection.id);
 		} catch {
@@ -446,13 +551,16 @@ export function CollectionsCrudIsland() {
 				description: createForm.description,
 				coverImageUrl: createForm.coverImageUrl || null,
 				isOrdered: createForm.isOrdered,
+				...metadataPayload(createMetadata),
 			});
 			setCreateForm(EMPTY_FORM);
+			setCreateMetadata(EMPTY_METADATA);
+			setCreateFormKey((key) => key + 1);
 			setCreateFeedback({ message: "Coleccion creada.", variant: "success" });
 			await loadCollections(0, appliedSearch);
-		} catch {
+		} catch (error) {
 			setCreateFeedback({
-				message: "Error al crear la coleccion.",
+				message: createErrorMessage(error),
 				variant: "error",
 			});
 		} finally {
@@ -475,7 +583,7 @@ export function CollectionsCrudIsland() {
 				editing.id,
 				changedFields(
 					loadedPayload.current ?? {},
-					editPayload(editForm, language, keywords, areas, educational),
+					editPayload(editForm, editMetadata),
 				),
 			);
 			if (!result.ok) {
@@ -657,6 +765,14 @@ export function CollectionsCrudIsland() {
 							Orden fija
 						</label>
 					</div>
+					<CollectionMetadataFields
+						key={createFormKey}
+						idPrefix="collection-create"
+						metadata={createMetadata}
+						setMetadata={setCreateMetadata}
+						catalog={catalog}
+						onCatalogRetry={catalogFailed && !catalog ? loadCatalog : undefined}
+					/>
 					<div className="admin-form-actions">
 						<button
 							type="submit"
@@ -837,39 +953,16 @@ export function CollectionsCrudIsland() {
 							</label>
 						</div>
 
-						<fieldset className="admin-form-field">
-							<legend>Detalles técnicos</legend>
-							<label htmlFor="collection-edit-language">Idioma</label>
-							<select
-								id="collection-edit-language"
-								value={language}
-								onChange={(event) => setLanguage(event.currentTarget.value)}
-							>
-								<option value="">Sin indicar</option>
-								{VALID_LANGUAGES.map((code) => (
-									<option key={code} value={code}>
-										{languageLabel(code)}
-									</option>
-								))}
-							</select>
-							<KeywordCatalogField
-								id="collection-keywords"
-								selected={keywords}
-								onChange={setKeywords}
-							/>
-							<KnowledgeAreaField
-								idPrefix="collection-edit"
-								catalog={catalog}
-								selectedIds={areas}
-								onChange={setAreas}
-								resourceAreas={editing.knowledgeAreas}
-							/>
-							<EducationalClassificationEditor
-								idPrefix="collection-edit"
-								selections={educational}
-								onChange={setEducational}
-							/>
-						</fieldset>
+						<CollectionMetadataFields
+							idPrefix="collection-edit"
+							metadata={editMetadata}
+							setMetadata={setEditMetadata}
+							catalog={catalog}
+							onCatalogRetry={
+								catalogFailed && !catalog ? loadCatalog : undefined
+							}
+							resourceAreas={editing.knowledgeAreas}
+						/>
 
 						<section
 							className="collection-resource-section"
