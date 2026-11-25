@@ -467,5 +467,9 @@
 	"knowledge_areas_retry": "Torna-ho a provar",
 	"collections_filters_active_one": "1 filtre actiu",
 	"collections_filters_active_other": "{count} filtres actius",
-	"collections_knowledge_areas_help": "Tria'n fins a {max}."
+	"collections_knowledge_areas_help": "Tria'n fins a {max}.",
+	"validated_badge": "Validat",
+	"validated_badge_explanation": "Revisat per l'equip de curació de Procomún",
+	"validated_badge_on": "Validat el {date}",
+	"validated_edit_warning": "Aquest recurs té el segell «Validat». Si deses canvis, el perdrà fins que un curador el torni a revisar."
 }

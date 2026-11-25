@@ -8,6 +8,7 @@ import { type AuthEnv, requireRole } from "../../auth/middleware.ts";
 import { canManageResource, getCurrentUser } from "../../auth/roles.ts";
 import { getDb } from "../../db.ts";
 import { elpxPreviewUrlForStatus } from "../../elpx/preview-token.ts";
+import { onPublicContentChanged } from "../../resources/validation-seal.ts";
 import { generateElpxFromFiles } from "../../services/elpx-generator.ts";
 import {
 	parseElpxMetadata,
@@ -167,6 +168,8 @@ elpxAdminRoutes.post(
 			elpxProjectId,
 			createdBy: user.id,
 		});
+		// #420: un .elpx nuevo del autor quita el sello «Validado».
+		await onPublicContentChanged(getDb().db, resourceId, user);
 
 		return c.json({
 			ok: true,
@@ -265,6 +268,8 @@ elpxAdminRoutes.post("/save/:resourceId", requireRole("author"), async (c) => {
 		elpxProjectId,
 		createdBy: user.id,
 	});
+	// #420: guardar desde el editor como autor quita el sello «Validado».
+	await onPublicContentChanged(getDb().db, resourceId, user);
 
 	return c.json({
 		ok: true,
@@ -410,6 +415,8 @@ elpxAdminRoutes.post(
 			elpxProjectId,
 			createdBy: user.id,
 		});
+		// #420: un .elpx nuevo del autor quita el sello «Validado».
+		await onPublicContentChanged(getDb().db, resourceId, user);
 
 		return c.json({
 			ok: true,

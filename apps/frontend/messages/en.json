@@ -467,5 +467,9 @@
 	"knowledge_areas_retry": "Retry",
 	"collections_filters_active_one": "1 active filter",
 	"collections_filters_active_other": "{count} active filters",
-	"collections_knowledge_areas_help": "Choose up to {max}."
+	"collections_knowledge_areas_help": "Choose up to {max}.",
+	"validated_badge": "Validated",
+	"validated_badge_explanation": "Reviewed by the Procomún curation team",
+	"validated_badge_on": "Validated on {date}",
+	"validated_edit_warning": "This resource has the “Validated” badge. If you save changes, it will lose it until a curator reviews it again."
 }

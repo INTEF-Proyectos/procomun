@@ -1,4 +1,14 @@
-import { and, asc, desc, eq, isNull, ne, or, sql } from "drizzle-orm";
+import {
+	and,
+	asc,
+	desc,
+	eq,
+	isNotNull,
+	isNull,
+	ne,
+	or,
+	sql,
+} from "drizzle-orm";
 import { normalizeEducationalAssignments } from "../educational-areas.ts";
 import { user } from "../schema/auth.ts";
 import {
@@ -9,6 +19,10 @@ import {
 } from "../schema/resources.ts";
 import { resourceTags, tags } from "../schema/tags.ts";
 import { uploadSessions } from "../schema/uploads.ts";
+import type {
+	ValidationSealChange,
+	ValidationSource,
+} from "../validation-seal.ts";
 import {
 	listResourceEducationalAreas,
 	replaceResourceEducationalAreas,
@@ -119,6 +133,9 @@ const resourceBaseSelection = {
 	editorialStatus: resources.editorialStatus,
 	assignedCuratorId: resources.assignedCuratorId,
 	curatedAt: resources.curatedAt,
+	// Sello «Validado» (#420): la fecha y el origen, nunca quién lo dio.
+	validatedAt: resources.validatedAt,
+	validationSource: resources.validationSource,
 	deletedAt: resources.deletedAt,
 	createdAt: resources.createdAt,
 	updatedAt: resources.updatedAt,
@@ -631,20 +648,52 @@ export async function updateEditorialStatus(
 	id: string,
 	status: string,
 	curatorId: string,
+	options: { validationSeal?: ValidationSealChange } = {},
 ) {
+	const now = new Date();
 	const updates: Record<string, unknown> = {
 		editorialStatus: status,
 		assignedCuratorId: curatorId,
-		updatedAt: new Date(),
+		updatedAt: now,
 	};
 	if (status === "published" || status === "archived") {
-		updates.curatedAt = new Date();
+		updates.curatedAt = now;
+	}
+	// Sello «Validado» (#420): quien llama decide con
+	// validationSealOnStatusChange; por defecto no se toca.
+	if (options.validationSeal === "grant") {
+		updates.validatedAt = now;
+		updates.validatedBy = curatorId;
+		updates.validationSource = "review" satisfies ValidationSource;
+	} else if (options.validationSeal === "revoke") {
+		Object.assign(updates, NO_VALIDATION);
 	}
 
 	await db
 		.update(resources)
 		.set(updates)
 		.where(and(eq(resources.id, id), isNull(resources.deletedAt)));
+}
+
+/** Columnas del sello «Validado» (#420) vacías: el recurso deja de tenerlo. */
+export const NO_VALIDATION = {
+	validatedAt: null,
+	validatedBy: null,
+	validationSource: null,
+};
+
+/**
+ * Quita el sello «Validado» (#420) tras un cambio del contenido o de los
+ * metadatos públicos hecho por alguien que no es curator ni admin. Devuelve
+ * true si el recurso lo tenía.
+ */
+export async function revokeResourceValidation(db: DrizzleDB, id: string) {
+	const rows = await db
+		.update(resources)
+		.set(NO_VALIDATION)
+		.where(and(eq(resources.id, id), isNotNull(resources.validatedAt)))
+		.returning({ id: resources.id });
+	return rows.length > 0;
 }
 
 export async function listMediaItemsForResource(

@@ -41,6 +41,7 @@ describe("legacy-import types", () => {
 			previewImageUrl: null,
 			editorialStatus: "draft",
 			sourcePublished: null,
+			certified: false,
 		};
 		const result: MappingResult = {
 			externalId: "es_x",

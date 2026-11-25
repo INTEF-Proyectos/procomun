@@ -4,6 +4,7 @@ import {
 	isLegacyArticle,
 	LEGACY_ARTICLE_RESOURCE_TYPE,
 } from "./article.ts";
+import { isLegacyCertified } from "./certified.ts";
 import { normalizeLanguage } from "./normalize-language.ts";
 import { normalizeLicense } from "./normalize-license.ts";
 import { resolveLegacyPublicationStatus } from "./publication-status.ts";
@@ -486,6 +487,7 @@ export function mapLegacyRecord(
 		previewImageUrl: previewImage.url,
 		editorialStatus: publication.editorialStatus,
 		sourcePublished: publication.sourcePublished,
+		certified: isLegacyCertified(json.certified),
 	};
 
 	return {

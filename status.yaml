@@ -4641,6 +4641,23 @@ tasks:
       La revision del 08-nov ya estaba resuelta en 733e4fe0; se ha
       verificado el journal y el migrador real de Drizzle sobre una base en
       main.
+  T-2026-11-16-15193773:
+    date: 2026-11-16
+    agent: "backend-api-servicios + frontend-ux-accesibilidad + ingestas-y-migraciones"
+    task: "Sello «Validado» de los recursos (#420)"
+    status: Done
+    related: ["#420", "#496", "#518", "#568", "ADR-0049", "ADR-0029"]
+    notes: >
+      Migración 0026 con validated_at, validated_by y validation_source. El
+      sello lo pone «Aprobar y publicar» (review -> published) de un curator
+      o un admin; la publicación directa del editor no. Se conserva con las
+      ediciones de curator y admin y al archivar, y se quita si edita el
+      autor (metadatos, API v1, etiquetas, .elpx y adjuntos) o si el recurso
+      vuelve a borrador. Distintivo en la ficha y en las tarjetas, y aviso en
+      el editor. El importador pone el sello legacy a los certified que
+      entran publicados y --mark-certified lo aplica a lo ya importado sin
+      editar. Adenda 2026-11-16 en ADR-0049. Pendiente: el evento de
+      retirada (fase 1a), los feeds y el filtro de #568.
   T-2026-11-18-13305617:
     date: 2026-11-18
     agent: "backend-api-servicios + qa-validacion"
@@ -5022,6 +5039,13 @@ tasks:
       cubria el Referer. Tests rojo -> verde en transport.unit.test.ts,
       password-reset.integration.test.ts y nginx-log-redaction.unit.test.ts;
       comprobado con nginx:alpine. Adenda de ADR-0007 y operaciones.md.
+  T-2026-11-19-07271242:
+    date: 2026-11-19
+    agent: "ingestas-y-migraciones"
+    task: "Renumera la migración de #587 tras integrar la 0027"
+    status: In Progress
+    related: ["#587", "#596"]
+    notes: "La migración 0026_resource_validation_seal pasa a 0031_resource_validation_seal. Se conserva su marca temporal y se actualiza el journal."
   T-2026-11-19-07351269:
     date: 2026-11-19
     agent: "documentacion-y-roadmap"
@@ -5305,6 +5329,17 @@ tasks:
       Se incorporó la reordenación de recursos visibles de #619 y se conservó
       la migración 0032. Pasaron 214 pruebas específicas, 223 pruebas de
       interfaz y la comprobación de tipos.
+  T-2026-11-23-09145449:
+    date: 2026-11-23
+    agent: "ingestas-y-migraciones"
+    task: "Renumera la migración de #587 tras integrar main y apilar las colecciones"
+    status: Done
+    related: ["#587", "#518", "#622", "#623", "#608"]
+    notes: >
+      La migración 0031_resource_validation_seal pasa a 0035_resource_validation_seal
+      con when 1794400000000. Main ya tiene la 0032 (when 1794100000000) y el
+      stack de colecciones reserva la 0033 y la 0034, así que con la marca anterior
+      el migrador se saltaría el sello en las bases que ya tengan la 0032.
   T-2026-11-23-07211424:
     date: 2026-11-23
     agent: "backend-api-servicios + qa-validacion"
@@ -5404,3 +5439,13 @@ tasks:
       Se conservan las pruebas de autoría y de traducción de la ficha.
       La fusión y el borrado con reasignación revierten los cambios si falla
       una escritura. Pasan 25 pruebas específicas y la comprobación de tipos.
+  T-2026-11-25-13021943:
+    date: 2026-11-25
+    agent: "backend-api-servicios + qa-validacion"
+    task: "Resolver los conflictos de la PR #587 con main"
+    status: Done
+    related: ["#587", "#420", "#628"]
+    notes: >
+      Se conservan las traducciones de colecciones y del sello Validado.
+      La migración del sello pasa a 0037, después de la 0036 ya integrada.
+      Pasan tipos y las pruebas del migrador, incluida una base con la 0036 ya aplicada.

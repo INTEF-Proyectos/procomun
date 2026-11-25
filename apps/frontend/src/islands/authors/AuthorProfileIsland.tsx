@@ -118,6 +118,8 @@ export function AuthorProfileContent({
 									rating: resource.rating,
 									favoriteCount: Number(resource.favoriteCount ?? 0),
 									editorialStatus: resource.editorialStatus,
+									validatedAt: resource.validatedAt ?? null,
+									validationSource: resource.validationSource ?? null,
 									createdAt:
 										typeof resource.createdAt === "string"
 											? resource.createdAt

@@ -3,6 +3,7 @@ export {
 	isLegacyArticle,
 	LEGACY_ARTICLE_RESOURCE_TYPE,
 } from "./article.ts";
+export { isLegacyCertified } from "./certified.ts";
 export type {
 	CategorizacionEducativaInforme,
 	EducationalImportResourceNote,

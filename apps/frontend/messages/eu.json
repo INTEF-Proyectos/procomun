@@ -467,5 +467,9 @@
 	"knowledge_areas_retry": "Saiatu berriro",
 	"collections_filters_active_one": "Iragazki aktibo 1",
 	"collections_filters_active_other": "{count} iragazki aktibo",
-	"collections_knowledge_areas_help": "Aukeratu gehienez {max}."
+	"collections_knowledge_areas_help": "Aukeratu gehienez {max}.",
+	"validated_badge": "Balioztatua",
+	"validated_badge_explanation": "Procomúneko kurazio-taldeak berrikusia",
+	"validated_badge_on": "{date}(e)an balioztatua",
+	"validated_edit_warning": "Baliabide honek «Balioztatua» zigilua du. Aldaketak gordetzen badituzu, galdu egingo du kuratzaile batek berriro berrikusi arte."
 }

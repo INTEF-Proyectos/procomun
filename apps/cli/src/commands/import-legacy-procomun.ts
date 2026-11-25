@@ -10,6 +10,7 @@
  *   bun run apps/cli/src/index.ts import:legacy-procomun --fix-published --source-dir <ruta> [--dry-run] [--report-dir <ruta>]
  *   bun run apps/cli/src/index.ts import:legacy-procomun --copy-previews [--dry-run] [--report-dir <ruta>]
  *   bun run apps/cli/src/index.ts import:legacy-procomun --fix-language --source-dir <ruta> [--dry-run] [--report-dir <ruta>]
+ *   bun run apps/cli/src/index.ts import:legacy-procomun --mark-certified --source-dir <ruta> [--dry-run] [--report-dir <ruta>]
  *   bun run apps/cli/src/index.ts import:legacy-procomun --link-authors --source-dir <ruta> [--dry-run] [--report-dir <ruta>] [--restricted-report <ruta>] --users-file <usuarios.json>
  *
  * El informe general no lleva datos personales. `--restricted-report <ruta>`
@@ -92,6 +93,7 @@ export async function loadImportLegacyProcomunDependencies() {
 		mapLegacyRecord: legacyImport.mapLegacyRecord,
 		normalizeLanguage: legacyImport.normalizeLanguage,
 		resolveLegacyPublicationStatus: legacyImport.resolveLegacyPublicationStatus,
+		isLegacyCertified: legacyImport.isLegacyCertified,
 		resolveLegacyExternalId: legacyImport.resolveLegacyExternalId,
 		ensureLegacyImportSystemUser: legacyImport.ensureLegacyImportSystemUser,
 		// Solo las operaciones de repositorio que usa este comando. Exponer el
@@ -103,6 +105,7 @@ export async function loadImportLegacyProcomunDependencies() {
 			fixLegacyResourceLanguage: repo.fixLegacyResourceLanguage,
 			getElpxProjectByHash: repo.getElpxProjectByHash,
 			importLegacyResourceWithElpx: repo.importLegacyResourceWithElpx,
+			markLegacyResourceCertified: repo.markLegacyResourceCertified,
 			unpublishUnreviewedLegacyResource: repo.unpublishUnreviewedLegacyResource,
 		},
 	};
@@ -214,6 +217,8 @@ export async function* iterateResolvedPairs<P extends LegacyJsonSource>(
 interface PublicationTrace {
 	editorialStatus: "published" | "draft";
 	sourcePublished: string | number | null;
+	/** `certified: 1` en origen (#420). */
+	certified: boolean;
 }
 
 /**
@@ -320,6 +325,10 @@ export interface ImportLegacyProcomunReport {
 		imported: number;
 		/** De los importados, los que entran como borrador por su `published`. */
 		importedAsDraft: number;
+		/** De los importados, los que entran con el sello «Validado» (#420). */
+		importedValidated: number;
+		/** Certificados en origen que entran como borrador, sin sello (#420). */
+		certifiedAsDraft: number;
 		skippedExisting: number;
 		blocked: number;
 		errored: number;
@@ -355,6 +364,7 @@ function parseCliArgs(args: string[]) {
 			"backfill-categories": { type: "boolean", default: false },
 			"fix-published": { type: "boolean", default: false },
 			"fix-language": { type: "boolean", default: false },
+			"mark-certified": { type: "boolean", default: false },
 			"copy-previews": { type: "boolean", default: false },
 			"link-authors": { type: "boolean", default: false },
 			"dry-run": { type: "boolean", default: false },
@@ -371,6 +381,7 @@ function parseCliArgs(args: string[]) {
 	const fixPublished = Boolean(values["fix-published"]);
 	const fixLanguage = Boolean(values["fix-language"]);
 	const copyPreviews = Boolean(values["copy-previews"]);
+	const markCertified = Boolean(values["mark-certified"]);
 	const linkAuthors = Boolean(values["link-authors"]);
 	if (
 		[
@@ -378,11 +389,12 @@ function parseCliArgs(args: string[]) {
 			fixPublished,
 			fixLanguage,
 			copyPreviews,
+			markCertified,
 			linkAuthors,
 		].filter(Boolean).length > 1
 	) {
 		throw new Error(
-			"--backfill-categories, --fix-published, --fix-language, --copy-previews y --link-authors no se pueden combinar",
+			"--backfill-categories, --fix-published, --fix-language, --copy-previews, --mark-certified y --link-authors no se pueden combinar",
 		);
 	}
 	const sourceDir = values["source-dir"];
@@ -390,6 +402,12 @@ function parseCliArgs(args: string[]) {
 		throw new Error(
 			"Falta --source-dir. Uso: import:legacy-procomun --source-dir <ruta> --users-file <usuarios.json> [--dry-run] [--limit <n>] [--only <externalId>] [--report-dir <ruta>]",
 		);
+	}
+
+	// --mark-certified recorre siempre todo --source-dir: con --only o --limit
+	// marcaría más de lo pedido sin avisar.
+	if (markCertified && (values.only !== undefined || values.limit != null)) {
+		throw new Error("--mark-certified no admite --only ni --limit");
 	}
 
 	const limit = values.limit != null ? Number(values.limit) : undefined;
@@ -407,7 +425,11 @@ function parseCliArgs(args: string[]) {
 	const rawRestricted = values["restricted-report"];
 	if (
 		rawRestricted !== undefined &&
-		(backfillCategories || fixPublished || fixLanguage || copyPreviews)
+		(backfillCategories ||
+			fixPublished ||
+			fixLanguage ||
+			copyPreviews ||
+			markCertified)
 	) {
 		throw new Error(
 			"--restricted-report solo vale para la importación y para --link-authors",
@@ -430,6 +452,7 @@ function parseCliArgs(args: string[]) {
 		!fixPublished &&
 		!fixLanguage &&
 		!copyPreviews &&
+		!markCertified &&
 		!values["users-file"]?.trim()
 	) {
 		throw new Error(
@@ -443,6 +466,7 @@ function parseCliArgs(args: string[]) {
 		fixPublished,
 		fixLanguage,
 		copyPreviews,
+		markCertified,
 		linkAuthors,
 		dryRun: Boolean(values["dry-run"]),
 		limit,
@@ -522,6 +546,21 @@ async function runImportLegacyProcomunCommand(
 				`revisados=${t.processed} publicados_en_origen=${t.publishedAtSource} ` +
 				`a_borrador=${t.unpublished} ya_revisados=${t.reviewed} ` +
 				`no_publicados=${t.notPublished} no_importados=${t.notFound} errores=${t.errored}`,
+		);
+		await closeDbAndExit(deps, t.errored > 0 ? 1 : 0);
+		return;
+	}
+
+	if (options.markCertified) {
+		const markReport = await runMarkLegacyCertified(options, deps);
+		await writeReport(options, "sello-certificados", markReport);
+		const t = markReport.totals;
+		console.log(
+			`[import:legacy-procomun] Completado. ${options.dryRun ? "(dry-run) " : ""}` +
+				`revisados=${t.processed} certificados_en_origen=${t.certifiedAtSource} ` +
+				`marcados=${t.marked} ya_validados=${t.alreadyValidated} ` +
+				`no_publicados=${t.notPublished} editados=${t.edited} ` +
+				`no_importados=${t.notFound} errores=${t.errored}`,
 		);
 		await closeDbAndExit(deps, t.errored > 0 ? 1 : 0);
 		return;
@@ -783,6 +822,154 @@ export async function runFixLegacyPublished(
 			console.error(
 				`[error] ${resolved.externalId}: ${formatImportError(summary)}`,
 			);
+		}
+	}
+
+	return {
+		runId: crypto.randomUUID(),
+		sourceDir: options.sourceDir,
+		dryRun: options.dryRun,
+		startedAt,
+		finishedAt: new Date().toISOString(),
+		totals,
+		records,
+	};
+}
+
+type MarkCertifiedRecord = { externalId: string } & (
+	| {
+			outcome:
+				| "marked"
+				| "would_mark"
+				| "already_validated"
+				| "not_published"
+				| "edited";
+			resourceId: string;
+	  }
+	| { outcome: "not_found" }
+	| ({ outcome: "error" } & ImportErrorSummary)
+);
+
+export interface MarkLegacyCertifiedReport {
+	runId: string;
+	sourceDir: string;
+	dryRun: boolean;
+	startedAt: string;
+	finishedAt: string;
+	totals: {
+		processed: number;
+		certifiedAtSource: number;
+		marked: number;
+		alreadyValidated: number;
+		notPublished: number;
+		edited: number;
+		notFound: number;
+		errored: number;
+	};
+	/** Solo los certificados en origen: el resto solo se cuenta. */
+	records: MarkCertifiedRecord[];
+}
+
+/**
+ * `--mark-certified` (issue #420): la reimportación omite lo ya importado, así
+ * que lo importado antes de leer `certified` se quedaría sin sello. Esta pasada
+ * relee los JSON y da el sello de origen a los certificados que siguen
+ * publicados, sin sello y sin cambios (ver markLegacyResourceCertified).
+ */
+export async function runMarkLegacyCertified(
+	options: { sourceDir: string; dryRun: boolean },
+	deps: Deps,
+): Promise<MarkLegacyCertifiedReport> {
+	const startedAt = new Date().toISOString();
+	await deps.waitForDb();
+	const db = deps.getDb().db;
+	const { pairs } = await findLegacySourcePairs(options.sourceDir);
+
+	const totals = {
+		processed: 0,
+		certifiedAtSource: 0,
+		marked: 0,
+		alreadyValidated: 0,
+		notPublished: 0,
+		edited: 0,
+		notFound: 0,
+		errored: 0,
+	};
+	const records: MarkCertifiedRecord[] = [];
+
+	for await (const resolved of iterateResolvedPairs(
+		pairs,
+		deps.resolveLegacyExternalId,
+	)) {
+		totals.processed++;
+		const { externalId } = resolved;
+		if (!resolved.json) {
+			totals.errored++;
+			records.push({
+				externalId,
+				outcome: "error",
+				code: "invalid_record",
+				message: `No se pudo leer/parsear el JSON: ${resolved.parseError}`,
+			});
+			continue;
+		}
+		if (!deps.isLegacyCertified(resolved.json.certified)) continue;
+		totals.certifiedAtSource++;
+		// Igual que al importar: sin `published: 1` en origen no hay sello,
+		// aunque en la base siga publicado (lo corrige --fix-published).
+		const publishedAtSource =
+			deps.resolveLegacyPublicationStatus(resolved.json.published)
+				.editorialStatus === "published";
+		try {
+			let result: Awaited<
+				ReturnType<Deps["repo"]["markLegacyResourceCertified"]>
+			>;
+			if (publishedAtSource) {
+				result = await deps.repo.markLegacyResourceCertified(
+					db,
+					IMPORT_SOURCE,
+					externalId,
+					{ dryRun: options.dryRun },
+				);
+			} else {
+				const found = await deps.repo.findLegacyResourceByExternalId(
+					db,
+					IMPORT_SOURCE,
+					externalId,
+				);
+				result = found
+					? { outcome: "not_published", resourceId: found.id }
+					: { outcome: "not_found", resourceId: null };
+			}
+			if (result.outcome === "not_found") {
+				totals.notFound++;
+				records.push({ externalId, outcome: "not_found" });
+				continue;
+			}
+			if (result.outcome === "marked") totals.marked++;
+			else if (result.outcome === "already_validated")
+				totals.alreadyValidated++;
+			else if (result.outcome === "not_published") totals.notPublished++;
+			else totals.edited++;
+			records.push({
+				externalId,
+				outcome:
+					result.outcome === "marked" && options.dryRun
+						? "would_mark"
+						: result.outcome,
+				resourceId: result.resourceId,
+			});
+			if (result.outcome === "marked") {
+				console.log(
+					`[sello${options.dryRun ? " (dry-run)" : ""}] ${externalId}: validado en origen`,
+				);
+			}
+		} catch (err) {
+			totals.errored++;
+			// Solo usa la base de datos: nunca se copia el mensaje (#488).
+			const summary = summarizeDbStepError(err);
+			records.push({ externalId, outcome: "error", ...summary });
+			console.error(`[error] ${externalId}: ${formatImportError(summary)}`);
 		}
 	}
 
@@ -1384,6 +1571,8 @@ export async function runImportLegacyProcomun(
 	let processed = 0;
 	let imported = 0;
 	let importedAsDraft = 0;
+	let importedValidated = 0;
+	let certifiedAsDraft = 0;
 	let skippedExisting = 0;
 	let blocked = 0;
 	let errored = 0;
@@ -1397,6 +1586,16 @@ export async function runImportLegacyProcomun(
 		db,
 		options.legacyUidsByEmail,
 	);
+
+	// #420: el sello solo lo llevan los certificados que entran publicados.
+	const countCertified = (resource: {
+		certified: boolean;
+		editorialStatus: "published" | "draft";
+	}) => {
+		if (!resource.certified) return;
+		if (resource.editorialStatus === "published") importedValidated++;
+		else certifiedAsDraft++;
+	};
 
 	// Streaming: se itera par a par (ver iterateResolvedPairs) y se corta en
 	// cuanto --only encuentra su objetivo o --limit alcanza su cupo, sin haber
@@ -1598,6 +1797,7 @@ export async function runImportLegacyProcomun(
 				} else if (options.dryRun) {
 					imported++;
 					if (mapping.resource.editorialStatus === "draft") importedAsDraft++;
+					countCertified(mapping.resource);
 					countAuthor(author.userId !== null);
 					educationalNotes.push({
 						externalId: mapping.externalId,
@@ -1610,6 +1810,7 @@ export async function runImportLegacyProcomun(
 						warnings: warningMessages,
 						editorialStatus: mapping.resource.editorialStatus,
 						sourcePublished: mapping.resource.sourcePublished,
+						certified: mapping.resource.certified,
 						createdBy: author.userId,
 						...articleTag,
 					});
@@ -1630,6 +1831,7 @@ export async function runImportLegacyProcomun(
 							imported++;
 							if (mapping.resource.editorialStatus === "draft")
 								importedAsDraft++;
+							countCertified(mapping.resource);
 							countAuthor(author.userId !== null);
 							educationalNotes.push({
 								externalId: mapping.externalId,
@@ -1659,6 +1861,8 @@ export async function runImportLegacyProcomun(
 			processed,
 			imported,
 			importedAsDraft,
+			importedValidated,
+			certifiedAsDraft,
 			skippedExisting,
 			blocked,
 			errored,
@@ -1879,6 +2083,7 @@ async function persistImportedResource(params: {
 			warnings: warningMessages,
 			editorialStatus: mapping.resource.editorialStatus,
 			sourcePublished: mapping.resource.sourcePublished,
+			certified: mapping.resource.certified,
 			createdBy,
 			...articleTag,
 		});

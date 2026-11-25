@@ -467,5 +467,9 @@
 	"knowledge_areas_retry": "Tentar de novo",
 	"collections_filters_active_one": "1 filtro activo",
 	"collections_filters_active_other": "{count} filtros activos",
-	"collections_knowledge_areas_help": "Elixe ata {max}."
+	"collections_knowledge_areas_help": "Elixe ata {max}.",
+	"validated_badge": "Validado",
+	"validated_badge_explanation": "Revisado polo equipo de curación de Procomún",
+	"validated_badge_on": "Validado o {date}",
+	"validated_edit_warning": "Este recurso ten o selo «Validado». Se gardas cambios, perderao ata que un curador o revise de novo."
 }

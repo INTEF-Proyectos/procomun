@@ -73,10 +73,12 @@ export interface CrudRouteConfig<TEntity> {
 	list: (db: DbFn, opts: Record<string, unknown>) => Promise<unknown>;
 	getById: (db: DbFn, id: string) => Promise<TEntity | null>;
 	create?: (db: DbFn, data: Record<string, unknown>) => Promise<unknown>;
+	/** `user` es quien edita (p. ej. para el sello «Validado» de #420). */
 	update?: (
 		db: DbFn,
 		id: string,
 		data: Record<string, unknown>,
+		user: User,
 	) => Promise<void>;
 	remove?: (db: DbFn, id: string) => Promise<void>;
 
@@ -234,7 +236,7 @@ export function buildCrudRoutes<TEntity>(
 					);
 			}
 			try {
-				await update(db(), id, body);
+				await update(db(), id, body, user);
 				if (config.afterUpdate) {
 					try {
 						await config.afterUpdate(user, id, entity, body);

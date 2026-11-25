@@ -1383,6 +1383,8 @@ test("el migrador aplica la 0033 sobre una base que ya tiene la 0032 (#622)", as
 		await db.exec(`
 			CREATE TABLE collections (id TEXT PRIMARY KEY);
 			CREATE TABLE "user" (id TEXT PRIMARY KEY);
+			-- La 0037, posterior, añade columnas a resources (#420).
+			CREATE TABLE resources (id TEXT PRIMARY KEY);
 			CREATE TABLE tags (id TEXT PRIMARY KEY);
 			CREATE TABLE knowledge_areas (id TEXT PRIMARY KEY);
 			INSERT INTO collections VALUES ('importada');
@@ -1460,6 +1462,7 @@ test("Drizzle aplica los metadatos a una base con el contador de visitas (#623)"
 		await db.exec(`
 			CREATE TABLE collections (id TEXT PRIMARY KEY);
 			CREATE TABLE "user" (id TEXT PRIMARY KEY);
+			CREATE TABLE resources (id TEXT PRIMARY KEY);
 			CREATE TABLE tags (id TEXT PRIMARY KEY);
 			CREATE TABLE knowledge_areas (id TEXT PRIMARY KEY);
 			INSERT INTO collections VALUES ('coleccion-previa');
@@ -1514,4 +1517,136 @@ test("la migración 0036 coincide con setup.ts y conserva las colecciones (#615)
 	} finally {
 		await db.close();
 	}
+});
+
+// Issue #420, ADR-0049 (adenda 2026-11-16): sello «Validado».
+describe("migración 0037_resource_validation_seal", () => {
+	const OLD_SCHEMA = `CREATE TABLE "user" (id TEXT PRIMARY KEY);
+		CREATE TABLE "resources" (id TEXT PRIMARY KEY, title TEXT NOT NULL)`;
+
+	test("va detrás de las anteriores con el when reservado", async () => {
+		const journal = JSON.parse(
+			await readFile(path.join(migrationsDir, "meta/_journal.json"), "utf8"),
+		) as { entries: Array<{ tag: string; when: number }> };
+		const entry = journal.entries.find(
+			(item) => item.tag === "0037_resource_validation_seal",
+		);
+		const previous = journal.entries.filter(
+			(item) => item.tag < "0037_resource_validation_seal",
+		);
+		expect(entry?.when).toBe(1794600000000);
+		expect(entry?.when ?? 0).toBeGreaterThan(
+			Math.max(...previous.map((item) => item.when)),
+		);
+	});
+
+	test("Drizzle aplica el sello a una base que ya tiene la 0036 (#587)", async () => {
+		const journal = JSON.parse(
+			await readFile(path.join(migrationsDir, "meta/_journal.json"), "utf8"),
+		) as { entries: Array<{ tag: string; when: number }> };
+		const previous = journal.entries.find(
+			(entry) => entry.tag === "0036_collection_legacy_imported_metadata",
+		);
+		if (!previous) throw new Error("Falta la 0036 en el journal");
+		const db = new PGlite();
+		try {
+			await db.exec(OLD_SCHEMA);
+			await db.exec(`
+				INSERT INTO resources VALUES ('r1', 'Existente');
+				CREATE SCHEMA drizzle;
+				CREATE TABLE drizzle.__drizzle_migrations (
+					id SERIAL PRIMARY KEY, hash text NOT NULL, created_at bigint
+				);
+			`);
+			await db.query(
+				"INSERT INTO drizzle.__drizzle_migrations (hash, created_at) VALUES ($1, $2)",
+				[previous.tag, previous.when],
+			);
+
+			await migrate(drizzle(db), { migrationsFolder: migrationsDir });
+
+			expect(
+				(
+					await db.query(
+						"SELECT id, validated_at, validation_source FROM resources",
+					)
+				).rows,
+			).toEqual([{ id: "r1", validated_at: null, validation_source: null }]);
+		} finally {
+			await db.close();
+		}
+	});
+
+	test("es idempotente, solo admite los orígenes conocidos y suelta al validador borrado", async () => {
+		const migration = (
+			await readFile(
+				path.join(migrationsDir, "0037_resource_validation_seal.sql"),
+				"utf8",
+			)
+		).replaceAll("--> statement-breakpoint", "");
+		const db = new PGlite();
+		try {
+			await db.exec(OLD_SCHEMA);
+			await db.exec(migration);
+			await db.exec(migration);
+			await db.exec(`INSERT INTO "user" (id) VALUES ('curator-1')`);
+			await db.exec(
+				`INSERT INTO resources (id, title, validated_at, validated_by, validation_source)
+				 VALUES ('r1', 'Uno', NOW(), 'curator-1', 'review'),
+				        ('r2', 'Dos', NOW(), NULL, 'legacy'),
+				        ('r3', 'Tres', NULL, NULL, NULL)`,
+			);
+			await expect(
+				db.exec(
+					`INSERT INTO resources (id, title, validated_at, validation_source)
+					 VALUES ('r4', 'Cuatro', NOW(), 'manual')`,
+				),
+			).rejects.toThrow();
+			await db.exec(`DELETE FROM "user" WHERE id = 'curator-1'`);
+			const rows = await db.query<{ validated_by: string | null }>(
+				"SELECT validated_by FROM resources WHERE id = 'r1'",
+			);
+			expect(rows.rows[0]?.validated_by).toBeNull();
+		} finally {
+			await db.close();
+		}
+	});
+
+	test("createTables y la 0037 dejan una sola clave ajena en validated_by", async () => {
+		const { createTables } = await import("./setup.ts");
+		const migration = (
+			await readFile(
+				path.join(migrationsDir, "0037_resource_validation_seal.sql"),
+				"utf8",
+			)
+		).replaceAll("--> statement-breakpoint", "");
+		const db = new PGlite();
+		try {
+			await createTables(db);
+			await db.exec(migration);
+			const fks = await db.query<{ conname: string }>(
+				`SELECT c.conname FROM pg_constraint c
+				 JOIN pg_attribute a ON a.attrelid = c.conrelid AND a.attnum = ANY (c.conkey)
+				 WHERE c.conrelid = 'resources'::regclass AND c.contype = 'f'
+				   AND a.attname = 'validated_by'`,
+			);
+			expect(fks.rows.map((row) => row.conname)).toEqual([
+				"resources_validated_by_user_id_fk",
+			]);
+		} finally {
+			await db.close();
+		}
+	});
+
+	test("el esquema de arranque (setup.ts) crea las mismas columnas", () => {
+		for (const column of [
+			"validated_at",
+			"validated_by",
+			"validation_source",
+		]) {
+			expect(
+				SCHEMA_STATEMENTS.some((statement) => statement.includes(column)),
+			).toBe(true);
+		}
+	});
 });

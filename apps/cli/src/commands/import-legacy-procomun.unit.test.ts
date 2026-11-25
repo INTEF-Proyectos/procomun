@@ -22,6 +22,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { PGlite } from "@electric-sql/pglite";
 import {
+	isLegacyCertified,
 	LEGACY_IMPORT_SYSTEM_USER_ID,
 	type LegacyOdeJson,
 	mapLegacyRecord,
@@ -179,6 +180,7 @@ function buildMockDeps(
 		// que esperan los tests existentes.
 		resolveLegacyExternalId,
 		resolveLegacyPublicationStatus,
+		isLegacyCertified,
 		normalizeLanguage,
 		mapLegacyRecord: (() => ({
 			externalId: "es_mock",
@@ -206,6 +208,7 @@ function buildMockDeps(
 				previewImageUrl: null,
 				editorialStatus: "published",
 				sourcePublished: 1,
+				certified: false,
 			},
 		})) as Deps["mapLegacyRecord"],
 		// #456: por defecto ninguna cuenta coincide con publicatorEmailStr.
@@ -237,6 +240,10 @@ function buildMockDeps(
 				resourceId: null,
 			}),
 			unpublishUnreviewedLegacyResource: async () => ({
+				outcome: "not_found",
+				resourceId: null,
+			}),
+			markLegacyResourceCertified: async () => ({
 				outcome: "not_found",
 				resourceId: null,
 			}),
@@ -494,6 +501,10 @@ describe("runImportLegacyProcomun (deps mockeadas)", () => {
 					outcome: "not_found",
 					resourceId: null,
 				}),
+				markLegacyResourceCertified: async () => ({
+					outcome: "not_found",
+					resourceId: null,
+				}),
 				importLegacyResourceWithElpx: async () => {
 					importCalled = true;
 					throw new Error("no debería llamarse");
@@ -532,6 +543,10 @@ describe("runImportLegacyProcomun (deps mockeadas)", () => {
 					outcome: "not_found",
 					resourceId: null,
 				}),
+				markLegacyResourceCertified: async () => ({
+					outcome: "not_found",
+					resourceId: null,
+				}),
 				importLegacyResourceWithElpx: async () => {
 					importCalled = true;
 					throw new Error("no debería llamarse");
@@ -566,6 +581,10 @@ describe("runImportLegacyProcomun (deps mockeadas)", () => {
 					resourceId: null,
 				}),
 				unpublishUnreviewedLegacyResource: async () => ({
+					outcome: "not_found",
+					resourceId: null,
+				}),
+				markLegacyResourceCertified: async () => ({
 					outcome: "not_found",
 					resourceId: null,
 				}),
@@ -627,6 +646,7 @@ describe("runImportLegacyProcomun (deps mockeadas)", () => {
 					importedAt: null,
 					editorialStatus: "published",
 					sourcePublished: 1,
+					certified: false,
 				},
 			})) as Deps["mapLegacyRecord"],
 		});
@@ -810,6 +830,7 @@ describe("runImportLegacyProcomun (deps mockeadas)", () => {
 					previewImageUrl: null,
 					editorialStatus: "published",
 					sourcePublished: 1,
+					certified: false,
 				},
 			})) as Deps["mapLegacyRecord"],
 			repo: {
@@ -832,6 +853,10 @@ describe("runImportLegacyProcomun (deps mockeadas)", () => {
 					resourceId: null,
 				}),
 				unpublishUnreviewedLegacyResource: async () => ({
+					outcome: "not_found",
+					resourceId: null,
+				}),
+				markLegacyResourceCertified: async () => ({
 					outcome: "not_found",
 					resourceId: null,
 				}),
@@ -896,6 +921,7 @@ describe("runImportLegacyProcomun (deps mockeadas)", () => {
 					previewImageUrl: null,
 					editorialStatus: "published",
 					sourcePublished: 1,
+					certified: false,
 				},
 			})) as Deps["mapLegacyRecord"],
 			// computeFileSha256 (heredado del base mock) devuelve siempre
@@ -915,6 +941,10 @@ describe("runImportLegacyProcomun (deps mockeadas)", () => {
 					resourceId: null,
 				}),
 				unpublishUnreviewedLegacyResource: async () => ({
+					outcome: "not_found",
+					resourceId: null,
+				}),
+				markLegacyResourceCertified: async () => ({
 					outcome: "not_found",
 					resourceId: null,
 				}),
@@ -2068,6 +2098,7 @@ describe("runImportLegacyProcomun — artículos (issue #446)", () => {
 				],
 				editorialStatus: "published",
 				sourcePublished: 1,
+				certified: false,
 				createdBy: "autora-1",
 			},
 			{
@@ -2815,6 +2846,35 @@ describe("informes sin correos e informe restringido (#543)", () => {
 				async () => deps(),
 			),
 		).rejects.toThrow("--restricted-report");
+	});
+
+	test("--mark-certified acepta el comando sin volcado de usuarios", async () => {
+		const load = new Error("carga dependencias para marcar certificados");
+		await expect(
+			importLegacyProcomun(
+				["--source-dir", dir, "--mark-certified", "--dry-run"],
+				async () => {
+					throw load;
+				},
+			),
+		).rejects.toThrow(load.message);
+	});
+
+	// Revisión de #587: --mark-certified recorre todo; no ignora en silencio
+	// las opciones que acotarían lo que marca o pedirían otro informe.
+	test("--mark-certified rechaza --only, --limit y --restricted-report", async () => {
+		for (const extra of [
+			["--only", "es_con_cuenta"],
+			["--limit", "1"],
+			["--restricted-report", path.join(base, "privado.json")],
+		]) {
+			await expect(
+				importLegacyProcomun(
+					["--source-dir", dir, "--mark-certified", ...extra],
+					async () => deps(),
+				),
+			).rejects.toThrow(extra[0]);
+		}
 	});
 
 	// #543, punto 1: los pasos de autoría pasan por summarizeDbStepError.

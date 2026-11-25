@@ -3,6 +3,7 @@ import { resourceCardMedia } from "../lib/resource-card-media.ts";
 import type { ResourceSummary } from "../lib/types/resource-extended.ts";
 import { ResourceByline } from "./AuthorLinks.tsx";
 import { CardTypeMarker } from "./CardTypeMarker.tsx";
+import { ValidatedBadge } from "./ValidatedBadge.tsx";
 import "./ResourceCard.css";
 
 export interface ResourceCardProps {
@@ -121,6 +122,7 @@ export function ResourceCard({
 							{"\u2022"} {resource.language.toUpperCase()}
 						</span>
 					)}
+					<ValidatedBadge resource={resource} />
 				</div>
 				<h3 className="rc-title">
 					<a className="card-stretched-link" href={href}>

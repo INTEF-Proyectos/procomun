@@ -106,6 +106,9 @@ export async function listCollectionResources(
 			// Sin cuenta activa no hay ficha de autor que enlazar (#541).
 			createdByActive: sql<boolean>`(${user.id} is not null and ${user.deletedAt} is null)`,
 			editorialStatus: resources.editorialStatus,
+			// Sello «Validado» (#420) para la tarjeta.
+			validatedAt: resources.validatedAt,
+			validationSource: resources.validationSource,
 		})
 		.from(collectionResources)
 		.innerJoin(resources, eq(collectionResources.resourceId, resources.id))

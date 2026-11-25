@@ -30,6 +30,7 @@ import { url } from "../lib/paths.ts";
 import { keepsAccessAfterStatusChange } from "../lib/resource-access.ts";
 import { hasMinRole } from "../lib/shared-utils.ts";
 import { statusChangeFeedback } from "../lib/status-change-errors.ts";
+import { ValidatedEditWarning } from "../ui/ValidatedBadge.tsx";
 import {
 	DeleteResourceAction,
 	deleteResourceRedirectPath,
@@ -708,6 +709,8 @@ export default function EditarPage() {
 						{successMsg}
 					</div>
 				)}
+				{/* #420: el autor pierde el sello «Validado» si guarda cambios. */}
+				<ValidatedEditWarning resource={res} userRole={userRole} />
 
 				<form className="edit-grid" onSubmit={handleFormSubmit} noValidate>
 					{/* Left column */}

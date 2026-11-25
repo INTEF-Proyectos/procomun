@@ -183,6 +183,13 @@
 			"when": 1794500000000,
 			"tag": "0036_collection_legacy_imported_metadata",
 			"breakpoints": true
+		},
+		{
+			"idx": 26,
+			"version": "7",
+			"when": 1794600000000,
+			"tag": "0037_resource_validation_seal",
+			"breakpoints": true
 		}
 	]
 }
