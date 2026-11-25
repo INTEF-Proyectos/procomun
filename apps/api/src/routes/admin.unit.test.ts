@@ -1287,6 +1287,124 @@ describe("Rutas admin — colecciones", () => {
 		expect(body.id).toBeDefined();
 	});
 
+	test("conserva los metadatos de una colección y revierte una selección inválida (#611)", async () => {
+		const headers = { "Content-Type": "application/json" };
+		const created = await app.request("/api/admin/collections", {
+			method: "POST",
+			headers,
+			body: JSON.stringify({
+				title: "Colección con metadatos",
+				description: "Descripción",
+				editorialStatus: "published",
+			}),
+		});
+		expect(created.status).toBe(201);
+		const { id, slug } = await created.json();
+		const outcome = await repo.createCatalogKeyword(getDb().db, {
+			label: "Catalogación 611",
+			createdBy: "1",
+		});
+		if (outcome.status === "invalid")
+			throw new Error("No se obtuvo palabra clave");
+		const { keyword } = outcome;
+		const assignments = [
+			{ categoryId: "educacion-primaria", optionId: "primer-ciclo" },
+		];
+		const path = `/api/admin/collections/${id}`;
+		const patch = (data: Record<string, unknown>) =>
+			app.request(path, {
+				method: "PATCH",
+				headers,
+				body: JSON.stringify(data),
+			});
+		expect(
+			(
+				await patch({
+					language: "ca",
+					knowledgeAreaIds: ["matematicas"],
+					keywordIds: [keyword.id],
+					educationalAreas: assignments,
+				})
+			).status,
+		).toBe(200);
+		expect((await patch({ title: "Título nuevo" })).status).toBe(200);
+		expect(
+			(await patch({ language: "en", knowledgeAreaIds: ["area-inexistente"] }))
+				.status,
+		).toBe(400);
+		const invalidPair = await patch({
+			educationalAreas: [
+				{ categoryId: "educacion-primaria", optionId: "no-existe" },
+			],
+		});
+		expect(invalidPair.status).toBe(400);
+		expect(await invalidPair.json()).toEqual({
+			error: "La combinación de categoría y opción no existe",
+			details: [
+				{
+					field: "educationalAreas",
+					message: "La combinación de categoría y opción no existe",
+				},
+			],
+		});
+		const res = await app.request(path);
+		const metadata = {
+			title: "Título nuevo",
+			language: "ca",
+			knowledgeAreas: [expect.objectContaining({ id: "matematicas" })],
+			catalogKeywords: [keyword],
+			educationalAreas: assignments,
+		};
+		expect(await res.json()).toMatchObject(metadata);
+		const publicApp = new Hono();
+		publicApp.route("/api/v1", publicRoutes);
+		const published = await publicApp.request(`/api/v1/collections/${slug}`);
+		expect(published.status).toBe(200);
+		expect(await published.json()).toMatchObject({ ...metadata, viewCount: 0 });
+	});
+
+	test("crea una colección con metadatos y rechaza el alta inválida (#614)", async () => {
+		const title = "Alta catalogada 614";
+		const outcome = await repo.createCatalogKeyword(getDb().db, {
+			label: "Catalogación 614",
+			createdBy: "1",
+		});
+		if (outcome.status === "invalid")
+			throw new Error("No se obtuvo palabra clave");
+		const { keyword } = outcome;
+		const assignments = [
+			{ categoryId: "educacion-primaria", optionId: "primer-ciclo" },
+		];
+		const create = (knowledgeAreaIds: string[]) =>
+			app.request("/api/admin/collections", {
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify({
+					title,
+					description: "Descripción",
+					language: "ca",
+					keywordIds: [keyword.id],
+					educationalAreas: assignments,
+					knowledgeAreaIds,
+				}),
+			});
+		expect((await create(["desconocida"])).status).toBe(400);
+		const list = await app.request(
+			`/api/admin/collections?q=${encodeURIComponent(title)}`,
+		);
+		expect((await list.json()).total).toBe(0);
+		const created = await create(["matematicas"]);
+		expect(created.status).toBe(201);
+		const { id } = await created.json();
+		const detail = await app.request(`/api/admin/collections/${id}`);
+		expect(await detail.json()).toMatchObject({
+			language: "ca",
+			catalogKeywords: [keyword],
+			educationalAreas: assignments,
+			knowledgeAreas: [expect.objectContaining({ id: "matematicas" })],
+		});
+	});
+
 	test("POST /api/admin/collections → 400 sin título", async () => {
 		const res = await app.request("/api/admin/collections", {
 			method: "POST",

@@ -19,12 +19,16 @@ export function KnowledgeAreaSearchFilters({
 	educationalCategory,
 	knowledgeAreas,
 	professionalFamilies,
+	includeProfessionalFamilies = true,
+	areaHelp = m.knowledge_areas_filter_help(),
 	onChange,
 }: {
 	catalog: PublicKnowledgeAreaCatalog | null;
 	educationalCategory: string;
 	knowledgeAreas: string[];
 	professionalFamilies: string[];
+	includeProfessionalFamilies?: boolean;
+	areaHelp?: string;
 	onChange: (next: {
 		knowledgeAreas: string[];
 		professionalFamilies: string[];
@@ -40,7 +44,7 @@ export function KnowledgeAreaSearchFilters({
 					variant="filter"
 					legend={m.knowledge_areas_label()}
 					searchLabel={m.knowledge_areas_search()}
-					help={m.knowledge_areas_filter_help()}
+					help={areaHelp}
 					options={areaOptions}
 					groups={catalog?.blocks}
 					selected={selectedCatalogOptions(knowledgeAreas, areaOptions)}
@@ -49,7 +53,8 @@ export function KnowledgeAreaSearchFilters({
 					}
 				/>
 			</div>
-			{showsProfessionalFamilies([educationalCategory]) ? (
+			{includeProfessionalFamilies &&
+			showsProfessionalFamilies([educationalCategory]) ? (
 				<div className="filter-group">
 					<CatalogMultiSelect
 						id="filter-professionalFamilies"

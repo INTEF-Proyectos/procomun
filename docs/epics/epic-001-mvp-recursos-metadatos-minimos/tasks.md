@@ -141,3 +141,41 @@ En desarrollo
 - [x] Reutilizar la escala de una a cinco estrellas, el resumen y los controles de las fichas de recursos.
 - [x] Permitir un voto editable por cuenta y colección publicada. Las colecciones importadas empiezan con cero valoraciones.
 - [x] Comprobar permisos, media, distribución y sustitución de votos con datos de prueba.
+
+## Metadatos técnicos de colecciones — 2026-11-23 (#611)
+
+- [x] Guardar idioma, palabras clave, áreas de conocimiento y clasificación educativa en la colección (migración `0034_collection_metadata`).
+- [x] Editar los cuatro campos desde la edición de colecciones y mostrarlos en la ficha pública.
+- [x] Mover las palabras clave de las colecciones al fusionar o reasignar una palabra clave del catálogo.
+- [ ] Alta con metadatos (#614), filtros del listado público (#612) e importación desde el JSON legado (#615).
+
+## Filtros avanzados de colecciones — 2026-11-23 (#612)
+
+- [x] `GET /api/v1/collections` combina el texto con idioma, palabra clave, áreas de conocimiento y etapa, programa o ámbito educativo.
+- [x] El listado público guarda los filtros en la URL al paginar, abrir una ficha y volver.
+- [x] «Limpiar filtros» devuelve el texto y los filtros a su estado inicial.
+- [x] El filtro de palabra clave sugiere solo términos del catálogo, porque las colecciones no tienen etiquetas libres.
+- [ ] Las colecciones importadas aprovechan los filtros cuando el importador guarde sus metadatos (#615).
+
+## Revisión de la PR #623 — 2026-11-24 (#611)
+
+- [x] El PATCH de edición lleva solo los campos modificados; vaciar un campo se envía de forma explícita.
+- [x] El panel de etiquetas cuenta las colecciones que usan cada palabra clave y lo indica en la confirmación de borrado.
+- [x] Los rótulos de los detalles técnicos de la ficha pública usan mensajes de Paraglide.
+
+## Revisión de la reasignación de etiquetas — 2026-11-24 (#623)
+
+- [x] Conservar las pruebas de autoría y de traducción de los detalles técnicos al integrar la PR #643.
+- [x] Revertir la fusión y el borrado con reasignación si falla una escritura, con pruebas sobre recursos y colecciones.
+
+## Revisión de la PR #626 — 2026-11-24 (#614)
+
+- [x] Alta con metadatos (#614): el formulario de alta cataloga la colección con los mismos controles que la edición.
+- [x] Si falla el catálogo de áreas de conocimiento, el alta y la edición muestran un aviso accesible con un botón «Reintentar» que no borra lo escrito.
+- [x] Prueba E2E con un primer fallo del catálogo y una respuesta válida al reintentar.
+
+## Revisión de la PR #629 — 2026-11-24 (#612)
+
+- [x] Si falla el catálogo de áreas, el panel de filtros lo avisa y ofrece «Reintentar» sin tocar los filtros ni el texto de búsqueda.
+- [x] El encabezado del panel dice cuántos filtros hay activos y «Limpiar filtros» queda fuera del panel, visible aunque esté cerrado.
+- [x] `listPublicCollections` rechaza ante un error HTTP y el listado muestra su aviso de error.

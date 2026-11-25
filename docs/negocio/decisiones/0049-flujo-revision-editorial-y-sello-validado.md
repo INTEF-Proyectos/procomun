@@ -395,3 +395,7 @@ Un publicado sin sello se sigue abriendo por su enlace directo, y su creador lo 
 ## Renumeración de la migración — 2026-11-23
 
 `0031_resource_validation_seal` pasa a `0035_resource_validation_seal`, con `when` 1794400000000. Al integrar `main` entra la `0032_collection_views` (1794100000000). Además, el stack de colecciones (#622 y #623) reserva la 0033 y la 0034. Con la marca anterior, el migrador de Drizzle se saltaría el sello en cualquier base que ya tuviera la 0032. El stack del sello (#518, #587 y #588) debe mezclarse después del de colecciones. Si se mezcla antes, la 0033 y la 0034 tendrán que pasar detrás de la 0035.
+
+### Integración tras la migración de metadatos de itinerarios (2026-11-25)
+
+La migración del sello de la PR #587 pasa a `0037_resource_validation_seal` con `when` 1794600000000, después de la `0036_collection_legacy_imported_metadata` ya integrada. Así Drizzle aplica el sello también en las bases que ya ejecutaron la 0036.

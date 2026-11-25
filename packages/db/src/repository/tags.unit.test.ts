@@ -2,7 +2,16 @@ import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import { PGlite } from "@electric-sql/pglite";
 import { drizzle } from "drizzle-orm/pglite";
 import type { DrizzleDB } from "../repository/shared.ts";
-import { createResource, ensureUser, listResources } from "../repository.ts";
+import {
+	createCatalogKeyword,
+	createCollection,
+	createResource,
+	ensureUser,
+	getCollectionById,
+	listResources,
+	setResourceCatalogKeywords,
+	updateCollection,
+} from "../repository.ts";
 import * as schema from "../schema/index.ts";
 import { createTables } from "../setup.ts";
 import {
@@ -199,6 +208,128 @@ describe("tags repository (issue #76)", () => {
 		expect(remaining.some((t) => t.id === tag.id)).toBe(false);
 		expect(remaining.some((t) => t.slug === "keepme")).toBe(true);
 		expect(await getTagById(db, tag.id)).toBeNull();
+	});
+
+	test("fusionar o borrar con reasignación lleva la palabra clave a las colecciones (#623)", async () => {
+		const keyword = async (label: string) => {
+			const outcome = await createCatalogKeyword(db, {
+				label,
+				createdBy: userId,
+			});
+			if (outcome.status === "invalid") throw new Error("Sin palabra clave");
+			return outcome.keyword;
+		};
+		const [source, target, other] = await Promise.all([
+			keyword("Geometría 623"),
+			keyword("Geometría plana 623"),
+			keyword("Trigonometría 623"),
+		]);
+		const merged = await createCollection(db, {
+			title: "Colección fusionada",
+			description: "desc",
+			curatorId: userId,
+		});
+		const both = await createCollection(db, {
+			title: "Colección con las dos",
+			description: "desc",
+			curatorId: userId,
+		});
+		await updateCollection(db, merged.id, { keywordIds: [source.id] });
+		await updateCollection(db, both.id, {
+			keywordIds: [source.id, target.id],
+		});
+		const keywordIds = async (id: string) =>
+			(await getCollectionById(db, id))?.catalogKeywords.map(({ id }) => id);
+
+		await mergeTags(db, source.id, target.id);
+		expect(await keywordIds(merged.id)).toEqual([target.id]);
+		expect(await keywordIds(both.id)).toEqual([target.id]);
+
+		await deleteTag(db, target.id, { reassignToId: other.id });
+		expect(await keywordIds(merged.id)).toEqual([other.id]);
+	});
+
+	test.each([
+		["fusionar", "BEFORE INSERT ON collection_keywords"],
+		["borrar con reasignación", "BEFORE DELETE ON tags"],
+	])(
+		"revierte todos los cambios si falla al %s (#623)",
+		async (operation, triggerOn) => {
+			const source = await createCatalogKeyword(db, {
+				label: "Origen de la reasignación",
+				createdBy: userId,
+			});
+			const target = await createCatalogKeyword(db, {
+				label: "Destino de la reasignación",
+				createdBy: userId,
+			});
+			if (source.status === "invalid" || target.status === "invalid") {
+				throw new Error("No se pudieron crear las palabras clave");
+			}
+			const sourceId = source.keyword.id;
+			const targetId = target.keyword.id;
+			const collection = await createCollection(db, {
+				title: "Colección con reasignación fallida",
+				description: "desc",
+				curatorId: userId,
+			});
+			await setResourceCatalogKeywords(db, otherResourceId, [sourceId]);
+			await updateCollection(db, collection.id, { keywordIds: [sourceId] });
+
+			await client.exec(`
+			CREATE FUNCTION fail_tag_reassignment() RETURNS trigger
+			LANGUAGE plpgsql AS $$
+			BEGIN
+				RAISE EXCEPTION 'Fallo de reasignación simulado';
+			END;
+			$$;
+			CREATE TRIGGER fail_tag_reassignment ${triggerOn}
+			FOR EACH ROW EXECUTE FUNCTION fail_tag_reassignment();
+		`);
+
+			const result =
+				operation === "fusionar"
+					? mergeTags(db, sourceId, targetId)
+					: deleteTag(db, sourceId, { reassignToId: targetId });
+			await expect(result).rejects.toThrow();
+			expect(
+				(await listResourceTags(db, otherResourceId)).map(({ id }) => id),
+			).toEqual([sourceId]);
+			expect(
+				(await getCollectionById(db, collection.id))?.catalogKeywords.map(
+					({ id }) => id,
+				),
+			).toEqual([sourceId]);
+			expect(await getTagById(db, sourceId)).toMatchObject({
+				canonicalTagId: null,
+				usageCount: 1,
+			});
+			expect(await getTagById(db, targetId)).toMatchObject({ usageCount: 0 });
+		},
+	);
+
+	test("listTags cuenta las colecciones que usan cada palabra clave (#623)", async () => {
+		const outcome = await createCatalogKeyword(db, {
+			label: "Solo colecciones 623",
+			createdBy: userId,
+		});
+		if (outcome.status === "invalid") throw new Error("Sin palabra clave");
+		const collection = await createCollection(db, {
+			title: "Colección con palabra clave propia",
+			description: "desc",
+			curatorId: userId,
+		});
+		await updateCollection(db, collection.id, {
+			keywordIds: [outcome.keyword.id],
+		});
+
+		const { data } = await listTags(db, {
+			search: "Solo colecciones 623",
+			withCollectionCount: true,
+		});
+		expect(data).toHaveLength(1);
+		expect(data[0]?.usageCount).toBe(0);
+		expect(data[0]?.collectionCount).toBe(1);
 	});
 
 	test("mergeTags with missing source throws TagNotFoundError", async () => {

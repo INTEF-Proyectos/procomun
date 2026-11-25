@@ -23,15 +23,14 @@ export {
 	resolveLegacyExternalId,
 } from "./field-mapper.ts";
 export type {
-	LegacyItineraryDiscardedField,
 	LegacyItineraryJson,
 	LegacyItineraryMappingResult,
+	LegacyItineraryMetadata,
 	LegacyItineraryResourceRef,
 	MappedLegacyItinerary,
 } from "./itinerary.ts";
 export {
 	cleanLegacyItineraryDescription,
-	LEGACY_ITINERARY_DISCARDED_FIELDS,
 	mapLegacyItinerary,
 	resolveLegacyItineraryId,
 } from "./itinerary.ts";

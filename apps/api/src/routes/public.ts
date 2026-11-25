@@ -189,7 +189,18 @@ publicRoutes.get("/taxonomies/:type", async (c) => {
 
 publicRoutes.get("/collections", async (c) => {
 	const { limit, offset, search } = parsePagination(c);
-	return c.json(await listPublishedCollections({ limit, offset, search }));
+	return c.json(
+		await listPublishedCollections({
+			limit,
+			offset,
+			search,
+			language: c.req.query("language"),
+			tagSlug: c.req.query("tag"),
+			knowledgeAreaIds: parseCatalogIdList(c.req.query("knowledgeAreas")),
+			educationalCategory: c.req.query("educationalCategory"),
+			educationalOption: c.req.query("educationalOption"),
+		}),
+	);
 });
 
 publicRoutes.get("/collections/:slug", async (c) => {

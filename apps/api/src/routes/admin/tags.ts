@@ -23,6 +23,7 @@ tagAdminRoutes.get("/", async (c) => {
 			search,
 			// includeSynonyms=1 → list all; default canonical only
 			canonicalOnly: c.req.query("includeSynonyms") !== "1",
+			withCollectionCount: true,
 		}),
 	);
 });

@@ -83,6 +83,41 @@
 	cursor: not-allowed;
 }
 
+.collections-filters {
+	margin-bottom: 1.5rem;
+	padding: 0.5rem 1.5rem;
+	border: 1px solid var(--color-outline-variant);
+	border-radius: 1rem;
+	background: var(--color-surface-container-lowest);
+}
+
+.collections-filters summary {
+	padding-block: 0.65rem;
+	font-weight: 700;
+	cursor: pointer;
+}
+
+.collections-filters-fields {
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(min(100%, 15rem), 1fr));
+	gap: 0 1rem;
+	align-items: start;
+	margin-block-start: 0.75rem;
+}
+
+.collections-filters-count {
+	margin-inline-start: 0.75rem;
+	font-size: var(--text-body-sm);
+	font-weight: 500;
+	color: var(--color-on-surface-variant);
+}
+
+/* Dos clases: gana a `.clear-btn` de catalog.css cargue en el orden que cargue. */
+.clear-btn.collections-filters-clear {
+	width: auto;
+	margin-block: -0.75rem 1.5rem;
+}
+
 .collection-list-section,
 .collection-detail-section {
 	padding: 1.5rem;

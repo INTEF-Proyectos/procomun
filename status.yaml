@@ -5228,6 +5228,64 @@ tasks:
       Se conservan las secciones de seguimiento del perfil ampliado y
       de la atribución histórica por UID. Pasan 110 pruebas de importación,
       reenlace y autoría con datos sintéticos, además de tipos y Biome.
+  T-2026-11-21-00301750:
+    agent: "metadatos-y-curacion + qa-validacion"
+    task: "Editar y mostrar los metadatos técnicos de colecciones"
+    status: Done
+    related: ["#611", "#614", "#612", "#615"]
+    notes: >
+      La edición y la ficha pública comparten los catálogos de recursos.
+      El alta, los filtros y la importación tienen seguimiento propio.
+  T-2026-11-21-08150457:
+    agent: "busqueda-y-descubrimiento + qa-validacion"
+    task: "Filtrar el listado público de colecciones por sus metadatos"
+    status: Done
+    related: ["#612", "#611"]
+    notes: "Texto y filtros combinables con el estado reflejado en la URL."
+  T-2026-11-24-08215909:
+    date: 2026-11-24
+    agent: "frontend-ux-accesibilidad + qa-validacion"
+    task: "Atender la revisión de la PR #629 de filtros avanzados de colecciones"
+    status: Done
+    related: ["#629", "#612"]
+    notes: >
+      El panel avisa y reintenta si falla el catálogo de áreas, el
+      encabezado cuenta los filtros activos y se pueden limpiar con el panel
+      cerrado. El cliente rechaza los errores HTTP del listado.
+  T-2026-11-21-08131372:
+    agent: "ingestas-y-migraciones + qa-validacion"
+    task: "Importar metadatos de itinerarios en los catálogos de colecciones"
+    status: Done
+    related: ["#615", "#611"]
+    notes: "El informe cuenta las incidencias de catálogo y la reimportación no duplica asociaciones."
+  T-2026-11-24-08171843:
+    date: 2026-11-24
+    agent: "ingestas-y-migraciones + qa-validacion"
+    task: "Atender la revisión de la PR #628 de importación de metadatos de itinerarios"
+    status: Done
+    related: ["#628", "#615"]
+    notes: >
+      El importador apunta lo que ya ofreció a cada colección (migración
+      0036) y no restaura lo que se retiró a mano. Las etiquetas se resuelven
+      una a una, sin el tope de texto. La 0036 debe entrar después de la 0034
+      de la #623 y de la 0035 de la #587.
+  T-2026-11-21-00365493:
+    date: 2026-11-21
+    agent: "metadatos-y-curacion + qa-validacion"
+    task: "Clasificar colecciones desde su formulario de alta"
+    status: Done
+    related: ["#614", "#611"]
+    notes: "Alta y edición usan los mismos controles y validaciones de catálogo."
+  T-2026-11-24-08084091:
+    date: 2026-11-24
+    agent: "frontend-ux-accesibilidad + qa-validacion"
+    task: "Atender la revisión de la PR #626 del alta de colecciones"
+    status: Done
+    related: ["#626", "#614"]
+    notes: >
+      Si falla el catálogo de áreas, el alta y la edición lo avisan junto al
+      selector y ofrecen reintentar sin perder lo escrito. Se integra el
+      arreglo de la #623: la edición envía solo los campos modificados.
   T-2026-11-21-00271091:
     date: 2026-11-21
     agent: "backend-api-servicios + frontend-ux-accesibilidad"
@@ -5296,6 +5354,26 @@ tasks:
       con when 1794400000000. Main ya tiene la 0032 (when 1794100000000) y el
       stack de colecciones reserva la 0033 y la 0034, así que con la marca anterior
       el migrador se saltaría el sello en las bases que ya tengan la 0032.
+  T-2026-11-23-07211424:
+    date: 2026-11-23
+    agent: "backend-api-servicios + qa-validacion"
+    task: "Integrar main en la PR #623 de metadatos de colecciones"
+    status: Done
+    related: ["#623", "#620", "#611"]
+    notes: >
+      El detalle conserva el contador de visitas y los metadatos. La 0034
+      queda después de la 0032 y el migrador conserva el total previo.
+      Pasan siete pruebas específicas y la comprobación de tipos.
+  T-2026-11-24-07064810:
+    date: 2026-11-24
+    agent: "frontend-ux-accesibilidad + qa-validacion"
+    task: "Atender la revisión de la PR #623 de metadatos de colecciones"
+    status: Done
+    related: ["#623", "#611"]
+    notes: >
+      La edición envía solo los campos modificados. El panel de etiquetas
+      cuenta también las colecciones y lo dice al borrar. Los rótulos de la
+      ficha pública salen de Paraglide.
   T-2026-11-23-07092370:
     date: 2026-11-23
     agent: "backend-api-servicios + qa-validacion"
@@ -5356,3 +5434,42 @@ tasks:
       La guía de instalación tiene los pasos y docs/operaciones/despliegue
       el docker-compose de ejemplo. Probado en dos servidores: el de pruebas
       propio y uno del INTEF.
+  T-2026-11-24-14521293:
+    date: 2026-11-24
+    agent: "frontend-ux-accesibilidad"
+    task: "La ficha de una colección muestra «Autoría» en vez de «Curator»"
+    status: Done
+    related: ["#638"]
+    notes: >
+      «Curator» es un rol interno que el lector no entiende. La ficha usa el
+      mismo rótulo traducido que la de recursos.
+  T-2026-11-24-15544395:
+    date: 2026-11-24
+    agent: "backend-api-servicios + qa-validacion"
+    task: "Resolver el conflicto y hacer atómica la reasignación de etiquetas en la PR #623"
+    status: Done
+    related: ["#623", "#643", "#611"]
+    notes: >
+      Se conservan las pruebas de autoría y de traducción de la ficha.
+      La fusión y el borrado con reasignación revierten los cambios si falla
+      una escritura. Pasan 25 pruebas específicas y la comprobación de tipos.
+  T-2026-11-25-13021943:
+    date: 2026-11-25
+    agent: "backend-api-servicios + qa-validacion"
+    task: "Resolver los conflictos de la PR #587 con main"
+    status: Done
+    related: ["#587", "#420", "#628"]
+    notes: >
+      Se conservan las traducciones de colecciones y del sello Validado.
+      La migración del sello pasa a 0037, después de la 0036 ya integrada.
+      Pasan tipos y las pruebas del migrador, incluida una base con la 0036 ya aplicada.
+  T-2026-11-25-13050984:
+    date: 2026-11-25
+    agent: "backend-api-servicios + qa-validacion"
+    task: "Actualizar la PR #588 sobre el sello Validado"
+    status: Done
+    related: ["#588", "#587", "#568"]
+    notes: >
+      Se integra la rama corregida del sello de validación y su migración 0037.
+      Pasan los tipos y las pruebas del catálogo público, la búsqueda, los feeds,
+      las recomendaciones y las excepciones de autor y colecciones.
