@@ -24,6 +24,7 @@ import {
 	type EducationalSelection,
 	selectionsToAssignments,
 } from "../lib/educational-classification.ts";
+import { CONTENT_IFRAME_SANDBOX } from "../lib/embed-sandbox.ts";
 import { getApiClient } from "../lib/get-api-client.ts";
 import { familiesToSave } from "../lib/knowledge-area-field.ts";
 import { url } from "../lib/paths.ts";
@@ -761,7 +762,7 @@ export default function EditarPage() {
 									<iframe
 										src={previewUrl}
 										className="edit-preview-iframe"
-										sandbox="allow-scripts allow-popups allow-popups-to-escape-sandbox"
+										sandbox={CONTENT_IFRAME_SANDBOX}
 										loading="lazy"
 										title="Vista previa"
 									/>
@@ -945,7 +946,6 @@ export default function EditarPage() {
 								</div>
 							</>
 						)}
-
 						<div className="edit-field">
 							<label htmlFor="ed-author">
 								{authorRequired ? "Autor *" : "Autor"}

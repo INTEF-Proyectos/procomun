@@ -1,6 +1,5 @@
 import { canManageResource } from "@procomun/db/validation";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { useElpxEmbedRelay } from "../../hooks/use-elpx-embed-relay.ts";
 import type {
 	RelatedResource,
 	RelatedResourcesResult,
@@ -16,7 +15,7 @@ import {
 	knowledgeAreaHref,
 	professionalFamilyHref,
 } from "../../lib/knowledge-area-field.ts";
-import { url } from "../../lib/paths.ts";
+import { getBaseUrl, url } from "../../lib/paths.ts";
 import {
 	FILE_ICONS,
 	formatBytes,
@@ -45,10 +44,104 @@ import {
 	SearchValue,
 	SearchValueList,
 } from "./EducationalClassificationList.tsx";
-import { EmbedModal } from "./EmbedModal.tsx";
 import "../../lib/paraglide-client.ts";
+import { configuredEmbedMode } from "../../lib/embed-mode.ts";
+import {
+	buildPublicEmbedIframeCode,
+	CONTENT_IFRAME_SANDBOX,
+} from "../../lib/embed-sandbox.ts";
 import * as m from "../../paraglide/messages.js";
 import { getLocale } from "../../paraglide/runtime.js";
+
+/**
+ * Bridge compartido de eXeLearning (lado padre): UN artefacto vendorizado desde el
+ * core de eXeLearning, que es el canónico (eXe ADR-0021). Antes eran tres ficheros
+ * copiados desde mod_exelearning; ahora es un bundle cuyos bytes se verifican contra
+ * el manifest publicado, así que la divergencia deja de ser algo que un chequeo
+ * pueda pasar por alto y pasa a ser inexpresable.
+ *
+ * Publica window.exeEmbedRelay (overlay promote-to-parent de vídeos/PDF cross-origin)
+ * y window.exeMediaHost (host del iDevice de vídeo interactivo). Sustituye al sistema
+ * bespoke (EmbedModal + use-elpx-embed-relay + elpx-embed-policy).
+ */
+type ExeBridgeWindow = Window & {
+	exeEmbedRelay?: {
+		init: (config: {
+			mode: "open" | "strict";
+			whitelist?: string[];
+		}) => unknown;
+	};
+	exeMediaHost?: {
+		attach: (
+			iframe: HTMLIFrameElement,
+			opts: Record<string, unknown>,
+		) => { detach: () => void };
+	};
+	__exeEmbedRelayReady?: boolean;
+	__exeBridgeLoader?: Promise<void>;
+};
+
+// Carga un <script> clásico una sola vez (los ficheros vendorizados exponen
+// globals en window y no son módulos ES). Resuelve cuando el script ha cargado.
+function loadScriptOnce(src: string): Promise<void> {
+	return new Promise((resolve, reject) => {
+		const existing = document.querySelector<HTMLScriptElement>(
+			`script[data-exe-bridge="${src}"]`,
+		);
+		if (existing) {
+			if (existing.dataset.loaded === "1") {
+				resolve();
+				return;
+			}
+			existing.addEventListener("load", () => resolve());
+			existing.addEventListener("error", () =>
+				reject(new Error(`No se pudo cargar ${src}`)),
+			);
+			return;
+		}
+		const script = document.createElement("script");
+		script.src = src;
+		// Encadenamos secuencialmente, pero async=false preserva además el orden
+		// relativo entre estos scripts si el navegador los agrupa.
+		script.async = false;
+		script.dataset.exeBridge = src;
+		script.addEventListener("load", () => {
+			script.dataset.loaded = "1";
+			resolve();
+		});
+		script.addEventListener("error", () =>
+			reject(new Error(`No se pudo cargar ${src}`)),
+		);
+		document.head.appendChild(script);
+	});
+}
+
+// UN solo artefacto vendorizado (elpx/exe_external_media/), construido y publicado
+// por el core de eXeLearning, que sustituye a los tres ficheros que se cargaban
+// encadenados: la policy, el relay de embeds y el host de medios. Ya no hay orden
+// que respetar, porque ya no hay globals que uno lea del otro en tiempo de carga.
+//
+// El core es canónico (eXe ADR-0021): este repo guarda los BYTES y los verifica
+// contra el manifest publicado, en vez de una copia de la lógica que pueda
+// divergir. No lo parchees aquí — una edición local es invisible aguas arriba, se
+// sobrescribe al re-vendorizar, y falla `verify.mjs` en CI mientras tanto.
+//
+// Se cachea la promesa para que múltiples montajes reutilicen la misma carga. Si
+// falla, se limpia para que un remount pueda reintentar (p. ej. tras un glitch de
+// red o un 404 temporal del estático).
+function loadElpxBridge(): Promise<void> {
+	const w = window as unknown as ExeBridgeWindow;
+	if (!w.__exeBridgeLoader) {
+		const base = getBaseUrl();
+		w.__exeBridgeLoader = loadScriptOnce(
+			`${base}elpx/exe_external_media/exe-external-media-host.min.js`,
+		).catch((err: unknown) => {
+			w.__exeBridgeLoader = undefined;
+			throw err;
+		});
+	}
+	return w.__exeBridgeLoader;
+}
 
 function toResourceSummary(item: RelatedResource): ResourceSummary {
 	return {
@@ -132,14 +225,13 @@ function EmbedSection({
 }: {
 	title: string;
 	previewUrl: string;
-	slug: string;
 }) {
 	const [copiedEmbed, setCopiedEmbed] = useState(false);
 	const fullUrl =
 		typeof window !== "undefined"
 			? new URL(previewUrl, window.location.origin).href
 			: previewUrl;
-	const iframeCode = `<iframe title="${title.replace(/"/g, "&quot;")}" src="${fullUrl}" width="1100" height="540" frameborder="0" allowfullscreen></iframe>`;
+	const iframeCode = buildPublicEmbedIframeCode(title, fullUrl);
 
 	function handleCopy() {
 		navigator.clipboard.writeText(iframeCode).then(() => {
@@ -275,13 +367,10 @@ export function ResourceDetailContent({
 	);
 	const exportSourceUrl = getResourceElpxFileUrl(resource);
 	const iframeRef = useRef<HTMLIFrameElement | null>(null);
-	// Relay de embeds del preview: vídeos/PDF promocionados a un player de
-	// confianza en el frame principal sin perder el origen opaco (ADR-0027).
+	// Preview iframe: el bridge compartido de eXeLearning (lado padre) superpone
+	// los players de vídeo/PDF cross-origin sobre el contenido de origen opaco y
+	// puentea el iDevice de vídeo interactivo. Paridad con mod_exelearning/wp/omeka.
 	const previewIframeRef = useRef<HTMLIFrameElement | null>(null);
-	const { activeEmbed, close: closeEmbed } = useElpxEmbedRelay(
-		previewIframeRef,
-		previewUrl,
-	);
 	const [exportReady, setExportReady] = useState(false);
 	const [exportingFormat, setExportingFormat] =
 		useState<ResourceExportKind | null>(null);
@@ -355,6 +444,46 @@ export function ResourceDetailContent({
 		window.addEventListener("message", handleMessage);
 		return () => window.removeEventListener("message", handleMessage);
 	}, [exportSourceUrl, onDownloadTracked, resource.slug, exportingFormat]);
+
+	// Conecta el bridge compartido de eXeLearning al iframe de preview: carga los
+	// scripts vendorizados (policy → relay → host) y, ya montado el iframe,
+	// inicializa el relay (overlay de vídeos/PDF cross-origin) una vez por página y
+	// engancha el host de vídeo interactivo a este iframe. El relay valida cada
+	// embed por sí mismo y pinta el overlay inline (sin modal React).
+	useEffect(() => {
+		if (!previewUrl) return;
+		const iframe = previewIframeRef.current;
+		if (!iframe) return;
+
+		let detach: (() => void) | undefined;
+		let cancelled = false;
+
+		void loadElpxBridge()
+			.then(() => {
+				if (cancelled) return;
+				const w = window as unknown as ExeBridgeWindow;
+				// El relay es global a la página: se inicializa una sola vez (registra
+				// listeners de message/scroll/resize y resuelve el iframe de contenido
+				// por identidad de ventana en cada mensaje).
+				if (w.exeEmbedRelay && !w.__exeEmbedRelayReady) {
+					w.exeEmbedRelay.init({ mode: configuredEmbedMode() });
+					w.__exeEmbedRelayReady = true;
+				}
+				// El host de vídeo interactivo es por-iframe: se engancha al montar y se
+				// desengancha al desmontar.
+				if (w.exeMediaHost) {
+					detach = w.exeMediaHost.attach(iframe, {}).detach;
+				}
+			})
+			.catch(() => {
+				/* carga del bridge fallida: la preview sigue funcionando sin overlay */
+			});
+
+		return () => {
+			cancelled = true;
+			if (detach) detach();
+		};
+	}, [previewUrl]);
 
 	const handleExport = useCallback(
 		(format: ResourceExportKind) => {
@@ -584,25 +713,20 @@ export function ResourceDetailContent({
 									ref={previewIframeRef}
 									src={previewUrl}
 									className="elpx-preview-iframe"
-									sandbox="allow-scripts allow-popups allow-popups-to-escape-sandbox"
+									sandbox={CONTENT_IFRAME_SANDBOX}
 									referrerPolicy="no-referrer"
 									loading="lazy"
 									title={m.detail_preview_iframe()}
 									onLoad={onPreviewOpened}
 								/>
 							</div>
-							<EmbedModal embed={activeEmbed} onClose={closeEmbed} />
 						</section>
 					) : null}
 
 					{/* Embed / Ponlo en tu web: solo lo publicado (#466). La vista
 					    previa de un borrador es un enlace firmado que caduca. */}
 					{hasPreview && resource.editorialStatus === "published" ? (
-						<EmbedSection
-							title={resource.title}
-							previewUrl={previewUrl}
-							slug={resource.slug}
-						/>
+						<EmbedSection title={resource.title} previewUrl={previewUrl} />
 					) : null}
 
 					{/* Description */}

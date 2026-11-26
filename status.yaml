@@ -66,6 +66,35 @@ blocking_adrs:
 
 tasks:
 
+  T-2026-10-21-11161410:
+    date: 2026-10-21
+    agent: "qa-validacion"
+    task: "Alinear el E2E de embeds de #430 con el bridge compartido de #317"
+    status: Done
+    related: ["#317", "#378", "#430", ADR-0027, ADR-0048]
+    notes: >
+      e2e-chromium fallaba en elpx-embed-facade.e2e.ts: el test de #430 busca la fachada de enlace,
+      el modal «Documento PDF» y el popup que escapa del sandbox, y este PR sustituye ese shim por el
+      artefacto vendorizado de eXe y quita allow-popups-to-escape-sandbox (auditoría H-1).
+      El caso de la ficha comprueba ahora el contrato de ADR-0048: el PDF del paquete queda como hueco
+      en el origen opaco y el padre lo superpone. «Ver online» y Padlet (modo strict) quedan sin
+      fachada hasta que se resuelva aguas arriba, como ya anotaba T-2026-10-21-07301313.
+      Validación: el spec en local con chromium, 3/3 en verde (--repeat-each=3).
+
+  T-2026-10-21-07301313:
+    date: 2026-10-21
+    agent: "frontend-ux-accesibilidad + qa-validacion"
+    task: "Actualizar #317 con main: recursos relacionados y test de CSP del editor"
+    status: Done
+    related: ["#317", "#325", "#430", ADR-0036]
+    notes: >
+      La reapertura había dejado la ficha sin «Recursos relacionados» (ADR-0036): se restaura igual que en main.
+      El test del editor seguía esperando object-src 'none'; #325 lo cambió a blob: para los PDF.
+      Del arreglo de #430 (fachada de Padlet/Canva/Genially y «Ver online») solo se trae la CSP sin frame-ancestors;
+      el resto vive en el shim que este PR sustituye por el artefacto vendorizado de eXe y debe resolverse aguas arriba.
+      Validación: lint, check-types, test:unit, test:integration y test:ui en verde.
+
+
   T-2026-10-21-07530473:
     date: 2026-10-21
     agent: "backend-api-servicios + frontend-ux-accesibilidad + qa-validacion"
@@ -2728,6 +2757,22 @@ tasks:
       desde administración, con sandbox sin allow-same-origin. Restaurar vuelve
       a exponer el ELPX restaurado como vigente.
 
+  T-2026-08-13-10530245:
+    date: 2026-08-13
+    agent: "backend-api-servicios + seguridad-privacidad-legal + qa-validacion + documentacion-y-roadmap"
+    task: "Integrar main (#324) en feature/secure-iframe-sandbox-reopen"
+    status: Done
+    related: ["#323", "#324", "#317", "ADR-0026"]
+    notes: >
+      Merge de origin/main. Conflictos solo en elpx-content.ts y su test, por
+      edición concurrente del mismo fichero: #324 extrae remainingPathAfter /
+      ELPX_HTML_CSP y bloquea hashes históricos; esta rama endurece la CSP
+      HTML (sin allow-popups-to-escape-sandbox) y afirma el shim vendorizado.
+      Resolución: se conservan ambos; ELPX_HTML_CSP queda como alias de
+      CONTENT_HTML_CSP. status.yaml auto-mergeó. Validación: bun test de
+      elpx-content, versions, public-version-access, ResourceVersionPanel y
+      resource-versions.integration (32 pass).
+
   T-2026-08-13-11414543:
     date: 2026-08-13
     agent: "backend-api-servicios + seguridad-privacidad-legal + qa-validacion"
@@ -3195,6 +3240,22 @@ tasks:
       elpx-content.unit.test.ts (rojo → verde). Deuda: no se traducen las
       URL asset:// dentro de jsonProperties (solo {{context_path}}).
 
+  T-2026-10-26-08023861:
+    date: 2026-10-26
+    agent: "frontend-ux-accesibilidad"
+    task: "#317 al día con main y fachada genérica junto al artefacto de eXe"
+    status: Done
+    related: ["#317", "#427", "#450", "ADR-0048", "ADR-0027"]
+    notes: >
+      Se integró main en #317. El artefacto vendorizado de eXe solo reconoce
+      YouTube, Vimeo, Dailymotion y la Mediateca de Madrid, así que Canva,
+      Padlet, Genially o MuseScore volvían a verse en blanco. Se añade
+      apps/api/static/elpx/embed-facade.js, inyectado después del artefacto,
+      que cambia por un enlace «Ver contenido de…» los iframe https externos
+      que no son PDF ni de un proveedor del artefacto, conservando el caso
+      posicionado de Canva (#450). Un test comprueba que la lista de hosts
+      excluidos coincide con el registro del artefacto. ADR-0048 lleva una
+      sección fechada con el orden de carga.
   T-2026-10-26-08073293:
     date: 2026-10-26
     agent: "frontend-ux-accesibilidad"
@@ -3500,6 +3561,52 @@ tasks:
       referencias en el CI. Validado reproduciendo el conflicto de #465 contra
       main: la union automatica da un status.yaml identico a la resolucion
       manual (diff vacio) y check-tracking lo acepta.
+  T-2026-11-03-10362970:
+    date: 2026-11-03
+    agent: "seguridad-privacidad-legal"
+    task: "#317 al día con main: vista previa firmada de #466 junto al origen opaco"
+    status: Done
+    related: ["#317", "#466", "#483", "ADR-0026", "ADR-0048"]
+    notes: >
+      Merge de main en la rama. Conflictos en elpx-content.ts (se registran
+      la ruta de embed-facade.js y la vista previa firmada
+      /api/v1/elpx/preview/<hash>/<token>/, las dos antes de "/:hash"), en
+      ResourceDetailIsland.tsx («Ponlo en tu web» solo en recursos
+      publicados, con el EmbedSection sin slug de este PR) y en
+      elpx-embed-facade.e2e.ts (los casos de este PR, con el paquete escrito
+      dentro del .elpx publicado del seed). La URL pública de un borrador
+      sigue dando 404 y la firmada se sirve con la misma CSP sandbox, el
+      artefacto de eXe y la fachada (test nuevo en
+      elpx-content-access.unit.test.ts, que falla sin la fachada). Se quita
+      un import sin uso y el /** de las exclusiones de biome. Validación
+      local: test:unit 1393 pass y 3 fail (los de #431, que también fallan
+      en el CI de main, aunque check-coverage no lo marca),
+      test:integration 22, test:ui 76, check-types limpio, lint sin errores
+      y e2e de Chromium 62 pass y 23 skip.
+  T-2026-11-03-11244470:
+    date: 2026-11-03
+    agent: "seguridad-privacidad-legal + documentacion-y-roadmap + qa-validacion"
+    task: "#317: numeración de ADR, redacción del token firmado en auditoría y sandbox de versiones"
+    status: Done
+    related: ["#317", "#466", "#511", "ADR-0035", "ADR-0038", "ADR-0048", "ADR-0027"]
+    notes: >
+      Correcciones de la revisión de #317. (1) La ADR del bridge de medios
+      compartido pasa de ADR-0033 (en main son las capturas de PR) a
+      ADR-0048, con entrada en decision-log.yaml y ADR-0027 supersedida por
+      ella; 0046 es de #481 y 0047 la usó #484. (2) Referencias viejas:
+      ADR-0030/0032/0034 eran la topología del preview, hoy ADR-0038, y la
+      e2e del editor apunta a ADR-0035; ADR-0018/0021 citadas en elpx son de
+      eXeLearning. (3) redactAuditPath cambia también el token de
+      /api/v1/elpx/preview/<hash>/<token>/ por :token y conserva el hash;
+      la API no tiene otro registro de rutas ni Sentry; el access log de
+      nginx de la etapa frontend queda anotado en preview-sessions.md.
+      (4) ResourceVersionPanel usa CONTENT_IFRAME_SANDBOX, sin
+      allow-popups-to-escape-sandbox; #511 no toca esos ficheros.
+      (5) Nota en ADR-0035 y una línea en routes.ts para no confundir
+      /api/v1/preview/ con /api/v1/elpx/preview/. Validación: test:unit
+      1398 pass y 3 fail (los de #431), test:integration 22, test:ui 76,
+      coverage 91,45 %, check-types, check-tracking, design:lint y lint
+      (sin la exclusión de .claude) sin errores.
   T-2026-11-03-12035185:
     date: 2026-11-03
     agent: "metadatos-y-curacion"

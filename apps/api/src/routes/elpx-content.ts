@@ -48,7 +48,8 @@ const MIME_TYPES: Record<string, string> = {
 // límite superior coincide con elpx_projects.hash varchar(64).
 const HASH_PATTERN = /^[a-f0-9-]{8,64}$/i;
 
-// Script de promoción de embeds inyectado en el HTML del .elpx (ADR-0027).
+// Script de promoción de embeds inyectado en el HTML del .elpx (ADR-0048, que
+// sustituye a ADR-0027).
 const EMBED_SHIM_URL = "/api/v1/elpx/embed-shim.js";
 // `crossorigin` para que el script se cargue en modo CORS: el contenido del
 // .elpx se ejecuta en origen opaco (ADR-0026) y es embebible cross-origin, así
@@ -56,11 +57,33 @@ const EMBED_SHIM_URL = "/api/v1/elpx/embed-shim.js";
 // el dev server de Vite los bloquea ("[Vite] Cross-origin requests for classic
 // scripts must be made with CORS mode enabled").
 const EMBED_SHIM_TAG = `<script src="${EMBED_SHIM_URL}" crossorigin="anonymous"></script>`;
+// Los bytes servidos son el artefacto CANÓNICO vendorizado desde eXeLearning
+// (eXe ADR-0021: bytes + manifiesto, verificados en CI contra el buildHash del core),
+// no una copia bespoke. La URL pública se mantiene porque ya está incrustada en
+// los paquetes servidos; lo que cambia es de dónde salen los bytes.
 const EMBED_SHIM_PATH = path.join(
 	import.meta.dir,
-	"../../static/elpx/embed-shim.js",
+	"../../static/elpx/exe_external_media/exe-external-media-child.min.js",
 );
 let embedShimCache: string | null = null;
+
+// Fachada genérica propia (ADR-0048, sección 2026-10-26): trata los <iframe>
+// https externos que el artefacto no reconoce (Canva, Padlet, Genially…). Se
+// inyecta DESPUÉS del artefacto y excluye sus proveedores y los PDF.
+const EMBED_FACADE_URL = "/api/v1/elpx/embed-facade.js";
+const EMBED_FACADE_TAG = `<script src="${EMBED_FACADE_URL}" crossorigin="anonymous"></script>`;
+const EMBED_FACADE_PATH = path.join(
+	import.meta.dir,
+	"../../static/elpx/embed-facade.js",
+);
+let embedFacadeCache: string | null = null;
+
+async function readEmbedFacade(): Promise<string> {
+	if (embedFacadeCache === null) {
+		embedFacadeCache = await Bun.file(EMBED_FACADE_PATH).text();
+	}
+	return embedFacadeCache;
+}
 
 async function readEmbedShim(): Promise<string> {
 	if (embedShimCache === null) {
@@ -68,6 +91,9 @@ async function readEmbedShim(): Promise<string> {
 	}
 	return embedShimCache;
 }
+
+/** Solo para tests: afirma QUÉ bytes se inyectan, sin levantar el servidor. */
+export const readEmbedShimForTest = readEmbedShim;
 
 // Añade crossorigin="anonymous" a los <script src="/api/v1/elpx/..."> propios
 // del paquete para que se carguen en modo CORS bajo el origen opaco.
@@ -81,11 +107,13 @@ export function addCrossOriginToLocalScripts(html: string): string {
 	);
 }
 
+// Orden de carga: primero el artefacto de eXe y después la fachada genérica.
 function injectEmbedShim(html: string): string {
+	const tags = `${EMBED_SHIM_TAG}${EMBED_FACADE_TAG}`;
 	if (html.includes("</head>")) {
-		return html.replace("</head>", `${EMBED_SHIM_TAG}</head>`);
+		return html.replace("</head>", `${tags}</head>`);
 	}
-	return `${EMBED_SHIM_TAG}${html}`;
+	return `${tags}${html}`;
 }
 
 function sanitizePath(raw: string): string | null {
@@ -277,16 +305,34 @@ function rewriteCssUrls(
 	);
 }
 
+// Content-Security-Policy for the served .elpx HTML document. The `sandbox` directive
+// forces an opaque origin (author JS runs but NOT as the authenticated platform origin),
+// even when the document is opened top-level. It deliberately omits `allow-same-origin`
+// and `allow-popups-to-escape-sandbox` (ADR-0026 + security audit H-1): a popup the
+// content opens must stay sandboxed, or an author-controlled same-origin document could
+// run script at the platform origin.
+// Sin `frame-ancestors` a propósito (ADR-0026, adenda 2026-10-14). Este HTML
+// es origen opaco y un iframe hijo del propio paquete (el reproductor de audio
+// de eXeLearning, una diapositiva…) tiene ese origen como ancestro. Chromium y
+// WebKit no lo casan con ninguna fuente, ni con `'self'` ni con `*`, y
+// bloquean el hijo. Sin la directiva carga, y «Ponlo en tu web» también.
+export const CONTENT_HTML_CSP =
+	"default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; media-src 'self' data: blob: https:; font-src 'self' data:; connect-src 'self'; frame-src 'self' https:; form-action 'self'; base-uri 'self'; sandbox allow-scripts allow-popups allow-forms";
+
 /**
  * CSP para activos de autor no-HTML (SVG, CSS, binarios…).
  *
  * `sandbox` sin tokens: origen opaco y sin scripts si el recurso se navega
  * como documento de primer nivel. Imprescindible para SVG (image/svg+xml),
- * que puede contener <script> y provocar XSS almacenado (ADR-0026).
+ * que puede contener <script> y provocar XSS almacenado (ADR-0026 + audit H-1).
  * `default-src 'none'` refuerza el aislamiento si el navegador interpreta el
- * recurso como documento con subrecursos.
+ * recurso como documento con subrecursos. Para subresource loads
+ * (<script>/<img>/<link>) el navegador ignora la CSP de la respuesta.
  */
 export const AUTHOR_ASSET_CSP = "sandbox; default-src 'none'";
+
+/** Alias histórico de la CSP de activos no-HTML (tests y llamadas previas). */
+export const CONTENT_ASSET_CSP = AUTHOR_ASSET_CSP;
 
 function authorAssetHeaders(contentType: string): Record<string, string> {
 	return {
@@ -298,13 +344,8 @@ function authorAssetHeaders(contentType: string): Record<string, string> {
 	};
 }
 
-// Sin `frame-ancestors` a propósito (ADR-0026, adenda 2026-10-14). Este HTML
-// es origen opaco y un iframe hijo del propio paquete (el reproductor de audio
-// de eXeLearning, una diapositiva…) tiene ese origen como ancestro. Chromium y
-// WebKit no lo casan con ninguna fuente, ni con `'self'` ni con `*`, y
-// bloquean el hijo. Sin la directiva carga, y «Ponlo en tu web» también.
-export const ELPX_HTML_CSP =
-	"default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; media-src 'self' data: blob: https:; font-src 'self' data:; connect-src 'self'; frame-src 'self' https:; form-action 'self'; base-uri 'self'; sandbox allow-scripts allow-popups allow-forms allow-popups-to-escape-sandbox";
+/** Alias de main (#323): el valor canónico es CONTENT_HTML_CSP (sin escape de sandbox). */
+export const ELPX_HTML_CSP = CONTENT_HTML_CSP;
 
 export const elpxContentRoutes = new Hono();
 
@@ -389,8 +430,10 @@ export async function serveElpxExtractedContent(options: {
 				// La directiva `sandbox` fuerza un origen opaco para el contenido de
 				// autor del .elpx: el JS sigue ejecutándose (interactividad) pero NO
 				// con el origen autenticado de la plataforma, aunque se abra en una
-				// pestaña nueva. Sin `allow-same-origin` a propósito (ADR-0026).
-				"Content-Security-Policy": ELPX_HTML_CSP,
+				// pestaña nueva. Sin `allow-same-origin` ni `allow-popups-to-escape-
+				// sandbox` a propósito (ADR-0026 + auditoría H-1): un popup abierto por
+				// el contenido debe seguir aislado.
+				"Content-Security-Policy": CONTENT_HTML_CSP,
 			},
 		});
 	}
@@ -489,6 +532,19 @@ function isRootScreenshot(rawFile: string): boolean {
 elpxContentRoutes.get("/embed-shim.js", async () => {
 	const shim = await readEmbedShim();
 	return new Response(shim, {
+		headers: {
+			"Content-Type": "application/javascript; charset=utf-8",
+			"X-Content-Type-Options": "nosniff",
+			"Cache-Control": "public, max-age=3600",
+			"Access-Control-Allow-Origin": "*",
+		},
+	});
+});
+
+// Ruta estática de la fachada genérica; también antes de "/:hash".
+elpxContentRoutes.get("/embed-facade.js", async () => {
+	const facade = await readEmbedFacade();
+	return new Response(facade, {
 		headers: {
 			"Content-Type": "application/javascript; charset=utf-8",
 			"X-Content-Type-Options": "nosniff",

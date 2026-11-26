@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
+import { CONTENT_IFRAME_SANDBOX } from "../lib/embed-sandbox.ts";
 import { getApiClient } from "../lib/get-api-client.ts";
 import { url } from "../lib/paths.ts";
 import type { ResourceVersionRecord } from "../lib/resource-version-api.ts";
@@ -37,7 +38,7 @@ export function ResourceVersionPreviewDialog({
 				className="resource-version-preview-iframe"
 				src={url(version.previewUrl.replace(/^\//, ""))}
 				title={`Contenido de la versión ${version.versionNumber}`}
-				sandbox="allow-scripts allow-popups allow-popups-to-escape-sandbox"
+				sandbox={CONTENT_IFRAME_SANDBOX}
 				referrerPolicy="no-referrer"
 			/>
 		</Dialog>
