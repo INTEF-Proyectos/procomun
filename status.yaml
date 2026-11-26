@@ -3500,6 +3500,23 @@ tasks:
       referencias en el CI. Validado reproduciendo el conflicto de #465 contra
       main: la union automatica da un status.yaml identico a la resolucion
       manual (diff vacio) y check-tracking lo acepta.
+  T-2026-11-03-12035185:
+    date: 2026-11-03
+    agent: "metadatos-y-curacion"
+    task: "ADR y diseño del flujo de revisión editorial y del sello «Validado»"
+    status: In Progress
+    related: ["#496", "#420", "#408", "#506", "#507", "#515", "ADR-0049", "ADR-0016", "ADR-0029", "ADR-0031", "ADR-0039"]
+    notes: >
+      ADR-0049 en estado Propuesto, con requirements, design y tasks en
+      docs/epics/epic-001-mvp-recursos-metadatos-minimos/features/feature-revision-editorial-sello-validado/.
+      Recomienda dos estados nuevos (correcciones solicitadas y rechazado),
+      hilo privado, historial transaccional, notificaciones con correo
+      opcional y el sello en columnas propias de resources. assignedCuratorId
+      no sirve como sello porque lo rellena cualquier cambio de estado. Con
+      #506, #507 y #515 casi todas las cuentas serán editor y publicarán sin
+      revisión: el sello se gana sobre todo validando lo publicado, y la
+      revisión previa queda para el rol author, que pasa a ser residual. Sin
+      código hasta que el equipo cierre las preguntas abiertas.
   T-2026-11-03-10331754:
     date: 2026-11-03
     agent: "ingestas-y-migraciones"

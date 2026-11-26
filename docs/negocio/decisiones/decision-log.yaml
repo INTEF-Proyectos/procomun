@@ -359,6 +359,25 @@ ADR-0046:
     por la URL estable solo si pertenece a un recurso publicado (public,
     max-age=3600); lo no publicado, por enlace firmado (private, no-store).
 
+ADR-0049:
+  title: "Flujo de revisión editorial, comentarios privados y sello «Validado»"
+  status: Propuesto
+  date: 2026-11-03
+  file: 0049-flujo-revision-editorial-y-sello-validado.md
+  notes: >
+    Issues #496 y #420. Propuesta: estados changes_requested y rejected
+    (pendiente y en revisión se distinguen por el curator asignado), acciones
+    por rol con motivo obligatorio, hilo privado resource_review_comments,
+    historial append-only resource_editorial_events en la misma transacción y
+    notificaciones propias con correo por EmailPort (ADR-0031). Sello en
+    columnas validated_at, validated_by y validation_source, no deducido de
+    assignedCuratorId. Importados con certified 1 y publicados llevan sello.
+    Con #506, #507 y #515 casi todos son editor y publican sin revisión, así
+    que el sello se gana sobre todo validando lo publicado: cola de publicados
+    sin validar y solicitud de validación del editor, sin pasar a review. La
+    revisión previa queda para author. Fase 1 con edición en vivo de los
+    publicados; fase 2 con cambios pendientes y published_version_id.
+
 ADR-0050:
   title: "Modelo de comunidades"
   status: Propuesto
