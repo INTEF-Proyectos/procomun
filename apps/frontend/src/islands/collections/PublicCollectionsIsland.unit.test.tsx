@@ -4,15 +4,19 @@ import type {
 	CollectionDetailRecord,
 	CollectionResourceRecord,
 } from "../../lib/api-client.ts";
+import { overwriteGetLocale } from "../../paraglide/runtime.js";
 import {
+	activeFilterCount,
 	CollectionDetailContent,
 	PublicCollectionsIsland,
+	pageOutOfRange,
 	readCollectionLocation,
 } from "./PublicCollectionsIsland.tsx";
 
 function renderCollectionDetail(
 	resource: Partial<CollectionResourceRecord>,
 	viewCount = 0,
+	extra: Partial<CollectionDetailRecord> = {},
 ): string {
 	const detail: CollectionDetailRecord = {
 		id: "col-1",
@@ -40,6 +44,7 @@ function renderCollectionDetail(
 				...resource,
 			},
 		],
+		...extra,
 	};
 	return renderToStaticMarkup(
 		<CollectionDetailContent detail={detail} onBack={() => {}} />,
@@ -59,16 +64,57 @@ describe("PublicCollectionsIsland", () => {
 
 		expect(html).toContain("Colecciones publicadas");
 		expect(html).toContain("Buscar por título o descripción");
+		expect(html).toContain("Filtros Avanzados");
 		expect(html).toContain("Cargando colecciones...");
+		// La paginación sigue montada mientras carga: el foco no se pierde.
+		expect(html).toContain('aria-label="Paginación de colecciones"');
 	});
 
 	test("lee el estado de colecciones desde la URL", () => {
 		expect(
-			readCollectionLocation("?q=matematicas&page=3&slug=algebra"),
-		).toEqual({
+			readCollectionLocation(
+				"?q=matematicas&page=3&slug=algebra&knowledgeAreas=matematicas&language=ca&tag=funciones&educationalCategory=educacion-primaria&educationalOption=primer-ciclo",
+			),
+		).toMatchObject({
 			query: "matematicas",
 			page: 3,
 			slug: "algebra",
+			knowledgeAreas: ["matematicas"],
+			language: "ca",
+			tag: "funciones",
+			educationalCategory: "educacion-primaria",
+			educationalOption: "primer-ciclo",
+		});
+	});
+
+	test("cuenta los filtros activos de un enlace filtrado (#629)", () => {
+		expect(activeFilterCount(readCollectionLocation("?q=algo&page=2"))).toBe(0);
+		expect(
+			activeFilterCount(
+				readCollectionLocation(
+					"?language=ca&tag=funciones&knowledgeAreas=matematicas,geografia&educationalCategory=educacion-primaria&educationalOption=primer-ciclo",
+				),
+			),
+		).toBe(5);
+	});
+
+	test("una página más allá de la última vuelve a la primera (#629)", () => {
+		expect(pageOutOfRange(2, 4)).toBe(true);
+		expect(pageOutOfRange(3, 27)).toBe(false);
+		expect(pageOutOfRange(4, 27)).toBe(true);
+		// Sin resultados, la primera página es la válida.
+		expect(pageOutOfRange(1, 0)).toBe(false);
+	});
+
+	test("descarta los filtros que solo tienen los recursos", () => {
+		expect(
+			readCollectionLocation(
+				"?resourceType=video&license=cc-by&professionalFamilies=sanidad",
+			),
+		).toMatchObject({
+			resourceType: "",
+			license: "",
+			professionalFamilies: [],
 		});
 	});
 
@@ -107,4 +153,28 @@ test("muestra el contador como parte de los metadatos de la ficha (#608)", () =>
 	expect(renderCollectionDetail({}, 0)).toContain("0 visitas");
 	expect(renderCollectionDetail({}, 1)).toContain("1 visita");
 	expect(renderCollectionDetail({}, 2)).toContain("2 visitas");
+});
+
+test("los rótulos de los detalles técnicos siguen el idioma de la interfaz (#623)", () => {
+	overwriteGetLocale(() => "en");
+	try {
+		const html = renderCollectionDetail({}, 0, {
+			language: "es",
+			catalogKeywords: [{ id: "k1", label: "Geometría" }],
+			knowledgeAreas: [{ id: "a1", label: "Matemáticas" }],
+		} as Partial<CollectionDetailRecord>);
+		expect(html).toContain("Technical Details");
+		expect(html).toContain("<dt>Language</dt>");
+		expect(html).toContain("<dt>Keywords</dt>");
+		expect(html).toContain("<dt>Knowledge areas</dt>");
+		expect(html).not.toContain("Detalles técnicos");
+	} finally {
+		overwriteGetLocale(() => "es");
+	}
+});
+
+test("la ficha presenta a quien creó la colección como autoría, no como «Curator» (#638)", () => {
+	const html = renderCollectionDetail({});
+	expect(html).toContain("Autoría: Curadora");
+	expect(html).not.toContain("Curator:");
 });

@@ -1,11 +1,32 @@
 import { and, asc, eq, inArray } from "drizzle-orm";
+import {
+	MAX_KNOWLEDGE_AREAS,
+	normalizeKnowledgeAreaKey,
+} from "../knowledge-areas.ts";
+import { mapLegacyEducationalCategories } from "../legacy-import/educational-category-map.ts";
 import type {
+	LegacyItineraryMetadata,
 	LegacyItineraryResourceRef,
 	MappedLegacyItinerary,
 } from "../legacy-import/itinerary.ts";
 import { LEGACY_IMPORT_SYSTEM_USER_ID } from "../legacy-import/system-user.ts";
-import { collectionResources, collections } from "../schema/collections.ts";
+import {
+	collectionKeywords,
+	collectionKnowledgeAreas,
+	collectionResources,
+	collections,
+	type LegacyImportedCollectionMetadata,
+} from "../schema/collections.ts";
 import { resources } from "../schema/resources.ts";
+import {
+	keywordIndex,
+	MAX_KEYWORD_SELECTIONS,
+	matchLegacyLabels,
+	normalizeKeywordKey,
+} from "../tags/keyword-catalog.ts";
+import { getCollectionById } from "./collections.ts";
+import { listKeywordCatalog } from "./keyword-catalog.ts";
+import { listKnowledgeAreas } from "./knowledge-areas.ts";
 import type { DrizzleDB } from "./shared.ts";
 
 export interface MissingLegacyCollectionResource
@@ -24,6 +45,201 @@ export type LegacyCollectionOwnerOutcome =
 	/** Alguien la reasignó a mano: no se toca. */
 	| "kept_owner";
 
+export type LegacyCollectionMetadataIssues = Partial<
+	Record<
+		keyof LegacyItineraryMetadata,
+		{
+			unmatched?: number;
+			ambiguous?: number;
+			overLimit?: boolean;
+			eleOutsideSpanish?: number;
+		}
+	>
+>;
+
+export async function loadLegacyCollectionMetadataCatalog(db: DrizzleDB) {
+	const [terms, activeAreas] = await Promise.all([
+		listKeywordCatalog(db),
+		listKnowledgeAreas(db),
+	]);
+	const areas = new Map(
+		activeAreas.map(({ id, label }) => [normalizeKnowledgeAreaKey(label), id]),
+	);
+	// Única equivalencia adicional: el plural del exportador (#615) y el
+	// área vigente de Tecnología representan la misma denominación curricular.
+	if (
+		activeAreas.some(({ id }) => id === "tecnologia") &&
+		!areas.has("tecnologias")
+	) {
+		areas.set("tecnologias", "tecnologia");
+	}
+	return { keywords: keywordIndex(terms), areas };
+}
+
+type MetadataCatalog = Awaited<
+	ReturnType<typeof loadLegacyCollectionMetadataCatalog>
+>;
+
+/**
+ * Lo que el origen trae por primera vez y la colección aún no tiene. Lo que
+ * el importador ya ofreció (`offered`) no vuelve: si falta, es que se quitó a
+ * mano (#628). `offered` sale ampliado salvo que no cupiera, para reintentarlo.
+ */
+function addCatalogMatches(
+	current: string[],
+	incoming: string[],
+	offered: string[],
+	max: number,
+) {
+	const fresh = [...new Set(incoming)].filter((id) => !offered.includes(id));
+	const added = fresh.filter((id) => !current.includes(id));
+	const overLimit = added.length > 0 && current.length + added.length > max;
+	return {
+		added: overLimit ? [] : added,
+		overLimit,
+		offered: overLimit ? offered : [...new Set([...offered, ...fresh])].sort(),
+	};
+}
+
+/** Para comparar: jsonb no conserva el orden de las claves. */
+function offeredKey(offered: LegacyImportedCollectionMetadata) {
+	return JSON.stringify([
+		offered.knowledgeAreaIds,
+		offered.keywordIds,
+		offered.educationalAreas,
+	]);
+}
+
+const NOTHING_OFFERED: LegacyImportedCollectionMetadata = {
+	knowledgeAreaIds: [],
+	keywordIds: [],
+	educationalAreas: false,
+};
+
+function resolveCollectionMetadata(
+	metadata: LegacyItineraryMetadata,
+	catalog: MetadataCatalog,
+	current: Awaited<ReturnType<typeof getCollectionById>>,
+	offered: LegacyImportedCollectionMetadata,
+) {
+	const issues: LegacyCollectionMetadataIssues = {};
+	const areaKeys = [
+		...new Set(metadata.knowledgeArea.map(normalizeKnowledgeAreaKey)),
+	].filter(Boolean);
+	const areaIds = areaKeys.flatMap((key) => catalog.areas.get(key) ?? []);
+	const areas = addCatalogMatches(
+		current?.knowledgeAreas.map(({ id }) => id) ?? [],
+		areaIds,
+		offered.knowledgeAreaIds,
+		MAX_KNOWLEDGE_AREAS,
+	);
+	const unmatchedAreas = areaKeys.length - areaIds.length;
+	if (unmatchedAreas || areas.overLimit) {
+		issues.knowledgeArea = {
+			...(unmatchedAreas ? { unmatched: unmatchedAreas } : {}),
+			...(areas.overLimit ? { overLimit: true } : {}),
+		};
+	}
+
+	const labels = matchLegacyLabels(metadata.labelsStr, catalog.keywords);
+	const unmatchedLabels = new Set(labels.unmatched.map(normalizeKeywordKey))
+		.size;
+	const ambiguousLabels = new Set(labels.ambiguous.map(normalizeKeywordKey))
+		.size;
+	const keywords = addCatalogMatches(
+		current?.catalogKeywords.map(({ id }) => id) ?? [],
+		labels.ids,
+		offered.keywordIds,
+		MAX_KEYWORD_SELECTIONS,
+	);
+	if (unmatchedLabels || ambiguousLabels || keywords.overLimit) {
+		issues.labelsStr = {
+			...(unmatchedLabels ? { unmatched: unmatchedLabels } : {}),
+			...(ambiguousLabels ? { ambiguous: ambiguousLabels } : {}),
+			...(keywords.overLimit ? { overLimit: true } : {}),
+		};
+	}
+
+	const contexts = mapLegacyEducationalCategories(
+		metadata.learningContext,
+		current?.language,
+	);
+	if (contexts.unrecognized.length || contexts.eleOutsideSpanish.length) {
+		issues.learningContext = {
+			...(contexts.unrecognized.length
+				? { unmatched: contexts.unrecognized.length }
+				: {}),
+			...(contexts.eleOutsideSpanish.length
+				? { eleOutsideSpanish: contexts.eleOutsideSpanish.length }
+				: {}),
+		};
+	}
+	const educationalAreas =
+		!offered.educationalAreas &&
+		!current?.educationalAreas.length &&
+		contexts.assignments.length
+			? contexts.assignments
+			: undefined;
+	return {
+		issues,
+		fields: {
+			knowledgeAreaIds: areas.added,
+			keywordIds: keywords.added,
+			educationalAreas,
+		},
+		offered: {
+			knowledgeAreaIds: areas.offered,
+			keywordIds: keywords.offered,
+			educationalAreas:
+				offered.educationalAreas || contexts.assignments.length > 0,
+		},
+	};
+}
+
+type ResolvedMetadata = ReturnType<typeof resolveCollectionMetadata>;
+
+function metadataFieldsChanged(fields: ResolvedMetadata["fields"]) {
+	return (
+		fields.knowledgeAreaIds.length > 0 ||
+		fields.keywordIds.length > 0 ||
+		!!fields.educationalAreas
+	);
+}
+
+/**
+ * Escribe los metadatos importados. Las áreas y las palabras clave se
+ * insertan, no se sustituye el conjunto: lo calculado sale de una lectura
+ * anterior a la transacción y reemplazar pisaría una edición simultánea.
+ */
+async function applyImportedMetadata(
+	tx: DrizzleDB,
+	collectionId: string,
+	{ fields, offered }: ResolvedMetadata,
+) {
+	if (fields.keywordIds.length)
+		await tx
+			.insert(collectionKeywords)
+			.values(fields.keywordIds.map((tagId) => ({ collectionId, tagId })))
+			.onConflictDoNothing();
+	if (fields.knowledgeAreaIds.length)
+		await tx
+			.insert(collectionKnowledgeAreas)
+			.values(
+				fields.knowledgeAreaIds.map((areaId) => ({ collectionId, areaId })),
+			)
+			.onConflictDoNothing();
+	await tx
+		.update(collections)
+		.set({
+			legacyImportedMetadata: offered,
+			...(fields.educationalAreas
+				? { educationalAreas: fields.educationalAreas }
+				: {}),
+			...(metadataFieldsChanged(fields) ? { updatedAt: new Date() } : {}),
+		})
+		.where(eq(collections.id, collectionId));
+}
+
 export interface ImportLegacyCollectionResult {
 	outcome:
 		| "created"
@@ -36,6 +252,7 @@ export interface ImportLegacyCollectionResult {
 	owner: LegacyCollectionOwnerOutcome;
 	linkedResources: number;
 	missingResources: MissingLegacyCollectionResource[];
+	metadataIssues?: LegacyCollectionMetadataIssues;
 }
 
 async function resolveResources(
@@ -123,7 +340,7 @@ function sameList(a: string[], b: string[]) {
 export async function importLegacyCollection(
 	db: DrizzleDB,
 	input: { itinerary: MappedLegacyItinerary; ownerId: string | null },
-	options: { dryRun: boolean },
+	options: { dryRun: boolean; metadataCatalog?: MetadataCatalog },
 ): Promise<ImportLegacyCollectionResult> {
 	const { itinerary, ownerId } = input;
 	const { resourceIds, missing } = await resolveResources(
@@ -131,11 +348,6 @@ export async function importLegacyCollection(
 		itinerary.importSource,
 		itinerary.resources,
 	);
-	const base = {
-		linkedResources: resourceIds.length,
-		missingResources: missing,
-	};
-
 	const [existing] = await db
 		.select({
 			id: collections.id,
@@ -144,6 +356,7 @@ export async function importLegacyCollection(
 			publishedAt: collections.publishedAt,
 			curatorId: collections.curatorId,
 			editorialStatus: collections.editorialStatus,
+			legacyImportedMetadata: collections.legacyImportedMetadata,
 		})
 		.from(collections)
 		.where(
@@ -153,6 +366,32 @@ export async function importLegacyCollection(
 			),
 		)
 		.limit(1);
+
+	const hasMetadata = Object.values(itinerary.metadata).some(
+		(values) => values.length,
+	);
+	const metadata = hasMetadata
+		? resolveCollectionMetadata(
+				itinerary.metadata,
+				options.metadataCatalog ??
+					(await loadLegacyCollectionMetadataCatalog(db)),
+				existing ? await getCollectionById(db, existing.id) : null,
+				existing?.legacyImportedMetadata ?? NOTHING_OFFERED,
+			)
+		: undefined;
+	const metadataChanged = !!metadata && metadataFieldsChanged(metadata.fields);
+	// Apuntar lo ofrecido no cambia nada visible: no cuenta como actualización.
+	const offeredChanged =
+		!!metadata &&
+		offeredKey(metadata.offered) !==
+			offeredKey(existing?.legacyImportedMetadata ?? NOTHING_OFFERED);
+	const base = {
+		linkedResources: resourceIds.length,
+		missingResources: missing,
+		...(metadata && Object.keys(metadata.issues).length > 0
+			? { metadataIssues: metadata.issues }
+			: {}),
+	};
 
 	if (!existing) {
 		const owner: LegacyCollectionOwnerOutcome = ownerId ? "owner" : "system";
@@ -177,6 +416,7 @@ export async function importLegacyCollection(
 				updatedAt: now,
 			});
 			await replaceResources(tx, id, resourceIds);
+			if (metadata) await applyImportedMetadata(tx, id, metadata);
 		});
 		return { ...base, outcome: "created", collectionId: id, owner };
 	}
@@ -199,7 +439,14 @@ export async function importLegacyCollection(
 		resourceIds,
 	);
 
-	if (!contentChanged && !resourcesChanged && owner !== "linked") {
+	if (
+		!contentChanged &&
+		!resourcesChanged &&
+		!metadataChanged &&
+		owner !== "linked"
+	) {
+		if (metadata && offeredChanged && !options.dryRun)
+			await applyImportedMetadata(db, existing.id, metadata);
 		return { ...base, outcome: "unchanged", collectionId: existing.id, owner };
 	}
 	if (options.dryRun) {
@@ -247,6 +494,8 @@ export async function importLegacyCollection(
 		if (resourcesChanged) {
 			await replaceResources(tx, existing.id, resourceIds);
 		}
+		if (metadata && (metadataChanged || offeredChanged))
+			await applyImportedMetadata(tx, existing.id, metadata);
 	});
 	return {
 		...base,

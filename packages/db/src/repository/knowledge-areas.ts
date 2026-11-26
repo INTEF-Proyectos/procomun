@@ -265,11 +265,12 @@ export async function assertResourceKnowledgeAreaIds(
 	db: DrizzleDB,
 	resourceId: string | null,
 	areaIds: unknown,
+	keep?: readonly string[],
 ): Promise<string[]> {
 	const selection = validateKnowledgeAreaSelection(areaIds);
 	if (!selection.ok) throw badRequest(selection.message, KNOWLEDGE_AREA_FIELD);
 	if (selection.ids.length === 0) return [];
-	const current = await currentResourceAreaIds(db, resourceId);
+	const current = keep ?? (await currentResourceAreaIds(db, resourceId));
 	const found = await db
 		.select({ id: knowledgeAreas.id, active: knowledgeAreas.active })
 		.from(knowledgeAreas)

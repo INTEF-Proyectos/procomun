@@ -377,6 +377,7 @@
 	"knowledge_areas_search": "Search for an area",
 	"knowledge_areas_help": "Choose up to {max}. At least one is required to submit for review or publish.",
 	"knowledge_areas_max": "You have already chosen {max} areas, the maximum. Remove one to add another.",
+	"collections_knowledge_areas_filter_help": "Collections with any of the selected areas.",
 	"knowledge_areas_filter_help": "Resources with any of the chosen areas.",
 	"professional_families_label": "Professional family",
 	"professional_families_search": "Search for a family",
@@ -459,5 +460,12 @@
 	"my_resources_delete_confirm": "Are you sure you want to delete “{title}”? The whole resource will be removed and this cannot be undone.",
 	"my_resources_deleting": "Deleting…",
 	"my_resources_deleted": "“{title}” has been deleted.",
-	"my_resources_delete_error": "“{title}” could not be deleted."
+	"my_resources_delete_error": "“{title}” could not be deleted.",
+	"collection_detail_keywords": "Keywords",
+	"collection_detail_educational": "Educational stage, programme or field",
+	"knowledge_areas_load_error": "The knowledge areas could not be loaded.",
+	"knowledge_areas_retry": "Retry",
+	"collections_filters_active_one": "1 active filter",
+	"collections_filters_active_other": "{count} active filters",
+	"collections_knowledge_areas_help": "Choose up to {max}."
 }
