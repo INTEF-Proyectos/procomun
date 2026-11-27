@@ -2,7 +2,7 @@ import { afterAll, describe, expect, it, setDefaultTimeout } from "bun:test";
 import { mkdir, rm, symlink, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
-import { generateElpxFromFiles } from "./elpx-generator.ts";
+import { generateElpxFromFiles, listElpxThemes } from "./elpx-generator.ts";
 import { parseElpxMetadata, processElpxUpload } from "./elpx-processor.ts";
 
 const TEMP_DIR = path.join(os.tmpdir(), `procomun-gen-tests-${Date.now()}`);
@@ -334,5 +334,162 @@ describe("generateElpxFromFiles", () => {
 		expect(xml).toContain("&quot;");
 		// Must not contain raw < or > inside the value (would break XML)
 		expect(xml).not.toContain("<value>Título <");
+	});
+});
+
+// Editor eXeLearning de mentira: solo los ficheros que copia el generador.
+async function makeFakeEditor(name: string): Promise<string> {
+	const dir = path.join(TEMP_DIR, name);
+	const files: Record<string, string> = {
+		"files/perm/themes/base/base/config.xml":
+			"<theme><name>base</name><title>Default</title></theme>",
+		"files/perm/themes/base/base/style.css": "/* estilo base */",
+		"files/perm/themes/base/base/style.js": "",
+		"files/perm/themes/base/neo/config.xml":
+			"<theme><name>neo</name><title>Neo</title></theme>",
+		"files/perm/themes/base/neo/style.css": "/* estilo neo */",
+		"files/perm/themes/base/neo/style.js": "",
+		"files/perm/themes/base/neo/icons/info.png": "png",
+		"files/perm/idevices/base/text/export/text.css": "/* text */",
+		"files/perm/idevices/base/text/export/text.js": "",
+		"libs/jquery/jquery.min.js": "",
+		"libs/bootstrap/bootstrap.min.css": "",
+		"libs/bootstrap/bootstrap.bundle.min.js": "",
+		"app/common/common.js": "",
+		"app/common/common_i18n.js": "",
+		"app/common/exe_export.js": "",
+		"favicon.ico": "",
+		"style/workarea/base.css": "/* base.css */",
+	};
+	for (const [rel, content] of Object.entries(files)) {
+		await mkdir(path.dirname(path.join(dir, rel)), { recursive: true });
+		await writeFile(path.join(dir, rel), content);
+	}
+	return dir;
+}
+
+async function zipEntries(zip: string): Promise<string[]> {
+	const out = await new Response(
+		Bun.spawn(["unzip", "-Z1", zip], { stdout: "pipe" }).stdout,
+	).text();
+	return out.split("\n").filter(Boolean);
+}
+
+async function zipText(zip: string, entry: string): Promise<string> {
+	return new Response(
+		Bun.spawn(["unzip", "-p", zip, entry], { stdout: "pipe" }).stdout,
+	).text();
+}
+
+describe("estilos de eXeLearning en el paquete generado (#653)", () => {
+	it("lista los estilos del editor con su título", async () => {
+		const editor = await makeFakeEditor("editor-lista");
+		expect(await listElpxThemes(editor)).toEqual([
+			{ name: "base", title: "Default" },
+			{ name: "neo", title: "Neo" },
+		]);
+	});
+
+	it("sin editor no hay estilos que listar", async () => {
+		expect(await listElpxThemes(path.join(TEMP_DIR, "no-existe"))).toEqual([]);
+	});
+
+	it("usa el estilo base por defecto, con la estructura del export de eXeLearning", async () => {
+		const editorStaticDir = await makeFakeEditor("editor-base");
+		const outputPath = path.join(TEMP_DIR, "estilo-base.elpx");
+
+		await generateElpxFromFiles({
+			title: "Con estilo",
+			files: [],
+			outputPath,
+			editorStaticDir,
+		});
+
+		const entries = await zipEntries(outputPath);
+		for (const entry of [
+			"theme/style.css",
+			"theme/config.xml",
+			"libs/jquery/jquery.min.js",
+			"libs/bootstrap/bootstrap.min.css",
+			"libs/common.js",
+			"libs/exe_export.js",
+			"content/css/base.css",
+			"idevices/text/text.css",
+		]) {
+			expect(entries).toContain(entry);
+		}
+		expect(await zipText(outputPath, "theme/style.css")).toBe(
+			"/* estilo base */",
+		);
+		const html = await zipText(outputPath, "index.html");
+		expect(html).toContain('href="theme/style.css"');
+		expect(html).toContain('href="content/css/base.css"');
+		expect(html).toContain('class="exe-export exe-web-site"');
+		expect((await parseElpxMetadata(outputPath)).theme).toBe("base");
+	});
+
+	it("copia el estilo elegido y lo declara en content.xml", async () => {
+		const editorStaticDir = await makeFakeEditor("editor-neo");
+		const outputPath = path.join(TEMP_DIR, "estilo-neo.elpx");
+
+		await generateElpxFromFiles({
+			title: "Neo",
+			files: [],
+			outputPath,
+			theme: "neo",
+			editorStaticDir,
+		});
+
+		expect(await zipText(outputPath, "theme/style.css")).toBe(
+			"/* estilo neo */",
+		);
+		expect(await zipEntries(outputPath)).toContain("theme/icons/info.png");
+		expect((await parseElpxMetadata(outputPath)).theme).toBe("neo");
+	});
+
+	it("rechaza un estilo que no existe o con salto de ruta", async () => {
+		const editorStaticDir = await makeFakeEditor("editor-malo");
+		for (const theme of ["inventado", "../base", "neo/../../x"]) {
+			await expect(
+				generateElpxFromFiles({
+					title: "x",
+					files: [],
+					outputPath: path.join(TEMP_DIR, "malo.elpx"),
+					theme,
+					editorStaticDir,
+				}),
+			).rejects.toThrow("Estilo no disponible");
+		}
+	});
+
+	it("sin editor descargado genera el paquete sin estilo pero declara base", async () => {
+		const outputPath = path.join(TEMP_DIR, "sin-editor.elpx");
+
+		await generateElpxFromFiles({
+			title: "Sin editor",
+			files: [],
+			outputPath,
+			editorStaticDir: path.join(TEMP_DIR, "no-existe"),
+		});
+
+		expect(await zipEntries(outputPath)).not.toContain("theme/style.css");
+		expect((await parseElpxMetadata(outputPath)).theme).toBe("base");
+	});
+
+	it("un adjunto llamado como una carpeta del paquete no la pisa", async () => {
+		const editorStaticDir = await makeFakeEditor("editor-colision");
+		const libs = await makeTempFile("colision", "libs", "adjunto");
+		const outputPath = path.join(TEMP_DIR, "colision.elpx");
+
+		await generateElpxFromFiles({
+			title: "Colisión",
+			files: [{ filename: "libs", filePath: libs }],
+			outputPath,
+			editorStaticDir,
+		});
+
+		const entries = await zipEntries(outputPath);
+		expect(entries).toContain("libs/common.js");
+		expect(entries).toContain("libs-adjunto");
 	});
 });

@@ -67,8 +67,48 @@ type ElpxProject = {
 		author: string;
 		license: string;
 		language: string;
+		theme?: string;
 	} | null;
 } | null;
+
+/**
+ * Regenera el .elpx del recurso y refresca la vista previa sin recargar la
+ * página (DEF-008). Sin `theme`, el servidor conserva el estilo actual (#653).
+ */
+async function regenerateElpx(
+	api: Awaited<ReturnType<typeof getApiClient>>,
+	id: string,
+	doneText: string,
+	theme?: string,
+) {
+	const statusEl = document.getElementById("elpx-auto-status");
+	if (!statusEl) return;
+	statusEl.textContent = "Generando paquete .elpx...";
+	statusEl.className = "edit-upload-status edit-upload-loading";
+	statusEl.style.display = "block";
+	try {
+		const result = await api.generateElpx(id, theme);
+		statusEl.textContent = doneText;
+		statusEl.className = "edit-upload-status edit-upload-success";
+		setTimeout(() => {
+			statusEl.style.display = "none";
+		}, 5000);
+
+		const iframe = document.querySelector<HTMLIFrameElement>(
+			".edit-preview-iframe",
+		);
+		if (iframe && result.previewUrl) {
+			iframe.src = result.previewUrl;
+		} else if (iframe && !result.previewUrl) {
+			// No preview available anymore – hide the section
+			const section = iframe.closest(".edit-preview-section");
+			if (section) (section as HTMLElement).style.display = "none";
+		}
+	} catch (err) {
+		statusEl.textContent = `Error al generar .elpx: ${(err as Error).message || "Error desconocido"}`;
+		statusEl.className = "edit-upload-status edit-upload-error";
+	}
+}
 
 function formatDate(d: string | number | Date | null | undefined) {
 	if (!d) return "";
@@ -90,6 +130,10 @@ export default function EditarPage() {
 	);
 	const [resource, setResource] = useState<Resource | null>(null);
 	const [elpx, setElpx] = useState<ElpxProject>(null);
+	const [elpxThemes, setElpxThemes] = useState<
+		{ name: string; title: string }[]
+	>([]);
+	const [elpxTheme, setElpxTheme] = useState("base");
 	const [userRole, setUserRole] = useState("reader");
 	const [catalogKeywords, setCatalogKeywords] = useState<CatalogKeyword[]>([]);
 	const [sessionUser, setSessionUser] = useState<SessionUser | null>(null);
@@ -338,8 +382,14 @@ export default function EditarPage() {
 					.then(setAreaCatalog)
 					.catch(() => {});
 				setElpx(elpxData);
+				setElpxTheme(elpxData?.metadata?.theme || "base");
+				api
+					.getElpxThemes()
+					.then(setElpxThemes)
+					.catch(() => {});
 				setUserRole(role);
 				setSessionUser(session.user);
+				setSaveBtnText(isNew ? "Crear recurso" : "Guardar cambios");
 				setState("ready");
 			} catch {
 				setState("notfound");
@@ -347,8 +397,9 @@ export default function EditarPage() {
 		}
 
 		init();
-		// eslint-disable-next-line react-hooks/exhaustive-deps
-	}, [resourceId]);
+		// Al crear el recurso la URL pierde `&new=1` y hay que recargarlo para
+		// ver la vista previa generada.
+	}, [resourceId, isNew]);
 
 	// El subidor se monta en un efecto, cuando React ya ha pintado el panel.
 	// Con un setTimeout(0) tras setState("ready"), en producción el panel aún
@@ -376,40 +427,14 @@ export default function EditarPage() {
 				api,
 				onUploadComplete: isNew
 					? undefined
-					: async (count) => {
-							const statusEl = document.getElementById("elpx-auto-status");
-							if (!statusEl) return;
-							statusEl.textContent = "Generando paquete .elpx...";
-							statusEl.className = "edit-upload-status edit-upload-loading";
-							statusEl.style.display = "block";
-							try {
-								const result = await api.generateElpx(id);
-								statusEl.textContent =
-									count > 0
-										? `${count} archivo${count !== 1 ? "s" : ""} subido${count !== 1 ? "s" : ""}. Paquete .elpx actualizado.`
-										: "Paquete .elpx actualizado.";
-								statusEl.className = "edit-upload-status edit-upload-success";
-								setTimeout(() => {
-									statusEl.style.display = "none";
-								}, 5000);
-
-								// Refresh the preview iframe with the new URL so deleted
-								// files disappear without a full page reload (DEF-008).
-								const iframe = document.querySelector<HTMLIFrameElement>(
-									".edit-preview-iframe",
-								);
-								if (iframe && result.previewUrl) {
-									iframe.src = result.previewUrl;
-								} else if (iframe && !result.previewUrl) {
-									// No preview available anymore – hide the section
-									const section = iframe.closest(".edit-preview-section");
-									if (section) (section as HTMLElement).style.display = "none";
-								}
-							} catch (err) {
-								statusEl.textContent = `Error al generar .elpx: ${(err as Error).message || "Error desconocido"}`;
-								statusEl.className = "edit-upload-status edit-upload-error";
-							}
-						},
+					: (count) =>
+							regenerateElpx(
+								api,
+								id,
+								count > 0
+									? `${count} archivo${count !== 1 ? "s" : ""} subido${count !== 1 ? "s" : ""}. Paquete .elpx actualizado.`
+									: "Paquete .elpx actualizado.",
+							),
 			});
 			if (cancelled) uploader?.destroy();
 		})();
@@ -486,7 +511,7 @@ export default function EditarPage() {
 
 			if (isNew) {
 				setSaveBtnText("Generando .elpx...");
-				await api.generateElpx(resource.id);
+				await api.generateElpx(resource.id, elpxTheme);
 				navigate(
 					url(`editar?id=${resource.id}`).replace(window.location.origin, ""),
 				);
@@ -792,6 +817,33 @@ export default function EditarPage() {
 								className="edit-files-section"
 							>
 								<h3>Archivos adjuntos</h3>
+								{elpxThemes.length > 1 && (
+									<div className="edit-field">
+										<label htmlFor="ed-elpx-theme">Estilo del recurso</label>
+										<select
+											id="ed-elpx-theme"
+											value={elpxTheme}
+											onChange={async (e) => {
+												const theme = e.target.value;
+												setElpxTheme(theme);
+												// Al crear, el estilo se aplica al guardar.
+												if (isNew) return;
+												await regenerateElpx(
+													await getApiClient(),
+													res.id,
+													"Estilo aplicado. Paquete .elpx actualizado.",
+													theme,
+												);
+											}}
+										>
+											{elpxThemes.map((t) => (
+												<option key={t.name} value={t.name}>
+													{t.title}
+												</option>
+											))}
+										</select>
+									</div>
+								)}
 								<div
 									data-upload-dropzone
 									className="edit-dropzone"

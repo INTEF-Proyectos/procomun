@@ -53,3 +53,12 @@ En desarrollo
 - [x] Alinear permisos de uploads resumables para que `editor` pueda adjuntar ficheros a recursos creados por el propio editor.
 - [x] Añadir regresión TypeScript en el helper `canManageResourceUpload()`.
 - [x] Añadir test de integración TUS para alta manual + subida PDF con rol `editor`.
+
+## Actualización 2026-11-27 — issue #653
+
+### Estilos de eXeLearning en el `.elpx` generado
+- [x] Copiar al paquete generado el estilo elegido, `libs/`, `content/css/base.css` e `idevices/text/` desde el editor eXeLearning de la imagen.
+- [x] Montar `index.html` con la estructura del export web de eXeLearning y declarar `pp_theme` en `content.xml`.
+- [x] `GET /api/admin/elpx/themes` y `theme` opcional en `POST /api/admin/elpx/generate/:id` (sin él se conserva el estilo actual o `base`).
+- [x] Selector «Estilo del recurso» en la edición; al cambiarlo se regenera el paquete.
+- [x] Tests TypeScript del generador (editor simulado) y de la ruta.
