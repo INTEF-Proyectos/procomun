@@ -17,6 +17,12 @@ export const TEST_USERS = {
 		name: "Ivonne Montesdeoca",
 		role: "curator",
 	},
+	editor: {
+		email: "editor@example.com",
+		password: "password",
+		name: "Leo Reina",
+		role: "editor",
+	},
 	author: {
 		email: "author@example.com",
 		password: "password",

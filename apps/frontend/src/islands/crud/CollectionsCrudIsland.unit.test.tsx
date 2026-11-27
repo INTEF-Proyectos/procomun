@@ -1,12 +1,17 @@
 import { describe, expect, test } from "bun:test";
 import type { ReactElement, ReactNode } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import type { CatalogKeyword, CollectionRecord } from "../../lib/api-client.ts";
+import type {
+	CatalogKeyword,
+	CollectionRecord,
+	Resource,
+} from "../../lib/api-client.ts";
 import {
 	buildCollectionColumns,
 	CollectionsCrudIsland,
 	changedFields,
 	createErrorMessage,
+	mergeResourceCandidates,
 	metadataPayload,
 } from "./CollectionsCrudIsland.tsx";
 
@@ -36,12 +41,38 @@ describe("CollectionsCrudIsland", () => {
 		const html = renderToStaticMarkup(<CollectionsCrudIsland />);
 
 		expect(html).toContain("Nueva coleccion");
-		expect(html).toContain("Cargando colecciones...");
-		expect(html).toContain("Titulo o descripcion");
+		expect(html).toContain("Cargando");
+		expect(html).toContain("Título o descripción");
 		expect(html).toContain("Crear coleccion");
 		expect(html).toContain("No hay colecciones para los filtros actuales.");
 		expect(html).toContain("admin-inline-form");
 		expect(html).toContain("admin-table");
+	});
+
+	test("el propietario sin colecciones ve un aviso en lugar de «filtros actuales» (revisión de #624)", () => {
+		const html = renderToStaticMarkup(
+			<CollectionsCrudIsland user={{ id: "user-1", role: "author" }} />,
+		);
+		expect(html).toContain("Todavía no tienes colecciones.");
+		expect(html).not.toContain("No hay colecciones para los filtros actuales.");
+	});
+
+	test("oculta el alta y el borrado para propietarios sin rol de curación", () => {
+		const user = { id: "user-1", role: "editor" };
+		const html = renderToStaticMarkup(<CollectionsCrudIsland user={user} />);
+		expect(html).not.toContain("Nueva coleccion");
+		const columns = buildCollectionColumns({
+			busyLoadEdit: false,
+			onEdit: () => undefined,
+			onDelete: () => undefined,
+			user,
+		});
+		const actions = columns.find((column) => column.id === "actions");
+		expect(renderCell(actions?.cell(sample))).toContain("Editar");
+		expect(renderCell(actions?.cell(sample))).not.toContain("Eliminar");
+		expect(
+			renderCell(actions?.cell({ ...sample, curatorId: "otro" })),
+		).not.toContain("Editar");
 	});
 
 	test("celdas compactas: tipografía, truncado accesible y acciones con aria-label (#304)", () => {
@@ -165,5 +196,38 @@ describe("CollectionsCrudIsland", () => {
 			language: null,
 			keywordIds: [],
 		});
+	});
+});
+
+describe("mergeResourceCandidates (#575)", () => {
+	const resource = (id: string) => ({ id, title: id }) as unknown as Resource;
+
+	test("quita duplicados y excluidos", () => {
+		const merged = mergeResourceCandidates(
+			[
+				[resource("a"), resource("b"), resource("enlazado")],
+				[resource("b"), resource("c"), resource("d")],
+			],
+			new Set(["enlazado"]),
+		);
+		expect(merged.map((item) => item.id)).toEqual(["a", "b", "c", "d"]);
+	});
+
+	test("ocho resultados propios no ocultan el del catálogo público (#624)", () => {
+		const own = Array.from({ length: 8 }, (_, i) => resource(`propio-${i}`));
+		const merged = mergeResourceCandidates(
+			[own, [resource("publico")]],
+			new Set(),
+		);
+		expect(merged).toHaveLength(9);
+		expect(merged.at(-1)?.id).toBe("publico");
+	});
+
+	test("vale con una sola lista cuando la otra búsqueda falla", () => {
+		expect(
+			mergeResourceCandidates([[resource("a")]], new Set()).map(
+				(item) => item.id,
+			),
+		).toEqual(["a"]);
 	});
 });

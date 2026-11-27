@@ -5190,6 +5190,28 @@ tasks:
       Se conservan las secciones de seguimiento del perfil ampliado y
       de la atribución histórica por UID. Pasan 110 pruebas de importación,
       reenlace y autoría con datos sintéticos, además de tipos y Biome.
+  T-2026-11-21-00293529:
+    date: 2026-11-21
+    agent: "frontend-ux-accesibilidad + backend-api-servicios + qa-validacion"
+    task: "Gestionar desde el perfil los itinerarios importados propios"
+    status: Done
+    related: ["#575", "#432", ADR-0008]
+    notes: >
+      Los autores y editores que tienen colecciones propias ven una pestaña
+      en el perfil. El editor compartido permite modificar datos, gestionar
+      recursos y enviar borradores a revisión con los permisos de la API.
+      Se validaron seis escenarios en Chromium, además de la edición y el
+      envío a revisión de una colección real en una base local de pruebas.
+  T-2026-11-24-07074810:
+    date: 2026-11-24
+    agent: "frontend-ux-accesibilidad + qa-validacion"
+    task: "Atender la revisión de la PR #624 de «Mis colecciones»"
+    status: Done
+    related: ["#624", "#575"]
+    notes: >
+      El buscador de recursos ya no recorta la unión de resultados propios y
+      públicos. El cliente HTTP rechaza los errores del catálogo. La prueba
+      de permisos busca el selector de estado por su nombre accesible.
   T-2026-11-21-00301750:
     agent: "metadatos-y-curacion + qa-validacion"
     task: "Editar y mostrar los metadatos técnicos de colecciones"
@@ -5414,3 +5436,14 @@ tasks:
       El paquete copia el estilo elegido y los ficheros comunes del export
       desde el editor de la imagen. El estilo queda en elpx_metadata, sin
       migración. Sin editor descargado se genera sin estilo, como antes.
+  T-2026-11-25-12514307:
+    date: 2026-11-25
+    agent: "frontend-ux-accesibilidad + qa-validacion"
+    task: "Resolver los conflictos de integración de la PR #624"
+    status: Done
+    related: ["#624", "#575", "#626"]
+    notes: >
+      Se mantienen los permisos de Mis colecciones y los formularios de
+      catalogación tras integrar main. El guardado envía solo los campos
+      modificados y el envío a revisión conserva su transición propia.
+      Pasan bun test, tipos y siete escenarios en Chromium.
