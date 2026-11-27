@@ -108,9 +108,15 @@ export function stripHtml(html: string): string {
 
 async function extractPdf(filePath: string): Promise<string> {
 	const buffer = await readFile(filePath);
-	const pdfParse = require("pdf-parse");
-	const data = await pdfParse(buffer);
-	return data.text ?? "";
+	// pdf-parse 2.x expone la clase PDFParse; ya no es una función (#651).
+	const { PDFParse } = require("pdf-parse");
+	const parser = new PDFParse({ data: buffer });
+	try {
+		const result = await parser.getText();
+		return result.text ?? "";
+	} finally {
+		await parser.destroy();
+	}
 }
 
 async function extractDocx(filePath: string): Promise<string> {
