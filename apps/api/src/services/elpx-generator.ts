@@ -270,16 +270,17 @@ export async function generateElpxFromFiles(opts: {
 			await copyFile(f.filePath, dest);
 		}
 
-		// Build ZIP from the staging directory to avoid depending on the external `zip` binary.
+		// `zip` viene en la imagen Docker (Dockerfile); python3 no (#649).
 		const allFiles = [
 			"content.xml",
 			"index.html",
 			...files.map((f) => f.filename),
 		];
-		const proc = Bun.spawn(
-			["python3", "-m", "zipfile", "-c", outputPath, ...allFiles],
-			{ cwd: workDir, stdout: "ignore", stderr: "pipe" },
-		);
+		const proc = Bun.spawn(["zip", "-q", "-X", outputPath, "--", ...allFiles], {
+			cwd: workDir,
+			stdout: "ignore",
+			stderr: "pipe",
+		});
 		const exitCode = await proc.exited;
 		if (exitCode !== 0) {
 			const stderr = await new Response(proc.stderr).text();

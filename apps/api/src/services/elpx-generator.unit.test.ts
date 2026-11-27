@@ -1,5 +1,5 @@
 import { afterAll, describe, expect, it, setDefaultTimeout } from "bun:test";
-import { mkdir, rm, writeFile } from "node:fs/promises";
+import { mkdir, rm, symlink, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { generateElpxFromFiles } from "./elpx-generator.ts";
@@ -187,6 +187,42 @@ describe("generateElpxFromFiles", () => {
 
 		const metadata = await parseElpxMetadata(outputPath);
 		expect(metadata.title).toBe("Solo metadatos");
+	});
+
+	it("genera el paquete sin python3 en el PATH, como en la imagen Docker (#649)", async () => {
+		// La imagen oven/bun no trae Python; solo `zip` (instalado en el Dockerfile).
+		const zipBin = Bun.which("zip");
+		if (!zipBin) throw new Error("zip no está instalado");
+		const binDir = path.join(TEMP_DIR, "solo-zip-bin");
+		await mkdir(binDir, { recursive: true });
+		await symlink(zipBin, path.join(binDir, "zip"));
+		const pdfPath = await makeTempFile("test649", "apuntes.pdf", "%PDF-1.4");
+		const outputPath = path.join(TEMP_DIR, "test649-output.elpx");
+
+		// Proceso hijo con un PATH donde solo existe `zip`: Bun no relee
+		// process.env.PATH al lanzar procesos desde el mismo proceso.
+		const generator = path.join(import.meta.dir, "elpx-generator.ts");
+		const proc = Bun.spawn(
+			[
+				process.execPath,
+				"-e",
+				`const { generateElpxFromFiles } = await import(${JSON.stringify(generator)});
+				await generateElpxFromFiles(${JSON.stringify({
+					title: "Sin Python",
+					files: [{ filename: "apuntes.pdf", filePath: pdfPath }],
+					outputPath,
+				})});`,
+			],
+			{ env: { PATH: binDir }, stdout: "ignore", stderr: "pipe" },
+		);
+		const stderr = await new Response(proc.stderr).text();
+		expect({ exitCode: await proc.exited, stderr }).toEqual({
+			exitCode: 0,
+			stderr: "",
+		});
+
+		const metadata = await parseElpxMetadata(outputPath);
+		expect(metadata.title).toBe("Sin Python");
 	});
 
 	it("neutraliza nombres con salto de ruta y no escribe fuera del staging (CAND-001)", async () => {
