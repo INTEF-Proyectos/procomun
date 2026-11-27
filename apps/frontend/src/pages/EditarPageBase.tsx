@@ -117,6 +117,7 @@ export default function EditarPage() {
 	const [exeSaveBtnDisabled, setExeSaveBtnDisabled] = useState(true);
 	const [exeSavingOverlayVisible, setExeSavingOverlayVisible] = useState(false);
 
+	const uploadPanelRef = useRef<HTMLDivElement>(null);
 	const exeReadyRef = useRef(false);
 	const exeSavingRef = useRef(false);
 	const exeHasChangesRef = useRef(false);
@@ -340,62 +341,6 @@ export default function EditarPage() {
 				setUserRole(role);
 				setSessionUser(session.user);
 				setState("ready");
-
-				// Initialize multi-file uploader after state settles
-				setTimeout(async () => {
-					const uploadPanel = document.getElementById("edit-multiupload-panel");
-					if (uploadPanel) {
-						const { initResourceUploader } = await import(
-							"../lib/resource-uploader.ts"
-						);
-						await initResourceUploader({
-							resourceId: id,
-							root: uploadPanel,
-							api,
-							onUploadComplete: isNew
-								? undefined
-								: async (count) => {
-										const statusEl =
-											document.getElementById("elpx-auto-status");
-										if (!statusEl) return;
-										statusEl.textContent = "Generando paquete .elpx...";
-										statusEl.className =
-											"edit-upload-status edit-upload-loading";
-										statusEl.style.display = "block";
-										try {
-											const result = await api.generateElpx(id);
-											statusEl.textContent =
-												count > 0
-													? `${count} archivo${count !== 1 ? "s" : ""} subido${count !== 1 ? "s" : ""}. Paquete .elpx actualizado.`
-													: "Paquete .elpx actualizado.";
-											statusEl.className =
-												"edit-upload-status edit-upload-success";
-											setTimeout(() => {
-												statusEl.style.display = "none";
-											}, 5000);
-
-											// Refresh the preview iframe with the new URL so deleted
-											// files disappear without a full page reload (DEF-008).
-											const iframe = document.querySelector<HTMLIFrameElement>(
-												".edit-preview-iframe",
-											);
-											if (iframe && result.previewUrl) {
-												iframe.src = result.previewUrl;
-											} else if (iframe && !result.previewUrl) {
-												// No preview available anymore – hide the section
-												const section = iframe.closest(".edit-preview-section");
-												if (section)
-													(section as HTMLElement).style.display = "none";
-											}
-										} catch (err) {
-											statusEl.textContent = `Error al generar .elpx: ${(err as Error).message || "Error desconocido"}`;
-											statusEl.className =
-												"edit-upload-status edit-upload-error";
-										}
-									},
-						});
-					}
-				}, 0);
 			} catch {
 				setState("notfound");
 			}
@@ -403,7 +348,77 @@ export default function EditarPage() {
 
 		init();
 		// eslint-disable-next-line react-hooks/exhaustive-deps
-	}, [resourceId, isNew]);
+	}, [resourceId]);
+
+	// El subidor se monta en un efecto, cuando React ya ha pintado el panel.
+	// Con un setTimeout(0) tras setState("ready"), en producción el panel aún
+	// no existía y el selector de archivos no hacía nada (#647).
+	useEffect(() => {
+		const panel = uploadPanelRef.current;
+		if (state !== "ready" || !resourceId || !panel) return;
+		const id = resourceId;
+
+		let cancelled = false;
+		let uploader: Awaited<
+			ReturnType<
+				typeof import("../lib/resource-uploader.ts").initResourceUploader
+			>
+		> = null;
+		void (async () => {
+			const api = await getApiClient();
+			const { initResourceUploader } = await import(
+				"../lib/resource-uploader.ts"
+			);
+			if (cancelled) return;
+			uploader = await initResourceUploader({
+				resourceId: id,
+				root: panel,
+				api,
+				onUploadComplete: isNew
+					? undefined
+					: async (count) => {
+							const statusEl = document.getElementById("elpx-auto-status");
+							if (!statusEl) return;
+							statusEl.textContent = "Generando paquete .elpx...";
+							statusEl.className = "edit-upload-status edit-upload-loading";
+							statusEl.style.display = "block";
+							try {
+								const result = await api.generateElpx(id);
+								statusEl.textContent =
+									count > 0
+										? `${count} archivo${count !== 1 ? "s" : ""} subido${count !== 1 ? "s" : ""}. Paquete .elpx actualizado.`
+										: "Paquete .elpx actualizado.";
+								statusEl.className = "edit-upload-status edit-upload-success";
+								setTimeout(() => {
+									statusEl.style.display = "none";
+								}, 5000);
+
+								// Refresh the preview iframe with the new URL so deleted
+								// files disappear without a full page reload (DEF-008).
+								const iframe = document.querySelector<HTMLIFrameElement>(
+									".edit-preview-iframe",
+								);
+								if (iframe && result.previewUrl) {
+									iframe.src = result.previewUrl;
+								} else if (iframe && !result.previewUrl) {
+									// No preview available anymore – hide the section
+									const section = iframe.closest(".edit-preview-section");
+									if (section) (section as HTMLElement).style.display = "none";
+								}
+							} catch (err) {
+								statusEl.textContent = `Error al generar .elpx: ${(err as Error).message || "Error desconocido"}`;
+								statusEl.className = "edit-upload-status edit-upload-error";
+							}
+						},
+			});
+			if (cancelled) uploader?.destroy();
+		})();
+
+		return () => {
+			cancelled = true;
+			uploader?.destroy();
+		};
+	}, [state, resourceId, isNew]);
 
 	async function handleFormSubmit(e: React.FormEvent) {
 		e.preventDefault();
@@ -771,7 +786,11 @@ export default function EditarPage() {
 
 						{/* Multi-file uploader */}
 						{showMultiUpload && (
-							<div id="edit-multiupload-panel" className="edit-files-section">
+							<div
+								id="edit-multiupload-panel"
+								ref={uploadPanelRef}
+								className="edit-files-section"
+							>
 								<h3>Archivos adjuntos</h3>
 								<div
 									data-upload-dropzone
