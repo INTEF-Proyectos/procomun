@@ -1,4 +1,4 @@
-import { copyFile, mkdir, rm, writeFile } from "node:fs/promises";
+import { copyFile, cp, mkdir, readdir, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { DEFAULT_LICENSE } from "@procomun/db/validation";
@@ -11,7 +11,66 @@ export type GeneratorFileEntry = {
 
 // Nombres reservados que genera el propio paquete; un archivo subido con uno de
 // estos nombres no debe poder sobrescribirlos dentro del .elpx.
-const RESERVED_PACKAGE_FILENAMES = new Set(["content.xml", "index.html"]);
+const RESERVED_PACKAGE_FILENAMES = new Set([
+	"content.xml",
+	"index.html",
+	"theme",
+	"libs",
+	"idevices",
+	"content",
+]);
+
+export const DEFAULT_ELPX_THEME = "base";
+
+/** Editor eXeLearning estático que se descarga en la imagen (Dockerfile). */
+export const EXELEARNING_EDITOR_STATIC_DIR = path.resolve(
+	import.meta.dir,
+	"../../static/exelearning-editor/static",
+);
+
+const THEMES_DIR = "files/perm/themes/base";
+
+// Ficheros comunes del export web de eXeLearning: destino en el paquete ←
+// origen en el editor. Son los que enlaza el index.html de un export (#653).
+const EXPORT_ASSETS: [string, string][] = [
+	["libs/jquery/jquery.min.js", "libs/jquery/jquery.min.js"],
+	["libs/bootstrap/bootstrap.min.css", "libs/bootstrap/bootstrap.min.css"],
+	[
+		"libs/bootstrap/bootstrap.bundle.min.js",
+		"libs/bootstrap/bootstrap.bundle.min.js",
+	],
+	["libs/common.js", "app/common/common.js"],
+	["libs/common_i18n.js", "app/common/common_i18n.js"],
+	["libs/exe_export.js", "app/common/exe_export.js"],
+	["libs/favicon.ico", "favicon.ico"],
+	["content/css/base.css", "style/workarea/base.css"],
+	["idevices/text", "files/perm/idevices/base/text/export"],
+];
+
+export type ElpxTheme = { name: string; title: string };
+
+/** Estilos que trae el editor eXeLearning; vacío si no está descargado. */
+export async function listElpxThemes(
+	editorStaticDir = EXELEARNING_EDITOR_STATIC_DIR,
+): Promise<ElpxTheme[]> {
+	const dir = path.join(editorStaticDir, THEMES_DIR);
+	const entries = await readdir(dir, { withFileTypes: true }).catch(() => []);
+	const themes: ElpxTheme[] = [];
+	for (const entry of entries) {
+		if (!entry.isDirectory()) continue;
+		const config = Bun.file(path.join(dir, entry.name, "config.xml"));
+		if (!(await config.exists())) continue;
+		const title = (await config.text()).match(/<title>([^<]*)<\/title>/)?.[1];
+		themes.push({ name: entry.name, title: title?.trim() || entry.name });
+	}
+	return themes.sort((a, b) =>
+		a.name === DEFAULT_ELPX_THEME
+			? -1
+			: b.name === DEFAULT_ELPX_THEME
+				? 1
+				: a.title.localeCompare(b.title),
+	);
+}
 
 /**
  * Reduce un nombre de archivo (potencialmente controlado por el usuario y
@@ -73,6 +132,7 @@ function buildContentXml(
 	author: string,
 	language: string | undefined,
 	license: string,
+	theme: string,
 	files: GeneratorFileEntry[],
 ): string {
 	const pageId = generateId();
@@ -102,6 +162,7 @@ function buildContentXml(
     <odeProperty><key>license</key><value>${escapeXml(license)}</value></odeProperty>
     <odeProperty><key>lom_general_language</key><value>${escapeXml(language ?? "")}</value></odeProperty>
     <odeProperty><key>pp_learningResourceType</key><value></value></odeProperty>
+    <odeProperty><key>pp_theme</key><value>${escapeXml(theme)}</value></odeProperty>
   </odeProperties>
   <odeNavStructures>
     <odeNavStructure>
@@ -179,6 +240,98 @@ ${links}
 </html>`;
 }
 
+/** index.html con la estructura del export web de eXeLearning (#653). */
+function buildStyledIndexHtml(
+	title: string,
+	language: string | undefined,
+	files: GeneratorFileEntry[],
+): string {
+	const links = files
+		.map(
+			(f) =>
+				`<li><a href="${escapeHtml(f.filename)}">${escapeHtml(f.filename)}</a></li>`,
+		)
+		.join("\n");
+	const safeTitle = escapeHtml(title);
+
+	return `<!DOCTYPE html>
+<html lang="${escapeHtml(language || "es")}" id="exe-index">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>${safeTitle}</title>
+<link rel="icon" type="image/x-icon" href="libs/favicon.ico">
+<script>document.querySelector("html").classList.add("js");</script>
+<script src="libs/jquery/jquery.min.js"></script>
+<script src="libs/common_i18n.js"></script>
+<script src="libs/common.js"></script>
+<script src="libs/exe_export.js"></script>
+<script src="libs/bootstrap/bootstrap.bundle.min.js"></script>
+<link rel="stylesheet" href="libs/bootstrap/bootstrap.min.css">
+<script src="idevices/text/text.js"></script>
+<link rel="stylesheet" href="idevices/text/text.css">
+<link rel="stylesheet" href="content/css/base.css">
+<script src="theme/style.js"></script>
+<link rel="stylesheet" href="theme/style.css">
+</head>
+<body class="exe-export exe-web-site">
+<script>document.body.className+=" js"</script>
+<div class="exe-content exe-export pre-js siteNav-hidden">
+<a href="#page-content-001" id="skipNav">Saltar al contenido</a>
+<nav id="siteNav">
+<ul>
+<li class="active"><a href="index.html" class="active main-node no-ch">${safeTitle}</a></li>
+</ul>
+</nav>
+<main id="page-content-001" class="page">
+<header class="main-header">
+<div class="page-header"><h1 class="page-title">${safeTitle}</h1></div>
+</header>
+<div id="page-content-page-content-001" class="page-content">
+<article id="block-page-content-001" class="box no-header">
+<div class="box-content">
+<div id="idevice-page-content-001" class="idevice_node text" data-idevice-path="idevices/text/" data-idevice-type="text">
+<ul>
+${links}
+</ul>
+</div>
+</div>
+</article>
+</div>
+</main>
+</div>
+</body>
+</html>`;
+}
+
+/**
+ * Copia en el staging el estilo y los ficheros comunes del export. Devuelve
+ * false si el editor no está descargado (CI, desarrollo sin `make up`).
+ */
+async function copyExportAssets(
+	editorStaticDir: string,
+	theme: string,
+	workDir: string,
+): Promise<boolean> {
+	const themes = await listElpxThemes(editorStaticDir);
+	if (themes.length === 0) return false;
+	// Solo nombres que salen del propio listado: nada de rutas del cliente.
+	if (!themes.some((t) => t.name === theme)) {
+		throw new Error(`Estilo no disponible: ${theme}`);
+	}
+	await cp(
+		path.join(editorStaticDir, THEMES_DIR, theme),
+		path.join(workDir, "theme"),
+		{ recursive: true },
+	);
+	for (const [dest, src] of EXPORT_ASSETS) {
+		await cp(path.join(editorStaticDir, src), path.join(workDir, dest), {
+			recursive: true,
+		});
+	}
+	return true;
+}
+
 /**
  * Sanea cada nombre a un basename seguro (ver {@link toSafeBundleName}) y luego
  * garantiza unicidad añadiendo un sufijo numérico cuando hace falta.
@@ -224,6 +377,9 @@ export async function generateElpxFromFiles(opts: {
 	license?: string;
 	files: GeneratorFileEntry[];
 	outputPath: string;
+	/** Estilo de eXeLearning (carpeta en el editor); por defecto «base». */
+	theme?: string;
+	editorStaticDir?: string;
 }): Promise<void> {
 	const {
 		title,
@@ -231,6 +387,8 @@ export async function generateElpxFromFiles(opts: {
 		language,
 		license = DEFAULT_LICENSE,
 		outputPath,
+		theme = DEFAULT_ELPX_THEME,
+		editorStaticDir = EXELEARNING_EDITOR_STATIC_DIR,
 	} = opts;
 	const files = sanitizeAndDeduplicateFilenames(opts.files);
 
@@ -242,15 +400,17 @@ export async function generateElpxFromFiles(opts: {
 	const resolvedWorkDir = path.resolve(workDir);
 
 	try {
-		// Write generated files to workdir
+		const styled = await copyExportAssets(editorStaticDir, theme, workDir);
 		await writeFile(
 			path.join(workDir, "content.xml"),
-			buildContentXml(title, author, language, license, files),
+			buildContentXml(title, author, language, license, theme, files),
 			"utf8",
 		);
 		await writeFile(
 			path.join(workDir, "index.html"),
-			buildIndexHtml(title, files),
+			styled
+				? buildStyledIndexHtml(title, language, files)
+				: buildIndexHtml(title, files),
 			"utf8",
 		);
 
@@ -274,13 +434,17 @@ export async function generateElpxFromFiles(opts: {
 		const allFiles = [
 			"content.xml",
 			"index.html",
+			...(styled ? ["theme", "libs", "idevices", "content"] : []),
 			...files.map((f) => f.filename),
 		];
-		const proc = Bun.spawn(["zip", "-q", "-X", outputPath, "--", ...allFiles], {
-			cwd: workDir,
-			stdout: "ignore",
-			stderr: "pipe",
-		});
+		const proc = Bun.spawn(
+			["zip", "-q", "-r", "-X", outputPath, "--", ...allFiles],
+			{
+				cwd: workDir,
+				stdout: "ignore",
+				stderr: "pipe",
+			},
+		);
 		const exitCode = await proc.exited;
 		if (exitCode !== 0) {
 			const stderr = await new Response(proc.stderr).text();

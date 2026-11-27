@@ -8,7 +8,11 @@ import { type AuthEnv, requireRole } from "../../auth/middleware.ts";
 import { canManageResource, getCurrentUser } from "../../auth/roles.ts";
 import { getDb } from "../../db.ts";
 import { elpxPreviewUrlForStatus } from "../../elpx/preview-token.ts";
-import { generateElpxFromFiles } from "../../services/elpx-generator.ts";
+import {
+	DEFAULT_ELPX_THEME,
+	generateElpxFromFiles,
+	listElpxThemes,
+} from "../../services/elpx-generator.ts";
 import {
 	parseElpxMetadata,
 	processElpxUpload,
@@ -30,6 +34,11 @@ function isElpxFile(name: string): boolean {
 }
 
 export const elpxAdminRoutes = new Hono<AuthEnv>();
+
+// Estilos de eXeLearning que se pueden aplicar al paquete generado (#653).
+elpxAdminRoutes.get("/themes", requireRole("author"), async (c) =>
+	c.json(await listElpxThemes()),
+);
 
 elpxAdminRoutes.post("/analyze", requireRole("author"), async (c) => {
 	const body = await c.req.parseBody();
@@ -292,6 +301,31 @@ elpxAdminRoutes.post(
 			return c.json({ error: "Permisos insuficientes" }, 403);
 		}
 
+		// Estilo: el pedido, o el del paquete actual, o «base» (#653). Solo se
+		// aceptan nombres del listado del editor; sin editor, solo «base».
+		const body = (await c.req.json().catch(() => ({}))) as {
+			theme?: unknown;
+		};
+		const existingElpx = await repo.getElpxProjectByResourceId(
+			getDb().db,
+			resourceId,
+		);
+		const available = new Set([
+			DEFAULT_ELPX_THEME,
+			...(await listElpxThemes()).map((t) => t.name),
+		]);
+		const previousTheme = (existingElpx?.elpxMetadata as { theme?: string })
+			?.theme;
+		let theme = DEFAULT_ELPX_THEME;
+		if (body.theme !== undefined) {
+			if (typeof body.theme !== "string" || !available.has(body.theme)) {
+				return c.json({ error: "Estilo no disponible" }, 400);
+			}
+			theme = body.theme;
+		} else if (previousTheme && available.has(previousTheme)) {
+			theme = previousTheme;
+		}
+
 		const config = getUploadConfig();
 		const mediaRows = await repo.listMediaItemsForResource(
 			getDb().db,
@@ -321,6 +355,7 @@ elpxAdminRoutes.post(
 				license: resource.license ?? DEFAULT_LICENSE,
 				files: filesToBundle,
 				outputPath: tempOutput,
+				theme,
 			});
 		} catch (err: unknown) {
 			const message =
@@ -330,10 +365,6 @@ elpxAdminRoutes.post(
 			return c.json({ error: message }, 500);
 		}
 
-		const existingElpx = await repo.getElpxProjectByResourceId(
-			getDb().db,
-			resourceId,
-		);
 		if (existingElpx) {
 			await retireWorkingCopyProject(getDb().db, existingElpx);
 		}

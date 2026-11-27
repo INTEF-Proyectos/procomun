@@ -366,6 +366,8 @@ export interface ElpxProjectInfo {
 		license: string;
 		language: string;
 		learningResourceType: string;
+		/** Estilo de eXeLearning del paquete (#653); vacío en paquetes antiguos. */
+		theme?: string;
 	} | null;
 	originalFilename: string;
 	version: number;
@@ -586,7 +588,12 @@ export interface ApiClient {
 		mediaItemId: string,
 	): Promise<{ id: string; deleted: boolean }>;
 	getElpxProject(resourceId: string): Promise<ElpxProjectInfo | null>;
-	generateElpx(resourceId: string): Promise<{
+	/** Estilos de eXeLearning aplicables al paquete generado (#653). */
+	getElpxThemes(): Promise<{ name: string; title: string }[]>;
+	generateElpx(
+		resourceId: string,
+		theme?: string,
+	): Promise<{
 		ok: boolean;
 		elpxHash: string;
 		hasPreview: boolean;

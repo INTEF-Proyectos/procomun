@@ -608,10 +608,22 @@ export class HttpApiClient implements ApiClient {
 		return res.json();
 	}
 
-	async generateElpx(resourceId: string) {
+	async getElpxThemes() {
+		const res = await fetch("/api/admin/elpx/themes", {
+			credentials: "include",
+		});
+		if (!res.ok) return [];
+		return res.json();
+	}
+
+	async generateElpx(resourceId: string, theme?: string) {
 		const res = await fetch(`/api/admin/elpx/generate/${resourceId}`, {
 			method: "POST",
 			credentials: "include",
+			...(theme && {
+				headers: { "content-type": "application/json" },
+				body: JSON.stringify({ theme }),
+			}),
 		});
 		if (!res.ok) {
 			const err = await res.json().catch(() => ({}));

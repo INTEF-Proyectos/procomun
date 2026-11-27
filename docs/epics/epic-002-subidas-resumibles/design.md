@@ -54,3 +54,13 @@
 - el `.elpx` derivado sigue registrándose como `elpx_project`
 - los archivos originales siguen existiendo como `media_items`
 - cada archivo sigue disponiendo de URL directa reutilizable
+
+## Actualización 2026-11-27 — Estilos del `.elpx` generado (#653)
+
+Los recursos creados a mano reciben un `.elpx` generado por la plataforma. Hasta ahora era un `index.html` sin estilo; ahora sigue la estructura del export web de eXeLearning.
+
+- **Origen de los estilos.** El editor eXeLearning estático que se descarga en la imagen trae los estilos oficiales en `static/files/perm/themes/base/<estilo>/`. `listElpxThemes()` los lista leyendo cada `config.xml`. Si el editor no está (CI, desarrollo sin `make up`), la lista sale vacía y el paquete se genera como antes, pero declarando `pp_theme=base`.
+- **Contenido del paquete.** El generador copia `theme/` (el estilo elegido), `libs/` (jQuery, Bootstrap, `common.js`, `common_i18n.js`, `exe_export.js`, favicon), `content/css/base.css` e `idevices/text/`. Suman unos 1,7 MB con `base`. Los adjuntos siguen en la raíz; si uno se llama como una de esas carpetas, se renombra.
+- **Persistencia.** El estilo va en `pp_theme` de `content.xml`. Al procesar el paquete queda en `elpx_projects.elpx_metadata.theme`, así que no hace falta migración.
+- **API.** `GET /api/admin/elpx/themes` devuelve `{ name, title }[]`. `POST /api/admin/elpx/generate/:id` acepta `{ theme }`: solo nombres del listado (o `base`), cualquier otro da 400. Sin `theme`, se conserva el del paquete actual si sigue disponible.
+- **Interfaz.** En la edición, «Estilo del recurso» aparece encima de los adjuntos cuando hay más de un estilo. Al crear el recurso se aplica al guardar; después, al cambiarlo se regenera el paquete y se refresca la vista previa.

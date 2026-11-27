@@ -17,4 +17,10 @@ describe("EditarPageBase — subidor de archivos (#647)", () => {
 			/useEffect\(\(\) => \{\s*const panel = uploadPanelRef\.current;/,
 		);
 	});
+
+	test("recarga el recurso al pasar de nuevo a editar (isNew en las dependencias)", () => {
+		// Al crear, la URL pierde `&new=1`; sin recargar no aparece la vista
+		// previa del paquete recién generado.
+		expect(src).toContain("}, [resourceId, isNew]);");
+	});
 });

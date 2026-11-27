@@ -11,6 +11,8 @@ export type ElpxMetadata = {
 	odeVersionId: string;
 	/** Versión de eXeLearning que generó el paquete (clave exe_version). */
 	exeVersion: string;
+	/** Estilo de eXeLearning del paquete (clave pp_theme). */
+	theme: string;
 };
 
 export const METADATA_KEYS: Record<string, keyof ElpxMetadata> = {
@@ -22,6 +24,7 @@ export const METADATA_KEYS: Record<string, keyof ElpxMetadata> = {
 	lom_general_language: "language",
 	pp_lang: "language",
 	pp_learningResourceType: "learningResourceType",
+	pp_theme: "theme",
 };
 
 // Identificadores que eXeLearning serializa como <odeResource> (no <odeProperty>).
@@ -43,6 +46,7 @@ export function emptyMetadata(): ElpxMetadata {
 		odeId: "",
 		odeVersionId: "",
 		exeVersion: "",
+		theme: "",
 	};
 }
 

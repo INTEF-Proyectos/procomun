@@ -5404,3 +5404,13 @@ tasks:
       Se conservan las pruebas de autoría y de traducción de la ficha.
       La fusión y el borrado con reasignación revierten los cambios si falla
       una escritura. Pasan 25 pruebas específicas y la comprobación de tipos.
+  T-2026-11-27-09350390:
+    date: 2026-11-27
+    agent: "backend-api-servicios + frontend-ux-accesibilidad + qa-validacion"
+    task: "Estilo de eXeLearning en el .elpx generado para recursos creados a mano, con selector"
+    status: Done
+    related: ["#653"]
+    notes: >
+      El paquete copia el estilo elegido y los ficheros comunes del export
+      desde el editor de la imagen. El estilo queda en elpx_metadata, sin
+      migración. Sin editor descargado se genera sin estilo, como antes.

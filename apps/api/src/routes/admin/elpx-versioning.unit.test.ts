@@ -157,3 +157,38 @@ describe("POST /api/admin/elpx/generate/:resourceId", () => {
 		expect(metadata?.language).toBe("");
 	});
 });
+
+describe("estilos del paquete generado (#653)", () => {
+	test("GET /themes devuelve la lista de estilos del editor", async () => {
+		const res = await createApp().request("/api/admin/elpx/themes");
+		expect(res.status).toBe(200);
+		expect(Array.isArray(await res.json())).toBe(true);
+	});
+
+	test("sin estilo en la petición, el paquete se genera con «base»", async () => {
+		const app = createApp();
+		const { id } = await seedResource();
+
+		const res = await app.request(`/api/admin/elpx/generate/${id}`, {
+			method: "POST",
+		});
+		expect(res.status).toBe(200);
+
+		const project = await repo.getElpxProjectByResourceId(getDb().db, id);
+		const metadata = project?.elpxMetadata as { theme?: string } | null;
+		expect(metadata?.theme).toBe("base");
+	});
+
+	test("un estilo que no existe se rechaza con 400", async () => {
+		const app = createApp();
+		const { id } = await seedResource();
+
+		const res = await app.request(`/api/admin/elpx/generate/${id}`, {
+			method: "POST",
+			headers: { "content-type": "application/json" },
+			body: JSON.stringify({ theme: "../inventado" }),
+		});
+		expect(res.status).toBe(400);
+		expect(await repo.getElpxProjectByResourceId(getDb().db, id)).toBeFalsy();
+	});
+});
