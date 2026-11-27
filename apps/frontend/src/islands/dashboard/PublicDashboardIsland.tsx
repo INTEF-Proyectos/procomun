@@ -29,6 +29,7 @@ import { ResourceGrid } from "../../ui/ResourceGrid.tsx";
 import { Skeleton } from "../../ui/Skeleton.tsx";
 import { Tabs } from "../../ui/Tabs.tsx";
 import { UserAvatar } from "../../ui/UserAvatar.tsx";
+import { CollectionsCrudIsland } from "../crud/CollectionsCrudIsland.tsx";
 import { AccountTab } from "./AccountTab.tsx";
 import { ApiKeysTab } from "./ApiKeysTab.tsx";
 import { MyResourcesTab } from "./MyResourcesTab.tsx";
@@ -88,6 +89,15 @@ export function dashboardResourceCounts(data: {
 	};
 }
 
+/**
+ * #575: autores y editores ven «Mis colecciones» aunque todavía no tengan
+ * ninguna, para que sepan que existe (revisión de #624). El curator las
+ * gestiona en el backoffice.
+ */
+export function showsMyCollectionsTab(role: string | undefined): boolean {
+	return hasMinRole(role, "author") && !hasMinRole(role, "curator");
+}
+
 /** El avatar del perfil mide 6rem (96 px): se pide al doble para pantallas densas. */
 const PROFILE_AVATAR_SIZE = 192;
 
@@ -108,6 +118,7 @@ export function profileAvatarUrl(
  */
 export const PROFILE_TABS: readonly string[] = [
 	"resources",
+	"collections",
 	"favorites",
 	"ratings",
 	"activity",
@@ -717,7 +728,8 @@ export function PublicDashboardIsland() {
 	const validTabs = PROFILE_TABS;
 	const defaultTab =
 		tabParam && validTabs.includes(tabParam)
-			? tabParam === "api-keys" && !hasMinRole(user.role, "author")
+			? (tabParam === "api-keys" && !hasMinRole(user.role, "author")) ||
+				(tabParam === "collections" && !showsMyCollectionsTab(user.role))
 				? "resources"
 				: tabParam
 			: "resources";
@@ -766,6 +778,19 @@ export function PublicDashboardIsland() {
 			content: <ActivityTab />,
 		},
 	];
+
+	if (showsMyCollectionsTab(user.role)) {
+		tabs.splice(1, 0, {
+			id: "collections",
+			label: m.profile_my_collections(),
+			icon: "collections_bookmark",
+			content: (
+				<div className="dashboard-tab-content">
+					<CollectionsCrudIsland user={{ id: user.id, role: user.role }} />
+				</div>
+			),
+		});
+	}
 
 	if (hasMinRole(user.role, "author")) {
 		tabs.push({

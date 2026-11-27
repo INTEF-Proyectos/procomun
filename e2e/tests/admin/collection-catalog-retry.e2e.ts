@@ -22,9 +22,9 @@ test("el alta de colecciones avisa si falla el catálogo de áreas y deja reinte
 		.locator("section.admin-inline-form")
 		.filter({ hasText: "Nueva coleccion" });
 	const title = `Colección sin catálogo ${Date.now()}`;
-	await form.getByLabel("Titulo", { exact: true }).fill(title);
+	await form.getByLabel("Título", { exact: true }).fill(title);
 	await form
-		.getByLabel("Descripcion", { exact: true })
+		.getByLabel("Descripción", { exact: true })
 		.fill("Descripción de prueba");
 
 	const notice = form
@@ -36,8 +36,8 @@ test("el alta de colecciones avisa si falla el catálogo de áreas y deja reinte
 	await notice.getByRole("button", { name: "Reintentar" }).click();
 	await expect(notice).toHaveCount(0);
 	// Lo escrito sigue en el formulario.
-	await expect(form.getByLabel("Titulo", { exact: true })).toHaveValue(title);
-	await expect(form.getByLabel("Descripcion", { exact: true })).toHaveValue(
+	await expect(form.getByLabel("Título", { exact: true })).toHaveValue(title);
+	await expect(form.getByLabel("Descripción", { exact: true })).toHaveValue(
 		"Descripción de prueba",
 	);
 

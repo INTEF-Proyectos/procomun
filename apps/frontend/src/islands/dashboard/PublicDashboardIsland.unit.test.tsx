@@ -10,6 +10,7 @@ import {
 	profileAvatarUrl,
 	profileChanges,
 	roleLabel,
+	showsMyCollectionsTab,
 	withFavoriteCount,
 } from "./PublicDashboardIsland.tsx";
 
@@ -195,5 +196,19 @@ describe("profileChanges (#533, revisión de #586)", () => {
 			}),
 		).toEqual({ bio: "", profile: { locality: "", twitter: "@ana" } });
 		expect(profileChanges(original, original)).toEqual({});
+	});
+});
+
+describe("showsMyCollectionsTab (#575, revisión de #624)", () => {
+	test("la pestaña sale a autores y editores aunque no tengan colecciones", () => {
+		expect(showsMyCollectionsTab("author")).toBe(true);
+		expect(showsMyCollectionsTab("editor")).toBe(true);
+	});
+
+	test("no sale a lectores ni a quien gestiona colecciones en el backoffice", () => {
+		expect(showsMyCollectionsTab("reader")).toBe(false);
+		expect(showsMyCollectionsTab(undefined)).toBe(false);
+		expect(showsMyCollectionsTab("curator")).toBe(false);
+		expect(showsMyCollectionsTab("admin")).toBe(false);
 	});
 });
