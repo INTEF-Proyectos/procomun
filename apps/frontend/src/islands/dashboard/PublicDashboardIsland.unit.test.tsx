@@ -4,13 +4,13 @@ import { renderToStaticMarkup } from "react-dom/server";
 import type { DashboardSummary } from "../../lib/types/user-extended.ts";
 import {
 	dashboardResourceCounts,
-	detectOwnCollections,
 	hasEmailVerificationSuccess,
 	PROFILE_TABS,
 	PublicDashboardIsland,
 	profileAvatarUrl,
 	profileChanges,
 	roleLabel,
+	showsMyCollectionsTab,
 	withFavoriteCount,
 } from "./PublicDashboardIsland.tsx";
 
@@ -199,28 +199,16 @@ describe("profileChanges (#533, revisión de #586)", () => {
 	});
 });
 
-describe("detectOwnCollections (#575)", () => {
-	const withTotal = (total: number) => () => Promise.resolve({ total });
-
-	test("solo consulta para autores y editores", async () => {
-		let calls = 0;
-		const list = () => {
-			calls++;
-			return Promise.resolve({ total: 3 });
-		};
-		expect(await detectOwnCollections("viewer", list)).toBe(false);
-		expect(await detectOwnCollections("curator", list)).toBe(false);
-		expect(await detectOwnCollections("admin", list)).toBe(false);
-		expect(calls).toBe(0);
-		expect(await detectOwnCollections("author", list)).toBe(true);
-		expect(await detectOwnCollections("editor", withTotal(0))).toBe(false);
+describe("showsMyCollectionsTab (#575, revisión de #624)", () => {
+	test("la pestaña sale a autores y editores aunque no tengan colecciones", () => {
+		expect(showsMyCollectionsTab("author")).toBe(true);
+		expect(showsMyCollectionsTab("editor")).toBe(true);
 	});
 
-	test("un fallo devuelve null para no ocultar la pestaña abierta", async () => {
-		expect(
-			await detectOwnCollections("editor", () =>
-				Promise.reject(new Error("500")),
-			),
-		).toBeNull();
+	test("no sale a lectores ni a quien gestiona colecciones en el backoffice", () => {
+		expect(showsMyCollectionsTab("reader")).toBe(false);
+		expect(showsMyCollectionsTab(undefined)).toBe(false);
+		expect(showsMyCollectionsTab("curator")).toBe(false);
+		expect(showsMyCollectionsTab("admin")).toBe(false);
 	});
 });

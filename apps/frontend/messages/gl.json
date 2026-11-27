@@ -203,6 +203,7 @@
 	"collection_updated": "Actualizado",
 	"collection_search_hint": "Título ou descrición",
 	"collection_empty": "Non hai coleccións para os filtros actuais.",
+	"collection_mine_empty": "Aínda non tes coleccións. Aquí aparecerán os teus itinerarios do Procomún antigo cando se importen.",
 	"collection_load_error": "Non se puideron cargar as coleccións.",
 	"collection_edit": "Editar colección",
 	"collection_ordered": "Orde fixa",

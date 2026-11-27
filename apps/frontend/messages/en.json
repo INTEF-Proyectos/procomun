@@ -203,6 +203,7 @@
 	"collection_updated": "Updated",
 	"collection_search_hint": "Title or description",
 	"collection_empty": "No collections match these filters.",
+	"collection_mine_empty": "You don't have any collections yet. Your itineraries from the old Procomún will appear here once they are imported.",
 	"collection_load_error": "Could not load collections.",
 	"collection_edit": "Edit collection",
 	"collection_ordered": "Fixed order",

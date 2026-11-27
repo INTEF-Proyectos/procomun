@@ -917,7 +917,12 @@ export function CollectionsCrudIsland({
 				columns={columns}
 				rows={rows}
 				getRowKey={(row) => row.id}
-				emptyMessage={m.collection_empty()}
+				emptyMessage={
+					// Sin búsqueda, el propietario aún no tiene colecciones (revisión de #624).
+					canCurate || appliedSearch
+						? m.collection_empty()
+						: m.collection_mine_empty()
+				}
 			/>
 
 			{total > PAGE_SIZE && (

@@ -203,6 +203,7 @@
 	"collection_updated": "Eguneratua",
 	"collection_search_hint": "Izenburua edo deskribapena",
 	"collection_empty": "Ez dago iragazki hauekin bat datorren bildumarik.",
+	"collection_mine_empty": "Oraindik ez duzu bildumarik. Procomún zaharreko zure ibilbideak hemen agertuko dira inportatzen direnean.",
 	"collection_load_error": "Ezin izan dira bildumak kargatu.",
 	"collection_edit": "Editatu bilduma",
 	"collection_ordered": "Ordena finkoa",

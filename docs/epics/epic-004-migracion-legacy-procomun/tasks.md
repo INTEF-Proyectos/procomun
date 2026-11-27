@@ -256,3 +256,8 @@ Los JSON/`.elpx` de `ode-export/` contienen datos personales reales (nombres y e
 - [x] El buscador de recursos muestra los resultados propios y los del catálogo público sin recortar la unión.
 - [x] `listResources` rechaza ante un error HTTP, así que un fallo del catálogo no vacía los resultados propios.
 - [x] La prueba E2E de permisos comprueba la ausencia del selector de estado por su nombre accesible.
+
+## Revisión de la PR #624 — 2026-11-27 (#575)
+
+- [x] La pestaña «Mis colecciones» sale siempre a autores y editores, aunque no tengan colecciones, para que sepan que existe.
+- [x] Sin colecciones y sin búsqueda, la tabla explica que ahí aparecerán sus itinerarios del Procomún antiguo cuando se importen.

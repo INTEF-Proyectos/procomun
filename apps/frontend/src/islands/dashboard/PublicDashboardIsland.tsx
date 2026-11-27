@@ -90,22 +90,12 @@ export function dashboardResourceCounts(data: {
 }
 
 /**
- * #575: si el autor o editor tiene colecciones propias, para mostrar «Mis
- * colecciones». El curator las gestiona en el backoffice. Devuelve null si la
- * consulta falla: en una recarga silenciosa se conserva el valor anterior y la
- * pestaña abierta no desaparece por un fallo de red.
+ * #575: autores y editores ven «Mis colecciones» aunque todavía no tengan
+ * ninguna, para que sepan que existe (revisión de #624). El curator las
+ * gestiona en el backoffice.
  */
-export function detectOwnCollections(
-	role: string | undefined,
-	listCollections: () => Promise<{ total: number }>,
-): Promise<boolean | null> {
-	if (!hasMinRole(role, "author") || hasMinRole(role, "curator")) {
-		return Promise.resolve(false);
-	}
-	return listCollections().then(
-		(result) => result.total > 0,
-		() => null,
-	);
+export function showsMyCollectionsTab(role: string | undefined): boolean {
+	return hasMinRole(role, "author") && !hasMinRole(role, "curator");
 }
 
 /** El avatar del perfil mide 6rem (96 px): se pide al doble para pantallas densas. */
@@ -518,7 +508,6 @@ export function PublicDashboardIsland() {
 	// #532: el correo de la sesión, para la pestaña «Cuenta». El perfil público
 	// (dashboard.user) no lo lleva, a propósito.
 	const [sessionEmail, setSessionEmail] = useState("");
-	const [hasOwnCollections, setHasOwnCollections] = useState(false);
 	const [badgeConfig, setBadgeConfig] =
 		useState<import("../../lib/api-client.ts").BadgeConfig>(
 			DEFAULT_BADGE_CONFIG,
@@ -546,26 +535,21 @@ export function PublicDashboardIsland() {
 			}
 
 			// Fetch dashboard data + badge config + perfil persistido (DEF-004: incluye bio)
-			const [dashData, config, profile, avatarUrl, hasCollections] =
-				await Promise.all([
-					api.getUserDashboard().catch(() => ({
-						draftCount: 0,
-						publishedCount: 0,
-						reviewCount: 0,
-						archivedCount: 0,
-						resourceCount: 0,
-						favoriteCount: 0,
-						ratingCount: 0,
-					})),
-					api.getBadgeConfig().catch(() => null),
-					api.getMyProfile().catch(() => undefined),
-					profileAvatarUrl(user),
-					detectOwnCollections(user.role, () =>
-						api.listCollections({ limit: 1 }),
-					),
-				]);
+			const [dashData, config, profile, avatarUrl] = await Promise.all([
+				api.getUserDashboard().catch(() => ({
+					draftCount: 0,
+					publishedCount: 0,
+					reviewCount: 0,
+					archivedCount: 0,
+					resourceCount: 0,
+					favoriteCount: 0,
+					ratingCount: 0,
+				})),
+				api.getBadgeConfig().catch(() => null),
+				api.getMyProfile().catch(() => undefined),
+				profileAvatarUrl(user),
+			]);
 			if (config) setBadgeConfig(config);
-			if (hasCollections !== null) setHasOwnCollections(hasCollections);
 			setProfileLoadFailed(profile === undefined);
 			setProfileDetails(profile?.profile ?? EMPTY_PROFILE_DETAILS);
 
@@ -745,7 +729,7 @@ export function PublicDashboardIsland() {
 	const defaultTab =
 		tabParam && validTabs.includes(tabParam)
 			? (tabParam === "api-keys" && !hasMinRole(user.role, "author")) ||
-				(tabParam === "collections" && !hasOwnCollections)
+				(tabParam === "collections" && !showsMyCollectionsTab(user.role))
 				? "resources"
 				: tabParam
 			: "resources";
@@ -795,7 +779,7 @@ export function PublicDashboardIsland() {
 		},
 	];
 
-	if (hasOwnCollections) {
+	if (showsMyCollectionsTab(user.role)) {
 		tabs.splice(1, 0, {
 			id: "collections",
 			label: m.profile_my_collections(),

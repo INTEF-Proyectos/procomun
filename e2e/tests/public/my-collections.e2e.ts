@@ -157,18 +157,17 @@ test("el editor añade y quita un recurso publicado desde la colección", async 
 	await expect(rows.getByRole("button", { name: "Añadir" })).toBeVisible();
 });
 
-test("un editor sin colecciones no ve la pestaña ni puede abrirla por URL", async ({
+test("un editor sin colecciones ve la pestaña con un aviso", async ({
 	page,
 }) => {
 	await collectionsForOwner(page, "editor", false);
 	await page.goto("/perfil?tab=collections");
-	await expect(page.getByRole("tab", { name: /Mis recursos/ })).toHaveAttribute(
-		"aria-selected",
-		"true",
-	);
-	await expect(page.getByRole("tab", { name: "Mis colecciones" })).toHaveCount(
-		0,
-	);
+	await expect(
+		page.getByRole("tab", { name: "Mis colecciones" }),
+	).toHaveAttribute("aria-selected", "true");
+	await expect(
+		page.getByText("Todavía no tienes colecciones.", { exact: false }),
+	).toBeVisible();
 });
 
 for (const role of ["curator", "admin"] as const) {

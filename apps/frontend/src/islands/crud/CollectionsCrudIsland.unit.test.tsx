@@ -49,6 +49,14 @@ describe("CollectionsCrudIsland", () => {
 		expect(html).toContain("admin-table");
 	});
 
+	test("el propietario sin colecciones ve un aviso en lugar de «filtros actuales» (revisión de #624)", () => {
+		const html = renderToStaticMarkup(
+			<CollectionsCrudIsland user={{ id: "user-1", role: "author" }} />,
+		);
+		expect(html).toContain("Todavía no tienes colecciones.");
+		expect(html).not.toContain("No hay colecciones para los filtros actuales.");
+	});
+
 	test("oculta el alta y el borrado para propietarios sin rol de curación", () => {
 		const user = { id: "user-1", role: "editor" };
 		const html = renderToStaticMarkup(<CollectionsCrudIsland user={user} />);
